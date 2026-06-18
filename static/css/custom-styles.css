@@ -1,0 +1,538 @@
+/*
+     * Georgian Unicode: system-ui includes Sylfaen on Windows, which covers the
+     * Georgian Mkhedruli script. Noto Sans is a safe cross-platform fallback.
+     */
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans",
+        "DejaVu Sans", Arial, sans-serif;
+    }
+
+    /* Thin scrollbar inside sidebar nav */
+    .sidebar-scroll::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    .sidebar-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .sidebar-scroll::-webkit-scrollbar-thumb {
+      background: #e5e7eb;
+      border-radius: 2px;
+    }
+
+    /* Brand font for headings */
+    h1, h2, h3, h4, .font-brand {
+        font-family: 'Teko', sans-serif;
+        letter-spacing: 0.05em;
+    }
+    /* Make page titles use the brand color */
+    .page-section > h2 {
+      color: #CC0000;
+      /* Dark mode override */
+      body.dark-mode & { color: #f87171 !important; }
+    }
+
+    /* Prevent the active menu text from wrapping */
+    .nav-label {
+      white-space: nowrap;
+    }
+
+    /* Prose styling for migrated KB article HTML & news HTML (Tailwind preflight resets
+       headings/lists, so restore sensible defaults inside the reader modals). */
+    #article-modal-content,
+    #news-modal-content {
+      max-width: 65ch;
+    }
+
+    /* [3.1] Constrain line length for readability */
+    #article-modal-content h1,
+    #news-modal-content h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin: .75rem 0 .5rem;
+      color: #1f2937;
+    }
+
+    #article-modal-content h2,
+    #news-modal-content h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin: .7rem 0 .4rem;
+      color: #1f2937;
+    }
+
+    #article-modal-content h3,
+    #news-modal-content h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin: .6rem 0 .3rem;
+      color: #374151;
+    }
+
+    #article-modal-content p,
+    #news-modal-content p {
+      margin: .5rem 0;
+      line-height: 1.75;
+    }
+
+    /* [3.1] */
+    #article-modal-content ul,
+    #news-modal-content ul {
+      list-style: disc;
+      padding-left: 1.5rem;
+      margin: .5rem 0;
+    }
+
+    #article-modal-content ol,
+    #news-modal-content ol {
+      list-style: decimal;
+      padding-left: 1.5rem;
+      margin: .5rem 0;
+    }
+
+    /* [3.1] Improved line-height for 8hr reading */
+    #article-modal-content li,
+    #news-modal-content li {
+      line-height: 1.75;
+      margin: .25rem 0;
+    }
+
+    #article-modal-content a,
+    #news-modal-content a {
+      color: #CC0000;
+      text-decoration: underline;
+    }
+
+    #article-modal-content img,
+    #news-modal-content img {
+      max-width: 100%;
+      height: auto;
+      border-radius: .5rem;
+      margin: .5rem 0;
+    }
+
+    #article-modal-content table,
+    #news-modal-content table {
+      border-collapse: collapse;
+      margin: .5rem 0;
+    }
+
+    #article-modal-content td,
+    #article-modal-content th,
+    #news-modal-content td,
+    #news-modal-content th {
+      border: 1px solid #e5e7eb;
+      padding: .4rem .6rem;
+    }
+
+    /* [3.4] Stable scrollbar gutter for article modal */
+    #article-modal .overflow-y-auto {
+      scrollbar-gutter: stable;
+    }
+
+    /* Dynamic Theme Color overrides (remapping brand color #CC0000 on the body element) */
+    body.theme-navy .text-\[\#CC0000\] {
+      color: #1e3a8a !important;
+    }
+
+    body.theme-navy .bg-\[\#CC0000\] {
+      background-color: #1e3a8a !important;
+    }
+
+    body.theme-navy .border-\[\#CC0000\] {
+      border-color: #1e3a8a !important;
+    }
+
+    body.theme-navy .hover\:text-\[\#CC0000\]:hover {
+      color: #172554 !important;
+    }
+
+    body.theme-navy .hover\:bg-\[\#CC0000\]:hover {
+      background-color: #172554 !important;
+    }
+
+    body.theme-navy .hover\:bg-red-700:hover {
+      background-color: #172554 !important;
+    }
+
+    body.theme-navy .bg-red-50 {
+      background-color: #eff6ff !important;
+    }
+
+    body.theme-navy .bg-red-100 {
+      background-color: #dbeafe !important;
+    }
+
+    body.theme-navy .text-red-700 {
+      color: #1d4ed8 !important;
+    }
+
+    body.theme-navy .shadow-red-600\/10 {
+      --tw-shadow-color: rgba(30, 58, 138, 0.1) !important;
+    }
+
+    body.theme-navy .focus\:ring-\[\#CC0000\]:focus {
+      --tw-ring-color: rgba(30, 58, 138, 0.2) !important;
+    }
+
+    body.theme-navy .focus\:ring-red-600\/10:focus {
+      --tw-ring-color: rgba(30, 58, 138, 0.2) !important;
+    }
+
+    body.theme-emerald .text-\[\#CC0000\] {
+      color: #059669 !important;
+    }
+
+    body.theme-emerald .bg-\[\#CC0000\] {
+      background-color: #059669 !important;
+    }
+
+    body.theme-emerald .border-\[\#CC0000\] {
+      border-color: #059669 !important;
+    }
+
+    body.theme-emerald .hover\:text-\[\#CC0000\]:hover {
+      color: #064e3b !important;
+    }
+
+    body.theme-emerald .hover\:bg-\[\#CC0000\]:hover {
+      background-color: #064e3b !important;
+    }
+
+    body.theme-emerald .hover\:bg-red-700:hover {
+      background-color: #064e3b !important;
+    }
+
+    body.theme-emerald .bg-red-50 {
+      background-color: #ecfdf5 !important;
+    }
+
+    body.theme-emerald .bg-red-100 {
+      background-color: #d1fae5 !important;
+    }
+
+    body.theme-emerald .text-red-700 {
+      color: #047857 !important;
+    }
+
+    body.theme-emerald .shadow-red-600\/10 {
+      --tw-shadow-color: rgba(5, 150, 105, 0.1) !important;
+    }
+
+    body.theme-emerald .focus\:ring-\[\#CC0000\]:focus {
+      --tw-ring-color: rgba(5, 150, 105, 0.2) !important;
+    }
+
+    body.theme-emerald .focus\:ring-red-600\/10:focus {
+      --tw-ring-color: rgba(5, 150, 105, 0.2) !important;
+    }
+
+    body.theme-slate .text-\[\#CC0000\] {
+      color: #475569 !important;
+    }
+
+    body.theme-slate .bg-\[\#CC0000\] {
+      background-color: #475569 !important;
+    }
+
+    body.theme-slate .border-\[\#CC0000\] {
+      border-color: #475569 !important;
+    }
+
+    body.theme-slate .hover\:text-\[\#CC0000\]:hover {
+      color: #1e293b !important;
+    }
+
+    body.theme-slate .hover\:bg-\[\#CC0000\]:hover {
+      background-color: #1e293b !important;
+    }
+
+    body.theme-slate .hover\:bg-red-700:hover {
+      background-color: #1e293b !important;
+    }
+
+    body.theme-slate .bg-red-50 {
+      background-color: #f8fafc !important;
+    }
+
+    body.theme-slate .bg-red-100 {
+      background-color: #f1f5f9 !important;
+    }
+
+    body.theme-slate .text-red-700 {
+      color: #334155 !important;
+    }
+
+    body.theme-slate .shadow-red-600\/10 {
+      --tw-shadow-color: rgba(71, 85, 105, 0.1) !important;
+    }
+
+    body.theme-slate .focus\:ring-\[\#CC0000\]:focus {
+      --tw-ring-color: rgba(71, 85, 105, 0.2) !important;
+    }
+
+    body.theme-slate .focus\:ring-red-600\/10:focus {
+      --tw-ring-color: rgba(71, 85, 105, 0.2) !important;
+    }
+
+    /* Dark Mode Global Overrides */
+    body.dark-mode {
+      background-color: #121212 !important;
+      color: #e5e7eb !important;
+    }
+
+    body.dark-mode .bg-white,
+    body.dark-mode .bg-gray-50,
+    body.dark-mode .bg-slate-50,
+    body.dark-mode .bg-red-50 {
+      background-color: #1e1e1e !important;
+      border-color: #333 !important;
+      color: #e5e7eb !important;
+    }
+
+    body.dark-mode .text-gray-800,
+    body.dark-mode .text-gray-900,
+    body.dark-mode .text-gray-700 {
+      color: #e5e7eb !important;
+    }
+
+    body.dark-mode .text-gray-600,
+    body.dark-mode .text-gray-500 {
+      color: #d1d5db !important;
+    }
+
+    /* [3.2] Fixed: was #9ca3af (3.6:1), now #d1d5db (10:1) */
+    body.dark-mode header,
+    body.dark-mode aside {
+      background-color: #1a1a1a !important;
+      border-color: #333 !important;
+    }
+
+    body.dark-mode input,
+    body.dark-mode textarea,
+    body.dark-mode select {
+      background-color: #2d2d2d !important;
+      border-color: #444 !important;
+      color: #fff !important;
+    }
+
+    body.dark-mode .shadow-sm,
+    body.dark-mode .shadow-md,
+    body.dark-mode .shadow-lg {
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5) !important;
+    }
+
+    body.dark-mode .bg-red-100 {
+      background-color: #450a0a !important;
+      color: #fca5a5 !important;
+    }
+
+    /* [6.2] Only dim decorative images, preserve content images in article/news modals */
+    body.dark-mode img:not(#article-modal-content img):not(#news-modal-content img) {
+      filter: brightness(0.85) contrast(1.1);
+      transition: filter 0.3s ease;
+    }
+
+    /* [3.2] Fix dark mode link contrast in article/news modals */
+    body.dark-mode #article-modal-content a,
+    body.dark-mode #news-modal-content a {
+      color: #fca5a5 !important;
+    }
+
+    /* Hamburger-toggled collapsed state: hide sidebar, stretch header + content */
+    @media (min-width: 768px) {
+      body.sidebar-collapsed #sidebar {
+        transform: translateX(-100%);
+      }
+
+      body.sidebar-collapsed header {
+        left: 0 !important;
+      }
+
+      body.sidebar-collapsed main {
+        margin-left: 0 !important;
+      }
+    }
+
+    /* Mobile open state */
+    @media (max-width: 767px) {
+      body.sidebar-open #sidebar {
+        transform: translateX(0);
+      }
+
+      body.sidebar-open #mobile-overlay {
+        display: block !important;
+      }
+
+      body.sidebar-open {
+        overflow: hidden;
+      }
+    }
+
+    /* [P0-5] ბეჭდვის რეჟიმი: სტატიის კითხვისას — hoisted out of mobile @media so print actually works on desktop */
+    @media print {
+      body>*:not(#article-modal) {
+        display: none !important;
+      }
+
+      #article-modal {
+        position: absolute !important;
+        display: block !important;
+        left: 0;
+        top: 0;
+        padding: 0 !important;
+        width: 100% !important;
+        background: white !important;
+      }
+
+      #article-modal>div:first-child {
+        display: none !important;
+      }
+
+      #article-modal>div:last-child {
+        max-height: none !important;
+        box-shadow: none !important;
+        border: none !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 0 !important;
+      }
+
+      .no-print {
+        display: none !important;
+      }
+    }
+
+    .page-section {
+      animation: fadeInPage 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes fadeInPage {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* [3.5] Respect prefers-reduced-motion for vestibular disorders */
+    @media (prefers-reduced-motion: reduce) {
+      .page-section {
+        animation: none !important;
+      }
+
+      *,
+      *::before,
+      *::after {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+      }
+    }
+
+    /* Forced Modal Theme Overrides */
+    #article-modal .relative.force-light {
+      background-color: #ffffff !important;
+      color: #1f2937 !important;
+    }
+
+    #article-modal .relative.force-light header,
+    #article-modal .relative.force-light #article-modal-scripts {
+      background-color: #ffffff !important;
+      border-color: #f3f4f6 !important;
+      color: #111827 !important;
+    }
+
+    #article-modal .relative.force-light h3,
+    #article-modal .relative.force-light p,
+    #article-modal .relative.force-light h4 {
+      color: #111827 !important;
+    }
+
+    #article-modal .relative.force-light #article-modal-content {
+      color: #374151 !important;
+    }
+
+    #article-modal .relative.force-light #article-modal-note {
+      background-color: #fef08a/20 !important;
+      border-color: #fef08a !important;
+      color: #1f2937 !important;
+    }
+
+    #article-modal .relative.force-dark {
+      background-color: #18181b !important;
+      color: #f4f4f5 !important;
+    }
+
+    #article-modal .relative.force-dark header,
+    #article-modal .relative.force-dark #article-modal-scripts {
+      background-color: #18181b !important;
+      border-color: #27272a !important;
+      color: #ffffff !important;
+    }
+
+    #article-modal .relative.force-dark h3,
+    #article-modal .relative.force-dark p,
+    #article-modal .relative.force-dark h4 {
+      color: #ffffff !important;
+    }
+
+    #article-modal .relative.force-dark #article-modal-content {
+      color: #d4d4d8 !important;
+    }
+
+    #article-modal .relative.force-dark #article-modal-note {
+      background-color: #27272a !important;
+      border-color: #3f3f46 !important;
+      color: #ffffff !important;
+    }
+
+    /* Code Block Formatting inside Article Modal */
+    .prose-magti pre {
+      background-color: #0b0f19 !important;
+      color: #34d399 !important;
+      padding: 1rem !important;
+      border-radius: 0.75rem !important;
+      overflow-x: auto !important;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+      margin-top: 1rem !important;
+      margin-bottom: 1rem !important;
+      border: 1px solid #1f2937 !important;
+      white-space: pre-wrap !important;
+      text-align: left !important;
+    }
+
+    .prose-magti code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+      font-weight: 600 !important;
+    }
+
+    .prose-magti :not(pre)>code {
+      background-color: #f3f4f6 !important;
+      color: #dc2626 !important;
+      padding: 0.125rem 0.375rem !important;
+      border-radius: 0.25rem !important;
+      font-size: 0.875rem !important;
+    }
+
+    .dark .prose-magti :not(pre)>code {
+      background-color: #27272a !important;
+      color: #f87171 !important;
+    }
+
+    /* Hide scrollbar for Chrome, Safari and Opera */
+    .scrollbar-hide::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* Hide scrollbar for IE, Edge and Firefox */
+    .scrollbar-hide {
+      -ms-overflow-style: none;
+      /* IE and Edge */
+      scrollbar-width: none;
+      /* Firefox */
+    }
