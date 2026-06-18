@@ -32,6 +32,13 @@
       /* Dark mode override */
       body.dark-mode & { color: #f87171 !important; }
     }
+    /* Dashboard greeting uses neutral slate, not brand red */
+    #dashboard-greeting {
+      color: #1e293b !important;
+    }
+    body.dark-mode #dashboard-greeting {
+      color: #f4f4f5 !important;
+    }
 
     /* Prevent the active menu text from wrapping */
     .nav-label {
