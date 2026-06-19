@@ -339,6 +339,7 @@ PERM_ARTICLES_VIEW = "articles.view"
 PERM_ARTICLES_EDIT = "articles.edit"
 PERM_ARTICLES_PUBLISH = "articles.publish"
 PERM_ARTICLES_ARCHIVE = "articles.archive"
+PERM_VIDEOS_ARCHIVE = "videos.archive"
 PERM_USERS_MANAGE = "users.manage"
 PERM_COMPLIANCE_ASSIGN = "compliance.assign"
 PERM_REPORTS_EXPORT = "reports.export"
@@ -353,6 +354,7 @@ DEFAULT_PERMISSIONS_BY_ROLE: dict[str, list[str]] = {
         PERM_ARTICLES_EDIT,
         PERM_ARTICLES_PUBLISH,
         PERM_ARTICLES_ARCHIVE,
+        PERM_VIDEOS_ARCHIVE,
         PERM_COMPLIANCE_ASSIGN,
     ],
     ROLE_SYSTEM_ADMIN: [
@@ -360,6 +362,7 @@ DEFAULT_PERMISSIONS_BY_ROLE: dict[str, list[str]] = {
         PERM_ARTICLES_EDIT,
         PERM_ARTICLES_PUBLISH,
         PERM_ARTICLES_ARCHIVE,
+        PERM_VIDEOS_ARCHIVE,
         PERM_USERS_MANAGE,
         PERM_COMPLIANCE_ASSIGN,
         PERM_REPORTS_EXPORT,

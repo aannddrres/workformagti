@@ -112,12 +112,12 @@
                 <span class="nav-label">საინფორმაციო ბაზა</span>
               </a>
             </li>
-            <!-- სავალდებულო საკითხავი — red dot badge -->
+            <!-- სავალდებულოდ გასაცნობი — red dot badge -->
             <li>
               <a href="#" onclick="switchMainPage('page-reading', this); return false;"
                 class="sidebar-link flex items-center gap-3 rounded-xl px-4 py-3 text-[13px] font-medium text-gray-600 transition-all duration-200 ease-in-out hover:bg-gray-50/80 hover:text-gray-900 active:scale-[0.98]">
                 <i class="fa-solid fa-file-lines w-5 text-center text-[15px] text-gray-400"></i>
-                <span class="nav-label flex-1">სავალდებულო საკითხავი</span>
+                <span class="nav-label flex-1">სავალდებულოდ გასაცნობი</span>
                 <span id="sidebar-reading-dot" class="hidden h-2.5 w-2.5 shrink-0 rounded-full bg-[#E30613]"
                   aria-label="ახალი"></span>
               </a>
@@ -643,11 +643,11 @@
       <div id="category-view-grid" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"></div>
     </div>
 
-    <!-- ── სავალდებულო საკითხავი (Mandatory Reading) ── -->
+    <!-- ── სავალდებულოდ გასაცნობი (Mandatory Reading) ── -->
     <div id="page-reading" class="page-section hidden max-w-[1440px] mx-auto w-full px-4 md:px-6 pt-4 md:pt-6 pb-8">
       <div class="mb-8 flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
         <div class="w-full md:w-auto">
-          <h2 class="mb-4 text-4xl font-semibold uppercase tracking-wider text-gray-800">სავალდებულო საკითხავი</h2>
+          <h2 class="mb-4 text-4xl font-semibold uppercase tracking-wider text-gray-800">სავალდებულოდ გასაცნობი</h2>
           <div class="flex items-center gap-2 border-b border-gray-200">
             <button onclick="filterReadings('all', this)"
               class="reading-filter-btn border-b-2 border-[#CC0000] px-4 pb-3 text-sm font-semibold text-[#CC0000]">ყველა</button>
@@ -1079,7 +1079,7 @@
             class="flex cursor-pointer flex-col items-start rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-[#CC0000]/40 hover:shadow-md">
             <div class="mb-2 flex h-9 w-9 items-center justify-center rounded-lg bg-red-50"><i
                 class="fa-solid fa-lightbulb text-sm text-[#CC0000]"></i></div>
-            <p class="text-xs text-gray-500">სავალდებულო საკითხავი</p>
+            <p class="text-xs text-gray-500">სავალდებულოდ გასაცნობი</p>
             <p id="kpi-readings" class="text-2xl font-bold text-gray-800">—</p>
           </div>
           <div onclick="navTo('page-video')"
@@ -1366,7 +1366,7 @@
               class="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4">
               <input type="checkbox" id="article-mandatory" onchange="toggleDueDate()"
                 class="h-4 w-4 accent-[#CC0000]" />
-              <label for="article-mandatory" class="text-sm font-medium text-gray-800">სავალდებულო საკითხავი</label>
+              <label for="article-mandatory" class="text-sm font-medium text-gray-800">სავალდებულოდ გასაცნობი</label>
               <div id="due-date-container" class="ml-4 hidden flex-1 items-center gap-3 border-l border-gray-300 pl-4">
                 <label for="article-due-date" class="text-sm font-medium text-gray-600">ვადა:</label>
                 <input type="date" id="article-due-date"
@@ -1439,7 +1439,7 @@
               class="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4">
               <input type="checkbox" id="news-mandatory" onchange="toggleNewsDueDate()"
                 class="h-4 w-4 accent-[#CC0000]" />
-              <label for="news-mandatory" class="text-sm font-medium text-gray-800">სავალდებულო საკითხავი</label>
+              <label for="news-mandatory" class="text-sm font-medium text-gray-800">სავალდებულოდ გასაცნობი</label>
               <div id="news-due-date-container"
                 class="ml-4 hidden flex-1 items-center gap-3 border-l border-gray-300 pl-4">
                 <label for="news-due-date" class="text-sm font-medium text-gray-600">ვადა:</label>
@@ -1507,7 +1507,7 @@
               class="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4">
               <input type="checkbox" id="video-mandatory" onchange="toggleVideoDueDate()"
                 class="h-4 w-4 accent-[#CC0000]" />
-              <label for="video-mandatory" class="text-sm font-medium text-gray-800">სავალდებულო საკითხავი</label>
+              <label for="video-mandatory" class="text-sm font-medium text-gray-800">სავალდებულოდ გასაცნობი</label>
               <div id="video-due-date-container"
                 class="ml-4 hidden flex-1 items-center gap-3 border-l border-gray-300 pl-4">
                 <label for="video-due-date" class="text-sm font-medium text-gray-600">ვადა:</label>

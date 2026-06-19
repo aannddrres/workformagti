@@ -9,3 +9,4 @@ backups/
 .env
 .claude/
 scripts/legacy/
+_server_log.txt

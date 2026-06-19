@@ -60,6 +60,36 @@ def _lightweight_migrations() -> None:
     if not settings.is_sqlite:
         return  # PostgreSQL → use Alembic, not this helper.
     from sqlalchemy import text
+
+    # New standalone tables — created here (not just via create_all(), which
+    # only runs when RUN_INIT=1) so they exist on every plain `uvicorn --reload`
+    # dev boot too. CREATE TABLE IF NOT EXISTS is naturally idempotent.
+    create_tables = {
+        "teams": """
+            CREATE TABLE IF NOT EXISTS teams (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name VARCHAR NOT NULL UNIQUE,
+                created_at DATETIME
+            )
+        """,
+        "tags": """
+            CREATE TABLE IF NOT EXISTS tags (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name VARCHAR NOT NULL UNIQUE,
+                created_at DATETIME
+            )
+        """,
+        "tags_mapping": """
+            CREATE TABLE IF NOT EXISTS tags_mapping (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tag_id INTEGER NOT NULL REFERENCES tags(id),
+                item_type VARCHAR NOT NULL,
+                item_id INTEGER NOT NULL,
+                UNIQUE(tag_id, item_type, item_id)
+            )
+        """,
+    }
+
     add_cols = {
         # table  -> [(column, definition)]
         "news": [
@@ -73,16 +103,34 @@ def _lightweight_migrations() -> None:
         "users": [
             ("phone", "VARCHAR"),
             ("permissions", "JSON"),
+            # Team Statistics foundation (Block 1, Task 4).
+            ("team_id", "INTEGER REFERENCES teams(id)"),
         ],
-            "search_logs": [
-                ("has_results", "BOOLEAN DEFAULT 1"),
-            ],
+        "search_logs": [
+            ("has_results", "BOOLEAN DEFAULT 1"),
+            # Exact result count alongside the existing has_results boolean.
+            ("results_found", "INTEGER"),
+        ],
         "categories": [
             ("pastel_color_class", "VARCHAR"),
             ("is_active", "BOOLEAN DEFAULT 1"),
         ],
+        "audit_logs": [
+            ("category", "VARCHAR"),
+            ("details", "TEXT"),
+        ],
+        "video_instructions": [
+            ("is_archived", "BOOLEAN DEFAULT 0"),
+            ("tags", "VARCHAR"),
+        ],
     }
     with engine.begin() as conn:
+        for table, ddl in create_tables.items():
+            try:
+                conn.exec_driver_sql(ddl)
+            except Exception as e:
+                print(f"[migration] failed creating table {table}: {e}")
+
         for table, cols in add_cols.items():
             try:
                 existing = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})").fetchall()}
@@ -97,8 +145,91 @@ def _lightweight_migrations() -> None:
                         # Don't break startup on a missing optional column; just log.
                         print(f"[migration] skipped {table}.{col}: {e}")
 
+        # Backfill category on pre-existing audit_logs rows (new rows get this
+        # automatically from the AuditLog.before_insert hook in models.py).
+        # WHERE category IS NULL makes this a no-op after the first run.
+        try:
+            conn.exec_driver_sql("""
+                UPDATE audit_logs SET category = CASE
+                    WHEN action IN ('LOGIN','LOGIN_SSO','PASSWORD_CHANGE','PASSWORD_RESET',
+                                     'PASSWORD_RESET_REQUEST','CREATE_USER','UPDATE_PERMISSIONS')
+                         OR action LIKE 'UPDATE_STATUS_TO_%' THEN 'SECURITY'
+                    WHEN action IN ('VIEW','MARK_READ','SEND_MESSAGE') THEN 'USER'
+                    WHEN item_type IN ('news','category','article','video','feedback','required_reading') THEN 'CONTENT'
+                    WHEN item_type = 'user' THEN 'USER'
+                    ELSE 'SYSTEM'
+                END
+                WHERE category IS NULL
+            """)
+        except Exception as e:
+            print(f"[migration] audit_logs category backfill skipped: {e}")
+
+        # Backfill results_found from the existing has_results boolean as a
+        # best-effort placeholder (1 or 0) — exact historical counts weren't
+        # recorded. New rows get an exact count from the call sites going forward.
+        try:
+            conn.exec_driver_sql("""
+                UPDATE search_logs SET results_found = CASE WHEN has_results THEN 1 ELSE 0 END
+                WHERE results_found IS NULL
+            """)
+        except Exception as e:
+            print(f"[migration] search_logs results_found backfill skipped: {e}")
+
+        # Backfill tags/tags_mapping from the existing flat articles.tags text
+        # column. Only runs while tags_mapping is empty, so it's a one-time
+        # normalize rather than a per-boot resync.
+        try:
+            mapping_count = conn.exec_driver_sql("SELECT COUNT(*) FROM tags_mapping").scalar()
+            if mapping_count == 0:
+                rows = conn.exec_driver_sql(
+                    "SELECT id, tags FROM articles WHERE tags IS NOT NULL AND tags != ''"
+                ).fetchall()
+                for article_id, tags_csv in rows:
+                    for raw_name in tags_csv.split(","):
+                        name = raw_name.strip()
+                        if not name:
+                            continue
+                        conn.execute(
+                            text("INSERT OR IGNORE INTO tags (name, created_at) VALUES (:n, :t)"),
+                            {"n": name, "t": datetime.utcnow()},
+                        )
+                        conn.execute(
+                            text(
+                                "INSERT OR IGNORE INTO tags_mapping (tag_id, item_type, item_id) "
+                                "SELECT id, 'article', :iid FROM tags WHERE name = :n"
+                            ),
+                            {"n": name, "iid": article_id},
+                        )
+        except Exception as e:
+            print(f"[migration] tags backfill skipped: {e}")
+
 
 _lightweight_migrations()
+
+
+def sync_tags(db: "Session", item_type: str, item_id: int, tags_csv: Optional[str]) -> None:
+    """Keeps the normalized tags/tags_mapping tables in sync with an item's
+    flat comma-separated tags string, creating new Tag rows on the fly.
+
+    Call after the item itself is flushed (item_id must already exist).
+    Does not commit — caller's existing commit() covers this too.
+    """
+    db.query(models.TagMapping).filter(
+        models.TagMapping.item_type == item_type,
+        models.TagMapping.item_id == item_id,
+    ).delete()
+
+    if not tags_csv:
+        return
+
+    names = {n.strip() for n in tags_csv.split(",") if n.strip()}
+    for name in names:
+        tag = db.query(models.Tag).filter(models.Tag.name == name).first()
+        if tag is None:
+            tag = models.Tag(name=name)
+            db.add(tag)
+            db.flush()
+        db.add(models.TagMapping(tag_id=tag.id, item_type=item_type, item_id=item_id))
 
 
 class InMemoryTTLCache:
@@ -1551,9 +1682,13 @@ def get_videos(
         A list of VideoInstructionResponse schemas.
     """
     query = db.query(models.VideoInstruction)
-    # Admins manage content across all departments, so they see everything
+    # Admins manage content across all departments (including archived items),
+    # so they see everything; operators/managers see only active, in-department content.
     if current_user.role not in ["admin", "content_admin"]:
-        query = query.filter(models.VideoInstruction.target_department.in_([current_user.department, "All"]))
+        query = query.filter(
+            models.VideoInstruction.target_department.in_([current_user.department, "All"]),
+            models.VideoInstruction.is_archived == False,  # noqa: E712
+        )
     return query.all()
 
 @app.get("/api/favorites", response_model=list[schemas.FavoriteResponse])
@@ -1719,6 +1854,7 @@ def create_article(
     db_article = models.Article(**payload)
     db.add(db_article)
     db.flush()
+    sync_tags(db, "article", db_article.id, db_article.tags)
 
     audit_log = models.AuditLog(
         admin_id=current_admin.id,
@@ -1776,8 +1912,9 @@ def update_article(
 
     for key, value in article.model_dump().items():
         setattr(db_article, key, value)
-    
+
     db_article.version += 1
+    sync_tags(db, "article", db_article.id, db_article.tags)
     db.commit()
     db.refresh(db_article)
 
@@ -2229,7 +2366,8 @@ def global_search(
     if len(articles) > 0 and len(norm_q) >= 3 and not current_user.email.startswith("test_operator_"):
         search_log = models.SearchLog(
             user_id=current_user.id,
-            search_term=norm_q
+            search_term=norm_q,
+            results_found=len(articles),
         )
         db.add(search_log)
         db.commit()
@@ -2281,7 +2419,10 @@ def _run_global_search_sync(q: str, is_admin: bool, user_dept: str) -> dict:
 
         videos = db.query(models.VideoInstruction).filter(and_(*video_conds))
         if not is_admin:
-            videos = videos.filter(models.VideoInstruction.target_department.in_(dept_filter))
+            videos = videos.filter(
+                models.VideoInstruction.target_department.in_(dept_filter),
+                models.VideoInstruction.is_archived == False,  # noqa: E712
+            )
 
         articles_list = articles.limit(8).all()
         news_list = news.limit(5).all()
@@ -2316,12 +2457,13 @@ async def global_search_all(
 
     cached = search_cache.get(cache_key)
     if cached is not None:
-        has_results = len(cached.get("articles", [])) > 0 or len(cached.get("news", [])) > 0 or len(cached.get("videos", [])) > 0
+        results_found = len(cached.get("articles", [])) + len(cached.get("news", [])) + len(cached.get("videos", []))
         if len(norm_q) >= 3 and not current_user.email.startswith("test_operator_"):
             enqueue_log(request, LogItem("search", {
                 "user_id": current_user.id,
                 "search_term": norm_q,
-                "has_results": has_results,
+                "has_results": results_found > 0,
+                "results_found": results_found,
             }))
         return cached
 
@@ -2331,12 +2473,13 @@ async def global_search_all(
         return result
 
     result = await single_flight(cache_key, factory)
-    has_results = len(result.get("articles", [])) > 0 or len(result.get("news", [])) > 0 or len(result.get("videos", [])) > 0
+    results_found = len(result.get("articles", [])) + len(result.get("news", [])) + len(result.get("videos", []))
     if len(norm_q) >= 3 and not current_user.email.startswith("test_operator_"):
         enqueue_log(request, LogItem("search", {
             "user_id": current_user.id,
             "search_term": norm_q,
-            "has_results": has_results,
+            "has_results": results_found > 0,
+            "results_found": results_found,
         }))
     return result
 
@@ -2719,6 +2862,7 @@ def create_video(
     db_video = models.VideoInstruction(**video.model_dump())
     db.add(db_video)
     db.flush()
+    sync_tags(db, "video", db_video.id, db_video.tags)
 
     audit_log = models.AuditLog(admin_id=current_admin.id, action="CREATE", item_type="video", item_id=db_video.id)
     db.add(audit_log)
@@ -2758,7 +2902,8 @@ def update_video(
     
     for key, value in video.model_dump().items():
         setattr(db_video, key, value)
-    
+
+    sync_tags(db, "video", db_video.id, db_video.tags)
     db.commit()
     db.refresh(db_video)
 
@@ -2801,6 +2946,58 @@ def delete_video(
     db.commit()
     search_cache.clear()
     return None
+
+
+@app.post("/api/videos/{video_id}/archive", response_model=schemas.VideoInstructionResponse)
+def archive_video(
+    video_id: int,
+    current_admin: models.User = Depends(security.require_permission(security.PERM_VIDEOS_ARCHIVE)),
+    db: Session = Depends(get_db),
+):
+    """Soft-archives a video instruction by setting is_archived=True.
+
+    Mirrors archive_article: archived videos disappear from the operator-facing
+    list (get_videos / global search already filter on is_archived for
+    non-admins). Admins continue to see them.
+    """
+    db_video = db.query(models.VideoInstruction).filter(models.VideoInstruction.id == video_id).first()
+    if not db_video:
+        raise HTTPException(status_code=404, detail="ვიდეო ვერ მოიძებნა")
+    if db_video.is_archived:
+        return db_video  # idempotent
+
+    db_video.is_archived = True
+    db.add(models.AuditLog(
+        admin_id=current_admin.id, action="ARCHIVE", item_type="video", item_id=video_id
+    ))
+    db.commit()
+    search_cache.clear()
+    db.refresh(db_video)
+    return db_video
+
+
+@app.post("/api/videos/{video_id}/unarchive", response_model=schemas.VideoInstructionResponse)
+def unarchive_video(
+    video_id: int,
+    current_admin: models.User = Depends(security.require_permission(security.PERM_VIDEOS_ARCHIVE)),
+    db: Session = Depends(get_db),
+):
+    """Restores an archived video to is_archived=False."""
+    db_video = db.query(models.VideoInstruction).filter(models.VideoInstruction.id == video_id).first()
+    if not db_video:
+        raise HTTPException(status_code=404, detail="ვიდეო ვერ მოიძებნა")
+    if not db_video.is_archived:
+        raise HTTPException(status_code=400, detail="ვიდეო არ არის არქივში")
+
+    db_video.is_archived = False
+    db.add(models.AuditLog(
+        admin_id=current_admin.id, action="UNARCHIVE", item_type="video", item_id=video_id
+    ))
+    db.commit()
+    search_cache.clear()
+    db.refresh(db_video)
+    return db_video
+
 
 @app.get("/api/users", response_model=list[schemas.UserResponse])
 def list_users(
@@ -2883,6 +3080,8 @@ def update_user_admin(
     user.position = update.position
     if update.phone is not None:
         user.phone = update.phone
+    if update.team_id is not None:
+        user.team_id = update.team_id
 
     # Audit trail: full user updates must be attributable
     audit_log = models.AuditLog(
@@ -3098,6 +3297,7 @@ def get_audit_logs(
     end_date: Optional[str] = None,
     user_id: Optional[int] = None,
     action: Optional[str] = None,
+    category: Optional[str] = None,
     current_admin: models.User = Depends(security.get_current_system_admin_user),
     db: Session = Depends(get_db)
 ):
@@ -3163,8 +3363,53 @@ def get_audit_logs(
             query = query.filter(models.AuditLog.action.in_(["LOGIN", "LOGIN_SSO"]))
         else:
             query = query.filter(models.AuditLog.action == action)
+    if category:
+        query = query.filter(models.AuditLog.category == category.upper())
 
     return query.order_by(desc(models.AuditLog.timestamp)).limit(100).all()
+
+
+@app.get("/api/tags", response_model=list[schemas.TagResponse])
+def get_tags(
+    current_user: models.User = Depends(security.get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Lists the normalized tag vocabulary (Block 1 tags/archiving foundation).
+
+    Tags are created on the fly by sync_tags() when an article/video is saved
+    with a non-empty tags field — there is no separate tag-creation endpoint.
+
+    Access: Authenticated users (any active role).
+    """
+    return db.query(models.Tag).order_by(models.Tag.name).all()
+
+
+@app.get("/api/teams", response_model=list[schemas.TeamResponse])
+def get_teams(
+    current_user: models.User = Depends(security.get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Lists teams (Team Statistics foundation, Block 1 Task 4).
+
+    Access: Authenticated users (any active role) — read-only for non-admins.
+    """
+    return db.query(models.Team).order_by(models.Team.name).all()
+
+
+@app.post("/api/teams", response_model=schemas.TeamResponse)
+def create_team(
+    payload: schemas.TeamCreate,
+    current_admin: models.User = Depends(security.get_current_system_admin_user),
+    db: Session = Depends(get_db),
+):
+    """Creates a new team. Access: system administrators only."""
+    if db.query(models.Team).filter(models.Team.name == payload.name).first():
+        raise HTTPException(status_code=400, detail="ამ სახელით ჯგუფი უკვე არსებობს")
+    team = models.Team(name=payload.name)
+    db.add(team)
+    db.commit()
+    db.refresh(team)
+    return team
 
 
 @app.post("/api/broadcast")
@@ -3719,6 +3964,7 @@ def create_user_admin(
         role=payload.role,
         hashed_password=security.get_password_hash(payload.password),
         is_active=True,
+        team_id=payload.team_id,
         permissions=security.DEFAULT_PERMISSIONS_BY_ROLE.get(payload.role, []),
     )
     db.add(user)

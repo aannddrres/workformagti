@@ -18,6 +18,7 @@ class UserBase(BaseModel):
     position: Optional[str] = None
     phone: Optional[str] = None
     role: str = "operator" # 'operator', 'manager', 'admin', 'content_admin'
+    team_id: Optional[int] = None
 
 
 class UserCreate(UserBase):
@@ -224,6 +225,7 @@ class VideoInstructionBase(BaseModel):
     video_url: str
     category: Optional[str] = None
     target_department: str = "All"
+    tags: Optional[str] = None
 
 
 class VideoInstructionCreate(VideoInstructionBase):
@@ -236,6 +238,7 @@ class VideoInstructionResponse(VideoInstructionBase):
     id: int
     created_at: datetime
     views_count: int
+    is_archived: bool = False
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -295,6 +298,7 @@ class UserAdminUpdate(BaseModel):
     department: Optional[str] = None
     phone: Optional[str] = None
     position: Optional[str] = None
+    team_id: Optional[int] = None
 
     @field_validator('role')
     @classmethod
@@ -317,6 +321,7 @@ class UserCreateAdmin(BaseModel):
     phone: Optional[str] = None
     role: str = "operator"
     password: str
+    team_id: Optional[int] = None
 
     @field_validator('role')
     @classmethod
@@ -366,6 +371,33 @@ class AuditLogResponse(AuditLogBase):
     id: int
     admin_id: int
     timestamp: datetime
+    category: Optional[str] = None  # CONTENT | USER | SECURITY | SYSTEM
+    details: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TagResponse(BaseModel):
+    """Response schema representing a normalized tag."""
+    id: int
+    name: str
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TeamBase(BaseModel):
+    """Base schema properties for a Team (Team Statistics foundation)."""
+    name: str
+
+
+class TeamCreate(TeamBase):
+    """Request schema for creating a new team."""
+    pass
+
+
+class TeamResponse(TeamBase):
+    """Response schema representing a team."""
+    id: int
+    created_at: datetime
     model_config = ConfigDict(from_attributes=True)
 
 

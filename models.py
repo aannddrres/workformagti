@@ -10,6 +10,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    event,
 )
 from sqlalchemy.orm import relationship
 from database import Base
@@ -37,6 +38,11 @@ class User(Base):
     # system_admin role implicitly bypasses these. List of strings, e.g.
     # ["articles.publish", "users.manage", "reports.export"].
     permissions = Column(JSON, default=list, nullable=True)
+    # Team Statistics foundation: optional, nullable so existing rows are
+    # unaffected until an admin assigns a team.
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=True, index=True)
+
+    team = relationship("Team", back_populates="members")
 
 
 class News(Base):
@@ -170,6 +176,48 @@ class VideoInstruction(Base):
     target_department = Column(String, default="All", index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     views_count = Column(Integer, default=0)
+    tags = Column(String, nullable=True)
+    is_archived = Column(Boolean, default=False, index=True)
+
+
+class Team(Base):
+    """Team Statistics foundation — groups users for the upcoming team-level
+    compliance/analytics views. Distinct from the free-text `users.department`
+    field, which is unstructured and not queryable as a hierarchy."""
+    __tablename__ = "teams"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    members = relationship("User", back_populates="team")
+
+
+class Tag(Base):
+    """Normalized, on-the-fly-creatable tag vocabulary. The flat comma-separated
+    `articles.tags` / `video_instructions.tags` text columns remain the source
+    of truth for display; TagMapping is the queryable index over them."""
+    __tablename__ = "tags"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class TagMapping(Base):
+    """Polymorphic many-to-many link between a Tag and a tagged item
+    (item_type: 'article' | 'video'), mirroring the Favorite/RequiredReading
+    polymorphic pattern already used elsewhere in this schema."""
+    __tablename__ = "tags_mapping"
+    __table_args__ = (
+        UniqueConstraint("tag_id", "item_type", "item_id", name="uq_tag_mapping_item"),
+        Index("ix_tags_mapping_item", "item_type", "item_id"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    tag_id = Column(Integer, ForeignKey("tags.id"), nullable=False, index=True)
+    item_type = Column(String, nullable=False)
+    item_id = Column(Integer, nullable=False)
 
 
 class Favorite(Base):
@@ -207,6 +255,53 @@ class AuditLog(Base):
     item_type = Column(String, nullable=False)
     item_id = Column(Integer, nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    # CONTENT | USER | SECURITY | SYSTEM — auto-classified by the before_insert
+    # hook below from (item_type, action) when not explicitly supplied, so
+    # none of the ~40 existing AuditLog(...) call sites need to change.
+    category = Column(String, nullable=True, index=True)
+    details = Column(Text, nullable=True)
+
+
+# Action names that are security-sensitive (identity/access) regardless of
+# their item_type — these override the item_type-based default below.
+_AUDIT_SECURITY_ACTIONS = {
+    "LOGIN", "LOGIN_SSO", "PASSWORD_CHANGE", "PASSWORD_RESET",
+    "PASSWORD_RESET_REQUEST", "CREATE_USER", "UPDATE_PERMISSIONS",
+}
+# Actions that describe a user's own activity rather than a content/system
+# change, even when item_type points at a content table (e.g. "VIEW" an article).
+_AUDIT_USER_ACTIONS = {"VIEW", "MARK_READ", "SEND_MESSAGE"}
+_AUDIT_CATEGORY_BY_ITEM_TYPE = {
+    "news": "CONTENT",
+    "category": "CONTENT",
+    "article": "CONTENT",
+    "video": "CONTENT",
+    "feedback": "CONTENT",
+    "required_reading": "CONTENT",
+    "user": "USER",
+    "readings": "SYSTEM",
+    "file": "SYSTEM",
+    "system": "SYSTEM",
+    "team_stats": "SYSTEM",
+}
+
+
+def classify_audit_category(item_type: str, action: str) -> str:
+    """Maps (item_type, action) to one of CONTENT/USER/SECURITY/SYSTEM."""
+    if action in _AUDIT_SECURITY_ACTIONS or action.startswith("UPDATE_STATUS_TO_"):
+        return "SECURITY"
+    if action in _AUDIT_USER_ACTIONS:
+        return "USER"
+    return _AUDIT_CATEGORY_BY_ITEM_TYPE.get(item_type, "SYSTEM")
+
+
+@event.listens_for(AuditLog, "before_insert")
+def _auto_classify_audit_log(mapper, connection, target: "AuditLog") -> None:
+    """Fires on every ORM-level insert (db.add()+commit()). Bulk operations
+    (bulk_insert_mappings) bypass mapper events and must set category explicitly
+    — none of the current call sites use the bulk path for audit rows."""
+    if not target.category:
+        target.category = classify_audit_category(target.item_type, target.action)
 
 
 class ArticleHistory(Base):
@@ -228,6 +323,10 @@ class SearchLog(Base):
     search_term = Column(String, index=True, nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
     has_results = Column(Boolean, default=True)
+    # Exact result count (Task 1's "search_history.results_found"). Kept
+    # alongside has_results rather than replacing it — existing call sites
+    # that only know boolean has_results keep working unchanged.
+    results_found = Column(Integer, nullable=True)
 
 
 class UserNote(Base):
