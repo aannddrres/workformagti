@@ -1,0 +1,258 @@
+from datetime import datetime
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    JSON,
+    String,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy.orm import relationship
+from database import Base
+
+
+class User(Base):
+    __tablename__ = "users"
+    # AUTOINCREMENT so deleted ids are never reused; audit_logs references rows by item_id
+    __table_args__ = (
+        Index("ix_users_department_active", "department", "is_active"),
+        {"sqlite_autoincrement": True},
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True, nullable=False)
+    name = Column(String, nullable=False)
+    department = Column(String, index=True)
+    position = Column(String)
+    phone = Column(String, nullable=True)
+    role = Column(String, default="operator", index=True)  # operator | manager | content_admin | admin
+    is_active = Column(Boolean, default=True)
+    last_active = Column(DateTime, nullable=True)
+    hashed_password = Column(String, nullable=True)
+    # Spec slide 26: granular admin permissions on top of the role.
+    # system_admin role implicitly bypasses these. List of strings, e.g.
+    # ["articles.publish", "users.manage", "reports.export"].
+    permissions = Column(JSON, default=list, nullable=True)
+
+
+class News(Base):
+    __tablename__ = "news"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, index=True, nullable=False)
+    content = Column(Text, nullable=False)
+    target_department = Column(String, default="All", index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    # Centralised attachment per spec (PDF/image/video link). Added 2026.
+    attachment_url = Column(String, nullable=True)
+    # Version counter; mirrors articles for parity in the admin history UI.
+    version = Column(Integer, default=1)
+
+
+class NewsHistory(Base):
+    """Per-news revision history — parity with ArticleHistory so admins can restore."""
+    __tablename__ = "news_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    news_id = Column(Integer, ForeignKey("news.id"), nullable=False, index=True)
+    title = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
+    attachment_url = Column(String, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+    updated_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+
+class Category(Base):
+    __tablename__ = "categories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True, nullable=False)
+    parent_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
+    # Taxonomy grid metadata: URL-safe slug (#/category/{slug}) + Font Awesome icon id.
+    slug = Column(String, index=True, nullable=True)
+    icon = Column(String, nullable=True)
+    pastel_color_class = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True)
+
+    articles = relationship("Article", back_populates="category")
+
+
+class Article(Base):
+    __tablename__ = "articles"
+    # AUTOINCREMENT so deleted ids are never reused; audit_logs references rows by item_id
+    __table_args__ = (
+        # Operators filter on (target_department, status); this composite index
+        # serves that hot path on PostgreSQL.
+        Index("ix_articles_department_status", "target_department", "status"),
+        {"sqlite_autoincrement": True},
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, index=True, nullable=False)
+    content = Column(Text, nullable=False)
+    category_id = Column(Integer, ForeignKey("categories.id"), index=True)
+    tags = Column(String, nullable=True)
+    target_department = Column(String, default="All")
+    # Audience partition: 'info' (subscriber/commercial), 'tech' (engineering/
+    # infrastructure), or 'all'. Drives the context-aware KB category view.
+    audience_profile = Column(String, default="all", index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    version = Column(Integer, default=1)
+    author_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    status = Column(String, default="published")
+    # Future publish time for status='scheduled'. Referenced by get_articles and
+    # _assert_article_visible in main.py and by ArticleBase in schemas.py.
+    published_at = Column(DateTime, nullable=True)
+    attachment_url = Column(String, nullable=True)
+    last_verified_at = Column(DateTime, nullable=True, default=datetime.utcnow)
+
+    category = relationship("Category", back_populates="articles")
+
+    @property
+    def read_time(self) -> int:
+        """Estimates reading time in minutes based on Georgian content word count."""
+        if not self.content:
+            return 1
+        word_count = len(self.content.split())
+        return max(1, int(word_count / 150))
+
+
+
+class RequiredReading(Base):
+    __tablename__ = "required_readings"
+    # AUTOINCREMENT so deleted ids are never reused; audit_logs references rows by item_id
+    __table_args__ = (
+        Index("ix_required_readings_department", "target_department"),
+        {"sqlite_autoincrement": True},
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    item_type = Column(String, nullable=False)
+    item_id = Column(Integer, nullable=False)
+    target_department = Column(String, default="All")
+    due_date = Column(DateTime, nullable=False)
+    priority = Column(String, default="normal")
+
+
+class ReadStatus(Base):
+    __tablename__ = "read_statuses"
+    __table_args__ = (
+        # Data integrity: a user has exactly one status row per required reading.
+        UniqueConstraint(
+            "user_id", "required_reading_id", name="uq_read_status_user_reading"
+        ),
+        Index("ix_read_status_reading_status", "required_reading_id", "status"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    required_reading_id = Column(
+        Integer, ForeignKey("required_readings.id"), nullable=False
+    )
+    status = Column(String, default="unread")
+    read_at = Column(DateTime, nullable=True)
+
+
+class VideoInstruction(Base):
+    __tablename__ = "video_instructions"
+    # AUTOINCREMENT so deleted ids are never reused; audit_logs references rows by item_id
+    __table_args__ = {"sqlite_autoincrement": True}
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, index=True, nullable=False)
+    video_url = Column(String, nullable=False)
+    category = Column(String)
+    target_department = Column(String, default="All", index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    views_count = Column(Integer, default=0)
+
+
+class Favorite(Base):
+    __tablename__ = "favorites"
+    __table_args__ = (
+        # Data integrity: prevent duplicate favourites at the DB level.
+        UniqueConstraint(
+            "user_id", "item_type", "item_id", name="uq_favorite_user_item"
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    item_type = Column(String, nullable=False)
+    item_id = Column(Integer, nullable=False)
+
+
+class Message(Base):
+    __tablename__ = "messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    sender_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    content = Column(Text, nullable=False)
+    is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    admin_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    action = Column(String, nullable=False)
+    item_type = Column(String, nullable=False)
+    item_id = Column(Integer, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+class ArticleHistory(Base):
+    __tablename__ = "article_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    article_id = Column(Integer, ForeignKey("articles.id"), nullable=False, index=True)
+    title = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+    updated_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+
+class SearchLog(Base):
+    __tablename__ = "search_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    search_term = Column(String, index=True, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    has_results = Column(Boolean, default=True)
+
+
+class UserNote(Base):
+    __tablename__ = "user_notes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    article_id = Column(Integer, ForeignKey("articles.id"), nullable=False, index=True)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class KnowledgeFeedback(Base):
+    """Operator-submitted issue reports on KB articles ("ხარვეზის რეპორტი").
+    Referenced by main.py for /articles/{id}/feedback and /admin/feedback.
+    Status: 'open' | 'resolved' | 'rejected'.
+    """
+    __tablename__ = "knowledge_feedback"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    article_id = Column(Integer, ForeignKey("articles.id"), nullable=False, index=True)
+    message = Column(Text, nullable=False)
+    status = Column(String, default="open", index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    resolved_at = Column(DateTime, nullable=True)
+    resolved_by = Column(Integer, ForeignKey("users.id"), nullable=True)

@@ -418,23 +418,17 @@
        მთავარი შინაარსი (Main content area) — scrollable
        Offset: left 280px (sidebar) + top 64px (navbar)
        ══════════════════════════════════════════════════════ -->
-  <main class="ml-0 md:ml-[280px] mt-16 min-h-[calc(100vh-64px)] p-4 md:p-6 bg-white dark:bg-[#121212] transition-all duration-300">
+  <main class="ml-0 md:ml-[280px] mt-16 min-h-[calc(100vh-64px)] bg-[#F5F5F5] dark:bg-[#121212] transition-all duration-300">
 
     <!-- ── სხვა გვერდების კონტეინერები (Placholders) ── -->
     <div id="page-dashboard" class="page-section hidden">
-      <h2 id="dashboard-greeting" class="mb-6 text-3xl font-bold tracking-tight text-slate-800 dark:text-zinc-100" style="font-family:system-ui,-apple-system,'Segoe UI','Noto Sans',sans-serif;letter-spacing:-0.015em">გამარჯობა!</h2>
-
-      <!-- System Announcement Banner -->
-      <div class="w-full h-40 mb-8 rounded-2xl relative overflow-hidden shadow-md bg-cover bg-center" style="background-image: url('/static/img/banner-bg.png'); background-color:#CC0000;">
-          <div class="absolute inset-0 bg-gradient-to-r from-[#CC0000]/90 via-[#CC0000]/75 to-transparent"></div>
-          <div class="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-black/10 to-transparent"></div>
-
-          <div class="absolute top-6 left-8 max-w-xl z-10">
-              <span class="inline-block mb-2 rounded-md bg-white/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white backdrop-blur-sm">📢 სისტემური შეტყობინება</span>
-              <h2 class="text-lg font-bold text-white mb-1 drop-shadow-sm" style="font-family:system-ui,-apple-system,'Segoe UI','Noto Sans',sans-serif;letter-spacing:0">მიმდინარეობს გეგმიური სამუშაოები IPTV მიმართულებით</h2>
-              <p class="text-[13px] text-red-100 leading-relaxed">16:00-დან 17:00-მდე შესაძლებელია ფიქსირებადი შეფერხება არხების განახლების გამო. აბონენტებთან გამოიყენეთ სკრიპტი #4.</p>
-          </div>
+      <!-- Dashboard Banner — pure graphic, stretches edge-to-edge naturally -->
+      <div class="relative h-44 mb-8 bg-cover bg-center" style="background-image: url('/static/img/banner-bg.png'); background-color:#CC0000;">
+          <div class="absolute inset-0 bg-gradient-to-r from-[#CC0000]/80 via-[#CC0000]/50 to-transparent"></div>
+          <div class="absolute inset-0" style="background: linear-gradient(to top, var(--canvas-bg) 0%, rgba(var(--canvas-bg-rgb), 0.9) 15%, rgba(var(--canvas-bg-rgb), 0.6) 40%, rgba(var(--canvas-bg-rgb), 0.2) 70%, transparent 100%);"></div>
       </div>
+
+      <div class="max-w-[1440px] mx-auto w-full px-4 md:px-6 pb-8">
 
       <!-- Stat Cards — [P1-11] Now actionable: click navigates to the filtered page -->
       <div class="mb-8 max-w-sm">
@@ -458,10 +452,9 @@
            10 minimalist brand cards rendered from /api/categories (slug-bearing
            taxonomy set). A click routes to #/category/{slug}. -->
       <div class="mb-8">
-        <div class="mb-4 flex items-center justify-between gap-4">
-          <h3 class="text-lg font-semibold tracking-tight text-gray-800 dark:text-zinc-100">ცოდნის ბაზის კატეგორიები</h3>
+        <div class="mb-3 flex items-center justify-end gap-4">
           <button onclick="navTo('page-info')"
-            class="inline-flex items-center gap-1 text-xs font-medium text-gray-500 transition-colors hover:text-[#E30613]">სრული ბაზა <i aria-hidden="true" class="fa-solid fa-arrow-right text-[10px]"></i></button>
+            class="inline-flex items-center gap-1.5 text-xs font-semibold tracking-wide text-slate-500 transition-colors hover:text-[#E30613] dark:text-neutral-400 dark:hover:text-red-400">სრული ბაზა <i aria-hidden="true" class="fa-solid fa-arrow-right text-[10px]"></i></button>
         </div>
         <div id="dashboard-category-grid" class="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5"></div>
       </div>
@@ -539,10 +532,11 @@
 
       <!-- [P1-6] Bottom section - quick links (rendered from <template id="quick-links-tpl">) -->
       <div data-quick-links></div>
+      </div>
     </div>
 
     <!-- ── საინფორმაციო ბაზა (Knowledge Base) ── -->
-    <div id="page-info" class="page-section hidden">
+    <div id="page-info" class="page-section hidden max-w-[1440px] mx-auto w-full px-4 md:px-6 pt-4 md:pt-6 pb-8">
       <!-- Page Title & Header -->
       <div class="mb-6">
         <h2 class="text-4xl font-semibold uppercase tracking-wider text-gray-800 dark:text-zinc-100">ცოდნის ბაზა</h2>
@@ -616,7 +610,7 @@
 
 
     <!-- ── კატეგორიის დეტალური ხედი (Category Detail View) ── -->
-    <div id="page-category-view" class="page-section hidden">
+    <div id="page-category-view" class="page-section hidden max-w-[1440px] mx-auto w-full px-4 md:px-6 pt-4 md:pt-6 pb-8">
       <div class="mb-6">
         <button onclick="backFromCategoryView()"
           class="mb-4 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 shadow-sm transition-all hover:bg-gray-50 hover:text-gray-900 active:scale-[0.98]">
@@ -643,7 +637,7 @@
     </div>
 
     <!-- ── სავალდებულო საკითხავი (Mandatory Reading) ── -->
-    <div id="page-reading" class="page-section hidden">
+    <div id="page-reading" class="page-section hidden max-w-[1440px] mx-auto w-full px-4 md:px-6 pt-4 md:pt-6 pb-8">
       <div class="mb-8 flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
         <div class="w-full md:w-auto">
           <h2 class="mb-4 text-4xl font-semibold uppercase tracking-wider text-gray-800">სავალდებულო საკითხავი</h2>
@@ -693,7 +687,7 @@
     </div>
 
     <!-- ── ვიდეო ინსტრუქციები (Video Instructions) ── -->
-    <div id="page-video" class="page-section hidden">
+    <div id="page-video" class="page-section hidden max-w-[1440px] mx-auto w-full px-4 md:px-6 pt-4 md:pt-6 pb-8">
 
       <!-- Page Title -->
       <h2 class="mb-6 text-4xl font-semibold uppercase tracking-wider text-gray-800">ვიდეო ინსტრუქციები</h2>
@@ -713,7 +707,7 @@
 
     </div>
 
-    <div id="page-news" class="page-section hidden">
+    <div id="page-news" class="page-section hidden max-w-[1440px] mx-auto w-full px-4 md:px-6 pt-4 md:pt-6 pb-8">
 
       <!-- Page Title -->
       <h2 class="mb-6 text-4xl font-semibold uppercase tracking-wider text-gray-800">სიახლეები</h2>
@@ -778,7 +772,7 @@
     </div>
 
     <!-- ── გუნდის სტატისტიკა (Manager / Supervisor) ── -->
-    <div id="page-manager" class="page-section hidden">
+    <div id="page-manager" class="page-section hidden max-w-[1440px] mx-auto w-full px-4 md:px-6 pt-4 md:pt-6 pb-8">
       <div class="mb-6">
         <h2 class="text-4xl font-semibold uppercase tracking-wider text-gray-800">გუნდის სტატისტიკა</h2>
         <p class="mt-1 text-sm text-gray-500">
@@ -850,7 +844,7 @@
     </div>
 
     <!-- ── რჩეულები (Favorites) ── -->
-    <div id="page-favorites" class="page-section hidden">
+    <div id="page-favorites" class="page-section hidden max-w-[1440px] mx-auto w-full px-4 md:px-6 pt-4 md:pt-6 pb-8">
 
       <!-- Page Title -->
       <h2 class="mb-6 text-4xl font-semibold uppercase tracking-wider text-gray-800">ჩემი რჩეულები</h2>
@@ -861,7 +855,7 @@
     </div>
 
     <!-- ── პირადი კაბინეტი (Personal Cabinet) ── -->
-    <div id="page-profile" class="page-section hidden">
+    <div id="page-profile" class="page-section hidden max-w-[1440px] mx-auto w-full px-4 md:px-6 pt-4 md:pt-6 pb-8">
 
       <!-- Page Title & Tabs -->
       <div class="mb-8">
@@ -1014,7 +1008,7 @@
     </div>
 
     <!-- ── Admin გვერდის კონტეინერი ── -->
-    <div id="page-admin" class="page-section hidden">
+    <div id="page-admin" class="page-section hidden max-w-[1440px] mx-auto w-full px-4 md:px-6 pt-4 md:pt-6 pb-8">
 
       <!-- ── Admin sub-page toggle buttons ────────────────── -->
       <div class="mb-6 flex flex-wrap items-center gap-3">

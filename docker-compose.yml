@@ -1,0 +1,128 @@
+services:
+  # One-shot schema initialisation. Runs once before the app starts so the 4
+  # gunicorn workers don't race each other to CREATE TABLE (3 of 4 would lose
+  # with UniqueViolation on pg_type_typname_nsp_index). Replace with Alembic in
+  # Phase B; this is the bridge.
+  migrate:
+    image: magtibase-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: magti-portal-migrate
+    # Creates tables + enables pg_trgm + GIN indexes for sub-2s ILIKE
+    # search (spec slide 28). Idempotent — safe to re-run.
+    command: ["python", "migrate.py"]
+    environment:
+      DATABASE_URL: postgresql://appuser:magti_secure_db@db:5432/magti_portal
+      APP_ENV: development
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - magti-network
+    restart: "no"
+
+  backup:
+    image: magtibase-app
+    container_name: magti-portal-backup
+    # ყოველ 24 საათში (86400 წამი) გაუშვებს backup.py-ს
+    command: ["bash", "-c", "while true; do sleep 86400; python backup.py; done"]
+    environment:
+      DATABASE_URL: postgresql://appuser:magti_secure_db@db:5432/magti_portal
+      APP_ENV: development
+    volumes:
+      - app_uploads:/app/uploads
+      - ./backups:/app/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - magti-network
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: magti-portal-app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://appuser:magti_secure_db@db:5432/magti_portal
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: magti_secure_db
+      POSTGRES_DB: magti_portal
+      REDIS_URL: redis://redis:6379/0
+      APP_ENV: development
+      SECRET_KEY: magti-super-secret-key-2024-production
+      DEBUG: "false"
+      WORKERS: "4"
+      CORS_ORIGINS: http://localhost:8000,http://127.0.0.1:8000
+    volumes:
+      - app_uploads:/app/uploads
+      - app_static:/app/static
+      - app_logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - magti-network
+
+  db:
+    image: postgres:15-alpine
+    container_name: magti-portal-db
+    command: postgres -c max_connections=500
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: magti_secure_db
+      POSTGRES_DB: magti_portal
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d magti_portal"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - magti-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: magti-portal-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - magti-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  app_uploads:
+  app_static:
+  app_logs:
+
+networks:
+  magti-network:
+    driver: bridge

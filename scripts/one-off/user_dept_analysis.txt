@@ -1,0 +1,38 @@
+889: for the user's department — no page reload needed. */
+1165: document.getElementById('header-user-dept').textContent = user.department || user.role;
+1175: const profileDept = document.getElementById('profile-department');
+1176: if (profileDept) profileDept.textContent = user.department || '—';
+1212: * Filters by department on the backend automatically.
+1608: * Retrieves compliance completion rates for all operators under the manager's department
+1625: if (deptName) deptName.textContent = data.department || '—';
+1943: // Store for re-rendering when the department filter changes
+1947: const depts = [...new Set(data.map(u => u.department).filter(Boolean))].sort();
+1960: * Admin CMS: render the progress table, honouring the department filter.
+1968: const data = (window.userProgressData || []).filter(u => !dept || u.department === dept);
+2081: <td class="py-2.5 pr-4 text-center text-xs text-gray-500">${escapeHtml(article.target_department)}</td>
+2262: const targetDepartment = document.getElementById('article-department').value;
+2278: const payload = { title, content, category_id: categoryId, target_department: targetDepartment, status, published_at: publishedAt };
+2303: body: JSON.stringify({ item_type: 'article', item_id: articleData.id, target_department: targetDepartment, due_date: reqDate.toISOString(), priority: 'high' })
+2338: document.getElementById('article-department').value = article.target_department;
+2437: document.getElementById('news-modal-dept').textContent = item.target_department === 'All' ? 'ყველა დეპარტამენტი' : item.target_department;
+2498: const targetDepartment = document.getElementById('news-department').value;
+2505: const payload = { title, content, target_department: targetDepartment };
+2523: body: JSON.stringify({ item_type: 'news', item_id: newsData.id, target_department: targetDepartment, due_date: reqDate.toISOString(), priority: 'high' })
+2594: const deptText = item.target_department === 'All' ? 'ყველა დეპარტამენტი' : item.target_department;
+2629: document.getElementById('news-department').value = item.target_department;
+2736: const targetDepartment = document.getElementById('video-department').value;
+2740: const payload = { title, video_url: videoUrl, category, target_department: targetDepartment };
+2758: body: JSON.stringify({ item_type: 'video', item_id: videoData.id, target_department: targetDepartment, due_date: reqDate.toISOString(), priority: 'high' })
+3209: `${article.target_department} · ვერსია ${article.version} · ${date}${article.tags ? ' · ' + article.tags : ''}`;
+4382: <td class="px-5 py-3 text-gray-500">${escapeHtml(user.department || '—')}</td>
+4424: document.getElementById('edit-user-department').value = user.department || '';
+4445: const department = document.getElementById('edit-user-department').value;
+4451: body: JSON.stringify({ role, department: department || null, position: position || null })
+4652: target_department: article.target_department,
+4868: id="profile-department" class="font-medium text-gray-800">იტვირთება...</span></div>
+5310: <label for="article-department" class="mb-1.5 block text-sm font-medium text-gray-700">სამიზნე
+5312: <select id="article-department"
+5374: <label for="news-department" class="mb-1.5 block text-sm font-medium text-gray-700">სამიზნე დეპარტამენტი</label>
+5375: <select id="news-department"
+5436: <label for="video-department" class="mb-1.5 block text-sm font-medium text-gray-700">სამიზნე დეპარტამენტი</label>
+5437: <select id="video-department"

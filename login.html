@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ka">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>მაგთი — ავტორიზაცია</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Brand Font: Teko & Noto Sans Georgian -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Georgian:wght@400;500;600;700&family=Teko:wght@500;600&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: "Noto Sans Georgian", system-ui, -apple-system, "Segoe UI", "Noto Sans",
+                "DejaVu Sans", Arial, sans-serif;
+        }
+
+        h1, .font-brand {
+            font-family: 'Teko', 'Noto Sans Georgian', sans-serif;
+            letter-spacing: 0.05em;
+        }
+    </style>
+</head>
+
+<body class="flex min-h-screen bg-white antialiased">
+
+    <!-- ── Left side: Login Form ──────────────────────────────────────── -->
+    <div class="flex w-full flex-col px-8 py-10 lg:w-1/2 lg:px-16 xl:px-24">
+
+        <!-- Header / Logo -->
+        <div class="mb-auto">
+            <img src="/static/magti_logo.png" alt="მაგთი ლოგო" class="h-10">
+        </div>
+
+        <!-- Form Container -->
+        <div class="mx-auto my-auto w-full max-w-md">
+            <h1 class="mb-3 text-4xl font-semibold uppercase tracking-wider text-gray-800">ავტორიზაცია</h1>
+            <p class="mb-8 text-sm leading-relaxed text-gray-500">
+                ავტორიზაცია იმ ელ. ფოსტითა და პაროლით, რომლითაც მაგთიკომის სისტემებში შესვლა ხდება.
+            </p>
+
+            <form id="login-form" class="space-y-5">
+                <div>
+                    <label for="email" class="mb-1.5 block text-sm font-medium text-gray-700">ელ. ფოსტა</label>
+                    <input type="email" id="email"
+                        class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-800 placeholder-gray-400 transition-colors focus:border-[#E30613] focus:outline-none focus:ring-1 focus:ring-[#E30613]"
+                        placeholder="name@magticom.ge" required />
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label for="password" class="block text-sm font-medium text-gray-700">პაროლი</label>
+                        <a href="#" onclick="openForgotPasswordModal(event)" class="text-sm font-medium text-[#E30613] hover:underline">დაგავიწყდათ პაროლი?</a>
+                    </div>
+                    <input type="password" id="password"
+                        class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-800 placeholder-gray-400 transition-colors focus:border-[#E30613] focus:outline-none focus:ring-1 focus:ring-[#E30613]"
+                        placeholder="ნებისმიერი პაროლი" required />
+                </div>
+
+                <button type="submit"
+                    class="mt-2 w-full rounded-xl bg-[#E30613] px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700">
+                    Connect
+                </button>
+
+                <!-- Error message container -->
+                <div id="error-message"
+                    class="hidden rounded-lg bg-red-50 p-3 text-center text-sm font-medium text-red-700">
+                </div>
+
+                <!-- SSO Divider -->
+                <div class="relative mt-6 flex items-center py-2">
+                    <div class="flex-grow border-t border-gray-200"></div>
+                    <span class="mx-4 shrink-0 text-xs text-gray-400">ან</span>
+                    <div class="flex-grow border-t border-gray-200"></div>
+                </div>
+
+                <button type="button" onclick="initSSO()"
+                    class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#E30613]">
+                    <i class="fa-solid fa-shield-halved mr-2 text-[#E30613]"></i> კორპორაციული ავტორიზაცია (SSO)
+                </button>
+            </form>
+        </div>
+
+        <!-- Footer -->
+        <div class="mt-auto pt-8">
+            <p class="text-xs text-gray-400">&copy; 2024 შპს მაგთიკომი. ყველა უფლება დაცულია.</p>
+        </div>
+    </div>
+
+    <!-- ── Right side: Decorative Graphic (Red Gradient Placeholder) ──── -->
+    <div class="relative hidden w-1/2 overflow-hidden bg-gradient-to-br from-[#E30613] to-[#8a0000] lg:block">
+        <!-- Abstract overlays to make it look premium -->
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(255,255,255,0.1),_transparent_50%)]">
+        </div>
+        <div class="absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-white opacity-10 blur-3xl"></div>
+        <div class="absolute right-1/4 top-1/4 h-64 w-64 rounded-full bg-white opacity-10 blur-2xl"></div>
+    </div>
+
+
+    <!-- Forgot Password Modal -->
+    <div id="forgot-password-modal" class="fixed inset-0 z-50 hidden bg-gray-900/50 backdrop-blur-sm transition-opacity flex items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 transform transition-all scale-100 opacity-100 m-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-gray-900">პაროლის აღდგენა</h3>
+                <button onclick="closeForgotPasswordModal()" class="text-gray-400 hover:text-gray-600 focus:outline-none">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <form id="forgot-password-form" onsubmit="submitForgotPassword(event)" class="space-y-4">
+                <div>
+                    <label for="reset-email" class="mb-1.5 block text-sm font-medium text-gray-700">ელ. ფოსტა</label>
+                    <input type="email" id="reset-email" required
+                        class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-800 focus:border-[#E30613] focus:outline-none focus:ring-1 focus:ring-[#E30613]"
+                        placeholder="შეიყვანეთ ელ. ფოსტა" />
+                </div>
+                <div id="forgot-message" class="hidden text-sm font-medium"></div>
+                <button type="submit" class="w-full rounded-xl bg-[#E30613] px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700">
+                    აღდგენის ბმულის გაგზავნა
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function openForgotPasswordModal(e) {
+            if(e) e.preventDefault();
+            document.getElementById('forgot-password-modal').classList.remove('hidden');
+            document.getElementById('reset-email').value = '';
+            document.getElementById('forgot-message').classList.add('hidden');
+        }
+        function closeForgotPasswordModal() {
+            document.getElementById('forgot-password-modal').classList.add('hidden');
+        }
+        async function submitForgotPassword(event) {
+            event.preventDefault();
+            const email = document.getElementById('reset-email').value;
+            const msgDiv = document.getElementById('forgot-message');
+            msgDiv.classList.add('hidden');
+            msgDiv.classList.remove('text-green-600', 'text-red-600');
+            try {
+                const response = await fetch('/api/auth/forgot-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.detail || 'შეცდომა პაროლის აღდგენისას');
+                msgDiv.textContent = data.message || 'აღდგენის ინსტრუქცია გამოგზავნილია ელ. ფოსტაზე';
+                msgDiv.classList.add('text-green-600');
+                msgDiv.classList.remove('hidden');
+            } catch(e) {
+                msgDiv.textContent = e.message;
+                msgDiv.classList.add('text-red-600');
+                msgDiv.classList.remove('hidden');
+            }
+        }
+
+        document.getElementById('login-form').addEventListener('submit', async function (event) {
+            event.preventDefault();
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorMessageDiv = document.getElementById('error-message');
+
+            errorMessageDiv.classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password }),
+                });
+
+                if (!response.ok) {
+                    const textData = await response.text();
+                    let errorMsg = 'ავტორიზაცია ვერ მოხერხდა';
+                    try {
+                        const jsonData = JSON.parse(textData);
+                        if (jsonData.detail) errorMsg = jsonData.detail;
+                    } catch (e) {
+                        errorMsg = `სერვერის შეცდომა (${response.status}): ${textData}`;
+                    }
+                    throw new Error(errorMsg);
+                }
+
+                const data = await response.json();
+                localStorage.setItem('magti_token', data.access_token);
+                window.location.href = 'base-layout.html';
+
+            } catch (error) {
+                errorMessageDiv.textContent = error.message;
+                errorMessageDiv.classList.remove('hidden');
+            }
+        });
+
+        async function initSSO() {
+            try {
+                const response = await fetch('/api/auth/sso/init');
+                const data = await response.json();
+                if (data.configured && data.sso_url) {
+                    window.location.href = data.sso_url;
+                } else {
+                    const errorMessageDiv = document.getElementById('error-message');
+                    errorMessageDiv.textContent = data.detail || 'SSO კონფიგურაცია ვერ მოიძებნა.';
+                    errorMessageDiv.classList.remove('hidden');
+                }
+            } catch (error) {
+                const errorMessageDiv = document.getElementById('error-message');
+                errorMessageDiv.textContent = 'სერვერთან კავშირი ვერ მოხერხდა.';
+                errorMessageDiv.classList.remove('hidden');
+            }
+        }
+    </script>
+
+</body>
+
+</html>

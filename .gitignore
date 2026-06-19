@@ -1,0 +1,11 @@
+magti_portal.db*
+venv/
+__pycache__/
+*.pyc
+*.bak
+*.png
+uploads/
+backups/
+.env
+.claude/
+scripts/legacy/

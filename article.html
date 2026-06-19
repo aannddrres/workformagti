@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ka">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>სტატია — მაგთის საინფორმაციო პორტალი</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Font Awesome 6 CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    crossorigin="anonymous" />
+
+  <!-- Brand Font: Noto Sans Georgian -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Georgian:wght@400;500;600;700&family=Teko:wght@500;600&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            magti: "#E30613",
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    body {
+      font-family: "Noto Sans Georgian", system-ui, -apple-system, sans-serif;
+    }
+
+    h1, h2, h3, h4 {
+      font-family: 'Teko', 'Noto Sans Georgian', sans-serif;
+      letter-spacing: 0.05em;
+    }
+
+    .prose-content h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-top: 1.5rem;
+      margin-bottom: 0.5rem;
+      color: #111827;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 0.25rem;
+    }
+
+    .prose-content h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-top: 1.25rem;
+      margin-bottom: 0.5rem;
+      color: #1f2937;
+    }
+
+    .prose-content h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-top: 1rem;
+      margin-bottom: 0.5rem;
+      color: #374151;
+    }
+
+    .prose-content p {
+      margin-bottom: 1rem;
+      line-height: 1.7;
+      color: #4b5563;
+    }
+
+    .prose-content ul {
+      list-style-type: disc;
+      padding-left: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .prose-content ol {
+      list-style-type: decimal;
+      padding-left: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .prose-content li {
+      margin-bottom: 0.25rem;
+    }
+
+    /* Print styling */
+    @media print {
+      body {
+        background: white !important;
+        color: black !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
+      }
+      /* Item 14: hide related instructions when printing the standalone page. */
+      #related-section,
+      .related-instructions {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50 text-gray-800 antialiased min-h-screen flex flex-col">
+
+  <!-- Header (No Print) -->
+  <header class="no-print bg-white border-b border-gray-100 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <img src="/static/magti_logo.png" alt="მაგთი ლოგო" class="h-9 cursor-pointer" onclick="goToPortal()">
+        <span class="font-bold text-gray-900 text-sm hidden sm:inline-block">საინფორმაციო პორტალი</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="window.print()" class="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
+          <i class="fa-solid fa-print"></i> ბეჭდვა
+        </button>
+        <button onclick="goToPortal()" class="flex items-center gap-1.5 rounded-lg bg-magti px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-red-700 shadow-sm transition-all">
+          <i class="fa-solid fa-arrow-left"></i> პორტალზე დაბრუნება
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Layout -->
+  <main class="flex-1 max-w-6xl w-full mx-auto px-4 py-8 flex flex-col lg:flex-row gap-8 print-container">
+    
+    <!-- Article Panel (Left) -->
+    <article class="flex-1 bg-white rounded-2xl border border-gray-100 p-6 sm:p-8 shadow-sm print-container">
+      
+      <!-- Staleness Banner -->
+      <div id="staleness-banner" class="hidden items-center justify-between gap-4 border-b pb-4 mb-6">
+        <div class="flex items-center gap-2 text-sm">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span id="staleness-text" class="font-semibold"></span>
+        </div>
+      </div>
+
+      <!-- Category & Date -->
+      <div class="flex flex-wrap items-center gap-2 mb-4 text-xs font-medium no-print">
+        <span id="article-category" class="bg-red-50 text-magti px-2.5 py-1 rounded-full">კატეგორია</span>
+        <span class="text-gray-300">•</span>
+        <span id="article-author" class="text-gray-500">ავტორი</span>
+        <span class="text-gray-300">•</span>
+        <span id="article-date" class="text-gray-500">თარიღი</span>
+      </div>
+
+      <!-- Title -->
+      <h1 id="article-title" class="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-6 leading-tight">სტატიის სათაური</h1>
+
+      <!-- Divider -->
+      <hr class="border-gray-100 mb-6">
+
+      <!-- Text Content -->
+      <div id="article-body" class="prose-content text-gray-700 mb-8 whitespace-pre-line text-sm sm:text-base">
+        იტვირთება...
+      </div>
+
+      <!-- File Attachment -->
+      <div id="attachment-container" class="hidden border-t border-gray-100 pt-6 mt-8">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">მიმაგრებული ფაილი</h4>
+        <a id="article-attachment" href="#" target="_blank" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm font-medium text-magti hover:bg-red-50 transition-colors">
+          <i class="fa-solid fa-paperclip"></i>
+          <span id="attachment-name">ფაილის ჩამოტვირთვა</span>
+        </a>
+      </div>
+
+      <!-- Note Area (No Print) -->
+      <div id="note-container" class="no-print hidden border-t border-gray-100 pt-6 mt-8">
+        <label for="article-note" class="mb-2 block text-xs font-bold uppercase tracking-wider text-gray-400">ჩემი პირადი შენიშვნა</label>
+        <textarea id="article-note" rows="3" onchange="saveArticleNote()"
+          placeholder="აქ შეგიძლიათ ჩაწეროთ პირადი შენიშვნა ამ სტატიაზე..."
+          class="w-full rounded-xl border border-gray-200 bg-gray-50/50 p-3 text-sm text-gray-800 placeholder-gray-400 focus:border-magti focus:bg-white focus:outline-none focus:ring-1 focus:ring-magti"></textarea>
+      </div>
+
+    </article>
+
+    <!-- Sidebar / TOC (Right) -->
+    <aside class="w-full lg:w-80 shrink-0 no-print flex flex-col gap-6">
+      
+      <!-- Table of Contents -->
+      <div id="toc-card" class="hidden bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+        <!-- Will be filled dynamically -->
+      </div>
+
+      <!-- Quick Info / Status -->
+      <div class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 flex items-center gap-1.5">
+          <i class="fa-solid fa-circle-info"></i> ინფორმაცია
+        </h4>
+        <ul class="space-y-2.5 text-xs text-gray-600">
+          <li class="flex justify-between"><span class="font-medium text-gray-400">დეპარტამენტი:</span> <span id="info-dept" class="font-semibold text-gray-800">-</span></li>
+          <li class="flex justify-between"><span class="font-medium text-gray-400">სტატუსი:</span> <span id="info-status" class="font-semibold text-gray-800">-</span></li>
+          <li class="flex justify-between"><span class="font-medium text-gray-400">ნახვები:</span> <span id="info-views" class="font-semibold text-gray-800">0</span></li>
+        </ul>
+      </div>
+
+    </aside>
+
+  </main>
+
+  <!-- Footer (No Print) -->
+  <footer class="no-print bg-white border-t border-gray-100 py-6 mt-12 text-center text-xs text-gray-400">
+    &copy; 2026 მაგთი საინფორმაციო პორტალი. ყველა უფლება დაცულია.
+  </footer>
+
+  <script>
+    const Auth = {
+      KEY: 'magti_token',
+      getToken() { return localStorage.getItem(this.KEY); },
+      clear() { localStorage.removeItem(this.KEY); },
+      _payload() {
+        const t = this.getToken();
+        if (!t) return null;
+        try { return JSON.parse(atob(t.split('.')[1])); } catch (e) { return null; }
+      },
+      isExpired() {
+        const p = this._payload();
+        if (!p) return true;
+        if (!p.exp) return false;
+        return Date.now() >= p.exp * 1000;
+      },
+      redirectToLogin() { this.clear(); window.location.href = 'login.html'; }
+    };
+
+    // Authenticate immediately
+    if (!Auth.getToken() || Auth.isExpired()) {
+      Auth.redirectToLogin();
+    }
+
+    let articleId = null;
+    let categoriesMap = {};
+
+    function goToPortal() {
+      window.location.href = 'base-layout.html';
+    }
+
+    async function api(path, options = {}) {
+      const headers = Object.assign({}, options.headers || {});
+      const token = Auth.getToken();
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const response = await fetch(path, { ...options, headers, credentials: 'include' });
+      if (response.status === 401) {
+        Auth.redirectToLogin();
+        throw new Error('401 Unauthorized');
+      }
+      if (!response.ok) {
+        let errMsg = `Request failed: ${response.status}`;
+        try {
+          const errData = await response.json();
+          if (errData && errData.detail) errMsg = errData.detail;
+        } catch (e) { }
+        alert(errMsg);
+        throw new Error(errMsg);
+      }
+      return response;
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const params = new URLSearchParams(window.location.search);
+      articleId = params.get('id');
+
+      if (!articleId) {
+        document.getElementById('article-body').innerHTML = '<div class="text-red-500 font-semibold text-center">შეცდომა: სტატიის ID არ არის მითითებული.</div>';
+        return;
+      }
+
+      try {
+        // Fetch categories first
+        const catsRes = await api('/api/categories');
+        const categoriesList = await catsRes.json();
+        categoriesList.forEach(c => {
+          categoriesMap[c.id] = c.name;
+        });
+
+        // Fetch article
+        const artRes = await api(`/api/articles/${articleId}`);
+        const article = await artRes.json();
+        
+        renderArticle(article);
+        
+        // Log view
+        api(`/api/articles/${articleId}/view`, { method: 'POST' }).catch(e => console.error('Error logging view:', e));
+
+      } catch (error) {
+        console.error('Error loading article:', error);
+        document.getElementById('article-body').innerHTML = '<div class="text-red-500 font-semibold text-center">შეცდომა სტატიის ჩატვირთვისას.</div>';
+      }
+    });
+
+    function renderArticle(article) {
+      document.title = `${article.title} — მაგთის საინფორმაციო პორტალი`;
+      document.getElementById('article-title').textContent = article.title;
+      
+      const catName = categoriesMap[article.category_id] || `კატეგორია #${article.category_id}`;
+      document.getElementById('article-category').textContent = catName;
+      
+      const authorEmail = article.author_email || 'ადმინისტრატორი';
+      document.getElementById('article-author').textContent = authorEmail;
+      
+      const dateStr = article.published_at ? new Date(article.published_at).toLocaleDateString('ka-GE') : new Date().toLocaleDateString('ka-GE');
+      document.getElementById('article-date').textContent = dateStr;
+
+      // Render content body
+      const bodyContainer = document.getElementById('article-body');
+      bodyContainer.innerHTML = article.content; // Content is sanitized HTML from server
+
+      // Update metadata on sidebar
+      document.getElementById('info-dept').textContent = article.target_department === 'All' ? 'ყველა დეპარტამენტი' : article.target_department;
+      document.getElementById('info-status').textContent = article.status === 'published' ? 'გამოქვეყნებული' : article.status;
+      document.getElementById('info-views').textContent = article.views_count || 0;
+
+      // Table of Contents
+      const tocCard = document.getElementById('toc-card');
+      const headings = bodyContainer.querySelectorAll('h1, h2, h3');
+      if (headings.length > 2) {
+        tocCard.classList.remove('hidden');
+        let tocHtml = `<p class="mb-2 text-[11px] font-bold uppercase tracking-wider text-gray-500"><i class="fa-solid fa-list-ul mr-1.5"></i>სარჩევი</p>
+                       <ul class="space-y-1.5 text-[13px] text-gray-600">`;
+        headings.forEach((h, i) => {
+          h.id = 'heading-' + i;
+          const isH3 = h.tagName.toLowerCase() === 'h3';
+          tocHtml += `<li class="${isH3 ? 'pl-4 text-gray-400' : 'font-medium'}">
+                        <a href="#${h.id}" class="hover:text-magti transition-colors">${h.textContent}</a>
+                      </li>`;
+        });
+        tocHtml += '</ul>';
+        tocCard.innerHTML = tocHtml;
+      }
+
+      // Attachment
+      if (article.attachment_url) {
+        document.getElementById('attachment-container').classList.remove('hidden');
+        document.getElementById('article-attachment').href = article.attachment_url;
+        const filename = article.attachment_url.split('/').pop() || 'ფაილის ჩამოტვირთვა';
+        document.getElementById('attachment-name').textContent = decodeURIComponent(filename);
+      }
+
+      // Notes
+      document.getElementById('note-container').classList.remove('hidden');
+      if (article.user_note) {
+        document.getElementById('article-note').value = article.user_note;
+      }
+
+      // Staleness banner
+      const banner = document.getElementById('staleness-banner');
+      const bannerText = document.getElementById('staleness-text');
+      if (article.days_since_update > 180) {
+        banner.classList.remove('hidden');
+        banner.classList.add('flex');
+        
+        let bannerClass = "";
+        let bannerIcon = "";
+        let georgianMsg = "";
+
+        if (article.days_since_update >= 365) {
+          bannerClass = "bg-red-50 border-red-200 text-red-700";
+          bannerIcon = "fa-triangle-exclamation";
+          georgianMsg = `კრიტიკული სიძველე: ეს მასალა განახლებულა ${article.days_since_update} დღის წინ. არ გამოიყენოთ კლიენტთან სამუშაოდ გადამოწმების გარეშე!`;
+        } else if (article.days_since_update >= 270) {
+          bannerClass = "bg-orange-50 border-orange-200 text-orange-700";
+          bannerIcon = "fa-circle-exclamation";
+          georgianMsg = `მაღალი სიძველე: ეს მასალა განახლებულა ${article.days_since_update} დღის წინ. გთხოვთ გადაამოწმოთ ინფორმაცია.`;
+        } else {
+          bannerClass = "bg-yellow-50 border-yellow-200 text-yellow-700";
+          bannerIcon = "fa-circle-info";
+          georgianMsg = `საშუალო სიძველე: ეს მასალა განახლებულა ${article.days_since_update} დღის წინ.`;
+        }
+
+        banner.className = `items-center justify-between gap-4 border border-l-4 p-4 rounded-xl ${bannerClass}`;
+        bannerText.innerHTML = `<i class="fa-solid ${bannerIcon} mr-2"></i>${georgianMsg}`;
+      }
+    }
+
+    async function saveArticleNote() {
+      const note = document.getElementById('article-note').value;
+      try {
+        await api(`/api/articles/${articleId}/note`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ note })
+        });
+      } catch (error) {
+        console.error('Error saving note:', error);
+      }
+    }
+  </script>
+</body>
+
+</html>

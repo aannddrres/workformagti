@@ -1,3 +1,12 @@
+:root {
+  --canvas-bg: #F5F5F5;
+  --canvas-bg-rgb: 245, 245, 245;
+}
+body.dark-mode {
+  --canvas-bg: #121212 !important;
+  --canvas-bg-rgb: 18, 18, 18 !important;
+}
+
 /*
      * Georgian Unicode: system-ui includes Sylfaen on Windows, which covers the
      * Georgian Mkhedruli script. Noto Sans is a safe cross-platform fallback.
@@ -542,4 +551,188 @@
       /* IE and Edge */
       scrollbar-width: none;
       /* Firefox */
+    }
+
+    /* ════════════════════════════════════════════════════════
+       DARK MODE — Operator Ergonomics Gap Closure (12h shifts)
+       Additive only: no existing selector is overridden, so
+       every rule below is a regression-safe dark polish.
+       ════════════════════════════════════════════════════════ */
+
+    /* Neutral surface fills that the broad `bg-white/.bg-gray-50` rule misses:
+       badges, segmented-control tracks, sub-panels, table headers, kbd chips. */
+    body.dark-mode .bg-slate-100,
+    body.dark-mode .bg-gray-100,
+    body.dark-mode .bg-slate-100\/80,
+    body.dark-mode .bg-gray-100\/80,
+    body.dark-mode .bg-slate-50\/40,
+    body.dark-mode .bg-gray-50\/50,
+    body.dark-mode .bg-gray-50\/80 {
+      background-color: #27272a !important;            /* zinc-800 */
+      color: #d4d4d8 !important;                        /* zinc-300 */
+    }
+
+    body.dark-mode .bg-slate-200,
+    body.dark-mode .bg-gray-200,
+    body.dark-mode .bg-slate-200\/80,
+    body.dark-mode .bg-gray-200\/80 {
+      background-color: #3f3f46 !important;            /* zinc-700 */
+      color: #e4e4e7 !important;                        /* zinc-200 */
+    }
+
+    /* Hairline borders that vanish against #121212 — restore a visible seam. */
+    body.dark-mode .border-gray-100,
+    body.dark-mode .border-gray-200,
+    body.dark-mode .border-slate-100,
+    body.dark-mode .border-slate-200,
+    body.dark-mode .border-slate-200\/60,
+    body.dark-mode .border-slate-200\/80 {
+      border-color: #3f3f46 !important;                /* zinc-700 */
+    }
+
+    body.dark-mode .border-gray-300,
+    body.dark-mode .border-slate-300 {
+      border-color: #52525b !important;                /* zinc-600 */
+    }
+
+    /* Muted placeholder text — never let it drop below the canvas. */
+    body.dark-mode .text-gray-400,
+    body.dark-mode .text-slate-400,
+    body.dark-mode .text-slate-500,
+    body.dark-mode .placeholder-gray-400::placeholder,
+    body.dark-mode input::placeholder,
+    body.dark-mode textarea::placeholder {
+      color: #a1a1aa !important;                        /* zinc-400 */
+    }
+
+    /* ── Modals ──────────────────────────────────────────────
+       Article / news / user-edit modal shells must never flash white.
+       The article modal uses `.force-light/.force-dark` toggles; these
+       cover the default state and any nested panel that escaped them. */
+    body.dark-mode #article-modal > div,
+    body.dark-mode #news-modal,
+    body.dark-mode #user-edit-modal > div,
+    body.dark-mode [role="dialog"] > div,
+    body.dark-mode .fixed.inset-0.z-50 > div:not(.absolute) {
+      background-color: #1e1e1e !important;
+      border-color: #333 !important;
+      color: #e5e7eb !important;
+    }
+
+    /* Modal headers / footers / sub-cards inside modals. */
+    body.dark-mode #article-modal header,
+    body.dark-mode #article-modal footer,
+    body.dark-mode #article-modal-scripts,
+    body.dark-mode #article-modal-note,
+    body.dark-mode #user-edit-modal header,
+    body.dark-mode #user-edit-modal form {
+      background-color: #1e1e1e !important;
+      border-color: #333 !important;
+      color: #e5e7eb !important;
+    }
+
+    /* Modal headings & body copy. */
+    body.dark-mode [role="dialog"] h2,
+    body.dark-mode [role="dialog"] h3,
+    body.dark-mode [role="dialog"] h4,
+    body.dark-mode #article-modal-scripts h3,
+    body.dark-mode #article-modal-scripts p,
+    body.dark-mode #article-modal-note p {
+      color: #e5e7eb !important;
+    }
+
+    /* ── Navbar dropdowns & popovers ───────────────────────── */
+    body.dark-mode .absolute.z-50,
+    body.dark-mode #notifications-list,
+    body.dark-mode #messages-list-popover,
+    body.dark-mode [id$="-popover"],
+    body.dark-mode [id$="-dropdown"] {
+      background-color: #1e1e1e !important;
+      border-color: #333 !important;
+      color: #e5e7eb !important;
+    }
+
+    /* Notification / message row hover — keep the red wash but readable. */
+    body.dark-mode #notifications-list > div:hover,
+    body.dark-mode #messages-list-popover > div:hover {
+      background-color: rgba(227, 6, 19, 0.12) !important;
+    }
+
+    /* ── Search input focus ──────────────────────────────────
+       Stop the input from flashing white on focus; the brand ring stays. */
+    body.dark-mode input:focus,
+    body.dark-mode textarea:focus,
+    body.dark-mode select:focus {
+      background-color: #2d2d2d !important;
+      border-color: #E30613 !important;
+      box-shadow: 0 0 0 3px rgba(227, 6, 19, 0.18) !important;
+    }
+
+    /* Search results dropdown panel. */
+    body.dark-mode #global-search-results {
+      background-color: #1e1e1e !important;
+      border-color: #333 !important;
+      color: #e5e7eb !important;
+    }
+    body.dark-mode #global-search-results mark {
+      background-color: rgba(227, 6, 19, 0.25) !important;
+      color: #fecaca !important;
+    }
+    body.dark-mode #global-search-results li:hover {
+      background-color: #27272a !important;
+    }
+
+    /* ── Global scrollbar (dark) ─────────────────────────────
+       The sidebar/notifications scrollbars are scoped; this covers the
+       main viewport + every modal body so operators never see a glaring
+       white scrollbar gutter during night shifts. */
+    body.dark-mode {
+      scrollbar-color: #3f3f46 #121212;                 /* Firefox */
+    }
+    body.dark-mode::-webkit-scrollbar,
+    body.dark-mode *::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    body.dark-mode::-webkit-scrollbar-track,
+    body.dark-mode *::-webkit-scrollbar-track {
+      background: #18181b;
+    }
+    body.dark-mode::-webkit-scrollbar-thumb,
+    body.dark-mode *::-webkit-scrollbar-thumb {
+      background: #3f3f46;
+      border-radius: 6px;
+      border: 2px solid #18181b;
+    }
+    body.dark-mode::-webkit-scrollbar-thumb:hover,
+    body.dark-mode *::-webkit-scrollbar-thumb:hover {
+      background: #52525b;
+    }
+
+    /* ── Segmented control + chips (info/tech toggle, badges) ─ */
+    body.dark-mode .rounded-xl.bg-slate-100\/80,
+    body.dark-mode .inline-flex.rounded-xl {
+      background-color: #27272a !important;
+      border-color: #3f3f46 !important;
+    }
+    /* Active segmented tab keeps the white "pop" but as a soft zinc-700 so it
+       does not blind; inactive text already handled by .text-slate-500 rule. */
+    body.dark-mode [data-profile-pill].bg-white {
+      background-color: #3f3f46 !important;
+      color: #fafafa !important;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4) !important;
+    }
+
+    /* ── Soft pastel tag chips inside article rows ───────────
+       (bg-red-50/bg-sky-50/bg-slate-100) — lift them above the canvas. */
+    body.dark-mode .bg-red-50,
+    body.dark-mode .bg-sky-50,
+    body.dark-mode .bg-emerald-50,
+    body.dark-mode .bg-amber-50 {
+      background-color: rgba(127, 127, 127, 0.14) !important;
+    }
+
+    /* ── Dashed empty-state borders ────────────────────────── */
+    body.dark-mode .border-dashed {
+      border-color: #3f3f46 !important;
     }

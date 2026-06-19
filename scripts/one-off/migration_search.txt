@@ -1,0 +1,240 @@
+add_test_content.py:5 (news): news, videos and required readings on top of whatever already exists — handy for
+add_test_content.py:6 (department): exercising the UI with a richer dataset across departments and statuses.
+add_test_content.py:47 (მობილ, ტექნიკ): wanted_cats = ["როუმინგი", "ინტერნეტი", "IPTV", "ტექნიკური", "მობილური", "კორპორატიული"]
+add_test_content.py:62 (department): # ── Articles: title, content, category, department, status, created_at ──
+add_test_content.py:64 (მობილ): ("eSIM-ის გააქტიურების ინსტრუქცია", "eSIM პროფილის ჩამოტვირთვა და გააქტიურება ნაბიჯ-ნაბიჯ.", "მობილური", "All", "published", ago(1)),
+add_test_content.py:65 (მობილ): ("ნომრის პორტირება სხვა ოპერატორიდან", "MNP პროცესი და საჭირო დოკუმენტები.", "მობილური", "All", "published", ago(2)),
+add_test_content.py:66 (ტექნიკ, Support): ("5G ქსელის დაფარვის ზონები 2026", "5G-ის ხელმისაწვდომი უბნები და მოწყობილობების მოთხოვნები.", "ტექნიკური", "Support", "published", ago(3)),
+add_test_content.py:67 (Support): ("Magti TV Play — ხშირად დასმული კითხვები", "ანგარიში, მოწყობილობები და გავრცელებული პრობლემები.", "IPTV", "Support", "published", ago(5)),
+add_test_content.py:70 (Support): ("ბილინგის ხშირი პრობლემები და გადაჭრა", "გადახდები, დავალიანება და ანგარიშის შემოწმება.", "კორპორატიული", "Support", "published", ago(12)),
+add_test_content.py:71 (ტექნიკ, Support): ("VoLTE-ს ჩართვა მოწყობილობაზე", "VoLTE-ს მხარდაჭერა და პარამეტრები.", "ტექნიკური", "Support", "published", ago(30)),
+add_test_content.py:72 (მობილ): ("SIM ბარათის დაბლოკვა და აღდგენა", "დაკარგული SIM-ის დაბლოკვისა და აღდგენის პროცედურა.", "მობილური", "All", "published", ago(4)),
+add_test_content.py:79 (department, target_department): tags=cname, target_department=dept, status=status,
+add_test_content.py:87 (news): new_news = [
+add_test_content.py:91 (Support): ("Support: ახალი CRM სისტემა", "გუნდისთვის ახალი ხელსაწყო მომართვების დასამუშავებლად.", "Support", ago(3)),
+add_test_content.py:94 (news): for title, content, dept, created_at in new_news:
+add_test_content.py:95 (department, target_department): db.add(News(title=title, content=content, target_department=dept, created_at=created_at))
+add_test_content.py:100 (ტექნიკ): ("eSIM-ის გააქტიურება — ვიდეო", "ტექნიკური", "All"),
+add_test_content.py:101 (ტექნიკ): ("როუტერის გადატვირთვა", "ტექნიკური", "All"),
+add_test_content.py:103 (Support): ("ბილინგის შემოწმება აპლიკაციაში", "კორპორატიული", "Support"),
+add_test_content.py:106 (department, target_department): db.add(VideoInstruction(title=title, video_url=yt, category=cname, target_department=dept))
+add_test_content.py:108 (department): # ── Required readings: varied due dates + departments ──
+add_test_content.py:110 (Support): a_billing = created[6]  # Support
+add_test_content.py:111 (Technical): a_5g = created[2]       # Technical
+add_test_content.py:113 (department, target_department): RequiredReading(item_type="article", item_id=a_esim.id, target_department="All",
+add_test_content.py:115 (department, target_department, Support): RequiredReading(item_type="article", item_id=a_billing.id, target_department="Support",
+add_test_content.py:117 (department, target_department, Support): RequiredReading(item_type="article", item_id=a_5g.id, target_department="Support",
+add_test_content.py:124 (news): print("Added: %d articles, %d news, %d videos, %d required readings." % (
+add_test_content.py:125 (news): len(new_articles), len(new_news), len(new_videos), len(new_readings)))
+add_test_content.py:126 (news): print("Totals now -> articles: %d | news: %d | videos: %d | required_readings: %d" % (
+base.py:35 (news): with open("old_news.json", "w", encoding="utf-8") as f:
+import_all_desk.py:111 (საინფორმ): "საინფორმაციო (Desk)", "ბილინგი", "სერვისის მართვა",
+import_all_desk.py:112 (მობილ): "ლოიალობა", "ინტერნეტი", "IPTV", "როუმინგი", "მობილური"
+import_all_desk.py:187 (საინფორმ): cname = "საინფორმაციო (Desk)"
+import_all_desk.py:203 (Informational): target_dept = "Informational" # ნაგულისხმევად (Desk)
+import_all_desk.py:205 (ტექნიკ, Support): # ტექნიკური ტერმინები -> Support
+import_all_desk.py:207 (Support): target_dept = "Support"
+import_all_desk.py:214 (Informational): if target_dept != "All" and target_dept != "Informational":
+import_all_desk.py:238 (department, target_department): existing.target_department = target_dept
+import_all_desk.py:247 (department, target_department): target_department=target_dept,
+main.py:234 (department, target_department): "target_department": getattr(item, "target_department", "All"),
+main.py:392 (news): @app.get("/api/news", response_model=list[schemas.NewsResponse])
+main.py:393 (news): def get_news(
+main.py:399 (news): """Retrieves general announcements and news items.
+main.py:401 (department): Regular operators and managers see only announcements targeting their own department
+main.py:416 (department): # Admins manage content across all departments, so they see everything
+main.py:418 (department, target_department): query = query.filter(models.News.target_department.in_([current_user.department, "All"]))
+main.py:421 (news): @app.post("/api/news", response_model=schemas.NewsResponse)
+main.py:422 (news): def create_news(
+main.py:423 (news): news: schemas.NewsCreate,
+main.py:427 (news): """Creates a new news announcement and publishes a real-time SSE notification.
+main.py:434 (news): news: The news announcement creation details.
+main.py:441 (news): # SECURITY FIX: publishing news is a content-admin action. Previously this
+main.py:442 (news): # endpoint only required get_current_user, letting any operator post news.
+main.py:443 (news): db_news = models.News(**news.model_dump())
+main.py:444 (news): db.add(db_news)
+main.py:448 (news): admin_id=current_admin.id, action="CREATE", item_type="news", item_id=db_news.id
+main.py:454 (department): # Real-time: push a notification to connected users in the target department.
+main.py:455 (news): _notify("news", db_news)
+main.py:456 (news): return db_news
+main.py:458 (news): @app.put("/api/news/{news_id}", response_model=schemas.NewsResponse)
+main.py:459 (news): def update_news(
+main.py:460 (news): news_id: int,
+main.py:461 (news): news: schemas.NewsCreate,
+main.py:465 (news): """Updates an existing news announcement and logs the action.
+main.py:470 (news): news_id: ID of the news announcement to update.
+main.py:471 (news): news: The news announcement update details.
+main.py:481 (news): db_news = db.query(models.News).filter(models.News.id == news_id).first()
+main.py:482 (news): if not db_news:
+main.py:485 (news): for key, value in news.model_dump().items():
+main.py:486 (news): setattr(db_news, key, value)
+main.py:489 (news): admin_id=current_admin.id, action="UPDATE", item_type="news", item_id=db_news.id
+main.py:494 (news): db.refresh(db_news)
+main.py:495 (news): return db_news
+main.py:497 (news): @app.delete("/api/news/{news_id}", status_code=status.HTTP_204_NO_CONTENT)
+main.py:498 (news): def delete_news(
+main.py:499 (news): news_id: int,
+main.py:503 (news): """Deletes a news announcement and logs the action.
+main.py:508 (news): news_id: ID of the news announcement to delete.
+main.py:518 (news): db_news = db.query(models.News).filter(models.News.id == news_id).first()
+main.py:519 (news): if not db_news:
+main.py:522 (news): db.delete(db_news)
+main.py:525 (news): admin_id=current_admin.id, action="DELETE", item_type="news", item_id=news_id
+main.py:539 (department): user, filtered to their department.
+main.py:549 (department): user_dept = current_user.department
+main.py:567 (department, target_department): target = event.get("target_department", "All")
+main.py:601 (department): cache_key = f"categories:{current_user.role}:{current_user.department}"
+main.py:735 (department): HTTPException(404): If the user's department is not covered, or the
+main.py:740 (department, target_department): if article.target_department not in (user.department, "All"):
+main.py:763 (department): time has passed, and which target their specific department or "All". Content administrators
+main.py:778 (department): # Admins manage content across all departments, so they see everything
+main.py:783 (department, target_department): models.Article.target_department.in_([current_user.department, "All"]),
+main.py:825 (news): of associated items (articles, news, videos) efficiently.
+main.py:837 (department, target_department): models.RequiredReading.target_department.in_([current_user.department, "All"])
+main.py:844 (news): item_ids_by_type = {"article": [], "news": [], "video": []}
+main.py:855 (news): if item_ids_by_type["news"]:
+main.py:856 (news): news_items = db.query(models.News).filter(models.News.id.in_(item_ids_by_type["news"])).all()
+main.py:857 (news): for item in news_items:
+main.py:858 (news): item_details[("news", item.id)] = {"title": item.title, "content": item.content}
+main.py:954 (department): reading: Schema containing the assignment properties (item type, item ID, department, due date).
+main.py:983 (department): Regular operators and managers see only videos targeting their department or "All".
+main.py:996 (department): # Admins manage content across all departments, so they see everything
+main.py:998 (department, target_department): query = query.filter(models.VideoInstruction.target_department.in_([current_user.department, "All"]))
+main.py:1006 (news): """Retrieves all bookmarked items (articles, news, videos) for the current user.
+main.py:1128 (department): # Real-time: notify the target department only about PUBLISHED articles.
+main.py:1515 (department): Regular operators and managers search only published/scheduled articles for their department or "All".
+main.py:1544 (department): # Admins manage content across all departments, so they search everything;
+main.py:1545 (department): # regular users only search published content for their department
+main.py:1549 (department, target_department): models.Article.target_department.in_([current_user.department, "All"]),
+main.py:1580 (news): """Portal-wide search across articles, news, and videos in one response.
+main.py:1583 (department): Regular operators and managers search only department-specific or "All" content.
+main.py:1593 (news): A GlobalSearchResponse containing matching articles, news, and videos.
+main.py:1595 (department): cache_key = f"search:{q}:{current_user.role}:{current_user.department}"
+main.py:1605 (news): return {"articles": [], "news": [], "videos": []}
+main.py:1608 (department): dept_filter = [current_user.department, "All"]
+main.py:1610 (news): article_conds, news_conds, video_conds = [], [], []
+main.py:1614 (news): news_conds.append(or_(models.News.title.ilike(pattern), models.News.content.ilike(pattern)))
+main.py:1621 (department, target_department): models.Article.target_department.in_(dept_filter),
+main.py:1631 (news): news = db.query(models.News).filter(and_(*news_conds))
+main.py:1633 (news, department, target_department): news = news.filter(models.News.target_department.in_(dept_filter))
+main.py:1637 (department, target_department): videos = videos.filter(models.VideoInstruction.target_department.in_(dept_filter))
+main.py:1641 (news): news_list = news.limit(5).all()
+main.py:1646 (news): "news": [schemas.NewsResponse.model_validate(n).model_dump() for n in news_list],
+main.py:1734 (department): # Now we fetch active-user counts per department once, then sum in memory.
+main.py:1736 (department): db.query(models.User.department, func.count(models.User.id))
+main.py:1738 (department): .group_by(models.User.department)
+main.py:1746 (department, target_department): if r.target_department == "All":
+main.py:1749 (department, target_department): total_assignments += active_by_dept.get(r.target_department, 0)
+main.py:1784 (department, target_department): own department; read_map is keyed by (user_id, reading_target_department).
+main.py:1786 (department): if not user.department or user.department == "All":
+main.py:1790 (department): required_count = all_required + readings_by_dept.get(user.department, 0)
+main.py:1793 (department): + read_map.get((user.id, user.department), 0)
+main.py:1824 (department): # Required-reading counts per department bucket (computed once).
+main.py:1825 (department, target_department): readings_by_dept = Counter(r.target_department for r in all_readings)
+main.py:1829 (department): # read_map[(user_id, reading_department)] = number of "read" statuses.
+main.py:1833 (department, target_department): models.RequiredReading.target_department,
+main.py:1841 (department, target_department): .group_by(models.ReadStatus.user_id, models.RequiredReading.target_department)
+main.py:1853 (department): "department": user.department,
+main.py:1867 (department): """Retrieves compliance statistics for users in the manager's department.
+main.py:1880 (department): dept = current_manager.department
+main.py:1882 (department): # Fetch only users that belong to the manager's department
+main.py:1885 (department): models.User.department == dept
+main.py:1889 (department, target_department): readings_by_dept = Counter(r.target_department for r in all_readings)
+main.py:1896 (department, target_department): models.RequiredReading.target_department,
+main.py:1904 (department, target_department): .group_by(models.ReadStatus.user_id, models.RequiredReading.target_department)
+main.py:1922 (department): return {"department": dept, "members": members}
+main.py:2002 (department): # Real-time: notify the target department about the new video.
+main.py:2104 (department): """Updates a user's details (role, department, position) and logs the action.
+main.py:2125 (department): user.department = update.department
+main.py:2215 (department): Managers can only message users within their own department. System admins can message anyone.
+main.py:2228 (department): HTTPException: 404 if recipient not found; 403 if manager messages outside department.
+main.py:2237 (department): # Confidentiality: a manager may only message users in their own department;
+main.py:2241 (department): and recipient.department != current_sender.department
+main.py:2245 (department): detail="Managers can only message users in their own department",
+main.py:2412 (department): # R-1: prevent feedback on articles outside the caller's department scope.
+main.py:2627 (department, target_department): "target_department": a.target_department,
+main.py:2669 (department): # Restrict to user's department visibility
+main.py:2672 (department, target_department): models.Article.target_department.in_([current_user.department, "All"])
+migrate_kb.py:90 (მობილ): ("მობილური",        ["მობილურ", "sim", "esim", "ნომრ", "sms", " ზარ", "წუთ",
+migrate_kb.py:94 (საინფორმ): # "საინფორმაციო (Desk)" is the default / catch-all (no keywords needed).
+migrate_kb.py:96 (საინფორმ): DEFAULT_CATEGORY = "საინფორმაციო (Desk)"
+migrate_kb.py:252 (department): def pick_department(title_lower: str, text_lower: str, folder: str) -> str:
+migrate_kb.py:255 (Support): return "Support"
+migrate_kb.py:257 (Support): # Support. (Body-only matching over-triggers Support, since billing pages
+migrate_kb.py:260 (Support): return "Support"
+migrate_kb.py:264 (Informational): return "Informational"
+migrate_kb.py:288 (department, target_department): "target_department": pick_department(title_lower, text_lower, folder),
+migrate_kb.py:405 (department, target_department): dept_dist[data["target_department"]] += 1
+migrate_kb.py:408 (department, target_department): print(f"  [WOULD ADD] {data['target_department']:<13} | "
+migrate_kb.py:415 (department, target_department): target_department=data["target_department"],
+migrate_kb.py:434 (department): print("By department:" + ", ".join(f" {k}={v}" for k, v in dept_dist.most_common()))
+models.py:21 (department): Index("ix_users_department_active", "department", "is_active"),
+models.py:28 (department): department = Column(String, index=True)
+models.py:37 (news): __tablename__ = "news"
+models.py:42 (department, target_department): target_department = Column(String, default="All", index=True)
+models.py:60 (department, target_department): # Operators filter on (target_department, status); this composite index
+models.py:62 (department, target_department): Index("ix_articles_department_status", "target_department", "status"),
+models.py:71 (department, target_department): target_department = Column(String, default="All")
+models.py:90 (department, target_department): Index("ix_required_readings_department", "target_department"),
+models.py:97 (department, target_department): target_department = Column(String, default="All")
+models.py:130 (department, target_department): target_department = Column(String, default="All", index=True)
+schemas.py:17 (department): department: Optional[str] = None
+schemas.py:57 (department, target_department): target_department: str = "All"
+schemas.py:94 (department): Tracks status configurations, metadata, target departments, and staleness details.
+schemas.py:100 (department, target_department): target_department: str = "All"
+schemas.py:114 (department, target_department): target_department: str
+schemas.py:139 (department, target_department): target_department: str = "All"
+schemas.py:186 (department, target_department): target_department: str = "All"
+schemas.py:223 (news): news: list[NewsResponse]
+schemas.py:251 (department): """Request schema for administrators to update roles and departments."""
+schemas.py:253 (department): department: Optional[str] = None
+schemas.py:304 (department): """Response schema representing supervisor/manager department analytics."""
+schemas.py:305 (department): department: str
+search_migration.py:4 (news, department, მობილ, ტექნიკ, საინფორმ, target_department, Support, Informational, Technical, Mobile): keywords = ['news', 'department', 'მობილ', 'ტექნიკ', 'საინფორმ', 'target_department', 'Support', 'Informational', 'Technical', 'Mobile']
+security.py:237 (news): #   content_admin  → content authoring (articles, news, videos, categories)
+seed.py:12 (Support): manager@magti.ge    (ნებისმიერი)  → manager        (Support team supervisor)
+seed.py:13 (Support): nino@magti.ge       (ნებისმიერი)  → operator       (Support)
+seed.py:14 (Support): tech@magti.ge       (ნებისმიერი)  → operator       (Support)
+seed.py:15 (Informational): info@magti.ge       (ნებისმიერი)  → operator       (Informational)
+seed.py:60 (department): role="admin", department="IT Security",
+seed.py:63 (department): role="content_admin", department="Content Creation",
+seed.py:66 (department, Support): role="manager", department="Support",
+seed.py:67 (Support): position="Support Team Lead", is_active=True, hashed_password=hashed_pw)
+seed.py:69 (department, Support): role="operator", department="Support",
+seed.py:71 (ტექნიკ): tech = User(name="ტექნიკური ოპერატორი", email="tech@magti.ge",
+seed.py:72 (department, Support): role="operator", department="Support",
+seed.py:73 (Technical): position="Technical Operator", is_active=True, hashed_password=hashed_pw)
+seed.py:74 (საინფორმ): info = User(name="საინფორმაციო ოპერატორი", email="info@magti.ge",
+seed.py:75 (department, Informational): role="operator", department="Informational",
+seed.py:87 (ტექნიკ): Category(name="ტექნიკური"),
+seed.py:99 (department, target_department): target_department="All", status="published", author_id=content_admin.id),
+seed.py:103 (department, target_department): target_department="All", status="published", author_id=content_admin.id),
+seed.py:107 (department, target_department): target_department="All", status="published", author_id=content_admin.id),
+seed.py:109 (Support): content="Support გუნდისთვის — IPTV პაკეტების მართვა და გააქტიურება.",
+seed.py:111 (department, target_department, Support): target_department="Support", status="published", author_id=content_admin.id),
+seed.py:113 (ტექნიკ): content="ოპტიკური ქსელის ჩართვის ტექნიკური ინსტრუქცია.",
+seed.py:114 (ტექნიკ): category_id=cat["ტექნიკური"], tags="ftth,ტექნიკური",
+seed.py:115 (department, target_department, Support): target_department="Support", status="published", author_id=content_admin.id),
+seed.py:119 (department, target_department): target_department="All", status="archived", author_id=content_admin.id),
+seed.py:125 (news): print("Seeding news...")
+seed.py:126 (news): news = [
+seed.py:128 (department, target_department): target_department="All"),
+seed.py:130 (department, target_department): target_department="All"),
+seed.py:131 (Support): News(title="Support: განახლებული სკრიპტები", content="Support გუნდისთვის ახალი სასაუბრო სკრიპტები.",
+seed.py:132 (department, target_department, Support): target_department="Support"),
+seed.py:134 (news): db.add_all(news)
+seed.py:141 (department, ტექნიკ, target_department): category="ტექნიკური", target_department="All", views_count=42),
+seed.py:143 (department, ტექნიკ, target_department): category="ტექნიკური", target_department="All", views_count=17),
+seed.py:145 (department, target_department, Support): category="Support", target_department="Support", views_count=8),
+seed.py:151 (department): # Mix of departments + due dates so "to-read / read / overdue" all appear.
+seed.py:155 (department, target_department): RequiredReading(item_type="article", item_id=articles[0].id, target_department="All",
+seed.py:157 (department, target_department): RequiredReading(item_type="article", item_id=articles[1].id, target_department="All",
+seed.py:159 (news, department, target_department): RequiredReading(item_type="news", item_id=news[0].id, target_department="All",
+seed.py:161 (department, target_department, Support): RequiredReading(item_type="article", item_id=articles[3].id, target_department="Support",
+seed.py:163 (department, target_department, Support): RequiredReading(item_type="article", item_id=articles[4].id, target_department="Support",
+seed.py:170 (Support): # nino (Support) read one "All" reading; leaves the overdue one unread.
+seed.py:171 (department, Technical): # tech (Technical) read their department reading. → non-zero stats.
+seed.py:195 (Support): print("  manager@magti.ge   (ნებისმიერი) -> manager        (Support supervisor)")
+seed.py:196 (Support): print("  nino@magti.ge      (ნებისმიერი) -> operator       (Support)")
+seed.py:197 (Support): print("  tech@magti.ge      (ნებისმიერი) -> operator       (Support)")
+seed.py:198 (Informational): print("  info@magti.ge      (ნებისმიერი) -> operator       (Informational)")

@@ -1,0 +1,31 @@
+fastapi
+uvicorn
+sqlalchemy
+pydantic[email]
+python-jose[cryptography]
+passlib
+# passlib 1.7.4 is unmaintained and breaks with bcrypt >= 4.1
+# (AttributeError: module 'bcrypt' has no attribute '__about__')
+bcrypt==4.0.1
+python-multipart
+
+# Optional: load configuration from a local .env file (see config.py / .env.example)
+python-dotenv
+
+# PostgreSQL driver — required when DATABASE_URL points at PostgreSQL.
+# Harmless to install in the SQLite-based local dev environment too.
+psycopg2-binary
+
+# HTML parsing for the legacy KB migration (migrate_kb.py)
+beautifulsoup4
+
+# XLSX export (admin compliance report). Endpoint degrades to 503 if missing.
+openpyxl
+
+# PDF export (admin compliance + team-stats). Endpoint degrades to 503 if missing.
+# DejaVu Sans is installed via apt in the Dockerfile (fonts-dejavu-core) to
+# cover Georgian Unicode glyphs.
+reportlab
+
+gunicorn
+redis

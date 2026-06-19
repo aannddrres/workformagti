@@ -1,0 +1,37 @@
+
+import re
+with open('main.py', 'r', encoding='utf-8') as f:
+    text = f.read()
+
+old_str = '''@app.post(\"/api/auth/forgot-password\")
+def forgot_password(
+    payload: schemas.ForgotPasswordRequest,
+    db: Session = Depends(get_db)
+):
+    user = db.query(models.User).filter(models.User.email == payload.email).first()
+    if not user:
+        return {\"message\": \"???????? ????????? ???????????? ??. ?????\"}
+    token = security.create_reset_token(user.email)
+    print(f'\"\\n\\nPASSWORD RESET LINK: http://127.0.0.1:8000/reset-password.html?token={token}\\n\\n\")
+    return {\"message\": \"???????? ?????????? ????????????? ??. ?????\"}'''
+
+new_str = '''@app.post(\"/api/auth/forgot-password\")
+def forgot_password(
+    payload: schemas.ForgotPasswordRequest,
+    db: Session = Depends(get_db)
+):
+    user = db.query(models.User).filter(func.lower(models.User.email) == payload.email.lower()).first()
+    if not user:
+        return {\"message\": \"???????? ?????????? ????????????? ??. ???????\"}
+    token = security.create_reset_token(user.email)
+    print(f\"\\n\\nPASSWORD RESET LINK: http://127.0.0.1:8000/reset-password.html?token={token}\\n\\n\")
+    return {\"message\": \"???????? ?????????? ????????????? ??. ???????\"}'''
+
+if old_str.replace('\', '') in text:
+    text = text.replace(old_str.replace('\', ''), new_str.replace('\', ''))
+    with open('main.py', 'w', encoding='utf-8') as f:
+        f.write(text)
+    print('Replaced forgot_password')
+else:
+    print('old_str not found!')
+
