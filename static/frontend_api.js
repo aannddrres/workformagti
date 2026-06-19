@@ -96,6 +96,7 @@ async function fetchAndRenderManagerStats(token) {
 
           // Defensive: members may be undefined on a fresh DB.
           const members = (data && Array.isArray(data.members)) ? data.members : [];
+          window.userProgressData = members; // Store for context-aware message generation
           tbody.innerHTML = '';
           if (members.length === 0) {
             tbody.innerHTML = '<tr><td colspan="4" class="px-5 py-4 text-center text-gray-500">გუნდის წევრები არ მოიძებნა</td></tr>';
@@ -888,15 +889,28 @@ async function fetchAndRenderVideos(token) {
         }
       }
 
-async function fetchAndRenderNewsPage(token) {
+async function fetchAndRenderNewsPage(token, loadMore = false) {
         const container = document.getElementById('news-page-container');
         if (!container) return;
         await Store.whenFavoritesReady();   // star icons need favourites loaded
+        
+        const limit = 10;
+        if (!loadMore) {
+           window.newsCurrentSkip = 0;
+           window.allNewsItems = [];
+           container.innerHTML = '<p class="text-gray-400 py-8 text-center col-span-full">იტვირთება...</p>';
+        } else {
+           window.newsCurrentSkip = (window.newsCurrentSkip || 0) + limit;
+           const btn = document.getElementById('news-load-more-btn');
+           if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> იტვირთება...';
+        }
 
         try {
-          const response = await api('/api/news');
+          const response = await api(`/api/news?skip=${window.newsCurrentSkip || 0}&limit=${limit}`);
           if (!response.ok) throw new Error('Failed to fetch news');
           const newsItems = await response.json();
+
+          window.newsHasMore = newsItems.length === limit;
 
           // Cache news items
           newsItems.forEach(item => {
@@ -905,15 +919,22 @@ async function fetchAndRenderNewsPage(token) {
           });
 
           // Store in a global variable for client-side search, filtering, and sorting
-          window.allNewsItems = newsItems;
+          window.allNewsItems = (window.allNewsItems || []).concat(newsItems);
 
           // Perform initial filter and render
-          runNewsFilter();
+          runNewsFilter(loadMore);
         } catch (error) {
           console.error(error);
-          container.innerHTML = '<p class="text-red-500">მონაცემების ჩატვირთვა ვერ მოხერხდა.</p>';
+          if (!loadMore) {
+            container.innerHTML = '<p class="text-red-500">მონაცემების ჩატვირთვა ვერ მოხერხდა.</p>';
+          } else {
+             const btn = document.getElementById('news-load-more-btn');
+             if (btn) btn.innerHTML = 'შეცდომა ჩატვირთვისას';
+          }
         }
       }
+      
+      window.loadMoreNews = () => fetchAndRenderNewsPage(Auth.getToken(), true);
 
 async function fetchKbCategories(token) {
         const select = document.getElementById('kb-category-filter');
@@ -1113,7 +1134,7 @@ async function fetchKPIs(token) {
         }
       }
 
-async function fetchAndRenderUsers(token) {
+async function fetchAndRenderUsers(token, managerId = null) {
         const tbody = document.getElementById('admin-users-tbody');
         if (!tbody) return;
 
@@ -1135,7 +1156,9 @@ async function fetchAndRenderUsers(token) {
         `;
 
         try {
-          const response = await fetch('/api/users', {
+          // Block 5: optional group/team-lead filter (manager_id).
+          const url = managerId ? `/api/users?manager_id=${encodeURIComponent(managerId)}` : '/api/users';
+          const response = await fetch(url, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           if (!response.ok) throw new Error('Failed to fetch users');
@@ -1189,6 +1212,30 @@ async function fetchAndRenderUsers(token) {
           console.error(error);
           tbody.innerHTML = '<tr><td colspan="5" class="px-5 py-3 text-center text-red-500">მონაცემების ჩატვირთვა ვერ მოხერხდა.</td></tr>';
         }
+      }
+
+// Block 5: populates #admin-group-filter with team leads on page load.
+async function loadGroupLeaders(token) {
+        const select = document.getElementById('admin-group-filter');
+        if (!select) return;
+        try {
+          const response = await fetch('/api/admin/group-leaders', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (!response.ok) throw new Error('Failed to fetch group leaders');
+          const leaders = await response.json();
+          const optionsHtml = leaders.map(l => `<option value="${l.id}">${escapeHtml(l.name)}</option>`).join('');
+          select.insertAdjacentHTML('beforeend', optionsHtml);
+        } catch (error) {
+          console.error(error);
+        }
+      }
+
+// Block 5: re-fetches the user table filtered by the selected group leader.
+function onAdminGroupFilterChange(managerId) {
+        const token = localStorage.getItem('magti_token');
+        if (!token) return;
+        fetchAndRenderUsers(token, managerId || null);
       }
 
 async function fetchAndRenderAuditLogs(token) {
@@ -1381,12 +1428,14 @@ async function fetchAndRenderAuditLog(token) {
           const endDate = document.getElementById('audit-filter-end-date')?.value || '';
           const userId = document.getElementById('audit-filter-user')?.value || '';
           const action = document.getElementById('audit-filter-action')?.value || '';
+          const category = document.getElementById('audit-filter-category')?.value || '';
 
           const params = new URLSearchParams();
           if (startDate) params.append('start_date', startDate);
           if (endDate) params.append('end_date', endDate);
           if (userId) params.append('user_id', userId);
           if (action) params.append('action', action);
+          if (category) params.append('category', category);
 
           const res = await fetch(`/api/audit-logs?${params.toString()}`, { headers: { Authorization: 'Bearer ' + token } });
           if (!res.ok) throw new Error('ლოგი ვერ ჩაიტვირთა');

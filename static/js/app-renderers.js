@@ -244,6 +244,25 @@ function renderFilteredReadings(filter) {
           container.insertAdjacentHTML('beforeend', html);
         });
         updateStarIcons();
+        
+        // Setup Load More button
+        let loadMoreBtn = document.getElementById('news-load-more-btn');
+        if (!loadMoreBtn) {
+          loadMoreBtn = document.createElement('button');
+          loadMoreBtn.id = 'news-load-more-btn';
+          loadMoreBtn.className = 'col-span-full mt-4 rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-700 shadow-sm transition-all hover:bg-gray-50 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-[#EE1D23] mx-auto block';
+          loadMoreBtn.innerHTML = 'მეტის ნახვა <i class="fa-solid fa-chevron-down ml-1"></i>';
+          loadMoreBtn.onclick = () => window.loadMoreNews && window.loadMoreNews();
+          container.appendChild(loadMoreBtn);
+        }
+        
+        if (window.newsHasMore === false) {
+          loadMoreBtn.style.display = 'none';
+        } else {
+          loadMoreBtn.style.display = 'block';
+          // Ensure it's the last element
+          container.appendChild(loadMoreBtn);
+        }
       }
 
 function renderProgressRows() {
@@ -363,12 +382,14 @@ function getCategoryCardStyles(catName) {
         return { borderHover: 'hover:border-[#E30613]/40', borderAccent: '', iconBg: 'bg-gray-50 text-gray-500', textAccent: 'group-hover:text-black' };
       }
 
-function renderNewsList(items) {
+function renderNewsList(items, append = false) {
         const container = document.getElementById('news-page-container');
         if (!container) return;
 
-        container.innerHTML = '';
-        if (items.length === 0) {
+        if (!append) {
+          container.innerHTML = '';
+        }
+        if (items.length === 0 && !append) {
           container.innerHTML = '<p class="text-sm text-gray-500 py-8 text-center col-span-full">სიახლეები არ მოიძებნა.</p>';
           return;
         }
@@ -380,6 +401,7 @@ function renderNewsList(items) {
           // Department badge color mapping
           let deptBadgeColor = 'bg-gray-100 text-gray-600';
           let deptBadgeText = 'საერთო';
+          let isMyDept = false;
           if (item.target_department === 'Support') {
             deptBadgeColor = 'bg-blue-50 text-blue-600 border border-blue-100';
             deptBadgeText = 'ტექნიკური';
@@ -390,11 +412,17 @@ function renderNewsList(items) {
             deptBadgeColor = 'bg-purple-50 text-purple-600 border border-purple-100';
             deptBadgeText = 'საერთო';
           }
+          
+          if (window.currentUser && item.target_department === window.currentUser.department) {
+             isMyDept = true;
+          }
+
+          const myDeptIndicator = isMyDept ? `<span class="inline-flex items-center rounded-md bg-[#EE1D23]/10 px-2 py-0.5 text-[10px] font-bold text-[#EE1D23] uppercase tracking-wide ml-2 border border-[#EE1D23]/20">შენი დეპარტამენტი</span>` : '';
 
           const html = `
             <div onclick="openNewsDetailModal(${item.id})" class="group flex cursor-pointer items-center justify-between rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-gray-200 hover:bg-gray-50 hover:shadow-md hover:translate-y-[-1px]">
               <div class="flex items-center gap-4 min-w-0 flex-1 mr-4">
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-50 text-[#E30613] group-hover:scale-105 transition-transform">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-50 text-[#EE1D23] group-hover:scale-105 transition-transform">
                   <i aria-hidden="true" class="fa-solid fa-bullhorn"></i>
                 </div>
                 <div class="min-w-0 flex-1">
@@ -402,6 +430,7 @@ function renderNewsList(items) {
                   <div class="flex items-center gap-2 mt-1 flex-wrap">
                     <span class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${deptBadgeColor}">${deptBadgeText}</span>
                     <span class="text-[12px] text-gray-400"><i aria-hidden="true" class="fa-regular fa-clock mr-1"></i>${date}</span>
+                    ${myDeptIndicator}
                   </div>
                 </div>
               </div>

@@ -26,7 +26,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, and_, func, desc
+from sqlalchemy import or_, and_, func, desc, case
 from pydantic import BaseModel
 
 import models
@@ -95,6 +95,9 @@ def _lightweight_migrations() -> None:
         "news": [
             ("attachment_url", "VARCHAR"),
             ("version", "INTEGER DEFAULT 1"),
+            # Block 5: role-based content visibility.
+            ("visible_to_tech_info", "BOOLEAN DEFAULT 1"),
+            ("visible_to_service_center", "BOOLEAN DEFAULT 0"),
         ],
         # knowledge_feedback is missing a default status in some seeded DBs.
         "knowledge_feedback": [
@@ -105,6 +108,8 @@ def _lightweight_migrations() -> None:
             ("permissions", "JSON"),
             # Team Statistics foundation (Block 1, Task 4).
             ("team_id", "INTEGER REFERENCES teams(id)"),
+            # Block 5: self-referencing manager (team_lead) FK.
+            ("manager_id", "INTEGER REFERENCES users(id)"),
         ],
         "search_logs": [
             ("has_results", "BOOLEAN DEFAULT 1"),
@@ -122,6 +127,11 @@ def _lightweight_migrations() -> None:
         "video_instructions": [
             ("is_archived", "BOOLEAN DEFAULT 0"),
             ("tags", "VARCHAR"),
+        ],
+        "articles": [
+            # Block 5: role-based content visibility.
+            ("visible_to_tech_info", "BOOLEAN DEFAULT 1"),
+            ("visible_to_service_center", "BOOLEAN DEFAULT 0"),
         ],
     }
     with engine.begin() as conn:
@@ -846,7 +856,18 @@ def get_news(
     # Admins manage content across all departments, so they see everything
     if current_user.role not in ["admin", "content_admin"]:
         query = query.filter(models.News.target_department.in_([current_user.department, "All"]))
-    return query.order_by(models.News.created_at.desc()).offset(skip).limit(limit).all()
+    # Block 5: role-based visibility split, independent of department targeting.
+    if current_user.role == "tech_info":
+        query = query.filter(models.News.visible_to_tech_info == True)  # noqa: E712
+    elif current_user.role == "service_center":
+        query = query.filter(models.News.visible_to_service_center == True)  # noqa: E712
+
+    # Department-first sorting: User's exact department bubbles to the top, then ordered by date
+    dept_score = case(
+        (models.News.target_department == current_user.department, 1),
+        else_=0
+    )
+    return query.order_by(desc(dept_score), models.News.created_at.desc()).offset(skip).limit(limit).all()
 
 @app.post("/api/news", response_model=schemas.NewsResponse)
 def create_news(
@@ -1297,7 +1318,18 @@ def get_articles(
                 )
             )
         )
-    return query.order_by(desc(models.Article.created_at)).offset(skip).limit(limit).all()
+    # Block 5: role-based visibility split, independent of department targeting.
+    if current_user.role == "tech_info":
+        query = query.filter(models.Article.visible_to_tech_info == True)  # noqa: E712
+    elif current_user.role == "service_center":
+        query = query.filter(models.Article.visible_to_service_center == True)  # noqa: E712
+
+    # Department-first sorting
+    dept_score = case(
+        (models.Article.target_department == current_user.department, 1),
+        else_=0
+    )
+    return query.order_by(desc(dept_score), desc(models.Article.created_at)).offset(skip).limit(limit).all()
 
 
 @app.get("/api/articles/{article_id}", response_model=schemas.ArticleResponse)
@@ -2338,7 +2370,17 @@ def global_search(
                 models.Article.content.ilike(pattern),
                 models.Article.tags.ilike(pattern)
             ))
-        query = db.query(models.Article).filter(and_(*conditions))
+        
+        # Relevance scoring logic for Articles: TITLE(10) > TAGS(5) > CONTENT(1)
+        article_score = sum(
+            case(
+                (models.Article.title.ilike(f"%{w}%"), 10),
+                (models.Article.tags.ilike(f"%{w}%"), 5),
+                (models.Article.content.ilike(f"%{w}%"), 1),
+                else_=0
+            ) for w in words
+        )
+        query = db.query(models.Article).filter(and_(*conditions)).order_by(desc(article_score))
     
     # Admins manage content across all departments, so they search everything;
     # regular users only search published content for their department
@@ -2399,7 +2441,16 @@ def _run_global_search_sync(q: str, is_admin: bool, user_dept: str) -> dict:
         ))
 
     with SessionLocal() as db:
-        articles = db.query(models.Article).filter(and_(*article_conds))
+        # Relevance scoring logic for Articles: TITLE(10) > TAGS(5) > CONTENT(1)
+        article_score = sum(
+            case(
+                (models.Article.title.ilike(f"%{w}%"), 10),
+                (models.Article.tags.ilike(f"%{w}%"), 5),
+                (models.Article.content.ilike(f"%{w}%"), 1),
+                else_=0
+            ) for w in words
+        )
+        articles = db.query(models.Article).filter(and_(*article_conds)).order_by(desc(article_score))
         if not is_admin:
             now = datetime.utcnow()
             articles = articles.filter(
@@ -2413,7 +2464,15 @@ def _run_global_search_sync(q: str, is_admin: bool, user_dept: str) -> dict:
                 ),
             )
 
-        news = db.query(models.News).filter(and_(*news_conds))
+        # Relevance scoring logic for News: TITLE(3) > CONTENT(1)
+        news_score = sum(
+            case(
+                (models.News.title.ilike(f"%{w}%"), 3),
+                (models.News.content.ilike(f"%{w}%"), 1),
+                else_=0
+            ) for w in words
+        )
+        news = db.query(models.News).filter(and_(*news_conds)).order_by(desc(news_score))
         if not is_admin:
             news = news.filter(models.News.target_department.in_(dept_filter))
 
@@ -2707,9 +2766,68 @@ def get_user_progress(
     results.sort(key=lambda x: int(x["percentage"].replace("%", "")), reverse=True)
     return results
 
+@app.get("/api/admin/stats/team/{team_id}", response_model=dict)
+def get_admin_team_stats(
+    team_id: int,
+    current_admin: models.User = Depends(security.get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Retrieves compliance statistics for a specific team.
+    
+    Access: Restricted to system administrators (admin).
+    """
+    users = db.query(models.User).filter(models.User.is_active == True, models.User.team_id == team_id).all()
+    if not users:
+        return {"team_id": team_id, "average_percentage": "0%", "members": []}
+    
+    all_readings = db.query(models.RequiredReading).all()
+    readings_by_dept = Counter(r.target_department for r in all_readings)
+    all_required = readings_by_dept.get("All", 0)
+
+    read_rows = (
+        db.query(
+            models.ReadStatus.user_id,
+            models.RequiredReading.target_department,
+            func.count(models.ReadStatus.id),
+        )
+        .join(
+            models.RequiredReading,
+            models.ReadStatus.required_reading_id == models.RequiredReading.id,
+        )
+        .filter(models.ReadStatus.status == "read")
+        .group_by(models.ReadStatus.user_id, models.RequiredReading.target_department)
+        .all()
+    )
+    read_map = {(uid, d): cnt for uid, d, cnt in read_rows}
+
+    members = []
+    total_percentage = 0
+    for user in users:
+        required_count, read_count, percentage = _reading_progress(
+            user, all_required, readings_by_dept, read_map
+        )
+        members.append({
+            "user_id": user.id,
+            "user_name": user.name,
+            "read_count": read_count,
+            "required_count": required_count,
+            "percentage": f"{percentage}%",
+        })
+        total_percentage += percentage
+
+    avg_percentage = int(total_percentage / len(users)) if users else 0
+    members.sort(key=lambda x: int(x["percentage"].replace("%", "")), reverse=True)
+    
+    return {
+        "team_id": team_id,
+        "average_percentage": f"{avg_percentage}%",
+        "members": members
+    }
+
 @app.get("/api/manager/team-stats", response_model=schemas.TeamStatsResponse)
 def get_team_stats(
     department: Optional[str] = None,
+    team_id: Optional[int] = None,
     operator_name: Optional[str] = None,
     current_manager: models.User = Depends(security.get_current_manager_user),
     db: Session = Depends(get_db)
@@ -2726,6 +2844,7 @@ def get_team_stats(
 
     Args:
         department: (Admin-only) restrict to a specific department.
+        team_id: Optional filter to restrict by a specific team_id.
         operator_name: Substring filter on the operator's name.
         current_manager: The authenticated manager/supervisor User.
         db: SQLAlchemy database session.
@@ -2746,6 +2865,9 @@ def get_team_stats(
         # send a different department in the query string.
         dept = current_manager.department
         users_q = users_q.filter(models.User.department == dept)
+
+    if team_id:
+        users_q = users_q.filter(models.User.team_id == team_id)
 
     if operator_name:
         # Case-insensitive substring match — supports partial typing in the filter.
@@ -2999,24 +3121,49 @@ def unarchive_video(
     return db_video
 
 
-@app.get("/api/users", response_model=list[schemas.UserResponse])
-def list_users(
+@app.get("/api/admin/group-leaders", response_model=list[schemas.GroupLeaderResponse])
+def get_group_leaders(
     current_admin: models.User = Depends(security.get_current_system_admin_user),
     db: Session = Depends(get_db)
 ):
-    """Lists all users in the system.
+    """Lists team leads for the Block 5 group-filter dropdown.
+
+    Fast/lightweight by design: id + name only, no stats joins.
+
+    Access: Restricted to system administrators (admin) only.
+    """
+    return (
+        db.query(models.User.id, models.User.name)
+        .filter(models.User.role == "team_lead")
+        .order_by(models.User.name)
+        .all()
+    )
+
+
+@app.get("/api/users", response_model=list[schemas.UserResponse])
+def list_users(
+    manager_id: Optional[int] = None,
+    current_admin: models.User = Depends(security.get_current_system_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Lists all users in the system, optionally filtered to one manager's group.
 
     Access: Restricted to system administrators (admin) only.
 
     Args:
+        manager_id: Block 5 group filter — when provided, only users reporting
+            to this manager (team_lead) are returned.
         current_admin: The authenticated system administrator User.
         db: SQLAlchemy database session.
 
     Returns:
         A list of UserResponse schemas.
     """
-    users = db.query(models.User).all()
-    
+    query = db.query(models.User)
+    if manager_id is not None:
+        query = query.filter(models.User.manager_id == manager_id)
+    users = query.all()
+
     # Precompute statistics for each user
     all_readings = db.query(models.RequiredReading).all()
     readings_by_dept = Counter(r.target_department for r in all_readings)

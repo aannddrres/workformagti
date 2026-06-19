@@ -38,6 +38,16 @@ class UserResponse(UserBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class GroupLeaderResponse(BaseModel):
+    """Lightweight schema for the Block 5 group-leader dropdown — id + display
+    name only (the User model has no separate `username` field; `name` is the
+    closest equivalent and what's actually rendered in every other admin list)."""
+    id: int
+    name: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class UserStatusUpdate(BaseModel):
     """Request schema for enabling or disabling a user account."""
     is_active: bool
@@ -65,6 +75,9 @@ class NewsBase(BaseModel):
     target_department: str = "All"
     # Centralised file (PDF/image) per spec; optional.
     attachment_url: Optional[str] = None
+    # Block 5: role-based content visibility.
+    visible_to_tech_info: bool = True
+    visible_to_service_center: bool = False
 
 
 class NewsCreate(NewsBase):
@@ -89,6 +102,8 @@ class NewsSummaryResponse(BaseModel):
     attachment_url: Optional[str] = None
     created_at: datetime
     version: int = 1
+    visible_to_tech_info: bool = True
+    visible_to_service_center: bool = False
     model_config = ConfigDict(from_attributes=True)
 
 class NewsHistoryResponse(BaseModel):
@@ -141,6 +156,9 @@ class ArticleBase(BaseModel):
     author_id: Optional[int] = None
     last_verified_at: Optional[datetime] = None
     audience_profile: str = "all"  # 'info' | 'tech' | 'all'
+    # Block 5: role-based content visibility.
+    visible_to_tech_info: bool = True
+    visible_to_service_center: bool = False
 
 
 class ArticleSummaryResponse(BaseModel):
@@ -154,6 +172,8 @@ class ArticleSummaryResponse(BaseModel):
     created_at: datetime
     read_time: int = 1
     audience_profile: str = "all"
+    visible_to_tech_info: bool = True
+    visible_to_service_center: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -41,8 +41,12 @@ class User(Base):
     # Team Statistics foundation: optional, nullable so existing rows are
     # unaffected until an admin assigns a team.
     team_id = Column(Integer, ForeignKey("teams.id"), nullable=True, index=True)
+    # Block 5: self-referencing FK — the team_lead (or other manager-role user)
+    # this user reports to. Nullable: most users have no manager assigned yet.
+    manager_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
 
     team = relationship("Team", back_populates="members")
+    manager = relationship("User", remote_side=[id], backref="direct_reports")
 
 
 class News(Base):
@@ -57,6 +61,9 @@ class News(Base):
     attachment_url = Column(String, nullable=True)
     # Version counter; mirrors articles for parity in the admin history UI.
     version = Column(Integer, default=1)
+    # Block 5: role-based content visibility — see Article for the rationale.
+    visible_to_tech_info = Column(Boolean, default=True, nullable=False)
+    visible_to_service_center = Column(Boolean, default=False, nullable=False)
 
 
 class NewsHistory(Base):
@@ -116,6 +123,11 @@ class Article(Base):
     published_at = Column(DateTime, nullable=True)
     attachment_url = Column(String, nullable=True)
     last_verified_at = Column(DateTime, nullable=True, default=datetime.utcnow)
+    # Block 5: role-based content visibility (distinct from audience_profile,
+    # which is single-valued — these are independent flags so content can be
+    # shown to both groups, one, or neither).
+    visible_to_tech_info = Column(Boolean, default=True, nullable=False)
+    visible_to_service_center = Column(Boolean, default=False, nullable=False)
 
     category = relationship("Category", back_populates="articles")
 

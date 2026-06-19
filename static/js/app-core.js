@@ -193,6 +193,7 @@
         if (currentUser.role === 'admin') {
           fetchAndRenderUserProgress(token);
           fetchAndRenderUsers(token);
+          loadGroupLeaders(token); // Block 5: populate the group-filter dropdown
         }
 
         // Fetch statistics + draw charts ONLY for roles that use them.
@@ -1727,6 +1728,9 @@ async function submitArticleForm(event) {
         const status = document.getElementById('article-status').value;
         const publishedAtVal = document.getElementById('article-published-at').value;
         const tags = document.getElementById('article-tags').value.trim();
+        // Block 5: role-based content visibility toggles.
+        const visibleToTechInfo = document.getElementById('article-visible-tech-info').checked;
+        const visibleToServiceCenter = document.getElementById('article-visible-service-center').checked;
         let publishedAt = null;
         if (status === 'scheduled' && publishedAtVal) {
           publishedAt = new Date(publishedAtVal).toISOString();
@@ -1741,7 +1745,7 @@ async function submitArticleForm(event) {
         let attachmentUrl = document.getElementById('article-attachment-url').value || null;
         if (window._removeAttachment) attachmentUrl = null;
 
-        const payload = { title, content, category_id: categoryId, audience_profile: audienceProfile, target_department: targetDepartment, status, published_at: publishedAt, tags: tags || null };
+        const payload = { title, content, category_id: categoryId, audience_profile: audienceProfile, target_department: targetDepartment, status, published_at: publishedAt, tags: tags || null, visible_to_tech_info: visibleToTechInfo, visible_to_service_center: visibleToServiceCenter };
         if (editingId) {
           // Preserve fields the form doesn't expose, or PUT would null them out
           const cached = (window.adminArticles || {})[editingId] || {};
@@ -1815,6 +1819,9 @@ async function editArticle(articleId) {
         if (audSel) audSel.value = article.audience_profile || 'all';
         document.getElementById('article-department').value = article.target_department;
         document.getElementById('article-tags').value = article.tags || '';
+        // Block 5: prefill role-based visibility toggles from the existing article.
+        document.getElementById('article-visible-tech-info').checked = article.visible_to_tech_info !== false;
+        document.getElementById('article-visible-service-center').checked = !!article.visible_to_service_center;
 
         const status = article.status || 'published';
         document.getElementById('article-status').value = status;
@@ -2021,6 +2028,9 @@ async function submitNewsForm(event) {
         const dueDate = document.getElementById('news-due-date').value;
         // [Fix G9] Optional centralised attachment per spec.
         const attachmentUrl = document.getElementById('news-attachment-url')?.value || null;
+        // Block 5: role-based content visibility toggles.
+        const visibleToTechInfo = document.getElementById('news-visible-tech-info').checked;
+        const visibleToServiceCenter = document.getElementById('news-visible-service-center').checked;
 
         const editingId = window.editingNewsId;
         const url = editingId ? `/api/news/${editingId}` : '/api/news';
@@ -2028,6 +2038,8 @@ async function submitNewsForm(event) {
         const payload = {
           title, content, target_department: targetDepartment,
           attachment_url: attachmentUrl || null,
+          visible_to_tech_info: visibleToTechInfo,
+          visible_to_service_center: visibleToServiceCenter,
         };
 
         try {
@@ -2132,6 +2144,10 @@ async function editNews(newsId) {
         const attUrlInput = document.getElementById('news-attachment-url');
         if (attUrlInput) attUrlInput.value = item.attachment_url || '';
         updateNewsAttachmentChip(item.attachment_url);
+
+        // Block 5: prefill role-based visibility toggles from the existing news item.
+        document.getElementById('news-visible-tech-info').checked = item.visible_to_tech_info !== false;
+        document.getElementById('news-visible-service-center').checked = !!item.visible_to_service_center;
 
         // [Fix G10] Mandatory section is no longer hidden on edit. Prefill it
         //           from the existing RequiredReading row (if any).
@@ -4369,7 +4385,18 @@ async function triggerKebabAction(userId, action, event) {
             showToast('პროგრესი 📊', `${user.user_name} (${user.department}): წაკითხულია ${user.read_count} / ${user.required_count} (${user.percentage}%)`);
           }
         } else if (action === 'message') {
-          const text = prompt('შეიყვანეთ შეტყობინების ტექსტი:');
+          let draft = '';
+          const user = (window.userProgressData || []).find(u => u.user_id === userId);
+          if (user) {
+             const missing = user.required_count - user.read_count;
+             if (missing > 0) {
+                 const activeTitle = window._activeCategory ? window._activeCategory.name : (document.getElementById('article-view-title') ? document.getElementById('article-view-title').textContent : 'სავალდებულო მასალა');
+                 draft = `გამარჯობა ${user.user_name}, გთხოვ გაეცნო ${activeTitle}-ს სიახლეებს, რომელიც შენი გუნდისთვის პრიორიტეტულია.`;
+             } else {
+                 draft = `მადლობა ${user.user_name}, თქვენი ყველა სავალდებულო მასალა წაკითხულია.`;
+             }
+          }
+          const text = prompt('შეიყვანეთ შეტყობინების ტექსტი:', draft);
           if (!text || !text.trim()) return;
           const token = localStorage.getItem('magti_token');
           if (!token) return;
