@@ -222,8 +222,10 @@ async function fetchNotificationsCount(token) {
             if (statUnread) {
               statUnread.textContent = unread.length;
               // Stat card is now a semantic <a> (was <button>); match either.
+              // The card ships `hidden` in the raw HTML to avoid a FOUC flash
+              // on load — only ever reveal it, never re-hide it here.
               const statCard = statUnread.closest('a, button');
-              if (statCard) statCard.classList.toggle('hidden', unread.length === 0);
+              if (statCard && unread.length > 0) statCard.classList.remove('hidden');
             }
             const statRead = document.getElementById('stat-read-count');
             if (statRead) statRead.textContent = readCount;

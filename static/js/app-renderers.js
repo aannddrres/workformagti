@@ -661,25 +661,11 @@ async function renderDashboardCategoryGrid() {
           grid.innerHTML = '<p class="col-span-full text-sm text-gray-500">კატეგორიები ვერ მოიძებნა.</p>';
           return;
         }
-        // Ultra-soft muted pastel per category type — a pre-attentive visual
-        // anchor. Inline-styled (the Tailwind CDN does not reliably JIT these
-        // color utilities inside dynamically-injected innerHTML); the hover→Magti
-        // Red transition is handled by the .kb-cat-card:hover .cat-tile-icon rule.
-        const CAT_PALETTE = {
-          mobile:    { bg: '#fffbeb', fg: '#d97706' }, // amber  — მობილური
-          fiber:     { bg: '#eff6ff', fg: '#2563eb' }, // blue   — ინტერნეტი
-          iptv:      { bg: '#faf5ff', fg: '#9333ea' }, // purple — IPTV
-          hosting:   { bg: '#ecfeff', fg: '#0891b2' }, // cyan   — ჰოსტინგი
-          digital:   { bg: '#eef2ff', fg: '#4f46e5' }, // indigo — ციფრული
-          billing:   { bg: '#f0fdfa', fg: '#0d9488' }, // teal   — ბილინგი
-          service:   { bg: '#ecfdf5', fg: '#059669' }, // emerald— სერვისის მართვა
-          loyalty:   { bg: '#fdf2f8', fg: '#db2777' }, // pink   — ლოიალობა
-          technical: { bg: '#fff7ed', fg: '#ea580c' }, // orange — ტექნიკური
-          general:   { bg: '#f5f3ff', fg: '#7c3aed' }  // violet  — ზოგადი
-        };
+        // Premium monochromatic card architecture: a uniform neutral surface
+        // for all categories, with Magti Red reserved as the hover accent
+        // (icon color + glow) so it reads as a deliberate brand signal rather
+        // than a per-category badge.
         grid.innerHTML = cats.map(c => {
-          const profileKey = c.pastel_color_class || c.slug || 'general';
-          const pal = CAT_PALETTE[profileKey] || CAT_PALETTE.general;
           const targetSlug = c.slug || c.id;
 
           const recentTime = Date.now() - (48 * 60 * 60 * 1000);
@@ -689,14 +675,11 @@ async function renderDashboardCategoryGrid() {
 
           return `
           <a href="#/category/${targetSlug}" onclick="location.hash='#/category/${targetSlug}'"
-            class="kb-cat-card group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/80 p-3 md:p-4 w-full h-full text-left shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] transition-all duration-200 ease-out hover:shadow-md hover:scale-[1.01] hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E30613] dark:border-zinc-800"
-            style="background:color-mix(in srgb, ${pal.fg} 5%, transparent)"
-            onmouseenter="this.style.background='color-mix(in srgb, ${pal.fg} 10%, transparent)'"
-            onmouseleave="this.style.background='color-mix(in srgb, ${pal.fg} 5%, transparent)'">
+            class="kb-cat-card group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 md:p-4 w-full h-full text-left shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] transition-all duration-300 ease-out hover:shadow-[0_0_12px_rgba(227,6,19,0.15)] hover:scale-[1.01] hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E30613] dark:border-zinc-700 dark:bg-zinc-900/60">
             <span class="absolute inset-x-0 top-0 h-[2px] origin-left scale-x-0 bg-[#E30613] transition-transform duration-300 ease-out group-hover:scale-x-100"></span>
             ${indicatorHtml}
             <div class="flex flex-col items-start gap-3 w-full mt-1">
-              <span class="cat-tile-icon mb-1 flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-2xl text-xl md:text-2xl transition-all duration-300 group-hover:!bg-[#E30613] group-hover:!text-white shadow-sm" style="background:color-mix(in srgb, ${pal.fg} 15%, transparent);color:${pal.fg}">
+              <span class="cat-tile-icon mb-1 flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-2xl text-xl md:text-2xl bg-slate-50 text-slate-600 transition-colors duration-300 group-hover:text-[#E30613] dark:bg-zinc-800 dark:text-neutral-400 shadow-sm">
                 <i class="fa-solid ${iconToUse}" aria-hidden="true"></i>
               </span>
               <span class="text-base md:text-lg font-bold leading-snug tracking-tight text-slate-800 dark:text-zinc-200 transition-colors group-hover:text-slate-950 dark:group-hover:text-white">${escapeHtml(c.name)}</span>
