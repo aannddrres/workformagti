@@ -496,7 +496,7 @@ async def security_headers(request: Request, call_next):
         "script-src 'self' 'unsafe-inline' "
         "https://cdn.tailwindcss.com https://cdn.jsdelivr.net "
         "https://cdnjs.cloudflare.com; "
-        "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; "
+        "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; "
         "font-src 'self' data: https://cdnjs.cloudflare.com; "
         # Article content was migrated with /uploads/ rewrites, but some
         # legacy/external imagery may still resolve via https — allow it
