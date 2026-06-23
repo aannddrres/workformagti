@@ -148,6 +148,20 @@
       
 
       document.addEventListener('DOMContentLoaded', async () => {
+        // Quill WYSIWYG editor for the article content field; mirrors into the
+        // hidden #article-content textarea on submit (submitArticleForm).
+        const articleContentEditorEl = document.getElementById('article-content-editor');
+        window.articleQuill = articleContentEditorEl ? new Quill('#article-content-editor', { theme: 'snow' }) : null;
+
+        // Show the selected attachment's filename next to the upload button.
+        const articleUploadFileEl = document.getElementById('article-upload-file');
+        if (articleUploadFileEl) {
+          articleUploadFileEl.addEventListener('change', () => {
+            const nameEl = document.getElementById('file-upload-name');
+            if (nameEl) nameEl.textContent = articleUploadFileEl.files[0]?.name || '';
+          });
+        }
+
         // 1. Auth Guard: redirect to login if there's no valid (unexpired) token.
         const token = Auth.getToken();
         if (!token || Auth.isExpired()) {
@@ -1718,11 +1732,25 @@ async function submitArticleForm(event) {
         if (!token) return;
 
         const title = document.getElementById('article-title').value;
+        // Sync Quill's HTML output into the hidden textarea right before it's read.
+        if (window.articleQuill) {
+          document.getElementById('article-content').value = window.articleQuill.root.innerHTML;
+        }
         const content = document.getElementById('article-content').value;
         const categoryId = parseInt(document.getElementById('article-category').value) || 1;
         const audienceEl = document.getElementById('article-audience-profile');
         const audienceProfile = audienceEl ? audienceEl.value : 'all';
-        const targetDepartment = document.getElementById('article-department').value;
+        // Multi-department targeting via 3 toggles; labels map to the English
+        // department values stored in target_departments.
+        const targetDepartments = [];
+        if (document.getElementById('dept-info').checked) targetDepartments.push('Informational');
+        if (document.getElementById('dept-tech').checked) targetDepartments.push('Support');
+        if (document.getElementById('dept-service').checked) targetDepartments.push('Service Centers');
+        if (targetDepartments.length === 0) {
+          alert('აირჩიეთ მინიმუმ ერთი დეპარტამენტი');
+          return;
+        }
+        const targetDepartment = targetDepartments[0];
         const isMandatory = document.getElementById('article-mandatory').checked;
         const dueDate = document.getElementById('article-due-date').value;
         const status = document.getElementById('article-status').value;
@@ -1745,7 +1773,7 @@ async function submitArticleForm(event) {
         let attachmentUrl = document.getElementById('article-attachment-url').value || null;
         if (window._removeAttachment) attachmentUrl = null;
 
-        const payload = { title, content, category_id: categoryId, audience_profile: audienceProfile, target_department: targetDepartment, status, published_at: publishedAt, tags: tags || null, visible_to_tech_info: visibleToTechInfo, visible_to_service_center: visibleToServiceCenter };
+        const payload = { title, content, category_id: categoryId, audience_profile: audienceProfile, target_departments: targetDepartments, status, published_at: publishedAt, tags: tags || null, visible_to_tech_info: visibleToTechInfo, visible_to_service_center: visibleToServiceCenter };
         if (editingId) {
           // Preserve fields the form doesn't expose, or PUT would null them out
           const cached = (window.adminArticles || {})[editingId] || {};
@@ -1776,6 +1804,7 @@ async function submitArticleForm(event) {
 
           showToast(editingId ? 'სტატია განახლდა' : 'სტატია დაემატა', '', { variant: 'success' });
           event.target.reset();
+          if (window.articleQuill) window.articleQuill.setText('');
           toggleDueDate();
           exitEditMode();
           fetchAndRenderAdminContent(token); // Refresh the table automatically
@@ -1814,10 +1843,15 @@ async function editArticle(articleId) {
 
         document.getElementById('article-title').value = article.title;
         document.getElementById('article-content').value = article.content;
+        if (window.articleQuill) window.articleQuill.root.innerHTML = article.content || '';
         await populateArticleCategorySelect(article.category_id);
         const audSel = document.getElementById('article-audience-profile');
         if (audSel) audSel.value = article.audience_profile || 'all';
-        document.getElementById('article-department').value = article.target_department;
+        // Reverse-map English department values back onto the 3 toggles.
+        const editDepts = article.target_departments || [];
+        document.getElementById('dept-info').checked = editDepts.includes('Informational');
+        document.getElementById('dept-tech').checked = editDepts.includes('Support');
+        document.getElementById('dept-service').checked = editDepts.includes('Service Centers');
         document.getElementById('article-tags').value = article.tags || '';
         // Block 5: prefill role-based visibility toggles from the existing article.
         document.getElementById('article-visible-tech-info').checked = article.visible_to_tech_info !== false;
@@ -1901,6 +1935,7 @@ function removeCurrentAttachment() {
 
 function cancelEdit() {
         document.getElementById('create-article-form').reset();
+        if (window.articleQuill) window.articleQuill.setText('');
         toggleDueDate();
         exitEditMode();
       }
@@ -2703,7 +2738,7 @@ function openArticleModal(article) {
         }
         const date = new Date(article.created_at).toLocaleDateString('ka-GE');
         document.getElementById('article-modal-meta').textContent =
-          `${article.target_department} · ვერსია ${article.version} · ${date}${article.tags ? ' · ' + article.tags : ''}`;
+          `${(article.target_departments || []).join(', ')} · ვერსია ${article.version} · ${date}${article.tags ? ' · ' + article.tags : ''}`;
 
         const contentDiv = document.getElementById('article-modal-content');
         const body = article.content || '';

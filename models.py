@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 from sqlalchemy import (
     Boolean,
     Column,
@@ -130,6 +131,22 @@ class Article(Base):
     visible_to_service_center = Column(Boolean, default=False, nullable=False)
 
     category = relationship("Category", back_populates="articles")
+    # Named distinctly from the target_departments *property* below: this is the
+    # raw ORM relationship (ArticleTargetDepartment rows), used at the class level
+    # for query filtering (e.g. Article.target_department_rows.any(...)).
+    target_department_rows = relationship(
+        "ArticleTargetDepartment", cascade="all, delete-orphan", lazy="selectin"
+    )
+
+    @property
+    def category_name(self) -> Optional[str]:
+        """Joined Category.name for admin list views; relies on eager loading."""
+        return self.category.name if self.category else None
+
+    @property
+    def target_departments(self) -> list[str]:
+        """Multi-department targets via the article_target_departments junction table."""
+        return [t.department for t in self.target_department_rows]
 
     @property
     def read_time(self) -> int:
@@ -139,6 +156,17 @@ class Article(Base):
         word_count = len(self.content.split())
         return max(1, int(word_count / 150))
 
+
+class ArticleTargetDepartment(Base):
+    """Junction table letting one Article target multiple departments (or 'All').
+
+    Coexists with Article.target_department (kept for now, not yet dropped) during
+    the migration window — see main.py's startup migration for the backfill.
+    """
+    __tablename__ = "article_target_departments"
+
+    article_id = Column(Integer, ForeignKey("articles.id", ondelete="CASCADE"), primary_key=True)
+    department = Column(String, primary_key=True, index=True)
 
 
 class RequiredReading(Base):

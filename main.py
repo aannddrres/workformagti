@@ -25,7 +25,7 @@ from fastapi.responses import StreamingResponse, HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, and_, func, desc, case
 from pydantic import BaseModel
 
@@ -86,6 +86,15 @@ def _lightweight_migrations() -> None:
                 item_type VARCHAR NOT NULL,
                 item_id INTEGER NOT NULL,
                 UNIQUE(tag_id, item_type, item_id)
+            )
+        """,
+        # Multi-department targeting for Article; coexists with the legacy
+        # articles.target_department column (not dropped yet — see backfill below).
+        "article_target_departments": """
+            CREATE TABLE IF NOT EXISTS article_target_departments (
+                article_id INTEGER NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+                department VARCHAR NOT NULL,
+                PRIMARY KEY (article_id, department)
             )
         """,
     }
@@ -212,6 +221,23 @@ def _lightweight_migrations() -> None:
                         )
         except Exception as e:
             print(f"[migration] tags backfill skipped: {e}")
+
+        # Backfill article_target_departments from the legacy single-value
+        # articles.target_department column. NOT EXISTS guard makes this a
+        # no-op after the first run, and on every subsequent boot once an
+        # article already has rows here.
+        try:
+            conn.exec_driver_sql("""
+                INSERT INTO article_target_departments (article_id, department)
+                SELECT id, target_department FROM articles
+                WHERE target_department IS NOT NULL
+                  AND NOT EXISTS (
+                      SELECT 1 FROM article_target_departments
+                      WHERE article_id = articles.id
+                  )
+            """)
+        except Exception as e:
+            print(f"[migration] article_target_departments backfill skipped: {e}")
 
 
 _lightweight_migrations()
@@ -1266,7 +1292,7 @@ def _assert_article_visible(article: models.Article, user: models.User) -> None:
     """
     if user.role in (security.ROLE_SYSTEM_ADMIN, security.ROLE_CONTENT_ADMIN):
         return
-    if article.target_department not in (user.department, "All"):
+    if not ({user.department, "All"} & set(article.target_departments)):
         raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
     if article.status == "published":
         return
@@ -1303,13 +1329,15 @@ def get_articles(
     Returns:
         A list of ArticleSummaryResponse schemas.
     """
-    query = db.query(models.Article)
+    query = db.query(models.Article).options(joinedload(models.Article.category))
     # Admins manage content across all departments, so they see everything
     # (including archived items); regular users see only published content
     if current_user.role not in ["admin", "content_admin"]:
         now = datetime.utcnow()
         query = query.filter(
-            models.Article.target_department.in_([current_user.department, "All"]),
+            models.Article.target_department_rows.any(
+                models.ArticleTargetDepartment.department.in_([current_user.department, "All"])
+            ),
             or_(
                 models.Article.status == "published",
                 and_(
@@ -1326,7 +1354,9 @@ def get_articles(
 
     # Department-first sorting
     dept_score = case(
-        (models.Article.target_department == current_user.department, 1),
+        (models.Article.target_department_rows.any(
+            models.ArticleTargetDepartment.department == current_user.department
+        ), 1),
         else_=0
     )
     return query.order_by(desc(dept_score), desc(models.Article.created_at)).offset(skip).limit(limit).all()
@@ -1882,8 +1912,15 @@ def create_article(
     # Data integrity: the author is the authenticated editor, never a
     # client-supplied author_id (which could be spoofed).
     payload = article.model_dump()
+    target_departments = payload.pop("target_departments")
     payload["author_id"] = current_admin.id
+    # Legacy single-value column kept in sync for not-yet-migrated readers
+    # (e.g. _notify's SSE payload) during the transition window.
+    payload["target_department"] = "All" if "All" in target_departments else target_departments[0]
     db_article = models.Article(**payload)
+    db_article.target_department_rows = [
+        models.ArticleTargetDepartment(department=d) for d in target_departments
+    ]
     db.add(db_article)
     db.flush()
     sync_tags(db, "article", db_article.id, db_article.tags)
@@ -1942,8 +1979,15 @@ def update_article(
     )
     db.add(article_history)
 
-    for key, value in article.model_dump().items():
+    update_data = article.model_dump()
+    target_departments = update_data.pop("target_departments")
+    for key, value in update_data.items():
         setattr(db_article, key, value)
+
+    db_article.target_department = "All" if "All" in target_departments else target_departments[0]
+    db_article.target_department_rows = [
+        models.ArticleTargetDepartment(department=d) for d in target_departments
+    ]
 
     db_article.version += 1
     sync_tags(db, "article", db_article.id, db_article.tags)
@@ -2387,7 +2431,9 @@ def global_search(
     if current_user.role not in ["admin", "content_admin"]:
         now = datetime.utcnow()
         query = query.filter(
-            models.Article.target_department.in_([current_user.department, "All"]),
+            models.Article.target_department_rows.any(
+                models.ArticleTargetDepartment.department.in_([current_user.department, "All"])
+            ),
             or_(
                 models.Article.status == "published",
                 and_(
@@ -2396,7 +2442,7 @@ def global_search(
                 )
             )
         )
-    
+
     if category_id is not None:
         query = query.filter(models.Article.category_id == category_id)
         
@@ -2454,7 +2500,9 @@ def _run_global_search_sync(q: str, is_admin: bool, user_dept: str) -> dict:
         if not is_admin:
             now = datetime.utcnow()
             articles = articles.filter(
-                models.Article.target_department.in_(dept_filter),
+                models.Article.target_department_rows.any(
+                    models.ArticleTargetDepartment.department.in_(dept_filter)
+                ),
                 or_(
                     models.Article.status == "published",
                     and_(
@@ -3833,7 +3881,7 @@ def get_stale_articles(
         {
             "id": a.id,
             "title": a.title,
-            "target_department": a.target_department,
+            "target_departments": a.target_departments,
             "last_verified_at": a.last_verified_at,
             "days_stale": (datetime.utcnow() - a.last_verified_at).days if a.last_verified_at else 999,
         }
@@ -3878,7 +3926,9 @@ def get_related_articles(
     # Restrict to user's department visibility
     if current_user.role not in ["admin", "content_admin"]:
         candidates = candidates.filter(
-            models.Article.target_department.in_([current_user.department, "All"])
+            models.Article.target_department_rows.any(
+                models.ArticleTargetDepartment.department.in_([current_user.department, "All"])
+            )
         )
 
     # Prefer same category

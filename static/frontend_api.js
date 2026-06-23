@@ -473,7 +473,7 @@ async function fetchStaleArticles(token) {
               <td class="py-2.5 pr-4 font-medium text-gray-800">
                 <button onclick="openArticleModalById(${article.id})" class="text-left hover:text-[#E30613] hover:underline transition-colors">${escapeHtml(article.title)}</button>
               </td>
-              <td class="py-2.5 pr-4 text-center text-xs text-gray-500">${escapeHtml(article.target_department)}</td>
+              <td class="py-2.5 pr-4 text-center text-xs text-gray-500">${escapeHtml((article.target_departments || []).join(', '))}</td>
               <td class="py-2.5 pr-4 text-center">
                 <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold ${article.days_stale > 365 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}">
                   ${article.days_stale} დღე

@@ -14,6 +14,10 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.5/dist/purify.min.js"></script>
 
+  <!-- Quill.js WYSIWYG (Snow theme) CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css">
+  <script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js"></script>
+
   <!-- Font Awesome 6 CDN -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
     crossorigin="anonymous" />
@@ -1331,29 +1335,16 @@
                 placeholder="სტატიის სათაური" />
             </div>
             <div>
-              <label for="article-content" class="mb-1.5 block text-sm font-medium text-gray-700">შინაარსი</label>
-              <textarea id="article-content" required rows="4"
-                class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]"
-                placeholder="სტატიის ტექსტი..."></textarea>
+              <label for="article-content-editor" class="mb-1.5 block text-sm font-medium text-gray-700">შინაარსი</label>
+              <div id="article-content-editor"
+                class="w-full rounded-xl border border-gray-300 bg-white text-sm text-gray-800 focus-within:border-[#B91C1C] focus-within:outline-none focus-within:ring-1 focus-within:ring-[#B91C1C]"></div>
+              <textarea id="article-content" name="content" class="hidden"></textarea>
             </div>
             <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
               <div>
-                <label for="article-category" class="mb-1.5 block text-sm font-medium text-gray-700">კატეგორია
-                  (ID)</label>
-                <input type="number" id="article-category" value="1" required
-                  class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]" />
-              </div>
-              <div>
-                <label for="article-department" class="mb-1.5 block text-sm font-medium text-gray-700">სამიზნე
-                  დეპარტამენტი</label>
-                <select id="article-department"
-                  class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]">
-                  <option value="All">ყველა</option>
-                  <option value="Informational">საინფორმაციო</option>
-                  <option value="Support">ტექნიკური მხარდაჭერა</option>
-                  <option value="IT Security">IT უსაფრთხოება</option>
-                  <option value="Content Creation">კონტენტის შექმნა</option>
-                </select>
+                <label for="article-category" class="mb-1.5 block text-sm font-medium text-gray-700">კატეგორია</label>
+                <select id="article-category" name="category_id" required
+                  class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]"></select>
               </div>
             </div>
             <div>
@@ -1366,6 +1357,7 @@
                   class="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50 flex shrink-0 items-center gap-2">
                   <i class="fa-solid fa-upload"></i> ატვირთვა
                 </button>
+                <span id="file-upload-name" class="ml-3 text-sm text-gray-500"></span>
                 <div id="current-attachment-link"
                   class="hidden items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
                   <i class="fa-solid fa-paperclip text-gray-400"></i>
@@ -1423,6 +1415,35 @@
                   <span class="absolute left-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-5"></span>
                 </span>
                 <span class="text-sm font-medium text-gray-800">ხილვადია სერვის ცენტრებისთვის (Visible to Service Centers)</span>
+              </label>
+            </div>
+            <!-- Multi-department targeting (target_departments[]) — labels map to English
+                 department values in submitArticleForm: საინფორმაციო→Informational,
+                 ტექნიკური→Support, სერვის ცენტრები→Service Centers. -->
+            <div class="flex flex-col gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4 sm:flex-row sm:items-center sm:gap-8">
+              <label class="flex items-center gap-3 cursor-pointer select-none">
+                <span class="relative inline-flex h-6 w-11 shrink-0 items-center">
+                  <input type="checkbox" id="dept-info" class="peer sr-only" />
+                  <span class="absolute inset-0 rounded-full bg-gray-300 transition-colors duration-200 peer-checked:bg-[#B91C1C]"></span>
+                  <span class="absolute left-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-5"></span>
+                </span>
+                <span class="text-sm font-medium text-gray-800">საინფორმაციო</span>
+              </label>
+              <label class="flex items-center gap-3 cursor-pointer select-none">
+                <span class="relative inline-flex h-6 w-11 shrink-0 items-center">
+                  <input type="checkbox" id="dept-tech" class="peer sr-only" />
+                  <span class="absolute inset-0 rounded-full bg-gray-300 transition-colors duration-200 peer-checked:bg-[#B91C1C]"></span>
+                  <span class="absolute left-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-5"></span>
+                </span>
+                <span class="text-sm font-medium text-gray-800">ტექნიკური</span>
+              </label>
+              <label class="flex items-center gap-3 cursor-pointer select-none">
+                <span class="relative inline-flex h-6 w-11 shrink-0 items-center">
+                  <input type="checkbox" id="dept-service" class="peer sr-only" />
+                  <span class="absolute inset-0 rounded-full bg-gray-300 transition-colors duration-200 peer-checked:bg-[#B91C1C]"></span>
+                  <span class="absolute left-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-5"></span>
+                </span>
+                <span class="text-sm font-medium text-gray-800">სერვის ცენტრები</span>
               </label>
             </div>
             <div class="flex justify-end gap-3 pt-2">

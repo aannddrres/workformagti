@@ -38,7 +38,7 @@ async function navToArticleView(articleId) {
         const metaEl = document.getElementById('article-view-meta');
         if (metaEl) {
           const date = article.created_at ? new Date(article.created_at).toLocaleDateString('ka-GE') : '';
-          metaEl.textContent = `${article.target_department || ''} · ვერსია ${article.version || 1} · ${date}${article.tags ? ' · ' + article.tags : ''}`;
+          metaEl.textContent = `${(article.target_departments || []).join(', ')} · ვერსია ${article.version || 1} · ${date}${article.tags ? ' · ' + article.tags : ''}`;
         }
         renderArticleBody(document.getElementById('article-view-content'), article.content || '');
 
