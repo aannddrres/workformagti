@@ -318,7 +318,9 @@
       bodyContainer.innerHTML = article.content; // Content is sanitized HTML from server
 
       // Update metadata on sidebar
-      document.getElementById('info-dept').textContent = article.target_department === 'All' ? 'ყველა დეპარტამენტი' : article.target_department;
+      document.getElementById('info-dept').textContent = (article.target_departments || []).includes('All')
+        ? 'ყველა დეპარტამენტი'
+        : (article.target_departments || []).join(', ');
       document.getElementById('info-status').textContent = article.status === 'published' ? 'გამოქვეყნებული' : article.status;
       document.getElementById('info-views').textContent = article.views_count || 0;
 

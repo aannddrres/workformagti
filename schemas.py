@@ -151,7 +151,9 @@ class ArticleBase(BaseModel):
     content: str
     category_id: int
     tags: Optional[str] = None
-    target_department: str = "All"
+    # Multi-department targeting (article_target_departments junction table);
+    # replaces the legacy single-value target_department column.
+    target_departments: list[str]
     status: str = "published"
     published_at: Optional[datetime] = None
     attachment_url: Optional[str] = None
@@ -162,14 +164,22 @@ class ArticleBase(BaseModel):
     visible_to_tech_info: bool = True
     visible_to_service_center: bool = False
 
+    @field_validator("target_departments")
+    @classmethod
+    def _non_empty_departments(cls, v: list[str]) -> list[str]:
+        if not v:
+            raise ValueError("target_departments must contain at least one department")
+        return v
+
 
 class ArticleSummaryResponse(BaseModel):
     """Response schema containing summary details of an article (excludes content)."""
     id: int
     title: str
     category_id: int
+    category_name: Optional[str] = None
     tags: Optional[str] = None
-    target_department: str
+    target_departments: list[str]
     status: str
     created_at: datetime
     read_time: int = 1
