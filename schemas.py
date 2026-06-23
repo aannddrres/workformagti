@@ -34,6 +34,8 @@ class UserResponse(UserBase):
     read_count: Optional[int] = None
     required_count: Optional[int] = None
     progress_percentage: Optional[int] = None
+    card_style: Optional[str] = "corporate"
+    permissions: list[str] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -310,6 +312,7 @@ class UserSelfUpdate(BaseModel):
     name: str
     phone: Optional[str] = None
     position: Optional[str] = None
+    card_style: Optional[str] = None
 
 
 class UserAdminUpdate(BaseModel):
@@ -440,6 +443,60 @@ class TeamStatsResponse(BaseModel):
     """Response schema representing supervisor/manager department analytics."""
     department: str
     members: list[TeamMemberStats]
+
+
+# ── Executive Department Dashboard (Department → Groups → Members) ──
+# Decoupled response shapes for /api/manager/department-stats. Percentages are
+# returned as plain integers (0-100) so the frontend can drive count-up
+# animations without parsing "85%" strings.
+
+class DeptMemberStats(BaseModel):
+    """One operator inside a group."""
+    user_id: int
+    user_name: str
+    position: Optional[str] = None
+    read_count: int
+    required_count: int
+    percentage: int  # 0-100; integer for clean count-up animation
+    is_critical: bool  # percentage < 30 with required readings assigned
+
+
+class DeptGroupStats(BaseModel):
+    """A single group (e.g. "ჯგუფი 01") within a department."""
+    name: str            # group label, e.g. "ჯგუფი 01" (or full string if unsplittable)
+    full_department: str  # raw users.department value, for drill-down/filters
+    member_count: int
+    compliance: int       # avg % across members with required readings
+    output_volume: int    # sum of read_count across members
+    critical_count: int
+    members: list[DeptMemberStats]
+
+
+class DepartmentStats(BaseModel):
+    """A whitelisted department aggregating its groups."""
+    name: str             # whitelist prefix, e.g. "საინფორმაციო"
+    member_count: int
+    group_count: int
+    compliance: int
+    output_volume: int
+    critical_count: int
+    is_empty: bool        # True when no members matched (e.g. ოფისები today)
+    groups: list[DeptGroupStats]
+
+
+class InsightsRibbon(BaseModel):
+    """Header KPI strip for the executive dashboard."""
+    global_compliance: int     # org-wide avg % (members with required readings)
+    critical_operators: int    # count of members < 30%
+    total_output_volume: int   # total readings completed across all members
+    total_members: int
+
+
+class DepartmentStatsResponse(BaseModel):
+    """Full executive dashboard payload: ribbon + department tree."""
+    insights: InsightsRibbon
+    departments: list[DepartmentStats]
+    generated_at: datetime
 
 
 class BroadcastRequest(BaseModel):

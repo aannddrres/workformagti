@@ -2,7 +2,7 @@
 <html lang="ka">
 
 <head>
-    <script src="/static/frontend_api.js?v=2"></script>
+    <script src="/static/frontend_api.js?v=3"></script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>მაგთი — შიდა საინფორმაციო პორტალი</title>
@@ -43,7 +43,7 @@
 
   <!-- [P1-6] Quick Links template — single source of truth, mounted into every page that needs it -->
   <template id="quick-links-tpl">
-    <h3 class="mb-5 text-lg font-semibold tracking-wide text-gray-800 dark:text-zinc-200">სწრაფი წვდომა</h3>
+    <h3 class="mb-4 text-base md:text-lg font-bold tracking-wide text-gray-800 dark:text-zinc-100">სწრაფი წვდომა</h3>
     <div class="grid grid-cols-2 gap-4 md:grid-cols-5"></div>
   </template>
 
@@ -55,137 +55,142 @@
        გვერდითი პანელი (Sidebar) — fixed, 280px, left
        ══════════════════════════════════════════════════════ -->
   <aside id="sidebar"
-    class="fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-gray-50 bg-white shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-transform duration-300 -translate-x-full md:translate-x-0">
+    class="fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-[#FAFAFA] transition-transform duration-300 -translate-x-full md:translate-x-0 shadow-[1px_0_0_0_rgba(0,0,0,0.04)]">
 
     <!-- Sidebar top: height matches navbar so content aligns -->
-    <div class="flex h-16 shrink-0 items-center border-b border-gray-50/80 px-6">
-      <!-- Magti wordmark (smaller repeat for sidebar; main logo is in navbar) -->
-      <img src="/static/magti_logo.png" alt="მაგთი ლოგო" class="h-9">
+    <div class="flex h-16 shrink-0 items-center px-5">
+      <!-- Magti wordmark -->
+      <a href="#" onclick="goToDashboard(); return false;" class="focus:outline-none">
+        <img src="/static/magti_logo.png" alt="მაგთი ლოგო" class="h-8 opacity-90 transition-opacity hover:opacity-100">
+      </a>
     </div>
 
     <!-- ── ნავიგაცია (Navigation menu) ──────────────────── -->
-    <nav class="sidebar-scroll flex-1 overflow-y-auto py-3">
-      <div class="px-3 pb-6 space-y-4">
+    <nav class="sidebar-scroll flex-1 overflow-y-auto py-4">
+      <div class="px-3 space-y-5">
 
-        <!-- ორგანიზაცია -->
+        <!-- ── ორგანიზაცია ──────────────────────────────── -->
         <div>
-          <p class="mb-2 px-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">ორგანიზაცია</p>
-          <ul class="space-y-0.5">
+          <p class="sidebar-section-label">ორგანიზაცია</p>
+          <ul class="space-y-0.5 mt-1">
             <!-- მთავარი -->
             <li>
-              <a href="#" onclick="switchMainPage('page-dashboard', this); return false;"
-                class="sidebar-link relative flex items-center gap-3 rounded-xl px-4 py-3 text-[13px] font-medium text-gray-600 transition-all duration-200 ease-in-out hover:bg-gray-50/80 hover:text-gray-900 active:scale-[0.98]">
-                <i class="fa-solid fa-house w-5 text-center text-[15px] text-gray-400"></i>
+              <a id="sidebar-home-link" href="#" onclick="switchMainPage('page-dashboard', this); return false;"
+                class="sidebar-link relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-500 transition-all duration-200 ease-in-out hover:bg-gray-900/[0.04] hover:text-gray-900 active:scale-[0.99]">
+                <i class="fa-solid fa-house w-4 shrink-0 text-center text-[13px] text-gray-400"></i>
                 <span class="nav-label">მთავარი</span>
               </a>
             </li>
             <!-- გუნდის სტატისტიკა (Manager + Admin only) -->
             <li data-required-role="manager,admin" class="hidden">
               <a href="#" onclick="switchMainPage('page-manager', this); return false;"
-                class="sidebar-link flex items-center gap-3 rounded-xl px-4 py-3 text-[13px] font-medium text-gray-600 transition-all duration-200 ease-in-out hover:bg-gray-50/80 hover:text-gray-900 active:scale-[0.98]">
-                <i class="fa-solid fa-users-line w-5 text-center text-[15px] text-gray-400"></i>
+                class="sidebar-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-500 transition-all duration-200 ease-in-out hover:bg-gray-900/[0.04] hover:text-gray-900 active:scale-[0.99]">
+                <i class="fa-solid fa-users-line w-4 shrink-0 text-center text-[13px] text-gray-400"></i>
                 <span class="nav-label">გუნდის სტატისტიკა</span>
               </a>
             </li>
           </ul>
         </div>
 
-        <div class="h-px bg-gray-100 dark:bg-zinc-850"></div>
-
-        <!-- ცოდნის ბაზა -->
+        <!-- ── ცოდნის ბაზა ───────────────────────────────── -->
         <div>
-          <p class="mb-2 px-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">ცოდნის ბაზა</p>
-          <ul class="space-y-0.5">
-            <!-- საინფორმაციო ბაზა -->
-            <li>
-              <a href="#" onclick="switchMainPage('page-info', this); return false;"
-                class="sidebar-link flex items-center gap-3 rounded-xl px-4 py-3 text-[13px] font-medium text-gray-600 transition-all duration-200 ease-in-out hover:bg-gray-50/80 hover:text-gray-900 active:scale-[0.98]">
-                <i class="fa-solid fa-database w-5 text-center text-[15px] text-gray-400"></i>
-                <span class="nav-label">საინფორმაციო ბაზა</span>
-              </a>
-            </li>
+          <p class="sidebar-section-label">ცოდნის ბაზა</p>
+          <ul class="space-y-0.5 mt-1">
             <!-- სავალდებულოდ გასაცნობი — red dot badge -->
             <li>
               <a href="#" onclick="switchMainPage('page-reading', this); return false;"
-                class="sidebar-link flex items-center gap-3 rounded-xl px-4 py-3 text-[13px] font-medium text-gray-600 transition-all duration-200 ease-in-out hover:bg-gray-50/80 hover:text-gray-900 active:scale-[0.98]">
-                <i class="fa-solid fa-file-lines w-5 text-center text-[15px] text-gray-400"></i>
+                class="sidebar-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-500 transition-all duration-200 ease-in-out hover:bg-gray-900/[0.04] hover:text-gray-900 active:scale-[0.99]">
+                <i class="fa-solid fa-file-lines w-4 shrink-0 text-center text-[13px] text-gray-400"></i>
                 <span class="nav-label flex-1">სავალდებულოდ გასაცნობი</span>
-                <span id="sidebar-reading-dot" class="hidden h-2.5 w-2.5 shrink-0 rounded-full bg-[#E30613]"
+                <span id="sidebar-reading-dot" class="hidden h-2 w-2 shrink-0 rounded-full bg-[#E30613] ring-2 ring-white"
                   aria-label="ახალი"></span>
               </a>
             </li>
             <!-- ვიდეო ინსტრუქციები -->
             <li>
               <a href="#" onclick="switchMainPage('page-video', this); return false;"
-                class="sidebar-link flex items-center gap-3 rounded-xl px-4 py-3 text-[13px] font-medium text-gray-600 transition-all duration-200 ease-in-out hover:bg-gray-50/80 hover:text-gray-900 active:scale-[0.98]">
-                <i class="fa-solid fa-circle-play w-5 text-center text-[15px] text-gray-400"></i>
+                class="sidebar-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-500 transition-all duration-200 ease-in-out hover:bg-gray-900/[0.04] hover:text-gray-900 active:scale-[0.99]">
+                <i class="fa-solid fa-circle-play w-4 shrink-0 text-center text-[13px] text-gray-400"></i>
                 <span class="nav-label">ვიდეო ინსტრუქციები</span>
               </a>
             </li>
-            <!-- სიახლეები — red pill badge "2" -->
+            <!-- სიახლეები -->
             <li>
               <a href="#" onclick="switchMainPage('page-news', this); return false;"
-                class="sidebar-link flex items-center gap-3 rounded-xl px-4 py-3 text-[13px] font-medium text-gray-600 transition-all duration-200 ease-in-out hover:bg-gray-50/80 hover:text-gray-900 active:scale-[0.98]">
-                <i class="fa-solid fa-bullhorn w-5 text-center text-[15px] text-gray-400"></i>
+                class="sidebar-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-500 transition-all duration-200 ease-in-out hover:bg-gray-900/[0.04] hover:text-gray-900 active:scale-[0.99]">
+                <i class="fa-solid fa-bullhorn w-4 shrink-0 text-center text-[13px] text-gray-400"></i>
                 <span class="nav-label flex-1">სიახლეები</span>
                 <span id="sidebar-news-badge"
-                  class="hidden h-5 min-w-[20px] shrink-0 items-center justify-center rounded-full bg-[#B91C1C] px-1.5 text-[11px] font-bold leading-none text-white"
+                  class="hidden h-5 min-w-[20px] shrink-0 items-center justify-center rounded-full bg-[#B91C1C] px-1.5 text-[10px] font-bold leading-none text-white"
                   aria-label="ახალი სიახლეები">0</span>
               </a>
             </li>
           </ul>
         </div>
 
-        <div class="h-px bg-gray-100 dark:bg-zinc-850"></div>
-
-        <!-- პირადი სივრცე -->
+        <!-- ── პირადი სივრცე ──────────────────────────────── -->
         <div>
-          <p class="mb-2 px-3 text-[10px] font-semibold tracking-wide uppercase tracking-widest text-gray-400">პირადი სივრცე</p>
-          <ul class="space-y-0.5">
+          <p class="sidebar-section-label">პირადი სივრცე</p>
+          <ul class="space-y-0.5 mt-1">
             <!-- რჩეულები -->
             <li>
               <a href="#" onclick="switchMainPage('page-favorites', this); return false;"
-                class="sidebar-link flex items-center gap-3 rounded-xl px-4 py-3 text-[13px] font-medium text-gray-600 transition-all duration-200 ease-in-out hover:bg-gray-50/80 hover:text-gray-900 active:scale-[0.98]">
-                <i class="fa-solid fa-star w-5 text-center text-[15px] text-gray-400"></i>
+                class="sidebar-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-500 transition-all duration-200 ease-in-out hover:bg-gray-900/[0.04] hover:text-gray-900 active:scale-[0.99]">
+                <i class="fa-regular fa-star w-4 shrink-0 text-center text-[13px] text-gray-400"></i>
                 <span class="nav-label">რჩეულები</span>
               </a>
             </li>
             <!-- პირადი კაბინეტი -->
             <li>
               <a href="#" onclick="switchMainPage('page-profile', this); return false;"
-                class="sidebar-link flex items-center gap-3 rounded-xl px-4 py-3 text-[13px] font-medium text-gray-600 transition-all duration-200 ease-in-out hover:bg-gray-50/80 hover:text-gray-900 active:scale-[0.98]">
-                <i class="fa-solid fa-circle-user w-5 text-center text-[15px] text-gray-400"></i>
+                class="sidebar-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-500 transition-all duration-200 ease-in-out hover:bg-gray-900/[0.04] hover:text-gray-900 active:scale-[0.99]">
+                <i class="fa-regular fa-circle-user w-4 shrink-0 text-center text-[13px] text-gray-400"></i>
                 <span class="nav-label">პირადი კაბინეტი</span>
               </a>
             </li>
           </ul>
         </div>
-        
-        <div class="h-px bg-gray-100 dark:bg-zinc-850" data-required-role="admin,content_admin"></div>
 
-        <!-- Admin -->
+        <!-- ── Admin ────────────────────────────────────────── -->
         <div data-required-role="admin,content_admin" class="hidden">
-          <button onclick="toggleSidebarAdminMenu()" class="flex w-full items-center justify-between gap-3 rounded-xl px-4 py-3 text-[13px] font-medium text-gray-600 transition-all duration-200 ease-in-out hover:bg-gray-50/80 hover:text-gray-900 focus:outline-none">
-            <div class="flex items-center gap-3">
-              <i class="fa-solid fa-gear w-5 text-center text-[15px] text-gray-400"></i>
-              <span class="nav-label">ადმინისტრირება</span>
-            </div>
-            <i id="sidebar-admin-chev" class="fa-solid fa-chevron-down text-[10px] text-gray-400 transition-transform duration-200"></i>
-          </button>
-          
-          <ul id="sidebar-admin-submenu" class="mt-3 hidden space-y-1 pl-4 transition-opacity duration-200">
+          <p class="sidebar-section-label">ადმინისტრირება</p>
+          <ul class="space-y-0.5 mt-1">
+            <!-- Collapsible parent -->
             <li>
-              <a href="#" onclick="switchMainPage('page-admin', this); switchAdmin('users'); return false;" class="block rounded-lg px-3 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-colors">მომხმარებლები</a>
+              <button onclick="toggleSidebarAdminMenu()"
+                class="sidebar-admin-btn flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-500 transition-all duration-200 ease-in-out hover:bg-gray-900/[0.04] hover:text-gray-900 focus:outline-none">
+                <i class="fa-solid fa-gear w-4 shrink-0 text-center text-[13px] text-gray-400"></i>
+                <span class="nav-label flex-1 text-left">პარამეტრები</span>
+                <i id="sidebar-admin-chev" class="fa-solid fa-chevron-right text-[9px] text-gray-300 transition-transform duration-200"></i>
+              </button>
             </li>
-            <li>
-              <a href="#" onclick="switchMainPage('page-admin', this); switchAdmin('content'); return false;" class="block rounded-lg px-3 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-colors">კონტენტის მართვა</a>
-            </li>
-            <li>
-              <a href="#" onclick="switchMainPage('page-admin', this); switchAdmin('audit'); return false;" class="block rounded-lg px-3 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-colors">ლოგები</a>
-            </li>
-            <li>
-              <a href="#" onclick="switchMainPage('page-admin', this); switchAdmin('main'); return false;" class="block rounded-lg px-3 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-colors">სტატისტიკა</a>
-            </li>
+            <!-- Sub-items -->
+            <ul id="sidebar-admin-submenu" class="hidden mt-0.5 space-y-0.5 pl-3 border-l border-gray-100 ml-3.5">
+              <li>
+                <a href="#" onclick="switchMainPage('page-admin', this); switchAdmin('main'); return false;"
+                  class="block rounded-lg px-3 py-2 text-[12px] font-medium text-gray-400 hover:bg-gray-900/[0.04] hover:text-gray-700 transition-all duration-150">
+                  <i class="fa-solid fa-chart-simple w-3.5 mr-1.5 text-gray-300"></i>სტატისტიკა
+                </a>
+              </li>
+              <li>
+                <a href="#" onclick="switchMainPage('page-admin', this); switchAdmin('users'); return false;"
+                  class="block rounded-lg px-3 py-2 text-[12px] font-medium text-gray-400 hover:bg-gray-900/[0.04] hover:text-gray-700 transition-all duration-150">
+                  <i class="fa-solid fa-users w-3.5 mr-1.5 text-gray-300"></i>მომხმარებლები
+                </a>
+              </li>
+              <li>
+                <a href="#" onclick="switchMainPage('page-admin', this); switchAdmin('content'); return false;"
+                  class="block rounded-lg px-3 py-2 text-[12px] font-medium text-gray-400 hover:bg-gray-900/[0.04] hover:text-gray-700 transition-all duration-150">
+                  <i class="fa-solid fa-file-pen w-3.5 mr-1.5 text-gray-300"></i>კონტენტის მართვა
+                </a>
+              </li>
+              <li>
+                <a href="#" onclick="switchMainPage('page-admin', this); switchAdmin('audit'); return false;"
+                  class="block rounded-lg px-3 py-2 text-[12px] font-medium text-gray-400 hover:bg-gray-900/[0.04] hover:text-gray-700 transition-all duration-150">
+                  <i class="fa-solid fa-shield-halved w-3.5 mr-1.5 text-gray-300"></i>ლოგები
+                </a>
+              </li>
+            </ul>
           </ul>
           <script>
             function toggleSidebarAdminMenu() {
@@ -193,10 +198,10 @@
               const chev = document.getElementById('sidebar-admin-chev');
               if (menu.classList.contains('hidden')) {
                 menu.classList.remove('hidden');
-                chev.classList.add('rotate-180');
+                chev.classList.add('rotate-90');
               } else {
                 menu.classList.add('hidden');
-                chev.classList.remove('rotate-180');
+                chev.classList.remove('rotate-90');
               }
             }
           </script>
@@ -204,6 +209,36 @@
 
       </div>
     </nav>
+
+    <!-- ── Bottom: user identity anchor ─────────────────── -->
+    <div class="relative shrink-0 border-t border-gray-100/60 px-4 py-3">
+      <!-- Sidebar user popover menu -->
+      <div id="sidebar-user-popover" class="absolute bottom-full left-4 right-4 mb-2 w-[calc(100%-2rem)] rounded-xl border border-gray-100 bg-white dark:border-zinc-800 dark:bg-zinc-900 p-2 shadow-lg z-50 hidden">
+        <div class="flex flex-col gap-1">
+          <button onclick="navTo('page-profile'); document.getElementById('sidebar-user-popover').classList.add('hidden');" class="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-800 rounded-lg transition-colors">
+            <i class="fa-solid fa-circle-user text-gray-400 w-4 text-center"></i> პირადი კაბინეტი
+          </button>
+          <button onclick="navTo('page-favorites'); document.getElementById('sidebar-user-popover').classList.add('hidden');" class="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-800 rounded-lg transition-colors">
+            <i class="fa-solid fa-star text-gray-400 w-4 text-center"></i> რჩეულები
+          </button>
+          <hr class="border-gray-100 dark:border-zinc-800 my-1">
+          <button onclick="logoutUser(); document.getElementById('sidebar-user-popover').classList.add('hidden');" class="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors">
+            <i class="fa-solid fa-right-from-bracket w-4 text-center"></i> გასვლა
+          </button>
+        </div>
+      </div>
+
+      <!-- Trigger button -->
+      <button id="sidebar-user-button" onclick="document.getElementById('sidebar-user-popover').classList.toggle('hidden'); event.stopPropagation();"
+        class="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-all duration-200 hover:bg-gray-900/[0.04] dark:hover:bg-zinc-800 active:scale-[0.99] focus:outline-none">
+        <span id="sidebar-user-avatar-initial" class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#B91C1C] text-[11px] font-bold text-white shadow-sm" aria-hidden="true">ნ</span>
+        <div class="min-w-0 flex-1">
+          <p id="sidebar-user-name" class="text-[12px] font-semibold text-gray-700 dark:text-zinc-300">იტვირთება...</p>
+          <p id="sidebar-user-dept" class="truncate text-[10px] text-gray-400 dark:text-zinc-500">Magti Portal</p>
+        </div>
+        <i class="fa-solid fa-ellipsis text-[11px] text-gray-400 dark:text-zinc-500 hover:text-[#E30613] transition-colors"></i>
+      </button>
+    </div>
 
   </aside>
   <!-- /sidebar -->
@@ -214,7 +249,7 @@
        ══════════════════════════════════════════════════════ -->
 
   <header id="main-header"
-    class="fixed left-0 md:left-64 right-0 top-0 z-20 flex h-16 items-center gap-4 border-b border-gray-50/80 bg-white/95 px-4 md:px-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] backdrop-blur-md transition-all duration-300">
+    class="fixed left-0 md:left-64 right-0 top-0 z-20 flex h-16 items-center gap-4 bg-white/95 dark:bg-[#181818]/95 px-4 md:px-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.25)] backdrop-blur-md transition-all duration-300">
 
     <!-- ჰამბურგერ ღილაკი (Hamburger / sidebar toggle) -->
     <button onclick="toggleSidebar()"
@@ -225,41 +260,48 @@
 
     <!-- მაგტი ლოგო (mobile only) -->
     <div class="order-2 flex shrink-0 items-center gap-2.5 md:hidden">
-      <img src="/static/magti_logo.png" alt="მაგთი ლოგო" class="h-10">
+      <a href="#" onclick="goToDashboard(); return false;" class="focus:outline-none">
+        <img src="/static/magti_logo.png" alt="მაგთი ლოგო" class="h-10 transition-opacity hover:opacity-100">
+      </a>
     </div>
 
-    <!-- ვერტიკალური გამყოფი -->
-    <div class="order-2 hidden h-8 w-px shrink-0 bg-gray-200 sm:block"></div>
-
-    <!-- ძიება — centred search input -->
+    <!-- ძიება — centred search input (border-free, with Ctrl+K badge) -->
     <div class="order-3 flex flex-1 justify-center">
-      <div class="relative w-full max-w-[480px]">
-        <i class="fa-solid fa-magnifying-glass pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-gray-400"></i>
-        <input id="global-search-input" type="search" placeholder="ძებნა... (Ctrl+K ან /)" autocomplete="off"
-          class="w-full rounded-full border border-gray-200/60 bg-gray-50/50 py-2.5 pl-11 pr-5 text-[13px] text-gray-800 placeholder-gray-400 transition-all duration-200 ease-in-out focus:border-[#B91C1C] focus:bg-white focus:outline-none focus:ring-4 focus:ring-red-600/10" />
+      <div class="relative w-full max-w-[500px]">
+        <i class="fa-solid fa-magnifying-glass pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-gray-400 dark:text-zinc-500"></i>
+        <input id="global-search-input" type="search" placeholder="ძებნა..." autocomplete="off"
+          class="w-full rounded-full border-0 bg-gray-100/70 dark:bg-zinc-800/70 py-2.5 pl-11 pr-16 text-[13px] text-gray-800 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 transition-all duration-200 ease-in-out focus:bg-white dark:focus:bg-zinc-800 focus:outline-none focus:ring-4 focus:ring-red-600/10" />
+        <!-- Ctrl+K keyboard shortcut badge -->
+        <kbd class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center gap-1 rounded-md bg-white dark:bg-zinc-900 px-1.5 py-0.5 text-[10px] font-medium text-gray-400 dark:text-zinc-500 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">Ctrl K</kbd>
         <div id="global-search-results"
-          class="absolute left-0 right-0 top-full z-50 mt-2 hidden max-h-[400px] w-full overflow-y-auto rounded-xl border border-gray-100 bg-white p-2 shadow-lg">
+          class="absolute left-0 right-0 top-full z-50 mt-2 hidden max-h-[400px] w-full overflow-y-auto rounded-xl border border-gray-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2 shadow-lg">
         </div>
       </div>
     </div>
 
     <!-- მარჯვენა მოქმედებები (Right-side actions) -->
-    <div class="order-4 flex shrink-0 items-center gap-1.5">
+    <div class="order-4 flex shrink-0 items-center gap-2.5">
 
-      <!-- Magti AI Chat -->
+      <!-- Magti AI Chat — sparkle icon (AI feature) -->
       <button id="magti-ai-btn" onclick="toggleAiDrawer()"
-        class="mr-2 hidden md:flex items-center gap-2 rounded-lg bg-gradient-to-r from-red-50 to-orange-50 px-3.5 py-2 text-[12px] font-semibold text-[#B91C1C] shadow-sm transition-all duration-200 ease-in-out hover:from-red-100 hover:to-orange-100 hover:shadow active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-[#B91C1C]"
-        aria-label="Magti AI Chat">
-        <i class="fa-solid fa-wand-magic-sparkles"></i>
-        <span class="hidden md:inline">Magti AI</span>
-        <span id="sse-status-dot" class="inline-block h-2 w-2 rounded-full bg-gray-400"
+        class="relative hidden md:flex h-9 w-9 items-center justify-center rounded-lg text-[#B91C1C] transition-all duration-200 ease-in-out hover:bg-red-50 dark:hover:bg-zinc-800 active:scale-[0.95] focus:outline-none focus:ring-2 focus:ring-[#B91C1C]"
+        aria-label="Magti AI Chat" title="Magti AI">
+        <i class="fa-solid fa-wand-magic-sparkles text-[17px]"></i>
+        <span id="sse-status-dot" class="absolute right-1 top-1 inline-block h-2 w-2 rounded-full bg-gray-400 ring-2 ring-white dark:ring-[#181818]"
           title="SSE კავშირი: მიერთება..."></span>
+      </button>
+
+      <!-- თემის გადართვა (Theme toggle — moon / sun) -->
+      <button id="theme-toggle-btn" onclick="toggleHeaderTheme()"
+        class="hidden md:flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 dark:text-zinc-400 transition-all duration-200 ease-in-out hover:bg-gray-50 dark:hover:bg-zinc-800 hover:text-gray-900 dark:hover:text-zinc-100 active:scale-[0.95] focus:outline-none focus:ring-2 focus:ring-[#B91C1C]"
+        aria-label="თემის გადართვა" title="თემის გადართვა">
+        <i id="header-theme-icon" class="fa-regular fa-moon text-[17px]"></i>
       </button>
 
       <!-- შეტყობინების ზარი — unread mandatory readings Dropdown -->
       <div class="relative">
         <button id="bell-button" onclick="toggleNotificationsPopover(event)"
-          class="relative hidden md:flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition-all duration-200 ease-in-out hover:bg-gray-50 hover:text-gray-900 active:scale-[0.95] focus:outline-none focus:ring-2 focus:ring-[#B91C1C]"
+          class="relative hidden md:flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 dark:text-zinc-400 transition-all duration-200 ease-in-out hover:bg-gray-50 dark:hover:bg-zinc-800 hover:text-gray-900 dark:hover:text-zinc-100 active:scale-[0.95] focus:outline-none focus:ring-2 focus:ring-[#B91C1C]"
           aria-label="შეტყობინებები">
           <i class="fa-solid fa-bell text-[17px]"></i>
           <span id="bell-badge"
@@ -281,7 +323,7 @@
       <!-- შეტყობინების კონვერტი — unread personal messages Dropdown -->
       <div class="relative">
         <button id="envelope-button" onclick="toggleMessagesPopover(event)"
-          class="relative hidden md:flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition-all duration-200 ease-in-out hover:bg-gray-50 hover:text-gray-900 active:scale-[0.95] focus:outline-none focus:ring-2 focus:ring-[#B91C1C]"
+          class="relative hidden md:flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 dark:text-zinc-400 transition-all duration-200 ease-in-out hover:bg-gray-50 dark:hover:bg-zinc-800 hover:text-gray-900 dark:hover:text-zinc-100 active:scale-[0.95] focus:outline-none focus:ring-2 focus:ring-[#B91C1C]"
           aria-label="პირადი შეტყობინებები">
           <i class="fa-solid fa-envelope text-[17px]"></i>
           <span id="envelope-badge"
@@ -300,24 +342,21 @@
         </div>
       </div>
 
-      <!-- ვერტიკალური გამყოფი -->
-      <div class="mx-1.5 hidden md:block h-8 w-px bg-gray-200"></div>
-
       <!-- მომხმარებლის ბლოკი — avatar + name Dropdown -->
       <div class="relative">
         <button onclick="document.getElementById('user-avatar-popover').classList.toggle('hidden'); event.stopPropagation();" id="user-avatar-button"
-          class="flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 transition-all duration-200 ease-in-out hover:bg-gray-50/80 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-[#B91C1C]"
+          class="flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 transition-all duration-200 ease-in-out hover:bg-gray-50/80 dark:hover:bg-zinc-800 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-[#B91C1C]"
           aria-label="მომხმარებლის მენიუ">
           <div class="relative shrink-0">
-            <span
+            <span id="header-user-avatar-initial"
               class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#B91C1C] text-[13px] font-bold text-white"
               aria-hidden="true">ნ</span>
           </div>
           <span class="hidden flex-col text-left leading-tight md:flex">
-            <span id="header-user-name" class="font-brand text-lg font-semibold leading-tight text-gray-800">იტვირთება...</span>
-            <span id="header-user-dept" class="text-[11px] text-gray-400">იტვირთება...</span>
+            <span id="header-user-name" class="font-brand text-lg font-semibold leading-tight text-gray-800 dark:text-zinc-100">იტვირთება...</span>
+            <span id="header-user-dept" class="text-[11px] text-gray-400 dark:text-zinc-500">იტვირთება...</span>
           </span>
-          <i class="fa-solid fa-chevron-down hidden text-[11px] text-gray-400 md:block"></i>
+          <i class="fa-solid fa-chevron-down hidden text-[11px] text-gray-400 dark:text-zinc-500 md:block"></i>
         </button>
         <div id="user-avatar-popover" class="absolute right-0 mt-2 w-48 rounded-xl border border-gray-100 bg-white p-2 shadow-lg z-50 hidden">
           <div class="flex flex-col gap-1">
@@ -333,7 +372,7 @@
 
       <!-- გასვლა (Logout) — სისტემიდან გასვლა -->
       <button onclick="logoutUser()"
-        class="hidden md:flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition-all duration-200 ease-in-out hover:bg-red-50 hover:text-[#B91C1C] active:scale-[0.95] focus:outline-none focus:ring-2 focus:ring-[#B91C1C]"
+        class="hidden md:flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 dark:text-zinc-400 transition-all duration-200 ease-in-out hover:bg-red-50 dark:hover:bg-zinc-800 hover:text-[#B91C1C] active:scale-[0.95] focus:outline-none focus:ring-2 focus:ring-[#B91C1C]"
         aria-label="სისტემიდან გასვლა"
         title="სისტემიდან გასვლა">
         <i class="fa-solid fa-right-from-bracket text-[17px]"></i>
@@ -353,43 +392,20 @@
     <!-- ── სხვა გვერდების კონტეინერები (Placholders) ── -->
     <div id="page-dashboard" class="page-section hidden">
       <!-- Dashboard Banner — pure graphic, stretches edge-to-edge naturally -->
-      <div class="relative h-44 bg-cover bg-center" style="background-image: url('/static/img/banner-bg.png'); background-color:#B91C1C;">
+      <div class="relative h-[246px] bg-cover bg-center" style="background-image: url('/static/img/banner-bg.png'); background-color:#B91C1C;">
           <div class="absolute inset-0 bg-gradient-to-r from-[#B91C1C]/80 via-[#B91C1C]/50 to-transparent"></div>
           <div class="absolute inset-0" style="background: linear-gradient(to top, var(--canvas-bg) 0%, rgba(var(--canvas-bg-rgb), 0.9) 15%, rgba(var(--canvas-bg-rgb), 0.6) 40%, rgba(var(--canvas-bg-rgb), 0.2) 70%, transparent 100%);"></div>
       </div>
 
       <div class="max-w-[1440px] mx-auto w-full px-4 md:px-6 pb-8">
 
-      <!-- Stat Cards — [P1-11] Now actionable: click navigates to the filtered page.
-           Negative top margin + z-10 lifts the card so it floats over the
-           bottom edge of the red banner instead of sitting flat below it. -->
-      <div class="relative z-10 -mt-12 md:-mt-16 mb-8 max-w-sm">
-        <!-- Card 1: mandatory readings — hidden by default to avoid a FOUC
-             flash before frontend_api.js resolves the unread count and
-             decides whether this card should be shown at all. -->
-        <button onclick="navTo('page-reading')"
-          class="hidden group w-full rounded-2xl border border-gray-100 bg-white p-6 text-left shadow-sm transition-all duration-200 hover:border-[#B91C1C] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#B91C1C]">
-          <div class="flex items-center justify-between">
-            <p class="text-sm font-medium text-gray-500">სავალდებულო საკითხები</p>
-            <i class="fa-solid fa-arrow-right text-gray-300 transition-colors group-hover:text-[#B91C1C]"></i>
-          </div>
-          <p id="stat-unread-readings" class="mt-2 text-4xl font-bold text-gray-900">—</p>
-          <div class="mt-2 flex items-center gap-2 text-xs">
-            <span id="stat-overdue" class="hidden rounded-full bg-red-100 px-2 py-0.5 font-bold text-[#B91C1C]">0
-              ვადაგადაცილებული</span>
-            <span class="text-gray-400">წასაკითხი</span>
-          </div>
-        </button>
-      </div>
-
-      <!-- ცოდნის ბაზის კატეგორიები — 5×2 taxonomy grid (Task 2.1).
-           10 minimalist brand cards rendered from /api/categories (slug-bearing
-           taxonomy set). A click routes to #/category/{slug}. -->
-      <div class="mb-8">
-        <div class="mb-3 flex items-center justify-end gap-4">
-          <button onclick="navTo('page-info')"
-            class="inline-flex items-center gap-1.5 text-xs font-semibold tracking-wide text-slate-500 transition-colors hover:text-[#E30613] dark:text-neutral-400 dark:hover:text-red-400">სრული ბაზა <i aria-hidden="true" class="fa-solid fa-arrow-right text-[10px]"></i></button>
-        </div>
+      <!-- ── ცოდნის ბაზა (Knowledge Base) — unified into the dashboard as the
+           lead "drill-down" block. Flow: [header search] → [categories] →
+           [operational alerts] → [quick links]. The standalone KB sidebar item
+           was removed; this section is now the primary entry point. -->
+      <!-- ცოდნის ბაზის კატეგორიები — taxonomy grid rendered from /api/categories
+           (renderDashboardCategoryGrid). A click routes to the category view. -->
+      <div class="mt-6 mb-8">
         <div id="dashboard-category-grid" class="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5">
           <!-- Skeleton placeholders — same outer geometry/classes as the
                JS-rendered cards (renderDashboardCategoryGrid in
@@ -499,74 +515,92 @@
         </div>
       </div>
 
+      <!-- ── ოპერაციული ნაწილი (Operational alerts & updates) ── -->
+      <!-- Mandatory-readings alert: relocated here from the banner hero so the
+           Knowledge Base categories lead the page. Hidden until frontend_api.js
+           resolves the unread count (FOUC guard preserved); ids unchanged. -->
+      <div class="mb-6 max-w-sm">
+        <button onclick="navTo('page-reading')"
+          class="hidden dashboard-list-card group w-full p-6 text-left focus:outline-none focus:ring-2 focus:ring-[#E30613]">
+          <div class="flex items-center justify-between">
+            <p class="text-sm font-medium text-gray-500 dark:text-zinc-400">სავალდებულო საკითხები</p>
+            <i class="fa-solid fa-arrow-right text-gray-300 transition-colors group-hover:text-[#E30613]"></i>
+          </div>
+          <p id="stat-unread-readings" class="mt-2 text-4xl font-bold text-gray-900 dark:text-zinc-100">—</p>
+          <div class="mt-2 flex items-center gap-2 text-xs">
+            <span id="stat-overdue" class="hidden rounded-full bg-red-100/80 px-2 py-0.5 font-bold text-[#E30613] dark:bg-red-950/40 dark:text-red-400">0
+              ვადაგადაცილებული</span>
+            <span class="text-gray-400 dark:text-zinc-500">წასაკითხი</span>
+          </div>
+        </button>
+      </div>
+
       <!-- 2-Column Content Layout -->
       <div class="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
 
         <!-- Left Column: აუცილებლად გასაცნობი -->
-        <div class="flex flex-col rounded-2xl bg-red-50/50 border border-red-100/80 p-6">
-          <h3 class="mb-5 text-lg font-bold text-gray-800">აუცილებლად გასაცნობი</h3>
+        <div class="flex flex-col">
+          <h3 class="mb-4 text-base md:text-lg font-bold tracking-wide text-gray-800 dark:text-zinc-100">აუცილებლად გასაცნობი</h3>
           <ul id="must-read-container" class="flex-1 space-y-3">
-            <li class="flex items-center justify-between rounded-xl bg-white p-4 shadow-sm">
+            <li class="dashboard-list-card flex items-center justify-between p-4">
               <div class="flex items-center gap-3">
-                <span class="h-2.5 w-2.5 shrink-0 rounded-full bg-[#B91C1C]"></span>
+                <span class="h-2.5 w-2.5 shrink-0 rounded-full bg-[#E30613]"></span>
                 <div>
-                  <h4 class="text-[14px] font-bold text-gray-800">AI მაგთი ჩატი - იანვარი 2026</h4>
+                  <h4 class="text-[14px] font-bold text-gray-800 dark:text-zinc-200">AI მაგთი ჩატი - იანვარი 2026</h4>
                   <div class="mt-1.5 flex items-center gap-2">
-                    <span class="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-[#B91C1C]">ახალი</span>
-                    <span class="text-[11px] text-gray-400">02.06.2026</span>
+                    <span class="rounded bg-red-100/80 text-[#E30613] dark:bg-red-950/40 dark:text-red-400 px-1.5 py-0.5 text-[10px] font-bold">ახალი</span>
+                    <span class="text-[11px] text-gray-400 dark:text-zinc-500">02.06.2026</span>
                   </div>
                 </div>
               </div>
             </li>
-            <li class="flex items-center justify-between rounded-xl bg-white p-4 shadow-sm">
+            <li class="dashboard-list-card flex items-center justify-between p-4">
               <div class="flex items-center gap-3">
                 <span class="h-2.5 w-2.5 shrink-0 rounded-full bg-orange-400"></span>
                 <div>
-                  <h4 class="text-[14px] font-bold text-gray-800">როუმერის ახალი პირობები</h4>
+                  <h4 class="text-[14px] font-bold text-gray-800 dark:text-zinc-200">როუმერის ახალი პირობები</h4>
                   <div class="mt-1.5 flex items-center gap-2">
                     <span
-                      class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-500">განახლებული</span>
-                    <span class="text-[11px] text-gray-400">02.06.2026</span>
+                      class="rounded bg-gray-100/80 text-gray-500 dark:bg-zinc-800/80 dark:text-zinc-400 px-1.5 py-0.5 text-[10px] font-bold">განახლებული</span>
+                    <span class="text-[11px] text-gray-400 dark:text-zinc-500">02.06.2026</span>
                   </div>
                 </div>
               </div>
             </li>
           </ul>
           <a href="#" onclick="navTo('page-reading'); return false;"
-            class="mt-5 inline-block text-sm font-semibold text-[#B91C1C] hover:underline">ყველას ნახვა
-            &rarr;</a>
+            class="mt-3 self-start text-xs font-bold uppercase tracking-wider text-[#E30613] hover:opacity-80 transition-opacity">ყველას ნახვა &rarr;</a>
         </div>
 
         <!-- Right Column: ბოლოს დამატებული -->
-        <div class="flex flex-col rounded-2xl bg-slate-50 border border-slate-100 p-6">
-          <h3 class="mb-5 text-lg font-bold text-gray-800">ბოლოს დამატებული</h3>
-          <ul id="latest-news-container" class="flex-1 space-y-3">
-            <li class="flex items-center justify-between rounded-xl bg-white p-4 shadow-sm">
+        <div class="flex flex-col">
+          <h3 class="mb-4 text-base md:text-lg font-bold tracking-wide text-gray-800 dark:text-zinc-100">ბოლოს დამატებული</h3>
+          <ul id="latest-news-container" class="flex-1 space-y-3 max-h-[280px] overflow-y-auto pr-1">
+            <li class="dashboard-list-card flex items-center justify-between p-4">
               <div class="flex items-center gap-3">
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-400">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-50/50 text-slate-400 dark:bg-zinc-800/50 dark:text-neutral-500">
                   <i class="fa-solid fa-file-lines"></i>
                 </div>
                 <div>
-                  <h4 class="text-[14px] font-bold text-gray-800">SIM ბარათის აღდგენა</h4>
-                  <p class="mt-1 text-[11px] text-gray-400">02.06.2026</p>
+                  <h4 class="text-[14px] font-bold text-gray-800 dark:text-zinc-200">SIM ბარათის აღდგენა</h4>
+                  <p class="mt-1 text-[11px] text-gray-400 dark:text-zinc-500">02.06.2026</p>
                 </div>
               </div>
             </li>
-            <li class="flex items-center justify-between rounded-xl bg-white p-4 shadow-sm">
+            <li class="dashboard-list-card flex items-center justify-between p-4">
               <div class="flex items-center gap-3">
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-400">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-50/50 text-slate-400 dark:bg-zinc-800/50 dark:text-neutral-500">
                   <i class="fa-solid fa-file-lines"></i>
                 </div>
                 <div>
-                  <h4 class="text-[14px] font-bold text-gray-800">პორტირება</h4>
-                  <p class="mt-1 text-[11px] text-gray-400">02.06.2026</p>
+                  <h4 class="text-[14px] font-bold text-gray-800 dark:text-zinc-200">პორტირება</h4>
+                  <p class="mt-1 text-[11px] text-gray-400 dark:text-zinc-500">02.06.2026</p>
                 </div>
               </div>
             </li>
           </ul>
           <a href="#" onclick="navTo('page-news'); return false;"
-            class="mt-5 inline-block text-sm font-semibold text-[#B91C1C] hover:underline">ყველას ნახვა
-            &rarr;</a>
+            class="mt-3 self-start text-xs font-bold uppercase tracking-wider text-[#E30613] hover:opacity-80 transition-opacity">ყველას ნახვა &rarr;</a>
         </div>
       </div>
 
@@ -644,9 +678,10 @@
       - Dynamic Rendering: Injects fetched data into the DOM.
     -->
     
-    <script src="/static/js/app-core.js?v=2"></script>
+    <script src="/static/js/app-core.js?v=3"></script>
     <script src="/static/js/app-renderers.js?v=2"></script>
     <script src="/static/js/app-router.js?v=2"></script>
+    <script src="/static/js/dept-dashboard.js?v=1"></script>
 
 
     <!-- ── კატეგორიის დეტალური ხედი (Category Detail View) ── -->
@@ -723,6 +758,92 @@
         <p id="news-modal-meta" class="mb-5 text-xs text-gray-400"></p>
         <div id="news-modal-content"
           class="prose prose-sm max-w-none whitespace-pre-line text-[15px] leading-relaxed text-gray-700"></div>
+      </div>
+    </div>
+
+    <!-- User Edit Modal -->
+    <div id="user-edit-modal" role="dialog" aria-modal="true" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/50" onclick="closeUserEditModal()"></div>
+      <div class="relative max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-8 shadow-2xl z-10">
+        <button onclick="closeUserEditModal()" class="absolute right-5 top-5 text-xl text-gray-400 hover:text-gray-700"
+          aria-label="დახურვა"><i class="fa-solid fa-xmark"></i></button>
+        <header class="mb-5">
+          <h3 class="text-2xl font-bold text-gray-800">მომხმარებლის რედაქტირება</h3>
+          <p class="text-xs text-gray-400">შეცვალეთ მომხმარებლის როლი, დეპარტამენტი, პოზიცია და მიანიჭეთ უფლებები</p>
+        </header>
+        <form id="user-edit-form" onsubmit="submitUserEditForm(event)" class="space-y-4">
+          <input type="hidden" id="edit-user-id" />
+          
+          <div>
+            <label for="edit-user-role" class="mb-1.5 block text-sm font-medium text-gray-700">როლი</label>
+            <select id="edit-user-role" onchange="onEditUserRoleChange(this.value)"
+              class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]">
+              <option value="operator">ოპერატორი</option>
+              <option value="manager">მენეჯერი</option>
+              <option value="content_admin">კონტენტის ადმინი</option>
+              <option value="admin">სისტემის ადმინი</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="edit-user-department" class="mb-1.5 block text-sm font-medium text-gray-700">დეპარტამენტი</label>
+            <select id="edit-user-department"
+              class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]">
+              <option value="All">საერთო</option>
+              <option value="Informational">საინფორმაციო</option>
+              <option value="Support">ტექნიკური მხარდაჭერა</option>
+              <option value="IT Security">IT უსაფრთხოება</option>
+              <option value="Content Creation">კონტენტის შექმნა</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="edit-user-position" class="mb-1.5 block text-sm font-medium text-gray-700">პოზიცია</label>
+            <input id="edit-user-position" type="text"
+              class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]" />
+          </div>
+
+          <div>
+            <label class="mb-2 block text-sm font-medium text-gray-700">უფლებები (Granular Permissions)</label>
+            <div id="edit-user-permissions-container" class="space-y-2 rounded-xl border border-gray-200 bg-gray-50/50 p-4 dark:bg-zinc-800/50 dark:border-zinc-700">
+              <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer dark:text-zinc-300">
+                <input type="checkbox" class="user-perm-checkbox h-4 w-4 rounded border-gray-300 accent-[#B91C1C]" value="articles.view" />
+                <span>კონტენტის ნახვა (articles.view)</span>
+              </label>
+              <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer dark:text-zinc-300">
+                <input type="checkbox" class="user-perm-checkbox h-4 w-4 rounded border-gray-300 accent-[#B91C1C]" value="articles.edit" />
+                <span>კონტენტის რედაქტირება (articles.edit)</span>
+              </label>
+              <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer dark:text-zinc-300">
+                <input type="checkbox" class="user-perm-checkbox h-4 w-4 rounded border-gray-300 accent-[#B91C1C]" value="articles.publish" />
+                <span>კონტენტის გამოქვეყნება (articles.publish)</span>
+              </label>
+              <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer dark:text-zinc-300">
+                <input type="checkbox" class="user-perm-checkbox h-4 w-4 rounded border-gray-300 accent-[#B91C1C]" value="articles.archive" />
+                <span>კონტენტის დაარქივება (articles.archive)</span>
+              </label>
+              <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer dark:text-zinc-300">
+                <input type="checkbox" class="user-perm-checkbox h-4 w-4 rounded border-gray-300 accent-[#B91C1C]" value="users.manage" />
+                <span>მომხმარებლების მართვა (users.manage)</span>
+              </label>
+              <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer dark:text-zinc-300">
+                <input type="checkbox" class="user-perm-checkbox h-4 w-4 rounded border-gray-300 accent-[#B91C1C]" value="compliance.assign" />
+                <span>კითხვის ვალდებულება (compliance.assign)</span>
+              </label>
+              <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer dark:text-zinc-300">
+                <input type="checkbox" class="user-perm-checkbox h-4 w-4 rounded border-gray-300 accent-[#B91C1C]" value="reports.export" />
+                <span>რეპორტების ექსპორტი (reports.export)</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="pt-4 flex justify-end gap-3">
+            <button type="button" onclick="closeUserEditModal()"
+              class="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-700">გაუქმება</button>
+            <button type="submit"
+              class="rounded-xl bg-[#B91C1C] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700">შენახვა</button>
+          </div>
+        </form>
       </div>
     </div>
 
@@ -812,74 +933,61 @@
     </div>
 
     <!-- ── გუნდის სტატისტიკა (Manager / Supervisor) ── -->
-    <div id="page-manager" class="page-section hidden max-w-[1440px] mx-auto w-full px-4 md:px-6 pt-4 md:pt-6 pb-8">
-      <div class="mb-6">
-        <h2 class="text-4xl font-semibold uppercase tracking-wider text-gray-800">გუნდის სტატისტიკა</h2>
-        <p class="mt-1 text-sm text-gray-500">
-          დეპარტამენტი: <span id="manager-dept-name" class="font-semibold text-gray-700">—</span> · წაკითხვის პროგრესი
-          თითოეული თანამშრომლისთვის
-        </p>
+    <div id="page-manager" class="page-section hidden max-w-[1440px] mx-auto w-full px-4 md:px-6 pt-4 md:pt-6 pb-24 lg:pb-8">
+      <!-- ── Header ── -->
+      <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 class="text-3xl md:text-4xl font-semibold uppercase tracking-wider text-gray-800 dark:text-zinc-100">გუნდის სტატისტიკა</h2>
+          <p class="mt-1 text-sm text-gray-500 dark:text-zinc-400">დეპარტამენტებისა და ჯგუფების წაკითხვის შესრულება</p>
+        </div>
+        <!-- Live status: auto-refresh, no manual button -->
+        <div class="flex items-center gap-2 text-xs font-medium text-gray-400 dark:text-zinc-500">
+          <span class="relative flex h-2 w-2">
+            <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70"></span>
+            <span class="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+          </span>
+          <span>ცოცხალი · განახლება <span id="dept-refresh-label">60წმ</span></span>
+        </div>
       </div>
 
-      <!-- Search & Filter Row -->
-      <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <!-- Search Input -->
-        <div class="relative w-full md:w-[40%]">
-          <i class="fa-solid fa-magnifying-glass pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-          <input id="team-stats-name-filter" type="search" placeholder="ძიება თანამშრომლის სახელით..."
-            class="w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm text-gray-800 placeholder-gray-400 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]" />
-        </div>
-        <!-- Filter Options -->
-        <div class="flex flex-wrap items-center gap-3">
-          <div class="flex items-center gap-2">
-            <i class="fa-solid fa-sliders text-gray-400"></i>
-            <select id="team-stats-dept-filter"
-              class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-600 shadow-sm focus:border-[#B91C1C] focus:outline-none">
-              <option value="">ყველა დეპარტამენტი</option>
-              <option value="Support">ტექნიკური</option>
-              <option value="Informational">საინფორმაციო</option>
-              <option value="Billing">ბილინგი</option>
-              <option value="Sales">გაყიდვები</option>
-              <option value="IT Security">IT უსაფრთხოება</option>
-              <option value="Content Creation">კონტენტის შექმნა</option>
-            </select>
+      <!-- ── Insights Ribbon ── -->
+      <div id="insights-ribbon" class="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <!-- Populated by DeptDashboard.renderRibbon(); skeleton until first load. -->
+        <div class="dept-ribbon-skeleton animate-pulse rounded-2xl border border-gray-100 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900/60"><div class="h-3 w-24 rounded bg-gray-200 dark:bg-zinc-800"></div><div class="mt-4 h-9 w-20 rounded bg-gray-200 dark:bg-zinc-800"></div></div>
+        <div class="dept-ribbon-skeleton animate-pulse rounded-2xl border border-gray-100 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900/60"><div class="h-3 w-24 rounded bg-gray-200 dark:bg-zinc-800"></div><div class="mt-4 h-9 w-20 rounded bg-gray-200 dark:bg-zinc-800"></div></div>
+        <div class="dept-ribbon-skeleton animate-pulse rounded-2xl border border-gray-100 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900/60"><div class="h-3 w-24 rounded bg-gray-200 dark:bg-zinc-800"></div><div class="mt-4 h-9 w-20 rounded bg-gray-200 dark:bg-zinc-800"></div></div>
+      </div>
+
+      <!-- ── Department Cards (Department → Groups → Members) ── -->
+      <div id="dept-dashboard-body" class="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <!-- Populated by DeptDashboard.renderDepartments(); skeleton until first load. -->
+        <div class="dept-card-skeleton animate-pulse rounded-2xl border border-gray-100 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900/60">
+          <div class="h-5 w-32 rounded bg-gray-200 dark:bg-zinc-800"></div>
+          <div class="mt-3 h-2 w-full rounded bg-gray-200 dark:bg-zinc-800"></div>
+          <div class="mt-6 space-y-4">
+            <div class="h-3 w-full rounded bg-gray-200 dark:bg-zinc-800"></div>
+            <div class="h-3 w-5/6 rounded bg-gray-200 dark:bg-zinc-800"></div>
+            <div class="h-3 w-4/6 rounded bg-gray-200 dark:bg-zinc-800"></div>
           </div>
-          <button id="team-stats-search-btn"
-            class="rounded-xl bg-[#B91C1C] px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-red-700 active:scale-[0.98] transition-all focus:outline-none">
-            ძებნა
-          </button>
-          <button id="team-stats-clear-btn"
-            class="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-600 shadow-sm hover:bg-gray-50 active:scale-[0.98] transition-all focus:outline-none">
-            გასუფთავება
-          </button>
         </div>
-      </div>
-
-      <div class="overflow-x-auto lg:overflow-visible rounded-2xl border border-gray-100 bg-white shadow-sm pb-24 lg:pb-0">
-        <table class="w-full text-left text-sm">
-          <thead>
-            <tr
-              class="border-b border-gray-200 bg-gray-50 text-xs font-semibold uppercase tracking-wider text-gray-500">
-              <th class="px-5 py-3">თანამშრომელი</th>
-              <th class="px-5 py-3 text-center">წაკითხული</th>
-              <th class="px-5 py-3 text-center">სავალდებულო</th>
-              <th class="px-5 py-3 text-center">პროგრესი</th>
-              <th class="px-5 py-3 text-center">მოქმედება</th>
-            </tr>
-          </thead>
-          <tbody id="manager-team-tbody" class="divide-y divide-gray-100">
-            <tr>
-              <td colspan="5" class="px-5 py-6 text-center text-gray-400">იტვირთება...</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="mt-4 flex items-center justify-end gap-3">
-        <button onclick="fetchAndRenderManagerStats(Auth.getToken())"
-          class="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
-          <i class="fa-solid fa-rotate-right mr-1.5"></i>განახლება
-        </button>
+        <div class="dept-card-skeleton animate-pulse rounded-2xl border border-gray-100 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900/60">
+          <div class="h-5 w-32 rounded bg-gray-200 dark:bg-zinc-800"></div>
+          <div class="mt-3 h-2 w-full rounded bg-gray-200 dark:bg-zinc-800"></div>
+          <div class="mt-6 space-y-4">
+            <div class="h-3 w-full rounded bg-gray-200 dark:bg-zinc-800"></div>
+            <div class="h-3 w-5/6 rounded bg-gray-200 dark:bg-zinc-800"></div>
+            <div class="h-3 w-4/6 rounded bg-gray-200 dark:bg-zinc-800"></div>
+          </div>
+        </div>
+        <div class="dept-card-skeleton animate-pulse rounded-2xl border border-gray-100 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900/60">
+          <div class="h-5 w-32 rounded bg-gray-200 dark:bg-zinc-800"></div>
+          <div class="mt-3 h-2 w-full rounded bg-gray-200 dark:bg-zinc-800"></div>
+          <div class="mt-6 space-y-4">
+            <div class="h-3 w-full rounded bg-gray-200 dark:bg-zinc-800"></div>
+            <div class="h-3 w-5/6 rounded bg-gray-200 dark:bg-zinc-800"></div>
+            <div class="h-3 w-4/6 rounded bg-gray-200 dark:bg-zinc-800"></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -994,6 +1102,17 @@
               </select>
             </div>
             <div class="flex items-center gap-4">
+              <span class="w-36 text-sm font-medium text-gray-600">Card Design Pack:</span>
+              <select id="settings-card-style"
+                class="w-48 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none text-gray-800 shadow-sm">
+                <option value="corporate">Corporate (Solid)</option>
+                <option value="glass">Glassmorphism</option>
+                <option value="bold">Bold (High Contrast)</option>
+                <option value="minimal">Minimal (Ghost)</option>
+                <option value="colorful">Colorful (Pastel)</option>
+              </select>
+            </div>
+            <div class="flex items-center gap-4">
               <span class="w-36 text-sm font-medium text-gray-600">Chart color (to all):</span>
               <div class="flex w-48 items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 shadow-sm">
                 <input type="text" value="#FFFFFF" class="w-full text-sm outline-none text-gray-800" readonly>
@@ -1092,74 +1211,181 @@
          ════════════════════════════════════════════════════ -->
       <div id="admin-main" class="admin-panel">
         <h2 class="mb-6 text-4xl font-semibold uppercase tracking-wider text-gray-800">მთავარი პანელი</h2>
-        <!-- KPI cards: live counts from /api/statistics/kpi; each card navigates to its module -->
+
+        <!-- KPI cards: live counts from /api/statistics/kpi — clickable to navigate/filter -->
         <div class="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <div onclick="switchAdmin('users')"
-            class="flex cursor-pointer flex-col items-start rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-[#B91C1C]/40 hover:shadow-md">
-            <div class="mb-2 flex h-9 w-9 items-center justify-center rounded-lg bg-red-50"><i
-                class="fa-solid fa-users text-sm text-[#B91C1C]"></i></div>
-            <p class="text-xs text-gray-500">მომხმარებლები</p>
-            <p id="kpi-users" class="text-2xl font-bold text-gray-800">—</p>
+
+          <!-- Users KPI -->
+          <div onclick="switchAdmin('users')" id="kpi-card-users"
+            class="group flex cursor-pointer flex-col items-start rounded-xl bg-white p-5 shadow-[0_2px_10px_rgba(0,0,0,0.05)] transition-all duration-200 hover:shadow-[0_6px_20px_rgba(185,28,28,0.1)] hover:-translate-y-0.5 active:scale-[0.98]">
+            <div class="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-rose-50 transition-colors group-hover:bg-rose-100">
+              <i class="fa-solid fa-users text-sm text-rose-600"></i>
+            </div>
+            <p class="text-[11px] font-semibold uppercase tracking-widest text-gray-400">მომხმარებლები</p>
+            <div class="mt-1 flex items-baseline gap-2">
+              <p id="kpi-users" class="text-3xl font-bold text-gray-900 tabular-nums">—</p>
+              <span id="kpi-users-trend" class="text-xs font-bold opacity-35 text-gray-500"></span>
+            </div>
+            <div class="mt-3 h-1 w-full rounded-full bg-gray-100">
+              <div id="kpi-users-bar" class="h-1 rounded-full bg-rose-400/50 transition-all duration-700" style="width:0%"></div>
+            </div>
           </div>
-          <div onclick="switchAdmin('content')"
-            class="flex cursor-pointer flex-col items-start rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-[#B91C1C]/40 hover:shadow-md">
-            <div class="mb-2 flex h-9 w-9 items-center justify-center rounded-lg bg-red-50"><i
-                class="fa-solid fa-file-lines text-sm text-[#B91C1C]"></i></div>
-            <p class="text-xs text-gray-500">პუბლიკაციები</p>
-            <p id="kpi-articles" class="text-2xl font-bold text-gray-800">—</p>
+
+          <!-- Articles KPI -->
+          <div onclick="switchAdmin('content')" id="kpi-card-articles"
+            class="group flex cursor-pointer flex-col items-start rounded-xl bg-white p-5 shadow-[0_2px_10px_rgba(0,0,0,0.05)] transition-all duration-200 hover:shadow-[0_6px_20px_rgba(185,28,28,0.1)] hover:-translate-y-0.5 active:scale-[0.98]">
+            <div class="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 transition-colors group-hover:bg-red-100">
+              <i class="fa-solid fa-file-lines text-sm text-[#B91C1C]"></i>
+            </div>
+            <p class="text-[11px] font-semibold uppercase tracking-widest text-gray-400">პუბლიკაციები</p>
+            <div class="mt-1 flex items-baseline gap-2">
+              <p id="kpi-articles" class="text-3xl font-bold text-gray-900 tabular-nums">—</p>
+              <span id="kpi-articles-trend" class="text-xs font-bold opacity-35 text-gray-500"></span>
+            </div>
+            <div class="mt-3 h-1 w-full rounded-full bg-gray-100">
+              <div id="kpi-articles-bar" class="h-1 rounded-full bg-[#B91C1C]/30 transition-all duration-700" style="width:0%"></div>
+            </div>
           </div>
-          <div onclick="switchAdmin('content')"
-            class="flex cursor-pointer flex-col items-start rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-[#B91C1C]/40 hover:shadow-md">
-            <div class="mb-2 flex h-9 w-9 items-center justify-center rounded-lg bg-red-50"><i
-                class="fa-solid fa-lightbulb text-sm text-[#B91C1C]"></i></div>
-            <p class="text-xs text-gray-500">სავალდებულოდ გასაცნობი</p>
-            <p id="kpi-readings" class="text-2xl font-bold text-gray-800">—</p>
+
+          <!-- Required Readings KPI — clicking scrolls/filters the progress table -->
+          <div onclick="filterProgressByUnread()" id="kpi-card-readings" title="დააწკაპეთ წაუკითხავი მომხმარებლებისთვის"
+            class="group flex cursor-pointer flex-col items-start rounded-xl bg-white p-5 shadow-[0_2px_10px_rgba(0,0,0,0.05)] transition-all duration-200 hover:shadow-[0_6px_20px_rgba(217,119,6,0.12)] hover:-translate-y-0.5 active:scale-[0.98]">
+            <div class="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50 transition-colors group-hover:bg-amber-100">
+              <i class="fa-solid fa-lightbulb text-sm text-amber-600"></i>
+            </div>
+            <p class="text-[11px] font-semibold uppercase tracking-widest text-gray-400">სავალდებულო კითხვა</p>
+            <div class="mt-1 flex items-baseline gap-2">
+              <p id="kpi-readings" class="text-3xl font-bold text-gray-900 tabular-nums">—</p>
+              <span id="kpi-readings-trend" class="text-xs font-bold opacity-35 text-amber-600"></span>
+            </div>
+            <div class="mt-3 h-1 w-full rounded-full bg-gray-100">
+              <div id="kpi-readings-bar" class="h-1 rounded-full bg-amber-400/50 transition-all duration-700" style="width:0%"></div>
+            </div>
           </div>
-          <div onclick="navTo('page-video')"
-            class="flex cursor-pointer flex-col items-start rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-[#B91C1C]/40 hover:shadow-md">
-            <div class="mb-2 flex h-9 w-9 items-center justify-center rounded-lg bg-red-50"><i
-                class="fa-solid fa-video text-sm text-[#B91C1C]"></i></div>
-            <p class="text-xs text-gray-500">ვიდეო</p>
-            <p id="kpi-videos" class="text-2xl font-bold text-gray-800">—</p>
+
+          <!-- Videos KPI -->
+          <div onclick="navTo('page-video')" id="kpi-card-videos"
+            class="group flex cursor-pointer flex-col items-start rounded-xl bg-white p-5 shadow-[0_2px_10px_rgba(0,0,0,0.05)] transition-all duration-200 hover:shadow-[0_6px_20px_rgba(185,28,28,0.1)] hover:-translate-y-0.5 active:scale-[0.98]">
+            <div class="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 transition-colors group-hover:bg-red-100">
+              <i class="fa-solid fa-video text-sm text-[#B91C1C]"></i>
+            </div>
+            <p class="text-[11px] font-semibold uppercase tracking-widest text-gray-400">ვიდეო</p>
+            <div class="mt-1 flex items-baseline gap-2">
+              <p id="kpi-videos" class="text-3xl font-bold text-gray-900 tabular-nums">—</p>
+              <span id="kpi-videos-trend" class="text-xs font-bold opacity-35 text-gray-500"></span>
+            </div>
+            <div class="mt-3 h-1 w-full rounded-full bg-gray-100">
+              <div id="kpi-videos-bar" class="h-1 rounded-full bg-[#B91C1C]/30 transition-all duration-700" style="width:0%"></div>
+            </div>
           </div>
+
         </div>
 
         <!-- Charts row -->
-        <div class="mb-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
           <!-- Activity Line Chart -->
-          <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm lg:col-span-2">
-            <h3 class="mb-3 text-sm font-bold text-gray-700">სისტემური აქტივობა (ბოლო 7 დღე)</h3>
+          <div class="rounded-xl bg-white p-5 shadow-[0_2px_10px_rgba(0,0,0,0.05)] lg:col-span-2">
+            <div class="mb-3 flex items-center justify-between">
+              <h3 class="text-sm font-bold text-gray-700">სისტემური აქტივობა (ბოლო 7 დღე)</h3>
+              <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-600"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Live</span>
+            </div>
             <div class="relative w-full h-[220px]">
               <canvas id="activityChart"></canvas>
             </div>
           </div>
           <!-- Pie chart -->
-          <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm flex flex-col items-center">
+          <div class="rounded-xl bg-white p-5 shadow-[0_2px_10px_rgba(0,0,0,0.05)] flex flex-col items-center">
             <h3 class="mb-3 text-sm font-bold text-gray-700 w-full text-left">წაკითხვის სტატისტიკა</h3>
             <div class="w-full max-w-[320px]">
               <canvas id="readingChart"></canvas>
             </div>
           </div>
           <!-- Top 5 horizontal bar -->
-          <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+          <div class="rounded-xl bg-white p-5 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
             <h3 class="mb-4 text-sm font-bold text-gray-700">ტოპ 5 ყველაზე წაკითხვადი საკითხი</h3>
             <canvas id="top5Chart" height="160"></canvas>
           </div>
         </div>
 
         <!-- Popular Searches -->
-        <div class="mb-6 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+        <div class="mb-6 rounded-xl bg-white p-5 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
           <h3 class="mb-4 text-sm font-bold text-gray-700">პოპულარული ძიებები (ტოპ 10)</h3>
           <div class="overflow-x-auto">
             <table class="w-full text-left text-sm">
               <thead>
-                <tr class="border-b border-gray-200 text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  <th class="pb-2 pr-4">საძიებო სიტყვა</th>
-                  <th class="pb-2 text-center w-24">რაოდენობა</th>
+                <tr class="border-b border-gray-100 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                  <th class="pb-2.5 pr-4">საძიებო სიტყვა</th>
+                  <th class="pb-2.5 text-center w-24">მოძიებები</th>
                 </tr>
               </thead>
-              <tbody id="popular-searches-tbody" class="divide-y divide-gray-100">
+              <tbody id="popular-searches-tbody" class="divide-y divide-gray-50">
                 <!-- Dynamic rows will be injected here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════
+             Reading Progress Table — User Compliance Monitor
+             ═══════════════════════════════════════════════════ -->
+        <div class="mb-6 rounded-xl bg-white shadow-[0_2px_10px_rgba(0,0,0,0.05)]" data-required-role="admin">
+          <!-- Table header with sort + filter controls -->
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-50 px-5 py-4">
+            <div>
+              <h3 class="text-sm font-bold text-gray-800">სავალდებულო კითხვის პროგრესი</h3>
+              <p class="mt-0.5 text-[11px] text-gray-400">მომხმარებლები • სამიზნე: 100% Compliance</p>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <!-- Department filter -->
+              <select id="progress-dept-filter" onchange="renderProgressRows()"
+                class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-600 shadow-sm focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]/20 transition-colors">
+                <option value="">ყველა დეპარტამენტი</option>
+              </select>
+              <!-- Sort dropdown -->
+              <select id="progress-sort-select" onchange="window._progressSortMode=this.value; renderProgressRows()"
+                class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-600 shadow-sm focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]/20 transition-colors">
+                <option value="perf_asc">↑ Performance (Lowest First)</option>
+                <option value="perf_desc">↓ Performance (Highest First)</option>
+                <option value="name">A → Z Name</option>
+              </select>
+              <!-- Show only incomplete toggle -->
+              <button id="progress-filter-incomplete" onclick="toggleProgressIncompleteFilter()"
+                class="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-500 shadow-sm transition-all hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700">
+                <i class="fa-solid fa-triangle-exclamation text-[10px]"></i> მხოლოდ არასრული
+              </button>
+            </div>
+          </div>
+          <!-- Compliance Table -->
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <thead>
+                <tr class="border-b border-gray-50 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                  <th class="px-5 py-3">მომხმარებელი</th>
+                  <th class="px-5 py-3">დეპარტამენტი</th>
+                  <th class="px-4 py-3 text-center w-20">წაკითხული</th>
+                  <th class="px-4 py-3 text-center w-20">სულ</th>
+                  <th class="px-4 py-3 w-48">პროგრესი</th>
+                  <th class="px-4 py-3 text-center w-16">ქმედება</th>
+                </tr>
+              </thead>
+              <tbody id="user-progress-tbody" class="divide-y divide-gray-50/80">
+                <!-- Skeleton loader -->
+                <tr class="animate-pulse">
+                  <td class="px-5 py-3"><div class="h-4 bg-gray-100 rounded w-28"></div></td>
+                  <td class="px-5 py-3"><div class="h-4 bg-gray-100 rounded w-20"></div></td>
+                  <td class="px-4 py-3 text-center"><div class="h-4 bg-gray-100 rounded w-8 mx-auto"></div></td>
+                  <td class="px-4 py-3 text-center"><div class="h-4 bg-gray-100 rounded w-8 mx-auto"></div></td>
+                  <td class="px-4 py-3"><div class="h-2 bg-gray-100 rounded-full w-full"></div></td>
+                  <td class="px-4 py-3"><div class="h-6 bg-gray-100 rounded w-8 mx-auto"></div></td>
+                </tr>
+                <tr class="animate-pulse">
+                  <td class="px-5 py-3"><div class="h-4 bg-gray-100 rounded w-36"></div></td>
+                  <td class="px-5 py-3"><div class="h-4 bg-gray-100 rounded w-24"></div></td>
+                  <td class="px-4 py-3 text-center"><div class="h-4 bg-gray-100 rounded w-8 mx-auto"></div></td>
+                  <td class="px-4 py-3 text-center"><div class="h-4 bg-gray-100 rounded w-8 mx-auto"></div></td>
+                  <td class="px-4 py-3"><div class="h-2 bg-gray-100 rounded-full w-full"></div></td>
+                  <td class="px-4 py-3"><div class="h-6 bg-gray-100 rounded w-8 mx-auto"></div></td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -1167,7 +1393,7 @@
 
         <!-- Stale Content Alert Panel -->
         <div id="stale-content-panel"
-          class="mb-6 rounded-2xl border border-amber-200 bg-amber-50/40 p-5 shadow-sm hidden">
+          class="mb-6 rounded-xl border border-amber-200/60 bg-amber-50/30 p-5 shadow-[0_2px_10px_rgba(0,0,0,0.05)] hidden">
           <div class="mb-3 flex items-center justify-between">
             <h3 class="text-sm font-bold text-amber-800 flex items-center gap-2">
               <i class="fa-solid fa-clock-rotate-left text-amber-600"></i>
@@ -1195,7 +1421,7 @@
         </div>
 
         <!-- Emergency Broadcast Form -->
-        <div class="mb-6 rounded-2xl border border-red-100 bg-red-50/30 p-5 shadow-sm" data-required-role="admin">
+        <div class="mb-6 rounded-xl border border-red-100/60 bg-red-50/20 p-5 shadow-[0_2px_10px_rgba(0,0,0,0.05)]" data-required-role="admin">
           <h3 class="mb-3 text-sm font-bold text-red-800 flex items-center gap-2">
             <i class="fa-solid fa-bullhorn text-red-600"></i> საგანგებო ტრანსლაცია (Emergency Broadcast)
           </h3>
@@ -1622,8 +1848,9 @@
                 <th class="px-5 py-3">სახელი</th>
                 <th class="px-5 py-3">ელ.ფოსტა</th>
                 <th class="px-5 py-3">დეპარტამენტი</th>
+                <th class="px-5 py-3">პროგრესი</th>
                 <th class="px-5 py-3">როლი</th>
-                <th class="px-5 py-3 text-center">სტატუსი</th>
+                <th class="px-5 py-3 text-center">მოქმედება</th>
               </tr>
             </thead>
             <tbody id="admin-users-tbody" class="divide-y divide-gray-100">

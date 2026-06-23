@@ -804,6 +804,8 @@ def update_users_me(
         current_user.position = update_data.position
     if update_data.phone is not None:
         current_user.phone = update_data.phone
+    if update_data.card_style is not None:
+        current_user.card_style = update_data.card_style
     db.commit()
     db.refresh(current_user)
     return current_user
@@ -2911,6 +2913,193 @@ def get_team_stats(
 
     members.sort(key=lambda x: int(x["percentage"].replace("%", "")), reverse=True)
     return {"department": dept, "members": members}
+
+
+# ── Executive Department Dashboard ────────────────────────────────────────────
+# The org hierarchy lives in the free-text users.department string, formatted as
+# "{prefix} — ჯგუფი NN" by seed_org_hierarchy(). We split on the em dash to
+# recover Department (prefix) → Group (suffix) → Members. The Team/team_id FK is
+# NOT used here because the seed never populates it.
+
+# Whitelisted department prefixes, in display order. Matching is by prefix
+# (startswith), so "საინფორმაციო" matches "საინფორმაციო სამსახური — ჯგუფი 01".
+DEPARTMENT_WHITELIST = ["საინფორმაციო", "ტექნიკური", "ოფისები"]
+
+# Role excluded from all operator analytics. We exclude by ROLE, not by the
+# position string "სისტემური ადმინისტრატორი": in production that admin's position
+# is the English "System Administrator", so a position filter would miss it.
+_DASHBOARD_EXCLUDED_ROLE = "admin"
+
+# Compliance threshold below which an operator is flagged "critical".
+_CRITICAL_THRESHOLD = 30
+
+# Em dash used as the department/group delimiter in the seeded labels.
+_DEPT_GROUP_DELIM = "—"  # —
+
+
+def _split_dept_group(raw_department):
+    """Return (department_prefix, group_label) from a raw users.department value.
+
+    "საინფორმაციო სამსახური — ჯგუფი 01" -> ("საინფორმაციო სამსახური", "ჯგუფი 01").
+    Values without the delimiter return (whole, whole) so they still bucket.
+    """
+    raw = (raw_department or "").strip()
+    if _DEPT_GROUP_DELIM in raw:
+        prefix, _, suffix = raw.partition(_DEPT_GROUP_DELIM)
+        prefix, suffix = prefix.strip(), suffix.strip()
+        return prefix, (suffix or prefix)
+    return raw, raw
+
+
+def _aggregate_members(members):
+    """Roll up a list of member dicts into (compliance, output_volume, critical).
+
+    Compliance averages only members who actually have required readings, so
+    operators with nothing assigned don't drag the average to 0.
+    """
+    output_volume = sum(m["read_count"] for m in members)
+    critical_count = sum(1 for m in members if m["is_critical"])
+    scored = [m["percentage"] for m in members if m["required_count"] > 0]
+    compliance = round(sum(scored) / len(scored)) if scored else 0
+    return compliance, output_volume, critical_count
+
+
+def build_department_stats(db: Session):
+    """Build the executive dashboard payload: Insights Ribbon + Department tree.
+
+    Pure data builder, fully decoupled from the HTTP layer so it can be unit
+    tested and reused. Uses the same pre-aggregated read_map pattern as the other
+    stats endpoints to avoid the per-user N+1.
+
+    Returns a dict matching schemas.DepartmentStatsResponse.
+    """
+    users = (
+        db.query(models.User)
+        .filter(
+            models.User.is_active == True,  # noqa: E712
+            models.User.role != _DASHBOARD_EXCLUDED_ROLE,
+        )
+        .all()
+    )
+
+    all_readings = db.query(models.RequiredReading).all()
+    readings_by_dept = Counter(r.target_department for r in all_readings)
+    all_required = readings_by_dept.get("All", 0)
+
+    read_rows = (
+        db.query(
+            models.ReadStatus.user_id,
+            models.RequiredReading.target_department,
+            func.count(models.ReadStatus.id),
+        )
+        .join(
+            models.RequiredReading,
+            models.ReadStatus.required_reading_id == models.RequiredReading.id,
+        )
+        .filter(models.ReadStatus.status == "read")
+        .group_by(models.ReadStatus.user_id, models.RequiredReading.target_department)
+        .all()
+    )
+    read_map = {(uid, d): cnt for uid, d, cnt in read_rows}
+
+    # Bucket members by (whitelisted department prefix, group label).
+    # groups_by_dept[prefix][group_label] -> list[member dict]
+    groups_by_dept = {wl: {} for wl in DEPARTMENT_WHITELIST}
+    all_members = []  # flat list for the global ribbon
+
+    for user in users:
+        prefix, group_label = _split_dept_group(user.department)
+        matched = next(
+            (wl for wl in DEPARTMENT_WHITELIST if prefix.startswith(wl)), None
+        )
+        if matched is None:
+            continue  # not a whitelisted department — skip
+
+        required_count, read_count, percentage = _reading_progress(
+            user, all_required, readings_by_dept, read_map
+        )
+        member = {
+            "user_id": user.id,
+            "user_name": user.name,
+            "position": user.position,
+            "read_count": read_count,
+            "required_count": required_count,
+            "percentage": percentage,
+            "is_critical": required_count > 0 and percentage < _CRITICAL_THRESHOLD,
+        }
+        groups_by_dept[matched].setdefault(group_label, []).append(member)
+        all_members.append(member)
+
+    # Assemble the department tree, always rendering every whitelisted dept.
+    departments = []
+    for wl in DEPARTMENT_WHITELIST:
+        groups = []
+        for group_label, gmembers in groups_by_dept[wl].items():
+            gmembers.sort(key=lambda m: m["percentage"], reverse=True)
+            g_comp, g_out, g_crit = _aggregate_members(gmembers)
+            groups.append({
+                "name": group_label,
+                # The raw department string for any member in this group (they
+                # share it) — useful for drill-down filters on the old endpoint.
+                "full_department": _group_full_department(wl, group_label),
+                "member_count": len(gmembers),
+                "compliance": g_comp,
+                "output_volume": g_out,
+                "critical_count": g_crit,
+                "members": gmembers,
+            })
+        groups.sort(key=lambda g: g["name"])
+
+        dept_members = [m for g in groups for m in g["members"]]
+        d_comp, d_out, d_crit = _aggregate_members(dept_members)
+        departments.append({
+            "name": wl,
+            "member_count": len(dept_members),
+            "group_count": len(groups),
+            "compliance": d_comp,
+            "output_volume": d_out,
+            "critical_count": d_crit,
+            "is_empty": len(dept_members) == 0,
+            "groups": groups,
+        })
+
+    g_comp, g_out, g_crit = _aggregate_members(all_members)
+    insights = {
+        "global_compliance": g_comp,
+        "critical_operators": g_crit,
+        "total_output_volume": g_out,
+        "total_members": len(all_members),
+    }
+
+    return {
+        "insights": insights,
+        "departments": departments,
+        "generated_at": datetime.utcnow(),
+    }
+
+
+def _group_full_department(prefix, group_label):
+    """Reconstruct the raw department string for a (prefix, group) pair."""
+    if group_label and group_label != prefix:
+        return f"{prefix} {_DEPT_GROUP_DELIM} {group_label}"
+    return prefix
+
+
+@app.get("/api/manager/department-stats", response_model=schemas.DepartmentStatsResponse)
+def get_department_stats(
+    current_manager: models.User = Depends(security.get_current_manager_user),
+    db: Session = Depends(get_db),
+):
+    """Executive dashboard data: Insights Ribbon + Department → Groups → Members.
+
+    Aggregates compliance over the whitelisted departments, excluding the system
+    administrator role. Decoupled from rendering — the body is built entirely by
+    build_department_stats().
+
+    Access: managers and system administrators.
+    """
+    return build_department_stats(db)
+
 
 @app.put("/api/users/{user_id}/status", response_model=schemas.UserResponse)
 def update_user_status(

@@ -1215,6 +1215,22 @@ function updateUserInfo(user) {
         // Header updates
         document.getElementById('header-user-name').textContent = user.name;
         document.getElementById('header-user-dept').textContent = user.department || user.role;
+
+        // Sidebar updates
+        const sidebarUserName = document.getElementById('sidebar-user-name');
+        if (sidebarUserName) sidebarUserName.textContent = user.name;
+
+        const sidebarUserDept = document.getElementById('sidebar-user-dept');
+        if (sidebarUserDept) {
+          sidebarUserDept.textContent = user.department || (user.role === 'admin' || user.role === 'content_admin' ? 'ადმინისტრატორი' : user.role === 'manager' ? 'მენეჯერი' : 'ოპერატორი');
+        }
+
+        // Dynamic initials
+        const initial = (user.name || '').trim().charAt(0) || 'ნ';
+        const headerInit = document.getElementById('header-user-avatar-initial');
+        if (headerInit) headerInit.textContent = initial;
+        const sidebarInit = document.getElementById('sidebar-user-avatar-initial');
+        if (sidebarInit) sidebarInit.textContent = initial;
         // Greeting — avoid the awkward "გამარჯობა, სისტემური!" split when the
         // account is a role/system label rather than a real person's name.
         // If the name looks like a role keyword, fall back to a clean greeting.
@@ -1241,6 +1257,14 @@ function updateUserInfo(user) {
 
         const profileEmail = document.getElementById('profile-email');
         if (profileEmail) profileEmail.textContent = user.email || '—';
+
+        // Dynamic Card Pack Style Applier
+        const cardStyle = user.card_style || localStorage.getItem('magti_card_style') || 'corporate';
+        document.body.classList.remove('card-theme-corporate', 'card-theme-glass', 'card-theme-bold', 'card-theme-minimal', 'card-theme-colorful');
+        document.body.classList.add('card-theme-' + cardStyle);
+        const cardStyleSelect = document.getElementById('settings-card-style');
+        if (cardStyleSelect) cardStyleSelect.value = cardStyle;
+        localStorage.setItem('magti_card_style', cardStyle);
       }
 
 function applyRBAC(userRole) {
@@ -2540,10 +2564,10 @@ function mountQuickLinks() {
             QUICK_LINKS.forEach(q => {
               const btn = document.createElement('button');
               btn.type = 'button';
-              btn.className = 'group flex flex-col items-center justify-center rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#E30613] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#E30613]';
+              btn.className = 'quick-link-card group flex flex-col items-center justify-center p-5 text-center transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#E30613]';
               btn.innerHTML = `
-                <i aria-hidden="true" class="fa-solid ${q.icon} mb-3 text-2xl text-gray-300 transition-colors group-hover:text-[#E30613]"></i>
-                <span class="text-sm font-medium text-gray-700">${q.label}</span>`;
+                <i aria-hidden="true" class="fa-solid ${q.icon} mb-3 text-2xl text-gray-300 dark:text-zinc-500 transition-colors group-hover:text-[#E30613] dark:group-hover:text-red-400"></i>
+                <span class="text-sm font-semibold text-gray-700 dark:text-zinc-300 transition-colors group-hover:text-gray-950 dark:group-hover:text-white">${q.label}</span>`;
               btn.addEventListener('click', () => quickSearch(q.label));
               grid.appendChild(btn);
             });
@@ -3424,6 +3448,37 @@ function applySettings() {
           localStorage.setItem('magti_theme', theme);
         }
 
+        // Apply Card Design Pack
+        const cardStyleSelect = document.getElementById('settings-card-style');
+        if (cardStyleSelect) {
+          const cardStyle = cardStyleSelect.value;
+          document.body.classList.remove('card-theme-corporate', 'card-theme-glass', 'card-theme-bold', 'card-theme-minimal', 'card-theme-colorful');
+          document.body.classList.add('card-theme-' + cardStyle);
+          localStorage.setItem('magti_card_style', cardStyle);
+
+          // Save to backend database user profile via PUT /api/users/me
+          const token = localStorage.getItem('magti_token');
+          if (token && window.currentUser) {
+            fetch('/api/users/me', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+              body: JSON.stringify({
+                name: window.currentUser.name,
+                position: window.currentUser.position || null,
+                phone: window.currentUser.phone || null,
+                card_style: cardStyle
+              })
+            }).then(res => {
+              if (res.ok) return res.json();
+            }).then(user => {
+              if (user) {
+                window.currentUser = user;
+                updateUserInfo(user);
+              }
+            }).catch(err => console.error('Failed to sync card style settings to DB:', err));
+          }
+        }
+
         alert('პარამეტრები შენახულია.');
       }
 
@@ -3438,6 +3493,27 @@ function toggleDarkMode() {
           document.documentElement.classList.remove('dark');
           localStorage.setItem('magti_dark_mode', 'false');
         }
+      }
+
+/** Header moon/sun button: self-contained dark-mode toggle that also keeps the
+ *  settings-page checkbox (#settings-dark-mode) and stored preference in sync. */
+function toggleHeaderTheme() {
+        const willDark = !document.documentElement.classList.contains('dark');
+        document.documentElement.classList.toggle('dark', willDark);
+        document.body.classList.toggle('dark', willDark);
+        document.body.classList.toggle('dark-mode', willDark);
+        localStorage.setItem('magti_dark_mode', willDark ? 'true' : 'false');
+        const cb = document.getElementById('settings-dark-mode');
+        if (cb) cb.checked = willDark;
+        syncHeaderThemeIcon();
+      }
+
+/** Swap the header theme icon to reflect the current mode (sun in dark, moon in light). */
+function syncHeaderThemeIcon() {
+        const icon = document.getElementById('header-theme-icon');
+        if (!icon) return;
+        const dark = document.documentElement.classList.contains('dark');
+        icon.className = dark ? 'fa-solid fa-sun text-[17px]' : 'fa-regular fa-moon text-[17px]';
       }
 
 function applyStoredSettings() {
@@ -3471,6 +3547,14 @@ function applyStoredSettings() {
         } else {
           document.documentElement.classList.remove('dark');
         }
+        // Restore Card Design Pack
+        const storedCardStyle = localStorage.getItem('magti_card_style') || (window.currentUser ? window.currentUser.card_style : 'corporate') || 'corporate';
+        document.body.classList.remove('card-theme-corporate', 'card-theme-glass', 'card-theme-bold', 'card-theme-minimal', 'card-theme-colorful');
+        document.body.classList.add('card-theme-' + storedCardStyle);
+        const cardStyleSelect = document.getElementById('settings-card-style');
+        if (cardStyleSelect) cardStyleSelect.value = storedCardStyle;
+
+        syncHeaderThemeIcon();
       }
 
 async function verifyArticleFromModal() {
@@ -3845,12 +3929,31 @@ function openUserEditModal(userId) {
         if (!user) return;
         document.getElementById('edit-user-id').value = user.id;
         document.getElementById('edit-user-role').value = user.role;
-        document.getElementById('edit-user-department').value = user.department || '';
+        document.getElementById('edit-user-department').value = user.department || 'All';
         document.getElementById('edit-user-position').value = user.position || '';
+
+        // Reset and check granular permissions checkboxes based on user permissions
+        const userPerms = user.permissions || [];
+        document.querySelectorAll('.user-perm-checkbox').forEach(cb => {
+          cb.checked = userPerms.includes(cb.value);
+        });
 
         const modal = document.getElementById('user-edit-modal');
         modal.classList.remove('hidden');
         modal.classList.add('flex');
+      }
+
+function onEditUserRoleChange(role) {
+        const defaults = {
+          operator: [],
+          manager: ['reports.export'],
+          content_admin: ['articles.view', 'articles.edit', 'articles.publish', 'articles.archive', 'compliance.assign'],
+          admin: ['articles.view', 'articles.edit', 'articles.publish', 'articles.archive', 'users.manage', 'compliance.assign', 'reports.export']
+        };
+        const rolePerms = defaults[role] || [];
+        document.querySelectorAll('.user-perm-checkbox').forEach(cb => {
+          cb.checked = rolePerms.includes(cb.value);
+        });
       }
 
 function closeUserEditModal() {
@@ -3866,19 +3969,33 @@ async function submitUserEditForm(event) {
         const role = document.getElementById('edit-user-role').value;
         const department = document.getElementById('edit-user-department').value;
         const position = document.getElementById('edit-user-position').value;
+        
+        // Collect checked permissions
+        const checkedPerms = [...document.querySelectorAll('.user-perm-checkbox:checked')].map(cb => cb.value);
+
         try {
+          // 1. Update basic details
           const response = await fetch(`/api/users/${userId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ role, department: department || null, position: position || null })
+            body: JSON.stringify({ role, department: department === 'All' ? null : department, position: position || null })
           });
-          if (!response.ok) throw new Error('User update failed');
+          if (!response.ok) throw new Error('User details update failed');
+
+          // 2. Update granular permissions
+          const permResponse = await fetch(`/api/users/${userId}/permissions`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ permissions: checkedPerms })
+          });
+          if (!permResponse.ok) throw new Error('User permissions update failed');
+
           showToast('მომხმარებელი განახლდა', '', { variant: 'success' });
           closeUserEditModal();
           fetchAndRenderUsers(token);
         } catch (error) {
           console.error(error);
-          showToast('მომხმარებლის განახლება ვერ მოხერხდა', '', { variant: 'error' });
+          showToast('მომხმარებლის განახლება ვერ მოხერხდა', error.message, { variant: 'error' });
         }
       }
 
@@ -3962,6 +4079,34 @@ async function unarchiveSelected() {
         } catch (error) {
           console.error(error);
           showToast('არქივიდან ამოღება ვერ მოხერხდა', error.message, { variant: 'error' });
+        }
+      }
+
+async function toggleArticleArchive(articleId, shouldArchive) {
+        const token = localStorage.getItem('magti_token');
+        if (!token) return;
+
+        const actionText = shouldArchive ? 'დაარქივება' : 'არქივიდან ამოღება';
+        const confirmMsg = shouldArchive 
+          ? 'ნამდვილად გსურთ ამ სტატიის დაარქივება? ის აღარ გამოჩნდება ოპერატორებისთვის.' 
+          : 'ნამდვილად გსურთ ამ სტატიის არქივიდან ამოღება?';
+
+        if (!confirm(confirmMsg)) return;
+
+        try {
+          const url = `/api/articles/${articleId}/${shouldArchive ? 'archive' : 'unarchive'}`;
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (!response.ok) throw new Error(`Failed to ${shouldArchive ? 'archive' : 'unarchive'} article ${articleId}`);
+          
+          showToast(shouldArchive ? 'არქივი' : 'არქივიდან ამოღება', `სტატია წარმატებით ${shouldArchive ? 'დაარქივდა' : 'აღდგა'}.`, { variant: 'success' });
+          if (typeof fetchAndRenderAdminContent === 'function') fetchAndRenderAdminContent(token);
+          if (typeof fetchAndRenderKnowledgeBase === 'function') fetchAndRenderKnowledgeBase(token);
+        } catch (error) {
+          console.error(error);
+          showToast('შეცდომა', `სტატიის ${shouldArchive ? 'დაარქივება' : 'არქივიდან ამოღება'} ვერ მოხერხდა.`, { variant: 'error' });
         }
       }
 
@@ -4516,6 +4661,13 @@ async function triggerKebabAction(userId, action, event) {
             avatarPopover.classList.add('hidden');
           }
         }
+        const sidebarPopover = document.getElementById('sidebar-user-popover');
+        const sidebarBtn = document.getElementById('sidebar-user-button');
+        if (sidebarPopover && !sidebarPopover.classList.contains('hidden')) {
+          if (!sidebarPopover.contains(event.target) && (!sidebarBtn || !sidebarBtn.contains(event.target))) {
+            sidebarPopover.classList.add('hidden');
+          }
+        }
       });
 
       
@@ -4868,6 +5020,7 @@ window.openReadingItem = openReadingItem;
 window.openReadingModal = openReadingModal;
 window.openUserCreateForm = openUserCreateForm;
 window.openUserEditModal = openUserEditModal;
+window.onEditUserRoleChange = onEditUserRoleChange;
 window.populateArticleCategorySelect = populateArticleCategorySelect;
 window.quickSearch = quickSearch;
 window.removeCurrentAttachment = removeCurrentAttachment;
@@ -4904,8 +5057,11 @@ window.submitVideoForm = submitVideoForm;
 window.switchContentTab = switchContentTab;
 window.syncMandatoryFor = syncMandatoryFor;
 window.toggleAdminSubmenu = toggleAdminSubmenu;
+window.toggleArticleArchive = toggleArticleArchive;
 window.toggleAiDrawer = toggleAiDrawer;
 window.toggleDarkMode = toggleDarkMode;
+window.toggleHeaderTheme = toggleHeaderTheme;
+window.syncHeaderThemeIcon = syncHeaderThemeIcon;
 window.toggleDueDate = toggleDueDate;
 window.toggleFavorite = toggleFavorite;
 window.toggleMessagesPopover = toggleMessagesPopover;

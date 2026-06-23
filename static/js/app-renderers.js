@@ -25,7 +25,7 @@ function renderNews(newsItems) {
           return;
         }
 
-        newsItems.slice(0, 3).forEach(item => {
+        newsItems.slice(0, 20).forEach(item => {
           const date = formatDate(item.created_at);
           const safeTitle = item.title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
           const newsHtml = `
@@ -34,14 +34,14 @@ function renderNews(newsItems) {
                         tabindex="0" 
                         role="button" 
                         title="${safeTitle}"
-                        class="flex cursor-pointer items-center justify-between rounded-xl bg-white p-4 shadow-sm transition-all hover:border-[#E30613]/30 hover:shadow-md border border-transparent focus:outline-none focus:ring-2 focus:ring-[#E30613]">
-                      <div class="flex min-w-0 items-center gap-3">
-                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-400">
+                        class="dashboard-list-card flex cursor-pointer items-center justify-between p-4 focus:outline-none focus:ring-2 focus:ring-[#E30613]">
+                      <div class="flex min-w-0 items-center gap-3 w-full">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-50/50 text-slate-400 dark:bg-zinc-800/50 dark:text-neutral-500">
                           <i aria-hidden="true" class="fa-solid fa-file-lines"></i>
                         </div>
-                        <div class="min-w-0">
-                          <h4 class="text-[13.5px] font-semibold leading-snug text-gray-800 line-clamp-2" title="${safeTitle}">${safeTitle}</h4>
-                          <p class="mt-1 text-[11px] text-gray-400">${date}</p>
+                        <div class="min-w-0 flex-1">
+                          <h4 class="text-[13.5px] font-semibold leading-snug text-gray-800 dark:text-zinc-200 line-clamp-2" title="${safeTitle}">${safeTitle}</h4>
+                          <p class="mt-1 text-[11px] text-gray-400 dark:text-zinc-500">${date}</p>
                         </div>
                       </div>
                     </li>`;
@@ -271,32 +271,65 @@ function renderProgressRows() {
 
         const filter = document.getElementById('progress-dept-filter');
         const dept = filter ? filter.value : '';
-        const data = (window.userProgressData || []).filter(u => !dept || u.department === dept);
+        const sortMode = window._progressSortMode || 'perf_asc';
+        const incompleteOnly = window._progressIncompleteOnly || false;
+
+        let data = (window.userProgressData || []).filter(u => !dept || u.department === dept);
+        if (incompleteOnly) data = data.filter(u => parseInt(u.percentage) < 100);
+
+        // Apply sort
+        data = [...data].sort((a, b) => {
+          if (sortMode === 'perf_asc') return parseInt(a.percentage) - parseInt(b.percentage);
+          if (sortMode === 'perf_desc') return parseInt(b.percentage) - parseInt(a.percentage);
+          if (sortMode === 'name') return (a.user_name || '').localeCompare(b.user_name || '', 'ka');
+          return 0;
+        });
 
         tbody.innerHTML = '';
         if (data.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-gray-500">მონაცემები არ არის</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="6" class="px-5 py-6 text-center text-gray-400 text-sm">მონაცემები არ არის</td></tr>';
           return;
         }
 
-        data.forEach(user => {
-          let rowClass = '';
-          let readColor = 'text-gray-400';
-          let reqColor = 'text-gray-400';
-          let percColor = 'text-gray-400';
+        data.forEach((user, idx) => {
+          const perc = user.required_count > 0 ? parseInt(user.percentage) : -1;
 
-          const perc = parseInt(user.percentage);
-          if (user.required_count > 0) {
-            if (perc >= 80) rowClass = 'bg-green-50/50';
-            else if (perc <= 30) rowClass = 'bg-red-50/40';
-            readColor = 'text-green-600 font-semibold';
-            reqColor = 'text-[#E30613] font-semibold';
-            percColor = 'text-gray-800 font-bold';
+          // ── Semantic color logic ────────────────────────────────────────────
+          let percTextColor, barColor, rowBg, trendArrow, trendColor;
+          if (perc < 0) {
+            percTextColor = 'text-gray-400';
+            barColor = 'bg-gray-200';
+            rowBg = '';
+            trendArrow = '';
+            trendColor = '';
+          } else if (perc < 30) {
+            percTextColor = 'text-rose-600 font-bold';
+            barColor = 'bg-rose-500';
+            rowBg = 'bg-rose-50/40 hover:bg-rose-50/70';
+            trendArrow = '▼';
+            trendColor = 'text-rose-400';
+          } else if (perc <= 70) {
+            percTextColor = 'text-amber-600 font-semibold';
+            barColor = 'bg-amber-500';
+            rowBg = 'bg-amber-50/30 hover:bg-amber-50/60';
+            trendArrow = '▲';
+            trendColor = 'text-amber-400';
+          } else {
+            percTextColor = 'text-emerald-600 font-semibold';
+            barColor = 'bg-emerald-500';
+            rowBg = perc === 100 ? 'bg-emerald-50/50 hover:bg-emerald-50/70' : 'hover:bg-gray-50';
+            trendArrow = '▲';
+            trendColor = 'text-emerald-400';
           }
 
           const readText = user.required_count > 0 ? user.read_count : '—';
-          const reqText = user.required_count > 0 ? user.required_count : '—';
-          const percText = user.required_count > 0 ? user.percentage + '%' : '—';
+          const reqText  = user.required_count > 0 ? user.required_count : '—';
+          const percDisplay = user.required_count > 0 ? `${user.percentage}%` : '—';
+          const percNum = user.required_count > 0 ? Math.max(0, Math.min(100, perc)) : 0;
+
+          // Department label
+          const deptMap = { 'Informational': 'საინფორმაციო', 'Support': 'ტექნიკური', 'All': 'ყველა', 'IT Security': 'IT უსაფრთხოება', 'Content Creation': 'კონტენტი' };
+          const deptLabel = deptMap[user.department] || user.department || '—';
 
           const isSelf = window.currentUser && user.user_id === window.currentUser.id;
           const showNudge = !(isSelf || user.required_count === 0 || perc === 100);
@@ -311,10 +344,10 @@ function renderProgressRows() {
 
           const nudgeBtn = `
             <div class="relative inline-block text-left">
-              <button onclick="toggleUserKebab(${user.user_id}, event)" class="flex items-center justify-center h-8 w-8 rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none transition-colors" aria-label="მოქმედებები">
-                <i aria-hidden="true" class="fa-solid fa-ellipsis-vertical"></i>
+              <button onclick="toggleUserKebab(${user.user_id}, event)" class="flex items-center justify-center h-7 w-7 rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus:outline-none transition-colors" aria-label="მოქმედებები">
+                <i aria-hidden="true" class="fa-solid fa-ellipsis-vertical text-xs"></i>
               </button>
-              <div id="user-kebab-${user.user_id}" class="hidden absolute right-0 mt-1 w-48 rounded-lg bg-white border border-gray-100 shadow-lg py-1 z-50 text-left">
+              <div id="user-kebab-${user.user_id}" class="hidden absolute right-0 mt-1 w-48 rounded-xl bg-white border border-gray-100 shadow-lg py-1 z-50 text-left">
                 <button ${nudgeOptionAttr} class="${nudgeOptionClass}">
                   <i aria-hidden="true" class="fa-solid fa-bell text-[#E30613]"></i> ნუჯის გაგზავნა
                 </button>
@@ -328,18 +361,46 @@ function renderProgressRows() {
             </div>
           `;
 
+          // Progress bar with smooth animation (delayed by row index for cascade effect)
+          const progressBar = user.required_count > 0 ? `
+            <div class="flex items-center gap-2.5">
+              <div class="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                <div class="h-full rounded-full ${barColor} progress-bar-fill transition-all duration-700" style="width:0%" data-target="${percNum}"></div>
+              </div>
+              <span class="shrink-0 text-xs ${percTextColor} tabular-nums w-9 text-right">
+                <span class="opacity-30 ${trendColor}">${trendArrow}</span>${percDisplay}
+              </span>
+            </div>` : `<span class="text-xs text-gray-300">—</span>`;
+
           const tr = `
-              <tr class="${rowClass}">
-                <td class="py-2 pr-4 font-medium text-gray-800">${user.user_name}</td>
-                <td class="py-2 pr-4 text-center ${readColor}">${readText}</td>
-                <td class="py-2 pr-4 text-center ${reqColor}">${reqText}</td>
-                <td class="py-2 pr-4 text-center ${percColor}">${percText}</td>
-                <td class="py-2 text-center overflow-visible relative">${nudgeBtn}</td>
-              </tr>
-            `;
+            <tr class="transition-colors ${rowBg}">
+              <td class="px-5 py-2.5 font-medium text-gray-800 text-sm">${escapeHtml(user.user_name)}</td>
+              <td class="px-5 py-2.5">
+                <span class="inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold tracking-wide ${
+                  user.department === 'Informational' ? 'bg-blue-50 text-blue-600' :
+                  user.department === 'Support' ? 'bg-purple-50 text-purple-600' :
+                  'bg-gray-100 text-gray-500'
+                }">${escapeHtml(deptLabel)}</span>
+              </td>
+              <td class="px-4 py-2.5 text-center text-sm ${user.required_count > 0 ? 'text-emerald-600 font-semibold' : 'text-gray-300'}">${readText}</td>
+              <td class="px-4 py-2.5 text-center text-sm ${user.required_count > 0 ? 'text-gray-600' : 'text-gray-300'}">${reqText}</td>
+              <td class="px-4 py-2.5">${progressBar}</td>
+              <td class="px-4 py-2.5 text-center overflow-visible relative">${nudgeBtn}</td>
+            </tr>
+          `;
           tbody.insertAdjacentHTML('beforeend', tr);
         });
+
+        // Animate progress bars in on next frame for smooth cascade
+        requestAnimationFrame(() => {
+          tbody.querySelectorAll('.progress-bar-fill').forEach((bar, i) => {
+            setTimeout(() => {
+              bar.style.width = (bar.dataset.target || 0) + '%';
+            }, i * 30);
+          });
+        });
       }
+
 
 function getCategoryIcon(categoryId, titleText) {
         const categoryName = (Store.categories[categoryId] || '').toLowerCase();
@@ -491,16 +552,13 @@ function renderKbBento(topLevels) {
           const safeName = escapeHtml(c.name).replace(/'/g, "&#39;");
           return `
             <div onclick="selectKbCategoryByName('${safeName}')" data-bento-cat-id="${c.id}"
-                 class="bento-cat-card group relative flex cursor-pointer flex-col justify-between overflow-hidden rounded-2xl border border-gray-200/60 bg-white p-5 shadow-sm transition-all duration-300 hover:border-[#E30613]/40 hover:shadow-lg hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-[#E30613]">
-              <div>
-                <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-red-50 text-2xl text-[#E30613] transition-all group-hover:bg-red-100 group-hover:scale-110">
+                 class="bento-cat-card group relative flex cursor-pointer flex-col items-center justify-center text-center overflow-hidden rounded-2xl border border-gray-200/60 bg-white p-5 shadow-sm transition-all duration-300 hover:border-[#E30613]/40 hover:shadow-lg hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-[#E30613]">
+              <div class="flex flex-col items-center text-center w-full">
+                <div class="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50 text-3xl text-[#E30613] transition-all group-hover:bg-red-100 group-hover:scale-110">
                   <i aria-hidden="true" class="fa-solid ${m.icon}"></i>
                 </div>
-                <h4 class="text-base font-bold text-gray-800 group-hover:text-[#E30613] transition-colors">${escapeHtml(c.name)}</h4>
-                <p class="text-[11px] text-gray-400 dark:text-zinc-500 mt-1">${escapeHtml(m.desc)}</p>
-              </div>
-              <div class="mt-4 flex justify-end">
-                <i aria-hidden="true" class="fa-solid fa-arrow-right text-gray-300 transition-transform group-hover:translate-x-1 group-hover:text-[#E30613]"></i>
+                <h4 class="text-sm font-bold text-gray-800 group-hover:text-[#E30613] transition-colors">${escapeHtml(c.name)}</h4>
+                <p class="text-[10px] text-gray-400 dark:text-zinc-500 mt-1 leading-normal">${escapeHtml(m.desc)}</p>
               </div>
             </div>`;
         }).join('');
@@ -704,18 +762,17 @@ async function renderDashboardCategoryGrid() {
 
           return `
           <a href="#/category/${targetSlug}" onclick="location.hash='#/category/${targetSlug}'"
-            class="kb-cat-card group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 md:p-4 w-full h-full text-left shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] transition-all duration-300 ease-out hover:shadow-[0_0_12px_rgba(227,6,19,0.15)] hover:scale-[1.01] hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E30613] dark:border-zinc-700 dark:bg-zinc-900/60">
+            class="kb-cat-card group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white px-3 py-1.5 md:px-3.5 md:py-2.5 w-full h-full text-center shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] transition-all duration-300 ease-out hover:shadow-[0_0_12px_rgba(227,6,19,0.15)] hover:scale-[1.01] hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E30613] dark:border-zinc-700 dark:bg-zinc-900/60">
             <span class="absolute inset-x-0 top-0 h-[2px] origin-left scale-x-0 bg-[#E30613] transition-transform duration-300 ease-out group-hover:scale-x-100"></span>
             ${indicatorHtml}
-            <div class="flex flex-col items-start gap-3 w-full mt-1">
-              <span class="cat-tile-icon mb-1 flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-2xl text-xl md:text-2xl bg-slate-50 text-slate-600 transition-colors duration-300 group-hover:text-[#E30613] dark:bg-zinc-800 dark:text-neutral-400 shadow-sm">
+            <div class="flex flex-col items-center gap-1 w-full mt-0.5">
+              <span class="cat-tile-icon mb-1 flex h-9 w-9 md:h-11 md:w-11 items-center justify-center rounded-xl text-lg md:text-xl bg-slate-50 text-slate-600 transition-colors duration-300 group-hover:text-[#E30613] dark:bg-zinc-800 dark:text-neutral-400 shadow-sm">
                 <i class="fa-solid ${iconToUse}" aria-hidden="true"></i>
               </span>
-              <span class="text-base md:text-lg font-bold leading-snug tracking-tight text-slate-800 dark:text-zinc-200 transition-colors group-hover:text-slate-950 dark:group-hover:text-white">${escapeHtml(c.name)}</span>
+              <span class="text-xs md:text-sm font-bold leading-snug tracking-tight text-slate-800 dark:text-zinc-200 transition-colors group-hover:text-slate-950 dark:group-hover:text-white">${escapeHtml(c.name)}</span>
             </div>
-            <div class="mt-4 flex items-center justify-between w-full">
-              <span class="inline-flex items-center rounded-full bg-slate-100/80 px-2.5 py-0.5 text-[10px] md:text-xs font-semibold tracking-wide text-slate-500 dark:bg-zinc-800/80 dark:text-neutral-400 transition-colors group-hover:bg-slate-200/80 dark:group-hover:bg-zinc-700/80">${counts[c.id] || 0} მასალა</span>
-              <i class="fa-solid fa-arrow-right text-gray-300 transition-transform group-hover:translate-x-1 group-hover:text-[#E30613] text-[10px] md:text-xs"></i>
+            <div class="mt-1.5 flex items-center justify-center w-full">
+              <span class="inline-flex items-center rounded-full bg-slate-100/80 px-2 py-0.5 text-[9px] md:text-[10px] font-semibold tracking-wide text-slate-500 dark:bg-zinc-800/80 dark:text-neutral-400 transition-colors group-hover:bg-slate-200/80 dark:group-hover:bg-zinc-700/80">${counts[c.id] || 0} მასალა</span>
             </div>
           </a>`;
         }).join('');
@@ -919,6 +976,45 @@ window.renderRecentlyViewed = renderRecentlyViewed;
 window.renderSearchResults = renderSearchResults;
 window.safeUrl = safeUrl;
 window.showBroadcastBanner = showBroadcastBanner;
+
+/** Filter the reading progress table to show only users with <100% compliance.
+ *  Triggered by clicking the "readings" KPI card. */
+function filterProgressByUnread() {
+  window._progressIncompleteOnly = !window._progressIncompleteOnly;
+  window._progressSortMode = 'perf_asc'; // always sort lowest first when filtering
+
+  // Sync the sort dropdown
+  const sortSel = document.getElementById('progress-sort-select');
+  if (sortSel) sortSel.value = 'perf_asc';
+
+  // Toggle button highlight
+  const btn = document.getElementById('progress-filter-incomplete');
+  if (btn) {
+    if (window._progressIncompleteOnly) {
+      btn.classList.add('border-rose-300', 'bg-rose-50', 'text-rose-700');
+      btn.classList.remove('border-gray-200', 'bg-white', 'text-gray-500');
+    } else {
+      btn.classList.remove('border-rose-300', 'bg-rose-50', 'text-rose-700');
+      btn.classList.add('border-gray-200', 'bg-white', 'text-gray-500');
+    }
+  }
+
+  // Scroll into view
+  const progressSection = document.getElementById('user-progress-tbody');
+  if (progressSection) {
+    progressSection.closest('.mb-6')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  renderProgressRows();
+}
+
+/** Toggle the "incomplete only" filter button from the button itself. */
+function toggleProgressIncompleteFilter() {
+  filterProgressByUnread();
+}
+
+window.filterProgressByUnread = filterProgressByUnread;
+window.toggleProgressIncompleteFilter = toggleProgressIncompleteFilter;
 
 // Initialize MagtiPortal namespace if not already initialized
 window.MagtiPortal = window.MagtiPortal || {};

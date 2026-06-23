@@ -736,3 +736,451 @@ body.dark-mode {
     body.dark-mode .border-dashed {
       border-color: #3f3f46 !important;
     }
+
+    /* ════════════════════════════════════════════════════
+       Premium Statistics Dashboard — Visual System
+       ════════════════════════════════════════════════════ */
+
+    /* KPI Cards — floating, zero-border, premium shadow */
+    .kpi-card {
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.04);
+      pointer-events: none;
+    }
+
+    /* Progress bar fill animation base */
+    .progress-bar-fill {
+      transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+      will-change: width;
+    }
+
+    /* Compliance table — subtle row hover with no border clutter */
+    #user-progress-tbody tr {
+      transition: background-color 0.15s ease;
+    }
+    #user-progress-tbody tr:hover {
+      background-color: rgba(0, 0, 0, 0.018) !important;
+    }
+
+    /* Sort / filter dropdown controls — minimalist financial terminal style */
+    #progress-sort-select,
+    #progress-dept-filter {
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%239ca3af' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.6rem center;
+      padding-right: 1.75rem;
+    }
+    #progress-sort-select:focus,
+    #progress-dept-filter:focus {
+      box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.08);
+    }
+
+    /* Trend arrows — very low opacity by default, readable on hover */
+    .trend-indicator {
+      font-size: 0.625rem;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    /* Admin sub-page buttons — sharper rounding, elevated shadow */
+    .admin-btn {
+      border-radius: 0.625rem !important; /* 10px — between rounded-lg and rounded-xl */
+      transition: all 0.15s ease !important;
+    }
+    .admin-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+    }
+    .admin-btn:active {
+      transform: scale(0.98);
+    }
+
+    /* Compliance table header — uppercase micro-labels */
+    #user-progress-tbody ~ thead th,
+    #user-progress-tbody + * th {
+      white-space: nowrap;
+    }
+
+    /* Live indicator pulse (activity chart badge) */
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .live-pulse-dot {
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    /* KPI bottom progress bars — animate on load */
+    #kpi-users-bar, #kpi-articles-bar, #kpi-readings-bar, #kpi-videos-bar {
+      transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Stale content panel — upgraded */
+    #stale-content-panel {
+      border-radius: 0.75rem;
+    }
+
+    /* Popular searches table — premium row hover */
+    #popular-searches-tbody tr {
+      transition: background-color 0.12s ease;
+    }
+    #popular-searches-tbody tr:hover {
+      background-color: rgba(0, 0, 0, 0.02);
+    }
+
+    /* ════════════════════════════════════════════════════
+       Premium Sidebar — Design System
+       ════════════════════════════════════════════════════ */
+
+    /* Sidebar shell — off-white, hairline shadow, no visible border */
+    #sidebar {
+      background-color: #FAFAFA;
+      /* 1px right rule, much lighter than a full border */
+      box-shadow: 1px 0 0 0 rgba(0, 0, 0, 0.05);
+    }
+
+    /* Section group labels */
+    .sidebar-section-label {
+      margin-bottom: 0.25rem;
+      padding: 0 0.5rem;
+      font-size: 0.625rem;       /* 10px */
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #b0b7c3;            /* softer than text-gray-400 */
+    }
+
+    /* Nav items — generous padding, gentle hover */
+    .sidebar-link {
+      border-left: 2px solid transparent; /* reserve space; prevent layout shift on active */
+      padding-left: 10px;                  /* px-3 minus 2px border = optical px-3 */
+    }
+
+    /* Hover state — icon brightens slightly */
+    .sidebar-link:hover i {
+      color: #6b7280; /* text-gray-500 — small lift from gray-400 */
+    }
+
+    /* Active state icon baseline — set by JS but ensure transition */
+    .sidebar-link i {
+      transition: color 0.15s ease;
+      flex-shrink: 0;
+    }
+
+    /* Admin collapsible button icon */
+    .sidebar-admin-btn i.fa-chevron-right {
+      transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Admin submenu left-rule indent */
+    #sidebar-admin-submenu {
+      border-left: 1px solid #e5e7eb;
+      margin-left: 1.25rem;
+      padding-left: 0.5rem;
+    }
+
+    #sidebar-admin-submenu a {
+      display: flex;
+      align-items: center;
+      border-radius: 0.375rem;  /* rounded-md */
+      padding: 0.375rem 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: #9ca3af;
+      transition: background-color 0.12s ease, color 0.12s ease;
+    }
+    #sidebar-admin-submenu a:hover {
+      background-color: rgba(0, 0, 0, 0.04);
+      color: #374151;
+    }
+
+    /* Bottom identity anchor */
+    #sidebar .border-t {
+      background-color: #FAFAFA;
+    }
+
+    /* ── Dark mode overrides ───────────────────────────── */
+    body.dark-mode #sidebar {
+      background-color: #1a1a1a;
+      box-shadow: 1px 0 0 0 rgba(255,255,255,0.04);
+    }
+    body.dark-mode .sidebar-section-label {
+      color: #4b5563; /* dimmer in dark */
+    }
+    body.dark-mode .sidebar-link {
+      color: #9ca3af;
+    }
+    body.dark-mode .sidebar-link:hover {
+      background-color: rgba(255, 255, 255, 0.05) !important;
+      color: #f9fafb !important;
+    }
+    body.dark-mode .sidebar-link i {
+      color: #6b7280;
+    }
+    body.dark-mode #sidebar-admin-submenu {
+      border-left-color: #2d2d2d;
+    }
+    body.dark-mode #sidebar-admin-submenu a {
+      color: #6b7280;
+    }
+    body.dark-mode #sidebar-admin-submenu a:hover {
+      background-color: rgba(255, 255, 255, 0.06);
+      color: #d1d5db;
+    }
+    body.dark-mode #sidebar .border-t {
+      background-color: #1a1a1a;
+      border-top-color: #2d2d2d;
+    }
+
+    /* ── Smooth sidebar slide transition ──────────────── */
+    #sidebar {
+      will-change: transform;
+    }
+
+    /* ════════════════════════════════════════════════════
+       Dynamic Card Theme Engine
+       ════════════════════════════════════════════════════ */
+
+    /* 1. Corporate Theme (Default style) */
+    body, body.card-theme-corporate {
+      --card-bg: #FFFFFF;
+      --card-border: 1px solid #e2e8f0;
+      --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+      --card-blur: none;
+      --card-radius: 12px;
+      --card-hover-border: 1px solid #cbd5e1;
+      --card-hover-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+      --card-hover-transform: translateY(-2px);
+      --card-title-weight: 600;
+    }
+    body.dark-mode, body.dark-mode.card-theme-corporate {
+      --card-bg: #1c1c1e;
+      --card-border: 1px solid #2d2d2d;
+      --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+      --card-blur: none;
+      --card-radius: 12px;
+      --card-hover-border: 1px solid #3f3f46;
+      --card-hover-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+      --card-hover-transform: translateY(-2px);
+      --card-title-weight: 600;
+    }
+
+    /* 2. Glassmorphism Theme (Frosted Glass) */
+    body.card-theme-glass {
+      --card-bg: rgba(255, 255, 255, 0.35);
+      --card-border: 1px solid rgba(255, 255, 255, 0.45);
+      --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.03);
+      --card-blur: blur(20px);
+      --card-radius: 12px;
+      --card-hover-border: 1px solid rgba(227, 6, 19, 0.45);
+      --card-hover-shadow: 0 0 25px rgba(227, 6, 19, 0.15);
+      --card-hover-transform: translateY(-3px);
+      --card-title-weight: 800; /* High weight so text pops against blur */
+    }
+    body.dark-mode.card-theme-glass {
+      --card-bg: rgba(24, 24, 27, 0.4);
+      --card-border: 1px solid rgba(255, 255, 255, 0.08);
+      --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+      --card-blur: blur(20px);
+      --card-radius: 12px;
+      --card-hover-border: 1px solid rgba(227, 6, 19, 0.65);
+      --card-hover-shadow: 0 0 25px rgba(227, 6, 19, 0.3);
+      --card-hover-transform: translateY(-3px);
+      --card-title-weight: 800;
+    }
+
+    /* 3. Bold (Neo-Brutalist) Theme */
+    body.card-theme-bold {
+      --card-bg: #FFFFFF;
+      --card-border: 2.5px solid #0f172a;
+      --card-shadow: 4px 4px 0px #0f172a;
+      --card-blur: none;
+      --card-radius: 0px;  /* Sharp corners */
+      --card-hover-border: 2.5px solid #E30613;
+      --card-hover-shadow: 7px 7px 0px #E30613;
+      --card-hover-transform: translate(-3px, -3px);
+      --card-title-weight: 700;
+    }
+    body.dark-mode.card-theme-bold {
+      --card-bg: #000000;
+      --card-border: 2.5px solid #e4e4e7;
+      --card-shadow: 4px 4px 0px #e4e4e7;
+      --card-blur: none;
+      --card-radius: 0px;
+      --card-hover-border: 2.5px solid #E30613;
+      --card-hover-shadow: 7px 7px 0px #E30613;
+      --card-hover-transform: translate(-3px, -3px);
+      --card-title-weight: 700;
+    }
+
+    /* 4. Minimal (Ghost) Theme */
+    body.card-theme-minimal {
+      --card-bg: transparent;
+      --card-border: none;
+      --card-shadow: none;
+      --card-blur: none;
+      --card-radius: 0px;
+      --card-border-bottom: 1px solid #e2e8f0;
+      --card-hover-border: none;
+      --card-hover-border-bottom: 2.5px solid #E30613;
+      --card-hover-shadow: none;
+      --card-hover-transform: translateY(0px);
+      --card-title-weight: 500;
+    }
+    body.dark-mode.card-theme-minimal {
+      --card-bg: transparent;
+      --card-border: none;
+      --card-shadow: none;
+      --card-blur: none;
+      --card-radius: 0px;
+      --card-border-bottom: 1px solid #27272a;
+      --card-hover-border: none;
+      --card-hover-border-bottom: 2.5px solid #E30613;
+      --card-hover-shadow: none;
+      --card-hover-transform: translateY(0px);
+      --card-title-weight: 500;
+    }
+
+    /* 5. Colorful Theme (Pastel Gradient) */
+    body.card-theme-colorful {
+      --card-bg: linear-gradient(135deg, #FFF0F5 0%, #EEF2FF 50%, #ECFDF5 100%);
+      --card-border: 1px solid rgba(227, 6, 19, 0.05);
+      --card-shadow: 0 10px 25px -5px rgba(227, 6, 19, 0.03), 0 8px 20px -6px rgba(227, 6, 19, 0.03);
+      --card-blur: none;
+      --card-radius: 18px; /* Extra rounded */
+      --card-hover-border: 1px solid rgba(227, 6, 19, 0.25);
+      --card-hover-shadow: 0 15px 30px -5px rgba(227, 6, 19, 0.08);
+      --card-hover-transform: translateY(-5px) scale(1.008);
+      --card-title-weight: 600;
+    }
+    body.dark-mode.card-theme-colorful {
+      --card-bg: linear-gradient(135deg, #2D1B2D 0%, #1B1E30 50%, #15222E 100%);
+      --card-border: 1px solid rgba(255, 255, 255, 0.03);
+      --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+      --card-blur: none;
+      --card-radius: 18px;
+      --card-hover-border: 1px solid rgba(227, 6, 19, 0.4);
+      --card-hover-shadow: 0 15px 30px -5px rgba(227, 6, 19, 0.2);
+      --card-hover-transform: translateY(-5px) scale(1.008);
+      --card-title-weight: 600;
+    }
+
+    /* Apply variables to dashboard card classes */
+    .kb-cat-card, .kb-card, .video-card, .bento-cat-card, .quick-link-card, .dashboard-list-card {
+      background: var(--card-bg) !important;
+      border: var(--card-border) !important;
+      border-bottom: var(--card-border-bottom, var(--card-border)) !important;
+      box-shadow: var(--card-shadow) !important;
+      border-radius: var(--card-radius) !important;
+      backdrop-filter: var(--card-blur) !important;
+      -webkit-backdrop-filter: var(--card-blur) !important;
+      transition: border-color 0.25s ease, border-bottom-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease, background 0.25s ease !important;
+    }
+
+    .kb-cat-card:hover, .kb-card:hover, .video-card:hover, .bento-cat-card:hover, .quick-link-card:hover, .dashboard-list-card:hover {
+      border: var(--card-hover-border) !important;
+      border-bottom: var(--card-hover-border-bottom, var(--card-hover-border)) !important;
+      box-shadow: var(--card-hover-shadow) !important;
+      transform: var(--card-hover-transform) !important;
+    }
+
+    .kb-cat-card span.font-bold, .kb-card h4, .video-card h4, .bento-cat-card h4, .quick-link-card span, .dashboard-list-card h4 {
+      font-weight: var(--card-title-weight, 600) !important;
+    }
+
+    /* ── Sidebar Polish: Layout, Contrast & Wrapping fixes ── */
+
+    /* [1] Compact padding & size adjustments to prevent scrollbar overflows */
+    .sidebar-link, .sidebar-admin-btn {
+      padding-top: 0.45rem !important;
+      padding-bottom: 0.45rem !important;
+      font-size: 13px !important;        /* slightly smaller font so Georgian fits */
+    }
+
+    #sidebar-admin-submenu a {
+      padding-top: 0.3rem !important;
+      padding-bottom: 0.3rem !important;
+      font-size: 11.5px !important;
+    }
+
+    /* [2] Increase color contrast for sidebar texts (highly legible) */
+    .sidebar-section-label {
+      color: #64748b !important;         /* slate-500 (more distinct) */
+    }
+    .sidebar-link, .sidebar-admin-btn {
+      color: #374151 !important;         /* gray-700 (darker) */
+    }
+    .sidebar-link i, .sidebar-admin-btn i {
+      color: #6b7280 !important;         /* gray-500 for icons */
+    }
+    .sidebar-link:hover, .sidebar-admin-btn:hover {
+      color: #111827 !important;         /* gray-900 on hover */
+    }
+    .sidebar-link:hover i, .sidebar-admin-btn:hover i {
+      color: #374151 !important;         /* darker icon on hover */
+    }
+    #sidebar-admin-submenu a {
+      color: #4b5563 !important;         /* gray-600 */
+    }
+    #sidebar-admin-submenu a:hover {
+      color: #111827 !important;
+    }
+
+    .sidebar-link.nav-active {
+      color: #111827 !important;
+      font-weight: 600 !important;
+    }
+
+    /* [3] Dark Mode Contrast Boosts */
+    body.dark-mode .sidebar-section-label {
+      color: #94a3b8 !important;         /* slate-400 */
+    }
+    body.dark-mode .sidebar-link, body.dark-mode .sidebar-admin-btn {
+      color: #d1d5db !important;         /* gray-300 */
+    }
+    body.dark-mode .sidebar-link i, body.dark-mode .sidebar-admin-btn i {
+      color: #9ca3af !important;         /* gray-400 */
+    }
+    body.dark-mode .sidebar-link:hover, body.dark-mode .sidebar-admin-btn:hover {
+      color: #ffffff !important;
+    }
+    body.dark-mode .sidebar-link:hover i, body.dark-mode .sidebar-admin-btn:hover i {
+      color: #e5e7eb !important;
+    }
+    body.dark-mode #sidebar-admin-submenu a {
+      color: #9ca3af !important;         /* gray-400 */
+    }
+    body.dark-mode #sidebar-admin-submenu a:hover {
+      color: #ffffff !important;
+    }
+    body.dark-mode .sidebar-link.nav-active {
+      color: #ffffff !important;
+    }
+
+    /* [4] Sidebar user identity text wrapping & layout */
+    #sidebar-user-name {
+      white-space: normal !important;
+      word-break: break-word !important;
+      line-height: 1.25 !important;
+      text-overflow: clip !important;
+      color: #374151 !important;
+    }
+    #sidebar-user-dept {
+      color: #6b7280 !important;
+    }
+    body.dark-mode #sidebar-user-name {
+      color: #e5e7eb !important;
+    }
+    body.dark-mode #sidebar-user-dept {
+      color: #9ca3af !important;
+    }

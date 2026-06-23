@@ -47,6 +47,9 @@ _ADDED_COLUMNS = (
     ("categories", "pastel_color_class", "VARCHAR", None),
     ("categories", "is_active", "BOOLEAN", "1"),
     ("articles", "audience_profile", "VARCHAR", "'all'"),
+    ("users", "last_news_viewed_at", "DATETIME", "NULL"),
+    ("users", "last_categories_viewed_at", "TEXT", "NULL"),
+    ("users", "card_style", "VARCHAR DEFAULT 'corporate'", None),
 )
 
 

@@ -44,6 +44,9 @@ class User(Base):
     # Block 5: self-referencing FK — the team_lead (or other manager-role user)
     # this user reports to. Nullable: most users have no manager assigned yet.
     manager_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    last_news_viewed_at = Column(DateTime, nullable=True)
+    last_categories_viewed_at = Column(JSON, default=dict, nullable=True)
+    card_style = Column(String, default="corporate", nullable=True)
 
     team = relationship("Team", back_populates="members")
     manager = relationship("User", remote_side=[id], backref="direct_reports")

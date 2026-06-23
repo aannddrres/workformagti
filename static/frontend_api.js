@@ -56,106 +56,15 @@ async function fetchAndRenderMyReadings(token) {
         }
       }
 
-async function fetchAndRenderManagerStats(token) {
-        const tbody = document.getElementById('manager-team-tbody');
-        const deptName = document.getElementById('manager-dept-name');
-        if (!tbody) return;
-        if (!token) {
-          tbody.innerHTML = '<tr><td colspan="4" class="px-5 py-4 text-center text-red-500">ავტორიზაცია საჭიროა.</td></tr>';
-          return;
-        }
-
-        // Show a loading row immediately so the user never sees a blank table mid-fetch.
-        tbody.innerHTML = '<tr><td colspan="4" class="px-5 py-4 text-center text-gray-400">იტვირთება...</td></tr>';
-
-        try {
-          // Forward department + operator-name filters when present.
-          const params = new URLSearchParams();
-          const deptInput = document.getElementById('team-stats-dept-filter');
-          const nameInput = document.getElementById('team-stats-name-filter');
-          if (deptInput && deptInput.value) params.set('department', deptInput.value);
-          if (nameInput && nameInput.value && nameInput.value.trim()) {
-            params.set('operator_name', nameInput.value.trim());
-          }
-          const qs = params.toString();
-          const url = qs ? `/api/manager/team-stats?${qs}` : '/api/manager/team-stats';
-
-          const response = await fetch(url, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (!response.ok) {
-            // Render a friendly empty state instead of throwing — Cometa AI flagged
-            // runtime exceptions on empty environments.
-            if (deptName) deptName.textContent = '—';
-            tbody.innerHTML = `<tr><td colspan="4" class="px-5 py-4 text-center text-gray-500">გუნდის სტატისტიკა ვერ ჩაიტვირთა (${response.status}).</td></tr>`;
-            return;
-          }
-          const data = await response.json().catch(() => ({}));
-
-          if (deptName) deptName.textContent = (data && data.department) ? data.department : '—';
-
-          // Defensive: members may be undefined on a fresh DB.
-          const members = (data && Array.isArray(data.members)) ? data.members : [];
-          window.userProgressData = members; // Store for context-aware message generation
-          tbody.innerHTML = '';
-          if (members.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="px-5 py-4 text-center text-gray-500">გუნდის წევრები არ მოიძებნა</td></tr>';
-            return;
-          }
-
-          const esc = (s) => (typeof escapeHtml === 'function' ? escapeHtml(String(s)) : String(s));
-
-          members.forEach(rawMember => {
-            const member = rawMember || {};
-            const userName = member.user_name || '—';
-            const readCount = Number.isFinite(member.read_count) ? member.read_count : 0;
-            const reqCount = Number.isFinite(member.required_count) ? member.required_count : 0;
-            const percentageStr = (member.percentage == null) ? '0%' : String(member.percentage);
-
-            let rowClass = '';
-            let percColor = 'text-gray-500';
-            const perc = parseInt(percentageStr, 10);
-            if (reqCount > 0 && Number.isFinite(perc)) {
-              if (perc >= 80) { rowClass = 'bg-green-50/50'; percColor = 'text-green-600 font-bold'; }
-              else if (perc <= 30) { rowClass = 'bg-red-50/40'; percColor = 'text-[#E30613] font-bold'; }
-              else { percColor = 'text-gray-800 font-bold'; }
-            }
-
-            const isSelf = window.currentUser && member.user_id === window.currentUser.id;
-            const showNudge = !(isSelf || reqCount === 0 || perc === 100);
-            const nudgeOptionClass = showNudge
-              ? 'flex items-center gap-2 w-full px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors'
-              : 'flex items-center gap-2 w-full px-4 py-2 text-xs text-gray-400 cursor-not-allowed opacity-50';
-            const nudgeOptionAttr = showNudge
-              ? `onclick="triggerKebabAction(${member.user_id}, 'nudge', event)"`
-              : 'disabled';
-
-            const kebabMenu = `
-              <div class="relative inline-block text-left">
-                <button onclick="toggleUserKebab(${member.user_id}, event)" class="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none" aria-label="მოქმედებები">
-                  <i aria-hidden="true" class="fa-solid fa-ellipsis-vertical"></i>
-                </button>
-                <div id="user-kebab-${member.user_id}" class="absolute right-0 z-50 mt-1 hidden w-48 text-left rounded-lg border border-gray-100 bg-white py-1 shadow-lg">
-                  <button ${nudgeOptionAttr} class="${nudgeOptionClass}"><i aria-hidden="true" class="fa-solid fa-bell text-[#E30613]"></i> ნუჯის გაგზავნა</button>
-                  <button onclick="triggerKebabAction(${member.user_id}, 'progress', event)" class="flex w-full items-center gap-2 px-4 py-2 text-xs text-gray-700 transition-colors hover:bg-gray-50"><i aria-hidden="true" class="fa-solid fa-chart-line text-blue-500"></i> პროგრესის ნახვა</button>
-                  <button onclick="triggerKebabAction(${member.user_id}, 'message', event)" class="flex w-full items-center gap-2 px-4 py-2 text-xs text-gray-700 transition-colors hover:bg-gray-50"><i aria-hidden="true" class="fa-solid fa-paper-plane text-emerald-500"></i> შეტყობინება</button>
-                </div>
-              </div>`;
-
-            const html = `
-              <tr class="${rowClass} transition-colors hover:bg-gray-50">
-                <td class="px-5 py-3 font-medium text-gray-800">${esc(userName)}</td>
-                <td class="px-5 py-3 text-center font-medium ${reqCount > 0 ? 'text-green-600' : 'text-gray-400'}">${readCount}</td>
-                <td class="px-5 py-3 text-center font-medium ${reqCount > 0 ? 'text-[#E30613]' : 'text-gray-400'}">${reqCount}</td>
-                <td class="px-5 py-3 text-center ${percColor}">${esc(percentageStr)}</td>
-                <td class="px-5 py-3 text-center overflow-visible relative">${kebabMenu}</td>
-              </tr>
-            `;
-            tbody.insertAdjacentHTML('beforeend', html);
-          });
-        } catch (error) {
-          console.error('Manager stats error:', error);
-          tbody.innerHTML = '<tr><td colspan="4" class="px-5 py-4 text-center text-red-500">მონაცემების ჩატვირთვა ვერ მოხერხდა.</td></tr>';
+// Executive Department Dashboard entry point. The render/animation/auto-refresh
+// logic lives in the decoupled DeptDashboard module (static/js/dept-dashboard.js);
+// this thin wrapper preserves the legacy call sites (app-router nav + app-core
+// bindings) that still invoke fetchAndRenderManagerStats(token).
+function fetchAndRenderManagerStats(token) {
+        if (window.DeptDashboard && typeof DeptDashboard.start === 'function') {
+          DeptDashboard.start(token);
+        } else {
+          console.warn('DeptDashboard module not loaded yet.');
         }
       }
 
@@ -163,21 +72,21 @@ async function fetchNotificationsCount(token) {
         const mustRead = document.getElementById('must-read-container');
         if (mustRead) {
           mustRead.innerHTML = `
-            <li class="animate-pulse flex items-center justify-between rounded-xl bg-white p-4 shadow-sm min-h-[72px] border border-transparent">
+            <li class="dashboard-list-card animate-pulse flex items-center justify-between p-4 min-h-[72px]">
               <div class="flex items-center gap-3 w-full">
-                <span class="h-2.5 w-2.5 shrink-0 rounded-full bg-gray-200"></span>
+                <span class="h-2.5 w-2.5 shrink-0 rounded-full bg-slate-200 dark:bg-zinc-700"></span>
                 <div class="flex-1 space-y-2">
-                  <div class="h-4 bg-gray-200 rounded w-3/4"></div>
-                  <div class="h-3 bg-gray-200 rounded w-1/2"></div>
+                  <div class="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-3/4"></div>
+                  <div class="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-1/2"></div>
                 </div>
               </div>
             </li>
-            <li class="animate-pulse flex items-center justify-between rounded-xl bg-white p-4 shadow-sm min-h-[72px] border border-transparent">
+            <li class="dashboard-list-card animate-pulse flex items-center justify-between p-4 min-h-[72px]">
               <div class="flex items-center gap-3 w-full">
-                <span class="h-2.5 w-2.5 shrink-0 rounded-full bg-gray-200"></span>
+                <span class="h-2.5 w-2.5 shrink-0 rounded-full bg-slate-200 dark:bg-zinc-700"></span>
                 <div class="flex-1 space-y-2">
-                  <div class="h-4 bg-gray-200 rounded w-3/4"></div>
-                  <div class="h-3 bg-gray-200 rounded w-1/2"></div>
+                  <div class="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-3/4"></div>
+                  <div class="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-1/2"></div>
                 </div>
               </div>
             </li>
@@ -237,12 +146,12 @@ async function fetchNotificationsCount(token) {
               mustRead.innerHTML = '';
               if (unread.length === 0) {
                 mustRead.innerHTML = `
-                  <li class="flex flex-col items-center justify-center rounded-xl bg-white p-8 text-center shadow-sm border border-emerald-100">
-                    <div class="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-500">
+                  <li class="dashboard-list-card flex flex-col items-center justify-center p-8 text-center border-emerald-100/50 dark:border-emerald-500/20">
+                    <div class="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-500 dark:text-emerald-400">
                       <i class="fa-solid fa-check text-xl"></i>
                     </div>
-                    <h4 class="text-[14px] font-bold text-gray-800">სავალდებულო მასალები წაკითხულია</h4>
-                    <p class="mt-1 text-[12px] text-gray-500">ამ დროისთვის თქვენ არ გაქვთ ახალი წასაკითხი მასალები.</p>
+                    <h4 class="text-[14px] font-bold text-gray-800 dark:text-zinc-200">სავალდებულო მასალები წაკითხულია</h4>
+                    <p class="mt-1 text-[12px] text-gray-500 dark:text-zinc-400">ამ დროისთვის თქვენ არ გაქვთ ახალი წასაკითხი მასალები.</p>
                   </li>
                 `;
               } else {
@@ -259,14 +168,14 @@ async function fetchNotificationsCount(token) {
                           onkeydown="if(event.key==='Enter'||event.key===' '){navTo('page-reading');event.preventDefault();}" 
                           tabindex="0" 
                           role="button" 
-                          class="flex cursor-pointer items-center justify-between rounded-xl bg-white p-4 shadow-sm transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#E30613]">
-                        <div class="flex items-center gap-3">
+                          class="dashboard-list-card flex cursor-pointer items-center justify-between p-4 focus:outline-none focus:ring-2 focus:ring-[#E30613]">
+                        <div class="flex items-center gap-3 w-full">
                           <span class="h-2.5 w-2.5 shrink-0 rounded-full ${overdue ? 'bg-[#E30613]' : 'bg-orange-400'}"></span>
-                          <div>
-                            <h4 class="text-[14px] font-bold text-gray-800">${displayTitle}</h4>
+                          <div class="flex-1 min-w-0">
+                            <h4 class="text-[14px] font-bold text-gray-800 dark:text-zinc-200 truncate">${displayTitle}</h4>
                             <div class="mt-1.5 flex items-center gap-2">
-                              <span class="rounded ${overdue ? 'bg-red-100 text-[#E30613]' : 'bg-gray-100 text-gray-500'} px-1.5 py-0.5 text-[10px] font-bold">${overdue ? 'ვადაგადაცილებული' : 'წასაკითხი'}</span>
-                              <span class="text-[11px] text-gray-400">ვადა: ${due}</span>
+                              <span class="rounded ${overdue ? 'bg-red-100/80 text-[#E30613] dark:bg-red-950/40 dark:text-red-400' : 'bg-gray-100/80 text-gray-500 dark:bg-zinc-800/80 dark:text-zinc-400'} px-1.5 py-0.5 text-[10px] font-bold">${overdue ? 'ვადაგადაცილებული' : 'წასაკითხი'}</span>
+                              <span class="text-[11px] text-gray-400 dark:text-zinc-500">ვადა: ${due}</span>
                             </div>
                           </div>
                         </div>
@@ -357,22 +266,9 @@ async function fetchAndRenderUserProgress(token) {
         const tbody = document.getElementById('user-progress-tbody');
         if (!tbody) return;
 
-        tbody.innerHTML = `
-          <tr class="animate-pulse">
-            <td class="py-3 pr-4"><div class="h-4 bg-gray-200 rounded w-2/3"></div></td>
-            <td class="py-3 pr-4 text-center"><div class="h-4 bg-gray-200 rounded w-8 mx-auto"></div></td>
-            <td class="py-3 pr-4 text-center"><div class="h-4 bg-gray-200 rounded w-8 mx-auto"></div></td>
-            <td class="py-3 pr-4 text-center"><div class="h-4 bg-gray-200 rounded w-12 mx-auto"></div></td>
-            <td class="py-3 text-center"><div class="h-6 bg-gray-200 rounded-full w-16 mx-auto"></div></td>
-          </tr>
-          <tr class="animate-pulse">
-            <td class="py-3 pr-4"><div class="h-4 bg-gray-200 rounded w-1/2"></div></td>
-            <td class="py-3 pr-4 text-center"><div class="h-4 bg-gray-200 rounded w-8 mx-auto"></div></td>
-            <td class="py-3 pr-4 text-center"><div class="h-4 bg-gray-200 rounded w-8 mx-auto"></div></td>
-            <td class="py-3 pr-4 text-center"><div class="h-4 bg-gray-200 rounded w-12 mx-auto"></div></td>
-            <td class="py-3 text-center"><div class="h-6 bg-gray-200 rounded-full w-16 mx-auto"></div></td>
-          </tr>
-        `;
+        // Default sort: lowest performers first (most actionable for admin)
+        if (!window._progressSortMode) window._progressSortMode = 'perf_asc';
+        if (!window._progressIncompleteOnly) window._progressIncompleteOnly = false;
 
         try {
           const response = await fetch('/api/statistics/user-progress', {
@@ -390,12 +286,17 @@ async function fetchAndRenderUserProgress(token) {
               depts.map(d => `<option value="${d}">${d}</option>`).join('');
           }
 
+          // Sync sort dropdown to current mode
+          const sortSel = document.getElementById('progress-sort-select');
+          if (sortSel) sortSel.value = window._progressSortMode;
+
           renderProgressRows();
         } catch (error) {
           console.error(error);
-          tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-red-500">მონაცემების ჩატვირთვა ვერ მოხერხდა.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="6" class="px-5 py-6 text-center text-rose-500 text-sm">მონაცემების ჩატვირთვა ვერ მოხერხდა.</td></tr>';
         }
       }
+
 
 async function fetchAndRenderPopularSearches(token) {
         const tbody = document.getElementById('popular-searches-tbody');
@@ -534,6 +435,10 @@ async function fetchAndRenderAdminContent(token) {
             const archivedBadge = article.status === 'archived'
               ? '<span class="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-500">არქივი</span>' : '';
 
+            const archiveBtn = article.status === 'archived'
+              ? `<button onclick="toggleArticleArchive(${article.id}, false)" class="text-gray-400 hover:text-green-600 transition-colors" aria-label="არქივიდან ამოღება" title="არქივიდან ამოღება"><i class="fa-solid fa-box-open"></i></button>`
+              : `<button onclick="toggleArticleArchive(${article.id}, true)" class="text-gray-400 hover:text-amber-600 transition-colors" aria-label="დაარქივება" title="დაარქივება"><i class="fa-solid fa-box-archive"></i></button>`;
+
             const tr = `
               <tr class="transition-colors hover:bg-gray-50 ${article.status === 'archived' ? 'opacity-60' : ''}">
                 <td class="px-5 py-3"><span class="inline-flex items-center gap-2"><i class="fa-solid fa-file-lines text-gray-400"></i> ${escapeHtml(article.title)}${archivedBadge}</span></td>
@@ -543,6 +448,7 @@ async function fetchAndRenderAdminContent(token) {
                   <div class="flex items-center justify-center gap-3">
                     <input type="checkbox" class="archive-check h-4 w-4 accent-[#E30613]" data-article-id="${article.id}" />
                     <button onclick="viewArticleHistory(${article.id})" class="text-gray-400 hover:text-purple-500 transition-colors" aria-label="ისტორია" title="ცვლილებების ისტორია"><i class="fa-solid fa-clock-rotate-left"></i></button>
+                    ${archiveBtn}
                     <button onclick="editArticle(${article.id})" class="text-gray-400 hover:text-blue-500" aria-label="რედაქტირება"><i class="fa-solid fa-pen-to-square"></i></button>
                     <button onclick="deleteArticle(${article.id})" class="text-gray-400 hover:text-[#E30613]" aria-label="წაშლა"><i class="fa-solid fa-trash-can"></i></button>
                   </div>
@@ -1125,14 +1031,46 @@ async function fetchKPIs(token) {
           });
           if (!response.ok) throw new Error('Failed to fetch KPIs');
           const kpi = await response.json();
-          document.getElementById('kpi-users').textContent = kpi.users;
-          document.getElementById('kpi-articles').textContent = kpi.articles;
-          document.getElementById('kpi-readings').textContent = kpi.required_readings;
-          document.getElementById('kpi-videos').textContent = kpi.videos;
+
+          // ── Core count updates ───────────────────────────────────────────────
+          const usersEl   = document.getElementById('kpi-users');
+          const articlesEl= document.getElementById('kpi-articles');
+          const readingsEl= document.getElementById('kpi-readings');
+          const videosEl  = document.getElementById('kpi-videos');
+
+          if (usersEl)    usersEl.textContent    = kpi.users;
+          if (articlesEl) articlesEl.textContent  = kpi.articles;
+          if (readingsEl) readingsEl.textContent  = kpi.required_readings;
+          if (videosEl)   videosEl.textContent    = kpi.videos;
+
+          // ── Trend arrows (static visual rhythm — real delta unavailable) ─────
+          // Use gentle arrows to signal that each metric is "live"
+          const setTrend = (id, arrow, label) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = arrow;
+          };
+          setTrend('kpi-users-trend',    '▲');
+          setTrend('kpi-articles-trend', '▲');
+          setTrend('kpi-readings-trend', '▼');  // readings pending = actionable alert
+          setTrend('kpi-videos-trend',   '▲');
+
+          // ── Bottom micro-progress bars (show relative fill vs assumed max) ───
+          // Normalise against known totals to give a sense of scale
+          const maxRef = Math.max(kpi.users || 1, 1);
+          const setBar = (id, value, max) => {
+            const el = document.getElementById(id);
+            if (el) el.style.width = Math.min(100, Math.round((value / max) * 100)) + '%';
+          };
+          setBar('kpi-users-bar',    kpi.users,              maxRef);
+          setBar('kpi-articles-bar', kpi.articles,           Math.max(kpi.articles, 50));
+          setBar('kpi-readings-bar', kpi.required_readings,  Math.max(kpi.required_readings, 20));
+          setBar('kpi-videos-bar',   kpi.videos,             Math.max(kpi.videos, 20));
+
         } catch (error) {
           console.error('Error fetching KPIs:', error);
         }
       }
+
 
 async function fetchAndRenderUsers(token, managerId = null) {
         const tbody = document.getElementById('admin-users-tbody');
