@@ -2680,17 +2680,18 @@ def get_compliance_statistics(
     Returns:
         A ComplianceStatsResponse schema.
     """
-    # Calculate compliance percentage by calculating total expected reads vs actual marked read (for active users only)
+    # Calculate compliance percentage by calculating total expected reads vs actual marked read (operators only)
     read_count = db.query(models.ReadStatus).join(models.User).filter(
         models.User.is_active == True,
+        models.User.role.notin_(_MANAGEMENT_ROLES),
         models.ReadStatus.status == "read"
     ).count()
 
     # PERFORMANCE: previously this ran one COUNT(*) per required reading (N+1).
-    # Now we fetch active-user counts per department once, then sum in memory.
+    # Now we fetch active-operator counts per department once, then sum in memory.
     active_by_dept = dict(
         db.query(models.User.department, func.count(models.User.id))
-        .filter(models.User.is_active == True)
+        .filter(models.User.is_active == True, models.User.role.notin_(_MANAGEMENT_ROLES))
         .group_by(models.User.department)
         .all()
     )
@@ -2711,7 +2712,7 @@ def get_compliance_statistics(
         read_percentage = 0.0
         unread_percentage = 100.0
 
-    # Discover the top 5 most read articles across the organization (counting active users only)
+    # Discover the top 5 most read articles across the organization (operators only)
     top_articles = db.query(models.Article).join(
         models.RequiredReading, models.RequiredReading.item_id == models.Article.id
     ).join(
@@ -2720,6 +2721,7 @@ def get_compliance_statistics(
         models.User, models.ReadStatus.user_id == models.User.id
     ).filter(
         models.User.is_active == True,
+        models.User.role.notin_(_MANAGEMENT_ROLES),
         models.RequiredReading.item_type == "article",
         models.ReadStatus.status == "read"
     ).group_by(*models.Article.__table__.columns).order_by(
@@ -2774,7 +2776,10 @@ def get_user_progress(
         A list of employee compliance percentages, sorted by compliance level.
     """
     # RBAC: org-wide, per-employee progress is personal data → system admin only.
-    users = db.query(models.User).filter(models.User.is_active == True).all()
+    users = db.query(models.User).filter(
+        models.User.is_active == True,
+        models.User.role.notin_(_MANAGEMENT_ROLES),
+    ).all()
     all_readings = db.query(models.RequiredReading).all()
 
     # Required-reading counts per department bucket (computed once).
@@ -2826,7 +2831,11 @@ def get_admin_team_stats(
     
     Access: Restricted to system administrators (admin).
     """
-    users = db.query(models.User).filter(models.User.is_active == True, models.User.team_id == team_id).all()
+    users = db.query(models.User).filter(
+        models.User.is_active == True,
+        models.User.role.notin_(_MANAGEMENT_ROLES),
+        models.User.team_id == team_id,
+    ).all()
     if not users:
         return {"team_id": team_id, "average_percentage": "0%", "members": []}
     
@@ -2902,7 +2911,10 @@ def get_team_stats(
     Returns:
         A TeamStatsResponse containing team member compliance progress.
     """
-    users_q = db.query(models.User).filter(models.User.is_active == True)
+    users_q = db.query(models.User).filter(
+        models.User.is_active == True,
+        models.User.role.notin_(_MANAGEMENT_ROLES),
+    )
 
     if current_manager.role == "admin":
         if department:
@@ -2973,9 +2985,12 @@ def get_team_stats(
 # (startswith), so "საინფორმაციო" matches "საინფორმაციო სამსახური — ჯგუფი 01".
 DEPARTMENT_WHITELIST = ["საინფორმაციო", "ტექნიკური", "ოფისები"]
 
-# Role excluded from all operator analytics. We exclude by ROLE, not by the
-# position string "სისტემური ადმინისტრატორი": in production that admin's position
-# is the English "System Administrator", so a position filter would miss it.
+# Roles excluded from required-reading target-audience calculations.
+# DB has: admin, content_admin, manager, operator.  Only operators are the
+# intended audience; management roles inflate the denominator otherwise.
+_MANAGEMENT_ROLES = ("admin", "content_admin", "manager")
+
+# Legacy single-role alias kept for any code that references it.
 _DASHBOARD_EXCLUDED_ROLE = "admin"
 
 # Compliance threshold below which an operator is flagged "critical".
@@ -3025,7 +3040,7 @@ def build_department_stats(db: Session):
         db.query(models.User)
         .filter(
             models.User.is_active == True,  # noqa: E712
-            models.User.role != _DASHBOARD_EXCLUDED_ROLE,
+            models.User.role.notin_(_MANAGEMENT_ROLES),
         )
         .all()
     )
@@ -3165,7 +3180,7 @@ def get_critical_operators(
         )
         .filter(
             models.User.is_active == True,  # noqa: E712
-            models.User.role != _DASHBOARD_EXCLUDED_ROLE,
+            models.User.role.notin_(_MANAGEMENT_ROLES),
         )
         .all()
     )
@@ -3244,7 +3259,7 @@ def get_group_users(
         )
         .filter(
             models.User.is_active == True,  # noqa: E712
-            models.User.role != _DASHBOARD_EXCLUDED_ROLE,
+            models.User.role.notin_(_MANAGEMENT_ROLES),
             models.User.department.like(f"{department}%"),
         )
         .all()
@@ -4921,13 +4936,14 @@ def export_team_stats_pdf(
     ))
     db.commit()
 
-    # Aggregate by department: total assigned, completed, percentage.
+    # Aggregate by department: total assigned, completed, percentage (operators only).
     from sqlalchemy import case
     rows_q = db.query(
         models.User.department.label("dept"),
         func.count(models.ReadStatus.id).label("total"),
         func.sum(case((models.ReadStatus.status == "read", 1), else_=0)).label("read_count"),
     ).join(models.ReadStatus, models.ReadStatus.user_id == models.User.id) \
+     .filter(models.User.role.notin_(_MANAGEMENT_ROLES)) \
      .group_by(models.User.department).all()
 
     headers = ["დეპარტამენტი", "სულ მიკუთვნებული", "წაკითხული", "%"]
