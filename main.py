@@ -2723,7 +2723,11 @@ def get_compliance_statistics(
         models.User.is_active == True,
         models.User.role.notin_(_MANAGEMENT_ROLES),
         models.RequiredReading.item_type == "article",
-        models.ReadStatus.status == "read"
+        models.ReadStatus.status == "read",
+        # Articles with no row in article_target_departments fail ArticleResponse
+        # validation (target_departments must be non-empty) and 500 the whole
+        # endpoint — exclude them rather than crash on bad/legacy data.
+        models.Article.target_department_rows.any()
     ).group_by(*models.Article.__table__.columns).order_by(
         desc(func.count(models.ReadStatus.id))
     ).limit(5).all()
