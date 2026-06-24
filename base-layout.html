@@ -1236,6 +1236,11 @@
           class="admin-btn rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50">
           მომხმარებლების მართვა (RBAC)
         </button>
+        <!-- Role console (system admin only) — bulk + per-person role management -->
+        <button onclick="switchAdmin('roles')" id="adminBtn-roles" data-required-role="admin"
+          class="admin-btn rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50">
+          როლების მართვა
+        </button>
         <!-- Categories management (subcategory tree per spec) -->
         <button onclick="switchAdmin('categories')" id="adminBtn-categories"
           class="admin-btn rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50">
@@ -1987,6 +1992,72 @@
                 class="rounded-xl bg-[#B91C1C] px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-700">შენახვა</button>
             </div>
           </form>
+        </div>
+      </div>
+
+      <!-- ════════════════════════════════════════════════════
+         SUB-PAGE — როლების მართვა (Role console — system admin only)
+         Pick a role card → manage its members: bulk-move several at once,
+         or edit one person. Backed by POST /api/admin/roles/bulk-reassign
+         and the existing per-user edit modal.
+         ════════════════════════════════════════════════════ -->
+      <div id="admin-roles" class="admin-panel hidden">
+        <div class="mb-5 flex items-center justify-between gap-3">
+          <h2 class="text-3xl font-semibold uppercase tracking-wider text-gray-800">როლების მართვა</h2>
+          <button onclick="renderRoleConsole()"
+            class="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50">
+            <i class="fa-solid fa-rotate mr-1.5"></i> განახლება
+          </button>
+        </div>
+        <p class="mb-5 max-w-3xl text-sm text-gray-500">
+          აირჩიეთ როლი ბარათზე დაჭერით, რომ ნახოთ მისი წევრები. მონიშნეთ ერთი ან რამდენიმე და
+          ჯგუფურად გადაიყვანეთ სხვა როლში, ან დააჭირეთ ფანქარს ცალკეული მომხმარებლის
+          დასარედაქტირებლად. როლის შეცვლისას უფლებები განულდება ახალი როლის ნაგულისხმევ ნაკრებზე.
+        </p>
+
+        <!-- Role summary cards (live counts; click to select) -->
+        <div id="role-console-cards" class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4"></div>
+
+        <!-- Members of the selected role -->
+        <div class="rounded-2xl border border-gray-100 bg-white shadow-sm">
+          <div class="flex flex-col gap-3 border-b border-gray-200 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex items-center gap-3">
+              <label class="flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-600">
+                <input id="role-console-select-all" type="checkbox" onchange="toggleAllRoleMembers(this.checked)"
+                  class="h-4 w-4 rounded border-gray-300 accent-[#B91C1C]" />
+                ყველას მონიშვნა
+              </label>
+              <span id="role-console-selected-count" class="text-xs text-gray-400">0 მონიშნული</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-sm text-gray-500">გადაყვანა როლში:</span>
+              <select id="role-console-target"
+                class="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]">
+                <option value="operator">ოპერატორი</option>
+                <option value="manager">მენეჯერი</option>
+                <option value="content_admin">კონტენტის ადმინი</option>
+                <option value="admin">სისტემის ადმინი</option>
+              </select>
+              <button onclick="bulkReassignRole()"
+                class="rounded-xl bg-[#B91C1C] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700">
+                <i class="fa-solid fa-arrow-right-arrow-left mr-1.5"></i> გადაყვანა
+              </button>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <thead>
+                <tr class="border-b border-gray-200 bg-gray-50 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  <th class="w-10 px-4 py-3"></th>
+                  <th class="px-5 py-3">სახელი</th>
+                  <th class="px-5 py-3">ელ.ფოსტა</th>
+                  <th class="px-5 py-3">დეპარტამენტი</th>
+                  <th class="px-5 py-3 text-center">მოქმედება</th>
+                </tr>
+              </thead>
+              <tbody id="role-console-members" class="divide-y divide-gray-100"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 

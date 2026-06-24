@@ -1176,6 +1176,164 @@ function onAdminGroupFilterChange(managerId) {
         fetchAndRenderUsers(token, managerId || null);
       }
 
+/* ── Role console (system-admin role management) ───────────────────────────
+   Pick a role card → see its members → bulk-move several to another role, or
+   edit one person via the existing user-edit modal. Reuses GET /api/users and
+   POST /api/admin/roles/bulk-reassign. */
+const ROLE_CONSOLE_ORDER = ['admin', 'content_admin', 'manager', 'operator'];
+const ROLE_CONSOLE_LABELS = { admin: 'სისტემის ადმინი', content_admin: 'კონტენტის ადმინი', manager: 'მენეჯერი', operator: 'ოპერატორი' };
+const ROLE_CONSOLE_ICONS = { admin: 'fa-shield-halved', content_admin: 'fa-pen-nib', manager: 'fa-users-gear', operator: 'fa-headset' };
+
+async function renderRoleConsole(token) {
+        token = token || localStorage.getItem('magti_token');
+        if (!token) return;
+        const tbody = document.getElementById('role-console-members');
+        try {
+          const res = await fetch('/api/users', { headers: { 'Authorization': `Bearer ${token}` } });
+          if (!res.ok) throw new Error('Failed to fetch users');
+          window.adminUsersData = await res.json(); // shared cache with the RBAC table + edit modal
+        } catch (e) {
+          console.error(e);
+          if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="px-5 py-6 text-center text-red-500">მონაცემების ჩატვირთვა ვერ მოხერხდა.</td></tr>';
+          return;
+        }
+        if (!window._roleConsoleActiveRole) window._roleConsoleActiveRole = 'operator';
+        window._roleConsoleSelection = new Set();
+        const sa = document.getElementById('role-console-select-all');
+        if (sa) sa.checked = false;
+        renderRoleConsoleCards();
+        renderRoleConsoleMembers();
+      }
+
+function roleConsoleCounts() {
+        const counts = { admin: 0, content_admin: 0, manager: 0, operator: 0 };
+        (window.adminUsersData || []).forEach(u => { if (counts[u.role] !== undefined) counts[u.role]++; });
+        return counts;
+      }
+
+function renderRoleConsoleCards() {
+        const wrap = document.getElementById('role-console-cards');
+        if (!wrap) return;
+        const counts = roleConsoleCounts();
+        wrap.innerHTML = ROLE_CONSOLE_ORDER.map(role => {
+          const active = role === window._roleConsoleActiveRole;
+          return `
+            <button type="button" onclick="selectConsoleRole('${role}')"
+              class="flex items-center gap-3 rounded-2xl border p-4 text-left shadow-sm transition-colors ${active ? 'border-[#B91C1C] bg-red-50 ring-1 ring-[#B91C1C]' : 'border-gray-200 bg-white hover:bg-gray-50'}">
+              <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${active ? 'bg-[#B91C1C] text-white' : 'bg-gray-100 text-gray-500'}">
+                <i class="fa-solid ${ROLE_CONSOLE_ICONS[role]}"></i>
+              </span>
+              <span class="min-w-0">
+                <span class="block truncate text-sm font-semibold text-gray-800">${ROLE_CONSOLE_LABELS[role]}</span>
+                <span class="block text-xs text-gray-500">${counts[role]} მომხმარებელი</span>
+              </span>
+            </button>`;
+        }).join('');
+      }
+
+function selectConsoleRole(role) {
+        window._roleConsoleActiveRole = role;
+        window._roleConsoleSelection = new Set();
+        const sa = document.getElementById('role-console-select-all');
+        if (sa) sa.checked = false;
+        renderRoleConsoleCards();
+        renderRoleConsoleMembers();
+      }
+
+function renderRoleConsoleMembers() {
+        const tbody = document.getElementById('role-console-members');
+        if (!tbody) return;
+        const role = window._roleConsoleActiveRole;
+
+        // Default the move-target away from the role we're viewing, preferring
+        // the least-privileged option so a bulk move never silently aims at admin.
+        const targetSel = document.getElementById('role-console-target');
+        if (targetSel && targetSel.value === role) {
+          const alt = ['operator', 'manager', 'content_admin', 'admin'].find(r => r !== role);
+          if (alt) targetSel.value = alt;
+        }
+
+        const members = (window.adminUsersData || []).filter(u => u.role === role);
+        if (!members.length) {
+          tbody.innerHTML = '<tr><td colspan="5" class="px-5 py-6 text-center text-gray-400">ამ როლში მომხმარებლები არ არიან.</td></tr>';
+          updateRoleConsoleSelectedCount();
+          return;
+        }
+        const meId = window.currentUser ? window.currentUser.id : null;
+        tbody.innerHTML = members.map(u => {
+          const isSelf = u.id === meId;
+          const checkbox = isSelf
+            ? '<span class="text-[10px] text-gray-400">თქვენ</span>'
+            : `<input type="checkbox" class="role-member-checkbox h-4 w-4 rounded border-gray-300 accent-[#B91C1C]" value="${u.id}" onchange="toggleRoleMember(${u.id}, this.checked)" ${window._roleConsoleSelection.has(u.id) ? 'checked' : ''} />`;
+          const editBtn = isSelf ? '' : `<button onclick="openUserEditModal(${u.id})" class="text-gray-400 hover:text-blue-500 transition-colors" aria-label="რედაქტირება"><i class="fa-solid fa-pen-to-square"></i></button>`;
+          return `
+            <tr class="transition-colors hover:bg-gray-50 ${u.is_active ? '' : 'opacity-60'}">
+              <td class="px-4 py-3">${checkbox}</td>
+              <td class="px-5 py-3 font-medium text-gray-800">${escapeHtml(u.name)}</td>
+              <td class="px-5 py-3 text-gray-500">${escapeHtml(u.email)}</td>
+              <td class="px-5 py-3 text-gray-500">${escapeHtml(u.department || '—')}</td>
+              <td class="px-5 py-3 text-center">${editBtn}</td>
+            </tr>`;
+        }).join('');
+        updateRoleConsoleSelectedCount();
+      }
+
+function toggleRoleMember(id, checked) {
+        if (!window._roleConsoleSelection) window._roleConsoleSelection = new Set();
+        if (checked) window._roleConsoleSelection.add(id); else window._roleConsoleSelection.delete(id);
+        updateRoleConsoleSelectedCount();
+      }
+
+function toggleAllRoleMembers(checked) {
+        if (!window._roleConsoleSelection) window._roleConsoleSelection = new Set();
+        document.querySelectorAll('.role-member-checkbox').forEach(cb => {
+          cb.checked = checked;
+          const id = parseInt(cb.value, 10);
+          if (checked) window._roleConsoleSelection.add(id); else window._roleConsoleSelection.delete(id);
+        });
+        updateRoleConsoleSelectedCount();
+      }
+
+function updateRoleConsoleSelectedCount() {
+        const el = document.getElementById('role-console-selected-count');
+        const n = window._roleConsoleSelection ? window._roleConsoleSelection.size : 0;
+        if (el) el.textContent = `${n} მონიშნული`;
+      }
+
+async function bulkReassignRole() {
+        const token = localStorage.getItem('magti_token');
+        if (!token) return;
+        const ids = window._roleConsoleSelection ? [...window._roleConsoleSelection] : [];
+        if (!ids.length) {
+          showToast('ვერცერთი მომხმარებელი არ არის მონიშნული', '', { variant: 'error' });
+          return;
+        }
+        const targetSel = document.getElementById('role-console-target');
+        const newRole = targetSel ? targetSel.value : null;
+        if (!newRole) return;
+        const label = ROLE_CONSOLE_LABELS[newRole] || newRole;
+        if (!confirm(`${ids.length} მომხმარებლის როლი შეიცვლება: „${label}“. უფლებები განულდება ახალი როლის ნაგულისხმევ ნაკრებზე. გავაგრძელო?`)) return;
+        try {
+          const res = await fetch('/api/admin/roles/bulk-reassign', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ user_ids: ids, new_role: newRole })
+          });
+          if (!res.ok) {
+            let detail = 'ოპერაცია ვერ შესრულდა';
+            try { const j = await res.json(); detail = j.detail || detail; } catch (_) {}
+            throw new Error(detail);
+          }
+          const data = await res.json();
+          showToast('როლები განახლდა', `შეიცვალა: ${data.changed} · გამოტოვებული: ${data.skipped}`, { variant: 'success' });
+          await renderRoleConsole(token);
+          if (typeof fetchKPIs === 'function') fetchKPIs(token);
+        } catch (e) {
+          console.error(e);
+          showToast('როლების შეცვლა ვერ მოხერხდა', e.message, { variant: 'error' });
+        }
+      }
+
 async function fetchAndRenderAuditLogs(token) {
         const tbody = document.getElementById('admin-audit-tbody');
         if (!tbody) return;

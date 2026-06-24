@@ -206,7 +206,7 @@ function switchProfileTab(tabId, element) {
       }
 
 function switchAdmin(page) {
-        if (page === 'users' || page === 'audit') {
+        if (page === 'users' || page === 'audit' || page === 'roles') {
           const role = window.currentUser ? window.currentUser.role : '';
           if (role !== 'admin') {
             if (typeof showToast === 'function') {
@@ -236,6 +236,9 @@ function switchAdmin(page) {
         var auditBtn = document.getElementById('adminBtn-audit');
         if (auditBtn) auditBtn.className = page === 'audit' ? activeClass : inactiveClass;
 
+        var rolesBtn = document.getElementById('adminBtn-roles');
+        if (rolesBtn) rolesBtn.className = page === 'roles' ? activeClass : inactiveClass;
+
         var migratedBtn = document.getElementById('adminBtn-migrated');
         if (migratedBtn) migratedBtn.className = page === 'migrated' ? activeClass : inactiveClass;
 
@@ -246,6 +249,7 @@ function switchAdmin(page) {
         if (!token) return;
         if (page === 'categories' && typeof fetchAndRenderCategoriesAdmin === 'function') fetchAndRenderCategoriesAdmin(token);
         if (page === 'audit' && typeof fetchAndRenderAuditLog === 'function') fetchAndRenderAuditLog(token);
+        if (page === 'roles' && typeof renderRoleConsole === 'function') renderRoleConsole(token);
         if (page === 'migrated' && typeof fetchAndRenderMigratedArticles === 'function') fetchAndRenderMigratedArticles(token);
         if (page === 'content' && typeof populateArticleCategorySelect === 'function') populateArticleCategorySelect();
       }

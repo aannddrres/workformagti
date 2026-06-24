@@ -3321,6 +3321,92 @@ def get_group_users(
     }
 
 
+# ── Role management: bulk reassignment (admin role console) ────────────────
+class _BulkRoleReassignPayload(BaseModel):
+    user_ids: list[int]
+    new_role: str
+
+
+@app.post("/api/admin/roles/bulk-reassign")
+def bulk_reassign_roles(
+    payload: _BulkRoleReassignPayload,
+    current_admin: models.User = Depends(security.get_current_system_admin_user),
+    db: Session = Depends(get_db),
+):
+    """Bulk-reassign a set of users to a single target role (admin role console).
+
+    Guardrails:
+      • target role must be one of the canonical VALID_ROLES;
+      • the acting admin can never bulk-change their OWN role (prevents an
+        accidental self-lockout) — their id is dropped from the set;
+      • the operation may not demote the last active system administrator;
+      • each moved user has their granular permissions reset to the new role's
+        DEFAULT_PERMISSIONS_BY_ROLE template, mirroring create/edit behaviour.
+
+    Every individual role change is written to the audit log. Returns how many
+    rows actually changed vs. were skipped (already on the target role).
+    """
+    if payload.new_role not in security.VALID_ROLES:
+        raise HTTPException(status_code=400, detail="უცნობი როლი")
+
+    # Self-exclusion: an admin cannot bulk-change their own role.
+    target_ids = {uid for uid in payload.user_ids if uid != current_admin.id}
+    if not target_ids:
+        raise HTTPException(
+            status_code=400,
+            detail="არცერთი მომხმარებელი არ არის შესარჩევი (საკუთარი როლის შეცვლა ჯგუფურად შეუძლებელია).",
+        )
+
+    users = db.query(models.User).filter(models.User.id.in_(target_ids)).all()
+    if not users:
+        raise HTTPException(status_code=404, detail="მომხმარებლები ვერ მოიძებნა")
+
+    # Last-admin protection: refuse if this move would demote every remaining
+    # active system administrator.
+    if payload.new_role != security.ROLE_SYSTEM_ADMIN:
+        demoted_admin_ids = [u.id for u in users if u.role == security.ROLE_SYSTEM_ADMIN]
+        if demoted_admin_ids:
+            remaining = (
+                db.query(models.User)
+                .filter(
+                    models.User.role == security.ROLE_SYSTEM_ADMIN,
+                    models.User.is_active == True,  # noqa: E712
+                    models.User.id.notin_(demoted_admin_ids),
+                )
+                .count()
+            )
+            if remaining == 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail="ბოლო სისტემური ადმინისტრატორის როლის შეცვლა შეუძლებელია.",
+                )
+
+    default_perms = list(security.DEFAULT_PERMISSIONS_BY_ROLE.get(payload.new_role, []))
+    changed = 0
+    for u in users:
+        if u.role == payload.new_role:
+            continue
+        old_role = u.role
+        u.role = payload.new_role
+        # Reset granular permissions to the target role's default template.
+        u.permissions = list(default_perms)
+        db.add(models.AuditLog(
+            admin_id=current_admin.id,
+            action=f"BULK_ROLE_{old_role}_TO_{payload.new_role}",
+            item_type="user",
+            item_id=u.id,
+        ))
+        changed += 1
+
+    db.commit()
+    return {
+        "new_role": payload.new_role,
+        "changed": changed,
+        "skipped": len(users) - changed,
+        "requested": len(payload.user_ids),
+    }
+
+
 @app.put("/api/users/{user_id}/status", response_model=schemas.UserResponse)
 def update_user_status(
     user_id: int,

@@ -4028,6 +4028,11 @@ async function submitUserEditForm(event) {
           showToast('მომხმარებელი განახლდა', '', { variant: 'success' });
           closeUserEditModal();
           fetchAndRenderUsers(token);
+          // If the role console is the visible admin panel, keep it in sync too.
+          const rolesPanel = document.getElementById('admin-roles');
+          if (rolesPanel && !rolesPanel.classList.contains('hidden') && typeof renderRoleConsole === 'function') {
+            renderRoleConsole(token);
+          }
         } catch (error) {
           console.error(error);
           showToast('მომხმარებლის განახლება ვერ მოხერხდა', error.message, { variant: 'error' });
