@@ -378,14 +378,14 @@ def seed_database():
         # that hid IPTV codes and APN settings behind a summary line).
         print("Seeding articles...")
         articles = [
-            Article(title="როუმინგული ტარიფები", content=ROAMING_TARIFFS_HTML, category_id=cat["როუმინგი"], target_department="All", status="published", author_id=content_admin.id),
-            Article(title="როუმინგის აქტივაცია", content=ROAMING_ACTIVATION_HTML, category_id=cat["როუმინგი"], target_department="All", status="published", author_id=content_admin.id),
-            Article(title="ბოჭკოვანი ინტერნეტის ინსტალაცია", content=FTTH_INSTALL_HTML, category_id=cat["ინტერნეტი"], target_department="Informational", status="published", author_id=content_admin.id),
-            Article(title="GPON პარამეტრები (Huawei)", content=GPON_HUAWEI_HTML, category_id=cat["ტექნიკური"], target_department="Support", status="published", author_id=content_admin.id),
-            Article(title="IPTV პულტის კოდები", content=IPTV_REMOTE_CODES_HTML, category_id=cat["IPTV"], target_department="Support", status="published", author_id=content_admin.id),
-            Article(title="მობილური პორტირების პროცედურა", content=PORTING_HTML, category_id=cat["პორტირება"], target_department="Informational", status="published", author_id=content_admin.id),
-            Article(title="MyMagti რეგისტრაცია", content=MYMAGTI_REG_HTML, category_id=cat["MyMagti"], target_department="Informational", status="published", author_id=content_admin.id),
-            Article(title="მობილური ინტერნეტის პარამეტრები", content=MOBILE_APN_HTML, category_id=cat["ინტერნეტი"], target_department="All", status="published", author_id=content_admin.id),
+            Article(title="როუმინგული ტარიფები", content=ROAMING_TARIFFS_HTML, category_id=cat["როუმინგი"], target_department="All", status="published", author_id=content_admin.id, is_draft=False),
+            Article(title="როუმინგის აქტივაცია", content=ROAMING_ACTIVATION_HTML, category_id=cat["როუმინგი"], target_department="All", status="published", author_id=content_admin.id, is_draft=False),
+            Article(title="ბოჭკოვანი ინტერნეტის ინსტალაცია", content=FTTH_INSTALL_HTML, category_id=cat["ინტერნეტი"], target_department="Informational", status="published", author_id=content_admin.id, is_draft=False),
+            Article(title="GPON პარამეტრები (Huawei)", content=GPON_HUAWEI_HTML, category_id=cat["ტექნიკური"], target_department="Support", status="published", author_id=content_admin.id, is_draft=False),
+            Article(title="IPTV პულტის კოდები", content=IPTV_REMOTE_CODES_HTML, category_id=cat["IPTV"], target_department="Support", status="published", author_id=content_admin.id, is_draft=False),
+            Article(title="მობილური პორტირების პროცედურა", content=PORTING_HTML, category_id=cat["პორტირება"], target_department="Informational", status="published", author_id=content_admin.id, is_draft=False),
+            Article(title="MyMagti რეგისტრაცია", content=MYMAGTI_REG_HTML, category_id=cat["MyMagti"], target_department="Informational", status="published", author_id=content_admin.id, is_draft=False),
+            Article(title="მობილური ინტერნეტის პარამეტრები", content=MOBILE_APN_HTML, category_id=cat["ინტერნეტი"], target_department="All", status="published", author_id=content_admin.id, is_draft=False),
         ]
         db.add_all(articles)
         db.flush()
@@ -403,13 +403,13 @@ def seed_database():
         # ── News ────────────────────────────────────────────────────────────
         print("Seeding news...")
         news = [
-            News(title="IPTV ახალი არხების დამატება", content="დაემატა ახალი არხები IPTV პაკეტში.", target_department="All"),
-            News(title="„როუმერის“ ახალი პარტნიორი ოპერატორები", content="გაფართოვდა როუმინგის პარტნიორების სია.", target_department="All"),
-            News(title="Support: განახლებული სკრიპტები", content="Support გუნდისთვის ახალი სასაუბრო სკრიპტები.", target_department="Support"),
+            News(title="IPTV ახალი არხების დამატება", content="დაემატა ახალი არხები IPTV პაკეტში.", target_department="All", is_draft=False),
+            News(title="„როუმერის“ ახალი პარტნიორი ოპერატორები", content="გაფართოვდა როუმინგის პარტნიორების სია.", target_department="All", is_draft=False),
+            News(title="Support: განახლებული სკრიპტები", content="Support გუნდისთვის ახალი სასაუბრო სკრიპტები.", target_department="Support", is_draft=False),
             # Two extra "All"-targeted items purely so there are 10 "All" required
             # readings total - see the comment by the required-readings block below.
-            News(title="სისტემის გეგმური პროფილაქტიკა", content="ამ შაბათ-კვირას მოსალოდნელია მოკლევადიანი მომსახურების შეფერხება.", target_department="All"),
-            News(title="ახალი ჩატის სკრიპტების ბაზა", content="დაემატა განახლებული საუბრის შაბლონები ყველა დეპარტამენტისთვის.", target_department="All"),
+            News(title="სისტემის გეგმური პროფილაქტიკა", content="ამ შაბათ-კვირას მოსალოდნელია მოკლევადიანი მომსახურების შეფერხება.", target_department="All", is_draft=False),
+            News(title="ახალი ჩატის სკრიპტების ბაზა", content="დაემატა განახლებული საუბრის შაბლონები ყველა დეპარტამენტისთვის.", target_department="All", is_draft=False),
         ]
         db.add_all(news)
         db.flush()
