@@ -109,7 +109,7 @@
           '<span class="truncate font-medium text-gray-700 dark:text-zinc-300">' + esc(group.name) +
             '<span class="ml-1.5 text-xs font-normal text-gray-400 dark:text-zinc-500">· ' + group.member_count + '</span>' + crit +
           '</span>' +
-          '<span class="shrink-0 font-semibold tabular-nums ' + t.text + '">' + pct + '%</span>' +
+          '<span class="shrink-0 font-semibold tabular-nums" data-pct-color="' + pct + '">' + pct + '%</span>' +
         '</div>' +
         '<div class="h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-zinc-800">' +
           '<div id="' + barId + '" class="h-full rounded-full ' + t.bar + '" style="width:0%;transition:width .8s cubic-bezier(.22,1,.36,1)"></div>' +
@@ -213,6 +213,9 @@
     fetch_(token).then(function (data) {
       renderRibbon(data.insights);
       renderDepartments(data.departments);
+      applyPctColors();
+      adaptGrid(data.departments);
+      bindCriticalCard();
     }).catch(function (err) {
       console.error('DeptDashboard load failed:', err);
       if (isInitial) renderError('მონაცემების ჩატვირთვა ვერ მოხერხდა.');
@@ -236,9 +239,52 @@
 
   function stop() { if (_timer) { clearInterval(_timer); _timer = null; } }
 
+  // Dynamic color for group completion percentages (alarm-fatigue fix).
+  function applyPctColors() {
+    var els = document.querySelectorAll('[data-pct-color]');
+    for (var i = 0; i < els.length; i++) {
+      var pct = Number(els[i].getAttribute('data-pct-color')) || 0;
+      els[i].className = els[i].className
+        .replace(/text-(green|yellow|red|emerald|amber)-[46]00/g, '')
+        .replace(/dark:text-(green|yellow|red|emerald|amber)-[34]00/g, '')
+        .trim();
+      if (pct >= 100)     { els[i].classList.add('text-green-600', 'dark:text-green-400'); }
+      else if (pct > 50)  { els[i].classList.add('text-yellow-600', 'dark:text-yellow-400'); }
+      else                { els[i].classList.add('text-red-600', 'dark:text-red-400'); }
+    }
+  }
+
+  // Adaptive grid: if empty columns exist, remaining cards span evenly.
+  function adaptGrid(departments) {
+    var host = document.getElementById('dept-dashboard-body');
+    if (!host) return;
+    var nonEmpty = (departments || []).filter(function (d) { return !d.is_empty; });
+    host.classList.remove('xl:grid-cols-3', 'lg:grid-cols-2');
+    if (nonEmpty.length <= 2) {
+      host.classList.add('lg:grid-cols-' + Math.max(1, nonEmpty.length));
+    } else {
+      host.classList.add('lg:grid-cols-2', 'xl:grid-cols-3');
+    }
+  }
+
+  // Clickable critical-operators card → opens modal.
+  function bindCriticalCard() {
+    var card = document.getElementById('ribbon-critical');
+    if (!card) return;
+    var tile = card.closest('div.rounded-2xl');
+    if (!tile || tile.dataset.critBound) return;
+    tile.dataset.critBound = '1';
+    tile.classList.add('cursor-pointer', 'hover:bg-gray-50', 'dark:hover:bg-zinc-800/80', 'transition');
+    tile.addEventListener('click', function () {
+      var dlg = document.getElementById('critical-operators-modal');
+      if (dlg && dlg.showModal) dlg.showModal();
+    });
+  }
+
   window.DeptDashboard = {
     start: start, stop: stop, load: load,
     renderRibbon: renderRibbon, renderDepartments: renderDepartments,
-    renderSkeleton: renderSkeleton, countUp: countUp
+    renderSkeleton: renderSkeleton, countUp: countUp,
+    applyPctColors: applyPctColors, adaptGrid: adaptGrid, bindCriticalCard: bindCriticalCard
   };
 })();
