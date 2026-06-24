@@ -397,6 +397,23 @@ async function fetchAndRenderAdminContent(token) {
         const tbody = document.getElementById('admin-content-tbody');
         if (!tbody) return;
 
+        // Populate category filter dropdown dynamically if not yet populated
+        const catFilter = document.getElementById('article-filter-category');
+        if (catFilter && catFilter.options.length <= 1) {
+          const cats = (typeof Store !== 'undefined' && Store.categories) ? Store.categories : {};
+          const catList = Object.keys(cats).map(id => ({ id: parseInt(id), name: cats[id] })).sort((a, b) => a.name.localeCompare(b.name, 'ka'));
+          catFilter.innerHTML = '<option value="">ყველა კატეგორია</option>' + catList.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+        }
+
+        const q = document.getElementById('article-filter-search')?.value.trim() || '';
+        const categoryId = document.getElementById('article-filter-category')?.value || '';
+        const status = document.getElementById('article-filter-status')?.value || '';
+
+        let url = '/api/articles?limit=1000';
+        if (q) url += `&q=${encodeURIComponent(q)}`;
+        if (categoryId) url += `&category_id=${encodeURIComponent(categoryId)}`;
+        if (status) url += `&status=${encodeURIComponent(status)}`;
+
         tbody.innerHTML = `
           <tr class="animate-pulse">
             <td class="px-5 py-3"><div class="h-4 bg-gray-200 rounded w-2/3"></div></td>
@@ -413,7 +430,7 @@ async function fetchAndRenderAdminContent(token) {
         `;
 
         try {
-          const response = await fetch('/api/articles', {
+          const response = await fetch(url, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           if (!response.ok) throw new Error('Failed to fetch articles');
@@ -431,26 +448,40 @@ async function fetchAndRenderAdminContent(token) {
 
           articles.forEach(article => {
             const date = new Date(article.created_at).toLocaleDateString('ka-GE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-            const categoryText = 'ID: ' + article.category_id;
+            const categoryText = article.category_name || (typeof Store !== 'undefined' && Store.categories && Store.categories[article.category_id]) || 'ID: ' + article.category_id;
             const archivedBadge = article.status === 'archived'
               ? '<span class="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-500">არქივი</span>' : '';
 
-            const archiveBtn = article.status === 'archived'
-              ? `<button onclick="toggleArticleArchive(${article.id}, false)" class="text-gray-400 hover:text-green-600 transition-colors" aria-label="არქივიდან ამოღება" title="არქივიდან ამოღება"><i class="fa-solid fa-box-open"></i></button>`
-              : `<button onclick="toggleArticleArchive(${article.id}, true)" class="text-gray-400 hover:text-amber-600 transition-colors" aria-label="დაარქივება" title="დაარქივება"><i class="fa-solid fa-box-archive"></i></button>`;
+            const archiveAction = article.status === 'archived'
+              ? `<button onclick="toggleArticleArchive(${article.id}, false)" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"><i class="fa-solid fa-box-open text-gray-400 w-4"></i> ამოღება არქივიდან</button>`
+              : `<button onclick="toggleArticleArchive(${article.id}, true)" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"><i class="fa-solid fa-box-archive text-gray-400 w-4"></i> დაარქივება</button>`;
 
             const tr = `
               <tr class="transition-colors hover:bg-gray-50 ${article.status === 'archived' ? 'opacity-60' : ''}">
                 <td class="px-5 py-3"><span class="inline-flex items-center gap-2"><i class="fa-solid fa-file-lines text-gray-400"></i> ${escapeHtml(article.title)}${archivedBadge}</span></td>
-                <td class="px-5 py-3 text-gray-500">${categoryText}</td>
+                <td class="px-5 py-3 text-gray-500">${escapeHtml(categoryText)}</td>
                 <td class="px-5 py-3 text-gray-500">${date}</td>
-                <td class="px-5 py-3">
+                <td class="px-5 py-3 text-center">
                   <div class="flex items-center justify-center gap-3">
                     <input type="checkbox" class="archive-check h-4 w-4 accent-[#E30613]" data-article-id="${article.id}" />
-                    <button onclick="viewArticleHistory(${article.id})" class="text-gray-400 hover:text-purple-500 transition-colors" aria-label="ისტორია" title="ცვლილებების ისტორია"><i class="fa-solid fa-clock-rotate-left"></i></button>
-                    ${archiveBtn}
-                    <button onclick="editArticle(${article.id})" class="text-gray-400 hover:text-blue-500" aria-label="რედაქტირება"><i class="fa-solid fa-pen-to-square"></i></button>
-                    <button onclick="deleteArticle(${article.id})" class="text-gray-400 hover:text-[#E30613]" aria-label="წაშლა"><i class="fa-solid fa-trash-can"></i></button>
+                    
+                    <div class="relative inline-block text-left article-actions-dropdown">
+                      <button onclick="toggleArticleActionsMenu(event, ${article.id})" class="text-gray-400 hover:text-gray-600 focus:outline-none p-1" aria-label="მოქმედებები">
+                        <i class="fa-solid fa-ellipsis-vertical text-lg"></i>
+                      </button>
+                      <div id="article-actions-menu-${article.id}" class="absolute right-0 mt-1 w-48 rounded-xl border border-gray-100 bg-white shadow-lg hidden z-20 py-1">
+                        <button onclick="viewArticleHistory(${article.id})" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                          <i class="fa-solid fa-clock-rotate-left text-gray-400 w-4"></i> ისტორია
+                        </button>
+                        ${archiveAction}
+                        <button onclick="editArticle(${article.id})" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                          <i class="fa-solid fa-pen-to-square text-gray-400 w-4"></i> რედაქტირება
+                        </button>
+                        <button onclick="deleteArticle(${article.id})" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors">
+                          <i class="fa-solid fa-trash-can text-red-400 w-4"></i> წაშლა
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </td>
               </tr>
@@ -462,6 +493,29 @@ async function fetchAndRenderAdminContent(token) {
           tbody.innerHTML = '<tr><td colspan="4" class="px-5 py-3 text-center text-red-500">მონაცემების ჩატვირთვა ვერ მოხერხდა.</td></tr>';
         }
       }
+
+function onArticleFilterChange() {
+  const token = localStorage.getItem('magti_token');
+  if (token) fetchAndRenderAdminContent(token);
+}
+
+function toggleArticleActionsMenu(event, id) {
+  event.stopPropagation();
+  document.querySelectorAll('[id^="article-actions-menu-"]').forEach(el => {
+    if (el.id !== `article-actions-menu-${id}`) el.classList.add('hidden');
+  });
+  const menu = document.getElementById(`article-actions-menu-${id}`);
+  if (menu) menu.classList.toggle('hidden');
+}
+
+// Close dropdowns on document click
+document.addEventListener('click', () => {
+  document.querySelectorAll('[id^="article-actions-menu-"]').forEach(el => el.classList.add('hidden'));
+});
+
+window.onArticleFilterChange = onArticleFilterChange;
+window.toggleArticleActionsMenu = toggleArticleActionsMenu;
+
 
 // ── Migrated legacy articles (Admin "მიგრირებული ბაზა" verification view) ──
 // Pulls the full article list (high limit — the summary endpoint defaults to 20)

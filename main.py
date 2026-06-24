@@ -851,9 +851,14 @@ def get_news_item(
     n = db.query(models.News).filter(models.News.id == news_id).first()
     if not n:
         raise HTTPException(status_code=404, detail="სიახლე ვერ მოიძებნა")
-    if current_user.role not in ("admin", "content_admin") \
-       and n.target_department not in (current_user.department, "All"):
-        raise HTTPException(status_code=404, detail="სიახლე ვერ მოიძებნა")
+    if current_user.role not in ("admin", "content_admin"):
+        if n.is_draft:
+            raise HTTPException(status_code=404, detail="სიახლე ვერ მოიძებნა")
+        if n.target_department not in (current_user.department, "All"):
+            raise HTTPException(status_code=404, detail="სიახლე ვერ მოიძებნა")
+    else:
+        if n.is_draft and n.author_id != current_user.id:
+            raise HTTPException(status_code=404, detail="სიახლე ვერ მოიძებნა")
     return n
 
 
@@ -881,9 +886,25 @@ def get_news(
         A list of NewsResponse schemas.
     """
     query = db.query(models.News)
-    # Admins manage content across all departments, so they see everything
+    
+    # Filter out other users' drafts for all query paths (admins and operators)
+    query = query.filter(
+        or_(
+            models.News.is_draft == False,
+            models.News.author_id == current_user.id
+        )
+    )
+
+    # Admins manage content across all departments, so they see everything (including expired)
     if current_user.role not in ["admin", "content_admin"]:
+        query = query.filter(models.News.is_draft == False)
         query = query.filter(models.News.target_department.in_([current_user.department, "All"]))
+        query = query.filter(
+            or_(
+                models.News.expires_at.is_(None),
+                models.News.expires_at >= datetime.utcnow()
+            )
+        )
     # Block 5: role-based visibility split, independent of department targeting.
     if current_user.role == "tech_info":
         query = query.filter(models.News.visible_to_tech_info == True)  # noqa: E712
@@ -920,6 +941,7 @@ def create_news(
     # SECURITY FIX: publishing news is a content-admin action. Previously this
     # endpoint only required get_current_user, letting any operator post news.
     db_news = models.News(**news.model_dump())
+    db_news.author_id = current_admin.id
     db.add(db_news)
     db.flush()
 
@@ -930,8 +952,9 @@ def create_news(
     db.commit()
     search_cache.clear()
 
-    # Real-time: push a notification to connected users in the target department.
-    _notify("news", db_news)
+    # Real-time: push a notification to connected users in the target department if not a draft.
+    if not db_news.is_draft:
+        _notify("news", db_news)
     return db_news
 
 @app.put("/api/news/{news_id}", response_model=schemas.NewsResponse)
@@ -1018,6 +1041,34 @@ def delete_news(
     db.commit()
     search_cache.clear()
     return None
+
+
+@app.patch("/api/news/{news_id}/autosave", response_model=schemas.NewsAutosaveResponse)
+def autosave_news(
+    news_id: int,
+    news: schemas.NewsAutosave,
+    current_admin: models.User = Depends(security.get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Autosaves partial news details without strict validation."""
+    db_news = db.query(models.News).filter(models.News.id == news_id).first()
+    if not db_news:
+        raise HTTPException(status_code=404, detail="სიახლე ვერ მოიძებნა")
+
+    update_data = news.model_dump(exclude_unset=True)
+
+    # Set author_id if it's not set
+    if getattr(db_news, "author_id", None) is None:
+        db_news.author_id = current_admin.id
+
+    for key, value in update_data.items():
+        setattr(db_news, key, value)
+
+    db.commit()
+    db.refresh(db_news)
+    search_cache.clear()
+    return db_news
+
 
 
 def _get_stream_user(request: Request, bearer_token: Optional[str]) -> dict:
@@ -1311,6 +1362,9 @@ def _assert_article_visible(article: models.Article, user: models.User) -> None:
 def get_articles(
     skip: int = 0,
     limit: int = 20,
+    q: Optional[str] = None,
+    category_id: Optional[int] = None,
+    status: Optional[str] = None,
     current_user: models.User = Depends(security.get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -1325,18 +1379,37 @@ def get_articles(
     Args:
         skip: Number of records to skip (for pagination).
         limit: Maximum number of records to return.
+        q: Optional search query to filter by title.
+        category_id: Optional category ID filter.
+        status: Optional status filter.
         current_user: The authenticated User object.
         db: SQLAlchemy database session.
 
     Returns:
         A list of ArticleSummaryResponse schemas.
     """
-    query = db.query(models.Article).options(joinedload(models.Article.category))
+    query = db.query(models.Article).outerjoin(models.Category).options(joinedload(models.Article.category))
+    
+    if q:
+        query = query.filter(models.Article.title.contains(q))
+    if category_id is not None:
+        query = query.filter(models.Article.category_id == category_id)
+    if status:
+        query = query.filter(models.Article.status == status)
+
+    query = query.filter(
+        or_(
+            models.Article.is_draft == False,
+            models.Article.author_id == current_user.id
+        )
+    )
+
     # Admins manage content across all departments, so they see everything
     # (including archived items); regular users see only published content
     if current_user.role not in ["admin", "content_admin"]:
         now = datetime.utcnow()
         query = query.filter(
+            models.Article.is_draft == False,
             models.Article.target_department_rows.any(
                 models.ArticleTargetDepartment.department.in_([current_user.department, "All"])
             ),
@@ -1999,6 +2072,37 @@ def update_article(
     audit_log = models.AuditLog(admin_id=current_admin.id, action="UPDATE", item_type="article", item_id=db_article.id)
     db.add(audit_log)
     db.commit()
+    search_cache.clear()
+    category_cache.clear()
+    return db_article
+
+@app.patch("/api/articles/{article_id}/autosave", response_model=schemas.ArticleAutosaveResponse)
+def autosave_article(
+    article_id: int,
+    article: schemas.ArticleAutosave,
+    current_admin: models.User = Depends(security.get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Autosaves partial article details without strict validation."""
+    db_article = db.query(models.Article).filter(models.Article.id == article_id).first()
+    if not db_article:
+        raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
+
+    update_data = article.model_dump(exclude_unset=True)
+
+    if "target_departments" in update_data:
+        target_departments = update_data.pop("target_departments")
+        if target_departments:
+            db_article.target_department = "All" if "All" in target_departments else target_departments[0]
+            db_article.target_department_rows = [
+                models.ArticleTargetDepartment(department=d) for d in target_departments
+            ]
+
+    for key, value in update_data.items():
+        setattr(db_article, key, value)
+
+    db.commit()
+    db.refresh(db_article)
     search_cache.clear()
     category_cache.clear()
     return db_article
@@ -4094,47 +4198,7 @@ def create_article_feedback(
     current_user: models.User = Depends(security.get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Creates a feedback report (reporting an issue/typo) for an article.
-
-    Access: Authenticated users (any active role).
-
-    Args:
-        article_id: ID of the article to submit feedback for.
-        req: Message detailing the feedback.
-        current_user: The authenticated User object.
-        db: SQLAlchemy database session.
-
-    Returns:
-        A KnowledgeFeedbackResponse containing submission status and details.
-
-    Raises:
-        HTTPException: 404 Not Found if the article does not exist.
-    """
-    db_article = db.query(models.Article).filter(models.Article.id == article_id).first()
-    if not db_article:
-        raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
-    # R-1: prevent feedback on articles outside the caller's department scope.
-    _assert_article_visible(db_article, current_user)
-
-    feedback = models.KnowledgeFeedback(
-        user_id=current_user.id,
-        article_id=article_id,
-        message=req.message
-    )
-    db.add(feedback)
-    db.commit()
-    db.refresh(feedback)
-
-    return schemas.KnowledgeFeedbackResponse(
-        id=feedback.id,
-        user_id=feedback.user_id,
-        article_id=feedback.article_id,
-        message=feedback.message,
-        status=feedback.status,
-        created_at=feedback.created_at,
-        user_name=current_user.name,
-        article_title=db_article.title
-    )
+    raise HTTPException(status_code=410, detail="ხარვეზის რეპორტირება დეპრეკირებულია")
 
 
 @app.get("/api/admin/feedback", response_model=list[schemas.KnowledgeFeedbackResponse])
@@ -4142,38 +4206,7 @@ def get_admin_feedback(
     current_admin: models.User = Depends(security.get_current_admin_user),
     db: Session = Depends(get_db)
 ):
-    """Retrieves all submitted crowdsourced knowledge feedback reports.
-
-    Access: Restricted to content administrators (content_admin) and system administrators (admin).
-
-    Args:
-        current_admin: The authenticated administrator User.
-        db: SQLAlchemy database session.
-
-    Returns:
-        A list of KnowledgeFeedbackResponse schemas.
-    """
-    feedbacks = db.query(
-        models.KnowledgeFeedback,
-        models.User.name.label("user_name"),
-        models.Article.title.label("article_title")
-    ).join(models.User, models.KnowledgeFeedback.user_id == models.User.id)\
-     .join(models.Article, models.KnowledgeFeedback.article_id == models.Article.id)\
-     .order_by(models.KnowledgeFeedback.created_at.desc()).all()
-
-    return [
-        schemas.KnowledgeFeedbackResponse(
-            id=f.KnowledgeFeedback.id,
-            user_id=f.KnowledgeFeedback.user_id,
-            article_id=f.KnowledgeFeedback.article_id,
-            message=f.KnowledgeFeedback.message,
-            status=f.KnowledgeFeedback.status,
-            created_at=f.KnowledgeFeedback.created_at,
-            user_name=f.user_name,
-            article_title=f.article_title
-        )
-        for f in feedbacks
-    ]
+    raise HTTPException(status_code=410, detail="უკუკავშირის ნახვა დეპრეკირებულია")
 
 
 @app.get("/api/articles/{article_id}/note", response_model=Optional[schemas.UserNoteResponse])
@@ -4553,39 +4586,7 @@ def update_feedback_status(
     current_admin: models.User = Depends(security.get_current_admin_user),
     db: Session = Depends(get_db),
 ):
-    """Admin transitions a feedback report between open / resolved / rejected."""
-    fb = db.query(models.KnowledgeFeedback).filter(models.KnowledgeFeedback.id == feedback_id).first()
-    if not fb:
-        raise HTTPException(status_code=404, detail="უკუკავშირი ვერ მოიძებნა")
-    fb.status = update.status
-    if update.status in ("resolved", "rejected"):
-        fb.resolved_at = datetime.utcnow()
-        fb.resolved_by = current_admin.id
-    else:
-        fb.resolved_at = None
-        fb.resolved_by = None
-
-    db.add(models.AuditLog(
-        admin_id=current_admin.id,
-        action=f"FEEDBACK_{update.status.upper()}",
-        item_type="feedback",
-        item_id=fb.id,
-    ))
-    db.commit()
-    db.refresh(fb)
-
-    reporter = db.query(models.User).filter(models.User.id == fb.user_id).first()
-    article = db.query(models.Article).filter(models.Article.id == fb.article_id).first()
-    return schemas.KnowledgeFeedbackResponse(
-        id=fb.id,
-        user_id=fb.user_id,
-        article_id=fb.article_id,
-        message=fb.message,
-        status=fb.status,
-        created_at=fb.created_at,
-        user_name=reporter.name if reporter else None,
-        article_title=article.title if article else None,
-    )
+    raise HTTPException(status_code=410, detail="უკუკავშირის სტატუსის განახლება დეპრეკირებულია")
 
 
 # ── Admin: create user (with password policy) ─────────────────────────────

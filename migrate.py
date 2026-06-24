@@ -50,6 +50,10 @@ _ADDED_COLUMNS = (
     ("users", "last_news_viewed_at", "DATETIME", "NULL"),
     ("users", "last_categories_viewed_at", "TEXT", "NULL"),
     ("users", "card_style", "VARCHAR DEFAULT 'corporate'", None),
+    ("news", "expires_at", "DATETIME", "NULL"),
+    ("articles", "is_draft", "BOOLEAN", "0"),
+    ("news", "is_draft", "BOOLEAN", "0"),
+    ("news", "author_id", "INTEGER", "NULL"),
 )
 
 

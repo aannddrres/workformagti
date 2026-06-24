@@ -371,25 +371,35 @@ DEFAULT_PERMISSIONS_BY_ROLE: dict[str, list[str]] = {
 
 
 def require_permission(perm: str):
-    """Dependency factory: gate an endpoint behind a specific named permission.
-
-    system_admin always passes regardless of the stored permissions list — that
-    role is the operational override, otherwise a locked-out admin couldn't fix
-    their own permissions.
-
-    Other roles must have ``perm`` listed in their User.permissions JSON column.
+    """Dependency factory: gate an endpoint behind a granular DB-backed permission.
+    Checks if the user's role possesses the required permission.
     """
     def _dependency(
         current_user: models.User = Depends(get_current_user),
+        db: Session = Depends(get_db)
     ) -> models.User:
+        # System Admin operational override
         if current_user.role == ROLE_SYSTEM_ADMIN:
             return current_user
-        user_perms = current_user.permissions or []
-        if perm not in user_perms:
+            
+        # Look up user's role
+        role = db.query(models.Role).filter(models.Role.name == current_user.role).first()
+        if not role:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"არ გაქვთ '{perm}' უფლება ამ მოქმედებისთვის",
+                detail="წვდომა უარყოფილია: არასაკმარისი უფლებები",
+            )
+            
+        # Check if the role contains the required permission
+        has_perm = db.query(models.RolePermission).join(models.Permission).filter(
+            models.RolePermission.role_id == role.id,
+            models.Permission.name == perm
+        ).first() is not None
+        
+        if not has_perm:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="წვდომა უარყოფილია: არასაკმარისი უფლებები",
             )
         return current_user
-
     return _dependency

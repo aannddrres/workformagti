@@ -151,7 +151,67 @@
         // Quill WYSIWYG editor for the article content field; mirrors into the
         // hidden #article-content textarea on submit (submitArticleForm).
         const articleContentEditorEl = document.getElementById('article-content-editor');
-        window.articleQuill = articleContentEditorEl ? new Quill('#article-content-editor', { theme: 'snow' }) : null;
+        window.articleQuill = articleContentEditorEl ? new Quill('#article-content-editor', {
+          theme: 'snow',
+          modules: {
+            toolbar: {
+              container: [
+                [{ 'header': [1, 2, 3, false] }],
+                ['bold', 'italic', 'underline', 'strike'],
+                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                ['link', 'image'],
+                ['clean']
+              ],
+              handlers: {
+                image: imageHandler
+              }
+            }
+          }
+        }) : null;
+
+        if (window.articleQuill) {
+          window.articleQuill.root.addEventListener('drop', (e) => {
+            const files = e.dataTransfer?.files;
+            if (files && files.length > 0) {
+              e.preventDefault();
+              for (const file of files) {
+                if (file.type.startsWith('image/')) {
+                  uploadInlineImage(file);
+                }
+              }
+            }
+          });
+
+          window.articleQuill.root.addEventListener('paste', (e) => {
+            const items = e.clipboardData?.items;
+            if (items) {
+              for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                  const file = item.getAsFile();
+                  if (file) {
+                    e.preventDefault();
+                    uploadInlineImage(file);
+                  }
+                }
+              }
+            }
+          });
+
+          window.articleQuill.on('text-change', () => {
+            if (typeof window.updateArticlePreview === 'function') {
+              window.updateArticlePreview();
+            }
+          });
+        }
+
+        const titleEl = document.getElementById('article-title');
+        if (titleEl) {
+          titleEl.addEventListener('input', () => {
+            if (typeof window.updateArticlePreview === 'function') {
+              window.updateArticlePreview();
+            }
+          });
+        }
 
         // Show the selected attachment's filename next to the upload button.
         const articleUploadFileEl = document.getElementById('article-upload-file');
@@ -397,8 +457,201 @@
         renderPinnedDock();
       });
 
+      async function uploadInlineImage(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const token = Auth.getToken();
+        try {
+          const res = await fetch('/api/upload', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            },
+            body: formData
+          });
+          if (!res.ok) throw new Error('ფაილის ატვირთვა ჩავარდა');
+          const data = await res.json();
+          const url = data.url;
+          
+          if (window.articleQuill) {
+            const range = window.articleQuill.getSelection() || { index: window.articleQuill.getLength() };
+            window.articleQuill.insertEmbed(range.index, 'image', url);
+            window.articleQuill.setSelection(range.index + 1);
+          }
+        } catch (err) {
+          console.error('Inline image upload failed:', err);
+          alert('სურათის ატვირთვა ვერ მოხერხდა: ' + err.message);
+        }
+      }
+
+      function imageHandler() {
+        const input = document.createElement('input');
+        input.setAttribute('type', 'file');
+        input.setAttribute('accept', 'image/*');
+        input.click();
+        input.onchange = () => {
+          const file = input.files[0];
+          if (file) {
+            uploadInlineImage(file);
+          }
+        };
+      }
+
       // Favourite IDs now live in Store.favorites; window.userFavorites is a
       // backwards-compatible alias set up in the infrastructure block above.
+
+      function getArticleFormData() {
+        const title = document.getElementById('article-title')?.value.trim() || '';
+        const content = window.articleQuill ? window.articleQuill.root.innerHTML : '';
+        const category_id = parseInt(document.getElementById('article-category')?.value) || 1;
+        const audienceEl = document.getElementById('article-audience-profile');
+        const audience_profile = audienceEl ? audienceEl.value : 'all';
+        
+        const target_departments = [];
+        if (document.getElementById('dept-info')?.checked) target_departments.push('Informational');
+        if (document.getElementById('dept-tech')?.checked) target_departments.push('Support');
+        if (document.getElementById('dept-service')?.checked) target_departments.push('Service Centers');
+        
+        const is_mandatory = document.getElementById('article-mandatory')?.checked || false;
+        const due_date = document.getElementById('article-due-date')?.value || '';
+        const status = document.getElementById('article-status')?.value || 'draft';
+        const published_at_val = document.getElementById('article-published-at')?.value || '';
+        const tags = document.getElementById('article-tags')?.value.trim() || '';
+        const visible_to_tech_info = document.getElementById('article-visible-tech-info')?.checked || false;
+        const visible_to_service_center = document.getElementById('article-visible-service-center')?.checked || false;
+        const attachment_url = document.getElementById('article-attachment-url')?.value || '';
+
+        return {
+          title,
+          content,
+          category_id,
+          audience_profile,
+          target_departments,
+          is_mandatory,
+          due_date,
+          status,
+          published_at_val,
+          tags,
+          visible_to_tech_info,
+          visible_to_service_center,
+          attachment_url
+        };
+      }
+
+      async function performAutosave(currentData, currentStr) {
+        const statusEl = document.getElementById('autosave-status');
+        if (statusEl) {
+          statusEl.textContent = 'Saving...';
+          statusEl.style.opacity = '1';
+        }
+
+        const token = Auth.getToken();
+        if (!token) return;
+
+        const editingId = window.editingArticleId;
+        const isNew = !editingId;
+        
+        let url = isNew ? '/api/articles' : `/api/articles/${editingId}/autosave`;
+        let method = isNew ? 'POST' : 'PATCH';
+
+        let payload = {};
+        if (isNew) {
+          payload = {
+            title: currentData.title || 'Untitled Draft',
+            content: currentData.content,
+            category_id: currentData.category_id,
+            audience_profile: currentData.audience_profile,
+            target_departments: currentData.target_departments.length ? currentData.target_departments : ['Informational'],
+            status: 'draft',
+            is_draft: true,
+            attachment_url: currentData.attachment_url || null,
+            tags: currentData.tags || null,
+            visible_to_tech_info: currentData.visible_to_tech_info,
+            visible_to_service_center: currentData.visible_to_service_center
+          };
+          if (currentData.status === 'scheduled' && currentData.published_at_val) {
+            payload.published_at = new Date(currentData.published_at_val).toISOString();
+          }
+        } else {
+          payload = {
+            title: currentData.title,
+            content: currentData.content,
+            category_id: currentData.category_id,
+            audience_profile: currentData.audience_profile,
+            target_departments: currentData.target_departments,
+            status: currentData.status,
+            is_draft: true,
+            attachment_url: currentData.attachment_url || null,
+            tags: currentData.tags || null,
+            visible_to_tech_info: currentData.visible_to_tech_info,
+            visible_to_service_center: currentData.visible_to_service_center
+          };
+          if (currentData.published_at_val) {
+            payload.published_at = new Date(currentData.published_at_val).toISOString();
+          }
+        }
+
+        try {
+          const res = await fetch(url, {
+            method: method,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+          });
+          if (!res.ok) throw new Error('Auto-save request failed');
+          const data = await res.json();
+
+          if (isNew) {
+            window.editingArticleId = data.id;
+            document.getElementById('article-form-title').textContent = 'სტატიის რედაქტირება';
+            document.getElementById('cancel-edit-btn').classList.remove('hidden');
+          }
+
+          window.lastSavedArticleFormStr = currentStr;
+
+          const now = new Date();
+          const timeStr = now.toLocaleTimeString('ka-GE', { hour: '2-digit', minute: '2-digit' });
+          if (statusEl) {
+            statusEl.textContent = `Draft saved at ${timeStr}`;
+          }
+        } catch (err) {
+          console.error('Autosave error:', err);
+          if (statusEl) {
+            statusEl.textContent = 'Auto-save failed';
+          }
+        }
+      }
+
+      function initAutosave() {
+        if (window.autosaveIntervalId) {
+          clearInterval(window.autosaveIntervalId);
+        }
+        setTimeout(() => {
+          window.lastSavedArticleFormStr = JSON.stringify(getArticleFormData());
+          window.autosaveIntervalId = setInterval(async () => {
+            const panel = document.getElementById('admin-panel');
+            if (!panel || panel.classList.contains('hidden')) return;
+
+            const currentData = getArticleFormData();
+            const currentStr = JSON.stringify(currentData);
+            if (currentStr === window.lastSavedArticleFormStr) return;
+
+            await performAutosave(currentData, currentStr);
+          }, 30000);
+        }, 100);
+      }
+
+      function stopAutosave() {
+        if (window.autosaveIntervalId) {
+          clearInterval(window.autosaveIntervalId);
+          window.autosaveIntervalId = null;
+        }
+        const statusEl = document.getElementById('autosave-status');
+        if (statusEl) statusEl.textContent = '';
+      }
 
       /**
        * Fetches current user info from the API.
@@ -1797,7 +2050,7 @@ async function submitArticleForm(event) {
         let attachmentUrl = document.getElementById('article-attachment-url').value || null;
         if (window._removeAttachment) attachmentUrl = null;
 
-        const payload = { title, content, category_id: categoryId, audience_profile: audienceProfile, target_departments: targetDepartments, status, published_at: publishedAt, tags: tags || null, visible_to_tech_info: visibleToTechInfo, visible_to_service_center: visibleToServiceCenter };
+        const payload = { title, content, category_id: categoryId, audience_profile: audienceProfile, target_departments: targetDepartments, status, published_at: publishedAt, tags: tags || null, visible_to_tech_info: visibleToTechInfo, visible_to_service_center: visibleToServiceCenter, is_draft: false };
         if (editingId) {
           // Preserve fields the form doesn't expose, or PUT would null them out
           const cached = (window.adminArticles || {})[editingId] || {};
@@ -1932,8 +2185,36 @@ async function editArticle(articleId) {
 
         document.getElementById('article-form-title').textContent = 'სტატიის რედაქტირება';
         document.getElementById('cancel-edit-btn').classList.remove('hidden');
-        document.getElementById('admin-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const panel = document.getElementById('admin-panel');
+        if (panel) {
+          panel.classList.remove('hidden');
+          setTimeout(() => panel.classList.remove('translate-x-full'), 10);
+        }
+        document.getElementById('admin-panel-backdrop')?.classList.remove('hidden');
+
+        // Reset autosave state for editing article
+        initAutosave();
+
+        if (typeof window.updateArticlePreview === 'function') {
+          window.updateArticlePreview();
+        }
+        if (typeof window.setPreviewDevice === 'function') {
+          window.setPreviewDevice('desktop');
+        }
       }
+
+function closeArticleDrawer() {
+        const panel = document.getElementById('admin-panel');
+        if (panel) {
+          panel.classList.add('translate-x-full');
+          setTimeout(() => panel.classList.add('hidden'), 300);
+        }
+        document.getElementById('admin-panel-backdrop')?.classList.add('hidden');
+
+        // Stop autosave
+        stopAutosave();
+      }
+window.closeArticleDrawer = closeArticleDrawer;
 
 function exitEditMode() {
         window.editingArticleId = null;
@@ -1949,6 +2230,7 @@ function exitEditMode() {
         document.getElementById('article-published-at').value = '';
         document.getElementById('article-tags').value = '';
         toggleScheduledDate();
+        closeArticleDrawer();
       }
 
 function removeCurrentAttachment() {
@@ -3959,6 +4241,42 @@ async function toggleUserStatus(userId, isActive) {
         }
       }
 
+function updatePermissionsUI(role, selectedPerms) {
+        const defaults = {
+          operator: [],
+          manager: ['compliance:manage', 'reports:export'],
+          content_admin: ['content:editor', 'content:publisher', 'compliance:manage', 'reports:view_global', 'reports:export', 'communication:broadcast', 'system:audit'],
+          admin: ['users:manage', 'content:editor', 'content:publisher', 'compliance:manage', 'reports:view_global', 'reports:export', 'reports:export_sensitive', 'communication:broadcast', 'system:audit']
+        };
+        const rolePerms = defaults[role] || [];
+        document.querySelectorAll('.user-perm-checkbox').forEach(cb => {
+          const val = cb.value;
+          const isInherited = rolePerms.includes(val);
+          if (isInherited) {
+            cb.checked = true;
+            cb.disabled = true;
+          } else {
+            cb.disabled = false;
+            if (selectedPerms) {
+              cb.checked = selectedPerms.includes(val);
+            } else {
+              cb.checked = false;
+            }
+          }
+          const label = cb.closest('label');
+          if (label) {
+            const indicator = label.querySelector('.role-inherited-indicator');
+            if (indicator) {
+              if (isInherited) {
+                indicator.classList.remove('hidden');
+              } else {
+                indicator.classList.add('hidden');
+              }
+            }
+          }
+        });
+      }
+
 function openUserEditModal(userId) {
         const user = (window.adminUsersData || []).find(u => u.id === userId);
         if (!user) return;
@@ -3969,9 +4287,7 @@ function openUserEditModal(userId) {
 
         // Reset and check granular permissions checkboxes based on user permissions
         const userPerms = user.permissions || [];
-        document.querySelectorAll('.user-perm-checkbox').forEach(cb => {
-          cb.checked = userPerms.includes(cb.value);
-        });
+        updatePermissionsUI(user.role, userPerms);
 
         const modal = document.getElementById('user-edit-modal');
         modal.classList.remove('hidden');
@@ -3979,16 +4295,7 @@ function openUserEditModal(userId) {
       }
 
 function onEditUserRoleChange(role) {
-        const defaults = {
-          operator: [],
-          manager: ['reports.export'],
-          content_admin: ['articles.view', 'articles.edit', 'articles.publish', 'articles.archive', 'compliance.assign'],
-          admin: ['articles.view', 'articles.edit', 'articles.publish', 'articles.archive', 'users.manage', 'compliance.assign', 'reports.export']
-        };
-        const rolePerms = defaults[role] || [];
-        document.querySelectorAll('.user-perm-checkbox').forEach(cb => {
-          cb.checked = rolePerms.includes(cb.value);
-        });
+        updatePermissionsUI(role, null);
       }
 
 function closeUserEditModal() {
@@ -4045,9 +4352,24 @@ function focusCreateForm() {
         const panel = document.getElementById('admin-panel');
         if (!panel) return;
         panel.classList.remove('hidden');
-        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setTimeout(() => panel.classList.remove('translate-x-full'), 10);
+        document.getElementById('admin-panel-backdrop')?.classList.remove('hidden');
+        
+        // Populate category dropdown
+        populateArticleCategorySelect();
+        
+        // Reset autosave state
+        initAutosave();
+        
         const title = document.getElementById('article-title');
         if (title) title.focus({ preventScroll: true });
+
+        if (typeof window.updateArticlePreview === 'function') {
+          window.updateArticlePreview();
+        }
+        if (typeof window.setPreviewDevice === 'function') {
+          window.setPreviewDevice('desktop');
+        }
       }
 
 function focusNewsForm() {
@@ -5238,3 +5560,147 @@ document.addEventListener('submit', function (e) {
     }
   };
 });
+
+// Live Preview / Responsive Device Simulation
+window.setPreviewDevice = function(device) {
+  const container = document.getElementById('preview-frame-container');
+  const desktopBtn = document.getElementById('preview-desktop-btn');
+  const mobileBtn = document.getElementById('preview-mobile-btn');
+  if (!container) return;
+
+  if (device === 'mobile') {
+    container.classList.remove('w-full');
+    container.classList.add('w-[375px]');
+    if (mobileBtn) {
+      mobileBtn.classList.add('bg-white', 'text-gray-800', 'shadow-sm');
+      mobileBtn.classList.remove('text-gray-600', 'hover:text-gray-800');
+    }
+    if (desktopBtn) {
+      desktopBtn.classList.remove('bg-white', 'text-gray-800', 'shadow-sm');
+      desktopBtn.classList.add('text-gray-600', 'hover:text-gray-800');
+    }
+  } else {
+    container.classList.remove('w-[375px]');
+    container.classList.add('w-full');
+    if (desktopBtn) {
+      desktopBtn.classList.add('bg-white', 'text-gray-800', 'shadow-sm');
+      desktopBtn.classList.remove('text-gray-600', 'hover:text-gray-800');
+    }
+    if (mobileBtn) {
+      mobileBtn.classList.remove('bg-white', 'text-gray-800', 'shadow-sm');
+      mobileBtn.classList.add('text-gray-600', 'hover:text-gray-800');
+    }
+  }
+};
+
+window.updateArticlePreview = function() {
+  const iframe = document.getElementById('article-preview-iframe');
+  if (!iframe) return;
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  if (!doc) return;
+
+  const title = document.getElementById('article-title')?.value || 'სათაური';
+  const bodyContent = window.articleQuill ? window.articleQuill.root.innerHTML : '';
+
+  const titleEl = doc.getElementById('preview-title');
+  const bodyEl = doc.getElementById('preview-body');
+
+  if (titleEl && bodyEl) {
+    titleEl.textContent = title;
+    bodyEl.innerHTML = bodyContent;
+  } else {
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <script src="https://cdn.tailwindcss.com"></script>
+          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
+          <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Georgian:wght@400;500;600;700&family=Teko:wght@500;600&display=swap" rel="stylesheet">
+          <script>
+            tailwind.config = {
+              theme: {
+                extend: {
+                  colors: {
+                    magti: "#E30613",
+                  },
+                },
+              },
+            };
+          </script>
+          <style>
+            body {
+              font-family: "Noto Sans Georgian", system-ui, -apple-system, sans-serif;
+              background: white;
+              padding: 24px;
+              margin: 0;
+            }
+            h1, h2, h3, h4 {
+              font-family: 'Teko', 'Noto Sans Georgian', sans-serif;
+              letter-spacing: 0.05em;
+            }
+            .prose-content h1 {
+              font-size: 1.8rem;
+              font-weight: 700;
+              margin-top: 1.5rem;
+              margin-bottom: 0.5rem;
+              color: #111827;
+              border-bottom: 1px solid #e5e7eb;
+              padding-bottom: 0.25rem;
+            }
+            .prose-content h2 {
+              font-size: 1.5rem;
+              font-weight: 600;
+              margin-top: 1.25rem;
+              margin-bottom: 0.5rem;
+              color: #1f2937;
+            }
+            .prose-content h3 {
+              font-size: 1.25rem;
+              font-weight: 600;
+              margin-top: 1rem;
+              margin-bottom: 0.5rem;
+              color: #374151;
+            }
+            .prose-content p {
+              margin-bottom: 1rem;
+              line-height: 1.7;
+              color: #4b5563;
+            }
+            .prose-content ul {
+              list-style-type: disc;
+              padding-left: 1.5rem;
+              margin-bottom: 1rem;
+            }
+            .prose-content ol {
+              list-style-type: decimal;
+              padding-left: 1.5rem;
+              margin-bottom: 1rem;
+            }
+            .prose-content li {
+              margin-bottom: 0.25rem;
+            }
+            .prose-content img {
+              max-width: 100%;
+              height: auto;
+              display: block;
+              margin: 1.5rem 0;
+              border-radius: 0.75rem;
+            }
+          </style>
+        </head>
+        <body class="prose-content">
+          <h1 class="text-3xl font-extrabold text-gray-900 mb-6 leading-tight" id="preview-title"></h1>
+          <div id="preview-body"></div>
+        </body>
+      </html>
+    `);
+    doc.close();
+
+    const titleElNew = doc.getElementById('preview-title');
+    const bodyElNew = doc.getElementById('preview-body');
+    if (titleElNew) titleElNew.textContent = title;
+    if (bodyElNew) bodyElNew.innerHTML = bodyContent;
+  }
+};

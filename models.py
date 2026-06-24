@@ -68,6 +68,15 @@ class News(Base):
     # Block 5: role-based content visibility — see Article for the rationale.
     visible_to_tech_info = Column(Boolean, default=True, nullable=False)
     visible_to_service_center = Column(Boolean, default=False, nullable=False)
+    expires_at = Column(DateTime, nullable=True)
+    is_draft = Column(Boolean, default=True, nullable=False)
+    author_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    @property
+    def is_archived(self) -> bool:
+        from datetime import datetime
+        return self.expires_at is not None and self.expires_at < datetime.utcnow()
+
 
 
 class NewsHistory(Base):
@@ -132,6 +141,8 @@ class Article(Base):
     # shown to both groups, one, or neither).
     visible_to_tech_info = Column(Boolean, default=True, nullable=False)
     visible_to_service_center = Column(Boolean, default=False, nullable=False)
+    is_draft = Column(Boolean, default=True, nullable=False)
+
 
     category = relationship("Category", back_populates="articles")
     # Named distinctly from the target_departments *property* below: this is the
@@ -398,3 +409,30 @@ class KnowledgeFeedback(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     resolved_at = Column(DateTime, nullable=True)
     resolved_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+
+class Role(Base):
+    __tablename__ = "roles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True, nullable=False)
+    description = Column(String, nullable=True)
+
+    permissions = relationship("Permission", secondary="role_permissions", back_populates="roles")
+
+
+class Permission(Base):
+    __tablename__ = "permissions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True, nullable=False)
+    description = Column(String, nullable=True)
+
+    roles = relationship("Role", secondary="role_permissions", back_populates="permissions")
+
+
+class RolePermission(Base):
+    __tablename__ = "role_permissions"
+
+    role_id = Column(Integer, ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True)
+    permission_id = Column(Integer, ForeignKey("permissions.id", ondelete="CASCADE"), primary_key=True)

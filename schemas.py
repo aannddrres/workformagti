@@ -80,6 +80,9 @@ class NewsBase(BaseModel):
     # Block 5: role-based content visibility.
     visible_to_tech_info: bool = True
     visible_to_service_center: bool = False
+    expires_at: Optional[datetime] = None
+    is_draft: bool = True
+    author_id: Optional[int] = None
 
 
 class NewsCreate(NewsBase):
@@ -92,6 +95,7 @@ class NewsResponse(NewsBase):
     id: int
     created_at: datetime
     version: int = 1
+    is_archived: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -106,6 +110,39 @@ class NewsSummaryResponse(BaseModel):
     version: int = 1
     visible_to_tech_info: bool = True
     visible_to_service_center: bool = False
+    is_archived: bool = False
+    expires_at: Optional[datetime] = None
+    is_draft: bool = True
+    author_id: Optional[int] = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class NewsAutosave(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    target_department: Optional[str] = None
+    attachment_url: Optional[str] = None
+    visible_to_tech_info: Optional[bool] = None
+    visible_to_service_center: Optional[bool] = None
+    expires_at: Optional[datetime] = None
+    is_draft: Optional[bool] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class NewsAutosaveResponse(BaseModel):
+    id: int
+    title: Optional[str] = None
+    content: Optional[str] = None
+    target_department: Optional[str] = None
+    attachment_url: Optional[str] = None
+    visible_to_tech_info: Optional[bool] = None
+    visible_to_service_center: Optional[bool] = None
+    expires_at: Optional[datetime] = None
+    is_draft: Optional[bool] = None
+    created_at: datetime
+    version: int
+
     model_config = ConfigDict(from_attributes=True)
 
 class NewsHistoryResponse(BaseModel):
@@ -163,6 +200,7 @@ class ArticleBase(BaseModel):
     # Block 5: role-based content visibility.
     visible_to_tech_info: bool = True
     visible_to_service_center: bool = False
+    is_draft: bool = True
 
     @field_validator("target_departments")
     @classmethod
@@ -186,6 +224,7 @@ class ArticleSummaryResponse(BaseModel):
     audience_profile: str = "all"
     visible_to_tech_info: bool = True
     visible_to_service_center: bool = False
+    is_draft: bool = True
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -201,6 +240,40 @@ class ArticleResponse(ArticleBase):
     updated_at: datetime
     version: int
     read_time: int = 1
+
+class ArticleAutosave(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    category_id: Optional[int] = None
+    tags: Optional[str] = None
+    target_departments: Optional[list[str]] = None
+    status: Optional[str] = None
+    published_at: Optional[datetime] = None
+    attachment_url: Optional[str] = None
+    audience_profile: Optional[str] = None
+    visible_to_tech_info: Optional[bool] = None
+    visible_to_service_center: Optional[bool] = None
+    is_draft: Optional[bool] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class ArticleAutosaveResponse(BaseModel):
+    id: int
+    title: Optional[str] = None
+    content: Optional[str] = None
+    category_id: Optional[int] = None
+    tags: Optional[str] = None
+    target_departments: Optional[list[str]] = None
+    status: Optional[str] = None
+    published_at: Optional[datetime] = None
+    attachment_url: Optional[str] = None
+    audience_profile: Optional[str] = None
+    visible_to_tech_info: Optional[bool] = None
+    visible_to_service_center: Optional[bool] = None
+    is_draft: Optional[bool] = None
+    created_at: datetime
+    updated_at: datetime
+    version: int
 
     model_config = ConfigDict(from_attributes=True)
 

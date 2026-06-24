@@ -41,6 +41,19 @@
   </script>
 
   <link rel="stylesheet" href="/static/css/custom-styles.css">
+  <style>
+    #article-content-editor {
+      display: flex;
+      flex-direction: column;
+    }
+    #article-content-editor .ql-container {
+      flex: 1;
+      min-height: 400px;
+    }
+    #article-content-editor .ql-editor {
+      min-height: 400px;
+    }
+  </style>
 </head>
 
 <body class="bg-[#F5F5F5] antialiased">
@@ -771,6 +784,7 @@
       </div>
     </div>
 
+
     <!-- User Edit Modal -->
     <div id="user-edit-modal" role="dialog" aria-modal="true" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
       <div class="absolute inset-0 bg-black/50" onclick="closeUserEditModal()"></div>
@@ -814,36 +828,79 @@
           </div>
 
           <div>
-            <label class="mb-2 block text-sm font-medium text-gray-700">უფლებები (Granular Permissions)</label>
-            <div id="edit-user-permissions-container" class="space-y-2 rounded-xl border border-gray-200 bg-gray-50/50 p-4 dark:bg-zinc-800/50 dark:border-zinc-700">
-              <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer dark:text-zinc-300">
-                <input type="checkbox" class="user-perm-checkbox h-4 w-4 rounded border-gray-300 accent-[#B91C1C]" value="articles.view" />
-                <span>კონტენტის ნახვა (articles.view)</span>
-              </label>
-              <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer dark:text-zinc-300">
-                <input type="checkbox" class="user-perm-checkbox h-4 w-4 rounded border-gray-300 accent-[#B91C1C]" value="articles.edit" />
-                <span>კონტენტის რედაქტირება (articles.edit)</span>
-              </label>
-              <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer dark:text-zinc-300">
-                <input type="checkbox" class="user-perm-checkbox h-4 w-4 rounded border-gray-300 accent-[#B91C1C]" value="articles.publish" />
-                <span>კონტენტის გამოქვეყნება (articles.publish)</span>
-              </label>
-              <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer dark:text-zinc-300">
-                <input type="checkbox" class="user-perm-checkbox h-4 w-4 rounded border-gray-300 accent-[#B91C1C]" value="articles.archive" />
-                <span>კონტენტის დაარქივება (articles.archive)</span>
-              </label>
-              <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer dark:text-zinc-300">
-                <input type="checkbox" class="user-perm-checkbox h-4 w-4 rounded border-gray-300 accent-[#B91C1C]" value="users.manage" />
-                <span>მომხმარებლების მართვა (users.manage)</span>
-              </label>
-              <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer dark:text-zinc-300">
-                <input type="checkbox" class="user-perm-checkbox h-4 w-4 rounded border-gray-300 accent-[#B91C1C]" value="compliance.assign" />
-                <span>კითხვის ვალდებულება (compliance.assign)</span>
-              </label>
-              <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer dark:text-zinc-300">
-                <input type="checkbox" class="user-perm-checkbox h-4 w-4 rounded border-gray-300 accent-[#B91C1C]" value="reports.export" />
-                <span>რეპორტების ექსპორტი (reports.export)</span>
-              </label>
+            <label class="mb-2 block text-sm font-semibold text-gray-700">უფლებები (Granular Permissions)</label>
+            <div id="edit-user-permissions-container" class="space-y-4 rounded-xl border border-gray-200 bg-gray-50/50 p-5 dark:bg-zinc-800/50 dark:border-zinc-700">
+              
+              <!-- Group 1: სისტემა და მომხმარებლები -->
+              <div class="space-y-2">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-gray-400">სისტემა და მომხმარებლები</h4>
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer dark:text-zinc-300">
+                    <input type="checkbox" class="user-perm-checkbox h-4 w-4 rounded border-gray-300 accent-[#B91C1C]" value="users:manage" />
+                    <span>მომხმარებლების მართვა<span class="role-inherited-indicator text-xs text-gray-400 font-normal hidden ml-1">(როლიდან)</span></span>
+                  </label>
+                  <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer dark:text-zinc-300">
+                    <input type="checkbox" class="user-perm-checkbox h-4 w-4 rounded border-gray-300 accent-[#B91C1C]" value="communication:broadcast" />
+                    <span>შეტყობინებების გაგზავნა<span class="role-inherited-indicator text-xs text-gray-400 font-normal hidden ml-1">(როლიდან)</span></span>
+                  </label>
+                  <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer dark:text-zinc-300">
+                    <input type="checkbox" class="user-perm-checkbox h-4 w-4 rounded border-gray-300 accent-[#B91C1C]" value="system:audit" />
+                    <span>აუდიტის ლოგები<span class="role-inherited-indicator text-xs text-gray-400 font-normal hidden ml-1">(როლიდან)</span></span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Group 2: კონტენტის მართვა -->
+              <div class="space-y-2 border-t border-gray-200 pt-3 dark:border-zinc-700">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-gray-400">კონტენტის მართვა</h4>
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer dark:text-zinc-300">
+                    <input type="checkbox" class="user-perm-checkbox h-4 w-4 rounded border-gray-300 accent-[#B91C1C]" value="content:editor" />
+                    <span>კონტენტის შექმნა/რედაქტირება<span class="role-inherited-indicator text-xs text-gray-400 font-normal hidden ml-1">(როლიდან)</span></span>
+                  </label>
+                  <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer dark:text-zinc-300">
+                    <input type="checkbox" class="user-perm-checkbox h-4 w-4 rounded border-gray-300 accent-[#B91C1C]" value="content:publisher" />
+                    <span>კონტენტის გამოქვეყნება<span class="role-inherited-indicator text-xs text-gray-400 font-normal hidden ml-1">(როლიდან)</span></span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Group 3: შესაბამისობა -->
+              <div class="space-y-2 border-t border-gray-200 pt-3 dark:border-zinc-700">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-gray-400">შესაბამისობა</h4>
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer dark:text-zinc-300">
+                    <input type="checkbox" class="user-perm-checkbox h-4 w-4 rounded border-gray-300 accent-[#B91C1C]" value="compliance:manage" />
+                    <span>სავალდებულო კითხვა<span class="role-inherited-indicator text-xs text-gray-400 font-normal hidden ml-1">(როლიდან)</span></span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Group 4: სტატისტიკა და რეპორტები -->
+              <div class="space-y-2 border-t border-gray-200 pt-3 dark:border-zinc-700">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-gray-400">სტატისტიკა და რეპორტები</h4>
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer dark:text-zinc-300">
+                    <input type="checkbox" class="user-perm-checkbox h-4 w-4 rounded border-gray-300 accent-[#B91C1C]" value="reports:view_global" />
+                    <span>KPI და სტატისტიკა<span class="role-inherited-indicator text-xs text-gray-400 font-normal hidden ml-1">(როლიდან)</span></span>
+                  </label>
+                  <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer dark:text-zinc-300">
+                    <input type="checkbox" class="user-perm-checkbox h-4 w-4 rounded border-gray-300 accent-[#B91C1C]" value="reports:export" />
+                    <span>რეპორტების ექსპორტი<span class="role-inherited-indicator text-xs text-gray-400 font-normal hidden ml-1">(როლიდან)</span></span>
+                  </label>
+                  <label class="flex items-start gap-2.5 text-sm text-gray-700 cursor-pointer dark:text-zinc-300">
+                    <input type="checkbox" class="user-perm-checkbox mt-0.5 h-4 w-4 rounded border-gray-300 accent-[#B91C1C]" value="reports:export_sensitive" />
+                    <div class="flex flex-col">
+                      <span class="flex items-center">
+                        დეტალური ექსპორტი
+                        <span class="role-inherited-indicator text-xs text-gray-400 font-normal hidden ml-1">(როლიდან)</span>
+                      </span>
+                      <span class="text-xs text-gray-500 dark:text-zinc-400">მოიცავს პერსონალურ მონაცემებს</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
             </div>
           </div>
 
@@ -1552,6 +1609,29 @@
 
         <!-- Articles Table Container -->
         <div id="admin-articles-table-container" class="content-tab-panel">
+          <!-- Filter/Search Bar -->
+          <div class="mb-4 flex flex-wrap gap-3 items-center bg-gray-50 p-4 rounded-xl border border-gray-100">
+            <div class="flex-1 min-w-[200px]">
+              <input type="text" id="article-filter-search" oninput="onArticleFilterChange()" placeholder="ძიება სათაურით..." 
+                class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]" />
+            </div>
+            <div class="w-48">
+              <select id="article-filter-category" onchange="onArticleFilterChange()"
+                class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]">
+                <option value="">ყველა კატეგორია</option>
+              </select>
+            </div>
+            <div class="w-48">
+              <select id="article-filter-status" onchange="onArticleFilterChange()"
+                class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]">
+                <option value="">ყველა სტატუსი</option>
+                <option value="published">გამოქვეყნებული</option>
+                <option value="draft">დრაფტი</option>
+                <option value="scheduled">დაგეგმილი</option>
+                <option value="archived">არქივი</option>
+              </select>
+            </div>
+          </div>
           <!-- Content management table -->
           <div class="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm">
             <table class="w-full text-left text-sm">
@@ -1610,135 +1690,170 @@
           </div>
         </div>
 
-        <!-- ── Admin CMS Form (Visible only via JWT decoding) ── -->
-        <div id="admin-panel" class="mt-8 hidden rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-          <h3 id="article-form-title" class="mb-5 text-lg font-bold text-gray-800">ახალი სტატიის დამატება</h3>
-          <form id="create-article-form" onsubmit="submitArticleForm(event)" class="space-y-5">
-            <div>
-              <label for="article-title" class="mb-1.5 block text-sm font-medium text-gray-700">სათაური</label>
-              <input type="text" id="article-title" required
-                class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]"
-                placeholder="სტატიის სათაური" />
+        <!-- Backdrop for Drawer -->
+        <div id="admin-panel-backdrop" class="fixed inset-0 z-40 bg-black/40 hidden" onclick="closeArticleDrawer()"></div>
+
+        <!-- ── Admin CMS Form (Slide-out Drawer) ── -->
+        <div id="admin-panel" class="fixed inset-y-0 right-0 z-50 w-full max-w-2xl lg:max-w-6xl bg-white shadow-2xl transition-transform transform translate-x-full duration-300 flex flex-col hidden p-0">
+          <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+            <h3 id="article-form-title" class="text-xl font-bold text-gray-800">ახალი სტატიის დამატება</h3>
+            <button type="button" onclick="closeArticleDrawer()" class="text-gray-500 hover:text-gray-700">
+              <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+          </div>
+          <div class="flex-1 overflow-hidden flex flex-col lg:flex-row">
+            <!-- Left Pane: Form Editor -->
+            <div class="flex-1 overflow-y-auto p-6 border-r border-gray-200">
+              <form id="create-article-form" onsubmit="submitArticleForm(event)" class="space-y-5">
+                <div>
+                  <label for="article-title" class="mb-1.5 block text-sm font-medium text-gray-700">სათაური</label>
+                  <input type="text" id="article-title" required
+                    class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]"
+                    placeholder="სტატიის სათაური" />
+                </div>
+                <div>
+                  <label for="article-content-editor" class="mb-1.5 block text-sm font-medium text-gray-700">შინაარსი</label>
+                  <div id="article-content-editor"
+                    class="w-full rounded-xl border border-gray-300 bg-white text-sm text-gray-800 focus-within:border-[#B91C1C] focus-within:outline-none focus-within:ring-1 focus-within:ring-[#B91C1C]"></div>
+                  <textarea id="article-content" name="content" class="hidden"></textarea>
+                </div>
+                <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+                  <div>
+                    <label for="article-category" class="mb-1.5 block text-sm font-medium text-gray-700">კატეგორია</label>
+                    <select id="article-category" name="category_id" required
+                      class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]"></select>
+                  </div>
+                </div>
+                <div>
+                  <label class="mb-1.5 block text-sm font-medium text-gray-700">მიმაგრებული ფაილი (PDF, Word, Excel,
+                    სურათი)</label>
+                  <div class="flex items-center gap-3">
+                    <input type="hidden" id="article-attachment-url" />
+                    <input type="file" id="article-upload-file" class="hidden" onchange="handleArticleFileUpload(this)" />
+                    <button type="button" onclick="document.getElementById('article-upload-file').click()"
+                      class="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50 flex shrink-0 items-center gap-2">
+                      <i class="fa-solid fa-upload"></i> ატვირთვა
+                    </button>
+                    <span id="file-upload-name" class="ml-3 text-sm text-gray-500"></span>
+                    <div id="current-attachment-link"
+                      class="hidden items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
+                      <i class="fa-solid fa-paperclip text-gray-400"></i>
+                      <a href="#" target="_blank" class="truncate max-w-[200px] text-blue-600 hover:underline">ფაილის
+                        ნახვა</a>
+                      <button type="button" onclick="removeCurrentAttachment()" class="ml-1 text-red-500 hover:text-red-700"
+                        title="ფაილის წაშლა"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                  </div>
+                  <div id="article-upload-progress" class="hidden mt-2 text-xs text-blue-600 font-medium animate-pulse">
+                    ფაილი იტვირთება... გთხოვთ დაელოდოთ</div>
+                </div>
+                <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+                  <div>
+                    <label for="article-status" class="mb-1.5 block text-sm font-medium text-gray-700">სტატუსი</label>
+                    <select id="article-status" onchange="toggleScheduledDate()"
+                      class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]">
+                      <option value="published">გამოქვეყნებული (Published)</option>
+                      <option value="draft">დრაფტი (Draft)</option>
+                      <option value="scheduled">დაგეგმილი (Scheduled)</option>
+                    </select>
+                  </div>
+                  <div id="scheduled-date-container" class="hidden">
+                    <label for="article-published-at" class="mb-1.5 block text-sm font-medium text-gray-700">გამოქვეყნების
+                      დრო (UTC)</label>
+                    <input type="datetime-local" id="article-published-at"
+                      class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]" />
+                  </div>
+                </div>
+                <div id="mandatory-section"
+                  class="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4">
+                  <input type="checkbox" id="article-mandatory" onchange="toggleDueDate()"
+                    class="h-4 w-4 accent-[#B91C1C]" />
+                  <label for="article-mandatory" class="text-sm font-medium text-gray-800">სავალდებულოდ გასაცნობი</label>
+                  <div id="due-date-container" class="ml-4 hidden flex-1 items-center gap-3 border-l border-gray-300 pl-4">
+                    <label for="article-due-date" class="text-sm font-medium text-gray-600">ვადა:</label>
+                    <input type="date" id="article-due-date"
+                      class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]" />
+                  </div>
+                </div>
+                
+                <!-- Consolidated Visibility & Targeting Input Group -->
+                <div class="rounded-xl border border-gray-100 bg-gray-50 p-5 space-y-4">
+                  <h4 class="text-sm font-semibold text-gray-700 border-b border-gray-200 pb-2">ხილვადობა და სამიზნე აუდიტორია</h4>
+                  
+                  <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-8">
+                    <span class="text-xs font-bold text-gray-400 uppercase tracking-widest min-w-[80px]">როლები:</span>
+                    <label class="flex items-center gap-3 cursor-pointer select-none">
+                      <span class="relative inline-flex h-6 w-11 shrink-0 items-center">
+                        <input type="checkbox" id="article-visible-tech-info" checked class="peer sr-only" />
+                        <span class="absolute inset-0 rounded-full bg-gray-300 transition-colors duration-200 peer-checked:bg-[#B91C1C]"></span>
+                        <span class="absolute left-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-5"></span>
+                      </span>
+                      <span class="text-sm font-medium text-gray-800">ტექ./ინფო (Tech/Info)</span>
+                    </label>
+                    <label class="flex items-center gap-3 cursor-pointer select-none">
+                      <span class="relative inline-flex h-6 w-11 shrink-0 items-center">
+                        <input type="checkbox" id="article-visible-service-center" class="peer sr-only" />
+                        <span class="absolute inset-0 rounded-full bg-gray-300 transition-colors duration-200 peer-checked:bg-[#B91C1C]"></span>
+                        <span class="absolute left-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-5"></span>
+                      </span>
+                      <span class="text-sm font-medium text-gray-800">სერვის ცენტრები (Service Centers)</span>
+                    </label>
+                  </div>
+
+                  <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-8 border-t border-gray-100 pt-3">
+                    <span class="text-xs font-bold text-gray-400 uppercase tracking-widest min-w-[80px]">დეპარტამენტი:</span>
+                    <label class="flex items-center gap-3 cursor-pointer select-none">
+                      <span class="relative inline-flex h-6 w-11 shrink-0 items-center">
+                        <input type="checkbox" id="dept-info" class="peer sr-only" />
+                        <span class="absolute inset-0 rounded-full bg-gray-300 transition-colors duration-200 peer-checked:bg-[#B91C1C]"></span>
+                        <span class="absolute left-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-5"></span>
+                      </span>
+                      <span class="text-sm font-medium text-gray-800">საინფორმაციო</span>
+                    </label>
+                    <label class="flex items-center gap-3 cursor-pointer select-none">
+                      <span class="relative inline-flex h-6 w-11 shrink-0 items-center">
+                        <input type="checkbox" id="dept-tech" class="peer sr-only" />
+                        <span class="absolute inset-0 rounded-full bg-gray-300 transition-colors duration-200 peer-checked:bg-[#B91C1C]"></span>
+                        <span class="absolute left-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-5"></span>
+                      </span>
+                      <span class="text-sm font-medium text-gray-800">ტექნიკური</span>
+                    </label>
+                    <label class="flex items-center gap-3 cursor-pointer select-none">
+                      <span class="relative inline-flex h-6 w-11 shrink-0 items-center">
+                        <input type="checkbox" id="dept-service" class="peer sr-only" />
+                        <span class="absolute inset-0 rounded-full bg-gray-300 transition-colors duration-200 peer-checked:bg-[#B91C1C]"></span>
+                        <span class="absolute left-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-5"></span>
+                      </span>
+                      <span class="text-sm font-medium text-gray-800">სერვის ცენტრები</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-2 items-center">
+                  <span id="autosave-status" class="text-xs text-gray-400 mr-auto transition-opacity duration-300 opacity-100"></span>
+                  <button type="button" id="cancel-edit-btn" onclick="cancelEdit()"
+                    class="hidden rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50">გაუქმება</button>
+                  <button type="submit"
+                    class="rounded-xl bg-[#B91C1C] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700">შენახვა</button>
+                </div>
+              </form>
             </div>
-            <div>
-              <label for="article-content-editor" class="mb-1.5 block text-sm font-medium text-gray-700">შინაარსი</label>
-              <div id="article-content-editor"
-                class="w-full rounded-xl border border-gray-300 bg-white text-sm text-gray-800 focus-within:border-[#B91C1C] focus-within:outline-none focus-within:ring-1 focus-within:ring-[#B91C1C]"></div>
-              <textarea id="article-content" name="content" class="hidden"></textarea>
-            </div>
-            <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
-              <div>
-                <label for="article-category" class="mb-1.5 block text-sm font-medium text-gray-700">კატეგორია</label>
-                <select id="article-category" name="category_id" required
-                  class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]"></select>
-              </div>
-            </div>
-            <div>
-              <label class="mb-1.5 block text-sm font-medium text-gray-700">მიმაგრებული ფაილი (PDF, Word, Excel,
-                სურათი)</label>
-              <div class="flex items-center gap-3">
-                <input type="hidden" id="article-attachment-url" />
-                <input type="file" id="article-upload-file" class="hidden" onchange="handleArticleFileUpload(this)" />
-                <button type="button" onclick="document.getElementById('article-upload-file').click()"
-                  class="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50 flex shrink-0 items-center gap-2">
-                  <i class="fa-solid fa-upload"></i> ატვირთვა
-                </button>
-                <span id="file-upload-name" class="ml-3 text-sm text-gray-500"></span>
-                <div id="current-attachment-link"
-                  class="hidden items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
-                  <i class="fa-solid fa-paperclip text-gray-400"></i>
-                  <a href="#" target="_blank" class="truncate max-w-[200px] text-blue-600 hover:underline">ფაილის
-                    ნახვა</a>
-                  <button type="button" onclick="removeCurrentAttachment()" class="ml-1 text-red-500 hover:text-red-700"
-                    title="ფაილის წაშლა"><i class="fa-solid fa-xmark"></i></button>
+            <!-- Right Pane: Live Preview -->
+            <div class="w-full lg:w-[450px] xl:w-[500px] shrink-0 bg-gray-50 flex flex-col border-t lg:border-t-0 border-gray-200">
+              <div class="flex items-center justify-between bg-white px-4 py-3 border-b border-gray-200">
+                <span class="text-sm font-semibold text-gray-700">წინასწარი ნახვა</span>
+                <div class="flex bg-gray-100 rounded-lg p-0.5">
+                  <button type="button" id="preview-desktop-btn" onclick="setPreviewDevice('desktop')" class="px-3 py-1 text-xs font-semibold rounded-md shadow-sm transition-all bg-white text-gray-800">Desktop</button>
+                  <button type="button" id="preview-mobile-btn" onclick="setPreviewDevice('mobile')" class="px-3 py-1 text-xs font-semibold rounded-md transition-all text-gray-600 hover:text-gray-800">Mobile</button>
                 </div>
               </div>
-              <div id="article-upload-progress" class="hidden mt-2 text-xs text-blue-600 font-medium animate-pulse">
-                ფაილი იტვირთება... გთხოვთ დაელოდოთ</div>
-            </div>
-            <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
-              <div>
-                <label for="article-status" class="mb-1.5 block text-sm font-medium text-gray-700">სტატუსი</label>
-                <select id="article-status" onchange="toggleScheduledDate()"
-                  class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]">
-                  <option value="published">გამოქვეყნებული (Published)</option>
-                  <option value="draft">დრაფტი (Draft)</option>
-                  <option value="scheduled">დაგეგმილი (Scheduled)</option>
-                </select>
-              </div>
-              <div id="scheduled-date-container" class="hidden">
-                <label for="article-published-at" class="mb-1.5 block text-sm font-medium text-gray-700">გამოქვეყნების
-                  დრო (UTC)</label>
-                <input type="datetime-local" id="article-published-at"
-                  class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]" />
+              <div class="flex-1 p-4 flex items-start justify-center overflow-y-auto">
+                <div id="preview-frame-container" class="w-full min-h-[500px] h-[calc(100vh-160px)] bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden transition-all duration-300">
+                  <iframe id="article-preview-iframe" class="w-full h-full border-none"></iframe>
+                </div>
               </div>
             </div>
-            <div id="mandatory-section"
-              class="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4">
-              <input type="checkbox" id="article-mandatory" onchange="toggleDueDate()"
-                class="h-4 w-4 accent-[#B91C1C]" />
-              <label for="article-mandatory" class="text-sm font-medium text-gray-800">სავალდებულოდ გასაცნობი</label>
-              <div id="due-date-container" class="ml-4 hidden flex-1 items-center gap-3 border-l border-gray-300 pl-4">
-                <label for="article-due-date" class="text-sm font-medium text-gray-600">ვადა:</label>
-                <input type="date" id="article-due-date"
-                  class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]" />
-              </div>
-            </div>
-            <!-- Block 5: role-based visibility toggles — Premium Monochrome with Magti Red accent -->
-            <div class="flex flex-col gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4 sm:flex-row sm:items-center sm:gap-8">
-              <label class="flex items-center gap-3 cursor-pointer select-none">
-                <span class="relative inline-flex h-6 w-11 shrink-0 items-center">
-                  <input type="checkbox" id="article-visible-tech-info" checked class="peer sr-only" />
-                  <span class="absolute inset-0 rounded-full bg-gray-300 transition-colors duration-200 peer-checked:bg-[#B91C1C]"></span>
-                  <span class="absolute left-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-5"></span>
-                </span>
-                <span class="text-sm font-medium text-gray-800">ხილვადია ტექ./ინფო-სთვის (Visible to Tech/Info)</span>
-              </label>
-              <label class="flex items-center gap-3 cursor-pointer select-none">
-                <span class="relative inline-flex h-6 w-11 shrink-0 items-center">
-                  <input type="checkbox" id="article-visible-service-center" class="peer sr-only" />
-                  <span class="absolute inset-0 rounded-full bg-gray-300 transition-colors duration-200 peer-checked:bg-[#B91C1C]"></span>
-                  <span class="absolute left-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-5"></span>
-                </span>
-                <span class="text-sm font-medium text-gray-800">ხილვადია სერვის ცენტრებისთვის (Visible to Service Centers)</span>
-              </label>
-            </div>
-            <!-- Multi-department targeting (target_departments[]) — labels map to English
-                 department values in submitArticleForm: საინფორმაციო→Informational,
-                 ტექნიკური→Support, სერვის ცენტრები→Service Centers. -->
-            <div class="flex flex-col gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4 sm:flex-row sm:items-center sm:gap-8">
-              <label class="flex items-center gap-3 cursor-pointer select-none">
-                <span class="relative inline-flex h-6 w-11 shrink-0 items-center">
-                  <input type="checkbox" id="dept-info" class="peer sr-only" />
-                  <span class="absolute inset-0 rounded-full bg-gray-300 transition-colors duration-200 peer-checked:bg-[#B91C1C]"></span>
-                  <span class="absolute left-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-5"></span>
-                </span>
-                <span class="text-sm font-medium text-gray-800">საინფორმაციო</span>
-              </label>
-              <label class="flex items-center gap-3 cursor-pointer select-none">
-                <span class="relative inline-flex h-6 w-11 shrink-0 items-center">
-                  <input type="checkbox" id="dept-tech" class="peer sr-only" />
-                  <span class="absolute inset-0 rounded-full bg-gray-300 transition-colors duration-200 peer-checked:bg-[#B91C1C]"></span>
-                  <span class="absolute left-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-5"></span>
-                </span>
-                <span class="text-sm font-medium text-gray-800">ტექნიკური</span>
-              </label>
-              <label class="flex items-center gap-3 cursor-pointer select-none">
-                <span class="relative inline-flex h-6 w-11 shrink-0 items-center">
-                  <input type="checkbox" id="dept-service" class="peer sr-only" />
-                  <span class="absolute inset-0 rounded-full bg-gray-300 transition-colors duration-200 peer-checked:bg-[#B91C1C]"></span>
-                  <span class="absolute left-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-5"></span>
-                </span>
-                <span class="text-sm font-medium text-gray-800">სერვის ცენტრები</span>
-              </label>
-            </div>
-            <div class="flex justify-end gap-3 pt-2">
-              <button type="button" id="cancel-edit-btn" onclick="cancelEdit()"
-                class="hidden rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50">გაუქმება</button>
-              <button type="submit"
-                class="rounded-xl bg-[#B91C1C] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700">შენახვა</button>
-            </div>
-          </form>
+          </div>
         </div>
 
         <!-- ── Admin News Form ── -->

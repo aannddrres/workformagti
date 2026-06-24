@@ -537,47 +537,7 @@ def create_article_feedback(
     current_user: models.User = Depends(security.get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Creates a feedback report (reporting an issue/typo) for an article.
-
-    Access: Authenticated users (any active role).
-
-    Args:
-        article_id: ID of the article to submit feedback for.
-        req: Message detailing the feedback.
-        current_user: The authenticated User object.
-        db: SQLAlchemy database session.
-
-    Returns:
-        A KnowledgeFeedbackResponse containing submission status and details.
-
-    Raises:
-        HTTPException: 404 Not Found if the article does not exist.
-    """
-    db_article = db.query(models.Article).filter(models.Article.id == article_id).first()
-    if not db_article:
-        raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
-    # R-1: prevent feedback on articles outside the caller's department scope.
-    _assert_article_visible(db_article, current_user)
-
-    feedback = models.KnowledgeFeedback(
-        user_id=current_user.id,
-        article_id=article_id,
-        message=req.message
-    )
-    db.add(feedback)
-    db.commit()
-    db.refresh(feedback)
-
-    return schemas.KnowledgeFeedbackResponse(
-        id=feedback.id,
-        user_id=feedback.user_id,
-        article_id=feedback.article_id,
-        message=feedback.message,
-        status=feedback.status,
-        created_at=feedback.created_at,
-        user_name=current_user.name,
-        article_title=db_article.title
-    )
+    raise HTTPException(status_code=410, detail="ხარვეზის რეპორტირება დეპრეკირებულია")
 
 
 # ── Private notes ─────────────────────────────────────────────────────────────
