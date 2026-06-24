@@ -3233,20 +3233,26 @@ def get_group_users(
 
     Three scoped queries: users in the target group, reading counts by dept,
     and read counts for those users only — no ORM hydration of RequiredReading.
-    """
-    full_dept = _group_full_department(department, group_name)
 
-    users = (
+    The department path param is a whitelist prefix (e.g. "საინფორმაციო"), not
+    the full DB value ("საინფორმაციო სამსახური — ჯგუფი 01"), so we match with
+    startswith + group label rather than exact equality.
+    """
+    all_candidates = (
         db.query(
             models.User.id, models.User.name, models.User.department,
         )
         .filter(
             models.User.is_active == True,  # noqa: E712
             models.User.role != _DASHBOARD_EXCLUDED_ROLE,
-            models.User.department == full_dept,
+            models.User.department.like(f"{department}%"),
         )
         .all()
     )
+    users = [
+        u for u in all_candidates
+        if _split_dept_group(u.department)[1] == group_name
+    ]
 
     readings_by_dept = dict(
         db.query(
