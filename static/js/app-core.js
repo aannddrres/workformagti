@@ -4697,6 +4697,35 @@ async function setFeedbackStatus(feedbackId, newStatus) {
 function initCharts() {
         if (window._chartsInit) return; // Prevent canvas re-initialization errors
 
+        const activityData = window.activityStats || [];
+        const hasActivity = activityData.some(d => d.count > 0);
+        const activityCanvas = document.getElementById('activityChart');
+        const activityEmpty = document.getElementById('activityChart-empty');
+        if (activityCanvas && activityEmpty) {
+          if (hasActivity) {
+            activityCanvas.classList.remove('hidden');
+            activityEmpty.classList.add('hidden');
+            new Chart(activityCanvas, {
+              type: 'line',
+              data: {
+                labels: activityData.map(d => d.date),
+                datasets: [{
+                  data: activityData.map(d => d.count),
+                  borderColor: '#E30613',
+                  backgroundColor: 'rgba(227, 6, 19, 0.08)',
+                  fill: true,
+                  tension: 0.3,
+                  pointRadius: 3,
+                }]
+              },
+              options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+            });
+          } else {
+            activityCanvas.classList.add('hidden');
+            activityEmpty.classList.remove('hidden');
+          }
+        }
+
         const statsData = window.dashboardStats;
 
         const readVal = statsData ? statsData.read_percentage : 31;

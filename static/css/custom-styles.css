@@ -16,6 +16,14 @@ body.dark-mode {
         "DejaVu Sans", Arial, sans-serif;
     }
 
+    /* overflow-y-auto alone makes overflow-x compute to 'auto' too (CSS Overflow
+       spec), and the vertical scrollbar it reserves space for then makes
+       scrollWidth exceed clientWidth by the scrollbar's own width - a spurious
+       horizontal scrollbar with nothing actually overflowing sideways. */
+    .sidebar-scroll {
+      overflow-x: hidden;
+    }
+
     /* Thin scrollbar inside sidebar nav */
     .sidebar-scroll::-webkit-scrollbar {
       width: 3px;

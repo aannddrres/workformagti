@@ -190,7 +190,7 @@
                 </a>
               </li>
               <li>
-                <a href="#" onclick="switchMainPage('page-admin', this); switchAdmin('users'); return false;"
+                <a href="#" data-required-role="admin" onclick="switchMainPage('page-admin', this); switchAdmin('users'); return false;"
                   class="block rounded-lg px-3 py-2 text-[12px] font-medium text-gray-400 hover:bg-gray-900/[0.04] hover:text-gray-700 transition-all duration-150">
                   <i class="fa-solid fa-users w-3.5 mr-1.5 text-gray-300"></i>მომხმარებლები
                 </a>
@@ -208,7 +208,7 @@
                 </a>
               </li>
               <li>
-                <a href="#" onclick="switchMainPage('page-admin', this); switchAdmin('audit'); return false;"
+                <a href="#" data-required-role="admin" onclick="switchMainPage('page-admin', this); switchAdmin('audit'); return false;"
                   class="block rounded-lg px-3 py-2 text-[12px] font-medium text-gray-400 hover:bg-gray-900/[0.04] hover:text-gray-700 transition-all duration-150">
                   <i class="fa-solid fa-shield-halved w-3.5 mr-1.5 text-gray-300"></i>ლოგები
                 </a>
@@ -272,7 +272,7 @@
        ══════════════════════════════════════════════════════ -->
 
   <header id="main-header"
-    class="fixed left-0 md:left-64 right-0 top-0 z-20 flex h-16 items-center gap-4 bg-white/95 dark:bg-[#181818]/95 px-4 md:px-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.25)] backdrop-blur-md transition-all duration-300">
+    class="fixed left-0 md:left-64 right-0 top-0 z-20 flex h-16 items-center gap-2 sm:gap-4 bg-white/95 dark:bg-[#181818]/95 px-4 md:px-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.25)] backdrop-blur-md transition-all duration-300">
 
     <!-- ჰამბურგერ ღილაკი (Hamburger / sidebar toggle) -->
     <button onclick="toggleSidebar()"
@@ -284,16 +284,16 @@
     <!-- მაგტი ლოგო (mobile only) -->
     <div class="order-2 flex shrink-0 items-center gap-2.5 md:hidden">
       <a href="#" onclick="goToDashboard(); return false;" class="focus:outline-none">
-        <img src="/static/magti_logo.png" alt="მაგთი ლოგო" class="h-10 transition-opacity hover:opacity-100">
+        <img src="/static/magti_logo.png" alt="მაგთი ლოგო" class="h-10 max-w-[64px] w-auto transition-opacity hover:opacity-100">
       </a>
     </div>
 
     <!-- ძიება — centred search input (border-free, with Ctrl+K badge) -->
-    <div class="order-3 flex flex-1 justify-center">
+    <div class="order-3 flex min-w-0 flex-1 justify-center">
       <div class="relative w-full max-w-[500px]">
         <i class="fa-solid fa-magnifying-glass pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-gray-400 dark:text-zinc-500"></i>
         <input id="global-search-input" type="search" placeholder="ძებნა..." autocomplete="off"
-          class="w-full rounded-full border-0 bg-gray-100/70 dark:bg-zinc-800/70 py-2.5 pl-11 pr-16 text-[13px] text-gray-800 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 transition-all duration-200 ease-in-out focus:bg-white dark:focus:bg-zinc-800 focus:outline-none focus:ring-4 focus:ring-red-600/10" />
+          class="w-full rounded-full border-0 bg-gray-100/70 dark:bg-zinc-800/70 py-2.5 pl-11 pr-4 sm:pr-16 text-[13px] text-gray-800 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 transition-all duration-200 ease-in-out focus:bg-white dark:focus:bg-zinc-800 focus:outline-none focus:ring-4 focus:ring-red-600/10" />
         <!-- Ctrl+K keyboard shortcut badge -->
         <kbd class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center gap-1 rounded-md bg-white dark:bg-zinc-900 px-1.5 py-0.5 text-[10px] font-medium text-gray-400 dark:text-zinc-500 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">Ctrl K</kbd>
         <div id="global-search-results"
@@ -1412,6 +1412,7 @@
             </div>
             <div class="relative w-full h-[220px]">
               <canvas id="activityChart"></canvas>
+              <p id="activityChart-empty" class="hidden absolute inset-0 flex items-center justify-center text-sm text-gray-400">აქტივობა არ არის</p>
             </div>
           </div>
           <!-- Pie chart -->
