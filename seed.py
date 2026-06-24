@@ -1,9 +1,21 @@
 import os
+import random
 import sys
 from datetime import datetime, timedelta
 
 # Ensure parent directory is in path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# Windows consoles often default to a non-UTF-8 codepage (cp1252), which can't
+# encode the Georgian text in this script's print() calls and crashes the
+# seeder mid-run with UnicodeEncodeError - after the DB commit already
+# succeeded, so it looks like a failure when the data actually landed. Force
+# UTF-8 stdout/stderr where supported (Python 3.7+); harmless no-op elsewhere.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError):
+        pass
 
 from database import SessionLocal, engine, Base
 import models
@@ -220,6 +232,75 @@ DEFAULT_PERMISSIONS_BY_ROLE = {
     "operator": []
 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Realistic compliance distribution, shared by seed_database() and
+# seed_org_hierarchy(). Demo data should never sit at a flat 0% - that reads as
+# "nobody uses this" rather than "this is a working compliance tool".
+#
+#   ~80% of operators: 90-100% read  (high performers)
+#   ~15% of operators: 70-89% read   (needs minor attention)
+#   ~5%  of operators: 15-69% read   (clear outliers - the Admin "nudge" demo)
+# ─────────────────────────────────────────────────────────────────────────────
+_COMPLIANCE_TIERS = [
+    (0.80, 90, 100),
+    (0.95, 70, 89),
+    (1.00, 15, 69),
+]
+
+
+def _pick_target_percentage() -> float:
+    r = random.random()
+    cumulative = 0.0
+    for threshold, lo, hi in _COMPLIANCE_TIERS:
+        cumulative = threshold
+        if r < cumulative:
+            return random.uniform(lo, hi)
+    return random.uniform(*_COMPLIANCE_TIERS[-1][1:])  # r >= last threshold (rounding edge)
+
+
+def _assign_realistic_compliance(db, operators, now):
+    """Marks a random subset of each operator's applicable required readings as
+    'read' so their percentage lands in one of the bands above.
+
+    "Applicable" mirrors main.py's _reading_progress: readings targeting "All"
+    plus readings targeting the operator's own department string - which for
+    the org-hierarchy seeder's unique per-group labels means just "All".
+
+    Idempotent: skips any operator who already has a ReadStatus row, so a
+    re-run of `seed.py org` doesn't reshuffle numbers a demo already relies on.
+    """
+    all_readings = db.query(RequiredReading).all()
+    if not all_readings:
+        return 0  # nothing to mark read yet (seed_database() hasn't run)
+
+    by_dept = {}
+    for r in all_readings:
+        by_dept.setdefault(r.target_department, []).append(r)
+    by_all = by_dept.get("All", [])
+
+    new_rows = []
+    for user in operators:
+        if db.query(ReadStatus.id).filter(ReadStatus.user_id == user.id).first():
+            continue  # already has compliance data - leave it alone
+
+        applicable = {r.id: r for r in (by_all + by_dept.get(user.department, []))}
+        applicable = list(applicable.values())
+        if not applicable:
+            continue
+
+        n_read = round(_pick_target_percentage() / 100 * len(applicable))
+        n_read = max(0, min(n_read, len(applicable)))
+        for r in random.sample(applicable, n_read):
+            new_rows.append(ReadStatus(
+                user_id=user.id, required_reading_id=r.id, status="read",
+                read_at=now - timedelta(days=random.randint(0, 6), hours=random.randint(0, 23)),
+            ))
+
+    if new_rows:
+        db.add_all(new_rows)
+    return len(new_rows)
+
+
 def seed_database():
     db = SessionLocal()
     try:
@@ -325,6 +406,10 @@ def seed_database():
             News(title="IPTV ახალი არხების დამატება", content="დაემატა ახალი არხები IPTV პაკეტში.", target_department="All"),
             News(title="„როუმერის“ ახალი პარტნიორი ოპერატორები", content="გაფართოვდა როუმინგის პარტნიორების სია.", target_department="All"),
             News(title="Support: განახლებული სკრიპტები", content="Support გუნდისთვის ახალი სასაუბრო სკრიპტები.", target_department="Support"),
+            # Two extra "All"-targeted items purely so there are 10 "All" required
+            # readings total - see the comment by the required-readings block below.
+            News(title="სისტემის გეგმური პროფილაქტიკა", content="ამ შაბათ-კვირას მოსალოდნელია მოკლევადიანი მომსახურების შეფერხება.", target_department="All"),
+            News(title="ახალი ჩატის სკრიპტების ბაზა", content="დაემატა განახლებული საუბრის შაბლონები ყველა დეპარტამენტისთვის.", target_department="All"),
         ]
         db.add_all(news)
         db.flush()
@@ -346,32 +431,34 @@ def seed_database():
                             due_date=now + timedelta(days=5), priority="high"),
             RequiredReading(item_type="article", item_id=articles[5].id, target_department="Informational",
                             due_date=now + timedelta(days=7), priority="normal"),
+            # Extra "All"-targeted items purely for compliance-percentage granularity.
+            # 10 "All" readings total gives 10-point steps AND keeps round(0.90*10)=9
+            # safely at exactly the 90% high-tier boundary (round(0.90*8)=7 -> 87.5%
+            # would wrongly fall into the "needs attention" bucket).
+            RequiredReading(item_type="article", item_id=articles[6].id, target_department="All",
+                            due_date=now + timedelta(days=12), priority="normal"),
+            RequiredReading(item_type="article", item_id=articles[7].id, target_department="All",
+                            due_date=now + timedelta(days=9), priority="normal"),
+            RequiredReading(item_type="video", item_id=videos[0].id, target_department="All",
+                            due_date=now + timedelta(days=15), priority="normal"),
+            RequiredReading(item_type="video", item_id=videos[1].id, target_department="All",
+                            due_date=now + timedelta(days=15), priority="normal"),
         ]
-        
+
         if news:
-            readings.append(RequiredReading(item_type="news", item_id=news[0].id, target_department="All",
-                                            due_date=now + timedelta(days=7), priority="normal"))
-                                            
+            for n in (news[0], news[1], news[3], news[4]):
+                readings.append(RequiredReading(item_type="news", item_id=n.id, target_department="All",
+                                                due_date=now + timedelta(days=7), priority="normal"))
+
         db.add_all(readings)
         db.flush()
 
         # ── Read statuses ───────────────────────────────────────────────────
-        # nino (Support) read one "All" reading; leaves the overdue one unread.
-        # tech (Technical) read their department reading. → non-zero stats.
+        # Realistic compliance distribution instead of a flat 0% - see
+        # _assign_realistic_compliance above. Applies to nino/tech (Support)
+        # and info (Informational) alike.
         print("Seeding read statuses...")
-        db.add_all([
-            # nino (Support) - read 2 out of 5 required readings (All + Support)
-            ReadStatus(user_id=nino.id, required_reading_id=readings[1].id,
-                       status="read", read_at=now - timedelta(days=1)),
-            ReadStatus(user_id=nino.id, required_reading_id=readings[3].id,
-                       status="read", read_at=now - timedelta(days=1)),
-
-            # tech (Support) - read 2 out of 5
-            ReadStatus(user_id=tech.id, required_reading_id=readings[0].id,
-                       status="read", read_at=now - timedelta(days=2)),
-            ReadStatus(user_id=tech.id, required_reading_id=readings[1].id,
-                       status="read", read_at=now - timedelta(days=2)),
-        ])
+        _assign_realistic_compliance(db, [nino, tech, info], now)
 
         # ── A welcome message from the manager to a team member ─────────────
         db.add(Message(user_id=nino.id, sender_id=manager.id,
@@ -457,6 +544,7 @@ def _org_upsert(db, email, name, department, position, role, counters):
     u.permissions = DEFAULT_PERMISSIONS_BY_ROLE.get(role, [])
     u.is_active = True
     counters["roles"][role] = counters["roles"].get(role, 0) + 1
+    return u
 
 
 def seed_org_hierarchy():
@@ -469,6 +557,8 @@ def seed_org_hierarchy():
     ]
     counters = {"created": 0, "updated": 0, "groups": 0, "roles": {}, "renamed": 0}
     seq = 0
+    now = datetime.utcnow()
+    org_operators = []
     try:
         # Non-destructive migration: a prior run used `.empNN@` slot emails; rename
         # them in place to the spec's `.opNN@` so the upsert below matches existing
@@ -506,12 +596,16 @@ def seed_org_hierarchy():
                         role, position = "admin", "სისტემური ადმინისტრატორი"
                     else:
                         role, position = "operator", "ოპერატორი"
-                    _org_upsert(
+                    u = _org_upsert(
                         db, f"{code}.g{g:02d}.op{e:02d}@magti.ge", _org_name(seq),
                         dept_label, position, role, counters,
                     )
+                    if role == "operator":
+                        org_operators.append(u)
                     seq += 1
 
+        db.flush()  # assign ids to newly-created users before compliance assignment
+        n_compliance = _assign_realistic_compliance(db, org_operators, now)
         db.commit()
         total = counters["created"] + counters["updated"]
         print("=" * 58)
@@ -519,6 +613,8 @@ def seed_org_hierarchy():
         print(f"  დეპარტამენტები: 2 | ჯგუფები: {counters['groups']} (info 10 + tech 5)")
         print(f"  სულ მომხმარებელი: {total}  (ახალი: {counters['created']}, განახლდა: {counters['updated']})")
         print(f"  წევრები ჯგუფზე: 11 (1 ჯგუფის უფროსი + 10 თანამშრომელი)")
+        print(f"  compliance read-statuses generated: {n_compliance} "
+              f"({len(org_operators)} operators eligible)")
         print(f"  როლები: {counters['roles']}")
         print("  პაროლი ყველასთვის: password")
         print("=" * 58)
