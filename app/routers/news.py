@@ -73,9 +73,17 @@ def get_news(
         A list of NewsResponse schemas.
     """
     query = db.query(models.News)
-    # Admins manage content across all departments, so they see everything
+    # Admins manage content across all departments, so they see everything (including expired)
     if current_user.role not in ["admin", "content_admin"]:
+        from datetime import datetime
+        from sqlalchemy import or_
         query = query.filter(models.News.target_department.in_([current_user.department, "All"]))
+        query = query.filter(
+            or_(
+                models.News.expires_at.is_(None),
+                models.News.expires_at >= datetime.utcnow()
+            )
+        )
     # Block 5: role-based visibility split, independent of department targeting.
     if current_user.role == "tech_info":
         query = query.filter(models.News.visible_to_tech_info == True)  # noqa: E712
@@ -95,7 +103,7 @@ def get_news(
 @router.post("", response_model=schemas.NewsResponse)
 def create_news(
     news: schemas.NewsCreate,
-    current_admin: models.User = Depends(security.require_content_creator(security.PERM_NEWS_CREATE)),
+    current_admin: models.User = Depends(security.get_current_admin_user),
     db: Session = Depends(get_db)
 ):
     """Creates a new news announcement and publishes a real-time SSE notification.
@@ -136,7 +144,7 @@ def create_news(
 def update_news(
     news_id: int,
     news: schemas.NewsCreate,
-    current_admin: models.User = Depends(security.require_content_creator(security.PERM_NEWS_CREATE)),
+    current_admin: models.User = Depends(security.get_current_admin_user),
     db: Session = Depends(get_db)
 ):
     """Updates an existing news announcement and logs the action.
@@ -225,7 +233,7 @@ def delete_news(
 
 # ── Versioning endpoints ──────────────────────────────────────────────────────
 
-@router.get("/{news_id}/history")
+@router.get("/{news_id}/history", response_model=list[schemas.NewsHistoryResponse])
 def get_news_history(
     news_id: int,
     current_admin: models.User = Depends(security.get_current_admin_user),

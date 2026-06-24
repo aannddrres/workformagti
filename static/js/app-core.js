@@ -2979,9 +2979,6 @@ function ensureArticleModal() {
                     <button id="modal-pin-btn" onclick="togglePinArticleFromModal()" class="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 flex items-center gap-1.5">
                       <i aria-hidden="true" class="fa-solid fa-thumbtack"></i><span>ჩანიშვნა</span>
                     </button>
-                    <button id="modal-report-btn" onclick="reportArticleIssuePrompt()" class="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-red-600 shadow-sm transition-colors hover:bg-red-50 flex items-center gap-1.5">
-                      <i aria-hidden="true" class="fa-solid fa-triangle-exclamation"></i><span>ხარვეზის რეპორტი</span>
-                    </button>
                   </div>
                 </div>
 
@@ -4055,40 +4052,6 @@ function saveArticleNote() {
           });
       }
 
-function reportArticleIssuePrompt() {
-        const articleId = window.activeArticleId;
-        if (!articleId) return;
-
-        const message = prompt('გთხოვთ მიუთითოთ რა ხარვეზია მოცემულ სტატიაში (მაგ. მოძველებული ინფორმაცია, შეცდომა):');
-        if (message === null) return;
-        if (!message.trim()) {
-          alert('ხარვეზის აღწერა არ შეიძლება იყოს ცარიელი.');
-          return;
-        }
-
-        const token = Auth.getToken();
-        if (!token) return;
-
-        fetch(`/api/articles/${articleId}/feedback`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token
-          },
-          body: JSON.stringify({ message: message })
-        })
-          .then(res => {
-            if (!res.ok) throw new Error('Failed to submit feedback');
-            return res.json();
-          })
-          .then(data => {
-            alert('ხარვეზის რეპორტი წარმატებით გაიგზავნა. მადლობა თანამშრომლობისთვის!');
-          })
-          .catch(err => {
-            console.error('Feedback submit error:', err);
-            alert('რეპორტის გაგზავნა ვერ მოხერხდა: ' + err.message);
-          });
-      }
 
 function updateBroadcastCounter() {
         const input = document.getElementById('broadcast-message-input');
@@ -5417,7 +5380,6 @@ window.quickSearch = quickSearch;
 window.removeCurrentAttachment = removeCurrentAttachment;
 window.removeFavorite = removeFavorite;
 window.removeNewsAttachment = removeNewsAttachment;
-window.reportArticleIssuePrompt = reportArticleIssuePrompt;
 window.restoreArticleVersion = restoreArticleVersion;
 window.restoreNewsVersion = restoreNewsVersion;
 window.runKbSearch = runKbSearch;

@@ -4523,7 +4523,7 @@ def health_check(db: Session = Depends(get_db)):
 
 
 # ── News versioning (parity with articles) ────────────────────────────────
-@app.get("/api/news/{news_id}/history")
+@app.get("/api/news/{news_id}/history", response_model=list[schemas.NewsHistoryResponse])
 def get_news_history(
     news_id: int,
     current_admin: models.User = Depends(security.get_current_admin_user),

@@ -8,12 +8,6 @@ function renderNews(newsItems) {
         const recentCount = newsItems.filter(n => (new Date() - new Date(n.created_at)) < 7 * 24 * 60 * 60 * 1000).length;
         const statNews = document.getElementById('stat-recent-news');
         if (statNews) statNews.textContent = recentCount;
-        const newsBadge = document.getElementById('sidebar-news-badge');
-        if (newsBadge) {
-          newsBadge.textContent = recentCount;
-          newsBadge.classList.toggle('hidden', recentCount === 0);
-          newsBadge.classList.toggle('inline-flex', recentCount > 0);
-        }
 
         const container = document.getElementById('latest-news-container');
         if (!container) return;
@@ -742,8 +736,13 @@ async function renderDashboardCategoryGrid() {
         const arts = window._allArticlesCache || [];
         const counts = {};
         arts.forEach(a => { counts[a.category_id] = (counts[a.category_id] || 0) + 1; });
-        const cats = (window.taxonomyCategories || [])
-          .filter(c => (counts[c.id] || 0) > 0 && c.slug !== 'roaming' && c.name !== 'როუმინგი');
+        const user = window.currentUser;
+        const isAdmin = user && (user.role === 'admin' || user.role === 'content_admin');
+        const cats = (window.taxonomyCategories || []).filter(c => {
+          if (!c.slug) return false;
+          if (isAdmin) return true;
+          return (counts[c.id] || 0) > 0;
+        });
         if (cats.length === 0) {
           grid.innerHTML = '<p class="col-span-full text-sm text-gray-500">კატეგორიები ვერ მოიძებნა.</p>';
           return;
