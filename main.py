@@ -1399,6 +1399,11 @@ def get_my_readings(
     hot path behind the notifications popover, so any N+1 here directly
     shows up as a slow load on the bell icon.
     """
+    # Admin/content_admin manage the system rather than consume operator-level
+    # training content - they shouldn't see required-reading items at all here.
+    if current_user.role in ("admin", "content_admin"):
+        return []
+
     readings = db.query(models.RequiredReading).filter(
         models.RequiredReading.target_department.in_([current_user.department, "All"])
     ).all()
@@ -1477,57 +1482,61 @@ def get_notifications_summary(
     in sequence, each of which does its own DB roundtrip. This consolidates the
     fetch into ONE endpoint so the popover opens in roughly a single RTT.
     """
-    # 1) Unread/overdue required readings (visible-to-this-user)
-    readings = db.query(models.RequiredReading).filter(
-        models.RequiredReading.target_department.in_([current_user.department, "All"])
-    ).all()
-    reading_ids = [r.id for r in readings]
-    read_map: dict[int, models.ReadStatus] = {}
-    if reading_ids:
-        read_map = {
-            s.required_reading_id: s
-            for s in db.query(models.ReadStatus).filter(
-                models.ReadStatus.user_id == current_user.id,
-                models.ReadStatus.required_reading_id.in_(reading_ids),
-            )
-        }
     now = datetime.utcnow()
-    # Title batch lookup
-    title_map: dict[tuple[str, int], str] = {}
-    by_type: dict[str, list[int]] = {"article": [], "news": [], "video": []}
-    for r in readings:
-        if r.item_type in by_type:
-            by_type[r.item_type].append(r.item_id)
-    if by_type["article"]:
-        for aid, t in db.query(models.Article.id, models.Article.title).filter(
-            models.Article.id.in_(set(by_type["article"]))
-        ):
-            title_map[("article", aid)] = t
-    if by_type["news"]:
-        for nid, t in db.query(models.News.id, models.News.title).filter(
-            models.News.id.in_(set(by_type["news"]))
-        ):
-            title_map[("news", nid)] = t
-    if by_type["video"]:
-        for vid, t in db.query(models.VideoInstruction.id, models.VideoInstruction.title).filter(
-            models.VideoInstruction.id.in_(set(by_type["video"]))
-        ):
-            title_map[("video", vid)] = t
 
+    # 1) Unread/overdue required readings (visible-to-this-user). Admin/content_admin
+    # manage the system rather than consume operator-level training content, so
+    # they get no required-reading items here - mirrors get_my_readings above.
     unread_readings = []
-    for r in readings:
-        stat = read_map.get(r.id)
-        if stat and stat.status == "read":
-            continue
-        overdue = (not stat or stat.status != "read") and r.due_date < now
-        unread_readings.append({
-            "id": r.id,
-            "item_type": r.item_type,
-            "item_id": r.item_id,
-            "title": title_map.get((r.item_type, r.item_id), f"მასალა #{r.item_id}"),
-            "due_date": r.due_date,
-            "is_overdue": bool(overdue),
-        })
+    if current_user.role not in ("admin", "content_admin"):
+        readings = db.query(models.RequiredReading).filter(
+            models.RequiredReading.target_department.in_([current_user.department, "All"])
+        ).all()
+        reading_ids = [r.id for r in readings]
+        read_map: dict[int, models.ReadStatus] = {}
+        if reading_ids:
+            read_map = {
+                s.required_reading_id: s
+                for s in db.query(models.ReadStatus).filter(
+                    models.ReadStatus.user_id == current_user.id,
+                    models.ReadStatus.required_reading_id.in_(reading_ids),
+                )
+            }
+        # Title batch lookup
+        title_map: dict[tuple[str, int], str] = {}
+        by_type: dict[str, list[int]] = {"article": [], "news": [], "video": []}
+        for r in readings:
+            if r.item_type in by_type:
+                by_type[r.item_type].append(r.item_id)
+        if by_type["article"]:
+            for aid, t in db.query(models.Article.id, models.Article.title).filter(
+                models.Article.id.in_(set(by_type["article"]))
+            ):
+                title_map[("article", aid)] = t
+        if by_type["news"]:
+            for nid, t in db.query(models.News.id, models.News.title).filter(
+                models.News.id.in_(set(by_type["news"]))
+            ):
+                title_map[("news", nid)] = t
+        if by_type["video"]:
+            for vid, t in db.query(models.VideoInstruction.id, models.VideoInstruction.title).filter(
+                models.VideoInstruction.id.in_(set(by_type["video"]))
+            ):
+                title_map[("video", vid)] = t
+
+        for r in readings:
+            stat = read_map.get(r.id)
+            if stat and stat.status == "read":
+                continue
+            overdue = (not stat or stat.status != "read") and r.due_date < now
+            unread_readings.append({
+                "id": r.id,
+                "item_type": r.item_type,
+                "item_id": r.item_id,
+                "title": title_map.get((r.item_type, r.item_id), f"მასალა #{r.item_id}"),
+                "due_date": r.due_date,
+                "is_overdue": bool(overdue),
+            })
 
     # 2) Recent news (last 7 days), visible to user
     seven_days_ago = now - timedelta(days=7)
