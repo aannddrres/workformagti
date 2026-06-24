@@ -533,6 +533,34 @@ class KnowledgeFeedbackResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class GroupUserStat(BaseModel):
+    user_id: int
+    first_name: str
+    last_name: str
+    completion_percentage: int
+
+
+class GroupUsersResponse(BaseModel):
+    department: str
+    group_name: str
+    users: list[GroupUserStat]
+    total: int
+
+
+class CriticalOperatorItem(BaseModel):
+    user_id: int
+    first_name: str
+    last_name: str
+    department: Optional[str] = None
+    overdue_count: int
+
+
+class CriticalOperatorResponse(BaseModel):
+    operators: list[CriticalOperatorItem]
+    total: int
+    generated_at: datetime
+
+
 class UserNoteCreate(BaseModel):
     """Request schema for operator private annotations."""
     content: str

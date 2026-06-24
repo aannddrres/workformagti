@@ -94,7 +94,7 @@
 
   /* ── Render: Department → Groups → Members ───────────────────────────────*/
 
-  function groupRow(group, idx, deptKey) {
+  function groupRow(group, idx, deptKey, deptName) {
     var pct = Number(group.compliance) || 0;
     var hasReq = group.member_count > 0;
     var t = tier(pct, hasReq);
@@ -104,12 +104,15 @@
           group.critical_count + ' კრიტ.</span>'
       : '';
     return '' +
-      '<div class="py-2.5">' +
+      '<div class="group-row cursor-pointer rounded-lg px-1 py-2.5 transition hover:bg-gray-50 dark:hover:bg-zinc-800/60" data-dept="' + esc(deptName) + '" data-group="' + esc(group.name) + '">' +
         '<div class="mb-1.5 flex items-center justify-between gap-2 text-sm">' +
           '<span class="truncate font-medium text-gray-700 dark:text-zinc-300">' + esc(group.name) +
             '<span class="ml-1.5 text-xs font-normal text-gray-400 dark:text-zinc-500">· ' + group.member_count + '</span>' + crit +
           '</span>' +
-          '<span class="shrink-0 font-semibold tabular-nums" data-pct-color="' + pct + '">' + pct + '%</span>' +
+          '<span class="inline-flex shrink-0 items-center gap-1.5">' +
+            '<span class="font-semibold tabular-nums" data-pct-color="' + pct + '">' + pct + '%</span>' +
+            '<svg class="h-3.5 w-3.5 text-gray-300 transition-colors group-row-chevron dark:text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>' +
+          '</span>' +
         '</div>' +
         '<div class="h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-zinc-800">' +
           '<div id="' + barId + '" class="h-full rounded-full ' + t.bar + '" style="width:0%;transition:width .8s cubic-bezier(.22,1,.36,1)"></div>' +
@@ -135,7 +138,7 @@
         '</div>';
     }
 
-    var groupsHtml = (dept.groups || []).map(function (g, gi) { return groupRow(g, gi, deptKey); }).join('');
+    var groupsHtml = (dept.groups || []).map(function (g, gi) { return groupRow(g, gi, deptKey, dept.name); }).join('');
     return '' +
       '<div class="flex flex-col rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60">' +
         '<div class="mb-1 flex items-start justify-between gap-2">' +
@@ -216,6 +219,7 @@
       applyPctColors();
       adaptGrid(data.departments);
       bindCriticalCard();
+      bindGroupRows();
     }).catch(function (err) {
       console.error('DeptDashboard load failed:', err);
       if (isInitial) renderError('მონაცემების ჩატვირთვა ვერ მოხერხდა.');
@@ -277,14 +281,126 @@
     tile.classList.add('cursor-pointer', 'hover:bg-gray-50', 'dark:hover:bg-zinc-800/80', 'transition');
     tile.addEventListener('click', function () {
       var dlg = document.getElementById('critical-operators-modal');
-      if (dlg && dlg.showModal) dlg.showModal();
+      if (dlg && dlg.showModal) {
+        dlg.showModal();
+        fetchCriticalOperators();
+      }
     });
+  }
+
+  function fetchCriticalOperators() {
+    var body = document.getElementById('critical-modal-body');
+    if (!body) return;
+    body.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1.5"></i>იტვირთება…';
+    var token = window.Auth && Auth.getToken ? Auth.getToken() : '';
+    try {
+      fetch('/api/admin/critical-operators', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      }).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      }).then(function (data) {
+        if (!data.operators || data.operators.length === 0) {
+          body.innerHTML = '<p class="text-sm text-gray-500 dark:text-zinc-400">კრიტიკული ოპერატორები არ მოიძებნა.</p>';
+          return;
+        }
+        var rows = data.operators.map(function (op) {
+          return '<tr class="border-b border-gray-50 dark:border-zinc-800">' +
+            '<td class="py-2 pr-3 text-sm text-gray-800 dark:text-zinc-200">' + esc(op.first_name + ' ' + op.last_name) + '</td>' +
+            '<td class="py-2 pr-3 text-xs text-gray-500 dark:text-zinc-400 truncate max-w-[160px]">' + esc(op.department || '—') + '</td>' +
+            '<td class="py-2 text-sm font-semibold text-red-600 dark:text-red-400 text-right tabular-nums">' + op.overdue_count + '</td>' +
+          '</tr>';
+        }).join('');
+        body.innerHTML =
+          '<table class="w-full text-left">' +
+            '<thead><tr class="border-b border-gray-100 dark:border-zinc-700 text-xs font-semibold uppercase text-gray-400 dark:text-zinc-500">' +
+              '<th class="pb-2 pr-3">სახელი</th><th class="pb-2 pr-3">დეპარტამენტი</th><th class="pb-2 text-right">გამოტოვ.</th>' +
+            '</tr></thead>' +
+            '<tbody>' + rows + '</tbody>' +
+          '</table>' +
+          '<p class="mt-3 text-xs text-gray-400 dark:text-zinc-500 text-right">სულ: ' + data.total + '</p>';
+      }).catch(function (err) {
+        console.error('fetchCriticalOperators failed:', err);
+        body.innerHTML = '<p class="text-sm text-red-500">მონაცემების ჩატვირთვა ვერ მოხერხდა.</p>';
+      });
+    } catch (err) {
+      console.error('fetchCriticalOperators error:', err);
+      body.innerHTML = '<p class="text-sm text-red-500">მონაცემების ჩატვირთვა ვერ მოხერხდა.</p>';
+    }
+  }
+
+  function pctColorClass(pct) {
+    if (pct >= 100) return 'text-green-600 dark:text-green-400';
+    if (pct > 50)   return 'text-yellow-600 dark:text-yellow-400';
+    return 'text-red-600 dark:text-red-400';
+  }
+
+  function fetchGroupUsers(dept, groupName) {
+    var title = document.getElementById('group-users-modal-title');
+    var body  = document.getElementById('group-users-modal-body');
+    if (title) title.textContent = groupName;
+    if (!body) return;
+    var errHtml = '<tr><td colspan="2" class="py-8 text-center text-sm text-red-500">მონაცემების ჩატვირთვა ვერ მოხერხდა.</td></tr>';
+    body.innerHTML = '<tr><td colspan="2" class="py-8 text-center text-sm text-gray-500 dark:text-zinc-400"><i class="fa-solid fa-spinner fa-spin mr-1.5"></i>იტვირთება…</td></tr>';
+    var token = window.Auth && Auth.getToken ? Auth.getToken() : '';
+    var url = '/api/admin/departments/' + encodeURIComponent(dept) + '/groups/' + encodeURIComponent(groupName) + '/users';
+    try {
+      fetch(url, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      }).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      }).then(function (data) {
+        if (!data.users || data.users.length === 0) {
+          body.innerHTML = '<tr><td colspan="2" class="py-8 text-center text-sm text-gray-500 dark:text-zinc-400">თანამშრომლები არ მოიძებნა.</td></tr>';
+          return;
+        }
+        body.innerHTML = data.users.map(function (u) {
+          var cls = pctColorClass(u.completion_percentage);
+          return '<tr class="border-b border-gray-50 dark:border-zinc-800">' +
+            '<td class="py-2.5 pr-3 text-sm text-gray-800 dark:text-zinc-200">' + esc(u.first_name + ' ' + u.last_name) + '</td>' +
+            '<td class="py-2.5 pr-3 text-right">' +
+              '<div class="flex items-center justify-end gap-2">' +
+                '<div class="h-1.5 w-16 overflow-hidden rounded-full bg-gray-100 dark:bg-zinc-800">' +
+                  '<div class="h-full rounded-full ' + (u.completion_percentage >= 100 ? 'bg-emerald-500' : u.completion_percentage > 50 ? 'bg-amber-400' : 'bg-[#E30613]') + '" style="width:' + Math.min(100, u.completion_percentage) + '%"></div>' +
+                '</div>' +
+                '<span class="text-sm font-semibold tabular-nums ' + cls + '">' + u.completion_percentage + '%</span>' +
+              '</div>' +
+            '</td>' +
+          '</tr>';
+        }).join('');
+      }).catch(function (err) {
+        console.error('fetchGroupUsers failed:', err);
+        body.innerHTML = errHtml;
+      });
+    } catch (err) {
+      console.error('fetchGroupUsers error:', err);
+      body.innerHTML = errHtml;
+    }
+  }
+
+  function bindGroupRows() {
+    var rows = document.querySelectorAll('.group-row[data-dept][data-group]');
+    for (var i = 0; i < rows.length; i++) {
+      (function (row) {
+        if (row.dataset.grBound) return;
+        row.dataset.grBound = '1';
+        row.addEventListener('click', function () {
+          var dlg = document.getElementById('group-users-modal');
+          if (dlg && dlg.showModal) {
+            dlg.showModal();
+            fetchGroupUsers(row.dataset.dept, row.dataset.group);
+          }
+        });
+      })(rows[i]);
+    }
   }
 
   window.DeptDashboard = {
     start: start, stop: stop, load: load,
     renderRibbon: renderRibbon, renderDepartments: renderDepartments,
     renderSkeleton: renderSkeleton, countUp: countUp,
-    applyPctColors: applyPctColors, adaptGrid: adaptGrid, bindCriticalCard: bindCriticalCard
+    applyPctColors: applyPctColors, adaptGrid: adaptGrid,
+    bindCriticalCard: bindCriticalCard, bindGroupRows: bindGroupRows
   };
 })();

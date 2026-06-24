@@ -3149,6 +3149,157 @@ def get_department_stats(
     return build_department_stats(db)
 
 
+@app.get("/api/admin/critical-operators", response_model=schemas.CriticalOperatorResponse)
+def get_critical_operators(
+    current_admin: models.User = Depends(security.get_current_admin_user),
+    db: Session = Depends(get_db),
+):
+    """List operators whose reading compliance is below the critical threshold.
+
+    Three bulk queries (users, reading counts by dept, read counts by user+dept),
+    then pure Python aggregation — no N+1, no ORM hydration of RequiredReading rows.
+    """
+    users = (
+        db.query(
+            models.User.id, models.User.name, models.User.department,
+        )
+        .filter(
+            models.User.is_active == True,  # noqa: E712
+            models.User.role != _DASHBOARD_EXCLUDED_ROLE,
+        )
+        .all()
+    )
+
+    readings_by_dept = dict(
+        db.query(
+            models.RequiredReading.target_department,
+            func.count(models.RequiredReading.id),
+        )
+        .group_by(models.RequiredReading.target_department)
+        .all()
+    )
+    all_required = readings_by_dept.get("All", 0)
+
+    read_rows = (
+        db.query(
+            models.ReadStatus.user_id,
+            models.RequiredReading.target_department,
+            func.count(models.ReadStatus.id),
+        )
+        .join(
+            models.RequiredReading,
+            models.ReadStatus.required_reading_id == models.RequiredReading.id,
+        )
+        .filter(models.ReadStatus.status == "read")
+        .group_by(models.ReadStatus.user_id, models.RequiredReading.target_department)
+        .all()
+    )
+    read_map = {(uid, d): cnt for uid, d, cnt in read_rows}
+
+    operators = []
+    for user in users:
+        required_count, read_count, percentage = _reading_progress(
+            user, all_required, readings_by_dept, read_map
+        )
+        if required_count > 0 and percentage < _CRITICAL_THRESHOLD:
+            parts = (user.name or "").split(None, 1)
+            operators.append({
+                "user_id": user.id,
+                "first_name": parts[0] if parts else "",
+                "last_name": parts[1] if len(parts) > 1 else "",
+                "department": user.department,
+                "overdue_count": required_count - read_count,
+            })
+
+    operators.sort(key=lambda o: o["overdue_count"], reverse=True)
+    return {
+        "operators": operators,
+        "total": len(operators),
+        "generated_at": datetime.utcnow(),
+    }
+
+
+@app.get(
+    "/api/admin/departments/{department}/groups/{group_name}/users",
+    response_model=schemas.GroupUsersResponse,
+)
+def get_group_users(
+    department: str,
+    group_name: str,
+    current_admin: models.User = Depends(security.get_current_admin_user),
+    db: Session = Depends(get_db),
+):
+    """Per-group user completion stats for the admin drill-down modal.
+
+    Three scoped queries: users in the target group, reading counts by dept,
+    and read counts for those users only — no ORM hydration of RequiredReading.
+    """
+    full_dept = _group_full_department(department, group_name)
+
+    users = (
+        db.query(
+            models.User.id, models.User.name, models.User.department,
+        )
+        .filter(
+            models.User.is_active == True,  # noqa: E712
+            models.User.role != _DASHBOARD_EXCLUDED_ROLE,
+            models.User.department == full_dept,
+        )
+        .all()
+    )
+
+    readings_by_dept = dict(
+        db.query(
+            models.RequiredReading.target_department,
+            func.count(models.RequiredReading.id),
+        )
+        .group_by(models.RequiredReading.target_department)
+        .all()
+    )
+    all_required = readings_by_dept.get("All", 0)
+
+    user_ids = [u.id for u in users]
+    read_rows = (
+        db.query(
+            models.ReadStatus.user_id,
+            models.RequiredReading.target_department,
+            func.count(models.ReadStatus.id),
+        )
+        .join(
+            models.RequiredReading,
+            models.ReadStatus.required_reading_id == models.RequiredReading.id,
+        )
+        .filter(
+            models.ReadStatus.status == "read",
+            models.ReadStatus.user_id.in_(user_ids),
+        )
+        .group_by(models.ReadStatus.user_id, models.RequiredReading.target_department)
+        .all()
+    ) if user_ids else []
+    read_map = {(uid, d): cnt for uid, d, cnt in read_rows}
+
+    result = []
+    for user in users:
+        _, _, percentage = _reading_progress(
+            user, all_required, readings_by_dept, read_map
+        )
+        parts = (user.name or "").split(None, 1)
+        result.append({
+            "user_id": user.id,
+            "first_name": parts[0] if parts else "",
+            "last_name": parts[1] if len(parts) > 1 else "",
+            "completion_percentage": percentage,
+        })
+
+    result.sort(key=lambda u: u["completion_percentage"])
+    return {
+        "department": department,
+        "group_name": group_name,
+        "users": result,
+        "total": len(result),
+    }
+
+
 @app.put("/api/users/{user_id}/status", response_model=schemas.UserResponse)
 def update_user_status(
     user_id: int,
