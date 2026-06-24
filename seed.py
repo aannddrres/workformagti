@@ -265,38 +265,12 @@ def seed_database():
                     position="Service Desk Operator", is_active=True, hashed_password=hashed_pw,
                     permissions=DEFAULT_PERMISSIONS_BY_ROLE["operator"])
 
-        # Billing team
-        billing_manager = User(name="ბილინგის მენეჯერი", email="billing_mgr@magti.ge",
-                               role="manager", department="Billing",
-                               position="Billing Supervisor", is_active=True, hashed_password=hashed_pw,
-                               permissions=DEFAULT_PERMISSIONS_BY_ROLE["manager"])
-        billing_op1 = User(name="გიორგი კალანდაძე", email="billing1@magti.ge",
-                            role="operator", department="Billing",
-                            position="Billing Specialist", is_active=True, hashed_password=hashed_pw,
-                            permissions=DEFAULT_PERMISSIONS_BY_ROLE["operator"])
-        billing_op2 = User(name="მარიამ ბერიძე", email="billing2@magti.ge",
-                            role="operator", department="Billing",
-                            position="Billing Operator", is_active=True, hashed_password=hashed_pw,
-                            permissions=DEFAULT_PERMISSIONS_BY_ROLE["operator"])
-
-        # Sales team
-        sales_manager = User(name="გაყიდვების მენეჯერი", email="sales_mgr@magti.ge",
-                             role="manager", department="Sales",
-                             position="Sales Supervisor", is_active=True, hashed_password=hashed_pw,
-                             permissions=DEFAULT_PERMISSIONS_BY_ROLE["manager"])
-        sales_op1 = User(name="ეკატერინე მებონია", email="sales1@magti.ge",
-                          role="operator", department="Sales",
-                          position="Sales Operator", is_active=True, hashed_password=hashed_pw,
-                          permissions=DEFAULT_PERMISSIONS_BY_ROLE["operator"])
-        sales_op2 = User(name="ლაშა ტაბატაძე", email="sales2@magti.ge",
-                          role="operator", department="Sales",
-                          position="Retail Agent", is_active=True, hashed_password=hashed_pw,
-                          permissions=DEFAULT_PERMISSIONS_BY_ROLE["operator"])
+        # NOTE: Billing and Sales departments were retired (see migrate_departments.py).
+        # Do not re-add dedicated Billing/Sales User accounts here — that would
+        # silently re-introduce the departments this seed script is meant to keep gone.
 
         db.add_all([
             admin, content_admin, manager, nino, tech, info,
-            billing_manager, billing_op1, billing_op2,
-            sales_manager, sales_op1, sales_op2
         ])
         db.flush()  # assign IDs
 
@@ -325,10 +299,10 @@ def seed_database():
         articles = [
             Article(title="როუმინგული ტარიფები", content=ROAMING_TARIFFS_HTML, category_id=cat["როუმინგი"], target_department="All", status="published", author_id=content_admin.id),
             Article(title="როუმინგის აქტივაცია", content=ROAMING_ACTIVATION_HTML, category_id=cat["როუმინგი"], target_department="All", status="published", author_id=content_admin.id),
-            Article(title="ბოჭკოვანი ინტერნეტის ინსტალაცია", content=FTTH_INSTALL_HTML, category_id=cat["ინტერნეტი"], target_department="Billing", status="published", author_id=content_admin.id),
+            Article(title="ბოჭკოვანი ინტერნეტის ინსტალაცია", content=FTTH_INSTALL_HTML, category_id=cat["ინტერნეტი"], target_department="Informational", status="published", author_id=content_admin.id),
             Article(title="GPON პარამეტრები (Huawei)", content=GPON_HUAWEI_HTML, category_id=cat["ტექნიკური"], target_department="Support", status="published", author_id=content_admin.id),
             Article(title="IPTV პულტის კოდები", content=IPTV_REMOTE_CODES_HTML, category_id=cat["IPTV"], target_department="Support", status="published", author_id=content_admin.id),
-            Article(title="მობილური პორტირების პროცედურა", content=PORTING_HTML, category_id=cat["პორტირება"], target_department="Sales", status="published", author_id=content_admin.id),
+            Article(title="მობილური პორტირების პროცედურა", content=PORTING_HTML, category_id=cat["პორტირება"], target_department="Informational", status="published", author_id=content_admin.id),
             Article(title="MyMagti რეგისტრაცია", content=MYMAGTI_REG_HTML, category_id=cat["MyMagti"], target_department="Informational", status="published", author_id=content_admin.id),
             Article(title="მობილური ინტერნეტის პარამეტრები", content=MOBILE_APN_HTML, category_id=cat["ინტერნეტი"], target_department="All", status="published", author_id=content_admin.id),
         ]
@@ -368,9 +342,9 @@ def seed_database():
                             due_date=now + timedelta(days=5), priority="high"),
             RequiredReading(item_type="article", item_id=articles[4].id, target_department="Support",
                             due_date=now + timedelta(days=14), priority="normal"),
-            RequiredReading(item_type="article", item_id=articles[2].id, target_department="Billing",
+            RequiredReading(item_type="article", item_id=articles[2].id, target_department="Informational",
                             due_date=now + timedelta(days=5), priority="high"),
-            RequiredReading(item_type="article", item_id=articles[5].id, target_department="Sales",
+            RequiredReading(item_type="article", item_id=articles[5].id, target_department="Informational",
                             due_date=now + timedelta(days=7), priority="normal"),
         ]
         
@@ -397,26 +371,6 @@ def seed_database():
                        status="read", read_at=now - timedelta(days=2)),
             ReadStatus(user_id=tech.id, required_reading_id=readings[1].id,
                        status="read", read_at=now - timedelta(days=2)),
-
-            # billing_op1 (Billing) - read 2 out of 4 (All + Billing required readings)
-            ReadStatus(user_id=billing_op1.id, required_reading_id=readings[0].id,
-                       status="read", read_at=now - timedelta(days=1)),
-            ReadStatus(user_id=billing_op1.id, required_reading_id=readings[4].id, # Billing required reading
-                       status="read", read_at=now - timedelta(days=1)),
-
-            # billing_op2 (Billing) - read 4 out of 4 (100% compliance!)
-            ReadStatus(user_id=billing_op2.id, required_reading_id=readings[0].id,
-                       status="read", read_at=now - timedelta(days=2)),
-            ReadStatus(user_id=billing_op2.id, required_reading_id=readings[1].id,
-                       status="read", read_at=now - timedelta(days=2)),
-            ReadStatus(user_id=billing_op2.id, required_reading_id=readings[4].id,
-                       status="read", read_at=now - timedelta(days=2)),
-            ReadStatus(user_id=billing_op2.id, required_reading_id=readings[6].id, # News read
-                       status="read", read_at=now - timedelta(days=2)),
-
-            # sales_op2 (Sales) - read 1 out of 4
-            ReadStatus(user_id=sales_op2.id, required_reading_id=readings[1].id,
-                       status="read", read_at=now - timedelta(days=1)),
         ])
 
         # ── A welcome message from the manager to a team member ─────────────
@@ -435,14 +389,9 @@ def seed_database():
         print("  admin@magti.ge     -> admin          (system administrator)")
         print("  content@magti.ge   -> content_admin  (content management)")
         print("  manager@magti.ge   -> manager        (Support supervisor)")
-        print("  billing_mgr@magti.ge -> manager      (Billing supervisor)")
-        print("  sales_mgr@magti.ge   -> manager      (Sales supervisor)")
         print("  nino@magti.ge      -> operator       (Support)")
         print("  tech@magti.ge      -> operator       (Support)")
-        print("  billing1@magti.ge  -> operator       (Billing)")
-        print("  billing2@magti.ge  -> operator       (Billing)")
-        print("  sales1@magti.ge    -> operator       (Sales)")
-        print("  sales2@magti.ge    -> operator       (Sales)")
+        print("  info@magti.ge      -> operator       (Informational)")
         print("==========================================================")
 
     except Exception as e:
