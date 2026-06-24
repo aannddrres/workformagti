@@ -324,7 +324,7 @@ function renderProgressRows() {
 
           const readText = user.required_count > 0 ? user.read_count : '—';
           const reqText  = user.required_count > 0 ? user.required_count : '—';
-          const percDisplay = user.required_count > 0 ? `${user.percentage}%` : '—';
+          const percDisplay = user.required_count > 0 ? `${user.percentage}` : '—';
           const percNum = user.required_count > 0 ? Math.max(0, Math.min(100, perc)) : 0;
 
           // Department label
