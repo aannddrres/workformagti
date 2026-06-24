@@ -177,7 +177,7 @@
                 </a>
               </li>
               <li>
-                <a href="#" onclick="switchMainPage('page-admin', this); switchAdmin('users'); return false;"
+                <a href="#" data-required-role="admin" onclick="switchMainPage('page-admin', this); switchAdmin('users'); return false;"
                   class="block rounded-lg px-3 py-2 text-[12px] font-medium text-gray-400 hover:bg-gray-900/[0.04] hover:text-gray-700 transition-all duration-150">
                   <i class="fa-solid fa-users w-3.5 mr-1.5 text-gray-300"></i>მომხმარებლები
                 </a>
@@ -195,7 +195,7 @@
                 </a>
               </li>
               <li>
-                <a href="#" onclick="switchMainPage('page-admin', this); switchAdmin('audit'); return false;"
+                <a href="#" data-required-role="admin" onclick="switchMainPage('page-admin', this); switchAdmin('audit'); return false;"
                   class="block rounded-lg px-3 py-2 text-[12px] font-medium text-gray-400 hover:bg-gray-900/[0.04] hover:text-gray-700 transition-all duration-150">
                   <i class="fa-solid fa-shield-halved w-3.5 mr-1.5 text-gray-300"></i>ლოგები
                 </a>
