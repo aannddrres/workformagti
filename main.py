@@ -5,6 +5,7 @@ import re
 import json
 import uuid
 import asyncio
+import logging
 import threading
 from collections import Counter
 from contextlib import asynccontextmanager
@@ -39,6 +40,16 @@ from database import engine, get_db, SessionLocal
 # Paths are resolved relative to THIS file, so the app works regardless of the
 # directory uvicorn is launched from.
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Module logger — replaces ad-hoc print() calls so operational messages get
+# levels/timestamps and route through the app's stdio (captured by gunicorn).
+logger = logging.getLogger("magti")
+if not logger.handlers:
+    _log_handler = logging.StreamHandler()
+    _log_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s"))
+    logger.addHandler(_log_handler)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
 
 # Creates all database tables on startup — but only when RUN_INIT=1.
 # Otherwise, 4 gunicorn workers all race and 3 fail with UniqueViolation on
@@ -177,7 +188,7 @@ def _lightweight_migrations() -> None:
             try:
                 conn.exec_driver_sql(ddl)
             except Exception as e:
-                print(f"[migration] failed creating table {table}: {e}")
+                logger.warning("[migration] failed creating table %s: %s", table, e)
 
         for table, cols in add_cols.items():
             try:
@@ -191,7 +202,7 @@ def _lightweight_migrations() -> None:
                         conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {col} {definition}")
                     except Exception as e:
                         # Don't break startup on a missing optional column; just log.
-                        print(f"[migration] skipped {table}.{col}: {e}")
+                        logger.warning("[migration] skipped %s.%s: %s", table, col, e)
 
         # Backfill category on pre-existing audit_logs rows (new rows get this
         # automatically from the AuditLog.before_insert hook in models.py).
@@ -210,7 +221,7 @@ def _lightweight_migrations() -> None:
                 WHERE category IS NULL
             """)
         except Exception as e:
-            print(f"[migration] audit_logs category backfill skipped: {e}")
+            logger.warning("[migration] audit_logs category backfill skipped: %s", e)
 
         # Backfill results_found from the existing has_results boolean as a
         # best-effort placeholder (1 or 0) — exact historical counts weren't
@@ -221,7 +232,7 @@ def _lightweight_migrations() -> None:
                 WHERE results_found IS NULL
             """)
         except Exception as e:
-            print(f"[migration] search_logs results_found backfill skipped: {e}")
+            logger.warning("[migration] search_logs results_found backfill skipped: %s", e)
 
         # Backfill tags/tags_mapping from the existing flat articles.tags text
         # column. Only runs while tags_mapping is empty, so it's a one-time
@@ -249,7 +260,7 @@ def _lightweight_migrations() -> None:
                             {"n": name, "iid": article_id},
                         )
         except Exception as e:
-            print(f"[migration] tags backfill skipped: {e}")
+            logger.warning("[migration] tags backfill skipped: %s", e)
 
         # Backfill article_target_departments from the legacy single-value
         # articles.target_department column. NOT EXISTS guard makes this a
@@ -266,7 +277,7 @@ def _lightweight_migrations() -> None:
                   )
             """)
         except Exception as e:
-            print(f"[migration] article_target_departments backfill skipped: {e}")
+            logger.warning("[migration] article_target_departments backfill skipped: %s", e)
 
         # Batch-normalize existing video URLs in SQLite database
         try:
@@ -279,9 +290,9 @@ def _lightweight_migrations() -> None:
                             text("UPDATE video_instructions SET video_url = :url WHERE id = :id"),
                             {"url": normalized_url, "id": vid}
                         )
-                        print(f"[migration] Normalized video {vid} URL: {original_url} -> {normalized_url}")
+                        logger.info("[migration] Normalized video %s URL: %s -> %s", vid, original_url, normalized_url)
         except Exception as e:
-            print(f"[migration] Video URLs normalization skipped or failed: {e}")
+            logger.warning("[migration] Video URLs normalization skipped or failed: %s", e)
 
 
 _lightweight_migrations()
@@ -435,7 +446,7 @@ async def _log_writer(queue: asyncio.Queue) -> None:
                 try:
                     await run_in_threadpool(_write_log_batch_sync, batch)
                 except Exception as e:
-                    print(f"[log_writer] final flush failed (size={len(batch)}): {e}")
+                    logger.error("[log_writer] final flush failed (size=%d): %s", len(batch), e)
                 return
             batch.append(item)
 
@@ -443,7 +454,7 @@ async def _log_writer(queue: asyncio.Queue) -> None:
             await run_in_threadpool(_write_log_batch_sync, batch)
         except Exception as e:
             # Never let logging failures kill the writer loop.
-            print(f"[log_writer] flush failed (size={len(batch)}): {e}")
+            logger.error("[log_writer] flush failed (size=%d): %s", len(batch), e)
 
 
 def enqueue_log(request: Request, item: LogItem) -> None:
@@ -606,7 +617,7 @@ class RedisEventBroker:
                 await r.ping()
                 await r.aclose()
                 self._use_redis = True
-                print(f"SSE Broker: connected to Redis at {self.redis_url} — multi-worker safe.")
+                logger.info("SSE Broker: connected to Redis at %s — multi-worker safe.", self.redis_url)
             except Exception as e:
                 self._use_redis = False
                 # Detect probable multi-worker mode: gunicorn / uvicorn workers.
@@ -626,7 +637,7 @@ class RedisEventBroker:
                         "Live notifications WILL be unreliable across workers without Redis — "
                         "start Redis and set REDIS_URL, or run with a single worker."
                     )
-                print(warning)
+                logger.warning("%s", warning)
             finally:
                 if self._ready is not None:
                     self._ready.set()
@@ -688,7 +699,7 @@ class RedisEventBroker:
                     await r.publish("magti_sse_events", json.dumps(event, ensure_ascii=False))
                     await r.aclose()
                 except Exception as e:
-                    print(f"SSE Broker: Failed to publish to Redis ({e}). Routing to local queues.")
+                    logger.warning("SSE Broker: Failed to publish to Redis (%s). Routing to local queues.", e)
                     self._push_local(event)
             else:
                 self._push_local(event)
@@ -1841,7 +1852,7 @@ def create_required_reading(
         auto_generate_notifications_for_mandatory(db_reading, current_admin.id, db)
         db.commit()
     except Exception as e:
-        print(f"Error auto generating mandatory notifications: {e}")
+        logger.exception("Error auto generating mandatory notifications: %s", e)
 
     audit_log = models.AuditLog(
         admin_id=current_admin.id,
@@ -4169,13 +4180,13 @@ def get_audit_logs(
         if start_dt is not None:
             query = query.filter(models.AuditLog.timestamp >= start_dt)
         else:
-            print(f"Audit log start_date parsing error: invalid format '{start_date}'")
+            logger.warning("Audit log start_date parsing error: invalid format '%s'", start_date)
     if end_date:
         end_dt = _parse_to_naive_utc(end_date, end_of_day=True)
         if end_dt is not None:
             query = query.filter(models.AuditLog.timestamp < end_dt)
         else:
-            print(f"Audit log end_date parsing error: invalid format '{end_date}'")
+            logger.warning("Audit log end_date parsing error: invalid format '%s'", end_date)
     if user_id:
         query = query.filter(models.AuditLog.admin_id == user_id)
     if action:
