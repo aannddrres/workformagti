@@ -5678,6 +5678,21 @@ window.setPreviewDevice = function(device) {
   }
 };
 
+window._previewScrollRAF = null;
+window._scrollPreviewToBottom = function(iframe) {
+  try {
+    if (window._previewScrollRAF) cancelAnimationFrame(window._previewScrollRAF);
+    window._previewScrollRAF = requestAnimationFrame(function() {
+      try {
+        var win = iframe.contentWindow;
+        if (win) {
+          win.scrollTo({ top: win.document.body.scrollHeight, behavior: 'smooth' });
+        }
+      } catch(_) {}
+    });
+  } catch(_) {}
+};
+
 window.updateArticlePreview = function() {
   const iframe = document.getElementById('article-preview-iframe');
   if (!iframe) return;
@@ -5693,6 +5708,7 @@ window.updateArticlePreview = function() {
   if (titleEl && bodyEl) {
     titleEl.textContent = title;
     bodyEl.innerHTML = bodyContent;
+    window._scrollPreviewToBottom(iframe);
   } else {
     doc.open();
     doc.write(`
@@ -5787,5 +5803,6 @@ window.updateArticlePreview = function() {
     const bodyElNew = doc.getElementById('preview-body');
     if (titleElNew) titleElNew.textContent = title;
     if (bodyElNew) bodyElNew.innerHTML = bodyContent;
+    window._scrollPreviewToBottom(iframe);
   }
 };
