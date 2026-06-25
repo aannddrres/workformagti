@@ -2,7 +2,7 @@
 <html lang="ka">
 
 <head>
-    <script src="/static/frontend_api.js?v=3"></script>
+    <script src="/static/frontend_api.js?v=4"></script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>მაგთი — შიდა საინფორმაციო პორტალი</title>
@@ -52,6 +52,107 @@
     }
     #article-content-editor .ql-editor {
       min-height: 400px;
+    }
+
+    @media print {
+      /* Hide standard page layout and background */
+      body {
+        background: #ffffff !important;
+      }
+      #sidebar, 
+      #main-header, 
+      main,
+      .no-print,
+      #modal-pin-btn,
+      #article-modal-related,
+      #modal-copy-script-btn,
+      button[onclick="closeArticleModal()"],
+      button[onclick="toggleModalTheme(this)"],
+      button[onclick="window.print()"],
+      button[onclick="copyArticleBody(this)"],
+      button[onclick="copyFirstScript()"] {
+        display: none !important;
+      }
+
+      /* Hide personal notes container div */
+      #article-modal-scroll div:has(> #article-modal-note),
+      #article-modal-note,
+      label[for="article-modal-note"] {
+        display: none !important;
+      }
+
+      /* Reset the article modal container so it fits standard page width without shadows/overlay */
+      #article-modal {
+        position: static !important;
+        display: block !important;
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+        padding: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+      }
+      
+      #article-modal > div.absolute.inset-0.bg-black\/50 {
+        display: none !important;
+      }
+
+      #article-modal > div.relative.flex {
+        position: static !important;
+        max-height: none !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        border: none !important;
+        overflow: visible !important;
+        background: white !important;
+      }
+
+      #article-modal-scroll {
+        overflow: visible !important;
+        max-height: none !important;
+        height: auto !important;
+        padding: 0 !important;
+      }
+
+      /* Core article body contrast and expansion */
+      #article-modal-content, 
+      .article-content-optimized, 
+      .prose,
+      .prose-magti {
+        width: 100% !important;
+        max-width: 100% !important;
+        background: white !important;
+        color: #000000 !important;
+      }
+
+      /* Formatting technical data tables for readability in print */
+      table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        margin: 1.5rem 0 !important;
+        background: white !important;
+      }
+      
+      th, td {
+        border: 1px solid #cbd5e1 !important;
+        padding: 0.5rem 0.75rem !important;
+        text-align: left !important;
+        color: #000000 !important;
+        background: white !important;
+      }
+      
+      th {
+        font-weight: 700 !important;
+        background-color: #f1f5f9 !important;
+      }
+
+      /* Keep page headers high contrast */
+      h1, h2, h3, h4, h5, h6 {
+        color: #000000 !important;
+        background: transparent !important;
+      }
     }
   </style>
 </head>
@@ -699,7 +800,7 @@
       - Dynamic Rendering: Injects fetched data into the DOM.
     -->
     
-    <script src="/static/js/app-core.js?v=4"></script>
+    <script src="/static/js/app-core.js?v=5"></script>
     <script src="/static/js/app-renderers.js?v=3"></script>
     <script src="/static/js/app-router.js?v=2"></script>
     <script src="/static/js/dept-dashboard.js?v=1"></script>
@@ -1721,6 +1822,12 @@
                     <label for="article-category" class="mb-1.5 block text-sm font-medium text-gray-700">კატეგორია</label>
                     <select id="article-category" name="category_id" required
                       class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]"></select>
+                  </div>
+                  <div>
+                    <label for="article-tags" class="mb-1.5 block text-sm font-medium text-gray-700">ტეგები</label>
+                    <input type="text" id="article-tags"
+                      class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]"
+                      placeholder="ტეგები მძიმით გამოყოფილი" />
                   </div>
                 </div>
                 <div>

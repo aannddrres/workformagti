@@ -1935,33 +1935,35 @@ async function verifyStaleArticle(articleId, btn) {
       }
 
 function toggleDueDate() {
-        const isMandatory = document.getElementById('article-mandatory').checked;
+        const mandEl = document.getElementById('article-mandatory');
         const dueDateContainer = document.getElementById('due-date-container');
         const dueDateInput = document.getElementById('article-due-date');
+        if (!mandEl || !dueDateContainer) return;
+        const isMandatory = mandEl.checked;
 
         if (isMandatory) {
           dueDateContainer.classList.remove('hidden');
           dueDateContainer.classList.add('flex');
-          dueDateInput.required = true;
+          if (dueDateInput) dueDateInput.required = true;
         } else {
           dueDateContainer.classList.add('hidden');
           dueDateContainer.classList.remove('flex');
-          dueDateInput.required = false;
+          if (dueDateInput) dueDateInput.required = false;
         }
       }
 
 function toggleScheduledDate() {
-        const status = document.getElementById('article-status').value;
+        const statusEl = document.getElementById('article-status');
         const schedContainer = document.getElementById('scheduled-date-container');
         const schedInput = document.getElementById('article-published-at');
+        if (!statusEl || !schedContainer) return;
 
-        if (status === 'scheduled') {
+        if (statusEl.value === 'scheduled') {
           schedContainer.classList.remove('hidden');
-          schedInput.required = true;
+          if (schedInput) schedInput.required = true;
         } else {
           schedContainer.classList.add('hidden');
-          schedInput.required = false;
-          schedInput.value = '';
+          if (schedInput) { schedInput.required = false; schedInput.value = ''; }
         }
       }
 
@@ -2032,7 +2034,7 @@ async function submitArticleForm(event) {
         const dueDate = document.getElementById('article-due-date').value;
         const status = document.getElementById('article-status').value;
         const publishedAtVal = document.getElementById('article-published-at').value;
-        const tags = document.getElementById('article-tags').value.trim();
+        const tags = document.getElementById('article-tags')?.value.trim() || '';
         // Block 5: role-based content visibility toggles.
         const visibleToTechInfo = document.getElementById('article-visible-tech-info').checked;
         const visibleToServiceCenter = document.getElementById('article-visible-service-center').checked;
@@ -2107,9 +2109,25 @@ async function populateArticleCategorySelect(selectedId) {
       }
 
 async function editArticle(articleId) {
+        console.log('[editArticle] clicked for ID:', articleId);
+        try {
         let article = (window.adminArticles || {})[articleId];
-        if (!article || article.content === undefined) {
+        if (!article || article.content === undefined || article.content === null) {
           article = await Store.getArticle(articleId);
+        }
+        if (article && (article.content === undefined || article.content === null)) {
+          try {
+            const token = Auth.getToken();
+            const r = await fetch('/api/articles/' + articleId, {
+              headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+            });
+            if (r.ok) {
+              const full = await r.json();
+              article = Object.assign(article, full);
+              if (window.adminArticles) window.adminArticles[articleId] = article;
+              Store.articles[articleId] = article;
+            }
+          } catch (e) { console.warn('[editArticle] direct fetch fallback failed:', e); }
         }
         if (!article) {
           alert('სტატიის მონაცემები ვერ მოიძებნა. სცადეთ გვერდის განახლება.');
@@ -2118,52 +2136,88 @@ async function editArticle(articleId) {
 
         window.editingArticleId = articleId;
 
-        document.getElementById('article-title').value = article.title;
-        document.getElementById('article-content').value = article.content;
-        if (window.articleQuill) window.articleQuill.root.innerHTML = article.content || '';
+        const $ = id => document.getElementById(id);
+
+        const titleEl = $('article-title');
+        if (titleEl) titleEl.value = article.title || '';
+
+        const contentEl = $('article-content');
+        if (contentEl) contentEl.value = article.content || '';
+
+        if (window.articleQuill) {
+          try {
+            const htmlContent = article.content || '';
+            window.articleQuill.setText('', 'silent');
+            if (htmlContent) {
+              window.articleQuill.clipboard.dangerouslyPasteHTML(0, htmlContent, 'silent');
+            }
+          } catch (qErr) {
+            console.warn('[editArticle] Quill paste failed, falling back:', qErr);
+            window.articleQuill.root.innerHTML = article.content || '';
+          }
+        }
+
         await populateArticleCategorySelect(article.category_id);
-        const audSel = document.getElementById('article-audience-profile');
+
+        const audSel = $('article-audience-profile');
         if (audSel) audSel.value = article.audience_profile || 'all';
-        // Reverse-map English department values back onto the 3 toggles.
+
         const editDepts = article.target_departments || [];
-        document.getElementById('dept-info').checked = editDepts.includes('Informational');
-        document.getElementById('dept-tech').checked = editDepts.includes('Support');
-        document.getElementById('dept-service').checked = editDepts.includes('Service Centers');
-        document.getElementById('article-tags').value = article.tags || '';
-        // Block 5: prefill role-based visibility toggles from the existing article.
-        document.getElementById('article-visible-tech-info').checked = article.visible_to_tech_info !== false;
-        document.getElementById('article-visible-service-center').checked = !!article.visible_to_service_center;
+        const deptInfo = $('dept-info');
+        if (deptInfo) deptInfo.checked = editDepts.includes('Informational');
+        const deptTech = $('dept-tech');
+        if (deptTech) deptTech.checked = editDepts.includes('Support');
+        const deptService = $('dept-service');
+        if (deptService) deptService.checked = editDepts.includes('Service Centers');
+
+        const tagsEl = $('article-tags');
+        if (tagsEl) tagsEl.value = article.tags || '';
+
+        const visTech = $('article-visible-tech-info');
+        if (visTech) visTech.checked = article.visible_to_tech_info !== false;
+        const visSC = $('article-visible-service-center');
+        if (visSC) visSC.checked = !!article.visible_to_service_center;
 
         const status = article.status || 'published';
-        document.getElementById('article-status').value = status;
-        const schedInput = document.getElementById('article-published-at');
-        if (status === 'scheduled' && article.published_at) {
-          const dateObj = new Date(article.published_at);
-          const pad = n => n.toString().padStart(2, '0');
-          schedInput.value = `${dateObj.getFullYear()}-${pad(dateObj.getMonth() + 1)}-${pad(dateObj.getDate())}T${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}`;
-        } else {
-          schedInput.value = '';
+        const statusEl = $('article-status');
+        if (statusEl) statusEl.value = status;
+
+        const schedInput = $('article-published-at');
+        if (schedInput) {
+          if (status === 'scheduled' && article.published_at) {
+            const dateObj = new Date(article.published_at);
+            const pad = n => n.toString().padStart(2, '0');
+            schedInput.value = `${dateObj.getFullYear()}-${pad(dateObj.getMonth() + 1)}-${pad(dateObj.getDate())}T${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}`;
+          } else {
+            schedInput.value = '';
+          }
         }
         toggleScheduledDate();
 
         window._removeAttachment = false;
-        document.getElementById('article-attachment-url').value = article.attachment_url || '';
-        const attLink = document.getElementById('current-attachment-link');
-        if (article.attachment_url) {
-          attLink.classList.remove('hidden');
-          attLink.classList.add('flex');
-          attLink.querySelector('a').href = article.attachment_url;
-          attLink.querySelector('a').textContent = article.attachment_url.split('/').pop() || 'მიმაგრებული ფაილი';
-        } else {
-          attLink.classList.add('hidden');
-          attLink.classList.remove('flex');
+        const attUrlEl = $('article-attachment-url');
+        if (attUrlEl) attUrlEl.value = article.attachment_url || '';
+        const attLink = $('current-attachment-link');
+        if (attLink) {
+          if (article.attachment_url) {
+            attLink.classList.remove('hidden');
+            attLink.classList.add('flex');
+            const a = attLink.querySelector('a');
+            if (a) { a.href = article.attachment_url; a.textContent = article.attachment_url.split('/').pop() || 'მიმაგრებული ფაილი'; }
+          } else {
+            attLink.classList.add('hidden');
+            attLink.classList.remove('flex');
+          }
         }
 
-        // [Fix G10] Mandatory section stays VISIBLE during edit. Prefill from existing RR row.
-        document.getElementById('mandatory-section').classList.remove('hidden');
-        document.getElementById('article-mandatory').checked = false;
-        document.getElementById('article-due-date').value = '';
+        const mandSec = $('mandatory-section');
+        if (mandSec) mandSec.classList.remove('hidden');
+        const mandCheck = $('article-mandatory');
+        if (mandCheck) mandCheck.checked = false;
+        const dueDateEl = $('article-due-date');
+        if (dueDateEl) dueDateEl.value = '';
         toggleDueDate();
+
         const token = Auth.getToken();
         if (token) {
           try {
@@ -2173,9 +2227,9 @@ async function editArticle(articleId) {
             if (r.ok) {
               const rr = await r.json();
               if (rr && rr.id) {
-                document.getElementById('article-mandatory').checked = true;
-                if (rr.due_date) {
-                  document.getElementById('article-due-date').value = String(rr.due_date).slice(0, 10);
+                if (mandCheck) mandCheck.checked = true;
+                if (rr.due_date && dueDateEl) {
+                  dueDateEl.value = String(rr.due_date).slice(0, 10);
                 }
                 toggleDueDate();
               }
@@ -2183,16 +2237,17 @@ async function editArticle(articleId) {
           } catch { }
         }
 
-        document.getElementById('article-form-title').textContent = 'სტატიის რედაქტირება';
-        document.getElementById('cancel-edit-btn').classList.remove('hidden');
-        const panel = document.getElementById('admin-panel');
+        const formTitle = $('article-form-title');
+        if (formTitle) formTitle.textContent = 'სტატიის რედაქტირება';
+        const cancelBtn = $('cancel-edit-btn');
+        if (cancelBtn) cancelBtn.classList.remove('hidden');
+        const panel = $('admin-panel');
         if (panel) {
           panel.classList.remove('hidden');
           setTimeout(() => panel.classList.remove('translate-x-full'), 10);
         }
-        document.getElementById('admin-panel-backdrop')?.classList.remove('hidden');
+        $('admin-panel-backdrop')?.classList.remove('hidden');
 
-        // Reset autosave state for editing article
         initAutosave();
 
         if (typeof window.updateArticlePreview === 'function') {
@@ -2200,6 +2255,9 @@ async function editArticle(articleId) {
         }
         if (typeof window.setPreviewDevice === 'function') {
           window.setPreviewDevice('desktop');
+        }
+        } catch (err) {
+          console.error('[editArticle] failed:', err);
         }
       }
 
@@ -2228,7 +2286,8 @@ function exitEditMode() {
         document.getElementById('mandatory-section').classList.remove('hidden');
         document.getElementById('article-status').value = 'published';
         document.getElementById('article-published-at').value = '';
-        document.getElementById('article-tags').value = '';
+        const tagsReset = document.getElementById('article-tags');
+        if (tagsReset) tagsReset.value = '';
         toggleScheduledDate();
         closeArticleDrawer();
       }
@@ -2964,7 +3023,7 @@ function ensureArticleModal() {
               <!-- Scrollable body -->
               <div class="flex-1 overflow-y-auto px-7 py-6" id="article-modal-scroll">
                 <!-- ავტომატური სარჩევი (TOC) -->
-                <div id="article-modal-toc" class="mx-auto mb-5 hidden max-w-[72ch] rounded-xl border border-gray-100 bg-gray-50/50 p-4"></div>
+                <div id="article-modal-toc" class="mx-auto mb-5 hidden max-w-[72ch] rounded-xl border border-slate-200 bg-slate-50 p-5"></div>
 
                 <!-- Article body — constrained to 72ch for comfortable reading -->
                 <div id="article-modal-content" class="article-content-optimized prose-magti mx-auto mb-5 max-w-[72ch] text-gray-700"></div>
@@ -3055,11 +3114,11 @@ function openArticleModal(article) {
           const headings = contentDiv.querySelectorAll('h1, h2, h3');
           if (headings.length > 2) { // ვაჩვენოთ მხოლოდ მაშინ, თუ 2-ზე მეტი ქვესათაურია
             tocContainer.classList.remove('hidden');
-            let tocHtml = '<p class="mb-2 text-[11px] font-bold uppercase tracking-wider text-gray-500"><i aria-hidden="true" class="fa-solid fa-list-ul mr-1.5"></i>სარჩევი</p><ul class="space-y-1.5 text-[13px] text-gray-600">';
+            let tocHtml = '<p class="mb-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5 border-b border-slate-200/60 pb-2"><i aria-hidden="true" class="fa-solid fa-list-ul"></i>სარჩევი</p><ul class="space-y-1.5 pl-1 text-[13px] text-slate-600">';
             headings.forEach((h, i) => {
               h.id = 'heading-' + i; // ვანიჭებთ უნიკალურ ID-ს რომ ლინკმა იმუშაოს
               const isH3 = h.tagName.toLowerCase() === 'h3';
-              tocHtml += `<li class="${isH3 ? 'pl-4 text-gray-500' : 'font-medium'}"><a href="#${h.id}" class="hover:text-[#E30613] transition-colors">${h.textContent}</a></li>`;
+              tocHtml += `<li class="${isH3 ? 'pl-4 text-slate-400' : 'font-semibold'}"><a href="#${h.id}" class="hover:text-[#E30613] transition-colors flex items-center gap-1.5"><i aria-hidden="true" class="fa-solid fa-chevron-right text-[8px] opacity-40"></i>${h.textContent}</a></li>`;
             });
             tocHtml += '</ul>';
             tocContainer.innerHTML = tocHtml;

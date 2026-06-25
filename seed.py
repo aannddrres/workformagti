@@ -393,9 +393,9 @@ def seed_database():
         # ── Video instructions (centralised) ──────────────────────────────────
         print("Seeding video instructions...")
         videos = [
-            VideoInstruction(title="PIN კოდის მართვა", video_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ", category="ტექნიკური", target_department="All", views_count=42),
-            VideoInstruction(title="სინქრონიზაცია", video_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ", category="ტექნიკური", target_department="All", views_count=17),
-            VideoInstruction(title="დილერების აქტივაცია", video_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ", category="Support", target_department="Support", views_count=8),
+            VideoInstruction(title="PIN კოდის მართვა", video_url="https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0", category="ტექნიკური", target_department="All", views_count=42),
+            VideoInstruction(title="სინქრონიზაცია", video_url="https://www.youtube.com/embed/9bZkp7q19f0?rel=0", category="ტექნიკური", target_department="All", views_count=17),
+            VideoInstruction(title="დილერების აქტივაცია", video_url="https://www.youtube.com/embed/kJQP7kiw5Fk?rel=0", category="Support", target_department="Support", views_count=8),
         ]
         db.add_all(videos)
         db.flush()

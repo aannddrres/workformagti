@@ -453,8 +453,8 @@ async function fetchAndRenderAdminContent(token) {
               ? '<span class="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-500">არქივი</span>' : '';
 
             const archiveAction = article.status === 'archived'
-              ? `<button onclick="toggleArticleArchive(${article.id}, false)" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"><i class="fa-solid fa-box-open text-gray-400 w-4"></i> ამოღება არქივიდან</button>`
-              : `<button onclick="toggleArticleArchive(${article.id}, true)" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"><i class="fa-solid fa-box-archive text-gray-400 w-4"></i> დაარქივება</button>`;
+              ? `<button onclick="window.toggleArticleArchive(${article.id}, false)" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"><i class="fa-solid fa-box-open text-gray-400 w-4"></i> ამოღება არქივიდან</button>`
+              : `<button onclick="window.toggleArticleArchive(${article.id}, true)" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"><i class="fa-solid fa-box-archive text-gray-400 w-4"></i> დაარქივება</button>`;
 
             const tr = `
               <tr class="transition-colors hover:bg-gray-50 ${article.status === 'archived' ? 'opacity-60' : ''}">
@@ -470,14 +470,14 @@ async function fetchAndRenderAdminContent(token) {
                         <i class="fa-solid fa-ellipsis-vertical text-lg"></i>
                       </button>
                       <div id="article-actions-menu-${article.id}" class="absolute right-0 mt-1 w-48 rounded-xl border border-gray-100 bg-white shadow-lg hidden z-20 py-1">
-                        <button onclick="viewArticleHistory(${article.id})" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        <button onclick="window.viewArticleHistory(${article.id})" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                           <i class="fa-solid fa-clock-rotate-left text-gray-400 w-4"></i> ისტორია
                         </button>
                         ${archiveAction}
-                        <button onclick="editArticle(${article.id})" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        <button onclick="window.editArticle(${article.id})" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                           <i class="fa-solid fa-pen-to-square text-gray-400 w-4"></i> რედაქტირება
                         </button>
-                        <button onclick="deleteArticle(${article.id})" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors">
+                        <button onclick="window.deleteArticle(${article.id})" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors">
                           <i class="fa-solid fa-trash-can text-red-400 w-4"></i> წაშლა
                         </button>
                       </div>

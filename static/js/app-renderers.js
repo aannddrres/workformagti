@@ -501,6 +501,10 @@ function renderNewsList(items, append = false) {
 
 function renderArticleBody(targetEl, rawBody) {
         if (!targetEl) return;
+        
+        // Add Tailwind CSS typography and spacing classes to the container
+        targetEl.classList.add('prose', 'prose-slate', 'max-w-none', 'space-y-4', 'leading-relaxed', 'text-gray-700');
+
         let formattedBody = rawBody || '';
         const codeBlockRegex = /```(\w*)\n([\s\S]*?)```/g;
         if (codeBlockRegex.test(formattedBody)) {
@@ -520,8 +524,24 @@ function renderArticleBody(targetEl, rawBody) {
             ? DOMPurify.sanitize(formattedBody, { ALLOWED_TAGS, ALLOWED_ATTR: ALLOWED_ATTRS, KEEP_CONTENT: true })
             : formattedBody;
         } else {
-          targetEl.innerHTML = escapeHtml(formattedBody).replace(/\n/g, '<br>');
+          // If raw text without HTML, split into paragraphs to look like clean informational blocks
+          const paragraphs = formattedBody.split(/\n+/).filter(p => p.trim() !== '');
+          targetEl.innerHTML = paragraphs.map(p => `<p class="leading-relaxed mb-3">${escapeHtml(p)}</p>`).join('');
         }
+
+        // Post-processing to style loose elements and ensure typography is premium
+        targetEl.querySelectorAll('p').forEach(p => {
+          p.classList.add('leading-relaxed', 'mb-3');
+        });
+        targetEl.querySelectorAll('li').forEach(li => {
+          li.classList.add('leading-relaxed', 'mb-1');
+        });
+        targetEl.querySelectorAll('ul').forEach(ul => {
+          ul.classList.add('list-disc', 'list-inside', 'space-y-2', 'my-3');
+        });
+        targetEl.querySelectorAll('ol').forEach(ol => {
+          ol.classList.add('list-decimal', 'list-inside', 'space-y-2', 'my-3');
+        });
       }
 
 function renderKbBento(topLevels) {
