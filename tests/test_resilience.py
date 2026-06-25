@@ -115,3 +115,73 @@ def test_auth_missing(app_instance):
         payload = {"title": "Test", "content": "Test"}
         response = tc.post("/api/news", json=payload)
         assert response.status_code in (401, 403)
+
+
+def test_youtube_normalization():
+    """Verifies that backend normalizes YouTube URLs correctly."""
+    from main import normalize_youtube_url
+    
+    test_cases = {
+        "https://www.youtube.com/watch?v=dQw4w9WgXcQ": "https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0",
+        "https://youtube.com/watch?v=dQw4w9WgXcQ&feature=share": "https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0",
+        "http://youtube.com/watch?v=dQw4w9WgXcQ": "https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0",
+        "youtube.com/watch?v=dQw4w9WgXcQ": "https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0",
+        "https://youtu.be/dQw4w9WgXcQ": "https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0",
+        "youtu.be/dQw4w9WgXcQ?t=10": "https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0",
+        "https://www.youtube.com/embed/dQw4w9WgXcQ": "https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0",
+        "https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0": "https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0",
+        "dQw4w9WgXcQ": "https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0",
+        "https://example.com/not-youtube": "https://example.com/not-youtube",
+        "": "",
+        None: None,
+    }
+    
+    for input_url, expected in test_cases.items():
+        assert normalize_youtube_url(input_url) == expected
+
+
+def test_sent_messages(admin_user, db_session):
+    """Verifies that manager/admin can retrieve messages they sent."""
+    recipient = db_session.query(models.User).filter(models.User.email == "test_operator_sent@magti.ge").first()
+    if not recipient:
+        recipient = models.User(
+            email="test_operator_sent@magti.ge",
+            name="Test Recipient",
+            role="operator",
+            department="Support",
+            is_active=True
+        )
+        db_session.add(recipient)
+        db_session.commit()
+        db_session.refresh(recipient)
+
+    monolith_app.dependency_overrides[security.get_current_user] = lambda: admin_user
+    monolith_app.dependency_overrides[security.get_current_manager_user] = lambda: admin_user
+
+    with TestClient(monolith_app) as tc:
+        payload = {"user_id": recipient.id, "content": "Test sent messages content"}
+        response = tc.post("/api/messages", json=payload)
+        assert response.status_code == 200
+        msg_id = response.json()["id"]
+
+        sent_response = tc.get("/api/messages/sent")
+        assert sent_response.status_code == 200
+        sent_msgs = sent_response.json()
+        assert len(sent_msgs) >= 1
+        
+        target_msg = [m for m in sent_msgs if m["id"] == msg_id][0]
+        assert target_msg["content"] == "Test sent messages content"
+        assert target_msg["sender_id"] == admin_user.id
+        assert target_msg["user_id"] == recipient.id
+        assert target_msg["sender_name"] == admin_user.name
+        assert target_msg["recipient_name"] == recipient.name
+
+        # Clean up database
+        db_msg = db_session.query(models.Message).filter(models.Message.id == msg_id).first()
+        if db_msg:
+            db_session.delete(db_msg)
+            db_session.commit()
+
+    monolith_app.dependency_overrides.clear()
+
+

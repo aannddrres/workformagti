@@ -299,6 +299,17 @@ class Message(Base):
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    sender = relationship("User", foreign_keys=[sender_id])
+    recipient = relationship("User", foreign_keys=[user_id])
+
+    @property
+    def sender_name(self) -> Optional[str]:
+        return self.sender.name if self.sender else None
+
+    @property
+    def recipient_name(self) -> Optional[str]:
+        return self.recipient.name if self.recipient else None
+
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"

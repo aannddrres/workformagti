@@ -800,9 +800,9 @@
       - Dynamic Rendering: Injects fetched data into the DOM.
     -->
     
-    <script src="/static/js/app-core.js?v=5"></script>
-    <script src="/static/js/app-renderers.js?v=3"></script>
-    <script src="/static/js/app-router.js?v=2"></script>
+    <script src="/static/js/app-core.js?v=8"></script>
+    <script src="/static/js/app-renderers.js?v=9"></script>
+    <script src="/static/js/app-router.js?v=3"></script>
     <script src="/static/js/dept-dashboard.js?v=1"></script>
 
 
@@ -831,6 +831,28 @@
           class="rounded-lg px-4 py-1.5 text-xs font-medium text-slate-500 transition-all hover:text-slate-800">ტექნიკური</button>
       </div>
       <div id="category-view-grid" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"></div>
+    </div>
+
+    <!-- ── სტატიის დეტალური ხედი (Article Standalone View) ── -->
+    <div id="page-article-view" class="page-section hidden max-w-[920px] mx-auto w-full px-4 md:px-6 pt-4 md:pt-6 pb-8">
+      <div class="mb-6">
+        <button onclick="backFromArticleView()"
+          class="mb-4 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 shadow-sm transition-all hover:bg-gray-50 hover:text-gray-900 active:scale-[0.98]">
+          <i aria-hidden="true" class="fa-solid fa-arrow-left text-xs"></i> უკან დაბრუნება
+        </button>
+      </div>
+      <article class="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8 shadow-sm">
+        <div id="article-view-meta" class="mb-4 text-xs font-semibold text-gray-500 uppercase tracking-wider"></div>
+        <h1 id="article-view-title" class="text-3xl font-extrabold text-gray-900 mb-6 leading-tight"></h1>
+        <hr class="border-gray-100 mb-6">
+        <div id="article-view-content" class="article-content-optimized prose max-w-none text-gray-700 leading-relaxed text-sm sm:text-base"></div>
+        <div class="mt-8 border-t border-gray-150 pt-6">
+          <a id="article-view-attachment" href="#" target="_blank" class="hidden inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm font-medium text-[#B91C1C] hover:bg-red-50 transition-colors">
+            <i class="fa-solid fa-paperclip"></i>
+            <span>ფაილის ჩამოტვირთვა</span>
+          </a>
+        </div>
+      </article>
     </div>
 
     <!-- ── სავალდებულოდ გასაცნობი (Mandatory Reading) ── -->
@@ -1271,6 +1293,14 @@
 
       <!-- TAB 3: შეტყობინებები — personal messages from /api/messages -->
       <div id="profile-tab-3" class="profile-tab-content hidden mb-10">
+        <!-- Message Type Toggles (Inbox vs Sent) -->
+        <div id="message-direction-toggles" data-required-role="manager,admin" class="mb-5 hidden items-center gap-4 border-b border-gray-200 pb-3">
+          <button onclick="switchMessageDirection('inbox', this)" id="msg-dir-inbox"
+            class="msg-dir-btn border-b-2 border-[#B91C1C] pb-2 text-sm font-semibold text-[#B91C1C]">შემოსულები</button>
+          <button onclick="switchMessageDirection('sent', this)" id="msg-dir-sent"
+            class="msg-dir-btn border-b-2 border-transparent pb-2 text-sm font-medium text-gray-500 hover:text-gray-800">გაგზავნილები</button>
+        </div>
+
         <div class="mb-5 flex flex-wrap gap-5">
           <label class="flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-800"><input type="radio"
               name="msg-filter" value="all" checked onchange="renderMessages()" class="h-4 w-4 accent-[#B91C1C]">
@@ -1702,6 +1732,8 @@
             class="content-tab-btn border-b-2 border-[#B91C1C] px-4 pb-3 text-sm font-semibold text-[#B91C1C]">სტატიები</button>
           <button onclick="switchContentTab('news', this)"
             class="content-tab-btn border-b-2 border-transparent px-4 pb-3 text-sm font-medium text-gray-500 hover:text-gray-800">სიახლეები</button>
+          <button onclick="switchContentTab('videos', this); fetchAndRenderAdminVideos(Auth.getToken())"
+            class="content-tab-btn border-b-2 border-transparent px-4 pb-3 text-sm font-medium text-gray-500 hover:text-gray-800">ვიდეოები</button>
           <button onclick="switchContentTab('feedback', this); fetchAndRenderAdminFeedback(Auth.getToken())"
             class="content-tab-btn border-b-2 border-transparent px-4 pb-3 text-sm font-medium text-gray-500 hover:text-gray-800">ხარვეზების
             რეპორტები</button>
@@ -1764,6 +1796,25 @@
                 </tr>
               </thead>
               <tbody id="admin-news-tbody" class="divide-y divide-gray-100">
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Videos Table Container -->
+        <div id="admin-videos-table-container" class="content-tab-panel hidden">
+          <div class="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm">
+            <table class="w-full text-left text-sm">
+              <thead>
+                <tr
+                  class="border-b border-gray-200 bg-gray-50 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  <th class="px-5 py-3">სათაური</th>
+                  <th class="px-5 py-3">კატეგორია</th>
+                  <th class="px-5 py-3">სამიზნე დეპარტამენტი</th>
+                  <th class="px-5 py-3 text-center">ქმედება</th>
+                </tr>
+              </thead>
+              <tbody id="admin-videos-tbody" class="divide-y divide-gray-100">
               </tbody>
             </table>
           </div>
@@ -2499,6 +2550,23 @@
         </button>
       </div>
     </form>
+  </div>
+
+  <!-- Video Detail Modal -->
+  <div id="video-detail-modal" role="dialog" aria-modal="true" class="fixed inset-0 z-[150] hidden items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeVideoModal()"></div>
+    <div class="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white dark:bg-zinc-900 p-6 shadow-2xl z-10 border border-gray-100 dark:border-zinc-800">
+      <button onclick="closeVideoModal()" class="absolute right-5 top-5 text-xl text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200"
+        aria-label="დახურვა"><i class="fa-solid fa-xmark"></i></button>
+      <h3 id="video-modal-title" class="mb-1 pr-8 text-2xl font-bold text-gray-800 dark:text-zinc-100"></h3>
+      <p id="video-modal-dept" class="mb-4 text-xs font-semibold text-red-600 dark:text-red-400"></p>
+      
+      <!-- 16:9 Aspect Ratio Container -->
+      <div class="relative w-full overflow-hidden rounded-xl bg-black shadow-inner" style="padding-top: 56.25%;">
+        <iframe id="video-modal-iframe" class="absolute inset-0 h-full w-full border-0 hidden" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        <video id="video-modal-player" class="absolute inset-0 h-full w-full hidden" controls></video>
+      </div>
+    </div>
   </div>
 
 </body>

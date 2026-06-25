@@ -2729,6 +2729,11 @@ function cancelVideoEdit() {
         document.getElementById('admin-video-panel')?.classList.add('hidden');
         document.getElementById('create-video-form').reset();
         toggleVideoDueDate();
+        window.editingVideoId = null;
+        const titleEl = document.querySelector('#admin-video-panel h3');
+        if (titleEl) {
+          titleEl.textContent = 'ახალი ვიდეოს დამატება';
+        }
       }
 
 async function handleVideoUpload(input) {
@@ -2779,31 +2784,46 @@ async function submitVideoForm(event) {
         const payload = { title, video_url: videoUrl, category, target_department: targetDepartment };
 
         try {
-          // 1. Primary API call to create the Video
-          const videoRes = await fetch('/api/videos', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify(payload)
-          });
-          if (!videoRes.ok) throw new Error('ვიდეოს შექმნა ვერ მოხერხდა');
-          const videoData = await videoRes.json();
+          let videoData;
+          if (window.editingVideoId) {
+            // Update mode
+            const videoRes = await fetch(`/api/videos/${window.editingVideoId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+              body: JSON.stringify(payload)
+            });
+            if (!videoRes.ok) throw new Error('ვიდეოს განახლება ვერ მოხერხდა');
+            videoData = await videoRes.json();
 
-          // 2. Secondary API call if marked as Mandatory
-          if (isMandatory && dueDate) {
-            const reqDate = new Date(dueDate);
-            const reqRes = await fetch('/api/compliance/required-readings', {
+            // Sync compliance/mandatory status using syncMandatoryFor helper
+            if (typeof syncMandatoryFor === 'function') {
+              await syncMandatoryFor('video', videoData.id, targetDepartment, isMandatory, dueDate, token);
+            }
+            showToast('ვიდეო განახლდა', '', { variant: 'success' });
+          } else {
+            // Create mode
+            const videoRes = await fetch('/api/videos', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-              body: JSON.stringify({ item_type: 'video', item_id: videoData.id, target_department: targetDepartment, due_date: reqDate.toISOString(), priority: 'high' })
+              body: JSON.stringify(payload)
             });
-            if (!reqRes.ok) throw new Error('სავალდებულოდ გასაცნობის მინიჭება ვერ მოხერხდა');
+            if (!videoRes.ok) throw new Error('ვიდეოს შექმნა ვერ მოხერხდა');
+            videoData = await videoRes.json();
+
+            // Sync compliance/mandatory status
+            if (typeof syncMandatoryFor === 'function') {
+              await syncMandatoryFor('video', videoData.id, targetDepartment, isMandatory, dueDate, token);
+            }
+            showToast('ვიდეო დაემატა', '', { variant: 'success' });
           }
 
-          showToast('ვიდეო დაემატა', '', { variant: 'success' });
           event.target.reset();
           toggleVideoDueDate();
           cancelVideoEdit();
-          fetchAndRenderVideos(token); // Refresh video list
+          fetchAndRenderVideos(token); // Refresh operator video list
+          if (typeof fetchAndRenderAdminVideos === 'function') {
+            fetchAndRenderAdminVideos(token); // Refresh admin video list
+          }
         } catch (error) {
           console.error(error);
           alert('დაფიქსირდა შეცდომა: ' + error.message);
@@ -3796,6 +3816,19 @@ async function deleteMessage(messageId) {
         } catch (error) {
           console.error(error);
         }
+      }
+
+function switchMessageDirection(direction, element) {
+        window.activeMessageTab = direction;
+
+        document.querySelectorAll('.msg-dir-btn').forEach(btn => {
+          btn.className = 'msg-dir-btn border-b-2 border-transparent pb-2 text-sm font-medium text-gray-500 hover:text-gray-800';
+        });
+        if (element) {
+          element.className = 'msg-dir-btn border-b-2 border-[#B91C1C] pb-2 text-sm font-semibold text-[#B91C1C]';
+        }
+
+        renderMessages();
       }
 
 function applySettings() {
@@ -5394,6 +5427,7 @@ window.defaultProfileForDept = defaultProfileForDept;
 window.deleteArticle = deleteArticle;
 window.deleteCategory = deleteCategory;
 window.deleteMessage = deleteMessage;
+window.switchMessageDirection = switchMessageDirection;
 window.deleteNews = deleteNews;
 window.downloadExport = downloadExport;
 window.downloadExportXlsx = downloadExportXlsx;
@@ -5466,6 +5500,7 @@ window.submitCreateUserForm = submitCreateUserForm;
 window.submitNewsForm = submitNewsForm;
 window.submitUserEditForm = submitUserEditForm;
 window.submitVideoForm = submitVideoForm;
+window.cancelVideoEdit = cancelVideoEdit;
 window.switchContentTab = switchContentTab;
 window.syncMandatoryFor = syncMandatoryFor;
 window.toggleAdminSubmenu = toggleAdminSubmenu;

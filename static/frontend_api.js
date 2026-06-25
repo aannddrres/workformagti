@@ -655,6 +655,195 @@ async function fetchAndRenderAdminNews(token) {
         }
       }
 
+async function fetchAndRenderAdminVideos(token) {
+        const tbody = document.getElementById('admin-videos-tbody');
+        if (!tbody) return;
+
+        tbody.innerHTML = `
+          <tr class="animate-pulse">
+            <td class="px-5 py-3"><div class="h-4 bg-gray-200 rounded w-2/3"></div></td>
+            <td class="px-5 py-3"><div class="h-4 bg-gray-200 rounded w-1/3"></div></td>
+            <td class="px-5 py-3"><div class="h-4 bg-gray-200 rounded w-1/4"></div></td>
+            <td class="px-5 py-3 text-center"><div class="h-8 bg-gray-200 rounded w-16 mx-auto"></div></td>
+          </tr>
+        `;
+
+        try {
+          const response = await fetch('/api/videos', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (!response.ok) throw new Error('Failed to fetch videos');
+          const videos = await response.json();
+
+          // Cache videos
+          window.cachedVideos = window.cachedVideos || {};
+          videos.forEach(v => {
+            window.cachedVideos[v.id] = v;
+          });
+
+          tbody.innerHTML = '';
+          if (videos.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="px-5 py-3 text-center text-gray-500">ვიდეოები არ მოიძებნა</td></tr>';
+            return;
+          }
+
+          videos.forEach(item => {
+            const safeTitle = item.title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+            const categoryText = item.category || '—';
+            const deptText = item.target_department === 'All' ? 'ყველა დეპარტამენტი' : item.target_department;
+
+            const tr = `
+              <tr class="transition-colors hover:bg-gray-50">
+                <td class="px-5 py-3"><span class="inline-flex items-center gap-2"><i class="fa-solid fa-circle-play text-gray-400"></i> ${safeTitle}</span></td>
+                <td class="px-5 py-3 text-gray-500">${categoryText}</td>
+                <td class="px-5 py-3 text-gray-500">${deptText}</td>
+                <td class="px-5 py-3">
+                  <div class="flex items-center justify-center gap-3">
+                    <button onclick="editVideo(${item.id})" class="text-gray-400 hover:text-blue-500 transition-colors" aria-label="რედაქტირება" title="რედაქტირება"><i class="fa-solid fa-pen-to-square"></i></button>
+                    <button onclick="deleteVideo(${item.id})" class="text-gray-400 hover:text-[#E30613] transition-colors" aria-label="წაშლა" title="წაშლა"><i class="fa-solid fa-trash-can"></i></button>
+                  </div>
+                </td>
+              </tr>
+            `;
+            tbody.insertAdjacentHTML('beforeend', tr);
+          });
+        } catch (error) {
+          console.error(error);
+          tbody.innerHTML = '<tr><td colspan="4" class="px-5 py-3 text-center text-red-500">მონაცემების ჩატვირთვა ვერ მოხერხდა.</td></tr>';
+        }
+      }
+
+async function editVideo(videoId) {
+        let item = (window.cachedVideos || {})[videoId];
+        if (!item && window.Store && window.Store.videos && window.Store.videos[videoId]) {
+          item = window.Store.videos[videoId];
+        }
+        if (!item) {
+          alert('ვიდეოს მონაცემები ვერ მოიძებნა. სცადეთ გვერდის განახლება.');
+          return;
+        }
+
+        if (typeof focusVideoForm === 'function') {
+          focusVideoForm();
+        }
+        window.editingVideoId = videoId;
+
+        // Prefill fields
+        document.getElementById('video-title').value = item.title || '';
+        document.getElementById('video-url').value = item.video_url || '';
+        document.getElementById('video-category').value = item.category || '';
+        document.getElementById('video-department').value = item.target_department || 'All';
+
+        // Set form title to Editing
+        const titleEl = document.querySelector('#admin-video-panel h3');
+        if (titleEl) {
+          titleEl.textContent = 'ვიდეოს რედაქტირება';
+        }
+
+        // Fetch compliance info
+        const token = Auth.getToken();
+        const checkbox = document.getElementById('video-mandatory');
+        const dateInput = document.getElementById('video-due-date');
+
+        checkbox.checked = false;
+        dateInput.value = '';
+        if (typeof toggleVideoDueDate === 'function') {
+          toggleVideoDueDate();
+        }
+
+        try {
+          const r = await fetch(`/api/compliance/required-readings/by-item/video/${videoId}`, {
+            headers: { Authorization: 'Bearer ' + token },
+          });
+          if (r.ok) {
+            const rr = await r.json();
+            if (rr && rr.due_date) {
+              checkbox.checked = true;
+              dateInput.value = rr.due_date.substring(0, 10);
+              if (typeof toggleVideoDueDate === 'function') {
+                toggleVideoDueDate();
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Failed to load video compliance data', err);
+        }
+      }
+
+async function deleteVideo(videoId) {
+        if (!confirm('ნამდვილად გსურთ ამ ვიდეოს წაშლა?')) return;
+        const token = Auth.getToken();
+        if (!token) return;
+
+        try {
+          // Remove any compliance requirement
+          if (typeof syncMandatoryFor === 'function') {
+            await syncMandatoryFor('video', videoId, 'All', false, null, token);
+          }
+
+          const response = await fetch(`/api/videos/${videoId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (!response.ok && response.status !== 204) throw new Error('ვიდეოს წაშლა ვერ მოხერხდა');
+
+          if (typeof showToast === 'function') {
+            showToast('ვიდეო წაიშალა', '', { variant: 'success' });
+          }
+          if (typeof fetchAndRenderVideos === 'function') {
+            fetchAndRenderVideos(token);
+          }
+          fetchAndRenderAdminVideos(token);
+        } catch (error) {
+          console.error(error);
+          alert('შეცდომა წაშლისას: ' + error.message);
+        }
+      }
+
+async function editVideoDirectly(videoId) {
+        const user = window.currentUser || (typeof Auth !== 'undefined' && Auth._payload ? Auth._payload() : null);
+        const isAdmin = user && (user.role === 'admin' || user.role === 'content_admin');
+        if (!isAdmin) {
+          if (typeof showToast === 'function') {
+            showToast('წვდომა უარყოფილია', 'ვიდეოს რედაქტირება შეუძლიათ მხოლოდ ადმინისტრატორებს.', { variant: 'error' });
+          }
+          return;
+        }
+
+        // 1. Navigate to the admin page
+        if (typeof navTo === 'function') {
+          navTo('page-admin');
+        } else if (typeof switchMainPage === 'function') {
+          const adminBtn = document.getElementById('sidebar-admin-link');
+          if (adminBtn) switchMainPage('page-admin', adminBtn);
+        }
+
+        // 2. Open the Content tab
+        if (typeof switchAdmin === 'function') {
+          switchAdmin('content');
+        }
+        
+        const token = Auth.getToken();
+        // Ensure the admin video grid is rendered, then trigger editVideo
+        if (typeof fetchAndRenderAdminVideos === 'function') {
+          await fetchAndRenderAdminVideos(token);
+        }
+        
+        const contentTabBtn = [...document.querySelectorAll('.content-tab-btn')].find(btn => btn.textContent.includes('ვიდეოები'));
+        if (typeof switchContentTab === 'function') {
+          switchContentTab('videos', contentTabBtn);
+        }
+
+        if (typeof editVideo === 'function') {
+          await editVideo(videoId);
+        }
+      }
+
+window.fetchAndRenderAdminVideos = fetchAndRenderAdminVideos;
+window.editVideo = editVideo;
+window.deleteVideo = deleteVideo;
+window.editVideoDirectly = editVideoDirectly;
+
 async function fetchAndRenderKnowledgeBase(token, append = false) {
         const container = document.getElementById('kb-articles-container');
         if (!container) return;
@@ -724,7 +913,7 @@ async function fetchAndRenderKnowledgeBase(token, append = false) {
                 
                 <!-- Top Row: Category & Star/New -->
                 <div class="flex items-center justify-between w-full mb-3 shrink-0">
-                  <div class="flex items-center gap-2">
+                  <div class="flex items-center gap-2" onclick="event.stopPropagation();">
                     <div class="flex h-7 w-7 items-center justify-center rounded-lg ${styles.iconBg} text-sm transition-transform group-hover:scale-105">
                       <i class="fa-solid ${iconClass}"></i>
                     </div>
@@ -807,6 +996,54 @@ async function fetchAndRenderVideos(token) {
           }
 
           videos.forEach(video => {
+            let ytId = null;
+            if (video.video_url) {
+              const urlStr = video.video_url.trim();
+              if (/^[a-zA-Z0-9_-]{11}$/.test(urlStr)) {
+                ytId = urlStr;
+              } else {
+                try {
+                  let checkUrl = urlStr;
+                  if (!/^https?:\/\//i.test(checkUrl)) {
+                    checkUrl = 'https://' + checkUrl;
+                  }
+                  const u = new URL(checkUrl);
+                  if (u.pathname.startsWith('/embed/')) {
+                    const parts = u.pathname.split('/');
+                    const id = parts[2];
+                    if (id && id.length === 11) ytId = id;
+                  } else if (u.hostname.endsWith('youtu.be')) {
+                    const id = u.pathname.replace(/^\//, '').split('/')[0];
+                    if (id && id.length === 11) ytId = id;
+                  } else if (u.hostname.includes('youtube.com')) {
+                    const id = u.searchParams.get('v') || (u.pathname.match(/^\/shorts\/([^/?]+)/) || [])[1];
+                    if (id && id.length === 11) ytId = id;
+                  }
+                } catch (_) {}
+              }
+            }
+            const thumbnailSrc = ytId ? `https://img.youtube.com/vi/${ytId}/mqdefault.jpg` : '/static/placeholder.png';
+
+            const user = window.currentUser || (typeof Auth !== 'undefined' && Auth._payload ? Auth._payload() : null);
+            const isAdmin = user && (user.role === 'admin' || user.role === 'content_admin');
+
+            const editControls = isAdmin ? `
+              <button onclick="editVideoDirectly(${video.id}); event.stopPropagation();" 
+                      class="flex h-7 w-7 items-center justify-center rounded-full bg-black/40 text-xs text-white backdrop-blur-sm hover:bg-black/60 hover:text-blue-400 transition-colors focus:outline-none" 
+                      title="ვიდეოს რედაქტირება">
+                <i class="fa-solid fa-ellipsis-vertical"></i>
+              </button>
+              <button onclick="editVideoDirectly(${video.id}); event.stopPropagation();" 
+                      class="flex h-7 w-7 items-center justify-center rounded-full bg-black/40 text-xs text-white backdrop-blur-sm hover:bg-black/60 hover:text-blue-400 transition-colors focus:outline-none" 
+                      title="ვიდეოს რედაქტირება">
+                <i class="fa-solid fa-pen-to-square"></i>
+              </button>
+            ` : `
+              <div class="flex h-7 w-7 items-center justify-center rounded-full bg-black/40 text-xs text-white backdrop-blur-sm hover:bg-black/60">
+                <i class="fa-solid fa-ellipsis-vertical"></i>
+              </div>
+            `;
+
             const html = `
               <div onclick="viewVideo(${video.id})" 
                    onkeydown="if(event.key==='Enter'||event.key===' '){viewVideo(${video.id});event.preventDefault();}" 
@@ -815,22 +1052,21 @@ async function fetchAndRenderVideos(token) {
                    data-video-title="${video.title.toLowerCase()}" 
                    class="video-card group cursor-pointer overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all hover:border-gray-200 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#E30613]">
                 <div class="relative flex aspect-video w-full items-center justify-center bg-[#1a1a2e]">
-                  <div class="absolute left-4 top-4 text-[11px] font-bold tracking-widest text-white/80">MAGTI</div>
+                  <img src="${thumbnailSrc}" alt="${escapeHtml(video.title)}" class="absolute inset-0 h-full w-full object-cover opacity-60 group-hover:opacity-85 transition-opacity">
+                  <div class="absolute left-4 top-4 text-[11px] font-bold tracking-widest text-white/80 z-10">MAGTI</div>
                   <div class="absolute right-4 top-4 z-10">
                     <button onclick="toggleFavorite('video', ${video.id}, this); event.stopPropagation();" data-fav-type="video" data-fav-id="${video.id}" class="text-lg text-white/80 transition-all hover:scale-110 hover:text-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 rounded-full"><i class="fa-regular fa-star"></i></button>
                   </div>
-                  <div class="flex h-14 w-14 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm transition-transform group-hover:scale-110 group-hover:bg-white/30">
+                  <div class="relative z-10 flex h-14 w-14 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm transition-transform group-hover:scale-110 group-hover:bg-white/30">
                     <i class="fa-solid fa-play ml-1 text-xl"></i>
                   </div>
-                  <div class="absolute bottom-4 left-4 flex gap-2">
+                  <div class="absolute bottom-4 left-4 flex gap-2 z-10">
                     <div class="flex h-7 w-7 items-center justify-center rounded-full bg-black/40 text-xs text-white backdrop-blur-sm hover:bg-black/60">
                       <i class="fa-solid fa-share"></i>
                     </div>
-                    <div class="flex h-7 w-7 items-center justify-center rounded-full bg-black/40 text-xs text-white backdrop-blur-sm hover:bg-black/60">
-                      <i class="fa-solid fa-ellipsis-vertical"></i>
-                    </div>
+                    ${editControls}
                   </div>
-                  <div class="absolute bottom-4 right-4 flex items-center gap-2 rounded bg-black/40 px-2.5 py-1 backdrop-blur-sm hover:bg-black/60">
+                  <div class="absolute bottom-4 right-4 flex items-center gap-2 rounded bg-black/40 px-2.5 py-1 backdrop-blur-sm hover:bg-black/60 z-10">
                     <span class="text-[10px] font-medium text-white/90">ნახვები: ${video.views_count}</span>
                     <i class="fa-solid fa-eye text-[15px] text-gray-300"></i>
                   </div>
@@ -951,6 +1187,25 @@ async function fetchAndRenderMessages(token) {
             badge.classList.toggle('hidden', unreadCount === 0);
             badge.classList.toggle('flex', unreadCount > 0);
           }
+
+          // Fetch sent messages if user is a manager or admin
+          const role = window.currentUser ? window.currentUser.role : '';
+          if (role === 'manager' || role === 'admin') {
+            try {
+              const sentResponse = await api('/api/messages/sent');
+              if (sentResponse.ok) {
+                window.sentMessages = await sentResponse.json();
+              } else {
+                window.sentMessages = [];
+              }
+            } catch (sentError) {
+              console.error('Error fetching sent messages:', sentError);
+              window.sentMessages = [];
+            }
+          } else {
+            window.sentMessages = [];
+          }
+
           renderMessages();
         } catch (error) {
           console.error('Error fetching messages:', error);

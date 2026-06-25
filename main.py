@@ -1,6 +1,7 @@
 import os
 import io
 import csv
+import re
 import json
 import uuid
 import asyncio
@@ -46,6 +47,34 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # In production, use Alembic migrations instead (esp. on PostgreSQL).
 if os.getenv("RUN_INIT") == "1":
     models.Base.metadata.create_all(bind=engine)
+
+
+def normalize_youtube_url(url: str) -> str:
+    if not url:
+        return url
+    url_str = url.strip()
+    
+    # Strict regex patterns to match standard, shortened, and embed YouTube formats
+    # capturing the 11-character video ID.
+    patterns = [
+        r'youtu\.be/([a-zA-Z0-9_-]{11})',
+        r'youtube(?:-nocookie)?\.com/embed/([a-zA-Z0-9_-]{11})',
+        r'youtube(?:-nocookie)?\.com/watch\?(?:[^&]*&)*v=([a-zA-Z0-9_-]{11})',
+        r'youtube(?:-nocookie)?\.com/v/([a-zA-Z0-9_-]{11})',
+        r'youtube(?:-nocookie)?\.com/vi/([a-zA-Z0-9_-]{11})',
+        r'youtube(?:-nocookie)?\.com/e/([a-zA-Z0-9_-]{11})',
+        r'[?&]v=([a-zA-Z0-9_-]{11})',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, url_str, re.IGNORECASE)
+        if match:
+            return f"https://www.youtube.com/embed/{match.group(1)}?rel=0"
+            
+    # Fallback if the input is strictly an 11-character YouTube video ID
+    if len(url_str) == 11 and re.match(r'^[a-zA-Z0-9_-]{11}$', url_str):
+        return f"https://www.youtube.com/embed/{url_str}?rel=0"
+        
+    return url_str
 
 
 def _lightweight_migrations() -> None:
@@ -238,6 +267,21 @@ def _lightweight_migrations() -> None:
             """)
         except Exception as e:
             print(f"[migration] article_target_departments backfill skipped: {e}")
+
+        # Batch-normalize existing video URLs in SQLite database
+        try:
+            rows = conn.exec_driver_sql("SELECT id, video_url FROM video_instructions").fetchall()
+            for vid, original_url in rows:
+                if original_url:
+                    normalized_url = normalize_youtube_url(original_url)
+                    if normalized_url != original_url:
+                        conn.execute(
+                            text("UPDATE video_instructions SET video_url = :url WHERE id = :id"),
+                            {"url": normalized_url, "id": vid}
+                        )
+                        print(f"[migration] Normalized video {vid} URL: {original_url} -> {normalized_url}")
+        except Exception as e:
+            print(f"[migration] Video URLs normalization skipped or failed: {e}")
 
 
 _lightweight_migrations()
@@ -484,7 +528,7 @@ async def security_headers(request: Request, call_next):
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     if settings.is_production:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     # CSP — defence-in-depth against any injection sink we miss. Sinks that
@@ -503,6 +547,7 @@ async def security_headers(request: Request, call_next):
         # read-only. data: covers SVG icon-fonts.
         "img-src 'self' data: https:; "
         "connect-src 'self'; "
+        "frame-src 'self' https://www.youtube.com https://youtube.com https://www.youtube-nocookie.com https://youtube-nocookie.com; "
         "frame-ancestors 'none'; "
         "base-uri 'self'; "
         "object-src 'none'; "
@@ -3593,7 +3638,9 @@ def create_video(
     Returns:
         The created VideoInstruction database row.
     """
-    db_video = models.VideoInstruction(**video.model_dump())
+    video_data = video.model_dump()
+    video_data["video_url"] = normalize_youtube_url(video_data["video_url"])
+    db_video = models.VideoInstruction(**video_data)
     db.add(db_video)
     db.flush()
     sync_tags(db, "video", db_video.id, db_video.tags)
@@ -3634,7 +3681,9 @@ def update_video(
     if not db_video:
         raise HTTPException(status_code=404, detail="ვიდეო ვერ მოიძებნა")
     
-    for key, value in video.model_dump().items():
+    video_data = video.model_dump()
+    video_data["video_url"] = normalize_youtube_url(video_data["video_url"])
+    for key, value in video_data.items():
         setattr(db_video, key, value)
 
     sync_tags(db, "video", db_video.id, db_video.tags)
@@ -3921,6 +3970,19 @@ def get_my_messages(
     """
     return db.query(models.Message).filter(
         models.Message.user_id == current_user.id
+    ).order_by(desc(models.Message.created_at)).all()
+
+@app.get("/api/messages/sent", response_model=list[schemas.MessageResponse])
+def get_sent_messages(
+    current_user: models.User = Depends(security.get_current_manager_user),
+    db: Session = Depends(get_db)
+):
+    """Retrieves all sent messages by the current manager/administrator.
+
+    Access: Restricted to managers (manager) and system administrators (admin).
+    """
+    return db.query(models.Message).filter(
+        models.Message.sender_id == current_user.id
     ).order_by(desc(models.Message.created_at)).all()
 
 @app.post("/api/messages", response_model=schemas.MessageResponse)

@@ -199,6 +199,19 @@ function switchProfileTab(tabId, element) {
         document.querySelectorAll('.profile-tab-btn').forEach(function (btn) { btn.className = 'profile-tab-btn whitespace-nowrap border-b-2 border-transparent pb-3 text-gray-500 transition-colors hover:text-gray-800'; });
         if (element) element.className = 'profile-tab-btn whitespace-nowrap border-b-2 border-[#E30613] pb-3 text-[#E30613]';
 
+        if (tabId === 'profile-tab-3') {
+          window.activeMessageTab = 'inbox';
+          const inboxBtn = document.getElementById('msg-dir-inbox');
+          if (inboxBtn) {
+            document.querySelectorAll('.msg-dir-btn').forEach(btn => {
+              btn.className = 'msg-dir-btn border-b-2 border-transparent pb-2 text-sm font-medium text-gray-500 hover:text-gray-800';
+            });
+            inboxBtn.className = 'msg-dir-btn border-b-2 border-[#B91C1C] pb-2 text-sm font-semibold text-[#B91C1C]';
+          }
+          const token = Auth.getToken();
+          if (token) fetchAndRenderMessages(token);
+        }
+
         if (tabId === 'profile-tab-5') {
           const token = Auth.getToken();
           if (token) fetchAndRenderSearchHistory(token);

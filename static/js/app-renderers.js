@@ -578,23 +578,51 @@ function renderKbBento(topLevels) {
         }).join('');
       }
 
-function _toYouTubeEmbed(rawUrl) {
-        try {
-          const u = new URL(rawUrl);
-          // Already an embed link
-          if (u.pathname.startsWith('/embed/')) return u.href;
-          // youtu.be/<id>
-          if (u.hostname.endsWith('youtu.be')) {
-            const id = u.pathname.replace(/^\//, '').split('/')[0];
-            if (id) return `https://www.youtube.com/embed/${id}?rel=0`;
+function _toYouTubeEmbed(url) {
+        console.log('[Video Debug] Input URL:', url, 'Output URL:', null);
+        if (!url) {
+          console.log('[Video Debug] Input URL:', url, 'Output URL:', null);
+          return null;
+        }
+        let urlStr = String(url).trim();
+        let normalizedUrl = null;
+        
+        // If the input is strictly an 11-character YouTube video ID, format it directly
+        if (/^[a-zA-Z0-9_-]{11}$/.test(urlStr)) {
+          normalizedUrl = `https://www.youtube.com/embed/${urlStr}?rel=0`;
+        } else {
+          // Prepend protocol if missing so URL parsing works
+          if (!/^https?:\/\//i.test(urlStr)) {
+            urlStr = 'https://' + urlStr;
           }
-          // youtube.com/watch?v=<id> or /shorts/<id>
-          if (u.hostname.includes('youtube.com')) {
-            const id = u.searchParams.get('v') || (u.pathname.match(/^\/shorts\/([^/?]+)/) || [])[1];
-            if (id) return `https://www.youtube.com/embed/${id}?rel=0`;
-          }
-        } catch (_) { /* not a URL */ }
-        return null;
+
+          try {
+            const u = new URL(urlStr);
+            // Extract video ID from path if it is /embed/VIDEO_ID
+            if (u.pathname.startsWith('/embed/')) {
+              const parts = u.pathname.split('/');
+              const id = parts[2];
+              if (id && id.length === 11) {
+                normalizedUrl = `https://www.youtube.com/embed/${id}?rel=0`;
+              } else {
+                normalizedUrl = u.href;
+              }
+            }
+            // youtu.be/VIDEO_ID
+            else if (u.hostname.endsWith('youtu.be')) {
+              const id = u.pathname.replace(/^\//, '').split('/')[0];
+              if (id && id.length === 11) normalizedUrl = `https://www.youtube.com/embed/${id}?rel=0`;
+            }
+            // youtube.com/watch?v=VIDEO_ID or /shorts/VIDEO_ID
+            else if (u.hostname.includes('youtube.com')) {
+              const id = u.searchParams.get('v') || (u.pathname.match(/^\/shorts\/([^/?]+)/) || [])[1];
+              if (id && id.length === 11) normalizedUrl = `https://www.youtube.com/embed/${id}?rel=0`;
+            }
+          } catch (_) { /* fallback */ }
+        }
+        
+        console.log('[Video Debug] Input URL:', url, 'Output URL:', normalizedUrl);
+        return normalizedUrl;
       }
 
 function renderMessages() {
@@ -603,7 +631,11 @@ function renderMessages() {
 
         const filterEl = document.querySelector('input[name="msg-filter"]:checked');
         const filter = filterEl ? filterEl.value : 'all';
-        const messages = (window.userMessages || []).filter(m =>
+
+        const activeTab = window.activeMessageTab || 'inbox';
+        const sourceMessages = activeTab === 'sent' ? (window.sentMessages || []) : (window.userMessages || []);
+
+        const messages = sourceMessages.filter(m =>
           filter === 'all' || (filter === 'read' ? m.is_read : !m.is_read));
 
         container.innerHTML = '';
@@ -614,21 +646,49 @@ function renderMessages() {
 
         messages.forEach(msg => {
           const date = new Date(msg.created_at).toLocaleDateString('ka-GE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-          const unreadBorder = msg.is_read ? '' : 'border-l-4 border-l-[#E30613]';
-          const textStyle = msg.is_read ? 'text-gray-600' : 'font-bold text-gray-800';
-          const dateStyle = msg.is_read ? 'text-gray-400' : 'font-bold text-[#E30613]';
-          const envelopeBtn = msg.is_read
-            ? '<i aria-hidden="true" class="fa-regular fa-envelope-open text-lg text-gray-300" title="წაკითხულია"></i>'
-            : `<button onclick="markMessageRead(${msg.id})" class="text-lg text-gray-400 transition-colors hover:text-gray-600" aria-label="წაკითხულად მონიშვნა"><i aria-hidden="true" class="fa-solid fa-envelope"></i></button>`;
+          const unreadBorder = (activeTab === 'inbox' && !msg.is_read) ? 'border-l-4 border-l-[#E30613]' : '';
+          const textStyle = (activeTab === 'inbox' && !msg.is_read) ? 'font-bold text-gray-800' : 'text-gray-600';
+          const dateStyle = (activeTab === 'inbox' && !msg.is_read) ? 'font-bold text-[#E30613]' : 'text-gray-400';
+
+          let envelopeBtn = '';
+          if (activeTab === 'inbox') {
+            envelopeBtn = msg.is_read
+              ? '<i aria-hidden="true" class="fa-regular fa-envelope-open text-lg text-gray-300" title="წაკითხულია"></i>'
+              : `<button onclick="markMessageRead(${msg.id})" class="text-lg text-gray-400 transition-colors hover:text-gray-600" aria-label="წაკითხულად მონიშვნა"><i aria-hidden="true" class="fa-solid fa-envelope"></i></button>`;
+          } else {
+            envelopeBtn = msg.is_read
+              ? '<i aria-hidden="true" class="fa-solid fa-check-double text-lg text-green-500" title="წაკითხულია მიმღების მიერ"></i>'
+              : '<i aria-hidden="true" class="fa-solid fa-check text-lg text-gray-400" title="მიწოდებულია"></i>';
+          }
+
+          let userLabel = '';
+          if (activeTab === 'inbox') {
+            const senderName = msg.sender_name || 'სისტემა';
+            userLabel = `<span class="text-[11px] font-semibold text-gray-400 block mb-0.5">გამომგზავნი: ${escapeHtml(senderName)}</span>`;
+          } else {
+            const recipientName = msg.recipient_name || 'უცნობი მომხმარებელი';
+            userLabel = `<span class="text-[11px] font-semibold text-gray-400 block mb-0.5">მიმღები: ${escapeHtml(recipientName)}</span>`;
+          }
+
+          const arrowIcon = activeTab === 'inbox'
+            ? `<i aria-hidden="true" class="fa-solid fa-arrow-right mt-0.5 ${msg.is_read ? 'text-gray-400' : 'text-[#E30613]'}"></i>`
+            : `<i aria-hidden="true" class="fa-solid fa-arrow-left mt-0.5 text-blue-500"></i>`;
+
+          const deleteBtn = activeTab === 'inbox'
+            ? `<button onclick="deleteMessage(${msg.id})" class="text-lg text-gray-400 transition-colors hover:text-[#E30613]" aria-label="წაშლა"><i aria-hidden="true" class="fa-solid fa-trash-can"></i></button>`
+            : '';
 
           container.insertAdjacentHTML('beforeend', `
             <div class="flex items-start gap-4 rounded-xl border border-gray-100 ${unreadBorder} bg-white p-4 shadow-sm">
-              <i aria-hidden="true" class="fa-solid fa-arrow-right mt-0.5 ${msg.is_read ? 'text-gray-400' : 'text-[#E30613]'}"></i>
-              <p class="flex-1 text-[13px] leading-relaxed ${textStyle}">${msg.content}</p>
+              ${arrowIcon}
+              <div class="flex-1">
+                ${userLabel}
+                <p class="text-[13px] leading-relaxed ${textStyle}">${msg.content}</p>
+              </div>
               <div class="flex shrink-0 items-center gap-4">
                 <span class="text-[13px] ${dateStyle}">${date}</span>
                 ${envelopeBtn}
-                <button onclick="deleteMessage(${msg.id})" class="text-lg text-gray-400 transition-colors hover:text-[#E30613]" aria-label="წაშლა"><i aria-hidden="true" class="fa-solid fa-trash-can"></i></button>
+                ${deleteBtn}
               </div>
             </div>`);
         });
