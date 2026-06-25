@@ -8,7 +8,11 @@ from reportlab.platypus import (
 )
 from reportlab.lib.styles import ParagraphStyle
 
-OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rbac_matrix.pdf")
+# Write the matrix to the repo root (one level up from scripts/), where the
+# tracked rbac_matrix.pdf lives.
+OUT = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "rbac_matrix.pdf"
+)
 
 MAGTI_RED = colors.HexColor("#CC0000")
 LIGHT_GRAY = colors.HexColor("#F5F5F5")

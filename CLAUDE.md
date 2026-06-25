@@ -39,7 +39,7 @@
 - `database.py` — DB session/engine
 - `config.py` — settings (`.env` via python-dotenv; see `.env.example`)
 - `migrate.py` — idempotent schema migration (Phase B → Alembic)
-- `seed.py` / `seed_test_users.py` — data seeding
+- `seed.py` / `scripts/seed_test_users.py` — data seeding (one-off/dev seeders live in `scripts/`)
 - `backup.py` — DB backup job
 - `start_server.bat` — local launch
 - `docs/admin-guide.md`, `README.md`, `ინფო_დეველოპერებისთვის.md` — docs

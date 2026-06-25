@@ -22,6 +22,9 @@ import sys
 
 from sqlalchemy import text
 
+# Ensure the project root is importable when run from the repo root
+sys.path.append('.')
+
 from database import engine
 
 logging.basicConfig(level=logging.INFO, format="[migrate_departments] %(message)s")

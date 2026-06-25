@@ -24,6 +24,9 @@ after this runs.
 import logging
 import sys
 
+# Ensure the project root is importable when run from the repo root
+sys.path.append('.')
+
 from sqlalchemy import func
 
 from database import SessionLocal

@@ -1,5 +1,7 @@
 import os
 import sys
+# Ensure the project root is importable when run from the repo root
+sys.path.append('.')
 from sqlalchemy.orm import sessionmaker
 from database import engine
 import models

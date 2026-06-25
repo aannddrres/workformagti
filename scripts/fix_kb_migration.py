@@ -33,6 +33,9 @@ from datetime import datetime, timezone
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
+# Ensure the project root is importable when run from the repo root
+sys.path.append('.')
+
 from database import SessionLocal
 from models import Article
 

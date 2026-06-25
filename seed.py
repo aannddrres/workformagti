@@ -346,7 +346,7 @@ def seed_database():
                     position="Service Desk Operator", is_active=True, hashed_password=hashed_pw,
                     permissions=DEFAULT_PERMISSIONS_BY_ROLE["operator"])
 
-        # NOTE: Billing and Sales departments were retired (see migrate_departments.py).
+        # NOTE: Billing and Sales departments were retired (see scripts/migrate_departments.py).
         # Do not re-add dedicated Billing/Sales User accounts here — that would
         # silently re-introduce the departments this seed script is meant to keep gone.
 

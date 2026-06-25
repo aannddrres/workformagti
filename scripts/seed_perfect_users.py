@@ -11,9 +11,12 @@ before touching anything, then:
   4. Reassigns authored content to the new admin.
   5. Inserts 15 managers (5 tech, 10 info) and 10 operators per manager (150).
 
-Run manually:
-    venv\\Scripts\\python.exe seed_perfect_users.py
+Run manually (from the repo root):
+    venv\\Scripts\\python.exe scripts\\seed_perfect_users.py
 """
+import sys
+# Ensure the project root is importable when run from the repo root
+sys.path.append('.')
 from database import SessionLocal
 from security import get_password_hash
 import models
