@@ -93,6 +93,16 @@ uvicorn main:app --reload --port 8000
 ```
 Open [http://127.0.0.1:8000/](http://127.0.0.1:8000/) in your browser.
 
+### Step 5 (Optional): Rebuilding CSS
+The compiled stylesheet (`static/css/custom-styles.css`) is committed, so the app
+runs without a CSS build — you only need this when editing styles. The standalone
+Tailwind CLI binary is **not** committed to the repo. Download it from the
+[Tailwind CSS releases](https://github.com/tailwindlabs/tailwindcss/releases)
+(e.g. `tailwindcss.exe` on Windows), place it in the repo root, then run:
+```bash
+./tailwindcss.exe -i static/css/input.css -o static/css/custom-styles.css --minify
+```
+
 ---
 
 ## 5. Testing and Mock Accounts

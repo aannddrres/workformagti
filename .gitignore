@@ -10,3 +10,7 @@ backups/
 .claude/
 scripts/legacy/
 _server_log.txt
+
+# Vendored build tool — download the standalone Tailwind CLI locally rather than
+# committing the ~14MB binary (see README "Rebuilding CSS").
+tailwindcss.exe
