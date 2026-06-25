@@ -2109,7 +2109,6 @@ async function populateArticleCategorySelect(selectedId) {
       }
 
 async function editArticle(articleId) {
-        console.log('[editArticle] clicked for ID:', articleId);
         try {
         let article = (window.adminArticles || {})[articleId];
         if (!article || article.content === undefined || article.content === null) {

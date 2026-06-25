@@ -579,9 +579,7 @@ function renderKbBento(topLevels) {
       }
 
 function _toYouTubeEmbed(url) {
-        console.log('[Video Debug] Input URL:', url, 'Output URL:', null);
         if (!url) {
-          console.log('[Video Debug] Input URL:', url, 'Output URL:', null);
           return null;
         }
         let urlStr = String(url).trim();
@@ -621,7 +619,6 @@ function _toYouTubeEmbed(url) {
           } catch (_) { /* fallback */ }
         }
         
-        console.log('[Video Debug] Input URL:', url, 'Output URL:', normalizedUrl);
         return normalizedUrl;
       }
 
@@ -1231,10 +1228,10 @@ window.MagtiPortal.renderAdminTable = function (records, filters) {
       </td>
       <td class="px-6 py-4 text-sm text-gray-500">
         <div class="flex items-center gap-3">
-          <button onclick="window.editArticle ? window.editArticle(${record.id}) : console.log('Edit record:', ${record.id})" class="text-slate-400 hover:text-blue-600 transition-colors" aria-label="რედაქტირება">
+          <button onclick="window.editArticle ? window.editArticle(${record.id}) : void 0" class="text-slate-400 hover:text-blue-600 transition-colors" aria-label="რედაქტირება">
             <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
           </button>
-          <button onclick="window.deleteArticle ? window.deleteArticle(${record.id}) : console.log('Delete record:', ${record.id})" class="text-slate-400 hover:text-[#E30613] transition-colors" aria-label="წაშლა">
+          <button onclick="window.deleteArticle ? window.deleteArticle(${record.id}) : void 0" class="text-slate-400 hover:text-[#E30613] transition-colors" aria-label="წაშლა">
             <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
           </button>
         </div>
