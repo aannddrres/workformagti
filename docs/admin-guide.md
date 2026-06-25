@@ -120,7 +120,8 @@ MARK*READ, CHANGE_PASSWORD, EXPORT, BROADCAST, FEEDBACK*\*.
 
 ## 8. Backup / Restore
 
-ფაილი `backup.py` ლოკალური SQLite ფაილის backup-ისთვის.
+ფაილი `backup.py` აარქივებს ლოკალურ SQLite ბაზას **და `uploads/` დირექტორიას**
+ერთ ZIP არქივში `backups/` საქაღალდეში.
 
 ```bash
 # ერთჯერადი backup-ის გაკეთება

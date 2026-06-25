@@ -42,7 +42,7 @@
 - `seed.py` / `seed_test_users.py` — data seeding
 - `backup.py` — DB backup job
 - `start_server.bat` — local launch
-- `admin_guide.md`, `README.md`, `ინფო_დეველოპერებისთვის.md` — docs
+- `docs/admin-guide.md`, `README.md`, `ინფო_დეველოპერებისთვის.md` — docs
 
 ## Rules for Claude Code
 - Surgical edits only — never rewrite full files; cite file name + line number
