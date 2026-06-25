@@ -393,11 +393,113 @@ async function fetchStaleArticles(token) {
         }
       }
 
+window._articlePageSize = 20;
+window._articleCurrentPage = 1;
+window._articlesCached = [];
+
+function _renderArticleRow(article) {
+  const date = new Date(article.created_at).toLocaleDateString('ka-GE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const categoryText = article.category_name || (typeof Store !== 'undefined' && Store.categories && Store.categories[article.category_id]) || 'ID: ' + article.category_id;
+  const archivedBadge = article.status === 'archived'
+    ? '<span class="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-500">არქივი</span>' : '';
+  const archiveAction = article.status === 'archived'
+    ? `<button onclick="window.toggleArticleArchive(${article.id}, false)" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"><i class="fa-solid fa-box-open text-gray-400 w-4"></i> ამოღება არქივიდან</button>`
+    : `<button onclick="window.toggleArticleArchive(${article.id}, true)" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"><i class="fa-solid fa-box-archive text-gray-400 w-4"></i> დაარქივება</button>`;
+  return `
+    <tr class="transition-colors hover:bg-gray-50 ${article.status === 'archived' ? 'opacity-60' : ''}">
+      <td class="px-5 py-3"><span class="inline-flex items-center gap-2"><i class="fa-solid fa-file-lines text-gray-400"></i> ${escapeHtml(article.title)}${archivedBadge}</span></td>
+      <td class="px-5 py-3 text-gray-500">${escapeHtml(categoryText)}</td>
+      <td class="px-5 py-3 text-gray-500">${date}</td>
+      <td class="px-5 py-3 text-center">
+        <div class="flex items-center justify-center gap-3">
+          <input type="checkbox" class="archive-check h-4 w-4 accent-[#E30613]" data-article-id="${article.id}" />
+          <div class="relative inline-block text-left article-actions-dropdown">
+            <button onclick="toggleArticleActionsMenu(event, ${article.id})" class="text-gray-400 hover:text-gray-600 focus:outline-none p-1" aria-label="მოქმედებები">
+              <i class="fa-solid fa-ellipsis-vertical text-lg"></i>
+            </button>
+            <div id="article-actions-menu-${article.id}" class="absolute right-0 mt-1 w-48 rounded-xl border border-gray-100 bg-white shadow-lg hidden z-20 py-1">
+              <button onclick="window.viewArticleHistory(${article.id})" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                <i class="fa-solid fa-clock-rotate-left text-gray-400 w-4"></i> ისტორია
+              </button>
+              ${archiveAction}
+              <button onclick="window.editArticle(${article.id})" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                <i class="fa-solid fa-pen-to-square text-gray-400 w-4"></i> რედაქტირება
+              </button>
+              <button onclick="window.deleteArticle(${article.id})" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors">
+                <i class="fa-solid fa-trash-can text-red-400 w-4"></i> წაშლა
+              </button>
+            </div>
+          </div>
+        </div>
+      </td>
+    </tr>`;
+}
+
+function renderArticlePage(page) {
+  const tbody = document.getElementById('admin-content-tbody');
+  const pagDiv = document.getElementById('admin-content-pagination');
+  if (!tbody) return;
+
+  const total = window._articlesCached.length;
+  const pageSize = window._articlePageSize;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  page = Math.max(1, Math.min(page, totalPages));
+  window._articleCurrentPage = page;
+
+  const start = (page - 1) * pageSize;
+  const slice = window._articlesCached.slice(start, start + pageSize);
+
+  tbody.innerHTML = '';
+  if (total === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="px-5 py-3 text-center text-gray-500">სტატიები არ მოიძებნა</td></tr>';
+    if (pagDiv) pagDiv.innerHTML = '';
+    return;
+  }
+
+  slice.forEach(a => tbody.insertAdjacentHTML('beforeend', _renderArticleRow(a)));
+
+  if (pagDiv) {
+    const end = Math.min(start + pageSize, total);
+    let html = '<span class="text-sm text-gray-500">' + (start + 1) + '–' + end + ' / ' + total + '</span>';
+    html += '<div class="flex items-center gap-1">';
+
+    html += '<button onclick="renderArticlePage(1)" ' + (page <= 1 ? 'disabled' : '') +
+      ' class="rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors ' +
+      (page <= 1 ? 'text-gray-300 cursor-default' : 'text-gray-600 hover:bg-gray-100') +
+      '"><i class="fa-solid fa-angles-left"></i></button>';
+
+    html += '<button onclick="renderArticlePage(' + (page - 1) + ')" ' + (page <= 1 ? 'disabled' : '') +
+      ' class="rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors ' +
+      (page <= 1 ? 'text-gray-300 cursor-default' : 'text-gray-600 hover:bg-gray-100') +
+      '"><i class="fa-solid fa-chevron-left"></i></button>';
+
+    var startP = Math.max(1, page - 2);
+    var endP = Math.min(totalPages, startP + 4);
+    startP = Math.max(1, endP - 4);
+    for (var p = startP; p <= endP; p++) {
+      html += '<button onclick="renderArticlePage(' + p + ')" class="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ' +
+        (p === page ? 'bg-[#B91C1C] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100') + '">' + p + '</button>';
+    }
+
+    html += '<button onclick="renderArticlePage(' + (page + 1) + ')" ' + (page >= totalPages ? 'disabled' : '') +
+      ' class="rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors ' +
+      (page >= totalPages ? 'text-gray-300 cursor-default' : 'text-gray-600 hover:bg-gray-100') +
+      '"><i class="fa-solid fa-chevron-right"></i></button>';
+
+    html += '<button onclick="renderArticlePage(' + totalPages + ')" ' + (page >= totalPages ? 'disabled' : '') +
+      ' class="rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors ' +
+      (page >= totalPages ? 'text-gray-300 cursor-default' : 'text-gray-600 hover:bg-gray-100') +
+      '"><i class="fa-solid fa-angles-right"></i></button>';
+
+    html += '</div>';
+    pagDiv.innerHTML = html;
+  }
+}
+
 async function fetchAndRenderAdminContent(token) {
         const tbody = document.getElementById('admin-content-tbody');
         if (!tbody) return;
 
-        // Populate category filter dropdown dynamically if not yet populated
         const catFilter = document.getElementById('article-filter-category');
         if (catFilter && catFilter.options.length <= 1) {
           const cats = (typeof Store !== 'undefined' && Store.categories) ? Store.categories : {};
@@ -421,12 +523,6 @@ async function fetchAndRenderAdminContent(token) {
             <td class="px-5 py-3"><div class="h-4 bg-gray-200 rounded w-1/4"></div></td>
             <td class="px-5 py-3 text-center"><div class="h-8 bg-gray-200 rounded w-24 mx-auto"></div></td>
           </tr>
-          <tr class="animate-pulse">
-            <td class="px-5 py-3"><div class="h-4 bg-gray-200 rounded w-1/2"></div></td>
-            <td class="px-5 py-3"><div class="h-4 bg-gray-200 rounded w-1/3"></div></td>
-            <td class="px-5 py-3"><div class="h-4 bg-gray-200 rounded w-1/4"></div></td>
-            <td class="px-5 py-3 text-center"><div class="h-8 bg-gray-200 rounded w-24 mx-auto"></div></td>
-          </tr>
         `;
 
         try {
@@ -436,58 +532,11 @@ async function fetchAndRenderAdminContent(token) {
           if (!response.ok) throw new Error('Failed to fetch articles');
           const articles = await response.json();
 
-          // Cache full article objects so editArticle() can populate the form
           window.adminArticles = {};
           articles.forEach(a => { window.adminArticles[a.id] = a; });
-
-          tbody.innerHTML = '';
-          if (articles.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="px-5 py-3 text-center text-gray-500">სტატიები არ მოიძებნა</td></tr>';
-            return;
-          }
-
-          articles.forEach(article => {
-            const date = new Date(article.created_at).toLocaleDateString('ka-GE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-            const categoryText = article.category_name || (typeof Store !== 'undefined' && Store.categories && Store.categories[article.category_id]) || 'ID: ' + article.category_id;
-            const archivedBadge = article.status === 'archived'
-              ? '<span class="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-500">არქივი</span>' : '';
-
-            const archiveAction = article.status === 'archived'
-              ? `<button onclick="window.toggleArticleArchive(${article.id}, false)" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"><i class="fa-solid fa-box-open text-gray-400 w-4"></i> ამოღება არქივიდან</button>`
-              : `<button onclick="window.toggleArticleArchive(${article.id}, true)" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"><i class="fa-solid fa-box-archive text-gray-400 w-4"></i> დაარქივება</button>`;
-
-            const tr = `
-              <tr class="transition-colors hover:bg-gray-50 ${article.status === 'archived' ? 'opacity-60' : ''}">
-                <td class="px-5 py-3"><span class="inline-flex items-center gap-2"><i class="fa-solid fa-file-lines text-gray-400"></i> ${escapeHtml(article.title)}${archivedBadge}</span></td>
-                <td class="px-5 py-3 text-gray-500">${escapeHtml(categoryText)}</td>
-                <td class="px-5 py-3 text-gray-500">${date}</td>
-                <td class="px-5 py-3 text-center">
-                  <div class="flex items-center justify-center gap-3">
-                    <input type="checkbox" class="archive-check h-4 w-4 accent-[#E30613]" data-article-id="${article.id}" />
-                    
-                    <div class="relative inline-block text-left article-actions-dropdown">
-                      <button onclick="toggleArticleActionsMenu(event, ${article.id})" class="text-gray-400 hover:text-gray-600 focus:outline-none p-1" aria-label="მოქმედებები">
-                        <i class="fa-solid fa-ellipsis-vertical text-lg"></i>
-                      </button>
-                      <div id="article-actions-menu-${article.id}" class="absolute right-0 mt-1 w-48 rounded-xl border border-gray-100 bg-white shadow-lg hidden z-20 py-1">
-                        <button onclick="window.viewArticleHistory(${article.id})" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                          <i class="fa-solid fa-clock-rotate-left text-gray-400 w-4"></i> ისტორია
-                        </button>
-                        ${archiveAction}
-                        <button onclick="window.editArticle(${article.id})" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                          <i class="fa-solid fa-pen-to-square text-gray-400 w-4"></i> რედაქტირება
-                        </button>
-                        <button onclick="window.deleteArticle(${article.id})" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors">
-                          <i class="fa-solid fa-trash-can text-red-400 w-4"></i> წაშლა
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            `;
-            tbody.insertAdjacentHTML('beforeend', tr);
-          });
+          window._articlesCached = articles;
+          window._articleCurrentPage = 1;
+          renderArticlePage(1);
         } catch (error) {
           console.error(error);
           tbody.innerHTML = '<tr><td colspan="4" class="px-5 py-3 text-center text-red-500">მონაცემების ჩატვირთვა ვერ მოხერხდა.</td></tr>';

@@ -33,7 +33,7 @@ def admin_user(db_session):
     if not admin:
         admin = models.User(
             email="admin@magti.ge",
-            name="სისტემის ადმინისტრატორი",
+            name="სისტემური ადმინი",
             role="admin",
             department="Administration",
             is_active=True

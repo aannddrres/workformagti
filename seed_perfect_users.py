@@ -82,7 +82,7 @@ def main():
 
         print("Creating new System Admin...")
         admin = models.User(
-            name="სისტემის ადმინისტრატორი",
+            name="სისტემური ადმინი",
             email="admin@magti.ge",
             department="All",
             position="System Administrator",

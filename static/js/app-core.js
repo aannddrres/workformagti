@@ -5678,15 +5678,16 @@ window.setPreviewDevice = function(device) {
   }
 };
 
-window._previewScrollRAF = null;
-window._scrollPreviewToBottom = function(iframe) {
+window._syncPreviewRAF = null;
+window._syncPreviewHeight = function() {
   try {
-    if (window._previewScrollRAF) cancelAnimationFrame(window._previewScrollRAF);
-    window._previewScrollRAF = requestAnimationFrame(function() {
+    if (window._syncPreviewRAF) cancelAnimationFrame(window._syncPreviewRAF);
+    window._syncPreviewRAF = requestAnimationFrame(function() {
       try {
-        var win = iframe.contentWindow;
-        if (win) {
-          win.scrollTo({ top: win.document.body.scrollHeight, behavior: 'smooth' });
+        var editor = document.getElementById('article-content-editor');
+        var container = document.getElementById('preview-frame-container');
+        if (editor && container) {
+          container.style.height = editor.offsetHeight + 'px';
         }
       } catch(_) {}
     });
@@ -5708,7 +5709,7 @@ window.updateArticlePreview = function() {
   if (titleEl && bodyEl) {
     titleEl.textContent = title;
     bodyEl.innerHTML = bodyContent;
-    window._scrollPreviewToBottom(iframe);
+    window._syncPreviewHeight();
   } else {
     doc.open();
     doc.write(`
@@ -5803,6 +5804,6 @@ window.updateArticlePreview = function() {
     const bodyElNew = doc.getElementById('preview-body');
     if (titleElNew) titleElNew.textContent = title;
     if (bodyElNew) bodyElNew.innerHTML = bodyContent;
-    window._scrollPreviewToBottom(iframe);
+    window._syncPreviewHeight();
   }
 };

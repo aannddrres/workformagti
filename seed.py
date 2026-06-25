@@ -319,7 +319,7 @@ def seed_database():
 
         # ── Users (all four roles; @magti.ge to match the live environment) ──
         print("Seeding users...")
-        admin = User(name="სისტემის ადმინისტრატორი", email="admin@magti.ge",
+        admin = User(name="სისტემური ადმინი", email="admin@magti.ge",
                      role="admin", department="Administration",
                      position="Chief Admin Officer", is_active=True, hashed_password=hashed_pw,
                      permissions=DEFAULT_PERMISSIONS_BY_ROLE["admin"])

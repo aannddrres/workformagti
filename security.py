@@ -172,7 +172,7 @@ def authenticate_user(db: Session, email: str, password: str) -> Optional[models
             # Determine role and department from email to create a realistic user
             role, department, name = "operator", "Support", f"Test User {lower_email.split('@')[0]}"
             if lower_email == "admin@magti.ge":
-                role, department, name = "admin", "Administration", "სისტემის ადმინისტრატორი"
+                role, department, name = "admin", "Administration", "სისტემური ადმინი"
             elif lower_email == "content@magti.ge":
                 role, department, name = "content_admin", "Content Creation", "კონტენტის ადმინისტრატორი"
             elif lower_email == "manager@magti.ge":

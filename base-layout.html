@@ -2,7 +2,7 @@
 <html lang="ka">
 
 <head>
-    <script src="/static/frontend_api.js?v=4"></script>
+    <script src="/static/frontend_api.js?v=5"></script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>მაგთი — შიდა საინფორმაციო პორტალი</title>
@@ -47,11 +47,10 @@
       flex-direction: column;
     }
     #article-content-editor .ql-container {
-      flex: 1;
-      min-height: 400px;
+      flex: none;
     }
     #article-content-editor .ql-editor {
-      min-height: 400px;
+      min-height: 120px;
     }
 
     @media print {
@@ -800,7 +799,7 @@
       - Dynamic Rendering: Injects fetched data into the DOM.
     -->
     
-    <script src="/static/js/app-core.js?v=8"></script>
+    <script src="/static/js/app-core.js?v=9"></script>
     <script src="/static/js/app-renderers.js?v=9"></script>
     <script src="/static/js/app-router.js?v=3"></script>
     <script src="/static/js/dept-dashboard.js?v=1"></script>
@@ -1780,6 +1779,7 @@
               </tbody>
             </table>
           </div>
+          <div id="admin-content-pagination" class="flex items-center justify-between px-2 py-3"></div>
         </div>
 
         <!-- News Table Container -->
@@ -1853,7 +1853,7 @@
             </button>
           </div>
           <div class="flex-1 overflow-y-auto">
-            <div class="flex flex-col lg:flex-row lg:items-stretch min-h-full">
+            <div class="flex flex-col lg:flex-row lg:items-stretch">
             <!-- Left Pane: Form Editor -->
             <div class="flex-1 border-r border-gray-200">
               <form id="create-article-form" onsubmit="submitArticleForm(event)" class="flex flex-col">
@@ -1868,7 +1868,7 @@
                 <div class="px-6 pt-4">
                   <label for="article-content-editor" class="mb-1.5 block text-sm font-medium text-gray-700">შინაარსი</label>
                   <div id="article-content-editor"
-                    class="w-full min-h-[150px] rounded-xl border border-gray-300 bg-white text-sm text-gray-800 focus-within:border-[#B91C1C] focus-within:outline-none focus-within:ring-1 focus-within:ring-[#B91C1C]"></div>
+                    class="w-full rounded-xl border border-gray-300 bg-white text-sm text-gray-800 focus-within:border-[#B91C1C] focus-within:outline-none focus-within:ring-1 focus-within:ring-[#B91C1C]"></div>
                   <textarea id="article-content" name="content" class="hidden"></textarea>
                 </div>
                 <!-- Metadata & actions -->
@@ -2011,8 +2011,8 @@
                 </div>
               </div>
               <div class="flex-1 p-4 flex items-start justify-center">
-                <div id="preview-frame-container" class="w-full min-h-[150px] bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden transition-all duration-300">
-                  <iframe id="article-preview-iframe" class="w-full h-full min-h-[150px] border-none"></iframe>
+                <div id="preview-frame-container" class="w-full bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden transition-all duration-300">
+                  <iframe id="article-preview-iframe" class="w-full h-full border-none"></iframe>
                 </div>
               </div>
             </div>
