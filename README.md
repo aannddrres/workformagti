@@ -94,13 +94,18 @@ uvicorn main:app --reload --port 8000
 Open [http://127.0.0.1:8000/](http://127.0.0.1:8000/) in your browser.
 
 ### Step 5 (Optional): Rebuilding CSS
-The compiled stylesheet (`static/css/custom-styles.css`) is committed, so the app
-runs without a CSS build — you only need this when editing styles. The standalone
-Tailwind CLI binary is **not** committed to the repo. Download it from the
-[Tailwind CSS releases](https://github.com/tailwindlabs/tailwindcss/releases)
-(e.g. `tailwindcss.exe` on Windows), place it in the repo root, then run:
+The app uses **two** committed stylesheets:
+- `static/css/tailwind.build.css` — the compiled Tailwind utility layer (generated).
+- `static/css/custom-styles.css` — **hand-written** CSS variables + component classes
+  (`card-theme-*`, pastel, etc.). Do **not** overwrite this with the build output.
+
+You only need a rebuild when editing Tailwind classes. Use the **Tailwind v3**
+standalone CLI (v3 matches this project's config + `@tailwind` directives — do NOT use
+v4, which ignores `tailwind.config.js`). Download `tailwindcss-windows-x64.exe` from the
+[v3 releases](https://github.com/tailwindlabs/tailwindcss/releases/tag/v3.4.17), place it
+in the repo root, then run:
 ```bash
-./tailwindcss.exe -i static/css/input.css -o static/css/custom-styles.css --minify
+./tailwindcss-v3.exe -i static/css/input.css -o static/css/tailwind.build.css --minify
 ```
 
 ---

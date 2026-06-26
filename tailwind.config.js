@@ -3,7 +3,10 @@ module.exports = {
   darkMode: 'class',
   content: [
     "./*.html",
-    "./static/**/*.js"
+    "./static/**/*.js",
+    // main.py renders standalone HTML pages (e.g. the SSO mock-login) with
+    // Tailwind classes; include it so a local build covers those too.
+    "./main.py"
   ],
   theme: {
     extend: {

@@ -12,5 +12,8 @@ scripts/legacy/
 _server_log.txt
 
 # Vendored build tool — download the standalone Tailwind CLI locally rather than
-# committing the ~14MB binary (see README "Rebuilding CSS").
+# committing the binary (see README "Rebuilding CSS"). v4 is the old mismatched
+# binary; v3 matches the project config.
 tailwindcss.exe
+tailwindcss-v3.exe
+static/css/_tw_scratch.css
