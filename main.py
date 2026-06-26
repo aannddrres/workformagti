@@ -5173,7 +5173,7 @@ def sso_mock_login():
     <head>
         <meta charset="UTF-8">
         <title>მაგთი კორპორაციული SSO</title>
-        <script src="https://cdn.tailwindcss.com"></script>
+        <link rel="stylesheet" href="/static/css/tailwind.build.css">
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Georgian:wght@400;600;700&display=swap" rel="stylesheet">
         <style>
             body { font-family: "Noto Sans Georgian", sans-serif; }

@@ -7,8 +7,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>მაგთი — შიდა საინფორმაციო პორტალი</title>
 
-  <!-- Tailwind CSS CDN (JIT — supports arbitrary values like w-[280px]) -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Compiled Tailwind utility layer (built from input.css via the v3 standalone
+       CLI; replaces the cdn.tailwindcss.com JIT runtime). See README "Rebuilding CSS". -->
+  <link rel="stylesheet" href="/static/css/tailwind.build.css">
 
   <!-- Chart.js CDN -->
   <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -26,19 +27,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Teko:wght@500;600&display=swap" rel="stylesheet">
-
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            magti: "#B91C1C", // Deep corporate red replacing harsh #B91C1C
-          },
-        },
-      },
-    };
-  </script>
 
   <link rel="stylesheet" href="/static/css/custom-styles.css">
   <style>
