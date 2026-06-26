@@ -7,6 +7,7 @@ import uuid
 import asyncio
 import logging
 import threading
+import time
 from collections import Counter
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -22,9 +23,11 @@ from fastapi import (
     UploadFile,
     Request,
     Response,
+    BackgroundTasks,
 )
 from fastapi.responses import StreamingResponse, HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.background import BackgroundTask
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session, joinedload
@@ -50,6 +53,15 @@ if not logger.handlers:
     logger.addHandler(_log_handler)
     logger.setLevel(logging.INFO)
     logger.propagate = False
+
+# ── Async export job registry (Shape 2a infra) ────────────────────────────
+# In-memory, thread-safe map of background file-export jobs. Mutated from the
+# BackgroundTasks worker thread and read by the status/download handlers, so
+# every access is guarded by _export_jobs_lock.
+_export_jobs: dict[str, dict] = {}
+_export_jobs_lock = threading.Lock()
+_EXPORT_JOB_TTL = 3600  # seconds a finished export stays in the registry
+_EXPORT_DIR = os.path.join(settings.UPLOAD_DIR, "exports")
 
 # Creates all database tables on startup — but only when RUN_INIT=1.
 # Otherwise, 4 gunicorn workers all race and 3 fail with UniqueViolation on
@@ -549,7 +561,7 @@ async def security_headers(request: Request, call_next):
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline' "
-        "https://cdn.tailwindcss.com https://cdn.jsdelivr.net "
+        "https://cdn.jsdelivr.net "
         "https://cdnjs.cloudflare.com; "
         "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; "
         "font-src 'self' data: https://cdnjs.cloudflare.com; "
@@ -717,6 +729,55 @@ class RedisEventBroker:
 
 
 broker = RedisEventBroker()
+
+
+# ── Best-effort Redis cache for historical (non-realtime) stats ────────────
+# These endpoints run as sync `def` (threadpool); we reuse the broker's event
+# loop to drive the async redis client, gated on broker._use_redis. EVERY redis
+# call is wrapped so a Redis outage degrades to a live DB query — never a 500.
+_STATS_CACHE_TTL = 300
+
+
+def _stats_cache_get(key: str):
+    """Return the cached JSON payload for `key`, or None on miss / any error."""
+    if not broker._use_redis or broker._main_loop is None:
+        return None
+
+    async def _get():
+        r = redis_async.from_url(
+            broker.redis_url, decode_responses=True, socket_connect_timeout=0.5
+        )
+        try:
+            return await r.get(key)
+        finally:
+            await r.aclose()
+
+    try:
+        raw = asyncio.run_coroutine_threadsafe(_get(), broker._main_loop).result(timeout=1.0)
+        return json.loads(raw) if raw else None
+    except Exception as e:
+        logger.warning("stats cache GET failed (%s): %s", key, e)
+        return None
+
+
+def _stats_cache_set(key: str, value, ttl: int = _STATS_CACHE_TTL) -> None:
+    """Store `value` as a JSON string under `key` with a TTL. Never raises."""
+    if not broker._use_redis or broker._main_loop is None:
+        return
+
+    async def _set():
+        r = redis_async.from_url(
+            broker.redis_url, decode_responses=True, socket_connect_timeout=0.5
+        )
+        try:
+            await r.set(key, json.dumps(value, ensure_ascii=False, default=str), ex=ttl)
+        finally:
+            await r.aclose()
+
+    try:
+        asyncio.run_coroutine_threadsafe(_set(), broker._main_loop).result(timeout=1.0)
+    except Exception as e:
+        logger.warning("stats cache SET failed (%s): %s", key, e)
 
 
 def _notify(event_type: str, item) -> None:
@@ -2849,6 +2910,9 @@ def get_compliance_statistics(
     Returns:
         A ComplianceStatsResponse schema.
     """
+    cached = _stats_cache_get("stats:compliance")
+    if cached is not None:
+        return cached
     # Calculate compliance percentage by calculating total expected reads vs actual marked read (operators only)
     read_count = db.query(models.ReadStatus).join(models.User).filter(
         models.User.is_active == True,
@@ -2881,8 +2945,13 @@ def get_compliance_statistics(
         read_percentage = 0.0
         unread_percentage = 100.0
 
-    # Discover the top 5 most read articles across the organization (operators only)
-    top_articles = db.query(models.Article).join(
+    # Discover the top 5 most read articles across the organization (operators only).
+    # Aggregate on Article.id only (not *all columns*) so Postgres never groups /
+    # hashes the large `content` TEXT; then fetch the full rows for those ids.
+    top_id_rows = db.query(
+        models.Article.id,
+        func.count(models.ReadStatus.id).label("read_count"),
+    ).join(
         models.RequiredReading, models.RequiredReading.item_id == models.Article.id
     ).join(
         models.ReadStatus, models.ReadStatus.required_reading_id == models.RequiredReading.id
@@ -2897,15 +2966,38 @@ def get_compliance_statistics(
         # validation (target_departments must be non-empty) and 500 the whole
         # endpoint — exclude them rather than crash on bad/legacy data.
         models.Article.target_department_rows.any()
-    ).group_by(*models.Article.__table__.columns).order_by(
+    ).group_by(models.Article.id).order_by(
         desc(func.count(models.ReadStatus.id))
     ).limit(5).all()
 
-    return {
+    top_ids = [row.id for row in top_id_rows]
+    articles_by_id = {
+        a.id: a
+        for a in db.query(models.Article).filter(models.Article.id.in_(top_ids)).all()
+    }
+    # Re-sort to match the descending read_count order from the grouped query.
+    top_articles = [articles_by_id[i] for i in top_ids if i in articles_by_id]
+
+    result = {
         "read_percentage": read_percentage,
         "unread_percentage": unread_percentage,
         "top_articles": top_articles
     }
+    # Serialize ORM articles via the response model so the cached payload is
+    # JSON-safe; guarded so a serialize/redis hiccup never breaks the response.
+    try:
+        payload = {
+            "read_percentage": read_percentage,
+            "unread_percentage": unread_percentage,
+            "top_articles": [
+                schemas.ArticleResponse.model_validate(a, from_attributes=True).model_dump(mode="json")
+                for a in top_articles
+            ],
+        }
+        _stats_cache_set("stats:compliance", payload)
+    except Exception as e:
+        logger.warning("stats cache serialize failed (compliance): %s", e)
+    return result
 
 def _reading_progress(user, all_required, readings_by_dept, read_map):
     """Compute (required_count, read_count, percentage) for one user from
@@ -2928,6 +3020,38 @@ def _reading_progress(user, all_required, readings_by_dept, read_map):
         return 0, 0, 0
     percentage = round((read_count / required_count) * 100)
     return required_count, read_count, percentage
+
+
+def _get_read_counts_by_user_dept(
+    db: Session, user_ids: Optional[list[int]] = None
+) -> dict[tuple[int, str], int]:
+    """Grouped "read"-status counts keyed by (user_id, RequiredReading.target_department).
+
+    One grouped query (vs a per-user COUNT) shared by the compliance / team /
+    department stats views and the PDF export. Pass `user_ids` to scope to a subset;
+    an empty list short-circuits to {} without a query. The department key is the
+    target_department string ("All" or a dept name), matching _reading_progress.
+    """
+    if user_ids is not None and not user_ids:
+        return {}
+    q = (
+        db.query(
+            models.ReadStatus.user_id,
+            models.RequiredReading.target_department,
+            func.count(models.ReadStatus.id),
+        )
+        .join(
+            models.RequiredReading,
+            models.ReadStatus.required_reading_id == models.RequiredReading.id,
+        )
+        .filter(models.ReadStatus.status == "read")
+    )
+    if user_ids is not None:
+        q = q.filter(models.ReadStatus.user_id.in_(user_ids))
+    rows = q.group_by(
+        models.ReadStatus.user_id, models.RequiredReading.target_department
+    ).all()
+    return {(uid, dept): cnt for uid, dept, cnt in rows}
 
 
 @app.get("/api/statistics/user-progress")
@@ -2961,21 +3085,7 @@ def get_user_progress(
 
     # PERFORMANCE: one grouped query replaces a per-user COUNT (the N+1).
     # read_map[(user_id, reading_department)] = number of "read" statuses.
-    read_rows = (
-        db.query(
-            models.ReadStatus.user_id,
-            models.RequiredReading.target_department,
-            func.count(models.ReadStatus.id),
-        )
-        .join(
-            models.RequiredReading,
-            models.ReadStatus.required_reading_id == models.RequiredReading.id,
-        )
-        .filter(models.ReadStatus.status == "read")
-        .group_by(models.ReadStatus.user_id, models.RequiredReading.target_department)
-        .all()
-    )
-    read_map = {(uid, dept): cnt for uid, dept, cnt in read_rows}
+    read_map = _get_read_counts_by_user_dept(db)
 
     results = []
     for user in users:
@@ -3016,21 +3126,7 @@ def get_admin_team_stats(
     readings_by_dept = Counter(r.target_department for r in all_readings)
     all_required = readings_by_dept.get("All", 0)
 
-    read_rows = (
-        db.query(
-            models.ReadStatus.user_id,
-            models.RequiredReading.target_department,
-            func.count(models.ReadStatus.id),
-        )
-        .join(
-            models.RequiredReading,
-            models.ReadStatus.required_reading_id == models.RequiredReading.id,
-        )
-        .filter(models.ReadStatus.status == "read")
-        .group_by(models.ReadStatus.user_id, models.RequiredReading.target_department)
-        .all()
-    )
-    read_map = {(uid, d): cnt for uid, d, cnt in read_rows}
+    read_map = _get_read_counts_by_user_dept(db)
 
     members = []
     total_percentage = 0
@@ -3115,21 +3211,7 @@ def get_team_stats(
     all_required = readings_by_dept.get("All", 0)
 
     # PERFORMANCE: one grouped query instead of a COUNT per team member (N+1).
-    read_rows = (
-        db.query(
-            models.ReadStatus.user_id,
-            models.RequiredReading.target_department,
-            func.count(models.ReadStatus.id),
-        )
-        .join(
-            models.RequiredReading,
-            models.ReadStatus.required_reading_id == models.RequiredReading.id,
-        )
-        .filter(models.ReadStatus.status == "read")
-        .group_by(models.ReadStatus.user_id, models.RequiredReading.target_department)
-        .all()
-    )
-    read_map = {(uid, d): cnt for uid, d, cnt in read_rows}
+    read_map = _get_read_counts_by_user_dept(db)
 
     members = []
     for user in users:
@@ -3222,21 +3304,7 @@ def build_department_stats(db: Session):
     readings_by_dept = Counter(r.target_department for r in all_readings)
     all_required = readings_by_dept.get("All", 0)
 
-    read_rows = (
-        db.query(
-            models.ReadStatus.user_id,
-            models.RequiredReading.target_department,
-            func.count(models.ReadStatus.id),
-        )
-        .join(
-            models.RequiredReading,
-            models.ReadStatus.required_reading_id == models.RequiredReading.id,
-        )
-        .filter(models.ReadStatus.status == "read")
-        .group_by(models.ReadStatus.user_id, models.RequiredReading.target_department)
-        .all()
-    )
-    read_map = {(uid, d): cnt for uid, d, cnt in read_rows}
+    read_map = _get_read_counts_by_user_dept(db)
 
     # Bucket members by (whitelisted department prefix, group label).
     # groups_by_dept[prefix][group_label] -> list[member dict]
@@ -3368,21 +3436,7 @@ def get_critical_operators(
     )
     all_required = readings_by_dept.get("All", 0)
 
-    read_rows = (
-        db.query(
-            models.ReadStatus.user_id,
-            models.RequiredReading.target_department,
-            func.count(models.ReadStatus.id),
-        )
-        .join(
-            models.RequiredReading,
-            models.ReadStatus.required_reading_id == models.RequiredReading.id,
-        )
-        .filter(models.ReadStatus.status == "read")
-        .group_by(models.ReadStatus.user_id, models.RequiredReading.target_department)
-        .all()
-    )
-    read_map = {(uid, d): cnt for uid, d, cnt in read_rows}
+    read_map = _get_read_counts_by_user_dept(db)
 
     operators = []
     for user in users:
@@ -3453,24 +3507,7 @@ def get_group_users(
     all_required = readings_by_dept.get("All", 0)
 
     user_ids = [u.id for u in users]
-    read_rows = (
-        db.query(
-            models.ReadStatus.user_id,
-            models.RequiredReading.target_department,
-            func.count(models.ReadStatus.id),
-        )
-        .join(
-            models.RequiredReading,
-            models.ReadStatus.required_reading_id == models.RequiredReading.id,
-        )
-        .filter(
-            models.ReadStatus.status == "read",
-            models.ReadStatus.user_id.in_(user_ids),
-        )
-        .group_by(models.ReadStatus.user_id, models.RequiredReading.target_department)
-        .all()
-    ) if user_ids else []
-    read_map = {(uid, d): cnt for uid, d, cnt in read_rows}
+    read_map = _get_read_counts_by_user_dept(db, user_ids=user_ids)
 
     result = []
     for user in users:
@@ -3841,21 +3878,7 @@ def list_users(
     readings_by_dept = Counter(r.target_department for r in all_readings)
     all_required = readings_by_dept.get("All", 0)
 
-    read_rows = (
-        db.query(
-            models.ReadStatus.user_id,
-            models.RequiredReading.target_department,
-            func.count(models.ReadStatus.id),
-        )
-        .join(
-            models.RequiredReading,
-            models.ReadStatus.required_reading_id == models.RequiredReading.id,
-        )
-        .filter(models.ReadStatus.status == "read")
-        .group_by(models.ReadStatus.user_id, models.RequiredReading.target_department)
-        .all()
-    )
-    read_map = {(uid, d): cnt for uid, d, cnt in read_rows}
+    read_map = _get_read_counts_by_user_dept(db)
 
     for user in users:
         required_count, read_count, percentage = _reading_progress(
@@ -3916,29 +3939,95 @@ def update_user_admin(
 
 @app.get("/api/statistics/activity")
 def get_activity_trend(
+    days: int = 7,
+    bucket: str = "day",
+    category: str = None,
     current_admin: models.User = Depends(security.get_current_admin_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    """Retrieves user activity trend for the last 7 days based on audit logs."""
-    # ბოლო 7 დღის დათვლა
-    cutoff = datetime.utcnow() - timedelta(days=6)
-    cutoff_date = cutoff.replace(hour=0, minute=0, second=0, microsecond=0)
-    
-    recent_logs = db.query(models.AuditLog.timestamp).filter(
-        models.AuditLog.timestamp >= cutoff_date
-    ).all()
-    
-    activity_by_date = {}
-    for i in range(7):
-        d = (cutoff_date + timedelta(days=i)).strftime("%Y-%m-%d")
-        activity_by_date[d] = 0
-        
-    for log in recent_logs:
-        d = log.timestamp.strftime("%Y-%m-%d")
-        if d in activity_by_date:
-            activity_by_date[d] += 1
-            
-    return [{"date": k, "count": v} for k, v in activity_by_date.items()]
+    """Activity trend over the last `days` days, bucketed by `bucket` (day|hour),
+    optionally filtered by audit `category`. DB-native aggregation."""
+    if bucket not in ("day", "hour"):
+        raise HTTPException(status_code=400, detail="bucket must be 'day' or 'hour'")
+    # Cap the window so a huge range can't trigger a massive scan / timeout.
+    days = max(1, min(days, 90))
+
+    cache_key = "stats:activity:%dd:%s:%s" % (days, bucket, (category or "all"))
+    cached = _stats_cache_get(cache_key)
+    if cached is not None:
+        return cached
+
+    now = datetime.utcnow()
+    is_pg = db.bind.dialect.name == "postgresql"
+    if bucket == "hour":
+        cutoff = now.replace(minute=0, second=0, microsecond=0) - timedelta(hours=days * 24 - 1)
+        bucket_col = (
+            func.date_trunc("hour", models.AuditLog.timestamp) if is_pg
+            else func.strftime("%Y-%m-%d %H:00", models.AuditLog.timestamp)
+        )
+        step, key_fmt, key_len, n = timedelta(hours=1), "%Y-%m-%d %H:00", 16, days * 24
+    else:
+        cutoff = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days - 1)
+        bucket_col = (
+            func.date_trunc("day", models.AuditLog.timestamp) if is_pg
+            else func.date(models.AuditLog.timestamp)
+        )
+        step, key_fmt, key_len, n = timedelta(days=1), "%Y-%m-%d", 10, days
+
+    q = db.query(bucket_col.label("bucket"), func.count(models.AuditLog.id)).filter(
+        models.AuditLog.timestamp >= cutoff
+    )
+    if category:
+        q = q.filter(models.AuditLog.category == category.upper())
+    grouped = q.group_by(bucket_col).all()
+    # PG date_trunc -> datetime, SQLite strftime/date -> str; slice normalizes both.
+    # Hotfix: Postgres date_trunc returns a datetime; format it with key_fmt so
+    # PG keys align exactly with SQLite's string buckets ("%Y-%m-%d %H:00" etc.).
+    counts = {}
+    for d, c in grouped:
+        key = d.strftime(key_fmt) if isinstance(d, datetime) else str(d)[:key_len]
+        counts[key] = c
+
+    series = []
+    for i in range(n):
+        key = (cutoff + step * i).strftime(key_fmt)
+        series.append({"date": key, "count": counts.get(key, 0)})
+
+    _stats_cache_set(cache_key, series)
+    return series
+
+
+# Allow-listed breakdown dimensions → (grouping column, counted column). Mapping
+# by explicit column objects (never user strings) keeps this injection-proof.
+_BREAKDOWN_DIMENSIONS = {
+    "department": (models.User.department, models.User.id),
+    "role": (models.User.role, models.User.id),
+    "status": (models.ReadStatus.status, models.ReadStatus.id),
+}
+
+
+@app.get("/api/statistics/breakdown")
+def get_statistics_breakdown(
+    dimension: str,
+    current_admin: models.User = Depends(security.get_current_admin_user),
+    db: Session = Depends(get_db),
+):
+    """Aggregated counts grouped by a whitelisted `dimension`
+    (department | role | status). Returns [{"label": X, "count": Y}]."""
+    mapping = _BREAKDOWN_DIMENSIONS.get(dimension)
+    if mapping is None:
+        raise HTTPException(
+            status_code=400,
+            detail="dimension must be one of: department, role, status",
+        )
+    group_col, count_col = mapping
+    rows = (
+        db.query(group_col, func.count(count_col))
+        .group_by(group_col)
+        .order_by(desc(func.count(count_col)))
+        .all()
+    )
+    return [{"label": label, "count": count} for label, count in rows]
 
 @app.get("/api/statistics/kpi", response_model=schemas.KpiResponse)
 def get_kpi_counts(
@@ -3956,12 +4045,26 @@ def get_kpi_counts(
     Returns:
         A KpiResponse schema.
     """
-    return {
-        "users": db.query(models.User).filter(models.User.is_active == True).count(),
-        "articles": db.query(models.Article).count(),
-        "required_readings": db.query(models.RequiredReading).count(),
-        "videos": db.query(models.VideoInstruction).count(),
+    cached = _stats_cache_get("stats:kpi")
+    if cached is not None:
+        return cached
+
+    # A6: one round-trip — four scalar COUNT subqueries in a single SELECT.
+    users, articles, required_readings, videos = db.query(
+        db.query(func.count(models.User.id))
+        .filter(models.User.is_active == True).scalar_subquery(),
+        db.query(func.count(models.Article.id)).scalar_subquery(),
+        db.query(func.count(models.RequiredReading.id)).scalar_subquery(),
+        db.query(func.count(models.VideoInstruction.id)).scalar_subquery(),
+    ).one()
+    result = {
+        "users": users,
+        "articles": articles,
+        "required_readings": required_readings,
+        "videos": videos,
     }
+    _stats_cache_set("stats:kpi", result)
+    return result
 
 @app.get("/api/messages", response_model=list[schemas.MessageResponse])
 def get_my_messages(
@@ -4923,6 +5026,7 @@ def _guard_export_size(row_count: int) -> None:
 # ── XLSX export for compliance readings ───────────────────────────────────
 @app.get("/api/export/readings.xlsx")
 def export_readings_xlsx(
+    background_tasks: BackgroundTasks,
     current_admin: models.User = Depends(security.get_current_system_admin_user),
     db: Session = Depends(get_db),
 ):
@@ -4954,37 +5058,17 @@ def export_readings_xlsx(
      .all()
     _guard_export_size(len(rows))
 
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Compliance"
-    header_font = Font(bold=True, color="FFFFFF")
-    header_fill = PatternFill("solid", fgColor="CC0000")
     headers = ["თანამშრომელი", "დეპარტამენტი", "მასალის ტიპი", "მასალის ID", "სტატუსი", "წაკითხვის თარიღი", "ვადა"]
-    for col, h in enumerate(headers, start=1):
-        c = ws.cell(row=1, column=col, value=h)
-        c.font = header_font
-        c.fill = header_fill
-    for i, (rs, user_name, dept, item_type, item_id, due_date) in enumerate(rows, start=2):
-        ws.cell(row=i, column=1, value=user_name)
-        ws.cell(row=i, column=2, value=dept)
-        ws.cell(row=i, column=3, value=item_type)
-        ws.cell(row=i, column=4, value=item_id)
-        ws.cell(row=i, column=5, value=rs.status)
-        ws.cell(row=i, column=6, value=rs.read_at.strftime("%Y-%m-%d %H:%M") if rs.read_at else "")
-        ws.cell(row=i, column=7, value=due_date.strftime("%Y-%m-%d") if due_date else "")
-    # Auto-width
-    for col_cells in ws.columns:
-        max_len = max((len(str(c.value)) for c in col_cells if c.value), default=10)
-        ws.column_dimensions[col_cells[0].column_letter].width = min(max_len + 2, 40)
-
-    buf = io.BytesIO()
-    wb.save(buf)
-    buf.seek(0)
-    return StreamingResponse(
-        buf,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=readings_export.xlsx"},
-    )
+    table_rows = [[
+        user_name,
+        dept,
+        item_type,
+        item_id,
+        rs.status,
+        rs.read_at.strftime("%Y-%m-%d %H:%M") if rs.read_at else "",
+        due_date.strftime("%Y-%m-%d") if due_date else "",
+    ] for (rs, user_name, dept, item_type, item_id, due_date) in rows]
+    return _enqueue_export(background_tasks, table_rows, headers, "Compliance", "xlsx")
 
 
 # ── PDF export (compliance + team stats) ──────────────────────────────────
@@ -5069,6 +5153,7 @@ def _build_table_pdf(title: str, headers: list[str], rows: list[list[str]]) -> b
 
 @app.get("/api/export/readings.pdf")
 def export_readings_pdf(
+    background_tasks: BackgroundTasks,
     current_admin: models.User = Depends(security.require_permission(security.PERM_REPORTS_EXPORT)),
     db: Session = Depends(get_db),
 ):
@@ -5106,16 +5191,12 @@ def export_readings_pdf(
         due_date.strftime("%Y-%m-%d") if due_date else "",
     ] for (rs, user_name, dept, item_type, item_id, due_date) in rows_q]
 
-    pdf_bytes = _build_table_pdf("სავალდებულოდ გასაცნობი სტატუსი", headers, table_rows)
-    return StreamingResponse(
-        io.BytesIO(pdf_bytes),
-        media_type="application/pdf",
-        headers={"Content-Disposition": "attachment; filename=readings_export.pdf"},
-    )
+    return _enqueue_export(background_tasks, table_rows, headers, "სავალდებულოდ გასაცნობი სტატუსი", "pdf")
 
 
 @app.get("/api/export/team-stats.pdf")
 def export_team_stats_pdf(
+    background_tasks: BackgroundTasks,
     current_admin: models.User = Depends(security.require_permission(security.PERM_REPORTS_EXPORT)),
     db: Session = Depends(get_db),
 ):
@@ -5146,11 +5227,122 @@ def export_team_stats_pdf(
         pct = round(100.0 * (r.read_count or 0) / r.total, 1) if r.total else 0.0
         table_rows.append([r.dept or "—", str(r.total), str(r.read_count or 0), f"{pct}%"])
 
-    pdf_bytes = _build_table_pdf("გუნდის სტატისტიკა — წაკითხვის პროცენტი", headers, table_rows)
-    return StreamingResponse(
-        io.BytesIO(pdf_bytes),
-        media_type="application/pdf",
-        headers={"Content-Disposition": "attachment; filename=team_stats.pdf"},
+    return _enqueue_export(background_tasks, table_rows, headers, "გუნდის სტატისტიკა — წაკითხვის პროცენტი", "pdf")
+
+
+# ── Async file exports (Shape 2a): compile off-request from primitive rows ─
+def _build_table_xlsx(title: str, headers: list[str], rows: list[list]) -> bytes:
+    """Render a styled single-sheet workbook from primitive rows; raises if
+    openpyxl is missing."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = (title or "Export")[:31]
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill("solid", fgColor="CC0000")
+    for col, h in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+    for i, row in enumerate(rows, start=2):
+        for col, val in enumerate(row, start=1):
+            ws.cell(row=i, column=col, value=val)
+    for col_cells in ws.columns:
+        width = max((len(str(c.value)) for c in col_cells if c.value is not None), default=10)
+        ws.column_dimensions[col_cells[0].column_letter].width = min(width + 2, 40)
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def _async_file_worker(
+    job_id: str, table_rows: list, headers: list, title: str, export_type: str
+) -> None:
+    """Compile an export file from PRIMITIVE rows only (no DB / session) and
+    record the outcome in _export_jobs. Runs in a BackgroundTasks worker thread."""
+    try:
+        if export_type == "xlsx":
+            data, ext = _build_table_xlsx(title, headers, table_rows), "xlsx"
+        else:
+            data, ext = _build_table_pdf(title, headers, table_rows), "pdf"
+        os.makedirs(_EXPORT_DIR, exist_ok=True)
+        path = os.path.join(_EXPORT_DIR, "export_%s.%s" % (job_id, ext))
+        with open(path, "wb") as fh:
+            fh.write(data)
+        with _export_jobs_lock:
+            _export_jobs[job_id] = {
+                "status": "completed",
+                "path": path,
+                "expires_at": time.time() + _EXPORT_JOB_TTL,
+            }
+    except Exception as e:
+        logger.warning("export worker failed (job %s): %s", job_id, e)
+        with _export_jobs_lock:
+            _export_jobs[job_id] = {
+                "status": "failed",
+                "path": None,
+                "expires_at": time.time() + _EXPORT_JOB_TTL,
+            }
+
+
+def _enqueue_export(
+    background_tasks: BackgroundTasks,
+    table_rows: list,
+    headers: list,
+    title: str,
+    export_type: str,
+) -> dict:
+    """Register a job, schedule the off-request build, and return its id."""
+    job_id = str(uuid.uuid4())
+    with _export_jobs_lock:
+        _export_jobs[job_id] = {"status": "processing", "path": None, "expires_at": time.time() + 3600}
+    background_tasks.add_task(
+        _async_file_worker, job_id, table_rows, headers, title, export_type
+    )
+    return {"job_id": job_id}
+
+
+def _cleanup_export(job_id: str, path: str) -> None:
+    """Delete the served file and drop its registry entry (runs post-download)."""
+    try:
+        if path and os.path.exists(path):
+            os.unlink(path)
+    except OSError:
+        pass
+    with _export_jobs_lock:
+        _export_jobs.pop(job_id, None)
+
+
+@app.get("/api/export/status/{job_id}")
+def get_export_status(
+    job_id: str,
+    current_admin: models.User = Depends(security.require_permission(security.PERM_REPORTS_EXPORT)),
+):
+    """Report the state of a background export job."""
+    with _export_jobs_lock:
+        job = _export_jobs.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="export job not found")
+    return {"job_id": job_id, "status": job["status"]}
+
+
+@app.get("/api/export/download/{job_id}")
+def download_export(
+    job_id: str,
+    current_admin: models.User = Depends(security.require_permission(security.PERM_REPORTS_EXPORT)),
+):
+    """Serve a completed export, then delete it once the transfer finishes."""
+    with _export_jobs_lock:
+        job = _export_jobs.get(job_id)
+    if job is None or job.get("status") != "completed" or not job.get("path"):
+        raise HTTPException(status_code=404, detail="export not ready")
+    path = job["path"]
+    return FileResponse(
+        path,
+        filename=os.path.basename(path),
+        background=BackgroundTask(_cleanup_export, job_id, path),
     )
 
 
@@ -5173,7 +5365,7 @@ def sso_mock_login():
     <head>
         <meta charset="UTF-8">
         <title>მაგთი კორპორაციული SSO</title>
-        <link rel="stylesheet" href="/static/css/tailwind.build.css">
+        <link rel="stylesheet" href="/static/css/app.min.css">
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Georgian:wght@400;600;700&display=swap" rel="stylesheet">
         <style>
             body { font-family: "Noto Sans Georgian", sans-serif; }

@@ -12,6 +12,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     event,
+    text,
 )
 from sqlalchemy.orm import relationship
 from database import Base
@@ -319,7 +320,12 @@ class AuditLog(Base):
     # admin_id was an unindexed FK; the audit-log view filters by it
     # (AuditLog.admin_id == user_id). Name matches migrate.py's CREATE INDEX so
     # fresh-create and existing prod DBs converge on one index.
-    __table_args__ = (Index("ix_audit_logs_admin_id", "admin_id"),)
+    __table_args__ = (
+        Index("ix_audit_logs_admin_id", "admin_id"),
+        Index("ix_audit_logs_category_timestamp", "category", text("timestamp DESC")),
+        Index("ix_audit_logs_admin_timestamp", "admin_id", text("timestamp DESC")),
+        Index("ix_audit_logs_action_timestamp", "action", text("timestamp DESC")),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     admin_id = Column(Integer, ForeignKey("users.id"), nullable=False)

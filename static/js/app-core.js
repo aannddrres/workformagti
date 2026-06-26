@@ -4556,24 +4556,59 @@ function setCategoryProfile(profile) {
         renderCategoryArticles();
       }
 
-async function downloadExportXlsx() {
+// Submit an async export, poll its status every 1.5s, then download when ready.
+async function runAsyncExport(submitUrl, btn) {
         const token = Auth.getToken();
         if (!token) return;
+        const authHeaders = { Authorization: 'Bearer ' + token };
+        const originalHtml = btn ? btn.innerHTML : null;
+        const restore = () => {
+          if (btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
+        };
+        if (btn) {
+          btn.disabled = true;
+          btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin mr-1.5"></i> მუშავდება...';
+        }
+
+        let jobId;
         try {
-          const res = await fetch('/api/export/readings.xlsx', { headers: { Authorization: 'Bearer ' + token } });
+          const res = await fetch(submitUrl, { headers: authHeaders });
           if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            throw new Error(err.detail || `XLSX ექსპორტი ჩავარდა (${res.status})`);
+            throw new Error(err.detail || `ექსპორტი ჩავარდა (${res.status})`);
           }
-          const blob = await res.blob();
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url; a.download = 'readings_export.xlsx';
-          document.body.appendChild(a); a.click(); a.remove();
-          URL.revokeObjectURL(url);
+          jobId = (await res.json()).job_id;
         } catch (e) {
-          alert(e.message);
+          alert(e.message || 'ექსპორტი ვერ მოხერხდა.');
+          restore();
+          return;
         }
+
+        const poll = setInterval(async () => {
+          try {
+            const sres = await fetch(`/api/export/status/${jobId}`, { headers: authHeaders });
+            if (!sres.ok) throw new Error('status ' + sres.status);
+            const { status } = await sres.json();
+            if (status === 'processing') return;            // keep waiting
+            clearInterval(poll);
+            if (status === 'completed') {
+              if (typeof showToast === 'function') showToast('ექსპორტი მზადაა', 'ფაილი ჩამოიტვირთება…');
+              window.location.href = `/api/export/download/${jobId}`;  // cookie auth
+              restore();
+            } else {
+              alert('ექსპორტი ვერ მოხერხდა. სცადეთ თავიდან.');
+              restore();
+            }
+          } catch (e) {
+            clearInterval(poll);
+            alert('ექსპორტის სტატუსის შემოწმება ვერ მოხერხდა.');
+            restore();
+          }
+        }, 1500);
+      }
+
+async function downloadExportXlsx(btn) {
+        return runAsyncExport('/api/export/readings.xlsx', btn);
       }
 
 function toggleNotificationsPopover(event) {

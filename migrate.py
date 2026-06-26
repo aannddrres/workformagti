@@ -46,6 +46,9 @@ PG_TRGM_STATEMENTS = (
 BTREE_INDEX_STATEMENTS = (
     "CREATE INDEX IF NOT EXISTS ix_audit_logs_admin_id ON audit_logs (admin_id)",
     "CREATE INDEX IF NOT EXISTS ix_messages_sender_id ON messages (sender_id)",
+    "CREATE INDEX IF NOT EXISTS ix_audit_logs_category_timestamp ON audit_logs (category, timestamp DESC)",
+    "CREATE INDEX IF NOT EXISTS ix_audit_logs_admin_timestamp ON audit_logs (admin_id, timestamp DESC)",
+    "CREATE INDEX IF NOT EXISTS ix_audit_logs_action_timestamp ON audit_logs (action, timestamp DESC)",
 )
 
 

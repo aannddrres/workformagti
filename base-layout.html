@@ -7,9 +7,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>მაგთი — შიდა საინფორმაციო პორტალი</title>
 
-  <!-- Compiled Tailwind utility layer (built from input.css via the v3 standalone
-       CLI; replaces the cdn.tailwindcss.com JIT runtime). See README "Rebuilding CSS". -->
-  <link rel="stylesheet" href="/static/css/tailwind.build.css">
+  <!-- Single self-contained compiled stylesheet: Tailwind utilities + hand-written
+       branding, built from input.css via the v3 CLI. See README "Rebuilding CSS". -->
+  <link rel="stylesheet" href="/static/css/app.min.css">
 
   <!-- Chart.js CDN -->
   <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -28,7 +28,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Teko:wght@500;600&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="/static/css/custom-styles.css">
   <style>
     #article-content-editor {
       display: flex;
@@ -1436,7 +1435,7 @@
             class="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50 hover:text-gray-900">
             <i class="fa-solid fa-file-csv mr-1.5"></i> CSV
           </button>
-          <button onclick="downloadExportXlsx()"
+          <button type="button" onclick="downloadExportXlsx(this)"
             class="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700 shadow-sm transition-colors hover:bg-emerald-100">
             <i class="fa-solid fa-file-excel mr-1.5"></i> XLSX
           </button>

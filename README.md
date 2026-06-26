@@ -94,18 +94,19 @@ uvicorn main:app --reload --port 8000
 Open [http://127.0.0.1:8000/](http://127.0.0.1:8000/) in your browser.
 
 ### Step 5 (Optional): Rebuilding CSS
-The app uses **two** committed stylesheets:
-- `static/css/tailwind.build.css` — the compiled Tailwind utility layer (generated).
-- `static/css/custom-styles.css` — **hand-written** CSS variables + component classes
-  (`card-theme-*`, pastel, etc.). Do **not** overwrite this with the build output.
+All styling lives in **one committed, self-contained file**, `static/css/app.min.css`,
+built from `static/css/input.css`. `input.css` holds the `@tailwind` directives **plus**
+the hand-written branding (CSS vars, `card-theme-*`, pastel, components, keyframes) — edit
+the branding there. Dynamic DB-derived classes (status/pastel colors) are kept via the
+`safelist` in `tailwind.config.js`.
 
-You only need a rebuild when editing Tailwind classes. Use the **Tailwind v3**
-standalone CLI (v3 matches this project's config + `@tailwind` directives — do NOT use
-v4, which ignores `tailwind.config.js`). Download `tailwindcss-windows-x64.exe` from the
+You only need a rebuild when editing styles. Use the **Tailwind v3** standalone CLI (v3
+matches this project's config + `@tailwind` directives — do NOT use v4, which ignores
+`tailwind.config.js`). Download `tailwindcss-windows-x64.exe` from the
 [v3 releases](https://github.com/tailwindlabs/tailwindcss/releases/tag/v3.4.17), place it
 in the repo root, then run:
 ```bash
-./tailwindcss-v3.exe -i static/css/input.css -o static/css/tailwind.build.css --minify
+./tailwindcss-v3.exe -i static/css/input.css -o static/css/app.min.css --minify
 ```
 
 ---
