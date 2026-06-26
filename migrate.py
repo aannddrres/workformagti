@@ -39,6 +39,16 @@ PG_TRGM_STATEMENTS = (
 )
 
 
+# Plain btree indexes on high-traffic FK lookup columns. Cross-dialect — plain
+# `CREATE INDEX IF NOT EXISTS` is valid on both SQLite (dev) and Postgres (prod),
+# so these run regardless of backend. Names match the models.py Index() defs so
+# fresh-create and existing DBs converge on a single index per column.
+BTREE_INDEX_STATEMENTS = (
+    "CREATE INDEX IF NOT EXISTS ix_audit_logs_admin_id ON audit_logs (admin_id)",
+    "CREATE INDEX IF NOT EXISTS ix_messages_sender_id ON messages (sender_id)",
+)
+
+
 # Columns added after the initial schema. (table, column, DDL type, default).
 # Applied idempotently via ADD COLUMN only when missing — never drops anything.
 _ADDED_COLUMNS = (
@@ -87,6 +97,13 @@ def main() -> int:
     Base.metadata.create_all(bind=engine)
     ensure_columns()
     log.info("Schema ensured.")
+
+    # Cross-dialect FK lookup indexes (run on SQLite and Postgres alike).
+    with engine.begin() as conn:
+        for stmt in BTREE_INDEX_STATEMENTS:
+            log.info("Executing: %s", stmt.split(" IF NOT EXISTS")[0])
+            conn.execute(text(stmt))
+    log.info("FK lookup indexes ensured.")
 
     if not engine.dialect.name.startswith("postgres"):
         log.info("Skipping pg_trgm setup — backend is %s, not postgres.", engine.dialect.name)

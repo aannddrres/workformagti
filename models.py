@@ -291,6 +291,9 @@ class Favorite(Base):
 
 class Message(Base):
     __tablename__ = "messages"
+    # sender_id was an unindexed FK; the "sent messages" view filters by it
+    # (recipient user_id is already indexed). Name matches migrate.py.
+    __table_args__ = (Index("ix_messages_sender_id", "sender_id"),)
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
@@ -313,6 +316,10 @@ class Message(Base):
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
+    # admin_id was an unindexed FK; the audit-log view filters by it
+    # (AuditLog.admin_id == user_id). Name matches migrate.py's CREATE INDEX so
+    # fresh-create and existing prod DBs converge on one index.
+    __table_args__ = (Index("ix_audit_logs_admin_id", "admin_id"),)
 
     id = Column(Integer, primary_key=True, index=True)
     admin_id = Column(Integer, ForeignKey("users.id"), nullable=False)
