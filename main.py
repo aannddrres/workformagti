@@ -4901,6 +4901,25 @@ def delete_required_reading(
     return None
 
 
+# Guard against a pathologically large export pinning a worker thread or blowing
+# the gunicorn timeout. Compliance exports are bounded (users × required readings)
+# and sit far below this ceiling at ~600 users. We ERROR rather than silently
+# truncate — a partial compliance report is more dangerous than a clear
+# "narrow your scope" message.
+_EXPORT_MAX_ROWS = 20000
+
+
+def _guard_export_size(row_count: int) -> None:
+    if row_count > _EXPORT_MAX_ROWS:
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                f"ექსპორტი ძალიან დიდია ({row_count} ჩანაწერი, ზღვარი "
+                f"{_EXPORT_MAX_ROWS}). დააზუსტეთ ფილტრი და სცადეთ თავიდან."
+            ),
+        )
+
+
 # ── XLSX export for compliance readings ───────────────────────────────────
 @app.get("/api/export/readings.xlsx")
 def export_readings_xlsx(
@@ -4933,6 +4952,7 @@ def export_readings_xlsx(
     ).join(models.User, models.ReadStatus.user_id == models.User.id) \
      .join(models.RequiredReading, models.ReadStatus.required_reading_id == models.RequiredReading.id) \
      .all()
+    _guard_export_size(len(rows))
 
     wb = Workbook()
     ws = wb.active
@@ -5073,6 +5093,7 @@ def export_readings_pdf(
     ).join(models.User, models.ReadStatus.user_id == models.User.id) \
      .join(models.RequiredReading, models.ReadStatus.required_reading_id == models.RequiredReading.id) \
      .all()
+    _guard_export_size(len(rows_q))
 
     headers = ["თანამშრომელი", "დეპარტამენტი", "ტიპი", "ID", "სტატუსი", "წაკითხვა", "ვადა"]
     table_rows = [[
