@@ -417,7 +417,7 @@ function _renderArticleRow(article) {
             <button onclick="toggleArticleActionsMenu(event, ${article.id})" class="text-gray-400 hover:text-gray-600 focus:outline-none p-1" aria-label="მოქმედებები">
               <i class="fa-solid fa-ellipsis-vertical text-lg"></i>
             </button>
-            <div id="article-actions-menu-${article.id}" class="absolute right-0 mt-1 w-48 rounded-xl border border-gray-100 bg-white shadow-lg hidden z-20 py-1">
+            <div id="article-actions-menu-${article.id}" class="absolute right-0 top-full mt-1 origin-top-right w-48 rounded-xl border border-gray-100 bg-white shadow-lg hidden z-20 py-1">
               <button onclick="window.viewArticleHistory(${article.id})" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                 <i class="fa-solid fa-clock-rotate-left text-gray-400 w-4"></i> ისტორია
               </button>
@@ -554,7 +554,23 @@ function toggleArticleActionsMenu(event, id) {
     if (el.id !== `article-actions-menu-${id}`) el.classList.add('hidden');
   });
   const menu = document.getElementById(`article-actions-menu-${id}`);
-  if (menu) menu.classList.toggle('hidden');
+  if (!menu) return;
+
+  const opening = menu.classList.contains('hidden');
+  menu.classList.toggle('hidden');
+  if (!opening) return;
+
+  const btn = event.currentTarget;
+  const scrollParent = btn.closest('.overflow-x-auto') || document.body;
+  const spaceBelow = scrollParent.getBoundingClientRect().bottom - btn.getBoundingClientRect().bottom;
+  const menuHeight = menu.offsetHeight || 160;
+
+  menu.classList.remove('top-full', 'mt-1', 'origin-top-right', 'bottom-full', 'mb-1', 'origin-bottom-right');
+  if (spaceBelow < menuHeight) {
+    menu.classList.add('bottom-full', 'mb-1', 'origin-bottom-right');
+  } else {
+    menu.classList.add('top-full', 'mt-1', 'origin-top-right');
+  }
 }
 
 // Close dropdowns on document click
