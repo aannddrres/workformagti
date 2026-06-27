@@ -191,7 +191,8 @@ class ArticleBase(BaseModel):
     # Multi-department targeting (article_target_departments junction table);
     # replaces the legacy single-value target_department column.
     target_departments: list[str]
-    status: str = "published"
+    status: Optional[str] = "draft"
+    youtube_id: Optional[str] = None
     published_at: Optional[datetime] = None
     attachment_url: Optional[str] = None
     author_id: Optional[int] = None
@@ -236,6 +237,11 @@ class ArticleCreate(ArticleBase):
     notify_operators: bool = False
 
 
+class ArticleUpdate(ArticleBase):
+    """Request schema for updating a Knowledge Base article."""
+    notify_operators: bool = False
+
+
 class ArticleResponse(ArticleBase):
     """Response schema containing serialized Knowledge Base article details."""
     id: int
@@ -243,6 +249,16 @@ class ArticleResponse(ArticleBase):
     updated_at: datetime
     version: int
     read_time: int = 1
+
+    @field_validator("youtube_id", mode="before")
+    @classmethod
+    def _default_youtube_id(cls, v: Optional[str]) -> str:
+        return v if v is not None else ""
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def _default_status(cls, v: Optional[str]) -> str:
+        return v if v is not None else "draft"
 
 class ArticleAutosave(BaseModel):
     title: Optional[str] = None

@@ -185,3 +185,64 @@ def test_sent_messages(admin_user, db_session):
     monolith_app.dependency_overrides.clear()
 
 
+def test_article_status_and_youtube_id(client, db_session):
+    """Verifies backend maps youtube_id and status correctly on create and update."""
+    # Ensure category 1 exists for the foreign key reference
+    category = db_session.query(models.Category).filter(models.Category.id == 1).first()
+    if not category:
+        category = models.Category(id=1, name="Test Category", is_active=True)
+        db_session.add(category)
+        db_session.commit()
+
+    payload = {
+        "title": "Test CMS Feature",
+        "content": "CMS Content testing status and youtube_id.",
+        "category_id": 1,
+        "target_departments": ["Support"],
+        "status": "draft",
+        "youtube_id": "dQw4w9WgXcQ"
+    }
+
+    # POST create
+    response = client.post("/api/articles", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["youtube_id"] == "dQw4w9WgXcQ"
+    assert data["status"] == "draft"
+    article_id = data["id"]
+
+    # Check database raw values
+    db_article = db_session.query(models.Article).filter(models.Article.id == article_id).first()
+    assert db_article is not None
+    assert db_article.youtube_id == "dQw4w9WgXcQ"
+    assert db_article.status == "draft"
+
+    # PUT update
+    update_payload = payload.copy()
+    update_payload["youtube_id"] = "xyz12345678"
+    update_payload["status"] = "published"
+    update_response = client.put(f"/api/articles/{article_id}", json=update_payload)
+    assert update_response.status_code == 200
+    update_data = update_response.json()
+    assert update_data["youtube_id"] == "xyz12345678"
+    assert update_data["status"] == "published"
+
+    # Test default values when null in DB
+    db_article.youtube_id = None
+    db_article.status = None
+    db_session.commit()
+    db_session.refresh(db_article)
+
+    # Get single article to check schema defaults
+    get_response = client.get(f"/api/articles/{article_id}")
+    assert get_response.status_code == 200
+    get_data = get_response.json()
+    assert get_data["youtube_id"] == ""
+    assert get_data["status"] == "draft"
+
+    # Clean up database
+    db_session.delete(db_article)
+    db_session.commit()
+
+
+

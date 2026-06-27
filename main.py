@@ -2166,7 +2166,7 @@ def create_article(
 @app.put("/api/articles/{article_id}", response_model=schemas.ArticleResponse)
 def update_article(
     article_id: int,
-    article: schemas.ArticleCreate,
+    article: schemas.ArticleUpdate,
     current_admin: models.User = Depends(security.get_current_admin_user),
     db: Session = Depends(get_db)
 ):

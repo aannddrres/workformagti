@@ -131,7 +131,8 @@ class Article(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     version = Column(Integer, default=1)
     author_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    status = Column(String, default="published")
+    status = Column(String, default="draft", server_default="draft")
+    youtube_id = Column(String, nullable=True)
     # Future publish time for status='scheduled'. Referenced by get_articles and
     # _assert_article_visible in main.py and by ArticleBase in schemas.py.
     published_at = Column(DateTime, nullable=True)

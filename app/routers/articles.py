@@ -211,8 +211,13 @@ def create_article(
     payload = article.model_dump()
     # Transient broadcast flag — not a column on Article; drop it on create.
     payload.pop("notify_operators", None)
+    target_departments = payload.pop("target_departments")
     payload["author_id"] = current_admin.id
+    payload["target_department"] = "All" if "All" in target_departments else target_departments[0]
     db_article = models.Article(**payload)
+    db_article.target_department_rows = [
+        models.ArticleTargetDepartment(department=d) for d in target_departments
+    ]
     db.add(db_article)
     db.flush()
     sync_tags(db, "article", db_article.id, db_article.tags)
@@ -238,7 +243,7 @@ def create_article(
 @router.put("/{article_id}", response_model=schemas.ArticleResponse)
 def update_article(
     article_id: int,
-    article: schemas.ArticleCreate,
+    article: schemas.ArticleUpdate,
     current_admin: models.User = Depends(security.require_content_creator(security.PERM_ARTICLES_CREATE)),
     db: Session = Depends(get_db)
 ):
@@ -281,8 +286,14 @@ def update_article(
     update_data = article.model_dump()
     # Transient broadcast flag — never a column on Article; pop before setattr.
     notify_operators = update_data.pop("notify_operators", False)
+    target_departments = update_data.pop("target_departments")
     for key, value in update_data.items():
         setattr(db_article, key, value)
+
+    db_article.target_department = "All" if "All" in target_departments else target_departments[0]
+    db_article.target_department_rows = [
+        models.ArticleTargetDepartment(department=d) for d in target_departments
+    ]
 
     db_article.version += 1
     sync_tags(db, "article", db_article.id, db_article.tags)
