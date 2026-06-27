@@ -67,6 +67,7 @@ _ADDED_COLUMNS = (
     ("articles", "is_draft", "BOOLEAN", "0"),
     ("news", "is_draft", "BOOLEAN", "0"),
     ("news", "author_id", "INTEGER", "NULL"),
+    ("article_history", "version_id", "INTEGER", "NULL"),
 )
 
 

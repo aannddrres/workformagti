@@ -1374,7 +1374,7 @@ function startEventStream() {
             }
           };
 
-          ['news', 'article', 'video', 'broadcast', 'nudge'].forEach(type => {
+          ['news', 'article', 'video', 'broadcast', 'nudge', 'article_revision'].forEach(type => {
             es.addEventListener(type, ev => {
               try {
                 const parsedData = JSON.parse(ev.data);
@@ -1437,6 +1437,9 @@ function handleLiveEvent(type, data) {
           fetchAndRenderVideos(token);
         } else if (type === 'broadcast') {
           showBroadcastBanner(data.message);
+        } else if (type === 'article_revision') {
+          showToast('სტატია განახლდა ✏️', `${data.title} — ვერსია ${data.version}`, () => navTo('page-info'));
+          fetchAndRenderKnowledgeBase(token);   // refresh the KB list in place
         }
       }
 
@@ -2052,7 +2055,8 @@ async function submitArticleForm(event) {
         let attachmentUrl = document.getElementById('article-attachment-url').value || null;
         if (window._removeAttachment) attachmentUrl = null;
 
-        const payload = { title, content, category_id: categoryId, audience_profile: audienceProfile, target_departments: targetDepartments, status, published_at: publishedAt, tags: tags || null, visible_to_tech_info: visibleToTechInfo, visible_to_service_center: visibleToServiceCenter, is_draft: false };
+        const notifyOperators = document.getElementById('article-notify-operators')?.checked || false;
+        const payload = { title, content, category_id: categoryId, audience_profile: audienceProfile, target_departments: targetDepartments, status, published_at: publishedAt, tags: tags || null, visible_to_tech_info: visibleToTechInfo, visible_to_service_center: visibleToServiceCenter, is_draft: false, notify_operators: notifyOperators };
         if (editingId) {
           // Preserve fields the form doesn't expose, or PUT would null them out
           const cached = (window.adminArticles || {})[editingId] || {};
@@ -3446,6 +3450,51 @@ function ensureHistoryModal() {
         `);
       }
 
+function ensureDiffModal() {
+        if (document.getElementById('diff-modal')) return;
+        document.body.insertAdjacentHTML('beforeend', `
+          <div id="diff-modal" role="dialog" aria-modal="true" class="fixed inset-0 z-[110] hidden items-center justify-center p-4">
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeDiffModal()"></div>
+            <div class="relative max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-8 shadow-2xl dark:bg-zinc-900">
+              <button onclick="closeDiffModal()" class="absolute right-5 top-5 text-xl text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200" aria-label="დახურვა">
+                <i aria-hidden="true" class="fa-solid fa-xmark"></i>
+              </button>
+              <h3 class="mb-1 pr-8 text-2xl font-bold text-gray-800 dark:text-zinc-100">სწრაფი შედარება</h3>
+              <p class="mb-4 text-xs text-gray-500 dark:text-zinc-400">შერჩეული ვერსია → მიმდინარე ვერსია. <span id="diff-modal-summary" class="font-semibold"></span></p>
+              <div id="diff-modal-content" class="flex flex-col gap-0.5 text-sm leading-relaxed text-gray-700 dark:text-zinc-200"></div>
+            </div>
+          </div>
+        `);
+      }
+
+function closeDiffModal() {
+        const modal = document.getElementById('diff-modal');
+        if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+      }
+
+async function quickLookDiff(articleId, historyId) {
+        const token = Auth.getToken();
+        if (!token) return;
+        try {
+          const res = await fetch(`/api/articles/${articleId}/history/${historyId}/diff`, {
+            headers: { 'Authorization': 'Bearer ' + token }
+          });
+          if (handleSessionExpiry(res)) return;
+          if (!res.ok) throw new Error('diff failed');
+          const { html, added, removed } = await res.json();
+          ensureDiffModal();
+          document.getElementById('diff-modal-summary').textContent = `+${added} / −${removed} ბლოკი შეიცვალა`;
+          // SAFE: server output is built from html.escape-d text — direct injection ok.
+          document.getElementById('diff-modal-content').innerHTML = html || '<p class="text-gray-500">ცვლილებები არ მოიძებნა.</p>';
+          const m = document.getElementById('diff-modal');
+          m.classList.remove('hidden');
+          m.classList.add('flex');
+        } catch (e) {
+          console.error(e);
+          alert('შედარება ვერ ჩაიტვირთა.');
+        }
+      }
+
 async function viewArticleHistory(articleId) {
         const token = Auth.getToken();
         if (!token) return;
@@ -3469,8 +3518,9 @@ async function viewArticleHistory(articleId) {
               container.insertAdjacentHTML('beforeend', `
                 <div class="rounded-xl border border-gray-100 bg-gray-50 p-4 transition-colors hover:bg-gray-100">
                   <div class="mb-2 flex items-center justify-between">
-                    <span class="rounded bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-700">ვერსია ${history.length - index}</span>
+                    <span class="rounded bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-700">ვერსია ${h.version_id != null ? h.version_id : (history.length - index)}</span>
                     <div class="flex items-center gap-3">
+                      <button onclick="quickLookDiff(${articleId}, ${h.id})" class="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline">შედარება</button>
                       <button onclick="restoreArticleVersion(${articleId}, ${h.id})" class="text-xs font-bold text-[#E30613] hover:text-red-700 hover:underline">აღდგენა</button>
                       <span class="text-[11px] font-medium text-gray-500">${date}</span>
                     </div>
@@ -5447,6 +5497,8 @@ window.clearSearchHistoryUI = clearSearchHistoryUI;
 window.closeArticleModal = closeArticleModal;
 window.closeCategoryCreateForm = closeCategoryCreateForm;
 window.closeHistoryModal = closeHistoryModal;
+window.closeDiffModal = closeDiffModal;
+window.quickLookDiff = quickLookDiff;
 window.closeMessagesPopover = closeMessagesPopover;
 window.closeNewsDetailModal = closeNewsDetailModal;
 window.closeNotificationsPopover = closeNotificationsPopover;

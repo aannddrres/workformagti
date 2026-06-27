@@ -209,6 +209,8 @@ def create_article(
     # Data integrity: the author is the authenticated editor, never a
     # client-supplied author_id (which could be spoofed).
     payload = article.model_dump()
+    # Transient broadcast flag — not a column on Article; drop it on create.
+    payload.pop("notify_operators", None)
     payload["author_id"] = current_admin.id
     db_article = models.Article(**payload)
     db.add(db_article)
@@ -262,16 +264,24 @@ def update_article(
     if not db_article:
         raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
 
-    # Save the current state to history before applying changes
+    # Capture the pre-edit content for the diff BEFORE the setattr loop overwrites it.
+    old_content = db_article.content
+
+    # Save the current state to history before applying changes. version_id stamps
+    # the version this snapshot represents (the value before the bump below).
     article_history = models.ArticleHistory(
         article_id=db_article.id,
         title=db_article.title,
         content=db_article.content,
-        updated_by=current_admin.id
+        updated_by=current_admin.id,
+        version_id=db_article.version,
     )
     db.add(article_history)
 
-    for key, value in article.model_dump().items():
+    update_data = article.model_dump()
+    # Transient broadcast flag — never a column on Article; pop before setattr.
+    notify_operators = update_data.pop("notify_operators", False)
+    for key, value in update_data.items():
         setattr(db_article, key, value)
 
     db_article.version += 1
@@ -286,6 +296,13 @@ def update_article(
     import main as _main
     _main.search_cache.clear()
     _main.category_cache.clear()
+
+    # Real-time broadcast is OPT-IN — same gating as the live main.py route.
+    if notify_operators and db_article.status == "published":
+        import diffing
+        summary = diffing.diff_html(old_content, db_article.content)
+        _main._notify_revision(db_article, current_admin.name, summary)
+
     return db_article
 
 
@@ -413,9 +430,34 @@ def get_article_history(
             "content": h.ArticleHistory.content,
             "updated_at": h.ArticleHistory.updated_at,
             "author_name": h.author_name,
+            "version_id": h.ArticleHistory.version_id,
         }
         for h in history
     ]
+
+
+@router.get("/{article_id}/history/{history_id}/diff")
+def get_article_diff(
+    article_id: int,
+    history_id: int,
+    current_admin: models.User = Depends(security.get_current_admin_user),
+    db: Session = Depends(get_db),
+):
+    """Diff a historical snapshot against the article's CURRENT content (admin only)."""
+    art = db.query(models.Article).filter(models.Article.id == article_id).first()
+    if not art:
+        raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
+    snap = db.query(models.ArticleHistory).filter(
+        models.ArticleHistory.id == history_id,
+        models.ArticleHistory.article_id == article_id,
+    ).first()
+    if not snap:
+        raise HTTPException(status_code=404, detail="ისტორიის ვერსია ვერ მოიძებნა")
+
+    import diffing
+    result = diffing.diff_html(snap.content, art.content)
+    result["version_id"] = snap.version_id
+    return result
 
 
 @router.post("/{article_id}/history/{history_id}/restore", response_model=schemas.ArticleResponse)
@@ -460,7 +502,8 @@ def restore_article_version(
         article_id=db_article.id,
         title=db_article.title,
         content=db_article.content,
-        updated_by=current_admin.id
+        updated_by=current_admin.id,
+        version_id=db_article.version,
     )
     db.add(backup_history)
 

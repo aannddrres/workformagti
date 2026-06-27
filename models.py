@@ -391,6 +391,11 @@ class ArticleHistory(Base):
     content = Column(Text, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow)
     updated_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    # The article.version value that THIS snapshot represents (i.e. the version
+    # number the article carried *before* the edit that created this row). Lets
+    # the UI label revisions stably ("ვერსია 4") instead of by list index.
+    # nullable: pre-existing rows predate the column; UI falls back to list index.
+    version_id = Column(Integer, nullable=True, index=True)
 
 
 class SearchLog(Base):

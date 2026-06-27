@@ -789,6 +789,25 @@ def _notify(event_type: str, item) -> None:
         "target_department": getattr(item, "target_department", "All"),
     })
 
+
+def _notify_revision(article, editor_name: str, summary: dict) -> None:
+    """Broadcast that an existing article was edited (best-effort).
+
+    Richer than _notify: carries the new version number, the editor's name, and
+    the block-level add/remove counts from diffing.diff_html so the client can
+    show a meaningful "x changed" toast. Gated by the caller on notify_operators.
+    """
+    broker.publish({
+        "type": "article_revision",
+        "id": article.id,
+        "title": article.title,
+        "target_department": getattr(article, "target_department", "All"),
+        "version": article.version,
+        "editor": editor_name,
+        "added": summary.get("added", 0),
+        "removed": summary.get("removed", 0),
+    })
+
 # ── Static HTML page serving ──────────────────────────────────────────────
 # Only these pages may be served by name. An explicit allowlist prevents path
 # traversal (e.g. /../security.py) and stops source files being downloaded.
@@ -2113,6 +2132,8 @@ def create_article(
     # Data integrity: the author is the authenticated editor, never a
     # client-supplied author_id (which could be spoofed).
     payload = article.model_dump()
+    # Transient broadcast flag — not a column on Article; drop it on create.
+    payload.pop("notify_operators", None)
     target_departments = payload.pop("target_departments")
     payload["author_id"] = current_admin.id
     # Legacy single-value column kept in sync for not-yet-migrated readers
@@ -2170,17 +2191,24 @@ def update_article(
     db_article = db.query(models.Article).filter(models.Article.id == article_id).first()
     if not db_article:
         raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
-    
-    # Save the current state to history before applying changes
+
+    # Capture the pre-edit content for the diff BEFORE the setattr loop overwrites it.
+    old_content = db_article.content
+
+    # Save the current state to history before applying changes. version_id stamps
+    # the version this snapshot represents (the value before the bump below).
     article_history = models.ArticleHistory(
         article_id=db_article.id,
         title=db_article.title,
         content=db_article.content,
-        updated_by=current_admin.id
+        updated_by=current_admin.id,
+        version_id=db_article.version,
     )
     db.add(article_history)
 
     update_data = article.model_dump()
+    # Transient broadcast flag — never a column on Article; pop before setattr.
+    notify_operators = update_data.pop("notify_operators", False)
     target_departments = update_data.pop("target_departments")
     for key, value in update_data.items():
         setattr(db_article, key, value)
@@ -2200,6 +2228,21 @@ def update_article(
     db.commit()
     search_cache.clear()
     category_cache.clear()
+
+    # Real-time broadcast is OPT-IN. The history row is always written above; we
+    # only ping the SSE channel when the editor ticked "notify operators".
+    if notify_operators and db_article.status == "published":
+        import diffing
+        summary = diffing.diff_html(old_content, db_article.content)
+        _notify_revision(db_article, current_admin.name, summary)
+    else:
+        logger.info(
+            "Article %s revised by %s (v%s) — history saved, no broadcast "
+            "(notify_operators=%s, status=%s).",
+            db_article.id, current_admin.id, db_article.version,
+            notify_operators, db_article.status,
+        )
+
     return db_article
 
 @app.patch("/api/articles/{article_id}/autosave", response_model=schemas.ArticleAutosaveResponse)
@@ -2347,9 +2390,40 @@ def get_article_history(
             "content": h.ArticleHistory.content,
             "updated_at": h.ArticleHistory.updated_at,
             "author_name": h.author_name,
+            "version_id": h.ArticleHistory.version_id,
         }
         for h in history
     ]
+
+
+@app.get("/api/articles/{article_id}/history/{history_id}/diff")
+def get_article_diff(
+    article_id: int,
+    history_id: int,
+    current_admin: models.User = Depends(security.get_current_admin_user),
+    db: Session = Depends(get_db),
+):
+    """Diff a historical snapshot against the article's CURRENT content.
+
+    Returns {'html', 'added', 'removed', 'version_id'} — admin only. The HTML is
+    a structure-safe fragment built from escaped text (see diffing.diff_html), so
+    it is safe to inject directly into the Quick Look modal.
+    """
+    art = db.query(models.Article).filter(models.Article.id == article_id).first()
+    if not art:
+        raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
+    snap = db.query(models.ArticleHistory).filter(
+        models.ArticleHistory.id == history_id,
+        models.ArticleHistory.article_id == article_id,
+    ).first()
+    if not snap:
+        raise HTTPException(status_code=404, detail="ისტორიის ვერსია ვერ მოიძებნა")
+
+    import diffing
+    result = diffing.diff_html(snap.content, art.content)   # old → current
+    result["version_id"] = snap.version_id
+    return result
+
 
 @app.post("/api/articles/{article_id}/history/{history_id}/restore", response_model=schemas.ArticleResponse)
 def restore_article_version(
@@ -2393,7 +2467,8 @@ def restore_article_version(
         article_id=db_article.id,
         title=db_article.title,
         content=db_article.content,
-        updated_by=current_admin.id
+        updated_by=current_admin.id,
+        version_id=db_article.version,
     )
     db.add(backup_history)
 

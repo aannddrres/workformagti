@@ -229,8 +229,11 @@ class ArticleSummaryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 class ArticleCreate(ArticleBase):
-    """Request schema for creating a new Knowledge Base article."""
-    pass
+    """Request schema for creating/updating a Knowledge Base article."""
+    # Transient: when True, PUT /api/articles broadcasts an article_revision SSE
+    # event to online operators. Never written to the Article row — the route
+    # pops it before persistence. Request-only (not on ArticleResponse).
+    notify_operators: bool = False
 
 
 class ArticleResponse(ArticleBase):
