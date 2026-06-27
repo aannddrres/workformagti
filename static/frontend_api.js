@@ -146,7 +146,7 @@ async function fetchNotificationsCount(token) {
               mustRead.innerHTML = '';
               if (unread.length === 0) {
                 mustRead.innerHTML = `
-                  <li class="dashboard-list-card flex flex-col items-center justify-center p-8 text-center border-emerald-100/50 dark:border-emerald-500/20">
+                  <li class="dashboard-list-card flex flex-col items-center justify-center p-8 text-center border-emerald-100/50 dark:border-emerald-500/20 md:min-h-[280px]">
                     <div class="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-500 dark:text-emerald-400">
                       <i class="fa-solid fa-check text-xl"></i>
                     </div>
