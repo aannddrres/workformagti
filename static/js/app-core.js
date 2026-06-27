@@ -2010,8 +2010,13 @@ async function handleArticleFileUpload(input) {
 
 async function submitArticleForm(event) {
         event.preventDefault();
+        // The global double-submit guard (see document 'submit' listener) disables
+        // this button and attaches resetSubmitGuard AFTER this handler returns (it
+        // runs on bubble, this runs at the target) -- defer via setTimeout(0) so the
+        // call lands after that listener has had a chance to attach the function.
+        const releaseSubmitGuard = () => setTimeout(() => event.target.resetSubmitGuard?.(), 0);
         const token = localStorage.getItem('magti_token');
-        if (!token) return;
+        if (!token) { releaseSubmitGuard(); return; }
 
         const title = document.getElementById('article-title').value;
         // Sync Quill's HTML output into the hidden textarea right before it's read.
@@ -2035,6 +2040,7 @@ async function submitArticleForm(event) {
             accordion.scrollIntoView({ behavior: 'smooth', block: 'center' });
           }
           showToast('აირჩიეთ მინიმუმ ერთი დეპარტამენტი', '', { variant: 'error' });
+          releaseSubmitGuard();
           return;
         }
         const targetDepartment = targetDepartments[0];
@@ -2096,9 +2102,11 @@ async function submitArticleForm(event) {
           toggleDueDate();
           exitEditMode();
           fetchAndRenderAdminContent(token); // Refresh the table automatically
+          releaseSubmitGuard();
         } catch (error) {
           console.error(error);
           showToast('სტატია ვერ შეინახა', error.message, { variant: 'error' });
+          releaseSubmitGuard();
         }
       }
 
@@ -2426,8 +2434,12 @@ function cancelNewsEdit() {
 
 async function submitNewsForm(event) {
         event.preventDefault();
+        // See submitArticleForm for why this is deferred via setTimeout(0): the
+        // global double-submit guard attaches resetSubmitGuard on the bubble
+        // phase, which runs after this target-phase handler returns.
+        const releaseSubmitGuard = () => setTimeout(() => event.target.resetSubmitGuard?.(), 0);
         const token = localStorage.getItem('magti_token');
-        if (!token) return;
+        if (!token) { releaseSubmitGuard(); return; }
 
         const title = document.getElementById('news-title').value;
         const content = document.getElementById('news-content').value;
@@ -2473,9 +2485,11 @@ async function submitNewsForm(event) {
           fetchAndRenderAdminNews(token); // Refresh admin list
           fetchNews(token).then(renderNews).catch(() => { }); // Refresh dashboard list
           fetchAndRenderNewsPage(token); // Refresh dedicated news page
+          releaseSubmitGuard();
         } catch (error) {
           console.error(error);
           alert('დაფიქსირდა შეცდომა: ' + error.message);
+          releaseSubmitGuard();
         }
       }
 
@@ -2779,8 +2793,12 @@ async function handleVideoUpload(input) {
 
 async function submitVideoForm(event) {
         event.preventDefault();
+        // See submitArticleForm for why this is deferred via setTimeout(0): the
+        // global double-submit guard attaches resetSubmitGuard on the bubble
+        // phase, which runs after this target-phase handler returns.
+        const releaseSubmitGuard = () => setTimeout(() => event.target.resetSubmitGuard?.(), 0);
         const token = localStorage.getItem('magti_token');
-        if (!token) return;
+        if (!token) { releaseSubmitGuard(); return; }
 
         const title = document.getElementById('video-title').value;
         const videoUrl = document.getElementById('video-url').value;
@@ -2832,9 +2850,11 @@ async function submitVideoForm(event) {
           if (typeof fetchAndRenderAdminVideos === 'function') {
             fetchAndRenderAdminVideos(token); // Refresh admin video list
           }
+          releaseSubmitGuard();
         } catch (error) {
           console.error(error);
           alert('დაფიქსირდა შეცდომა: ' + error.message);
+          releaseSubmitGuard();
         }
       }
 
