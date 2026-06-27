@@ -44,6 +44,11 @@
 - `start_server.bat` — local launch
 - `docs/admin-guide.md`, `README.md`, `ინფო_დეველოპერებისთვის.md` — docs
 
+### Admin CMS Enhancements (Additive)
+- `static/js/admin-cms-enhancements.js` is active and loaded after `app-core.js`/`app-renderers.js`/`app-router.js` in `base-layout.html`; it dynamically hooks into `window.focusCreateForm` and `window.editArticle` (function wrapping, originals preserved) to refresh the char counter and status badge when the article drawer opens.
+- `window.statusStylesMap` is exposed from `app-renderers.js` (set right after its local declaration) so other modules can reuse the same status→color mapping for dynamic color parsing instead of duplicating it.
+- Global `window` `dragover`/`drop` default-navigation blocking is scoped to this module only, to stop accidental file drops outside `#article-dropzone` from navigating the tab.
+
 ## Rules for Claude Code
 - Surgical edits only — never rewrite full files; cite file name + line number
 - Bilingual: Georgian + English

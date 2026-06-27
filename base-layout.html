@@ -2,7 +2,7 @@
 <html lang="ka">
 
 <head>
-    <script defer src="/static/frontend_api.js?v=5"></script>
+    <script defer src="/static/frontend_api.js?v=6"></script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>მაგთი — შიდა საინფორმაციო პორტალი</title>
@@ -797,9 +797,10 @@
       - Dynamic Rendering: Injects fetched data into the DOM.
     -->
     
-    <script defer src="/static/js/app-core.js?v=10"></script>
+    <script defer src="/static/js/app-core.js?v=11"></script>
     <script defer src="/static/js/app-renderers.js?v=9"></script>
     <script defer src="/static/js/app-router.js?v=3"></script>
+    <script defer src="/static/js/admin-cms-enhancements.js?v=1"></script>
     <script defer src="/static/js/dept-dashboard.js?v=1"></script>
 
 
@@ -1770,7 +1771,15 @@
                   <th class="px-5 py-3">სათაური</th>
                   <th class="px-5 py-3">კატეგორია</th>
                   <th class="px-5 py-3">დამატების თარიღი</th>
-                  <th class="px-5 py-3 text-center">ქმედება</th>
+                  <th class="px-5 py-3 text-center">
+                    <span class="inline-flex items-center justify-center gap-2">
+                      <input type="checkbox" id="select-all-content"
+                        onclick="toggleSelectAllContent(this)"
+                        class="h-4 w-4 accent-[#E30613] align-middle"
+                        aria-label="ყველას მონიშვნა" />
+                      <span>ქმედება</span>
+                    </span>
+                  </th>
                 </tr>
               </thead>
               <tbody id="admin-content-tbody" class="divide-y divide-gray-100">
@@ -1864,7 +1873,7 @@
                 </div>
                 <!-- Content block — mirrors preview body -->
                 <div class="px-6 pt-4">
-                  <label for="article-content-editor" class="mb-1.5 block text-sm font-medium text-gray-700">შინაარსი</label>
+                  <label for="article-content-editor" class="mb-1.5 block text-sm font-medium text-gray-700">შინაარსი <span id="article-content-charcount" class="text-xs font-normal text-gray-400 ml-2"></span></label>
                   <div id="article-content-editor"
                     class="w-full rounded-xl border border-gray-300 bg-white text-sm text-gray-800 focus-within:border-[#B91C1C] focus-within:outline-none focus-within:ring-1 focus-within:ring-[#B91C1C]"></div>
                   <textarea id="article-content" name="content" class="hidden"></textarea>
@@ -1887,6 +1896,7 @@
                 <div>
                   <label class="mb-1.5 block text-sm font-medium text-gray-700">მიმაგრებული ფაილი (PDF, Word, Excel,
                     სურათი)</label>
+                  <div id="article-dropzone" class="border-2 border-dashed border-transparent rounded-xl transition-colors duration-200">
                   <div class="flex items-center gap-3">
                     <input type="hidden" id="article-attachment-url" />
                     <input type="file" id="article-upload-file" class="hidden" onchange="handleArticleFileUpload(this)" />
@@ -1904,6 +1914,7 @@
                         title="ფაილის წაშლა"><i class="fa-solid fa-xmark"></i></button>
                     </div>
                   </div>
+                  </div>
                   <div id="article-upload-progress" class="hidden mt-2 text-xs text-blue-600 font-medium animate-pulse">
                     ფაილი იტვირთება... გთხოვთ დაელოდოთ</div>
                 </div>
@@ -1916,6 +1927,7 @@
                       <option value="draft">დრაფტი (Draft)</option>
                       <option value="scheduled">დაგეგმილი (Scheduled)</option>
                     </select>
+                    <span id="article-status-badge" class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border"></span>
                   </div>
                   <div id="scheduled-date-container" class="hidden">
                     <label for="article-published-at" class="mb-1.5 block text-sm font-medium text-gray-700">გამოქვეყნების

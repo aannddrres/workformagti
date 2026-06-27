@@ -1188,6 +1188,7 @@ window.MagtiPortal.renderAdminTable = function (records, filters) {
     scheduled: { text: 'დაგეგმილი', badge: 'bg-blue-50 text-blue-700 border-blue-100', dot: 'bg-blue-500' },
     archived: { text: 'არქივი', badge: 'bg-amber-50 text-amber-700 border-amber-100', dot: 'bg-amber-500' }
   };
+  window.statusStylesMap = statusStylesMap;
 
   // Safe escape utility reference or fallback
   const esc = (s) => (typeof escapeHtml === 'function' ? escapeHtml(String(s)) : String(s));
