@@ -11,6 +11,17 @@
          loads instead of relying on ad-hoc window.* globals.
          ════════════════════════════════════════════════════════════════════ */
 
+      function escapeHtml(str) {
+        if (str == null) return '';
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+      window.escapeHtml = escapeHtml;
+
       /** Single source of truth for the JWT. Swapping localStorage for an
        *  httpOnly cookie later is a change in THIS object only — the backend
        *  already issues such a cookie on login. */
@@ -640,7 +651,7 @@
             if (currentStr === window.lastSavedArticleFormStr) return;
 
             await performAutosave(currentData, currentStr);
-          }, 30000);
+          }, 10000);
         }, 100);
       }
 
@@ -2370,7 +2381,19 @@ async function openNewsDetailModal(newsId) {
         const contentDiv = document.getElementById('news-modal-content');
         const body = item.content || '';
         if (/<(p|div|h[1-6]|ul|ol|li|table|br|a|strong|b|em|img)\b/i.test(body)) {
-          contentDiv.innerHTML = body;
+          // Same allowlist as app-renderers.js:518-521 — content here is admin-authored,
+          // but sanitize anyway since this is a raw innerHTML render path.
+          const ALLOWED_TAGS = ['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol',
+                                'li', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'br', 'a',
+                                'strong', 'b', 'em', 'i', 'img', 'pre', 'code', 'blockquote', 'hr'];
+          const ALLOWED_ATTRS = ['href', 'src', 'alt', 'target', 'title', 'class', 'id', 'style'];
+          if (typeof DOMPurify !== 'undefined') {
+            contentDiv.innerHTML = DOMPurify.sanitize(body, { ALLOWED_TAGS, ALLOWED_ATTR: ALLOWED_ATTRS, KEEP_CONTENT: true });
+          } else {
+            // DOMPurify failed to load — fail secure: render as plain text rather
+            // than ever assigning unsanitized HTML to innerHTML.
+            contentDiv.textContent = body;
+          }
         } else {
           contentDiv.textContent = body;
         }
