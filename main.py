@@ -2367,6 +2367,40 @@ def unarchive_article(
     return db_article
 
 
+@app.post("/api/articles/bulk-archive", response_model=schemas.ArticleBulkArchiveResponse)
+def bulk_archive_articles(
+    payload: schemas.ArticleBulkArchiveRequest,
+    current_admin: models.User = Depends(security.require_permission(security.PERM_ARTICLES_ARCHIVE)),
+    db: Session = Depends(get_db),
+):
+    """Bulk soft-archive / unarchive in one round-trip.
+
+    Mirrors archive_article / unarchive_article per id (same status transition
+    and AuditLog rows), but commits once. Ids that are missing or already in the
+    target state are reported in skipped_ids rather than erroring.
+    """
+    target = "archived" if payload.archive else "published"
+    rows = db.query(models.Article).filter(models.Article.id.in_(payload.ids)).all()
+    found = {a.id for a in rows}
+    skipped = [i for i in payload.ids if i not in found]
+    updated = 0
+    for a in rows:
+        if a.status == target:
+            skipped.append(a.id)
+            continue
+        a.status = target
+        db.add(models.AuditLog(
+            admin_id=current_admin.id,
+            action="ARCHIVE" if payload.archive else "UNARCHIVE",
+            item_type="article", item_id=a.id,
+        ))
+        updated += 1
+    db.commit()
+    search_cache.clear()
+    category_cache.clear()
+    return schemas.ArticleBulkArchiveResponse(updated=updated, status=target, skipped_ids=skipped)
+
+
 @app.get("/api/articles/{article_id}/history")
 def get_article_history(
     article_id: int,

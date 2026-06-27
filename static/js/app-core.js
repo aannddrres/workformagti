@@ -4506,14 +4506,13 @@ async function archiveSelected() {
         if (!token) return;
 
         try {
-          for (const box of checked) {
-            const id = parseInt(box.getAttribute('data-article-id'));
-            const response = await fetch(`/api/articles/${id}/archive`, {
-              method: 'POST',
-              headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!response.ok) throw new Error(`Failed to archive article ${id}`);
-          }
+          const ids = checked.map(box => parseInt(box.getAttribute('data-article-id')));
+          const response = await fetch('/api/articles/bulk-archive', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ ids, archive: true })
+          });
+          if (!response.ok) throw new Error('Bulk archive failed');
           fetchAndRenderAdminContent(token);
           fetchAndRenderKnowledgeBase(token);
           if (typeof showToast === 'function') showToast('არქივი', `${checked.length} სტატია წარმატებით დაარქივდა.`);
@@ -4531,14 +4530,13 @@ async function unarchiveSelected() {
         if (!token) return;
 
         try {
-          for (const box of checked) {
-            const id = parseInt(box.getAttribute('data-article-id'));
-            const response = await fetch(`/api/articles/${id}/unarchive`, {
-              method: 'POST',
-              headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!response.ok) throw new Error(`Failed to unarchive article ${id}`);
-          }
+          const ids = checked.map(box => parseInt(box.getAttribute('data-article-id')));
+          const response = await fetch('/api/articles/bulk-archive', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ ids, archive: false })
+          });
+          if (!response.ok) throw new Error('Bulk unarchive failed');
           fetchAndRenderAdminContent(token);
           fetchAndRenderKnowledgeBase(token);
           if (typeof showToast === 'function') showToast('არქივიდან ამოღება', `${checked.length} სტატია წარმატებით აღდგა.`);

@@ -281,6 +281,17 @@ class ArticleAutosaveResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ArticleBulkArchiveRequest(BaseModel):
+    ids: list[int]
+    archive: bool  # True = archive, False = unarchive
+
+
+class ArticleBulkArchiveResponse(BaseModel):
+    updated: int
+    status: str            # "archived" | "published"
+    skipped_ids: list[int]  # not found / already in target state
+
+
 class RequiredReadingBase(BaseModel):
     """Base schema properties for a compliance required reading task."""
     item_type: str

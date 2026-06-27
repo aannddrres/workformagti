@@ -457,6 +457,7 @@ function renderArticlePage(page) {
   }
 
   slice.forEach(a => tbody.insertAdjacentHTML('beforeend', _renderArticleRow(a)));
+  syncSelectAllState();
 
   if (pagDiv) {
     const end = Math.min(start + pageSize, total);
@@ -543,9 +544,30 @@ async function fetchAndRenderAdminContent(token) {
         }
       }
 
+let _articleFilterDebounce = null;
 function onArticleFilterChange() {
-  const token = localStorage.getItem('magti_token');
-  if (token) fetchAndRenderAdminContent(token);
+  if (_articleFilterDebounce) window.clearTimeout(_articleFilterDebounce);
+  _articleFilterDebounce = window.setTimeout(() => {
+    const token = localStorage.getItem('magti_token');
+    if (token) fetchAndRenderAdminContent(token);
+  }, 300);
+}
+
+// Header "select all" — toggles every row checkbox in the content table.
+function toggleSelectAllContent(master) {
+  document.querySelectorAll('#admin-content-tbody .archive-check')
+    .forEach(box => { box.checked = master.checked; });
+  master.indeterminate = false;
+}
+
+// Reflect the per-row checkbox set onto the master (checked / indeterminate).
+function syncSelectAllState() {
+  const master = document.getElementById('select-all-content');
+  if (!master) return;
+  const boxes = [...document.querySelectorAll('#admin-content-tbody .archive-check')];
+  const checked = boxes.filter(b => b.checked).length;
+  master.checked = boxes.length > 0 && checked === boxes.length;
+  master.indeterminate = checked > 0 && checked < boxes.length;
 }
 
 function toggleArticleActionsMenu(event, id) {
@@ -578,8 +600,17 @@ document.addEventListener('click', () => {
   document.querySelectorAll('[id^="article-actions-menu-"]').forEach(el => el.classList.add('hidden'));
 });
 
+// Keep the master checkbox in sync when individual rows are toggled.
+document.addEventListener('change', (e) => {
+  if (e.target && e.target.classList && e.target.classList.contains('archive-check')) {
+    syncSelectAllState();
+  }
+});
+
 window.onArticleFilterChange = onArticleFilterChange;
 window.toggleArticleActionsMenu = toggleArticleActionsMenu;
+window.toggleSelectAllContent = toggleSelectAllContent;
+window.syncSelectAllState = syncSelectAllState;
 
 
 // ── Migrated legacy articles (Admin "მიგრირებული ბაზა" verification view) ──
