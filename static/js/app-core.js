@@ -2029,7 +2029,12 @@ async function submitArticleForm(event) {
         if (document.getElementById('dept-tech').checked) targetDepartments.push('Support');
         if (document.getElementById('dept-service').checked) targetDepartments.push('Service Centers');
         if (targetDepartments.length === 0) {
-          alert('აირჩიეთ მინიმუმ ერთი დეპარტამენტი');
+          const accordion = document.getElementById('article-audience-accordion');
+          if (accordion) {
+            accordion.open = true;
+            accordion.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+          showToast('აირჩიეთ მინიმუმ ერთი დეპარტამენტი', '', { variant: 'error' });
           return;
         }
         const targetDepartment = targetDepartments[0];
@@ -4477,7 +4482,9 @@ function focusCreateForm() {
       }
 
 function focusNewsForm() {
-        document.getElementById('admin-panel')?.classList.add('hidden');
+        document.getElementById('admin-panel')?.classList.add('hidden', 'translate-x-full');
+        document.getElementById('admin-panel-backdrop')?.classList.add('hidden');
+        if (typeof stopAutosave === 'function') stopAutosave();
         document.getElementById('admin-video-panel')?.classList.add('hidden');
         const panel = document.getElementById('admin-news-panel');
         if (!panel) return;
@@ -4488,7 +4495,9 @@ function focusNewsForm() {
       }
 
 function focusVideoForm() {
-        document.getElementById('admin-panel')?.classList.add('hidden');
+        document.getElementById('admin-panel')?.classList.add('hidden', 'translate-x-full');
+        document.getElementById('admin-panel-backdrop')?.classList.add('hidden');
+        if (typeof stopAutosave === 'function') stopAutosave();
         document.getElementById('admin-news-panel')?.classList.add('hidden');
         const panel = document.getElementById('admin-video-panel');
         if (!panel) return;

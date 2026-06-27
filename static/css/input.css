@@ -9,6 +9,12 @@
   --canvas-bg: #F5F5F5;
   --canvas-bg-rgb: 245, 245, 245;
 }
+/* Defensive net: any future fixed/wide element nested somewhere that
+   creates a containing block (transform/filter ancestor) should never be
+   able to widen the page's own scrollable region again. */
+html, body {
+  overflow-x: hidden;
+}
 body.dark-mode {
   --canvas-bg: #121212 !important;
   --canvas-bg-rgb: 18, 18, 18 !important;
