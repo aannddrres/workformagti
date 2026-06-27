@@ -3109,6 +3109,7 @@ function ensureArticleModal() {
                     <button id="modal-pin-btn" onclick="togglePinArticleFromModal()" class="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 flex items-center gap-1.5">
                       <i aria-hidden="true" class="fa-solid fa-thumbtack"></i><span>ჩანიშვნა</span>
                     </button>
+                    <button id="modal-ack-btn" onclick="acknowledgeArticleRead()" class="hidden rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 flex items-center gap-1.5"><i class="fa-regular fa-circle-check"></i><span>გავეცანი</span></button>
                   </div>
                 </div>
 
@@ -3157,6 +3158,7 @@ function openArticleModal(article) {
         ensureArticleModal();
         window.activeArticleId = article.id;
         window.activeArticleTitle = article.title;
+        window.activeArticleVersion = article.version;
 
         const modal = document.getElementById('article-modal');
         const titleLink = document.getElementById('article-modal-title-link');
@@ -3280,6 +3282,43 @@ function openArticleModal(article) {
 
         // Set pin button state
         updatePinButtonState(article.id);
+
+        // [Ack Button State]
+        async function updateAckButtonState(articleId, version) {
+          const ackBtn = document.getElementById('modal-ack-btn');
+          if (!ackBtn) return;
+
+          const role = window.currentUser ? window.currentUser.role : '';
+          if (role === 'admin' || role === 'content_admin') {
+            ackBtn.classList.add('hidden');
+            return;
+          }
+
+          ackBtn.classList.remove('hidden');
+          ackBtn.disabled = false;
+          ackBtn.className = 'rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 flex items-center gap-1.5';
+          ackBtn.innerHTML = '<i class="fa-regular fa-circle-check"></i><span>გავეცანი</span>';
+
+          const token = localStorage.getItem('magti_token') || (typeof Auth !== 'undefined' ? Auth.getToken() : null);
+          if (!token) return;
+
+          try {
+            const res = await fetch(`/api/articles/${articleId}/read-receipt/me`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+              const status = await res.json();
+              if (status.has_read && status.article_version === version) {
+                ackBtn.disabled = true;
+                ackBtn.className = 'rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 shadow-sm flex items-center gap-1.5 cursor-not-allowed';
+                ackBtn.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-600"></i><span>გაცნობილია</span>';
+              }
+            }
+          } catch (err) {
+            console.error('Error fetching read receipt status:', err);
+          }
+        }
+        updateAckButtonState(article.id, article.version);
 
         // ── Quick-Copy Scripts Widget ──────────────────────────────────
         const scriptsContainer = document.getElementById('article-modal-scripts');
@@ -5787,29 +5826,61 @@ window.setPreviewDevice = function(device) {
   const container = document.getElementById('preview-frame-container');
   const desktopBtn = document.getElementById('preview-desktop-btn');
   const mobileBtn = document.getElementById('preview-mobile-btn');
-  if (!container) return;
+  const auditBtn = document.getElementById('preview-audit-btn');
+  const iframeWrapper = document.getElementById('iframe-preview-wrapper');
+  const auditPanel = document.getElementById('article-audit-panel');
 
-  if (device === 'mobile') {
-    container.classList.remove('w-full');
-    container.classList.add('w-[375px]');
-    if (mobileBtn) {
-      mobileBtn.classList.add('bg-white', 'text-gray-800', 'shadow-sm');
-      mobileBtn.classList.remove('text-gray-600', 'hover:text-gray-800');
+  // Handle panel visibility
+  if (device === 'audit') {
+    if (auditPanel) {
+      auditPanel.classList.remove('hidden');
+      auditPanel.classList.add('flex');
     }
-    if (desktopBtn) {
-      desktopBtn.classList.remove('bg-white', 'text-gray-800', 'shadow-sm');
-      desktopBtn.classList.add('text-gray-600', 'hover:text-gray-800');
+    if (iframeWrapper) {
+      iframeWrapper.classList.add('hidden');
     }
   } else {
-    container.classList.remove('w-[375px]');
-    container.classList.add('w-full');
-    if (desktopBtn) {
-      desktopBtn.classList.add('bg-white', 'text-gray-800', 'shadow-sm');
-      desktopBtn.classList.remove('text-gray-600', 'hover:text-gray-800');
+    if (auditPanel) {
+      auditPanel.classList.add('hidden');
+      auditPanel.classList.remove('flex');
     }
-    if (mobileBtn) {
-      mobileBtn.classList.remove('bg-white', 'text-gray-800', 'shadow-sm');
-      mobileBtn.classList.add('text-gray-600', 'hover:text-gray-800');
+    if (iframeWrapper) {
+      iframeWrapper.classList.remove('hidden');
+    }
+  }
+
+  // Adjust container width for responsive simulation
+  if (container) {
+    if (device === 'mobile') {
+      container.classList.remove('w-full');
+      container.classList.add('w-[375px]');
+    } else {
+      container.classList.remove('w-[375px]');
+      container.classList.add('w-full');
+    }
+  }
+
+  // Manage button active states
+  const buttons = [
+    { name: 'desktop', element: desktopBtn },
+    { name: 'mobile', element: mobileBtn },
+    { name: 'audit', element: auditBtn }
+  ];
+
+  buttons.forEach(btn => {
+    if (!btn.element) return;
+    if (btn.name === device) {
+      btn.element.classList.add('bg-white', 'text-gray-800', 'shadow-sm');
+      btn.element.classList.remove('text-gray-600', 'hover:text-gray-800');
+    } else {
+      btn.element.classList.remove('bg-white', 'text-gray-800', 'shadow-sm');
+      btn.element.classList.add('text-gray-600', 'hover:text-gray-800');
+    }
+  });
+
+  if (device === 'audit') {
+    if (typeof window.loadArticleAuditPanel === 'function') {
+      window.loadArticleAuditPanel(window._currentAuditArticleId);
     }
   }
 };
@@ -5941,5 +6012,173 @@ window.updateArticlePreview = function() {
     if (titleElNew) titleElNew.textContent = title;
     if (bodyElNew) bodyElNew.innerHTML = bodyContent;
     window._syncPreviewHeight();
+  }
+};
+
+// ── Article Version Audit and Read Acknowledgement Functions ──
+let auditSearchTimeout = null;
+document.addEventListener('DOMContentLoaded', () => {
+  const searchInput = document.getElementById('article-audit-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      clearTimeout(auditSearchTimeout);
+      auditSearchTimeout = setTimeout(() => {
+        if (typeof window.applyAuditFilter === 'function') {
+          window.applyAuditFilter();
+        }
+      }, 150);
+    });
+  }
+});
+
+window.onAuditVersionChange = function() {
+  const select = document.getElementById('article-audit-version-select');
+  if (!select || !window._currentAuditArticleId) return;
+  const version = parseInt(select.value, 10);
+  if (!isNaN(version)) {
+    window.renderAuditGrid(window._currentAuditArticleId, version);
+  }
+};
+
+window.loadArticleAuditPanel = async function(articleId) {
+  if (!articleId) return;
+  const select = document.getElementById('article-audit-version-select');
+  if (!select) return;
+
+  if (window._auditLoadedFor === articleId) {
+    window.onAuditVersionChange();
+    return;
+  }
+
+  const token = localStorage.getItem('magti_token') || (typeof Auth !== 'undefined' ? Auth.getToken() : null);
+  try {
+    const res = await fetch(`/api/articles/${articleId}/versions`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error('Failed to fetch versions');
+    const versions = await res.json();
+    
+    select.innerHTML = '';
+    versions.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.version;
+      const dateStr = v.updated_at ? new Date(v.updated_at).toLocaleString('ka-GE', { hour12: false }) : '';
+      opt.textContent = `ვერსია ${v.version} (${v.author_name || 'უცნობი'} - ${dateStr})`;
+      select.appendChild(opt);
+    });
+
+    window._auditLoadedFor = articleId;
+    window.onAuditVersionChange();
+  } catch (err) {
+    console.error('Error loading versions:', err);
+  }
+};
+
+window.renderAuditGrid = async function(articleId, version) {
+  if (!articleId) return;
+  const tbody = document.getElementById('article-audit-table-body');
+  if (!tbody) return;
+
+  const token = localStorage.getItem('magti_token') || (typeof Auth !== 'undefined' ? Auth.getToken() : null);
+  try {
+    const res = await fetch(`/api/articles/${articleId}/read-receipts?version=${version}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error('Failed to fetch read receipts');
+    const data = await res.json();
+    
+    window._auditGridRows = data.receipts || [];
+    window.applyAuditFilter();
+  } catch (err) {
+    console.error('Error rendering audit grid:', err);
+    tbody.innerHTML = '<tr><td colspan="3" class="px-3 py-4 text-center text-red-500 font-medium">მონაცემების ჩატვირთვა ვერ მოხერხდა</td></tr>';
+  }
+};
+
+window.applyAuditFilter = function() {
+  const searchInput = document.getElementById('article-audit-search');
+  const tbody = document.getElementById('article-audit-table-body');
+  if (!tbody) return;
+
+  const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+  const rows = window._auditGridRows || [];
+
+  const filtered = rows.filter(r => {
+    if (!query) return true;
+    const name = (r.operator_name || '').toLowerCase();
+    const email = (r.operator_email || '').toLowerCase();
+    const department = (r.department || '').toLowerCase();
+    return name.includes(query) || email.includes(query) || department.includes(query);
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" class="px-3 py-4 text-center text-gray-500">მონაცემები ვერ მოიძებნა</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(r => {
+    let badgeHtml = '';
+    if (r.has_read) {
+      const readDate = r.read_at ? new Date(r.read_at).toLocaleString('ka-GE', { hour12: false }) : '';
+      badgeHtml = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200" title="${window.escapeHtml(readDate)}">წაკითხულია</span>`;
+    } else {
+      badgeHtml = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">წაუკითხავია</span>`;
+    }
+
+    const displayName = r.operator_id ? `${r.operator_name} (${r.operator_email})` : `${r.operator_name} [წაშლილი]`;
+    return `
+      <tr>
+        <td class="w-2/5 px-3 py-2 whitespace-nowrap text-gray-900 font-medium truncate" title="${window.escapeHtml(displayName)}">${window.escapeHtml(displayName)}</td>
+        <td class="w-2/5 px-3 py-2 whitespace-nowrap text-gray-600 truncate" title="${window.escapeHtml(r.department || '—')}">${window.escapeHtml(r.department || '—')}</td>
+        <td class="w-1/5 px-3 py-2 whitespace-nowrap">${badgeHtml}</td>
+      </tr>
+    `;
+  }).join('');
+};
+
+window.acknowledgeArticleRead = async function() {
+  const articleId = window.activeArticleId;
+  const version = window.activeArticleVersion;
+  if (!articleId) return;
+
+  const ackBtn = document.getElementById('modal-ack-btn');
+  if (!ackBtn) return;
+
+  // Block multiple execution races
+  ackBtn.disabled = true;
+  const originalHtml = ackBtn.innerHTML;
+  const originalClassName = ackBtn.className;
+  ackBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>იგზავნება...</span>';
+
+  const token = localStorage.getItem('magti_token') || (typeof Auth !== 'undefined' ? Auth.getToken() : null);
+  try {
+    const res = await fetch(`/api/articles/${articleId}/read-receipt`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!res.ok) {
+      throw new Error('Failed response');
+    }
+
+    // Success state
+    ackBtn.className = 'rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 shadow-sm flex items-center gap-1.5 cursor-not-allowed';
+    ackBtn.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-600"></i><span>გაცნობილია</span>';
+
+    if (typeof showToast === 'function') {
+      showToast('წარმატება', 'სტატია მონიშნულია წაკითხულად.', 'success');
+    }
+  } catch (err) {
+    console.error('Error sending read receipt:', err);
+    ackBtn.disabled = false;
+    ackBtn.className = originalClassName;
+    ackBtn.innerHTML = originalHtml;
+    
+    if (typeof showToast === 'function') {
+      showToast('შეცდომა', 'წაკითხვის დადასტურება ვერ მოხერხდა. სცადეთ მოგვიანებით.', 'error');
+    }
   }
 };

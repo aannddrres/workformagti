@@ -399,6 +399,30 @@ class ArticleHistory(Base):
     version_id = Column(Integer, nullable=True, index=True)
 
 
+class ArticleReadReceipt(Base):
+    __tablename__ = "article_read_receipts"
+    __table_args__ = (
+        UniqueConstraint(
+            "article_id", "article_version", "operator_id", name="uq_article_read_receipt_version_operator"
+        ),
+        Index("ix_article_read_receipts_article_version", "article_id", "article_version"),
+        Index("ix_article_read_receipts_article_operator", "article_id", "operator_id"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    article_id = Column(Integer, ForeignKey("articles.id", ondelete="SET NULL"), nullable=True)
+    article_title_snapshot = Column(String, nullable=False)
+    article_version = Column(Integer, nullable=False)
+    operator_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    operator_name_snapshot = Column(String, nullable=False)
+    operator_email_snapshot = Column(String, nullable=False)
+    operator_department_snapshot = Column(String, nullable=True)
+    read_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    article = relationship("Article")
+    operator = relationship("User")
+
+
 class SearchLog(Base):
     __tablename__ = "search_logs"
 

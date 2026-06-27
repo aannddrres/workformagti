@@ -279,6 +279,11 @@
     var original = window[fnName];
     if (typeof original !== 'function') return;
     window[fnName] = function () {
+      if (fnName === 'editArticle') {
+        var articleId = arguments[0];
+        window._auditLoadedFor = null;
+        window._currentAuditArticleId = articleId;
+      }
       var result = original.apply(this, arguments);
       if (window.articleQuill) {
         updateCharCount();

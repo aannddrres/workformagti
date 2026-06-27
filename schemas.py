@@ -679,3 +679,33 @@ class UserNoteResponse(BaseModel):
     content: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ArticleVersionItem(BaseModel):
+    version: int
+    title: str
+    updated_at: datetime
+    author_name: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ArticleReadReceiptRow(BaseModel):
+    operator_id: Optional[int] = None
+    operator_name: str
+    operator_email: str
+    department: Optional[str] = None
+    read_at: Optional[datetime] = None
+    article_version: Optional[int] = None
+    has_read: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ArticleReadReceiptResponse(BaseModel):
+    article_id: Optional[int] = None
+    article_title: str
+    current_version: int
+    receipts: list[ArticleReadReceiptRow]
+
+    model_config = ConfigDict(from_attributes=True)

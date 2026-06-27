@@ -2527,6 +2527,259 @@ def restore_article_version(
 
     return db_article
 
+
+def _get_eligible_operators(db: Session, article: models.Article) -> list[models.User]:
+    if article.is_draft:
+        return []
+    now = datetime.utcnow()
+    is_visible = (
+        article.status == "published"
+        or (
+            article.status == "scheduled"
+            and article.published_at is not None
+            and article.published_at <= now
+        )
+    )
+    if not is_visible:
+        return []
+
+    target_depts = article.target_departments
+    # Query active users who are not admins/content_admins
+    query = db.query(models.User).filter(
+        models.User.is_active == True,
+        models.User.role.notin_(["admin", "content_admin"])
+    )
+    if "All" not in target_depts:
+        query = query.filter(models.User.department.in_(target_depts))
+    
+    users = query.all()
+    eligible = []
+    for u in users:
+        if u.role == "tech_info" and not article.visible_to_tech_info:
+            continue
+        if u.role == "service_center" and not article.visible_to_service_center:
+            continue
+        eligible.append(u)
+    return eligible
+
+
+@app.get("/api/articles/{article_id}/versions", response_model=list[schemas.ArticleVersionItem])
+def get_article_versions(
+    article_id: int,
+    current_admin: models.User = Depends(security.get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Retrieve all available versions (revisions) of an article (Admins only)."""
+    article = db.query(models.Article).filter(models.Article.id == article_id).first()
+    if not article:
+        raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
+        
+    current_author_name = None
+    if article.author_id:
+        author = db.query(models.User).filter(models.User.id == article.author_id).first()
+        if author:
+            current_author_name = author.name
+            
+    history = (
+        db.query(models.ArticleHistory, models.User.name.label("author_name"))
+        .outerjoin(models.User, models.ArticleHistory.updated_by == models.User.id)
+        .filter(models.ArticleHistory.article_id == article_id)
+        .order_by(desc(models.ArticleHistory.updated_at))
+        .all()
+    )
+    
+    versions = [
+        {
+            "version": article.version,
+            "title": article.title,
+            "updated_at": article.updated_at,
+            "author_name": current_author_name,
+        }
+    ]
+    for h in history:
+        versions.append({
+            "version": h.ArticleHistory.version_id or 0,
+            "title": h.ArticleHistory.title,
+            "updated_at": h.ArticleHistory.updated_at,
+            "author_name": h.author_name,
+        })
+    versions.sort(key=lambda x: x["version"], reverse=True)
+    return versions
+
+
+@app.get("/api/articles/{article_id}/read-receipts", response_model=schemas.ArticleReadReceiptResponse)
+def get_article_read_receipts(
+    article_id: int,
+    version: Optional[int] = None,
+    current_admin: models.User = Depends(security.get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Retrieve compliance read receipts for an article (Admins only)."""
+    article = db.query(models.Article).filter(models.Article.id == article_id).first()
+    if not article:
+        raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
+        
+    target_version = version if version is not None else article.version
+    eligible_users = _get_eligible_operators(db, article)
+    receipts = db.query(models.ArticleReadReceipt).filter(
+        models.ArticleReadReceipt.article_id == article_id,
+        models.ArticleReadReceipt.article_version == target_version
+    ).all()
+    
+    # Map operator_id to the receipt for this specific version.
+    receipt_map = {r.operator_id: r for r in receipts if r.operator_id is not None}
+            
+    processed_operator_ids = set()
+    rows = []
+    
+    # 1. Process eligible active users
+    for u in eligible_users:
+        processed_operator_ids.add(u.id)
+        receipt = receipt_map.get(u.id)
+        if receipt:
+            rows.append({
+                "operator_id": u.id,
+                "operator_name": receipt.operator_name_snapshot,
+                "operator_email": receipt.operator_email_snapshot,
+                "department": receipt.operator_department_snapshot,
+                "read_at": receipt.read_at,
+                "article_version": receipt.article_version,
+                "has_read": True
+            })
+        else:
+            rows.append({
+                "operator_id": u.id,
+                "operator_name": u.name,
+                "operator_email": u.email,
+                "department": u.department,
+                "read_at": None,
+                "article_version": None,
+                "has_read": False
+            })
+            
+    # 2. Add detached/orphaned snapshot rows
+    for receipt in receipts:
+        if receipt.operator_id is None or receipt.operator_id not in processed_operator_ids:
+            rows.append({
+                "operator_id": receipt.operator_id,
+                "operator_name": receipt.operator_name_snapshot,
+                "operator_email": receipt.operator_email_snapshot,
+                "department": receipt.operator_department_snapshot,
+                "read_at": receipt.read_at,
+                "article_version": receipt.article_version,
+                "has_read": True
+            })
+            
+    return {
+        "article_id": article.id,
+        "article_title": article.title,
+        "current_version": target_version,
+        "receipts": rows
+    }
+
+
+@app.post("/api/articles/{article_id}/read-receipt")
+def create_article_read_receipt(
+    article_id: int,
+    current_user: models.User = Depends(security.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Mark an article as read by the current user (upsert logic with local integrity retry)."""
+    from sqlalchemy.exc import IntegrityError
+    
+    db_article = db.query(models.Article).filter(models.Article.id == article_id).first()
+    if not db_article:
+        raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
+        
+    _assert_article_visible(db_article, current_user)
+    
+    try:
+        receipt = db.query(models.ArticleReadReceipt).filter(
+            models.ArticleReadReceipt.article_id == article_id,
+            models.ArticleReadReceipt.article_version == db_article.version,
+            models.ArticleReadReceipt.operator_id == current_user.id
+        ).first()
+        
+        if receipt:
+            receipt.read_at = datetime.utcnow()
+            receipt.article_title_snapshot = db_article.title
+            receipt.operator_name_snapshot = current_user.name
+            receipt.operator_email_snapshot = current_user.email
+            receipt.operator_department_snapshot = current_user.department
+        else:
+            receipt = models.ArticleReadReceipt(
+                article_id=db_article.id,
+                article_title_snapshot=db_article.title,
+                article_version=db_article.version,
+                operator_id=current_user.id,
+                operator_name_snapshot=current_user.name,
+                operator_email_snapshot=current_user.email,
+                operator_department_snapshot=current_user.department,
+                read_at=datetime.utcnow()
+            )
+            db.add(receipt)
+        db.commit()
+        db.refresh(receipt)
+    except IntegrityError:
+        db.rollback()
+        # Retry with select-and-update to avoid race conditions
+        receipt = db.query(models.ArticleReadReceipt).filter(
+            models.ArticleReadReceipt.article_id == article_id,
+            models.ArticleReadReceipt.article_version == db_article.version,
+            models.ArticleReadReceipt.operator_id == current_user.id
+        ).first()
+        if receipt:
+            receipt.read_at = datetime.utcnow()
+            receipt.article_title_snapshot = db_article.title
+            receipt.operator_name_snapshot = current_user.name
+            receipt.operator_email_snapshot = current_user.email
+            receipt.operator_department_snapshot = current_user.department
+            db.commit()
+            db.refresh(receipt)
+        else:
+            raise
+            
+    return {
+        "status": "success",
+        "read_at": receipt.read_at,
+        "article_version": receipt.article_version
+    }
+
+
+@app.get("/api/articles/{article_id}/read-receipt/me")
+def get_my_article_read_receipt_status(
+    article_id: int,
+    current_user: models.User = Depends(security.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Fetch read receipt status for the current user and the current article version."""
+    article = db.query(models.Article).filter(models.Article.id == article_id).first()
+    if not article:
+        raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
+    _assert_article_visible(article, current_user)
+    
+    receipt = db.query(models.ArticleReadReceipt).filter(
+        models.ArticleReadReceipt.article_id == article_id,
+        models.ArticleReadReceipt.article_version == article.version,
+        models.ArticleReadReceipt.operator_id == current_user.id
+    ).first()
+    
+    if receipt:
+        return {
+            "has_read": True,
+            "read_at": receipt.read_at,
+            "article_version": receipt.article_version,
+            "current_version": article.version
+        }
+    else:
+        return {
+            "has_read": False,
+            "read_at": None,
+            "article_version": None,
+            "current_version": article.version
+        }
+
+
 @app.post("/api/articles/{article_id}/view")
 def track_article_view(
     article_id: int,

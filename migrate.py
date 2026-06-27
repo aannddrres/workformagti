@@ -49,6 +49,8 @@ BTREE_INDEX_STATEMENTS = (
     "CREATE INDEX IF NOT EXISTS ix_audit_logs_category_timestamp ON audit_logs (category, timestamp DESC)",
     "CREATE INDEX IF NOT EXISTS ix_audit_logs_admin_timestamp ON audit_logs (admin_id, timestamp DESC)",
     "CREATE INDEX IF NOT EXISTS ix_audit_logs_action_timestamp ON audit_logs (action, timestamp DESC)",
+    "CREATE INDEX IF NOT EXISTS ix_article_read_receipts_article_version ON article_read_receipts (article_id, article_version)",
+    "CREATE INDEX IF NOT EXISTS ix_article_read_receipts_article_operator ON article_read_receipts (article_id, operator_id)",
 )
 
 
