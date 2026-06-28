@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Optional
 from sqlalchemy import (
     Boolean,
@@ -15,7 +14,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.orm import relationship
-from database import Base
+from database import Base, get_tbilisi_time
 
 
 class User(Base):
@@ -61,7 +60,7 @@ class News(Base):
     title = Column(String, index=True, nullable=False)
     content = Column(Text, nullable=False)
     target_department = Column(String, default="All", index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=get_tbilisi_time)
     # Centralised attachment per spec (PDF/image/video link). Added 2026.
     attachment_url = Column(String, nullable=True)
     # Version counter; mirrors articles for parity in the admin history UI.
@@ -75,8 +74,7 @@ class News(Base):
 
     @property
     def is_archived(self) -> bool:
-        from datetime import datetime
-        return self.expires_at is not None and self.expires_at < datetime.utcnow()
+        return self.expires_at is not None and self.expires_at < get_tbilisi_time()
 
 
 
@@ -89,7 +87,7 @@ class NewsHistory(Base):
     title = Column(String, nullable=False)
     content = Column(Text, nullable=False)
     attachment_url = Column(String, nullable=True)
-    updated_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=get_tbilisi_time)
     updated_by = Column(Integer, ForeignKey("users.id"), nullable=False)
 
 
@@ -127,8 +125,8 @@ class Article(Base):
     # Audience partition: 'info' (subscriber/commercial), 'tech' (engineering/
     # infrastructure), or 'all'. Drives the context-aware KB category view.
     audience_profile = Column(String, default="all", index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=get_tbilisi_time)
+    updated_at = Column(DateTime, default=get_tbilisi_time, onupdate=get_tbilisi_time)
     version = Column(Integer, default=1)
     author_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     status = Column(String, default="draft", server_default="draft")
@@ -137,7 +135,7 @@ class Article(Base):
     # _assert_article_visible in main.py and by ArticleBase in schemas.py.
     published_at = Column(DateTime, nullable=True)
     attachment_url = Column(String, nullable=True)
-    last_verified_at = Column(DateTime, nullable=True, default=datetime.utcnow)
+    last_verified_at = Column(DateTime, nullable=True, default=get_tbilisi_time)
     # Block 5: role-based content visibility (distinct from audience_profile,
     # which is single-valued — these are independent flags so content can be
     # shown to both groups, one, or neither).
@@ -230,7 +228,7 @@ class VideoInstruction(Base):
     video_url = Column(String, nullable=False)
     category = Column(String)
     target_department = Column(String, default="All", index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=get_tbilisi_time)
     views_count = Column(Integer, default=0)
     tags = Column(String, nullable=True)
     is_archived = Column(Boolean, default=False, index=True)
@@ -244,7 +242,7 @@ class Team(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=get_tbilisi_time)
 
     members = relationship("User", back_populates="team")
 
@@ -257,7 +255,7 @@ class Tag(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, nullable=False, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=get_tbilisi_time)
 
 
 class TagMapping(Base):
@@ -302,7 +300,7 @@ class Message(Base):
     sender_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     content = Column(Text, nullable=False)
     is_read = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=get_tbilisi_time)
 
     sender = relationship("User", foreign_keys=[sender_id])
     recipient = relationship("User", foreign_keys=[user_id])
@@ -333,7 +331,7 @@ class AuditLog(Base):
     action = Column(String, nullable=False)
     item_type = Column(String, nullable=False)
     item_id = Column(Integer, nullable=False)
-    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    timestamp = Column(DateTime, default=get_tbilisi_time, index=True)
     # CONTENT | USER | SECURITY | SYSTEM — auto-classified by the before_insert
     # hook below from (item_type, action) when not explicitly supplied, so
     # none of the ~40 existing AuditLog(...) call sites need to change.
@@ -390,7 +388,7 @@ class ArticleHistory(Base):
     article_id = Column(Integer, ForeignKey("articles.id"), nullable=False, index=True)
     title = Column(String, nullable=False)
     content = Column(Text, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=get_tbilisi_time)
     updated_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     # The article.version value that THIS snapshot represents (i.e. the version
     # number the article carried *before* the edit that created this row). Lets
@@ -419,7 +417,7 @@ class ArticleReadReceipt(Base):
     operator_name_snapshot = Column(String, nullable=False)
     operator_email_snapshot = Column(String, nullable=False)
     operator_department_snapshot = Column(String, nullable=True)
-    read_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    read_at = Column(DateTime, default=get_tbilisi_time, nullable=False)
 
     article = relationship("Article")
     operator = relationship("User")
@@ -431,7 +429,7 @@ class SearchLog(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     search_term = Column(String, index=True, nullable=False)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=get_tbilisi_time)
     has_results = Column(Boolean, default=True)
     # Exact result count (Task 1's "search_history.results_found"). Kept
     # alongside has_results rather than replacing it — existing call sites
@@ -446,8 +444,8 @@ class UserNote(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     article_id = Column(Integer, ForeignKey("articles.id"), nullable=False, index=True)
     content = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=get_tbilisi_time)
+    updated_at = Column(DateTime, default=get_tbilisi_time, onupdate=get_tbilisi_time)
 
 
 class KnowledgeFeedback(Base):
@@ -462,7 +460,7 @@ class KnowledgeFeedback(Base):
     article_id = Column(Integer, ForeignKey("articles.id"), nullable=False, index=True)
     message = Column(Text, nullable=False)
     status = Column(String, default="open", index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=get_tbilisi_time)
     resolved_at = Column(DateTime, nullable=True)
     resolved_by = Column(Integer, ForeignKey("users.id"), nullable=True)
 

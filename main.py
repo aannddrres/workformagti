@@ -38,7 +38,7 @@ import models
 import schemas
 import security
 from config import settings
-from database import engine, get_db, SessionLocal, get_tbilisi_time
+from database import engine, get_db, SessionLocal, get_tbilisi_time, format_tbilisi_date
 
 # Paths are resolved relative to THIS file, so the app works regardless of the
 # directory uvicorn is launched from.
@@ -2656,11 +2656,11 @@ def get_article_read_receipts(
                 "operator_name": receipt.operator_name_snapshot,
                 "operator_email": receipt.operator_email_snapshot,
                 "department": receipt.operator_department_snapshot,
-                "read_at": receipt.read_at,
+                "read_at": format_tbilisi_date(receipt.read_at),
                 "article_version": receipt.article_version,
                 "has_read": True,
                 "is_late": is_late,
-                "deadline": due_date,
+                "deadline": format_tbilisi_date(due_date),
                 "status": status
             })
         else:
@@ -2673,7 +2673,7 @@ def get_article_read_receipts(
                 "article_version": None,
                 "has_read": False,
                 "is_late": False,
-                "deadline": due_date,
+                "deadline": format_tbilisi_date(due_date),
                 "status": "unread"
             })
             
@@ -2693,11 +2693,11 @@ def get_article_read_receipts(
                 "operator_name": receipt.operator_name_snapshot,
                 "operator_email": receipt.operator_email_snapshot,
                 "department": receipt.operator_department_snapshot,
-                "read_at": receipt.read_at,
+                "read_at": format_tbilisi_date(receipt.read_at),
                 "article_version": receipt.article_version,
                 "has_read": True,
                 "is_late": is_late,
-                "deadline": due_date,
+                "deadline": format_tbilisi_date(due_date),
                 "status": status
             })
             

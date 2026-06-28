@@ -158,31 +158,37 @@ def test_sent_messages(admin_user, db_session):
     monolith_app.dependency_overrides[security.get_current_user] = lambda: admin_user
     monolith_app.dependency_overrides[security.get_current_manager_user] = lambda: admin_user
 
-    with TestClient(monolith_app) as tc:
-        payload = {"user_id": recipient.id, "content": "Test sent messages content"}
-        response = tc.post("/api/messages", json=payload)
-        assert response.status_code == 200
-        msg_id = response.json()["id"]
+    try:
+        with TestClient(monolith_app) as tc:
+            payload = {"user_id": recipient.id, "content": "Test sent messages content"}
+            response = tc.post("/api/messages", json=payload)
+            assert response.status_code == 200
+            msg_id = response.json()["id"]
 
-        sent_response = tc.get("/api/messages/sent")
-        assert sent_response.status_code == 200
-        sent_msgs = sent_response.json()
-        assert len(sent_msgs) >= 1
-        
-        target_msg = [m for m in sent_msgs if m["id"] == msg_id][0]
-        assert target_msg["content"] == "Test sent messages content"
-        assert target_msg["sender_id"] == admin_user.id
-        assert target_msg["user_id"] == recipient.id
-        assert target_msg["sender_name"] == admin_user.name
-        assert target_msg["recipient_name"] == recipient.name
+            sent_response = tc.get("/api/messages/sent")
+            assert sent_response.status_code == 200
+            sent_msgs = sent_response.json()
+            assert len(sent_msgs) >= 1
 
-        # Clean up database
-        db_msg = db_session.query(models.Message).filter(models.Message.id == msg_id).first()
-        if db_msg:
-            db_session.delete(db_msg)
-            db_session.commit()
+            target_msg = [m for m in sent_msgs if m["id"] == msg_id][0]
+            assert target_msg["content"] == "Test sent messages content"
+            assert target_msg["sender_id"] == admin_user.id
+            assert target_msg["user_id"] == recipient.id
+            assert target_msg["sender_name"] == admin_user.name
+            assert target_msg["recipient_name"] == recipient.name
 
-    monolith_app.dependency_overrides.clear()
+            # Clean up database
+            db_msg = db_session.query(models.Message).filter(models.Message.id == msg_id).first()
+            if db_msg:
+                db_session.delete(db_msg)
+                db_session.commit()
+    finally:
+        monolith_app.dependency_overrides.clear()
+        # Sentinel recipient must never persist into the shared dev DB.
+        db_session.query(models.User).filter(
+            models.User.email == "test_operator_sent@magti.ge"
+        ).delete(synchronize_session=False)
+        db_session.commit()
 
 
 def test_article_status_and_youtube_id(client, db_session):

@@ -695,11 +695,11 @@ class ArticleReadReceiptRow(BaseModel):
     operator_name: str
     operator_email: str
     department: Optional[str] = None
-    read_at: Optional[datetime] = None
+    read_at: Optional[str] = None
     article_version: Optional[int] = None
     has_read: bool
     is_late: bool = False
-    deadline: Optional[datetime] = None
+    deadline: Optional[str] = None
     status: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)

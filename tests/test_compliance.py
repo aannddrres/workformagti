@@ -106,6 +106,10 @@ def test_data(db_session):
         models.ArticleTargetDepartment.article_id == article.id
     ).delete()
     db_session.query(models.Article).filter(models.Article.id == article.id).delete()
+    # Sentinel users must never persist into the shared dev DB.
+    db_session.query(models.User).filter(
+        models.User.email.in_(["com_admin@magti.ge", "com_op@magti.ge"])
+    ).delete(synchronize_session=False)
     db_session.commit()
 
 def test_read_receipt_flow(test_data, db_session):

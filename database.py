@@ -69,3 +69,7 @@ def get_db():
 def get_tbilisi_time():
     from datetime import datetime, timezone, timedelta
     return datetime.now(timezone(timedelta(hours=4))).replace(tzinfo=None)
+
+
+def format_tbilisi_date(dt):
+    return dt.strftime("%d/%m/%Y %H:%M") if dt else None
