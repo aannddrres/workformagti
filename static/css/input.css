@@ -1205,3 +1205,74 @@ body.dark-mode {
     body.dark-mode #sidebar-user-dept {
       color: #9ca3af !important;
     }
+
+    /* [5] Article metadata chips — department + tag badges (modal & standalone view) */
+    .meta-chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+    }
+    .ui-badge {
+      display: inline-flex;
+      align-items: center;
+      white-space: nowrap;
+      border-radius: 9999px;
+      padding: 2px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.6;
+    }
+    .ui-badge.dept-chip {
+      background: #f1f3f5;
+      color: #374151;
+    }
+    .ui-badge.tag-chip {
+      background: #fdecec;
+      color: #b3001f;
+    }
+    .ui-badge.more-chip {
+      background: transparent;
+      color: #9ca3af;
+      font-weight: 700;
+    }
+    body.dark-mode .ui-badge.dept-chip {
+      background: #2a2a2a;
+      color: #d1d5db;
+    }
+    body.dark-mode .ui-badge.tag-chip {
+      background: #3a1f22;
+      color: #f7a8b4;
+    }
+
+    /* [6] Click-to-zoom lightbox for embedded article images */
+    .article-content-optimized img,
+    #article-body img {
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+    .article-content-optimized img:hover,
+    #article-body img:hover {
+      transform: scale(1.01);
+    }
+    .image-lightbox-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.85);
+      padding: 24px;
+      cursor: zoom-out;
+    }
+    .image-lightbox-overlay.is-open {
+      display: flex;
+    }
+    .image-lightbox-overlay img {
+      max-width: 92vw;
+      max-height: 92vh;
+      border-radius: 8px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+      cursor: default;
+    }

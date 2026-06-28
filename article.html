@@ -192,7 +192,8 @@
           <i class="fa-solid fa-circle-info"></i> ინფორმაცია
         </h4>
         <ul class="space-y-2.5 text-xs text-gray-600">
-          <li class="flex justify-between"><span class="font-medium text-gray-400">დეპარტამენტი:</span> <span id="info-dept" class="font-semibold text-gray-800">-</span></li>
+          <li class="flex justify-between gap-2"><span class="shrink-0 font-medium text-gray-400">დეპარტამენტი:</span> <span id="info-dept" class="meta-chip-row justify-end font-semibold text-gray-800">-</span></li>
+          <li id="info-tags-row" class="hidden flex-col items-start gap-1.5"><span class="font-medium text-gray-400">თეგები:</span> <span id="info-tags" class="meta-chip-row"></span></li>
           <li class="flex justify-between"><span class="font-medium text-gray-400">სტატუსი:</span> <span id="info-status" class="font-semibold text-gray-800">-</span></li>
           <li class="flex justify-between"><span class="font-medium text-gray-400">ნახვები:</span> <span id="info-views" class="font-semibold text-gray-800">0</span></li>
         </ul>
@@ -229,6 +230,39 @@
     // Authenticate immediately
     if (!Auth.getToken() || Auth.isExpired()) {
       Auth.redirectToLogin();
+    }
+
+    function escapeHtmlLite(str) {
+      const div = document.createElement('div');
+      div.textContent = str == null ? '' : String(str);
+      return div.innerHTML;
+    }
+
+    // Click-to-zoom lightbox for embedded article images (standalone page —
+    // no shared app-core.js here, so this is a small self-contained copy).
+    function ensureImageLightbox() {
+      if (document.getElementById('image-lightbox-overlay')) return;
+      document.body.insertAdjacentHTML('beforeend', `
+        <div id="image-lightbox-overlay" class="image-lightbox-overlay">
+          <img id="image-lightbox-img" src="" alt="" />
+        </div>`);
+      document.getElementById('image-lightbox-overlay').addEventListener('click', closeImageLightbox);
+      document.getElementById('image-lightbox-img').addEventListener('click', e => e.stopPropagation());
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') closeImageLightbox(); });
+    }
+    function openImageLightbox(src) {
+      ensureImageLightbox();
+      document.getElementById('image-lightbox-img').src = src;
+      document.getElementById('image-lightbox-overlay').classList.add('is-open');
+    }
+    function closeImageLightbox() {
+      const overlay = document.getElementById('image-lightbox-overlay');
+      if (overlay) overlay.classList.remove('is-open');
+    }
+    function wireImageLightbox(container) {
+      container.querySelectorAll('img').forEach(img => {
+        img.addEventListener('click', () => openImageLightbox(img.src));
+      });
     }
 
     let articleId = null;
@@ -307,11 +341,29 @@
       // Render content body
       const bodyContainer = document.getElementById('article-body');
       bodyContainer.innerHTML = article.content; // Content is sanitized HTML from server
+      wireImageLightbox(bodyContainer);
 
-      // Update metadata on sidebar
-      document.getElementById('info-dept').textContent = (article.target_departments || []).includes('All')
-        ? 'ყველა დეპარტამენტი'
-        : (article.target_departments || []).join(', ');
+      // Update metadata on sidebar — department + tag chips instead of raw text
+      const depts = article.target_departments || [];
+      const deptEl = document.getElementById('info-dept');
+      if (depts.includes('All')) {
+        deptEl.innerHTML = '<span class="ui-badge dept-chip">ყველა დეპარტამენტი</span>';
+      } else {
+        const MAX_DEPT_CHIPS = 4;
+        const visible = depts.slice(0, MAX_DEPT_CHIPS);
+        const overflow = depts.length - visible.length;
+        deptEl.innerHTML = visible.map(d => `<span class="ui-badge dept-chip">${escapeHtmlLite(d)}</span>`).join('')
+          + (overflow > 0 ? `<span class="ui-badge more-chip">+${overflow}&nbsp;more</span>` : '');
+      }
+
+      const tagsRow = document.getElementById('info-tags-row');
+      if (article.tags) {
+        tagsRow.classList.remove('hidden');
+        tagsRow.classList.add('flex');
+        document.getElementById('info-tags').innerHTML = article.tags.split(',').map(t => t.trim()).filter(Boolean)
+          .map(t => `<span class="ui-badge tag-chip">#${escapeHtmlLite(t)}</span>`).join('');
+      }
+
       document.getElementById('info-status').textContent = article.status === 'published' ? 'გამოქვეყნებული' : article.status;
       document.getElementById('info-views').textContent = article.views_count || 0;
 

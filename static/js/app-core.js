@@ -3198,6 +3198,59 @@ function copyFirstScript() {
         }).catch(err => console.error('Clipboard write failed:', err));
       }
 
+function renderArticleMetaChips(container, article, dateStr) {
+        if (!container) return;
+        container.innerHTML = '';
+        container.classList.add('meta-chip-row');
+
+        const depts = (article.target_departments || []);
+        const MAX_DEPT_CHIPS = 4;
+        const visibleDepts = depts.slice(0, MAX_DEPT_CHIPS);
+        const overflowCount = depts.length - visibleDepts.length;
+
+        let html = visibleDepts
+          .map(d => `<span class="ui-badge dept-chip">${escapeHtml(d)}</span>`)
+          .join('');
+        if (overflowCount > 0) {
+          html += `<span class="ui-badge more-chip">+${overflowCount}&nbsp;more</span>`;
+        }
+        html += `<span class="ui-badge dept-chip">ვერსია ${article.version}</span>`;
+        html += `<span class="ui-badge dept-chip">${escapeHtml(dateStr)}</span>`;
+        if (article.tags) {
+          html += article.tags.split(',').map(t => t.trim()).filter(Boolean)
+            .map(t => `<span class="ui-badge tag-chip">#${escapeHtml(t)}</span>`)
+            .join('');
+        }
+        container.innerHTML = html;
+      }
+
+function ensureImageLightbox() {
+        if (document.getElementById('image-lightbox-overlay')) return;
+        document.body.insertAdjacentHTML('beforeend', `
+          <div id="image-lightbox-overlay" class="image-lightbox-overlay">
+            <img id="image-lightbox-img" src="" alt="" />
+          </div>`);
+        const overlay = document.getElementById('image-lightbox-overlay');
+        overlay.addEventListener('click', closeImageLightbox);
+        document.getElementById('image-lightbox-img').addEventListener('click', e => e.stopPropagation());
+        document.addEventListener('keydown', e => {
+          if (e.key === 'Escape') closeImageLightbox();
+        });
+      }
+
+function openImageLightbox(src) {
+        ensureImageLightbox();
+        document.getElementById('image-lightbox-img').src = src;
+        document.getElementById('image-lightbox-overlay').classList.add('is-open');
+      }
+
+function closeImageLightbox() {
+        const overlay = document.getElementById('image-lightbox-overlay');
+        if (overlay) overlay.classList.remove('is-open');
+      }
+window.openImageLightbox = openImageLightbox;
+window.closeImageLightbox = closeImageLightbox;
+
 function openArticleModal(article) {
         ensureArticleModal();
         window.activeArticleId = article.id;
@@ -3216,8 +3269,7 @@ function openArticleModal(article) {
           document.getElementById('article-modal-title').textContent = article.title;
         }
         const date = new Date(article.created_at).toLocaleDateString('ka-GE');
-        document.getElementById('article-modal-meta').textContent =
-          `${(article.target_departments || []).join(', ')} · ვერსია ${article.version} · ${date}${article.tags ? ' · ' + article.tags : ''}`;
+        renderArticleMetaChips(document.getElementById('article-modal-meta'), article, date);
 
         const contentDiv = document.getElementById('article-modal-content');
         const body = article.content || '';

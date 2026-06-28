@@ -542,6 +542,14 @@ function renderArticleBody(targetEl, rawBody) {
         targetEl.querySelectorAll('ol').forEach(ol => {
           ol.classList.add('list-decimal', 'list-inside', 'space-y-2', 'my-3');
         });
+
+        // Click-to-zoom lightbox for embedded images (styling via CSS selectors
+        // on .article-content-optimized/#article-body — see input.css [6]).
+        targetEl.querySelectorAll('img').forEach(img => {
+          img.addEventListener('click', () => {
+            if (typeof window.openImageLightbox === 'function') window.openImageLightbox(img.src);
+          });
+        });
       }
 
 function renderKbBento(topLevels) {
