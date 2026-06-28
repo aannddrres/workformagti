@@ -607,6 +607,16 @@ document.addEventListener('change', (e) => {
   }
 });
 
+// Audit log date-range picker. Deferred to DOMContentLoaded — this script
+// executes before the Flatpickr CDN <script> (it's declared earlier in
+// <head>, and deferred scripts run in document order), so the `flatpickr`
+// global isn't defined yet at this point in the file.
+document.addEventListener('DOMContentLoaded', () => {
+  if (document.getElementById('log-date-range')) {
+    flatpickr("#log-date-range", { mode: "range", dateFormat: "Y-m-d" });
+  }
+});
+
 window.onArticleFilterChange = onArticleFilterChange;
 window.toggleArticleActionsMenu = toggleArticleActionsMenu;
 window.toggleSelectAllContent = toggleSelectAllContent;
@@ -1925,15 +1935,19 @@ async function fetchAndRenderAuditLog(token) {
         if (!tbody) return;
         tbody.innerHTML = '<tr><td colspan="5" class="px-5 py-4 text-center text-gray-400">იტვირთება...</td></tr>';
         try {
-          const startDate = document.getElementById('audit-filter-start-date')?.value || '';
-          const endDate = document.getElementById('audit-filter-end-date')?.value || '';
           const userId = document.getElementById('audit-filter-user')?.value || '';
           const action = document.getElementById('audit-filter-action')?.value || '';
           const category = document.getElementById('audit-filter-category')?.value || '';
 
           const params = new URLSearchParams();
-          if (startDate) params.append('start_date', startDate);
-          if (endDate) params.append('end_date', endDate);
+          const userName = document.getElementById('log-search-user').value;
+          if (userName) params.append('user_name', userName);
+
+          const fp = document.querySelector("#log-date-range")._flatpickr;
+          if (fp && fp.selectedDates.length === 2) {
+            params.append('start_date', fp.formatDate(fp.selectedDates[0], "Y-m-d"));
+            params.append('end_date', fp.formatDate(fp.selectedDates[1], "Y-m-d"));
+          }
           if (userId) params.append('user_id', userId);
           if (action) params.append('action', action);
           if (category) params.append('category', category);
@@ -1963,7 +1977,7 @@ async function fetchAndRenderAuditLog(token) {
           tbody.innerHTML = logs.map(l => `
             <tr class="hover:bg-gray-50">
               <td class="px-5 py-2 whitespace-nowrap text-xs text-gray-500">${new Date(l.timestamp).toLocaleString('ka-GE')}</td>
-              <td class="px-5 py-2 text-gray-800">${escapeHtml(namesById[l.admin_id] || `#${l.admin_id}`)}</td>
+              <td class="px-5 py-2 text-gray-800">${escapeHtml(l.admin_name || 'უცნობი')}</td>
               <td class="px-5 py-2">
                 <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700">${escapeHtml(l.action)}</span>
               </td>

@@ -13,6 +13,7 @@ from sqlalchemy import (
     event,
     text,
 )
+from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.orm import relationship
 from database import Base, get_tbilisi_time
 
@@ -164,7 +165,14 @@ class Article(Base):
 
     @property
     def read_time(self) -> int:
-        """Estimates reading time in minutes based on Georgian content word count."""
+        """Estimates reading time in minutes based on Georgian content word count.
+
+        Returns the 1-minute default without triggering a lazy-load when `content`
+        was deferred (e.g. bulk list queries) — accessing it there would re-fetch
+        the full HTML body per row, reintroducing the cost the defer() avoids.
+        """
+        if "content" in sa_inspect(self).unloaded:
+            return 1
         if not self.content:
             return 1
         word_count = len(self.content.split())

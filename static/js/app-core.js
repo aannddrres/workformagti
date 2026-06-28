@@ -3047,7 +3047,6 @@ function ensureArticleModal() {
                   <h3 id="article-modal-title" class="truncate text-xl font-bold text-gray-900">
                     <a id="article-modal-title-link" href="#" target="_blank" class="hover:text-[#E30613] hover:underline" title="გახსნა ცალკე გვერდზე"></a>
                   </h3>
-                  <p id="article-modal-meta" class="mt-1 text-xs text-gray-500"></p>
                 </div>
                 <div class="flex shrink-0 items-center gap-2">
                   <button onclick="copyFirstScript()" id="modal-copy-script-btn"
@@ -3100,6 +3099,16 @@ function ensureArticleModal() {
 
                 <!-- Article body — constrained to 72ch for comfortable reading -->
                 <div id="article-modal-content" class="article-content-optimized prose-magti mx-auto mb-5 max-w-[72ch] text-gray-700"></div>
+
+                <!-- Collapsed-by-default metadata accordion — chips moved out of the
+                     sticky header so the title/content get top billing. -->
+                <details class="meta-accordion mx-auto mb-5 max-w-[72ch] rounded-xl border border-gray-100 bg-gray-50/60 px-4 no-print">
+                  <summary class="flex items-center gap-1.5 py-3 text-sm font-semibold text-gray-600 hover:text-[#E30613] transition-colors">
+                    <i aria-hidden="true" class="fa-solid fa-chevron-right meta-accordion-chevron text-xs"></i>
+                    🎯 დამატებითი ინფორმაცია (ჯგუფები და თეგები)
+                  </summary>
+                  <p id="article-modal-meta" class="pb-3 text-xs text-gray-500"></p>
+                </details>
 
                 <a id="article-modal-attachment" href="#" target="_blank" class="hidden items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm font-medium text-[#E30613] hover:bg-red-50">
                   <i aria-hidden="true" class="fa-solid fa-paperclip"></i> თანდართული ფაილი
@@ -3250,6 +3259,7 @@ function closeImageLightbox() {
       }
 window.openImageLightbox = openImageLightbox;
 window.closeImageLightbox = closeImageLightbox;
+window.ensureImageLightbox = ensureImageLightbox;
 
 function openArticleModal(article) {
         ensureArticleModal();

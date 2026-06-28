@@ -396,6 +396,61 @@ def _write_receipt(db, article, version, user, read_at):
     ))
 
 
+def _sync_required_readings_for_article(db, article, now):
+    """Idempotently sync RequiredReading rows for one article to match its
+    current ArticleTargetDepartment list, so compute_compliance()'s
+    denominator actually reflects who's required to read it. One row per
+    target department (or a single "All" row) — mirrors the expanded
+    Georgian group labels already written to ArticleTargetDepartment.
+
+    Preserves existing rows whose target_department still matches (so a
+    hand-set due_date, e.g. article 102's, survives reruns); only removes
+    rows for departments the article no longer targets, cascading their
+    ReadStatus children first to avoid orphaned rows.
+    """
+    target_depts = article.target_departments
+    desired = {"All"} if "All" in target_depts else set(target_depts)
+
+    existing = db.query(models.RequiredReading).filter(
+        models.RequiredReading.item_type == "article",
+        models.RequiredReading.item_id == article.id,
+    ).all()
+    by_dept = {r.target_department: r for r in existing}
+
+    for dept in list(by_dept):
+        if dept not in desired:
+            stale = by_dept.pop(dept)
+            db.query(models.ReadStatus).filter(
+                models.ReadStatus.required_reading_id == stale.id
+            ).delete(synchronize_session=False)
+            db.delete(stale)
+
+    for dept in desired - by_dept.keys():
+        new_rr = models.RequiredReading(
+            item_type="article", item_id=article.id, target_department=dept,
+            due_date=now + timedelta(days=3),
+            priority="high" if article.id == 103 else "normal",
+        )
+        db.add(new_rr)
+        by_dept[dept] = new_rr
+    db.flush()
+    return by_dept
+
+
+def _write_read_status(db, required_reading_id, user, status, read_at):
+    """Strict column alignment with compute_compliance()'s filters: status is
+    the literal "read"/"unread" string it matches on, read_at is None for the
+    unread bucket, and operator_department_snapshot pins the user's
+    department at write time (Blueprint Item 4 — survives later moves)."""
+    db.add(models.ReadStatus(
+        user_id=user.id,
+        required_reading_id=required_reading_id,
+        status=status,
+        read_at=read_at,
+        operator_department_snapshot=user.department,
+    ))
+
+
 def phase2(db):
     random.seed(42)  # stable, reproducible "organic" variance across reruns
 
@@ -410,34 +465,33 @@ def phase2(db):
     for article in all_articles:
         article_id = article.id
 
-        required = db.query(models.RequiredReading).filter(
-            models.RequiredReading.item_type == "article",
-            models.RequiredReading.item_id == article_id,
-        ).first()
-        if required:
-            due_date = required.due_date
-            ontime_window = (due_date - timedelta(days=5), due_date)
-            late_window = (due_date + timedelta(days=1), due_date + timedelta(days=3))
-        else:
-            # Legacy article with no compliance deadline: both bands fall back
-            # to "sometime in the last 7 days" — there's no due date to be late
-            # against, so on-time/late only controls receipt probability here.
-            due_date = now
-            ontime_window = (now - timedelta(days=7), now)
-            late_window = (now - timedelta(days=7), now)
+        if article.is_draft:
+            continue  # drafts get no compliance assignment matrix
+
+        # Task 1: every non-draft article gets a RequiredReading row per
+        # department it actually targets (or one "All" row) — the official
+        # compliance assignment matrix compute_compliance() reads from.
+        required_by_dept = _sync_required_readings_for_article(db, article, now)
+        due_date = min(r.due_date for r in required_by_dept.values())
+        ontime_window = (due_date - timedelta(days=5), due_date)
+        late_window = (due_date + timedelta(days=1), due_date + timedelta(days=3))
 
         eligible = get_eligible_operators(db, article)
         if not eligible:
             print(f"  SKIP article {article_id}: 0 eligible operators.")
             continue
 
-        # Clean slate per article (both versions) so reruns never leave stale rows.
+        # Clean slate per article (receipts, audit logs, read statuses) so
+        # reruns never leave stale rows.
         db.query(models.ArticleReadReceipt).filter(
             models.ArticleReadReceipt.article_id == article_id
         ).delete(synchronize_session=False)
         db.query(models.AuditLog).filter(
             models.AuditLog.item_type == "article", models.AuditLog.item_id == article_id,
             models.AuditLog.action == "article_read",
+        ).delete(synchronize_session=False)
+        db.query(models.ReadStatus).filter(
+            models.ReadStatus.required_reading_id.in_([r.id for r in required_by_dept.values()])
         ).delete(synchronize_session=False)
 
         eligible = sorted(eligible, key=lambda u: u.id)
@@ -455,6 +509,7 @@ def phase2(db):
 
         unread_count = ontime_count = late_count = 0
         for user in sim_pool:
+            req_row = required_by_dept.get(user.department) or required_by_dept.get("All")
             roll = random.random()
             if roll < 0.65:
                 ontime_count += 1
@@ -464,8 +519,12 @@ def phase2(db):
                 read_at = _random_hourly_timestamp(*late_window)
             else:
                 unread_count += 1
+                _write_read_status(db, req_row.id, user, "unread", None)
                 continue
+            # Task 3: ReadStatus, ArticleReadReceipt, and AuditLog share the
+            # exact same read_at for every "read" state — paired twin rows.
             _write_receipt(db, article, version, user, read_at)
+            _write_read_status(db, req_row.id, user, "read", read_at)
 
         for user in drift_users:
             stale_read_at = _random_hourly_timestamp(due_date - timedelta(days=10), due_date - timedelta(days=6))

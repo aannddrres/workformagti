@@ -6,8 +6,10 @@ import json
 import uuid
 import asyncio
 import logging
+import logging.handlers
 import threading
 import time
+import traceback
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -24,12 +26,12 @@ from fastapi import (
     Response,
     BackgroundTasks,
 )
-from fastapi.responses import StreamingResponse, HTMLResponse, FileResponse
+from fastapi.responses import StreamingResponse, HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, defer
 from sqlalchemy import or_, and_, func, desc, case
 from pydantic import BaseModel
 
@@ -43,15 +45,39 @@ from database import engine, get_db, SessionLocal, get_tbilisi_time, format_tbil
 # directory uvicorn is launched from.
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# ── Centralized rotating file logging (production-grade) ─────────────────
+os.makedirs("logs", exist_ok=True)
+_LOG_FORMAT = '%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d - %(message)s'
+_rotating_handler = logging.handlers.RotatingFileHandler(
+    "logs/magti_portal.log", maxBytes=10 * 1024 * 1024, backupCount=5
+)
+_rotating_handler.setFormatter(logging.Formatter(_LOG_FORMAT))
+
+# Live Terminal Chaos Testing: console stream forced to DEBUG (root + "magti"
+# + sqlalchemy.engine) so every query/error prints to stdout in real time,
+# not just the rotating file.
+_console_handler = logging.StreamHandler()
+_console_handler.setLevel(logging.DEBUG)
+_console_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s"))
+logging.basicConfig(level=logging.DEBUG, format=_LOG_FORMAT, handlers=[_rotating_handler, _console_handler])
+
 # Module logger — replaces ad-hoc print() calls so operational messages get
-# levels/timestamps and route through the app's stdio (captured by gunicorn).
+# levels/timestamps and route through the app's stdio (captured by gunicorn),
+# and now also through the rotating file handler above (propagate=False means
+# root's handler list is otherwise unreachable from this logger).
 logger = logging.getLogger("magti")
 if not logger.handlers:
-    _log_handler = logging.StreamHandler()
-    _log_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s"))
-    logger.addHandler(_log_handler)
-    logger.setLevel(logging.INFO)
+    logger.addHandler(_console_handler)
+    logger.addHandler(_rotating_handler)
+    logger.setLevel(logging.DEBUG)
     logger.propagate = False
+
+# Pipe SQLAlchemy's query engine logger into the same live console stream so
+# every SQL read/write prints in real time during chaos testing.
+_sa_engine_logger = logging.getLogger("sqlalchemy.engine")
+_sa_engine_logger.addHandler(_console_handler)
+_sa_engine_logger.setLevel(logging.DEBUG)
+_sa_engine_logger.propagate = False
 
 # ── Async export job registry (Shape 2a infra) ────────────────────────────
 # In-memory, thread-safe map of background file-export jobs. Mutated from the
@@ -490,6 +516,7 @@ async def lifespan(app: "FastAPI"):
     writer_task = asyncio.create_task(_log_writer(app.state.log_queue))
     # broker is created at module load (below); by the time lifespan runs it exists.
     broker.set_loop(asyncio.get_running_loop())
+    logging.info("FastAPI Magti Portal application bootstrap success")
     try:
         yield
     finally:
@@ -576,6 +603,40 @@ async def security_headers(request: Request, call_next):
         "form-action 'self'"
     )
     return response
+
+
+@app.middleware("http")
+async def qa_monkey_tracker(request: Request, call_next):
+    """Live terminal chaos-testing stream — a single scannable stdout line
+    per request, deliberately bypassing the logger formatting so it stands
+    out from system logs. Registered inside catch_unhandled_exceptions, so a
+    crash prints its banner+traceback here BEFORE re-raising to the global
+    handler, which then responds with the generic 500."""
+    start = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        duration_ms = round((time.perf_counter() - start) * 1000, 1)
+        print("[!!! QA CRASH INTERCEPTED !!!]")
+        traceback.print_exc()
+        print(f"[QA-MONKEY] {request.method} {request.url.path} -> Status: 500 ({duration_ms}ms)")
+        raise
+    duration_ms = round((time.perf_counter() - start) * 1000, 1)
+    print(f"[QA-MONKEY] {request.method} {request.url.path} -> Status: {response.status_code} ({duration_ms}ms)")
+    return response
+
+
+@app.middleware("http")
+async def catch_unhandled_exceptions(request: Request, call_next):
+    """Last-resort safety net — added after security_headers so it wraps
+    outermost and catches anything downstream (DB lockups, unhandled
+    runtime errors). Dumps the full traceback to the rotating log file
+    before returning a generic 500 instead of leaking it to the client."""
+    try:
+        return await call_next(request)
+    except Exception:
+        logger.exception("Internal Server Error intercepted")
+        return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
 
 
 # ── Real-time notifications (Server-Sent Events) ──────────────────────────
@@ -1523,7 +1584,9 @@ def get_articles(
     Returns:
         A list of ArticleSummaryResponse schemas.
     """
-    query = db.query(models.Article).outerjoin(models.Category).options(joinedload(models.Article.category))
+    query = db.query(models.Article).outerjoin(models.Category).options(
+        joinedload(models.Article.category), defer(models.Article.content)
+    )
     
     if q:
         query = query.filter(models.Article.title.contains(q))
@@ -1572,9 +1635,29 @@ def get_articles(
     return query.order_by(desc(dept_score), desc(models.Article.created_at)).offset(skip).limit(limit).all()
 
 
+def log_article_read(user_id: int, article_id: int) -> None:
+    """Background task: records an audit-log entry for an article read.
+
+    Opens its own session via SessionLocal() rather than reusing the
+    request's Depends(get_db) session — that session is already closed by
+    the time background tasks run (FastAPI's dependency exit stack closes
+    before Starlette sends the response and executes background tasks).
+    """
+    with SessionLocal() as db:
+        db.add(models.AuditLog(
+            admin_id=user_id,
+            action="READ_ARTICLE",
+            item_type="ARTICLE",
+            item_id=article_id,
+            details="Operator read the article",
+        ))
+        db.commit()
+
+
 @app.get("/api/articles/{article_id}", response_model=schemas.ArticleResponse)
 def get_article(
     article_id: int,
+    background_tasks: BackgroundTasks,
     current_user: models.User = Depends(security.get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -1582,6 +1665,7 @@ def get_article(
 
     Args:
         article_id: ID of the article to retrieve.
+        background_tasks: FastAPI background task queue.
         current_user: The authenticated User object.
         db: SQLAlchemy database session.
 
@@ -1592,6 +1676,7 @@ def get_article(
     if not article:
         raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
     _assert_article_visible(article, current_user)
+    background_tasks.add_task(log_article_read, current_user.id, article.id)
     return article
 
 @app.get("/api/compliance/my-readings", response_model=list[schemas.MyReadingResponse])
@@ -4671,8 +4756,11 @@ def get_audit_logs(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     user_id: Optional[int] = None,
+    user_name: Optional[str] = None,
     action: Optional[str] = None,
     category: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
     current_admin: models.User = Depends(security.get_current_system_admin_user),
     db: Session = Depends(get_db)
 ):
@@ -4717,7 +4805,15 @@ def get_audit_logs(
             parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
         return parsed
 
-    query = db.query(models.AuditLog)
+    query = db.query(models.AuditLog, models.User.name, models.Article.title).join(
+        models.User, models.AuditLog.admin_id == models.User.id
+    ).outerjoin(
+        models.Article,
+        and_(
+            func.lower(models.AuditLog.item_type) == "article",
+            models.AuditLog.item_id == models.Article.id,
+        ),
+    )
     if start_date:
         start_dt = _parse_to_naive_utc(start_date)
         if start_dt is not None:
@@ -4732,6 +4828,8 @@ def get_audit_logs(
             logger.warning("Audit log end_date parsing error: invalid format '%s'", end_date)
     if user_id:
         query = query.filter(models.AuditLog.admin_id == user_id)
+    if user_name:
+        query = query.filter(models.User.name.ilike(f"%{user_name}%"))
     if action:
         if action == "LOGIN":
             # LOGIN filter aggregates both password-based logins and SSO logins.
@@ -4741,7 +4839,22 @@ def get_audit_logs(
     if category:
         query = query.filter(models.AuditLog.category == category.upper())
 
-    return query.order_by(desc(models.AuditLog.timestamp)).limit(100).all()
+    rows = query.order_by(desc(models.AuditLog.timestamp)).offset(offset).limit(limit).all()
+    return [
+        {
+            "id": log.id,
+            "admin_id": log.admin_id,
+            "admin_name": admin_name,
+            "action": log.action,
+            "item_type": log.item_type,
+            "item_id": log.item_id,
+            "item_name": article_title,
+            "timestamp": log.timestamp,
+            "category": log.category,
+            "details": log.details,
+        }
+        for log, admin_name, article_title in rows
+    ]
 
 
 @app.get("/api/tags", response_model=list[schemas.TagResponse])

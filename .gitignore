@@ -10,6 +10,7 @@ backups/
 .claude/
 scripts/legacy/
 _server_log.txt
+logs/
 
 # Vendored build tool — download the standalone Tailwind CLI locally rather than
 # committing the binary (see README "Rebuilding CSS"). v4 is the old mismatched

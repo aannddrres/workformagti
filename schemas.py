@@ -508,6 +508,8 @@ class AuditLogResponse(AuditLogBase):
     """Response schema representing an administrative action log entry."""
     id: int
     admin_id: int
+    admin_name: Optional[str] = None
+    item_name: Optional[str] = None
     timestamp: datetime
     category: Optional[str] = None  # CONTENT | USER | SECURITY | SYSTEM
     details: Optional[str] = None

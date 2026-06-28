@@ -167,6 +167,19 @@
         იტვირთება...
       </div>
 
+      <!-- Collapsed-by-default metadata accordion — chips moved out of the
+           top header so the title/content get top billing. -->
+      <details class="meta-accordion no-print rounded-xl border border-gray-100 bg-gray-50/50 px-4 mb-8">
+        <summary class="flex items-center gap-1.5 py-3 text-sm font-semibold text-gray-600 hover:text-[#E30613] transition-colors">
+          <i class="fa-solid fa-chevron-right meta-accordion-chevron text-xs"></i>
+          🎯 დამატებითი ინფორმაცია (ჯგუფები და თეგები)
+        </summary>
+        <div class="pb-3 space-y-2 text-xs text-gray-600">
+          <div class="flex flex-wrap items-center gap-1.5"><span class="font-medium text-gray-400">დეპარტამენტი:</span> <span id="info-dept" class="meta-chip-row"></span></div>
+          <div id="info-tags-row" class="hidden flex-wrap items-center gap-1.5"><span class="font-medium text-gray-400">თეგები:</span> <span id="info-tags" class="meta-chip-row"></span></div>
+        </div>
+      </details>
+
       <!-- File Attachment -->
       <div id="attachment-container" class="hidden border-t border-gray-100 pt-6 mt-8">
         <h4 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">მიმაგრებული ფაილი</h4>
@@ -200,8 +213,6 @@
           <i class="fa-solid fa-circle-info"></i> ინფორმაცია
         </h4>
         <ul class="space-y-2.5 text-xs text-gray-600">
-          <li class="flex justify-between gap-2"><span class="shrink-0 font-medium text-gray-400">დეპარტამენტი:</span> <span id="info-dept" class="meta-chip-row justify-end font-semibold text-gray-800">-</span></li>
-          <li id="info-tags-row" class="hidden flex-col items-start gap-1.5"><span class="font-medium text-gray-400">თეგები:</span> <span id="info-tags" class="meta-chip-row"></span></li>
           <li class="flex justify-between"><span class="font-medium text-gray-400">სტატუსი:</span> <span id="info-status" class="font-semibold text-gray-800">-</span></li>
           <li class="flex justify-between"><span class="font-medium text-gray-400">ნახვები:</span> <span id="info-views" class="font-semibold text-gray-800">0</span></li>
         </ul>
@@ -268,8 +279,13 @@
       if (overlay) overlay.classList.remove('is-open');
     }
     function wireImageLightbox(container) {
-      container.querySelectorAll('img').forEach(img => {
-        img.addEventListener('click', () => openImageLightbox(img.src));
+      // Robust event delegation: bound once on the persistent container
+      // (guarded), not per-<img>, so it survives any future re-render path.
+      ensureImageLightbox();
+      if (container.dataset.lightboxDelegated) return;
+      container.dataset.lightboxDelegated = '1';
+      container.addEventListener('click', e => {
+        if (e.target.tagName === 'IMG') openImageLightbox(e.target.src);
       });
     }
 

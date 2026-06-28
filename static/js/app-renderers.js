@@ -543,13 +543,20 @@ function renderArticleBody(targetEl, rawBody) {
           ol.classList.add('list-decimal', 'list-inside', 'space-y-2', 'my-3');
         });
 
-        // Click-to-zoom lightbox for embedded images (styling via CSS selectors
+        // Robust event delegation for click-to-zoom (styling via CSS selectors
         // on .article-content-optimized/#article-body — see input.css [6]).
-        targetEl.querySelectorAll('img').forEach(img => {
-          img.addEventListener('click', () => {
-            if (typeof window.openImageLightbox === 'function') window.openImageLightbox(img.src);
+        // Bound once on the persistent container (guarded), not per-<img>, so
+        // every re-render — modal reopen, SPA navigation — is caught without
+        // rebinding; a fresh post-render hook still ensures the overlay exists.
+        if (typeof window.ensureImageLightbox === 'function') window.ensureImageLightbox();
+        if (!targetEl.dataset.lightboxDelegated) {
+          targetEl.dataset.lightboxDelegated = '1';
+          targetEl.addEventListener('click', e => {
+            if (e.target.tagName === 'IMG' && typeof window.openImageLightbox === 'function') {
+              window.openImageLightbox(e.target.src);
+            }
           });
-        });
+        }
       }
 
 function renderKbBento(topLevels) {

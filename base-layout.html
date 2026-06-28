@@ -2,7 +2,7 @@
 <html lang="ka">
 
 <head>
-    <script defer src="/static/frontend_api.js?v=6"></script>
+    <script defer src="/static/frontend_api.js?v=7"></script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>მაგთი — შიდა საინფორმაციო პორტალი</title>
@@ -22,6 +22,10 @@
   <!-- Font Awesome 6 CDN -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
     crossorigin="anonymous" />
+
+  <!-- Flatpickr (audit log date-range picker) CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
   <!-- Brand Font: Teko (matches the blocky style of the logo) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2273,7 +2277,9 @@
               წვდომა)</p>
           </div>
           
-          <div class="flex items-center gap-3">
+          <div class="flex flex-wrap items-center gap-4">
+            <input type="text" id="log-search-user" placeholder="სახელი და გვარი" class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm focus:border-red-500 focus:outline-none">
+            <input type="text" id="log-date-range" placeholder="აირჩიეთ პერიოდი" class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm focus:border-red-500 focus:outline-none">
             <select id="audit-filter-category" class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm focus:border-red-500 focus:outline-none">
               <option value="">ყველა კატეგორია</option>
               <option value="SECURITY">უსაფრთხოება (SECURITY)</option>
