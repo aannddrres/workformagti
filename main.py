@@ -8,7 +8,6 @@ import asyncio
 import logging
 import threading
 import time
-from collections import Counter
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -1803,6 +1802,7 @@ def mark_read(
         db.add(stat)
     stat.status = "read"
     stat.read_at = get_tbilisi_time()
+    stat.operator_department_snapshot = current_user.department
 
     # Audit trail: compliance acknowledgements are recorded (actor is the reader)
     audit_log = models.AuditLog(
@@ -2906,12 +2906,16 @@ def export_readings(
     db.add(audit_log)
     db.commit()
 
-    # Join ReadStatus with User and RequiredReading to output human-readable data
+    # Join ReadStatus with User and RequiredReading to output human-readable data.
+    # Eligibility comes from compute_compliance() — the same active/non-management
+    # rule the dashboard and summary enforce — instead of an unfiltered dump that
+    # previously included admins, managers, and inactive users.
+    eligible_ids = [r["user_id"] for r in compute_compliance(db)]
     query = db.query(models.ReadStatus, models.User.name, models.RequiredReading.item_type, models.RequiredReading.item_id).join(
         models.User, models.ReadStatus.user_id == models.User.id
     ).join(
         models.RequiredReading, models.ReadStatus.required_reading_id == models.RequiredReading.id
-    ).all()
+    ).filter(models.ReadStatus.user_id.in_(eligible_ids)).all()
     
     output = io.StringIO()
     writer = csv.writer(output)
@@ -3306,30 +3310,12 @@ def get_compliance_statistics(
     cached = _stats_cache_get("stats:compliance")
     if cached is not None:
         return cached
-    # Calculate compliance percentage by calculating total expected reads vs actual marked read (operators only)
-    read_count = db.query(models.ReadStatus).join(models.User).filter(
-        models.User.is_active == True,
-        models.User.role.notin_(_MANAGEMENT_ROLES),
-        models.ReadStatus.status == "read"
-    ).count()
-
-    # PERFORMANCE: previously this ran one COUNT(*) per required reading (N+1).
-    # Now we fetch active-operator counts per department once, then sum in memory.
-    active_by_dept = dict(
-        db.query(models.User.department, func.count(models.User.id))
-        .filter(models.User.is_active == True, models.User.role.notin_(_MANAGEMENT_ROLES))
-        .group_by(models.User.department)
-        .all()
-    )
-    total_active = sum(active_by_dept.values())
-
-    total_assignments = 0
-    readings = db.query(models.RequiredReading).all()
-    for r in readings:
-        if r.target_department == "All":
-            total_assignments += total_active
-        else:
-            total_assignments += active_by_dept.get(r.target_department, 0)
+    # Single shared formula (compute_compliance) for both numerator and
+    # denominator — replaces the bespoke active_by_dept/total_assignments math
+    # so this can no longer diverge from the dashboard/exports.
+    _records = compute_compliance(db)
+    read_count = sum(r["read_count"] for r in _records)
+    total_assignments = sum(r["required_count"] for r in _records)
 
     if total_assignments > 0:
         read_percentage = round((read_count / total_assignments) * 100, 2)
@@ -3447,6 +3433,61 @@ def _get_read_counts_by_user_dept(
     return {(uid, dept): cnt for uid, dept, cnt in rows}
 
 
+def compute_compliance(
+    db: Session,
+    scope_user_ids: Optional[list[int]] = None,
+    scope_department: Optional[str] = None,
+):
+    """Single source of truth for the compliance denominator/numerator.
+
+    Enforces the one eligibility rule (active operators, management roles
+    excluded) and the one required/read pairing rule (_reading_progress) that
+    every compliance consumer must use, so the dashboard, the org-wide
+    summary, and the exports can no longer diverge on "who counts" or
+    "what's owed".
+
+    Returns a list of per-user dicts: user, user_id, department,
+    required_count, read_count, percentage. Callers aggregate by
+    department/group/org as needed.
+    """
+    query = db.query(models.User).filter(
+        models.User.is_active == True,  # noqa: E712
+        models.User.role.notin_(_MANAGEMENT_ROLES),
+    )
+    if scope_user_ids is not None:
+        query = query.filter(models.User.id.in_(scope_user_ids))
+    if scope_department is not None:
+        query = query.filter(models.User.department == scope_department)
+    users = query.all()
+
+    # SQL-side GROUP BY instead of hydrating every RequiredReading row.
+    readings_by_dept = dict(
+        db.query(
+            models.RequiredReading.target_department,
+            func.count(models.RequiredReading.id),
+        )
+        .group_by(models.RequiredReading.target_department)
+        .all()
+    )
+    all_required = readings_by_dept.get("All", 0)
+    read_map = _get_read_counts_by_user_dept(db, [u.id for u in users])
+
+    records = []
+    for user in users:
+        required_count, read_count, percentage = _reading_progress(
+            user, all_required, readings_by_dept, read_map
+        )
+        records.append({
+            "user": user,
+            "user_id": user.id,
+            "department": user.department,
+            "required_count": required_count,
+            "read_count": read_count,
+            "percentage": percentage,
+        })
+    return records
+
+
 @app.get("/api/statistics/user-progress")
 def get_user_progress(
     current_admin: models.User = Depends(security.get_current_system_admin_user),
@@ -3470,10 +3511,12 @@ def get_user_progress(
         models.User.is_active == True,
         models.User.role.notin_(_MANAGEMENT_ROLES),
     ).all()
-    all_readings = db.query(models.RequiredReading).all()
-
-    # Required-reading counts per department bucket (computed once).
-    readings_by_dept = Counter(r.target_department for r in all_readings)
+    # SQL-side GROUP BY instead of hydrating every RequiredReading row.
+    readings_by_dept = dict(
+        db.query(models.RequiredReading.target_department, func.count(models.RequiredReading.id))
+        .group_by(models.RequiredReading.target_department)
+        .all()
+    )
     all_required = readings_by_dept.get("All", 0)
 
     # PERFORMANCE: one grouped query replaces a per-user COUNT (the N+1).
@@ -3515,8 +3558,11 @@ def get_admin_team_stats(
     if not users:
         return {"team_id": team_id, "average_percentage": "0%", "members": []}
     
-    all_readings = db.query(models.RequiredReading).all()
-    readings_by_dept = Counter(r.target_department for r in all_readings)
+    readings_by_dept = dict(
+        db.query(models.RequiredReading.target_department, func.count(models.RequiredReading.id))
+        .group_by(models.RequiredReading.target_department)
+        .all()
+    )
     all_required = readings_by_dept.get("All", 0)
 
     read_map = _get_read_counts_by_user_dept(db)
@@ -3599,8 +3645,11 @@ def get_team_stats(
 
     users = users_q.all()
 
-    all_readings = db.query(models.RequiredReading).all()
-    readings_by_dept = Counter(r.target_department for r in all_readings)
+    readings_by_dept = dict(
+        db.query(models.RequiredReading.target_department, func.count(models.RequiredReading.id))
+        .group_by(models.RequiredReading.target_department)
+        .all()
+    )
     all_required = readings_by_dept.get("All", 0)
 
     # PERFORMANCE: one grouped query instead of a COUNT per team member (N+1).
@@ -3632,6 +3681,11 @@ def get_team_stats(
 # Whitelisted department prefixes, in display order. Matching is by prefix
 # (startswith), so "საინფორმაციო" matches "საინფორმაციო სამსახური — ჯგუფი 01".
 DEPARTMENT_WHITELIST = ["საინფორმაციო", "ტექნიკური", "ოფისები"]
+
+# Fallback bucket for any user.department value that doesn't match a
+# whitelisted prefix, so unrecognized/legacy strings stay visible on the
+# dashboard instead of being silently dropped.
+OTHER_DEPARTMENT_LABEL = "სხვა / დაუკატეგორიზებელი"
 
 # Roles excluded from required-reading target-audience calculations.
 # DB has: admin, content_admin, manager, operator.  Only operators are the
@@ -3679,57 +3733,47 @@ def build_department_stats(db: Session):
     """Build the executive dashboard payload: Insights Ribbon + Department tree.
 
     Pure data builder, fully decoupled from the HTTP layer so it can be unit
-    tested and reused. Uses the same pre-aggregated read_map pattern as the other
-    stats endpoints to avoid the per-user N+1.
+    tested and reused. Every required/read number comes from compute_compliance()
+    — the single shared formula — so this view can no longer diverge from the
+    org-wide summary or the exports.
 
     Returns a dict matching schemas.DepartmentStatsResponse.
     """
-    users = (
-        db.query(models.User)
-        .filter(
-            models.User.is_active == True,  # noqa: E712
-            models.User.role.notin_(_MANAGEMENT_ROLES),
-        )
-        .all()
-    )
+    records = compute_compliance(db)
 
-    all_readings = db.query(models.RequiredReading).all()
-    readings_by_dept = Counter(r.target_department for r in all_readings)
-    all_required = readings_by_dept.get("All", 0)
-
-    read_map = _get_read_counts_by_user_dept(db)
-
-    # Bucket members by (whitelisted department prefix, group label).
-    # groups_by_dept[prefix][group_label] -> list[member dict]
-    groups_by_dept = {wl: {} for wl in DEPARTMENT_WHITELIST}
+    # Bucket members by (whitelisted department prefix, group label), with an
+    # always-present fallback bucket for unmatched department strings.
+    buckets = DEPARTMENT_WHITELIST + [OTHER_DEPARTMENT_LABEL]
+    groups_by_dept = {wl: {} for wl in buckets}
     all_members = []  # flat list for the global ribbon
 
-    for user in users:
+    for rec in records:
+        user = rec["user"]
         prefix, group_label = _split_dept_group(user.department)
         matched = next(
             (wl for wl in DEPARTMENT_WHITELIST if prefix.startswith(wl)), None
         )
         if matched is None:
-            continue  # not a whitelisted department — skip
+            # Unrecognized/legacy department string — route to the visible
+            # fallback bucket instead of dropping the user.
+            matched = OTHER_DEPARTMENT_LABEL
 
-        required_count, read_count, percentage = _reading_progress(
-            user, all_required, readings_by_dept, read_map
-        )
         member = {
             "user_id": user.id,
             "user_name": user.name,
             "position": user.position,
-            "read_count": read_count,
-            "required_count": required_count,
-            "percentage": percentage,
-            "is_critical": required_count > 0 and percentage < _CRITICAL_THRESHOLD,
+            "read_count": rec["read_count"],
+            "required_count": rec["required_count"],
+            "percentage": rec["percentage"],
+            "is_critical": rec["required_count"] > 0 and rec["percentage"] < _CRITICAL_THRESHOLD,
         }
         groups_by_dept[matched].setdefault(group_label, []).append(member)
         all_members.append(member)
 
-    # Assemble the department tree, always rendering every whitelisted dept.
+    # Assemble the department tree, always rendering every whitelisted dept
+    # plus the fallback bucket (it renders is_empty when nothing landed there).
     departments = []
-    for wl in DEPARTMENT_WHITELIST:
+    for wl in buckets:
         groups = []
         for group_label, gmembers in groups_by_dept[wl].items():
             gmembers.sort(key=lambda m: m["percentage"], reverse=True)
@@ -4267,8 +4311,11 @@ def list_users(
     users = query.all()
 
     # Precompute statistics for each user
-    all_readings = db.query(models.RequiredReading).all()
-    readings_by_dept = Counter(r.target_department for r in all_readings)
+    readings_by_dept = dict(
+        db.query(models.RequiredReading.target_department, func.count(models.RequiredReading.id))
+        .group_by(models.RequiredReading.target_department)
+        .all()
+    )
     all_required = readings_by_dept.get("All", 0)
 
     read_map = _get_read_counts_by_user_dept(db)
@@ -5604,21 +5651,20 @@ def export_team_stats_pdf(
     ))
     db.commit()
 
-    # Aggregate by department: total assigned, completed, percentage (operators only).
-    from sqlalchemy import case
-    rows_q = db.query(
-        models.User.department.label("dept"),
-        func.count(models.ReadStatus.id).label("total"),
-        func.sum(case((models.ReadStatus.status == "read", 1), else_=0)).label("read_count"),
-    ).join(models.ReadStatus, models.ReadStatus.user_id == models.User.id) \
-     .filter(models.User.role.notin_(_MANAGEMENT_ROLES)) \
-     .group_by(models.User.department).all()
+    # Aggregate by department through compute_compliance() — the same shared
+    # formula as the dashboard/summary — instead of a bespoke ReadStatus join
+    # that skipped the is_active filter every other compliance view enforces.
+    by_dept: dict[str, dict[str, int]] = {}
+    for r in compute_compliance(db):
+        bucket = by_dept.setdefault(r["department"] or "—", {"total": 0, "read": 0})
+        bucket["total"] += r["required_count"]
+        bucket["read"] += r["read_count"]
 
     headers = ["დეპარტამენტი", "სულ მიკუთვნებული", "წაკითხული", "%"]
     table_rows = []
-    for r in rows_q:
-        pct = round(100.0 * (r.read_count or 0) / r.total, 1) if r.total else 0.0
-        table_rows.append([r.dept or "—", str(r.total), str(r.read_count or 0), f"{pct}%"])
+    for dept, vals in sorted(by_dept.items()):
+        pct = round(100.0 * vals["read"] / vals["total"], 1) if vals["total"] else 0.0
+        table_rows.append([dept, str(vals["total"]), str(vals["read"]), f"{pct}%"])
 
     return _enqueue_export(background_tasks, table_rows, headers, "გუნდის სტატისტიკა — წაკითხვის პროცენტი", "pdf")
 

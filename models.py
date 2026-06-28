@@ -216,6 +216,10 @@ class ReadStatus(Base):
     )
     status = Column(String, default="unread")
     read_at = Column(DateTime, nullable=True)
+    # Immutable snapshot of User.department at the moment this row was marked
+    # "read" — prevents a later department/group move from retroactively
+    # rewriting historical compliance numbers (mirrors ArticleReadReceipt).
+    operator_department_snapshot = Column(String, nullable=True)
 
 
 class VideoInstruction(Base):

@@ -70,6 +70,7 @@ _ADDED_COLUMNS = (
     ("news", "is_draft", "BOOLEAN", "0"),
     ("news", "author_id", "INTEGER", "NULL"),
     ("article_history", "version_id", "INTEGER", "NULL"),
+    ("read_statuses", "operator_department_snapshot", "TEXT", None),
 )
 
 
@@ -98,10 +99,30 @@ def ensure_columns() -> None:
             conn.execute(text(ddl))
 
 
+def backfill_read_status_department_snapshot() -> None:
+    """Backfill NULL operator_department_snapshot rows from live users.department.
+
+    Idempotent — only touches rows where the snapshot is still NULL, so old
+    rows get a one-time best-effort department value and re-running this is a
+    no-op once every row has been filled in.
+    """
+    with engine.begin() as conn:
+        result = conn.execute(text("""
+            UPDATE read_statuses
+            SET operator_department_snapshot = (
+                SELECT users.department FROM users WHERE users.id = read_statuses.user_id
+            )
+            WHERE operator_department_snapshot IS NULL
+        """))
+        if result.rowcount:
+            log.info("Backfilled operator_department_snapshot on %s read_statuses rows", result.rowcount)
+
+
 def main() -> int:
     log.info("Creating any missing tables...")
     Base.metadata.create_all(bind=engine)
     ensure_columns()
+    backfill_read_status_department_snapshot()
     log.info("Schema ensured.")
 
     # Cross-dialect FK lookup indexes (run on SQLite and Postgres alike).
