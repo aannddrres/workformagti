@@ -102,6 +102,14 @@
         display: none !important;
       }
     }
+
+    /* Failsafe: metadata chip styling duplicated inline in case app.min.css
+       fails to load or wasn't rebuilt with these classes. */
+    .ui-badge { display: inline-block; padding: 4px 8px; margin: 4px; border-radius: 9999px; font-size: 0.857rem; font-weight: 500; white-space: nowrap; }
+    .dept-chip { background-color: #f3f4f6; color: #1f2937; border: 1px solid #e5e7eb; }
+    .tag-chip { background-color: #fdecec; color: #b3001f; border: 1px solid #fca5a5; }
+    .more-chip { background-color: #e5e7eb; color: #4b5563; font-weight: bold; }
+    .meta-chip-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 12px; }
   </style>
 </head>
 
