@@ -4,6 +4,8 @@
    accessibility tracking, page binding, and bootstrapping.
    ════════════════════════════════════════════════════ */
 
+window._auditCache = window._auditCache || { articleId: null, versionsData: null, receiptsData: {} };
+
       /* ════════════════════════════════════════════════════════════════════
          App infrastructure — added during the production-readiness refactor.
          Centralises (1) JWT/auth handling, (2) the API client, and (3) client
@@ -3129,6 +3131,48 @@ function ensureArticleModal() {
                   <div id="article-related-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
                 </div>
               </div>
+
+              <!-- Admin Audit Overlay Mask & Container -->
+              <div id="modal-admin-audit-mask" class="hidden fixed inset-0 z-[90] bg-black/40 backdrop-blur-sm" onclick="toggleModalAuditOverlay()"></div>
+              <div id="modal-admin-audit-overlay" onclick="event.stopPropagation()" class="hidden fixed inset-0 m-auto z-[100] bg-white w-[90vw] max-w-5xl h-[80vh] flex flex-col p-6 rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+                <div class="flex items-center justify-between border-b border-gray-100 pb-4 mb-4 shrink-0">
+                  <div class="flex items-center gap-4">
+                    <h3 class="text-lg font-bold text-gray-900">წაკითხვის აუდიტი</h3>
+                    <select id="modal-audit-version-select" onchange="onModalAuditVersionChange()" class="text-xs font-semibold rounded-lg border-gray-300 bg-gray-50 shadow-sm focus:border-red-500 focus:ring-red-500 p-1.5"></select>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <button onclick="window.exportAuditToCSV()" class="no-print flex h-9 px-3 items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-xs font-bold text-emerald-700 shadow-sm transition-colors hover:bg-emerald-100">
+                      <i class="fa-solid fa-file-csv text-base"></i><span>ექსპორტი</span>
+                    </button>
+                    <button id="modal-audit-sync-btn" onclick="forceSyncModalAudit(event)" class="no-print flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:bg-gray-50" title="მონაცემების განახლება"><i class="fa-solid fa-rotate"></i></button>
+                    <button onclick="toggleModalAuditOverlay()" class="text-gray-400 hover:text-gray-600 p-1 transition-colors">
+                      <i class="fa-solid fa-xmark text-xl"></i>
+                    </button>
+                  </div>
+                </div>
+                
+                <!-- Sticky 4-column metrics panel -->
+                <div id="modal-audit-counters" class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4 bg-gray-50 p-4 rounded-xl border border-gray-100 no-print"></div>
+
+                <div class="relative w-full mb-4 shrink-0 px-0.5">
+                  <input type="text" id="modal-audit-search" placeholder="ძებნა (სახელი, დეპარტამენტი, ელ.ფოსტა)..." class="w-full text-sm rounded-xl border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 p-2.5 pl-9 bg-gray-50/50" />
+                  <div class="absolute left-3 top-3.5 text-gray-400"><i class="fa-solid fa-magnifying-glass text-xs"></i></div>
+                </div>
+                <div class="flex-1 overflow-y-auto">
+                  <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th scope="col" class="w-2/5 px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">მომხმარებელი</th>
+                        <th scope="col" class="w-2/5 px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">დეპარტამენტი</th>
+                        <th scope="col" class="w-1/5 px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">სტატუსი</th>
+                      </tr>
+                    </thead>
+                    <tbody id="modal-audit-table-body" class="bg-white divide-y divide-gray-200 text-sm">
+                      <!-- Rows loaded dynamically -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>`);
       }
@@ -3319,6 +3363,21 @@ function openArticleModal(article) {
           }
         }
         updateAckButtonState(article.id, article.version);
+
+        // [Admin Audit Overlay Button Injection]
+        if (window.currentUser && ['admin', 'content_admin'].includes(window.currentUser.role)) {
+          const headerActions = document.querySelector('#article-modal header .flex.shrink-0.items-center.gap-2');
+          const oldAuditBtn = document.getElementById('modal-header-audit-btn');
+          if (oldAuditBtn) oldAuditBtn.remove();
+          if (headerActions) {
+            const auditBtn = document.createElement('button');
+            auditBtn.id = 'modal-header-audit-btn';
+            auditBtn.onclick = () => { if (typeof window.toggleModalAuditOverlay === 'function') window.toggleModalAuditOverlay(); };
+            auditBtn.className = 'no-print flex h-9 px-3 items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white text-xs font-bold text-gray-700 shadow-sm transition-colors hover:bg-gray-50';
+            auditBtn.innerHTML = '<i class="fa-solid fa-chart-simple"></i><span>აუდიტი</span>';
+            headerActions.insertBefore(auditBtn, headerActions.firstChild);
+          }
+        }
 
         // ── Quick-Copy Scripts Widget ──────────────────────────────────
         const scriptsContainer = document.getElementById('article-modal-scripts');
@@ -5832,20 +5891,19 @@ window.setPreviewDevice = function(device) {
 
   // Handle panel visibility
   if (device === 'audit') {
+    if (iframeWrapper) {
+      iframeWrapper.style.setProperty('display', 'none', 'important');
+    }
     if (auditPanel) {
       auditPanel.classList.remove('hidden');
-      auditPanel.classList.add('flex');
-    }
-    if (iframeWrapper) {
-      iframeWrapper.classList.add('hidden');
+      auditPanel.style.setProperty('display', 'flex', 'important');
     }
   } else {
-    if (auditPanel) {
-      auditPanel.classList.add('hidden');
-      auditPanel.classList.remove('flex');
-    }
     if (iframeWrapper) {
-      iframeWrapper.classList.remove('hidden');
+      iframeWrapper.style.display = '';
+    }
+    if (auditPanel) {
+      auditPanel.style.setProperty('display', 'none', 'important');
     }
   }
 
@@ -6120,7 +6178,11 @@ window.applyAuditFilter = function() {
     let badgeHtml = '';
     if (r.has_read) {
       const readDate = r.read_at ? new Date(r.read_at).toLocaleString('ka-GE', { hour12: false }) : '';
-      badgeHtml = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200" title="${window.escapeHtml(readDate)}">წაკითხულია</span>`;
+      if (r.status === 'late_read' || r.is_late) {
+        badgeHtml = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200" title="${window.escapeHtml(readDate)}">გაეცნო (დაგვიანებით)</span>`;
+      } else {
+        badgeHtml = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200" title="${window.escapeHtml(readDate)}">წაკითხულია</span>`;
+      }
     } else {
       badgeHtml = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">წაუკითხავია</span>`;
     }
@@ -6181,4 +6243,318 @@ window.acknowledgeArticleRead = async function() {
       showToast('შეცდომა', 'წაკითხვის დადასტურება ვერ მოხერხდა. სცადეთ მოგვიანებით.', 'error');
     }
   }
+};
+
+// ── Modal Admin Audit Overlay Functions ──
+let modalAuditSearchTimeout = null;
+document.addEventListener('DOMContentLoaded', () => {
+  const modalSearchInput = document.getElementById('modal-audit-search');
+  if (modalSearchInput) {
+    modalSearchInput.addEventListener('input', () => {
+      clearTimeout(modalAuditSearchTimeout);
+      modalAuditSearchTimeout = setTimeout(() => {
+        if (typeof window.applyModalAuditFilter === 'function') {
+          window.applyModalAuditFilter();
+        }
+      }, 150);
+    });
+  }
+});
+
+window._activeAuditStatusFilter = 'all';
+window._currentAuditPageSize = 50;
+
+window.toggleModalAuditOverlay = function() {
+  const mask = document.getElementById('modal-admin-audit-mask');
+  const overlay = document.getElementById('modal-admin-audit-overlay');
+  if (!mask || !overlay) return;
+
+  const isHidden = mask.classList.contains('hidden');
+  if (isHidden) {
+    window._activeAuditStatusFilter = 'all';
+    window._currentAuditPageSize = 50;
+    mask.classList.remove('hidden');
+    overlay.classList.remove('hidden');
+    overlay.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+    window.loadModalAuditPanel(window.activeArticleId);
+  } else {
+    mask.classList.add('hidden');
+    overlay.classList.add('hidden');
+    overlay.classList.remove('flex');
+    document.body.style.overflow = '';
+  }
+};
+
+window.onModalAuditVersionChange = function() {
+  const select = document.getElementById('modal-audit-version-select');
+  if (!select || !window.activeArticleId) return;
+  const version = parseInt(select.value, 10);
+  if (!isNaN(version)) {
+    window.renderModalAuditGrid(window.activeArticleId, version);
+  }
+};
+
+window.loadModalAuditPanel = async function(articleId) {
+  if (!articleId) return;
+  const select = document.getElementById('modal-audit-version-select');
+  if (!select) return;
+
+  // Clear search input and cached rows
+  const searchInput = document.getElementById('modal-audit-search');
+  if (searchInput) searchInput.value = '';
+  window._modalAuditGridRows = [];
+
+  if (window._auditCache.articleId !== articleId) {
+    window._auditCache.articleId = articleId;
+    window._auditCache.versionsData = null;
+    window._auditCache.receiptsData = {};
+  }
+
+  if (window._auditCache.versionsData) {
+    select.innerHTML = '';
+    window._auditCache.versionsData.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.version;
+      const dateStr = v.updated_at ? new Date(v.updated_at).toLocaleString('ka-GE', { hour12: false }) : '';
+      opt.textContent = `ვერსია ${v.version} (${v.author_name || 'უცნობი'} - ${dateStr})`;
+      select.appendChild(opt);
+    });
+    window.onModalAuditVersionChange();
+    return;
+  }
+
+  const token = localStorage.getItem('magti_token') || (typeof Auth !== 'undefined' ? Auth.getToken() : null);
+  try {
+    const res = await fetch(`/api/articles/${articleId}/versions`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error('Failed to fetch versions');
+    const versions = await res.json();
+
+    window._auditCache.versionsData = versions;
+
+    select.innerHTML = '';
+    versions.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.version;
+      const dateStr = v.updated_at ? new Date(v.updated_at).toLocaleString('ka-GE', { hour12: false }) : '';
+      opt.textContent = `ვერსია ${v.version} (${v.author_name || 'უცნობი'} - ${dateStr})`;
+      select.appendChild(opt);
+    });
+
+    window.onModalAuditVersionChange();
+  } catch (err) {
+    console.error('Error loading modal versions:', err);
+  }
+};
+
+window.renderModalAuditGrid = async function(articleId, version) {
+  if (!articleId) return;
+  const tbody = document.getElementById('modal-audit-table-body');
+  if (!tbody) return;
+
+  if (window._auditCache.receiptsData[version]) {
+    window._modalAuditGridRows = window._auditCache.receiptsData[version];
+    window.applyModalAuditFilter();
+    return;
+  }
+
+  const token = localStorage.getItem('magti_token') || (typeof Auth !== 'undefined' ? Auth.getToken() : null);
+  try {
+    const res = await fetch(`/api/articles/${articleId}/read-receipts?version=${version}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error('Failed to fetch read receipts');
+    const data = await res.json();
+
+    window._modalAuditGridRows = data.receipts || [];
+    window._auditCache.receiptsData[version] = window._modalAuditGridRows;
+    window.applyModalAuditFilter();
+  } catch (err) {
+    console.error('Error rendering modal audit grid:', err);
+    tbody.innerHTML = '<tr><td colspan="3" class="px-3 py-4 text-center text-red-500 font-medium">მონაცემების ჩატვირთვა ვერ მოხერხდა</td></tr>';
+  }
+};
+
+window.forceSyncModalAudit = async function(e) {
+  if (e) e.stopPropagation();
+  const btn = document.getElementById('modal-audit-sync-btn');
+  const icon = btn ? btn.querySelector('i') : null;
+  const select = document.getElementById('modal-audit-version-select');
+  if (!window.activeArticleId || !select) return;
+
+  const version = parseInt(select.value, 10);
+  if (isNaN(version)) return;
+
+  if (icon) icon.classList.add('fa-spin');
+  delete window._auditCache.receiptsData[version];
+  try {
+    await window.renderModalAuditGrid(window.activeArticleId, version);
+  } finally {
+    if (icon) icon.classList.remove('fa-spin');
+  }
+};
+
+document.addEventListener('visibilitychange', () => {
+  const mask = document.getElementById('modal-admin-audit-mask');
+  const select = document.getElementById('modal-audit-version-select');
+  if (document.visibilityState !== 'visible' || !mask || mask.classList.contains('hidden') || !select) return;
+
+  const version = parseInt(select.value, 10);
+  if (isNaN(version) || !window.activeArticleId) return;
+
+  delete window._auditCache.receiptsData[version];
+  window.renderModalAuditGrid(window.activeArticleId, version);
+});
+
+window.applyModalAuditFilter = function() {
+  const searchInput = document.getElementById('modal-audit-search');
+  const tbody = document.getElementById('modal-audit-table-body');
+  if (!tbody) return;
+
+  const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+  const rows = window._modalAuditGridRows || [];
+
+  // Calculate metrics
+  const totalAssigned = rows.length;
+  const readOnTime = rows.filter(r => r.has_read && !r.is_late).length;
+  const readLate = rows.filter(r => r.has_read && r.is_late).length;
+  const unread = rows.filter(r => !r.has_read).length;
+
+  const getCardClass = (filterName) => {
+    const isActive = window._activeAuditStatusFilter === filterName;
+    return isActive 
+      ? 'ring-2 ring-red-500 bg-red-50/20 border-red-200 p-3 rounded-lg flex flex-col items-center justify-center text-center shadow-sm cursor-pointer transition-all'
+      : 'bg-white border-gray-100 p-3 rounded-lg border flex flex-col items-center justify-center text-center shadow-sm hover:border-gray-300 hover:shadow-md cursor-pointer transition-all';
+  };
+
+  const countersEl = document.getElementById('modal-audit-counters');
+  if (countersEl) {
+    countersEl.innerHTML = `
+      <div onclick="window.setAuditStatusFilter('all')" class="${getCardClass('all')}">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400">სულ დავალებული</span>
+        <span class="text-xl font-extrabold text-gray-800 mt-1">${totalAssigned}</span>
+      </div>
+      <div onclick="window.setAuditStatusFilter('on_time')" class="${getCardClass('on_time')}">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-500">დროულად</span>
+        <span class="text-xl font-extrabold text-emerald-600 mt-1">${readOnTime}</span>
+      </div>
+      <div onclick="window.setAuditStatusFilter('late')" class="${getCardClass('late')}">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-rose-400">დაგვიანებით</span>
+        <span class="text-xl font-extrabold text-rose-600 mt-1">${readLate}</span>
+      </div>
+      <div onclick="window.setAuditStatusFilter('unread')" class="${getCardClass('unread')}">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-amber-500">წაუკითხავი</span>
+        <span class="text-xl font-extrabold text-amber-600 mt-1">${unread}</span>
+      </div>
+    `;
+  }
+
+  const filtered = rows.filter(r => {
+    // 1. Text Search Filter
+    if (query) {
+      const name = (r.operator_name || '').toLowerCase();
+      const email = (r.operator_email || '').toLowerCase();
+      const department = (r.department || '').toLowerCase();
+      const matchText = name.includes(query) || email.includes(query) || department.includes(query);
+      if (!matchText) return false;
+    }
+
+    // 2. KPI Status Filter
+    if (window._activeAuditStatusFilter === 'on_time') {
+      return r.has_read && !r.is_late;
+    } else if (window._activeAuditStatusFilter === 'late') {
+      return r.has_read && r.is_late;
+    } else if (window._activeAuditStatusFilter === 'unread') {
+      return !r.has_read;
+    }
+
+    return true;
+  });
+
+  const pageLimit = window._currentAuditPageSize || 50;
+  const chunk = filtered.slice(0, pageLimit);
+  const remaining = filtered.length - chunk.length;
+
+  if (chunk.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" class="px-3 py-4 text-center text-gray-500">მონაცემები ვერ მოიძებნა</td></tr>';
+    return;
+  }
+
+  let html = chunk.map(r => {
+    let badgeHtml = '';
+    if (r.has_read) {
+      const readDate = r.read_at ? new Date(r.read_at).toLocaleString('ka-GE', { hour12: false }) : '';
+      if (r.status === 'late_read' || r.is_late) {
+        badgeHtml = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200" title="${window.escapeHtml(readDate)}">გაეცნო (დაგვიანებით)</span>`;
+      } else {
+        badgeHtml = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200" title="${window.escapeHtml(readDate)}">წაკითხულია</span>`;
+      }
+    } else {
+      badgeHtml = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">წაუკითხავია</span>`;
+    }
+
+    const displayName = r.operator_id ? `${r.operator_name} (${r.operator_email})` : `${r.operator_name} [წაშლილი]`;
+    return `
+      <tr>
+        <td class="w-2/5 px-3 py-2 whitespace-nowrap text-gray-900 font-medium truncate" title="${window.escapeHtml(displayName)}">${window.escapeHtml(displayName)}</td>
+        <td class="w-2/5 px-3 py-2 whitespace-nowrap text-gray-600 truncate" title="${window.escapeHtml(r.department || '—')}">${window.escapeHtml(r.department || '—')}</td>
+        <td class="w-1/5 px-3 py-2 whitespace-nowrap">${badgeHtml}</td>
+      </tr>
+    `;
+  }).join('');
+
+  if (remaining > 0) {
+    html += `
+      <tr id="modal-audit-load-more-row" onclick="window.loadMoreAuditRows()" class="bg-gray-50/50 hover:bg-gray-50 cursor-pointer transition-colors">
+        <td colspan="3" class="px-3 py-3 text-center text-xs font-bold text-[#E30613] hover:underline select-none">
+          <i class="fa-solid fa-angles-down mr-1"></i>მეტის ჩატვირთვა (დარჩა ${remaining})
+        </td>
+      </tr>
+    `;
+  }
+
+  tbody.innerHTML = html;
+};
+
+window.setAuditStatusFilter = function(filter) {
+  window._activeAuditStatusFilter = filter;
+  window._currentAuditPageSize = 50;
+  window.applyModalAuditFilter();
+};
+
+window.loadMoreAuditRows = function() {
+  window._currentAuditPageSize += 50;
+  window.applyModalAuditFilter();
+};
+
+window.exportAuditToCSV = function() {
+  const rows = window._modalAuditGridRows || [];
+  const articleId = window.activeArticleId || 'unknown';
+  const select = document.getElementById('modal-audit-version-select');
+  const version = select ? select.value : 'all';
+
+  let csvContent = "\ufeff";
+  csvContent += "მომხმარებელი,ელ.ფოსტა,დეპარტამენტი,ვერსია,წაკითხვის თარიღი,სტატუსი\n";
+
+  rows.forEach(r => {
+    const statusStr = r.has_read ? (r.is_late ? "გაეცნო (დაგვიანებით)" : "წაკითხულია") : "წაუკითხავია";
+    const readDateStr = r.read_at ? new Date(r.read_at).toISOString() : "";
+    const name = (r.operator_name || "").replace(/"/g, '""');
+    const email = (r.operator_email || "").replace(/"/g, '""');
+    const dept = (r.department || "").replace(/"/g, '""');
+    
+    csvContent += `"${name}","${email}","${dept}","${r.article_version || version}","${readDateStr}","${statusStr}"\n`;
+  });
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", `Article_Audit_ID_${articleId}_V${version}.csv`);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 };

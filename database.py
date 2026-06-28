@@ -64,3 +64,8 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def get_tbilisi_time():
+    from datetime import datetime, timezone, timedelta
+    return datetime.now(timezone(timedelta(hours=4))).replace(tzinfo=None)

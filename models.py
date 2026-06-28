@@ -407,6 +407,8 @@ class ArticleReadReceipt(Base):
         ),
         Index("ix_article_read_receipts_article_version", "article_id", "article_version"),
         Index("ix_article_read_receipts_article_operator", "article_id", "operator_id"),
+        Index("idx_receipts_perf_lookup", "article_id", "article_version", "read_at"),
+        Index("idx_receipts_retention_date", "read_at"),
     )
 
     id = Column(Integer, primary_key=True, index=True)

@@ -38,7 +38,7 @@ import models
 import schemas
 import security
 from config import settings
-from database import engine, get_db, SessionLocal
+from database import engine, get_db, SessionLocal, get_tbilisi_time
 
 # Paths are resolved relative to THIS file, so the app works regardless of the
 # directory uvicorn is launched from.
@@ -262,7 +262,7 @@ def _lightweight_migrations() -> None:
                             continue
                         conn.execute(
                             text("INSERT OR IGNORE INTO tags (name, created_at) VALUES (:n, :t)"),
-                            {"n": name, "t": datetime.utcnow()},
+                            {"n": name, "t": get_tbilisi_time()},
                         )
                         conn.execute(
                             text(
@@ -361,7 +361,7 @@ class InMemoryTTLCache:
         """
         if key in self._cache:
             val, expiry = self._cache[key]
-            if datetime.utcnow() < expiry:
+            if get_tbilisi_time() < expiry:
                 return val
             else:
                 del self._cache[key]
@@ -374,7 +374,7 @@ class InMemoryTTLCache:
             key: Unique key under which the value should be stored.
             value: The data to be cached.
         """
-        expiry = datetime.utcnow() + timedelta(seconds=self.ttl)
+        expiry = get_tbilisi_time() + timedelta(seconds=self.ttl)
         self._cache[key] = (value, expiry)
 
     def clear(self):
@@ -1038,7 +1038,7 @@ def get_news(
         query = query.filter(
             or_(
                 models.News.expires_at.is_(None),
-                models.News.expires_at >= datetime.utcnow()
+                models.News.expires_at >= get_tbilisi_time()
             )
         )
     # Block 5: role-based visibility split, independent of department targeting.
@@ -1488,7 +1488,7 @@ def _assert_article_visible(article: models.Article, user: models.User) -> None:
     if (
         article.status == "scheduled"
         and getattr(article, "published_at", None) is not None
-        and article.published_at <= datetime.utcnow()
+        and article.published_at <= get_tbilisi_time()
     ):
         return
     raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
@@ -1543,7 +1543,7 @@ def get_articles(
     # Admins manage content across all departments, so they see everything
     # (including archived items); regular users see only published content
     if current_user.role not in ["admin", "content_admin"]:
-        now = datetime.utcnow()
+        now = get_tbilisi_time()
         query = query.filter(
             models.Article.is_draft == False,
             models.Article.target_department_rows.any(
@@ -1658,7 +1658,7 @@ def get_my_readings(
     ).all()
     status_map = {s.required_reading_id: s for s in statuses}
 
-    now = datetime.utcnow()
+    now = get_tbilisi_time()
     results = []
     for r in readings:
         stat = status_map.get(r.id)
@@ -1691,7 +1691,7 @@ def get_notifications_summary(
     in sequence, each of which does its own DB roundtrip. This consolidates the
     fetch into ONE endpoint so the popover opens in roughly a single RTT.
     """
-    now = datetime.utcnow()
+    now = get_tbilisi_time()
 
     # 1) Unread/overdue required readings (visible-to-this-user). Admin/content_admin
     # manage the system rather than consume operator-level training content, so
@@ -1802,7 +1802,7 @@ def mark_read(
         stat = models.ReadStatus(user_id=current_user.id, required_reading_id=reading_id)
         db.add(stat)
     stat.status = "read"
-    stat.read_at = datetime.utcnow()
+    stat.read_at = get_tbilisi_time()
 
     # Audit trail: compliance acknowledgements are recorded (actor is the reader)
     audit_log = models.AuditLog(
@@ -1867,7 +1867,7 @@ def auto_generate_notifications_for_mandatory(db_reading, current_admin_id, db):
             "sender_id": current_admin_id,
             "content": message_content,
             "is_read": False,
-            "created_at": datetime.utcnow(),
+            "created_at": get_tbilisi_time(),
         }
         for uid in target_user_ids
     ]
@@ -2531,7 +2531,7 @@ def restore_article_version(
 def _get_eligible_operators(db: Session, article: models.Article) -> list[models.User]:
     if article.is_draft:
         return []
-    now = datetime.utcnow()
+    now = get_tbilisi_time()
     is_visible = (
         article.status == "published"
         or (
@@ -2619,6 +2619,12 @@ def get_article_read_receipts(
     if not article:
         raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
         
+    required = db.query(models.RequiredReading).filter(
+        models.RequiredReading.item_type == "article",
+        models.RequiredReading.item_id == article_id
+    ).first()
+    due_date = required.due_date if required else None
+
     target_version = version if version is not None else article.version
     eligible_users = _get_eligible_operators(db, article)
     receipts = db.query(models.ArticleReadReceipt).filter(
@@ -2637,6 +2643,14 @@ def get_article_read_receipts(
         processed_operator_ids.add(u.id)
         receipt = receipt_map.get(u.id)
         if receipt:
+            is_late = False
+            status = "read"
+            if due_date and receipt.read_at:
+                r_at = receipt.read_at.replace(tzinfo=None) if receipt.read_at.tzinfo else receipt.read_at
+                d_date = due_date.replace(tzinfo=None) if due_date.tzinfo else due_date
+                is_late = r_at > d_date
+                if is_late:
+                    status = "late_read"
             rows.append({
                 "operator_id": u.id,
                 "operator_name": receipt.operator_name_snapshot,
@@ -2644,7 +2658,10 @@ def get_article_read_receipts(
                 "department": receipt.operator_department_snapshot,
                 "read_at": receipt.read_at,
                 "article_version": receipt.article_version,
-                "has_read": True
+                "has_read": True,
+                "is_late": is_late,
+                "deadline": due_date,
+                "status": status
             })
         else:
             rows.append({
@@ -2654,12 +2671,23 @@ def get_article_read_receipts(
                 "department": u.department,
                 "read_at": None,
                 "article_version": None,
-                "has_read": False
+                "has_read": False,
+                "is_late": False,
+                "deadline": due_date,
+                "status": "unread"
             })
             
     # 2. Add detached/orphaned snapshot rows
     for receipt in receipts:
         if receipt.operator_id is None or receipt.operator_id not in processed_operator_ids:
+            is_late = False
+            status = "read"
+            if due_date and receipt.read_at:
+                r_at = receipt.read_at.replace(tzinfo=None) if receipt.read_at.tzinfo else receipt.read_at
+                d_date = due_date.replace(tzinfo=None) if due_date.tzinfo else due_date
+                is_late = r_at > d_date
+                if is_late:
+                    status = "late_read"
             rows.append({
                 "operator_id": receipt.operator_id,
                 "operator_name": receipt.operator_name_snapshot,
@@ -2667,7 +2695,10 @@ def get_article_read_receipts(
                 "department": receipt.operator_department_snapshot,
                 "read_at": receipt.read_at,
                 "article_version": receipt.article_version,
-                "has_read": True
+                "has_read": True,
+                "is_late": is_late,
+                "deadline": due_date,
+                "status": status
             })
             
     return {
@@ -2701,7 +2732,7 @@ def create_article_read_receipt(
         ).first()
         
         if receipt:
-            receipt.read_at = datetime.utcnow()
+            receipt.read_at = get_tbilisi_time()
             receipt.article_title_snapshot = db_article.title
             receipt.operator_name_snapshot = current_user.name
             receipt.operator_email_snapshot = current_user.email
@@ -2715,7 +2746,7 @@ def create_article_read_receipt(
                 operator_name_snapshot=current_user.name,
                 operator_email_snapshot=current_user.email,
                 operator_department_snapshot=current_user.department,
-                read_at=datetime.utcnow()
+                read_at=get_tbilisi_time()
             )
             db.add(receipt)
         db.commit()
@@ -2729,7 +2760,7 @@ def create_article_read_receipt(
             models.ArticleReadReceipt.operator_id == current_user.id
         ).first()
         if receipt:
-            receipt.read_at = datetime.utcnow()
+            receipt.read_at = get_tbilisi_time()
             receipt.article_title_snapshot = db_article.title
             receipt.operator_name_snapshot = current_user.name
             receipt.operator_email_snapshot = current_user.email
@@ -3023,7 +3054,7 @@ def global_search(
     # Admins manage content across all departments, so they search everything;
     # regular users only search published content for their department
     if current_user.role not in ["admin", "content_admin"]:
-        now = datetime.utcnow()
+        now = get_tbilisi_time()
         query = query.filter(
             models.Article.target_department_rows.any(
                 models.ArticleTargetDepartment.department.in_([current_user.department, "All"])
@@ -3092,7 +3123,7 @@ def _run_global_search_sync(q: str, is_admin: bool, user_dept: str) -> dict:
         )
         articles = db.query(models.Article).filter(and_(*article_conds)).order_by(desc(article_score))
         if not is_admin:
-            now = datetime.utcnow()
+            now = get_tbilisi_time()
             articles = articles.filter(
                 models.Article.target_department_rows.any(
                     models.ArticleTargetDepartment.department.in_(dept_filter)
@@ -3740,7 +3771,7 @@ def build_department_stats(db: Session):
     return {
         "insights": insights,
         "departments": departments,
-        "generated_at": datetime.utcnow(),
+        "generated_at": get_tbilisi_time(),
     }
 
 
@@ -3819,7 +3850,7 @@ def get_critical_operators(
     return {
         "operators": operators,
         "total": len(operators),
-        "generated_at": datetime.utcnow(),
+        "generated_at": get_tbilisi_time(),
     }
 
 
@@ -4319,7 +4350,7 @@ def get_activity_trend(
     if cached is not None:
         return cached
 
-    now = datetime.utcnow()
+    now = get_tbilisi_time()
     is_pg = db.bind.dialect.name == "postgresql"
     if bucket == "hour":
         cutoff = now.replace(minute=0, second=0, microsecond=0) - timedelta(hours=days * 24 - 1)
@@ -4635,7 +4666,7 @@ def get_audit_logs(
             parsed = parsed + timedelta(days=1)
         if parsed.tzinfo is not None:
             # SAFE conversion: shift to UTC, then drop tzinfo so the comparison
-            # matches the naive-UTC values written by datetime.utcnow().
+            # matches the naive-UTC values written by get_tbilisi_time().
             parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
         return parsed
 
@@ -4867,7 +4898,7 @@ def verify_article(
     if not article:
         raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
     
-    article.last_verified_at = datetime.utcnow()
+    article.last_verified_at = get_tbilisi_time()
     search_cache.clear()
 
     # Log in audit trail
@@ -4902,7 +4933,7 @@ def get_stale_articles(
     Returns:
         A list of stale article summaries with days-since-verification counts.
     """
-    cutoff = datetime.utcnow() - timedelta(days=180)
+    cutoff = get_tbilisi_time() - timedelta(days=180)
     stale = db.query(models.Article).filter(
         models.Article.last_verified_at < cutoff,
         models.Article.status == "published"
@@ -4914,7 +4945,7 @@ def get_stale_articles(
             "title": a.title,
             "target_departments": a.target_departments,
             "last_verified_at": a.last_verified_at,
-            "days_stale": (datetime.utcnow() - a.last_verified_at).days if a.last_verified_at else 999,
+            "days_stale": (get_tbilisi_time() - a.last_verified_at).days if a.last_verified_at else 999,
         }
         for a in stale
     ]

@@ -698,6 +698,9 @@ class ArticleReadReceiptRow(BaseModel):
     read_at: Optional[datetime] = None
     article_version: Optional[int] = None
     has_read: bool
+    is_late: bool = False
+    deadline: Optional[datetime] = None
+    status: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
