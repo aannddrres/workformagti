@@ -615,6 +615,24 @@ document.addEventListener('DOMContentLoaded', () => {
   if (document.getElementById('log-date-range')) {
     flatpickr("#log-date-range", { mode: "range", dateFormat: "Y-m-d" });
   }
+
+  const exportBtn = document.getElementById('btn-export-audit-csv');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', () => {
+      const params = new URLSearchParams();
+      const userName = document.getElementById('log-search-user').value;
+      if (userName) params.append('user_name', userName);
+
+      const fp = document.querySelector("#log-date-range")._flatpickr;
+      if (fp && fp.selectedDates.length === 2) {
+        params.append('start_date', fp.formatDate(fp.selectedDates[0], "Y-m-d"));
+        params.append('end_date', fp.formatDate(fp.selectedDates[1], "Y-m-d"));
+      }
+
+      const exportUrl = '/api/audit-logs/export?' + params.toString();
+      window.location.href = exportUrl;
+    });
+  }
 });
 
 window.onArticleFilterChange = onArticleFilterChange;
@@ -1930,6 +1948,26 @@ async function fetchAndRenderCategoriesAdmin(token) {
         }
       }
 
+const actionMap = {
+  "read_article": "სტატიის წაკითხვა",
+  "view": "ნახვა",
+  "login": "სისტემაში შესვლა",
+  "update": "რედაქტირება",
+  "create": "შექმნა",
+  "delete": "წაშლა",
+  "send_message": "შეტყობინების გაგზავნა",
+  "broadcast": "გლობალური შეტყობინება",
+  "create_user": "მომხმარებლის შექმნა"
+};
+
+const typeMap = {
+  "article": "სტატია",
+  "user": "მომხმარებელი",
+  "news": "სიახლე",
+  "system": "სისტემა",
+  "category": "კატეგორია"
+};
+
 async function fetchAndRenderAuditLog(token) {
         const tbody = document.getElementById('admin-audit-tbody');
         if (!tbody) return;
@@ -1974,16 +2012,19 @@ async function fetchAndRenderAuditLog(token) {
               }
             }
           } catch { }
-          tbody.innerHTML = logs.map(l => `
+          tbody.innerHTML = logs.map(l => {
+            const actionLabel = actionMap[(l.action || '').toLowerCase()] || l.action;
+            const typeLabel = typeMap[(l.item_type || '').toLowerCase()] || l.item_type;
+            const objectLabel = l.item_name ? `${typeLabel}: ${l.item_name}` : typeLabel;
+            return `
             <tr class="hover:bg-gray-50">
               <td class="px-5 py-2 whitespace-nowrap text-xs text-gray-500">${new Date(l.timestamp).toLocaleString('ka-GE')}</td>
               <td class="px-5 py-2 text-gray-800">${escapeHtml(l.admin_name || 'უცნობი')}</td>
-              <td class="px-5 py-2">
-                <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700">${escapeHtml(l.action)}</span>
-              </td>
-              <td class="px-5 py-2 text-gray-700">${escapeHtml(l.item_type)}</td>
+              <td class="px-5 py-2 text-gray-700">${escapeHtml(actionLabel)}</td>
+              <td class="px-5 py-2 text-gray-700">${escapeHtml(objectLabel)}</td>
               <td class="px-5 py-2 text-gray-500">#${l.item_id}</td>
-            </tr>`).join('');
+            </tr>`;
+          }).join('');
         } catch (e) {
           tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-4 text-center text-red-500">${escapeHtml(e.message)}</td></tr>`;
         }

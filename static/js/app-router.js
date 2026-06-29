@@ -173,6 +173,9 @@ function switchMainPage(pageId, element) {
           if (pageId === 'page-dashboard' && typeof renderDashboardCategoryGrid === 'function') {
             renderDashboardCategoryGrid();
           }
+          if (pageId === 'page-dashboard' && typeof fetchAndRenderMyProgress === 'function') {
+            fetchAndRenderMyProgress();
+          }
         }
 
         // Item 9: persist active page across browser refreshes via URL hash.
@@ -254,6 +257,12 @@ function switchAdmin(page) {
 
         var migratedBtn = document.getElementById('adminBtn-migrated');
         if (migratedBtn) migratedBtn.className = page === 'migrated' ? activeClass : inactiveClass;
+
+        // The global CSV/XLSX export buttons target compliance "required readings"
+        // data, not audit logs — hide them on the Audit tab so they aren't mistaken
+        // for an audit-log export (that one has its own #btn-export-audit-csv).
+        var globalExportButtons = document.getElementById('global-export-buttons');
+        if (globalExportButtons) globalExportButtons.style.display = page === 'audit' ? 'none' : '';
 
         if (page === 'main' && !window._chartsInit) { initCharts(); window._chartsInit = true; }
 

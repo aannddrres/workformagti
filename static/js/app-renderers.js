@@ -828,13 +828,7 @@ async function renderDashboardCategoryGrid() {
         const arts = window._allArticlesCache || [];
         const counts = {};
         arts.forEach(a => { counts[a.category_id] = (counts[a.category_id] || 0) + 1; });
-        const user = window.currentUser;
-        const isAdmin = user && (user.role === 'admin' || user.role === 'content_admin');
-        const cats = (window.taxonomyCategories || []).filter(c => {
-          if (!c.slug) return false;
-          if (isAdmin) return true;
-          return (counts[c.id] || 0) > 0;
-        });
+        const cats = (window.taxonomyCategories || []).filter(c => !!c.slug);
         if (cats.length === 0) {
           grid.innerHTML = '<p class="col-span-full text-sm text-gray-500">კატეგორიები ვერ მოიძებნა.</p>';
           return;
@@ -867,6 +861,49 @@ async function renderDashboardCategoryGrid() {
             </div>
           </a>`;
         }).join('');
+      }
+
+async function fetchAndRenderMyProgress() {
+        const widget = document.getElementById('progress-widget');
+        if (!widget) return;
+        try {
+          const res = await api('/api/compliance/my-progress');
+          if (!res.ok) throw new Error('Failed to fetch my-progress');
+          const { total_mandatory, read_completed, percentage } = await res.json();
+
+          widget.className = 'bg-transparent border-0 p-0 shadow-none flex items-center gap-3';
+
+          if (total_mandatory === 0) {
+            widget.innerHTML = `
+              <i class="fa-solid fa-circle-check text-emerald-500 text-lg"></i>
+              <span class="text-base font-medium text-gray-800">ყველა მასალა გაცნობილია</span>
+            `;
+            return;
+          }
+
+          const radius = 28;
+          const circumference = 2 * Math.PI * radius;
+          const offset = circumference * (1 - percentage / 100);
+
+          widget.innerHTML = `
+            <div class="flex items-center gap-4 py-2">
+              <div class="relative shrink-0" style="width:48px;height:48px">
+                <svg viewBox="0 0 64 64" width="48" height="48" style="transform:rotate(-90deg);overflow:visible">
+                  <circle cx="32" cy="32" r="${radius}" fill="none" stroke="#e5e7eb" stroke-width="6"></circle>
+                  <circle cx="32" cy="32" r="${radius}" fill="none" stroke="#E30613" stroke-width="6" stroke-linecap="round"
+                    stroke-dasharray="${circumference.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}" style="transition:stroke-dashoffset .5s"></circle>
+                </svg>
+                <div class="absolute inset-0 flex items-center justify-center text-xs font-bold text-gray-800">${percentage}%</div>
+              </div>
+              <div class="flex flex-col justify-center">
+                <p class="text-sm font-bold text-gray-800 leading-tight">სავალდებულო მასალები</p>
+                <p class="text-xs text-gray-400 mt-0.5">წაკითხულია: ${read_completed} / ${total_mandatory}</p>
+              </div>
+            </div>
+          `;
+        } catch (e) {
+          console.error('Failed to load my-progress:', e);
+        }
       }
 
 function _applyProfilePillState() {
@@ -1054,6 +1091,7 @@ window.getCategoryIcon = getCategoryIcon;
 window.renderArticleBody = renderArticleBody;
 window.renderCategoryArticles = renderCategoryArticles;
 window.renderDashboardCategoryGrid = renderDashboardCategoryGrid;
+window.fetchAndRenderMyProgress = fetchAndRenderMyProgress;
 window.renderFilteredReadings = renderFilteredReadings;
 window.renderKbBento = renderKbBento;
 window.renderMessages = renderMessages;

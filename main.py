@@ -1764,6 +1764,36 @@ def get_my_readings(
     return results
 
 
+@app.get("/api/compliance/my-progress")
+def get_my_progress(
+    current_user: models.User = Depends(security.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Lightweight gamified reading-progress summary for the current user.
+
+    Delegates to compute_compliance() — the single source of truth for the
+    required/read pairing (see that function's docstring) — scoped to just
+    this user via scope_user_ids, so it stays two GROUP BY aggregate queries
+    total, never hydrating RequiredReading/ReadStatus rows individually.
+
+    Access: any authenticated user. Unlike /api/statistics/*, this is
+    intentionally not admin-gated — it's the dashboard widget for operators.
+    """
+    records = compute_compliance(db, scope_user_ids=[current_user.id])
+    if not records:
+        return {"total_mandatory": 0, "read_completed": 0, "pending": 0, "percentage": 0}
+
+    record = records[0]
+    total = record["required_count"]
+    completed = record["read_count"]
+    return {
+        "total_mandatory": total,
+        "read_completed": completed,
+        "pending": total - completed,
+        "percentage": record["percentage"],
+    }
+
+
 @app.get("/api/notifications/summary")
 def get_notifications_summary(
     current_user: models.User = Depends(security.get_current_user),
@@ -4855,6 +4885,106 @@ def get_audit_logs(
         }
         for log, admin_name, article_title in rows
     ]
+
+
+@app.get("/api/audit-logs/export")
+def export_audit_logs(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    user_name: Optional[str] = None,
+    action: Optional[str] = None,
+    category: Optional[str] = None,
+    current_admin: models.User = Depends(security.get_current_system_admin_user),
+    db: Session = Depends(get_db),
+):
+    """Memory-safe CSV export of audit logs.
+
+    Streams the response via a generator + yield_per(1000) instead of building
+    the full CSV in memory first, so a large unfiltered export can't bloat
+    server memory or block the worker for the whole query duration.
+
+    Access: Restricted to system administrators (admin) only.
+    """
+    from datetime import timezone
+
+    def _parse_to_naive_utc(value: str, end_of_day: bool = False) -> Optional[datetime]:
+        if not value:
+            return None
+        text = value.strip()
+        if text.endswith("Z"):
+            text = text[:-1] + "+00:00"
+        try:
+            parsed = datetime.fromisoformat(text)
+        except ValueError:
+            try:
+                parsed = datetime.strptime(text.split("T")[0], "%Y-%m-%d")
+            except ValueError:
+                return None
+        if end_of_day and parsed.hour == 0 and parsed.minute == 0 and parsed.second == 0:
+            parsed = parsed + timedelta(days=1)
+        if parsed.tzinfo is not None:
+            parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+        return parsed
+
+    query = db.query(models.AuditLog, models.User.name, models.Article.title).join(
+        models.User, models.AuditLog.admin_id == models.User.id
+    ).outerjoin(
+        models.Article,
+        and_(
+            func.lower(models.AuditLog.item_type) == "article",
+            models.AuditLog.item_id == models.Article.id,
+        ),
+    )
+    if start_date:
+        start_dt = _parse_to_naive_utc(start_date)
+        if start_dt is not None:
+            query = query.filter(models.AuditLog.timestamp >= start_dt)
+        else:
+            logger.warning("Audit log export start_date parsing error: invalid format '%s'", start_date)
+    if end_date:
+        end_dt = _parse_to_naive_utc(end_date, end_of_day=True)
+        if end_dt is not None:
+            query = query.filter(models.AuditLog.timestamp < end_dt)
+        else:
+            logger.warning("Audit log export end_date parsing error: invalid format '%s'", end_date)
+    if user_name:
+        query = query.filter(models.User.name.ilike(f"%{user_name}%"))
+    if action:
+        if action == "LOGIN":
+            query = query.filter(models.AuditLog.action.in_(["LOGIN", "LOGIN_SSO"]))
+        else:
+            query = query.filter(models.AuditLog.action == action)
+    if category:
+        query = query.filter(models.AuditLog.category == category.upper())
+
+    query = query.order_by(desc(models.AuditLog.timestamp))
+
+    def generate_csv():
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["ID", "დრო", "ვინ", "ქმედება", "ობიექტი", "დეტალები"])
+        yield output.getvalue()
+        output.seek(0)
+        output.truncate(0)
+
+        for log, admin_name, article_title in query.yield_per(1000):
+            writer.writerow([
+                log.id,
+                log.timestamp.strftime("%Y-%m-%d %H:%M:%S") if log.timestamp else "",
+                admin_name or "",
+                log.action,
+                article_title or log.item_type,
+                log.details or "",
+            ])
+            yield output.getvalue()
+            output.seek(0)
+            output.truncate(0)
+
+    return StreamingResponse(
+        generate_csv(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=audit_logs.csv"},
+    )
 
 
 @app.get("/api/tags", response_model=list[schemas.TagResponse])
