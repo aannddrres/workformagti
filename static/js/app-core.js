@@ -3004,35 +3004,8 @@ function quickSearch(term) {
         input.dispatchEvent(new Event('input', { bubbles: true }));
       }
 
-function mountQuickLinks() {
-        const tpl = document.getElementById('quick-links-tpl');
-        if (tpl) {
-          document.querySelectorAll('[data-quick-links]:not([data-mounted])').forEach(host => {
-            const frag = tpl.content.cloneNode(true);
-            const grid = frag.querySelector('div');
-            QUICK_LINKS.forEach(q => {
-              const btn = document.createElement('button');
-              btn.type = 'button';
-              btn.className = 'quick-link-card group flex flex-col items-center justify-center p-5 text-center transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#E30613]';
-              btn.innerHTML = `
-                <i aria-hidden="true" class="fa-solid ${q.icon} mb-3 text-2xl text-gray-300 dark:text-zinc-500 transition-colors group-hover:text-[#E30613] dark:group-hover:text-red-400"></i>
-                <span class="text-sm font-semibold text-gray-700 dark:text-zinc-300 transition-colors group-hover:text-gray-950 dark:group-hover:text-white">${q.label}</span>`;
-              btn.addEventListener('click', () => quickSearch(q.label));
-              grid.appendChild(btn);
-            });
-            host.appendChild(frag);
-            host.dataset.mounted = '1';
-          });
-        }
-        // Sidebar dock buttons (recommended row at bottom of sidebar) — unchanged behaviour.
-        const terms = QUICK_LINKS.map(q => q.label);
-        document.querySelectorAll('aside button[aria-label]').forEach(btn => {
-          const label = btn.getAttribute('aria-label');
-          if (terms.includes(label)) btn.onclick = () => quickSearch(label);
-        });
-      }
-
-function wireQuickLinks() { mountQuickLinks(); }
+function mountQuickLinks() { }
+function wireQuickLinks() { }
 
 function ensureArticleModal() {
         if (document.getElementById('article-modal')) return;

@@ -317,3 +317,15 @@ window.navToCategoryView = navToCategoryView;
 window.switchAdmin = switchAdmin;
 window.switchMainPage = switchMainPage;
 window.switchProfileTab = switchProfileTab;
+
+function triggerQuickSearch(keyword) {
+  switchMainPage('page-dashboard');
+  requestAnimationFrame(() => {
+    const input = document.getElementById('global-search-input');
+    if (!input) return;
+    input.value = keyword;
+    input.focus();
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
+window.triggerQuickSearch = triggerQuickSearch;

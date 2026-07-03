@@ -888,9 +888,9 @@ async function fetchAndRenderMyProgress() {
           widget.innerHTML = `
             <div class="flex items-center gap-4 py-2">
               <div class="relative shrink-0" style="width:48px;height:48px">
-                <svg viewBox="0 0 64 64" width="48" height="48" style="transform:rotate(-90deg);overflow:visible">
+                <svg viewBox="0 0 64 64" class="h-12 w-12 overflow-visible" style="transform:rotate(-90deg)">
                   <circle cx="32" cy="32" r="${radius}" fill="none" stroke="#e5e7eb" stroke-width="6"></circle>
-                  <circle cx="32" cy="32" r="${radius}" fill="none" stroke="#E30613" stroke-width="6" stroke-linecap="round"
+                  <circle cx="32" cy="32" r="${radius}" fill="none" class="stroke-red-600" stroke-width="6" stroke-linecap="round"
                     stroke-dasharray="${circumference.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}" style="transition:stroke-dashoffset .5s"></circle>
                 </svg>
                 <div class="absolute inset-0 flex items-center justify-center text-xs font-bold text-gray-800">${percentage}%</div>
