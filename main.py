@@ -1050,7 +1050,7 @@ def get_news_item(
     if current_user.role not in ("admin", "content_admin"):
         if n.is_draft:
             raise HTTPException(status_code=404, detail="სიახლე ვერ მოიძებნა")
-        if n.target_department not in (current_user.department, "All"):
+        if not _dept_matches(current_user.department, [n.target_department]):
             raise HTTPException(status_code=404, detail="სიახლე ვერ მოიძებნა")
     else:
         if n.is_draft and n.author_id != current_user.id:
@@ -1094,7 +1094,8 @@ def get_news(
     # Admins manage content across all departments, so they see everything (including expired)
     if current_user.role not in ["admin", "content_admin"]:
         query = query.filter(models.News.is_draft == False)
-        query = query.filter(models.News.target_department.in_([current_user.department, "All"]))
+        _dept_prefix = current_user.department.split(" —")[0] if " —" in current_user.department else current_user.department
+        query = query.filter(models.News.target_department.in_([current_user.department, _dept_prefix, "All"]))
         query = query.filter(
             or_(
                 models.News.expires_at.is_(None),
@@ -1304,6 +1305,7 @@ def _get_stream_user(request: Request, bearer_token: Optional[str]) -> dict:
             "user_id": user.id,
             "is_admin": user.role in ("admin", "content_admin"),
             "department": user.department,
+            "role": user.role,
         }
 
 
@@ -1325,6 +1327,7 @@ async def event_stream(
     user_info = await run_in_threadpool(_get_stream_user, request, bearer_token)
     is_admin = user_info["is_admin"]
     user_dept = user_info["department"]
+    user_role = user_info["role"]
 
     try:
         queue = await broker.subscribe()
@@ -1358,8 +1361,11 @@ async def event_stream(
                     continue
 
                 # Deliver only what this user is allowed to see.
-                target = event.get("target_department", "All")
-                if is_admin or target == "All" or target == user_dept:
+                target_dept = event.get("target_department", "All")
+                target_role = event.get("target_role", "All")
+                dept_match = target_dept == "All" or target_dept == user_dept
+                role_match = target_role == "All" or target_role == user_role
+                if is_admin or (dept_match and role_match):
                     yield "event: %s\ndata: %s\n\n" % (
                         event.get("type", "message"),
                         json.dumps(event, ensure_ascii=False),
@@ -1541,7 +1547,7 @@ def _assert_article_visible(article: models.Article, user: models.User) -> None:
     """
     if user.role in (security.ROLE_SYSTEM_ADMIN, security.ROLE_CONTENT_ADMIN):
         return
-    if not ({user.department, "All"} & set(article.target_departments)):
+    if not _dept_matches(user.department, article.target_departments):
         raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
     if article.status == "published":
         return
@@ -1606,10 +1612,11 @@ def get_articles(
     # (including archived items); regular users see only published content
     if current_user.role not in ["admin", "content_admin"]:
         now = get_tbilisi_time()
+        _dept_prefix = current_user.department.split(" —")[0] if " —" in current_user.department else current_user.department
         query = query.filter(
             models.Article.is_draft == False,
             models.Article.target_department_rows.any(
-                models.ArticleTargetDepartment.department.in_([current_user.department, "All"])
+                models.ArticleTargetDepartment.department.in_([current_user.department, _dept_prefix, "All"])
             ),
             or_(
                 models.Article.status == "published",
@@ -1692,13 +1699,14 @@ def get_my_readings(
     hot path behind the notifications popover, so any N+1 here directly
     shows up as a slow load on the bell icon.
     """
-    # Admin/content_admin manage the system rather than consume operator-level
+    # Management roles manage the system rather than consume operator-level
     # training content - they shouldn't see required-reading items at all here.
-    if current_user.role in ("admin", "content_admin"):
+    if current_user.role in _MANAGEMENT_ROLES:
         return []
 
+    _dept_prefix = current_user.department.split(" —")[0] if " —" in current_user.department else current_user.department
     readings = db.query(models.RequiredReading).filter(
-        models.RequiredReading.target_department.in_([current_user.department, "All"])
+        models.RequiredReading.target_department.in_([current_user.department, _dept_prefix, "All"])
     ).all()
 
     if not readings:
@@ -1807,13 +1815,14 @@ def get_notifications_summary(
     """
     now = get_tbilisi_time()
 
-    # 1) Unread/overdue required readings (visible-to-this-user). Admin/content_admin
-    # manage the system rather than consume operator-level training content, so
-    # they get no required-reading items here - mirrors get_my_readings above.
+    # 1) Unread/overdue required readings (visible-to-this-user). Management
+    # roles manage the system rather than consume operator-level training
+    # content, so they get no required-reading items here - mirrors get_my_readings above.
     unread_readings = []
-    if current_user.role not in ("admin", "content_admin"):
+    if current_user.role not in _MANAGEMENT_ROLES:
+        _dept_prefix = current_user.department.split(" —")[0] if " —" in current_user.department else current_user.department
         readings = db.query(models.RequiredReading).filter(
-            models.RequiredReading.target_department.in_([current_user.department, "All"])
+            models.RequiredReading.target_department.in_([current_user.department, _dept_prefix, "All"])
         ).all()
         reading_ids = [r.id for r in readings]
         read_map: dict[int, models.ReadStatus] = {}
@@ -2659,10 +2668,10 @@ def _get_eligible_operators(db: Session, article: models.Article) -> list[models
         return []
 
     target_depts = article.target_departments
-    # Query active users who are not admins/content_admins
+    # Query active users who aren't management roles (admin/content_admin/manager)
     query = db.query(models.User).filter(
         models.User.is_active == True,
-        models.User.role.notin_(["admin", "content_admin"])
+        models.User.role.notin_(_MANAGEMENT_ROLES)
     )
     if "All" not in target_depts:
         query = query.filter(models.User.department.in_(target_depts))
@@ -3492,6 +3501,17 @@ def get_compliance_statistics(
     except Exception as e:
         logger.warning("stats cache serialize failed (compliance): %s", e)
     return result
+
+def _dept_matches(user_dept: str, targets) -> bool:
+    """True if user_dept matches any target, with prefix support for sub-groups.
+    e.g. target 'ტექნიკური' matches user dept 'ტექნიკური — ჯგუფი 03'."""
+    for t in targets:
+        if t == "All":
+            return True
+        if user_dept == t or (t and user_dept.startswith(t + " —")):
+            return True
+    return False
+
 
 def _reading_progress(user, all_required, readings_by_dept, read_map):
     """Compute (required_count, read_count, percentage) for one user from
@@ -4395,7 +4415,7 @@ def get_group_leaders(
     """
     return (
         db.query(models.User.id, models.User.name)
-        .filter(models.User.role == "team_lead")
+        .filter(models.User.role == "manager")
         .order_by(models.User.name)
         .all()
     )
@@ -5050,7 +5070,9 @@ def post_broadcast(
     """
     broker.publish({
         "type": "broadcast",
-        "message": req.message
+        "message": req.message,
+        "target_department": req.target_department,
+        "target_role": req.target_role,
     })
     audit_log = models.AuditLog(
         admin_id=current_admin.id,

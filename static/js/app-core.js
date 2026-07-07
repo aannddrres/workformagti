@@ -257,6 +257,14 @@ window._auditCache = window._auditCache || { articleId: null, versionsData: null
           window.currentUser = currentUser;
           updateUserInfo(currentUser);
           applyRBAC(currentUser.role);
+
+          // Management roles don't get the "აუცილებლად გასაცნობი" column
+          // (data-required-role="operator"), so let "ბოლოს დამატებული"
+          // take the full width instead of leaving an empty grid track.
+          if (['admin', 'content_admin', 'manager'].includes(currentUser.role)) {
+            const recentCol = document.getElementById('dashboard-recent-col');
+            if (recentCol) recentCol.classList.add('lg:col-span-2');
+          }
         } catch (error) {
           console.error('Failed to fetch user:', error);
           Auth.redirectToLogin();
@@ -522,9 +530,9 @@ window._auditCache = window._auditCache || { articleId: null, versionsData: null
         const audience_profile = audienceEl ? audienceEl.value : 'all';
         
         const target_departments = [];
-        if (document.getElementById('dept-info')?.checked) target_departments.push('Informational');
-        if (document.getElementById('dept-tech')?.checked) target_departments.push('Support');
-        if (document.getElementById('dept-service')?.checked) target_departments.push('Service Centers');
+        if (document.getElementById('dept-info')?.checked) target_departments.push('საინფო');
+        if (document.getElementById('dept-tech')?.checked) target_departments.push('ტექნიკური');
+        if (document.getElementById('dept-office')?.checked) target_departments.push('ოფისი');
         
         const is_mandatory = document.getElementById('article-mandatory')?.checked || false;
         const due_date = document.getElementById('article-due-date')?.value || '';
@@ -2043,9 +2051,9 @@ async function submitArticleForm(event) {
         // Multi-department targeting via 3 toggles; labels map to the English
         // department values stored in target_departments.
         const targetDepartments = [];
-        if (document.getElementById('dept-info').checked) targetDepartments.push('Informational');
-        if (document.getElementById('dept-tech').checked) targetDepartments.push('Support');
-        if (document.getElementById('dept-service').checked) targetDepartments.push('Service Centers');
+        if (document.getElementById('dept-info').checked) targetDepartments.push('საინფო');
+        if (document.getElementById('dept-tech').checked) targetDepartments.push('ტექნიკური');
+        if (document.getElementById('dept-office').checked) targetDepartments.push('ოფისი');
         if (targetDepartments.length === 0) {
           const accordion = document.getElementById('article-audience-accordion');
           if (accordion) {
@@ -2193,11 +2201,11 @@ async function editArticle(articleId) {
 
         const editDepts = article.target_departments || [];
         const deptInfo = $('dept-info');
-        if (deptInfo) deptInfo.checked = editDepts.includes('Informational');
+        if (deptInfo) deptInfo.checked = editDepts.includes('საინფო');
         const deptTech = $('dept-tech');
-        if (deptTech) deptTech.checked = editDepts.includes('Support');
-        const deptService = $('dept-service');
-        if (deptService) deptService.checked = editDepts.includes('Service Centers');
+        if (deptTech) deptTech.checked = editDepts.includes('ტექნიკური');
+        const deptOffice = $('dept-office');
+        if (deptOffice) deptOffice.checked = editDepts.includes('ოფისი');
 
         const tagsEl = $('article-tags');
         if (tagsEl) tagsEl.value = article.tags || '';
@@ -3412,6 +3420,20 @@ function openArticleModal(article) {
             auditBtn.innerHTML = '<i class="fa-solid fa-chart-simple"></i><span>აუდიტი</span>';
             headerActions.insertBefore(auditBtn, headerActions.firstChild);
           }
+
+          // [Edit Button Injection]
+          const oldEditBtn = document.getElementById('modal-header-edit-btn');
+          if (oldEditBtn) oldEditBtn.remove();
+          const headerActions2 = document.querySelector('#article-modal header .flex.shrink-0.items-center.gap-2');
+          if (headerActions2) {
+            const editBtn = document.createElement('button');
+            editBtn.id = 'modal-header-edit-btn';
+            editBtn.title = 'სტატიის რედაქტირება';
+            editBtn.onclick = () => { closeArticleModal(); if (typeof window.editArticle === 'function') window.editArticle(article.id); };
+            editBtn.className = 'no-print flex h-9 w-9 items-center justify-center rounded-lg text-blue-500 transition-colors hover:bg-blue-50 hover:text-blue-700';
+            editBtn.innerHTML = '<i class="fa-solid fa-pen-to-square text-base"></i>';
+            headerActions2.insertBefore(editBtn, headerActions2.firstChild);
+          }
         }
 
         // ── Quick-Copy Scripts Widget ──────────────────────────────────
@@ -4403,13 +4425,17 @@ function submitBroadcastForm(event) {
         const originalBtnHtml = btn.innerHTML;
         btn.innerHTML = '<i aria-hidden="true" class="fa-solid fa-spinner animate-spin mr-1"></i> იგზავნება...';
 
+        const targetDept = document.getElementById('broadcast-target-dept')?.value || 'All';
+        const targetRole = document.getElementById('broadcast-target-role')?.value || 'All';
+        const isTargeted = targetDept !== 'All' || targetRole !== 'All';
+
         fetch('/api/broadcast', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ' + token
           },
-          body: JSON.stringify({ message: message })
+          body: JSON.stringify({ message: message, target_department: targetDept, target_role: targetRole })
         })
           .then(res => {
             if (!res.ok) throw new Error('Failed to send broadcast');
@@ -4419,7 +4445,10 @@ function submitBroadcastForm(event) {
             input.value = '';
             updateBroadcastCounter();
             if (typeof showToast === 'function') {
-              showToast('ტრანსლაცია ✅', 'საგანგებო განცხადება წარმატებით გაიგზავნა ყველა თანამშრომელს!');
+              const toastMsg = isTargeted
+                ? 'შეტყობინება გაიგზავნა მიზნობრივ ჯგუფს!'
+                : 'საგანგებო განცხადება წარმატებით გაიგზავნა ყველა თანამშრომელს!';
+              showToast('ტრანსლაცია ✅', toastMsg);
             }
             // Cooldown: disable for 10 seconds
             const cooldownLabel = document.getElementById('broadcast-cooldown-label');

@@ -617,8 +617,10 @@ class DepartmentStatsResponse(BaseModel):
 
 
 class BroadcastRequest(BaseModel):
-    """Request schema containing broadcast message text."""
+    """Request schema containing broadcast message text and optional targeting."""
     message: str
+    target_department: str = "All"
+    target_role: str = "All"
 
 
 class KnowledgeFeedbackCreate(BaseModel):

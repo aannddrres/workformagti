@@ -114,6 +114,18 @@ function switchMainPage(pageId, element) {
             return;
           }
         }
+        if (pageId === 'page-reading') {
+          // Mandatory reading is an operator-only obligation - management
+          // roles are exempt (mirrors _MANAGEMENT_ROLES in main.py) and have
+          // no sidebar entry point, but block direct navigation too.
+          const role = window.currentUser ? window.currentUser.role : '';
+          if (['admin', 'content_admin', 'manager'].includes(role)) {
+            if (typeof showToast === 'function') {
+              showToast('წვდომა უარყოფილია', 'თქვენ არ გაქვთ ამ გვერდის ნახვის უფლება.', { variant: 'error' });
+            }
+            return;
+          }
+        }
 
         const dot = document.getElementById('sidebar-reading-dot');
         if (dot) {

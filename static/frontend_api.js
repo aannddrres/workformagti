@@ -69,6 +69,12 @@ function fetchAndRenderManagerStats(token) {
       }
 
 async function fetchNotificationsCount(token) {
+        // Mandatory reading is an operator-only obligation - management roles
+        // are exempt (mirrors _MANAGEMENT_ROLES in main.py), so skip entirely
+        // rather than rendering a hidden "all clear" state into the dashboard.
+        const role = window.currentUser ? window.currentUser.role : '';
+        if (['admin', 'content_admin', 'manager'].includes(role)) return;
+
         const mustRead = document.getElementById('must-read-container');
         if (mustRead) {
           mustRead.innerHTML = `

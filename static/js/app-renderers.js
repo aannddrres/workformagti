@@ -866,17 +866,24 @@ async function renderDashboardCategoryGrid() {
 async function fetchAndRenderMyProgress() {
         const widget = document.getElementById('progress-widget');
         if (!widget) return;
+        // Management roles are exempt from the mandatory-reading obligation
+        // (mirrors _MANAGEMENT_ROLES in main.py) - leave the widget hidden,
+        // don't even fetch, so it can't flash the "all clear" state on load.
+        const role = window.currentUser ? window.currentUser.role : '';
+        if (['admin', 'content_admin', 'manager'].includes(role)) return;
         try {
           const res = await api('/api/compliance/my-progress');
           if (!res.ok) throw new Error('Failed to fetch my-progress');
           const { total_mandatory, read_completed, percentage } = await res.json();
 
-          widget.className = 'bg-transparent border-0 p-0 shadow-none flex items-center gap-3';
+          widget.className = 'inline-block';
 
           if (total_mandatory === 0) {
             widget.innerHTML = `
-              <i class="fa-solid fa-circle-check text-emerald-500 text-lg"></i>
-              <span class="text-base font-medium text-gray-800">ყველა მასალა გაცნობილია</span>
+              <div class="flex items-center gap-3 px-4 py-3 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200/60 dark:border-zinc-700 shadow-sm">
+                <i class="fa-solid fa-circle-check text-emerald-500 text-lg"></i>
+                <span class="text-sm font-medium text-gray-800 dark:text-neutral-100">ყველა მასალა გაცნობილია</span>
+              </div>
             `;
             return;
           }
@@ -884,23 +891,54 @@ async function fetchAndRenderMyProgress() {
           const radius = 28;
           const circumference = 2 * Math.PI * radius;
           const offset = circumference * (1 - percentage / 100);
+          const remaining = total_mandatory - read_completed;
+          const ringColor = percentage >= 80 ? '#10b981' : percentage >= 40 ? '#f59e0b' : '#E30613';
 
           widget.innerHTML = `
-            <div class="flex items-center gap-4 py-2">
-              <div class="relative shrink-0" style="width:48px;height:48px">
-                <svg viewBox="0 0 64 64" class="h-12 w-12 overflow-visible" style="transform:rotate(-90deg)">
-                  <circle cx="32" cy="32" r="${radius}" fill="none" stroke="#e5e7eb" stroke-width="6"></circle>
-                  <circle cx="32" cy="32" r="${radius}" fill="none" class="stroke-red-600" stroke-width="6" stroke-linecap="round"
-                    stroke-dasharray="${circumference.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}" style="transition:stroke-dashoffset .5s"></circle>
+            <div class="group cursor-pointer flex items-center gap-4 px-4 py-3
+                        bg-white dark:bg-zinc-900 rounded-2xl
+                        border border-slate-200/60 dark:border-zinc-700
+                        shadow-sm hover:shadow-md transition-all duration-200 hover:scale-[1.02]"
+                 onclick="navTo('page-reading')"
+                 title="${remaining} სტატია დარჩა">
+              <div class="relative shrink-0" style="width:64px;height:64px">
+                <svg viewBox="0 0 64 64" class="h-16 w-16 overflow-visible"
+                     style="transform:rotate(-90deg); filter:drop-shadow(0 0 4px ${ringColor}50)">
+                  <circle cx="32" cy="32" r="${radius}" fill="none" stroke="#e5e7eb" stroke-width="5" class="dark:stroke-zinc-700"></circle>
+                  <circle id="progress-ring-arc" cx="32" cy="32" r="${radius}" fill="none"
+                    stroke="${ringColor}" stroke-width="5" stroke-linecap="round"
+                    stroke-dasharray="${circumference.toFixed(2)}"
+                    stroke-dashoffset="${circumference.toFixed(2)}"
+                    style="transition:stroke-dashoffset 0.6s ease-out"></circle>
                 </svg>
-                <div class="absolute inset-0 flex items-center justify-center text-xs font-bold text-gray-800">${percentage}%</div>
+                <div id="progress-pct" class="absolute inset-0 flex items-center justify-center text-xs font-bold"
+                     style="color:${ringColor}">0%</div>
               </div>
               <div class="flex flex-col justify-center">
-                <p class="text-sm font-bold text-gray-800 leading-tight">სავალდებულო მასალები</p>
-                <p class="text-xs text-gray-400 mt-0.5">წაკითხულია: ${read_completed} / ${total_mandatory}</p>
+                <p class="text-sm font-bold text-gray-800 dark:text-neutral-100 leading-tight
+                          group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
+                  სავალდებულო მასალები
+                </p>
+                <p class="text-xs text-gray-400 dark:text-neutral-500 mt-0.5">წაკითხულია: ${read_completed} / ${total_mandatory}</p>
+                <p class="text-xs mt-0.5 font-medium" style="color:${ringColor}">დარჩა ${remaining} სტატია →</p>
               </div>
             </div>
           `;
+
+          requestAnimationFrame(() => {
+            const arc = document.getElementById('progress-ring-arc');
+            if (arc) arc.style.strokeDashoffset = offset.toFixed(2);
+            const pctEl = document.getElementById('progress-pct');
+            if (pctEl && percentage > 0) {
+              let cur = 0;
+              const tick = () => {
+                cur = Math.min(cur + Math.max(1, Math.ceil(percentage / 40)), percentage);
+                pctEl.textContent = cur + '%';
+                if (cur < percentage) requestAnimationFrame(tick);
+              };
+              requestAnimationFrame(tick);
+            }
+          });
         } catch (e) {
           console.error('Failed to load my-progress:', e);
         }

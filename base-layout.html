@@ -209,8 +209,8 @@
                 <span class="nav-label">ცოდნის ბაზა</span>
               </a>
             </li>
-            <!-- სავალდებულოდ გასაცნობი — red dot badge -->
-            <li>
+            <!-- სავალდებულოდ გასაცნობი — red dot badge; operator-only obligation, hidden for management roles -->
+            <li data-required-role="operator" class="hidden">
               <a href="#" onclick="switchMainPage('page-reading', this); return false;"
                 class="sidebar-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-500 transition-all duration-200 ease-in-out hover:bg-gray-900/[0.04] hover:text-gray-900 active:scale-[0.99]">
                 <i class="fa-solid fa-file-lines w-4 shrink-0 text-center text-[13px] text-gray-400"></i>
@@ -506,9 +506,15 @@
            /api/compliance/my-progress (fetchAndRenderMyProgress in app-renderers.js).
            Sits as a plain inline status row directly above the category grid —
            no card, no background, on the page's own light canvas. -->
-      <div id="progress-widget" class="mt-6 bg-transparent border-0 p-0 shadow-none flex items-center gap-3 animate-pulse">
-        <div class="h-12 w-12 rounded-full bg-gray-200"></div>
-        <div class="space-y-2"><div class="h-3 w-24 rounded bg-gray-200"></div><div class="h-2.5 w-16 rounded bg-gray-200"></div></div>
+      <div id="progress-widget" data-required-role="operator" class="hidden mt-6 inline-block animate-pulse">
+        <div class="flex items-center gap-4 px-4 py-3 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200/60 dark:border-zinc-700 shadow-sm">
+          <div class="h-16 w-16 rounded-full bg-gray-200 dark:bg-zinc-700 shrink-0"></div>
+          <div class="space-y-2">
+            <div class="h-3 w-32 rounded bg-gray-200 dark:bg-zinc-700"></div>
+            <div class="h-2.5 w-20 rounded bg-gray-200 dark:bg-zinc-700"></div>
+            <div class="h-2.5 w-24 rounded bg-gray-200 dark:bg-zinc-700"></div>
+          </div>
+        </div>
       </div>
 
       <!-- ცოდნის ბაზის კატეგორიები — taxonomy grid rendered from /api/categories
@@ -646,8 +652,8 @@
       <!-- 2-Column Content Layout -->
       <div class="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
 
-        <!-- Left Column: აუცილებლად გასაცნობი -->
-        <div class="flex flex-col">
+        <!-- Left Column: აუცილებლად გასაცნობი — operator-only obligation, hidden for management roles -->
+        <div data-required-role="operator" class="hidden flex flex-col">
           <h3 class="mb-4 text-base md:text-lg font-bold tracking-wide text-gray-800 dark:text-zinc-100">აუცილებლად გასაცნობი</h3>
           <ul id="must-read-container" class="flex-1 space-y-3">
             <li class="dashboard-list-card flex items-center justify-between p-4">
@@ -681,7 +687,7 @@
         </div>
 
         <!-- Right Column: ბოლოს დამატებული -->
-        <div class="flex flex-col">
+        <div id="dashboard-recent-col" class="flex flex-col">
           <h3 class="mb-4 text-base md:text-lg font-bold tracking-wide text-gray-800 dark:text-zinc-100">ბოლოს დამატებული</h3>
           <ul id="latest-news-container" class="flex-1 space-y-3 max-h-[280px] overflow-y-auto pr-1">
             <li class="dashboard-list-card flex items-center justify-between p-4">
@@ -838,7 +844,7 @@
       </article>
     </div>
 
-    <!-- ── სავალდებულოდ გასაცნობი (Mandatory Reading) ── -->
+    <!-- ── სავალდებულოდ გასაცნობი (Mandatory Reading) — operator-only obligation, gated in switchMainPage() ── -->
     <div id="page-reading" class="page-section hidden max-w-[1440px] mx-auto w-full px-4 md:px-6 pt-4 md:pt-6 pb-8">
       <div class="mb-8 flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
         <div class="w-full md:w-auto">
@@ -918,10 +924,9 @@
             <select id="edit-user-department"
               class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]">
               <option value="All">საერთო</option>
-              <option value="Informational">საინფორმაციო</option>
-              <option value="Support">ტექნიკური მხარდაჭერა</option>
-              <option value="IT Security">IT უსაფრთხოება</option>
-              <option value="Content Creation">კონტენტის შექმნა</option>
+              <option value="ტექნიკური">ტექნიკური</option>
+              <option value="საინფო">საინფო</option>
+              <option value="ოფისი">ოფისი</option>
             </select>
           </div>
 
@@ -1060,10 +1065,9 @@
               class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-600 shadow-sm focus:border-[#B91C1C] focus:outline-none">
               <option value="">ყველა დეპარტამენტი</option>
               <option value="All">საერთო</option>
-              <option value="Support">ტექნიკური</option>
-              <option value="Informational">საინფორმაციო</option>
-              <option value="IT Security">IT უსაფრთხოება</option>
-              <option value="Content Creation">კონტენტის შექმნა</option>
+              <option value="ტექნიკური">ტექნიკური</option>
+              <option value="საინფო">საინფო</option>
+              <option value="ოფისი">ოფისი</option>
             </select>
           </div>
           <!-- Sort dropdown -->
@@ -1654,11 +1658,26 @@
             <i class="fa-solid fa-bullhorn text-red-600"></i> საგანგებო ტრანსლაცია (Emergency Broadcast)
           </h3>
           <form id="admin-broadcast-form" onsubmit="submitBroadcastForm(event)" class="flex flex-col gap-2">
+            <div class="flex gap-2 mb-1">
+              <select id="broadcast-target-dept"
+                      class="flex-1 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs text-gray-700 focus:border-red-400 focus:outline-none">
+                <option value="All">ყველა განყოფილება</option>
+                <option value="ტექნიკური">ტექნიკური</option>
+                <option value="საინფო">საინფო</option>
+                <option value="ოფისი">ოფისი</option>
+              </select>
+              <select id="broadcast-target-role"
+                      class="flex-1 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs text-gray-700 focus:border-red-400 focus:outline-none">
+                <option value="All">ყველა როლი</option>
+                <option value="operator">ოპერატორი</option>
+                <option value="manager">მენეჯერი</option>
+              </select>
+            </div>
             <div class="flex gap-3">
               <input type="text" id="broadcast-message-input" required maxlength="200"
                 oninput="updateBroadcastCounter()"
                 class="flex-1 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-                placeholder="შეიყვანეთ შეტყობინება საგანგებო განცხადებისთვის ყველა თანამშრომლისთვის..." />
+                placeholder="შეიყვანეთ შეტყობინება..." />
               <button type="submit" id="broadcast-send-btn"
                 class="rounded-xl bg-red-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed">
                 <i class="fa-solid fa-paper-plane mr-1"></i> გაგზავნა
@@ -1850,10 +1869,9 @@
                 <select id="news-department"
                   class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]">
                   <option value="All">ყველა</option>
-                  <option value="Informational">საინფორმაციო</option>
-                  <option value="Support">ტექნიკური მხარდაჭერა</option>
-                  <option value="IT Security">IT უსაფრთხოება</option>
-                  <option value="Content Creation">კონტენტის შექმნა</option>
+                  <option value="ტექნიკური">ტექნიკური</option>
+                  <option value="საინფო">საინფო</option>
+                  <option value="ოფისი">ოფისი</option>
                 </select>
               </div>
             </div>
@@ -1960,10 +1978,9 @@
                 <select id="video-department"
                   class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]">
                   <option value="All">ყველა</option>
-                  <option value="Informational">საინფორმაციო</option>
-                  <option value="Support">ტექნიკური მხარდაჭერა</option>
-                  <option value="IT Security">IT უსაფრთხოება</option>
-                  <option value="Content Creation">კონტენტის შექმნა</option>
+                  <option value="ტექნიკური">ტექნიკური</option>
+                  <option value="საინფო">საინფო</option>
+                  <option value="ოფისი">ოფისი</option>
                 </select>
               </div>
             </div>
@@ -2047,10 +2064,9 @@
                 <select id="cu-department"
                   class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]">
                   <option value="All">ყველა</option>
-                  <option value="Informational">საინფორმაციო</option>
-                  <option value="Support">ტექნიკური მხარდაჭერა</option>
-                  <option value="IT Security">IT უსაფრთხოება</option>
-                  <option value="Content Creation">კონტენტის შექმნა</option>
+                  <option value="ტექნიკური">ტექნიკური</option>
+                  <option value="საინფო">საინფო</option>
+                  <option value="ოფისი">ოფისი</option>
                 </select>
               </div>
               <div>
@@ -2437,7 +2453,7 @@
                   <span class="absolute inset-0 rounded-full bg-gray-300 transition-colors duration-200 peer-checked:bg-[#B91C1C]"></span>
                   <span class="absolute left-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-5"></span>
                 </span>
-                <span class="text-sm font-medium text-gray-800">საინფორმაციო</span>
+                <span class="text-sm font-medium text-gray-800">საინფო</span>
               </label>
               <label class="flex items-center gap-3 cursor-pointer select-none">
                 <span class="relative inline-flex h-6 w-11 shrink-0 items-center">
@@ -2449,11 +2465,11 @@
               </label>
               <label class="flex items-center gap-3 cursor-pointer select-none">
                 <span class="relative inline-flex h-6 w-11 shrink-0 items-center">
-                  <input type="checkbox" id="dept-service" class="peer sr-only" />
+                  <input type="checkbox" id="dept-office" class="peer sr-only" />
                   <span class="absolute inset-0 rounded-full bg-gray-300 transition-colors duration-200 peer-checked:bg-[#B91C1C]"></span>
                   <span class="absolute left-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-5"></span>
                 </span>
-                <span class="text-sm font-medium text-gray-800">სერვის ცენტრები</span>
+                <span class="text-sm font-medium text-gray-800">ოფისი</span>
               </label>
             </div>
             </div>
