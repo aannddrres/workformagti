@@ -202,6 +202,8 @@ class ArticleBase(BaseModel):
     visible_to_tech_info: bool = True
     visible_to_service_center: bool = False
     is_draft: bool = True
+    # Optional per-article knowledge-check — see models.Article.quiz_enabled.
+    quiz_enabled: bool = False
 
     @field_validator("target_departments")
     @classmethod
@@ -295,6 +297,89 @@ class ArticleAutosaveResponse(BaseModel):
     version: int
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ── Per-article quiz / knowledge-check ──────────────────────────────────────
+
+class QuizAnswerAdmin(BaseModel):
+    """Admin-facing candidate answer — includes is_correct."""
+    id: Optional[int] = None
+    answer_text: str
+    is_correct: bool = False
+    position: int = 0
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class QuizQuestionAdmin(BaseModel):
+    """Admin-facing question — includes each answer's is_correct flag."""
+    id: Optional[int] = None
+    question_text: str
+    position: int = 0
+    answers: list[QuizAnswerAdmin]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class QuizAdminUpdate(BaseModel):
+    """Request body for the full-replace admin quiz save."""
+    questions: list[QuizQuestionAdmin]
+
+
+class QuizAnswerPublic(BaseModel):
+    """Operator-facing candidate answer — no is_correct."""
+    id: int
+    answer_text: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class QuizQuestionPublic(BaseModel):
+    """Operator-facing question — no is_correct anywhere in the payload."""
+    id: int
+    question_text: str
+    answers: list[QuizAnswerPublic]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class QuizPublicResponse(BaseModel):
+    article_id: int
+    article_version: int
+    questions: list[QuizQuestionPublic]
+
+
+class QuizAttemptSubmit(BaseModel):
+    """Submitted answers: {question_id: chosen_answer_id}."""
+    answers: dict[int, int]
+
+
+class QuizAttemptResult(BaseModel):
+    passed: bool
+    score: int
+    total_questions: int
+    wrong_question_ids: list[int]
+    attempt_number: int
+
+
+class KnowledgeScoreResponse(BaseModel):
+    user_id: int
+    score: int
+    articles_passed: int
+    first_try_passes: int
+
+
+class LeaderboardEntryResponse(BaseModel):
+    user_id: int
+    user_name: str
+    department: Optional[str] = None
+    score: int
+    rank: int
+
+
+class LeaderboardResponse(BaseModel):
+    entries: list[LeaderboardEntryResponse]
+    generated_at: datetime
 
 
 class ArticleBulkArchiveRequest(BaseModel):
@@ -545,6 +630,13 @@ class PopularSearchResponse(BaseModel):
     """Response schema representing a frequently searched term."""
     search_term: str
     count: int
+
+
+class RecentlyViewedItem(BaseModel):
+    """Response schema representing one recently-viewed article for the current user."""
+    article_id: int
+    title: str
+    viewed_at: datetime
 
 
 class TeamMemberStats(BaseModel):

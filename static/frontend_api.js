@@ -223,38 +223,62 @@ async function fetchAndRenderFavorites(token) {
             return;
           }
 
+          // Group by item_type in a fixed, meaningful order rather than one flat list.
+          const GROUP_ORDER = ['article', 'news', 'video', 'category'];
+          const GROUP_LABELS = {
+            article: 'სტატიები',
+            news: 'სიახლეები',
+            video: 'ვიდეო ინსტრუქციები',
+            category: 'კატეგორიები',
+            other: 'სხვა',
+          };
+          const grouped = {};
           favorites.forEach(fav => {
-            let title = fav.item_title || `მასალა #${fav.item_id}`;
-            let icon = 'fa-star';
-            let clickAction = '';
-            
-            if (fav.item_type === 'news') {
-              icon = 'fa-bullhorn';
-              clickAction = `onclick="openNewsDetailModal(${fav.item_id})"`
-            } else if (fav.item_type === 'article') {
-              icon = 'fa-file-lines';
-              clickAction = `onclick="openArticleModalById(${fav.item_id})"`
-            } else if (fav.item_type === 'video') {
-              icon = 'fa-video';
-              clickAction = `onclick="viewVideo(${fav.item_id})"`
-            } else if (fav.item_type === 'category') {
-              icon = 'fa-database';
-            }
+            const key = GROUP_ORDER.includes(fav.item_type) ? fav.item_type : 'other';
+            (grouped[key] = grouped[key] || []).push(fav);
+          });
 
-            const html = `
-              <div class="group flex items-center justify-between rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-red-200 hover:shadow-md cursor-pointer" ${clickAction}>
-                <div class="flex items-center gap-4 min-w-0 flex-1">
-                  <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-50 text-[#E30613]">
-                    <i class="fa-solid ${icon}"></i>
+          [...GROUP_ORDER, 'other'].forEach(key => {
+            const group = grouped[key];
+            if (!group || group.length === 0) return;
+
+            container.insertAdjacentHTML('beforeend', `
+              <p class="mb-2 mt-4 first:mt-0 text-[10px] font-bold uppercase tracking-widest text-gray-400">${GROUP_LABELS[key]}</p>
+            `);
+
+            group.forEach(fav => {
+              let title = fav.item_title || `მასალა #${fav.item_id}`;
+              let icon = 'fa-star';
+              let clickAction = '';
+
+              if (fav.item_type === 'news') {
+                icon = 'fa-bullhorn';
+                clickAction = `onclick="openNewsDetailModal(${fav.item_id})"`
+              } else if (fav.item_type === 'article') {
+                icon = 'fa-file-lines';
+                clickAction = `onclick="openArticleModalById(${fav.item_id})"`
+              } else if (fav.item_type === 'video') {
+                icon = 'fa-video';
+                clickAction = `onclick="viewVideo(${fav.item_id})"`
+              } else if (fav.item_type === 'category') {
+                icon = 'fa-database';
+              }
+
+              const html = `
+                <div class="group flex items-center justify-between rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-red-200 hover:shadow-md cursor-pointer" ${clickAction}>
+                  <div class="flex items-center gap-4 min-w-0 flex-1">
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-50 text-[#E30613]">
+                      <i class="fa-solid ${icon}"></i>
+                    </div>
+                    <h4 class="font-bold text-gray-800 truncate pr-4">${escapeHtml(title)}</h4>
                   </div>
-                  <h4 class="font-bold text-gray-800 truncate pr-4">${escapeHtml(title)}</h4>
+                  <button onclick="event.stopPropagation(); removeFavorite(${fav.id})" class="text-xl font-bold text-gray-400 transition-colors hover:text-[#E30613]" aria-label="წაშლა">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
                 </div>
-                <button onclick="event.stopPropagation(); removeFavorite(${fav.id})" class="text-xl font-bold text-gray-400 transition-colors hover:text-[#E30613]" aria-label="წაშლა">
-                  <i class="fa-solid fa-xmark"></i>
-                </button>
-              </div>
-            `;
-            container.insertAdjacentHTML('beforeend', html);
+              `;
+              container.insertAdjacentHTML('beforeend', html);
+            });
           });
 
           // Personal cabinet's favorites tab mirrors the favorites page
@@ -347,6 +371,134 @@ async function fetchAndRenderPopularSearches(token) {
         } catch (error) {
           console.error(error);
           tbody.innerHTML = '<tr><td colspan="2" class="py-4 text-center text-red-500">მონაცემების ჩატვირთვა ვერ მოხერხდა.</td></tr>';
+        }
+      }
+
+async function fetchAndRenderFailedSearches(token) {
+        const tbody = document.getElementById('failed-searches-tbody');
+        if (!tbody) return;
+
+        tbody.innerHTML = `
+          <tr class="animate-pulse">
+            <td class="py-3 pr-4"><div class="h-4 bg-gray-200 rounded w-2/3"></div></td>
+            <td class="py-3 text-center"><div class="h-4 bg-gray-200 rounded w-8 mx-auto"></div></td>
+          </tr>
+          <tr class="animate-pulse">
+            <td class="py-3 pr-4"><div class="h-4 bg-gray-200 rounded w-1/2"></div></td>
+            <td class="py-3 text-center"><div class="h-4 bg-gray-200 rounded w-8 mx-auto"></div></td>
+          </tr>
+        `;
+
+        try {
+          const response = await fetch('/api/statistics/failed-searches', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (!response.ok) throw new Error('Failed to fetch failed searches');
+          const searches = await response.json();
+
+          tbody.innerHTML = '';
+          if (searches.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="2" class="py-4 text-center text-gray-500">მონაცემები არ არის</td></tr>';
+            return;
+          }
+
+          searches.forEach((item, index) => {
+            const tr = `
+              <tr class="transition-colors hover:bg-gray-50">
+                <td class="py-2.5 pr-4 font-medium text-gray-800">
+                  <span class="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[10px] font-bold text-gray-500">${index + 1}</span>
+                  <span class="break-words">${escapeHtml(item.search_term)}</span>
+                </td>
+                <td class="py-2.5 text-center text-[#E30613] font-bold">${escapeHtml(item.count)}</td>
+              </tr>
+            `;
+            tbody.insertAdjacentHTML('beforeend', tr);
+          });
+        } catch (error) {
+          console.error(error);
+          tbody.innerHTML = '<tr><td colspan="2" class="py-4 text-center text-red-500">მონაცემების ჩატვირთვა ვერ მოხერხდა.</td></tr>';
+        }
+      }
+
+async function fetchAndRenderKnowledgeScore() {
+        const scoreEl = document.getElementById('knowledge-score-value');
+        const detailEl = document.getElementById('knowledge-score-detail');
+        const tbody = document.getElementById('knowledge-leaderboard-tbody');
+        if (!scoreEl && !tbody) return;
+
+        const token = localStorage.getItem('magti_token') || (typeof Auth !== 'undefined' ? Auth.getToken() : null);
+        if (!token) return;
+
+        try {
+          const [scoreRes, leaderboardRes] = await Promise.all([
+            fetch('/api/users/me/knowledge-score', { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch('/api/knowledge-leaderboard?scope=department', { headers: { 'Authorization': `Bearer ${token}` } }),
+          ]);
+
+          if (scoreRes.ok && scoreEl) {
+            const data = await scoreRes.json();
+            scoreEl.textContent = data.score;
+            if (detailEl) detailEl.textContent = `${data.articles_passed} სტატია ჩაბარებული · ${data.first_try_passes} პირველივე მცდელობით`;
+          }
+
+          if (leaderboardRes.ok && tbody) {
+            const data = await leaderboardRes.json();
+            if (data.entries.length === 0) {
+              tbody.innerHTML = '<tr><td colspan="3" class="py-4 text-center text-gray-400 text-sm">ჯერ არავის აქვს ქულა</td></tr>';
+            } else {
+              tbody.innerHTML = data.entries.map(e => `
+                <tr class="transition-colors hover:bg-gray-50">
+                  <td class="py-2 pr-3 font-bold text-gray-500">${e.rank}</td>
+                  <td class="py-2 pr-3 text-gray-800">${escapeHtml(e.user_name)}</td>
+                  <td class="py-2 text-right font-bold text-[#E30613]">${e.score}</td>
+                </tr>
+              `).join('');
+            }
+          }
+        } catch (error) {
+          console.error(error);
+          if (detailEl) detailEl.textContent = 'ჩატვირთვა ვერ მოხერხდა';
+          if (tbody) tbody.innerHTML = '<tr><td colspan="3" class="py-4 text-center text-red-500 text-sm">ჩატვირთვა ვერ მოხერხდა</td></tr>';
+        }
+      }
+
+async function fetchAndRenderDashboardRecentlyViewed(token) {
+        const list = document.getElementById('dashboard-recently-viewed-list');
+        if (!list) return;
+
+        try {
+          const response = await fetch('/api/me/recently-viewed', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (!response.ok) throw new Error('Failed to fetch recently viewed');
+          const items = await response.json();
+
+          list.innerHTML = '';
+          if (items.length === 0) {
+            list.innerHTML = '<li class="text-sm text-gray-400 dark:text-zinc-500">ბოლოს ნანახი სტატიები არ მოიძებნა</li>';
+            return;
+          }
+
+          items.forEach((item) => {
+            const date = new Date(item.viewed_at).toLocaleDateString('ka-GE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const li = `
+              <li class="dashboard-list-card cursor-pointer p-3" onclick="openArticleModalById(${item.article_id})">
+                <div class="flex items-center gap-2.5">
+                  <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-50/50 text-slate-400 dark:bg-zinc-800/50 dark:text-neutral-500">
+                    <i class="fa-solid fa-clock-rotate-left text-xs"></i>
+                  </div>
+                  <div>
+                    <h4 class="text-[13px] font-bold text-gray-800 dark:text-zinc-200">${escapeHtml(item.title)}</h4>
+                    <p class="mt-0.5 text-[10px] text-gray-400 dark:text-zinc-500">${date}</p>
+                  </div>
+                </div>
+              </li>
+            `;
+            list.insertAdjacentHTML('beforeend', li);
+          });
+        } catch (error) {
+          console.error(error);
+          list.innerHTML = '<li class="text-sm text-red-500">ბოლოს ნანახის ჩატვირთვა ვერ მოხერხდა</li>';
         }
       }
 

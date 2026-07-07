@@ -40,6 +40,21 @@ services:
       - magti-network
     restart: unless-stopped
 
+  compliance-alerts:
+    image: magtibase-app
+    container_name: magti-portal-compliance-alerts
+    # ყოველ 24 საათში (86400 წამი) გაუშვებს compliance_alerts.py-ს
+    command: ["bash", "-c", "while true; do sleep 86400; python compliance_alerts.py; done"]
+    environment:
+      DATABASE_URL: postgresql://appuser:magti_secure_db@db:5432/magti_portal
+      APP_ENV: development
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - magti-network
+    restart: unless-stopped
+
   app:
     build:
       context: .

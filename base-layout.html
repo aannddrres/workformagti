@@ -2,7 +2,7 @@
 <html lang="ka">
 
 <head>
-    <script defer src="/static/frontend_api.js?v=10"></script>
+    <script defer src="/static/frontend_api.js?v=12"></script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>მაგთი — შიდა საინფორმაციო პორტალი</title>
@@ -718,6 +718,14 @@
         </div>
       </div>
 
+      <!-- ბოლოს ნანახი — server-backed recently-viewed articles (cross-device) -->
+      <div class="mb-8 flex flex-col">
+        <h3 class="mb-4 text-base md:text-lg font-bold tracking-wide text-gray-800 dark:text-zinc-100">ბოლოს ნანახი</h3>
+        <ul id="dashboard-recently-viewed-list" class="flex flex-wrap gap-3">
+          <li class="text-sm text-gray-400 dark:text-zinc-500">იტვირთება...</li>
+        </ul>
+      </div>
+
       </div>
     </div>
 
@@ -788,11 +796,11 @@
       - Dynamic Rendering: Injects fetched data into the DOM.
     -->
     
-    <script defer src="/static/js/app-core.js?v=20260707"></script>
+    <script defer src="/static/js/app-core.js?v=20260707b"></script>
     <script defer src="/static/js/app-renderers.js?v=14"></script>
     <script defer src="/static/js/app-router.js?v=6"></script>
     <script defer src="/static/js/admin-cms-enhancements.js?v=20260627"></script>
-    <script defer src="/static/js/dept-dashboard.js?v=1"></script>
+    <script defer src="/static/js/dept-dashboard.js?v=2"></script>
 
 
     <!-- ── კატეგორიის დეტალური ხედი (Category Detail View) ── -->
@@ -1119,6 +1127,12 @@
           <option value="30d">ბოლო 30 დღე</option>
           <option value="all" selected>ყველა დრო</option>
         </select>
+        <!-- Client-side re-sort of already-fetched group data, no new fetch -->
+        <button id="dept-sort-toggle" type="button"
+          onclick="DeptDashboard.setSortMode(DeptDashboard.getSortMode() === 'compliance' ? 'name' : 'compliance'); this.classList.toggle('bg-emerald-50'); this.classList.toggle('text-emerald-700'); this.classList.toggle('border-emerald-300'); this.classList.toggle('dark:bg-emerald-950/40'); this.classList.toggle('dark:text-emerald-400');"
+          class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 shadow-sm transition hover:border-emerald-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+          <i class="fa-solid fa-arrow-down-wide-short mr-1"></i>დალაგება: შესრულების მიხედვით
+        </button>
         <!-- Live status: auto-refresh, no manual button -->
         <div class="flex items-center gap-2 text-xs font-medium text-gray-400 dark:text-zinc-500">
           <span class="relative flex h-2 w-2">
@@ -1266,6 +1280,30 @@
                   class="font-medium text-gray-800">—</span></div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- ცოდნის ქულა + ლიდერბორდი — quiz performance (populated by fetchAndRenderKnowledgeScore) -->
+      <div id="profile-tab-1-extra" class="mb-10 grid grid-cols-1 gap-6 md:grid-cols-3">
+        <div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm md:col-span-1">
+          <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">ცოდნის ქულა</p>
+          <p id="knowledge-score-value" class="mt-3 text-4xl font-semibold text-gray-800">0</p>
+          <p id="knowledge-score-detail" class="mt-1 text-xs text-gray-400">იტვირთება...</p>
+        </div>
+        <div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm md:col-span-2">
+          <p class="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">ლიდერბორდი (დეპარტამენტი)</p>
+          <table class="w-full text-left text-sm">
+            <thead>
+              <tr class="border-b border-gray-100 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                <th class="pb-2 pr-3 w-12">ადგილი</th>
+                <th class="pb-2 pr-3">სახელი</th>
+                <th class="pb-2 text-right w-24">ქულა</th>
+              </tr>
+            </thead>
+            <tbody id="knowledge-leaderboard-tbody" class="divide-y divide-gray-50">
+              <tr><td colspan="3" class="py-4 text-center text-gray-400 text-sm">იტვირთება...</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -1551,6 +1589,24 @@
                 </tr>
               </thead>
               <tbody id="popular-searches-tbody" class="divide-y divide-gray-50">
+                <!-- Dynamic rows will be injected here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Content-Gap Report: what operators searched for and didn't find -->
+        <div class="mb-6 rounded-xl bg-white p-5 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
+          <h3 class="mb-4 text-sm font-bold text-gray-700">საძიებო ხარვეზები (ტოპ 10)</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <thead>
+                <tr class="border-b border-gray-100 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                  <th class="pb-2.5 pr-4">საძიებო სიტყვა</th>
+                  <th class="pb-2.5 text-center w-24">უშედეგო ცდები</th>
+                </tr>
+              </thead>
+              <tbody id="failed-searches-tbody" class="divide-y divide-gray-50">
                 <!-- Dynamic rows will be injected here -->
               </tbody>
             </table>
@@ -2415,6 +2471,21 @@
               <label for="article-due-date" class="text-sm font-medium text-gray-600">ვადა:</label>
               <input type="date" id="article-due-date"
                 class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]" />
+            </div>
+          </div>
+
+          <div id="quiz-section" class="flex flex-col gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4">
+            <div class="flex items-center gap-3">
+              <input type="checkbox" id="article-quiz-enabled" onchange="toggleQuizBuilder()"
+                class="h-4 w-4 accent-[#B91C1C]" />
+              <label for="article-quiz-enabled" class="text-sm font-medium text-gray-800">კვიზის დამატება</label>
+            </div>
+            <div id="quiz-builder-container" class="hidden flex-col gap-4">
+              <div id="quiz-questions-list"></div>
+              <button type="button" onclick="addQuizQuestion()"
+                class="self-start rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm transition hover:border-[#B91C1C] hover:text-[#B91C1C]">
+                <i class="fa-solid fa-plus mr-1"></i>კითხვის დამატება
+              </button>
             </div>
           </div>
 

@@ -143,6 +143,11 @@ class Article(Base):
     visible_to_tech_info = Column(Boolean, default=True, nullable=False)
     visible_to_service_center = Column(Boolean, default=False, nullable=False)
     is_draft = Column(Boolean, default=True, nullable=False)
+    # Optional per-article knowledge-check: when True, an operator must score
+    # 100% on the article's quiz before their read acknowledgment counts
+    # (gates both the plain read-receipt and the mandatory-reading mark-read
+    # flows — see _check_quiz_gate in main.py).
+    quiz_enabled = Column(Boolean, default=False, nullable=False)
 
 
     category = relationship("Category", back_populates="articles")
@@ -433,6 +438,51 @@ class ArticleReadReceipt(Base):
 
     article = relationship("Article")
     operator = relationship("User")
+
+
+class QuizQuestion(Base):
+    """One multiple-choice question attached to an article's optional quiz."""
+    __tablename__ = "quiz_questions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    article_id = Column(Integer, ForeignKey("articles.id", ondelete="CASCADE"), nullable=False, index=True)
+    question_text = Column(Text, nullable=False)
+    position = Column(Integer, default=0, nullable=False)
+
+    answers = relationship("QuizAnswer", cascade="all, delete-orphan", order_by="QuizAnswer.position")
+
+
+class QuizAnswer(Base):
+    """One candidate answer for a QuizQuestion; exactly one per question has is_correct=True."""
+    __tablename__ = "quiz_answers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    question_id = Column(Integer, ForeignKey("quiz_questions.id", ondelete="CASCADE"), nullable=False, index=True)
+    answer_text = Column(String, nullable=False)
+    is_correct = Column(Boolean, default=False, nullable=False)
+    position = Column(Integer, default=0, nullable=False)
+
+
+class QuizAttempt(Base):
+    """Every quiz submission (pass or fail) — not just the passing one, so
+    "ცოდნის ქულა" can reward a clean first-try pass, and admins can see who's
+    struggling. Scoped to article_version: editing the article's content
+    re-requires the quiz, mirroring ArticleReadReceipt's version-scoping.
+    """
+    __tablename__ = "quiz_attempts"
+    __table_args__ = (
+        Index("ix_quiz_attempts_user_article_version", "user_id", "article_id", "article_version"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    article_id = Column(Integer, ForeignKey("articles.id", ondelete="CASCADE"), nullable=False, index=True)
+    article_version = Column(Integer, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    attempt_number = Column(Integer, nullable=False)
+    score = Column(Integer, nullable=False)
+    total_questions = Column(Integer, nullable=False)
+    passed = Column(Boolean, default=False, nullable=False, index=True)
+    created_at = Column(DateTime, default=get_tbilisi_time)
 
 
 class SearchLog(Base):

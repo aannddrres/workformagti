@@ -174,6 +174,38 @@ def _lightweight_migrations() -> None:
                 PRIMARY KEY (article_id, department)
             )
         """,
+        # Optional per-article knowledge-check (quiz_enabled toggle lives on
+        # articles, added via add_cols below).
+        "quiz_questions": """
+            CREATE TABLE IF NOT EXISTS quiz_questions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                article_id INTEGER NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+                question_text TEXT NOT NULL,
+                position INTEGER DEFAULT 0
+            )
+        """,
+        "quiz_answers": """
+            CREATE TABLE IF NOT EXISTS quiz_answers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                question_id INTEGER NOT NULL REFERENCES quiz_questions(id) ON DELETE CASCADE,
+                answer_text VARCHAR NOT NULL,
+                is_correct BOOLEAN DEFAULT 0,
+                position INTEGER DEFAULT 0
+            )
+        """,
+        "quiz_attempts": """
+            CREATE TABLE IF NOT EXISTS quiz_attempts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                article_id INTEGER NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+                article_version INTEGER NOT NULL,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                attempt_number INTEGER NOT NULL,
+                score INTEGER NOT NULL,
+                total_questions INTEGER NOT NULL,
+                passed BOOLEAN DEFAULT 0,
+                created_at DATETIME
+            )
+        """,
     }
 
     add_cols = {
@@ -218,6 +250,7 @@ def _lightweight_migrations() -> None:
             # Block 5: role-based content visibility.
             ("visible_to_tech_info", "BOOLEAN DEFAULT 1"),
             ("visible_to_service_center", "BOOLEAN DEFAULT 0"),
+            ("quiz_enabled", "BOOLEAN DEFAULT 0"),
         ],
     }
     with engine.begin() as conn:
@@ -1920,6 +1953,11 @@ def mark_read(
     if not reading:
         raise HTTPException(status_code=404, detail="სავალდებულო მასალა ვერ მოიძებნა")
 
+    if reading.item_type == "article":
+        reading_article = db.query(models.Article).filter(models.Article.id == reading.item_id).first()
+        if reading_article:
+            _check_quiz_gate(db, reading_article, current_user)
+
     stat = db.query(models.ReadStatus).filter(models.ReadStatus.user_id == current_user.id, models.ReadStatus.required_reading_id == reading_id).first()
     if not stat:
         stat = models.ReadStatus(user_id=current_user.id, required_reading_id=reading_id)
@@ -2690,6 +2728,273 @@ def _get_eligible_operators(db: Session, article: models.Article) -> list[models
     return eligible
 
 
+def _check_quiz_gate(db: Session, article: models.Article, user: models.User) -> None:
+    """Raise 403 if article.quiz_enabled and the user has no passing QuizAttempt
+    for the article's current version.
+
+    Quiz applies to ANY article (admin toggles it per-article, independent of
+    mandatory-reading status), so this is called from BOTH "mark as read" code
+    paths: the general article read-receipt (main.py, create_article_read_receipt)
+    and the mandatory-reading compliance mark-read (main.py, mark_read).
+
+    Admins/content_admins bypass — mirrors the existing role short-circuit in
+    updateAckButtonState on the frontend (they never see the ack button either).
+    """
+    if user.role in (security.ROLE_SYSTEM_ADMIN, security.ROLE_CONTENT_ADMIN):
+        return
+    if not article.quiz_enabled:
+        return
+    passed = db.query(models.QuizAttempt).filter(
+        models.QuizAttempt.article_id == article.id,
+        models.QuizAttempt.article_version == article.version,
+        models.QuizAttempt.user_id == user.id,
+        models.QuizAttempt.passed == True,  # noqa: E712
+    ).first()
+    if not passed:
+        raise HTTPException(status_code=403, detail="საჭიროა ქვიზის წარმატებით ჩაბარება წაკითხვის დასადასტურებლად")
+
+
+@app.get("/api/articles/{article_id}/quiz/admin", response_model=schemas.QuizAdminUpdate)
+def get_article_quiz_admin(
+    article_id: int,
+    current_admin: models.User = Depends(security.get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Full question set INCLUDING is_correct, for re-populating the admin
+    question-builder when reopening an article for edit."""
+    article = db.query(models.Article).filter(models.Article.id == article_id).first()
+    if not article:
+        raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
+
+    questions = (
+        db.query(models.QuizQuestion)
+        .filter(models.QuizQuestion.article_id == article_id)
+        .order_by(models.QuizQuestion.position)
+        .all()
+    )
+    return {
+        "questions": [
+            {
+                "id": q.id,
+                "question_text": q.question_text,
+                "position": q.position,
+                "answers": [
+                    {"id": a.id, "answer_text": a.answer_text, "is_correct": a.is_correct, "position": a.position}
+                    for a in sorted(q.answers, key=lambda a: a.position)
+                ],
+            }
+            for q in questions
+        ]
+    }
+
+
+@app.put("/api/articles/{article_id}/quiz/admin", response_model=schemas.QuizAdminUpdate)
+def update_article_quiz_admin(
+    article_id: int,
+    payload: schemas.QuizAdminUpdate,
+    current_admin: models.User = Depends(security.get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Full delete-and-recreate of an article's quiz questions from the payload."""
+    article = db.query(models.Article).filter(models.Article.id == article_id).first()
+    if not article:
+        raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
+
+    if not payload.questions:
+        raise HTTPException(status_code=422, detail="ქვიზს უნდა ჰქონდეს მინიმუმ ერთი კითხვა")
+    for q in payload.questions:
+        if len(q.answers) < 2:
+            raise HTTPException(status_code=422, detail="ყოველ კითხვას უნდა ჰქონდეს მინიმუმ 2 პასუხი")
+        correct_count = sum(1 for a in q.answers if a.is_correct)
+        if correct_count != 1:
+            raise HTTPException(status_code=422, detail="ყოველ კითხვას უნდა ჰქონდეს ზუსტად ერთი სწორი პასუხი")
+
+    # Full replace: delete existing questions (cascades to answers), insert the new set.
+    db.query(models.QuizQuestion).filter(models.QuizQuestion.article_id == article_id).delete()
+    db.flush()
+
+    for qi, q in enumerate(payload.questions):
+        db_question = models.QuizQuestion(article_id=article_id, question_text=q.question_text, position=qi)
+        db.add(db_question)
+        db.flush()
+        for ai, a in enumerate(q.answers):
+            db.add(models.QuizAnswer(
+                question_id=db_question.id, answer_text=a.answer_text, is_correct=a.is_correct, position=ai,
+            ))
+
+    audit_log = models.AuditLog(
+        admin_id=current_admin.id, action="UPDATE_QUIZ", item_type="article", item_id=article_id
+    )
+    db.add(audit_log)
+    db.commit()
+
+    return get_article_quiz_admin(article_id, current_admin, db)
+
+
+@app.get("/api/articles/{article_id}/quiz", response_model=schemas.QuizPublicResponse)
+def get_article_quiz(
+    article_id: int,
+    current_user: models.User = Depends(security.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Operator-facing quiz questions — no is_correct anywhere in the payload."""
+    article = db.query(models.Article).filter(models.Article.id == article_id).first()
+    if not article:
+        raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
+    _assert_article_visible(article, current_user)
+    if not article.quiz_enabled:
+        raise HTTPException(status_code=404, detail="ამ სტატიას კვიზი არ აქვს")
+
+    questions = (
+        db.query(models.QuizQuestion)
+        .filter(models.QuizQuestion.article_id == article_id)
+        .order_by(models.QuizQuestion.position)
+        .all()
+    )
+    return {
+        "article_id": article_id,
+        "article_version": article.version,
+        "questions": [
+            {
+                "id": q.id,
+                "question_text": q.question_text,
+                "answers": [
+                    {"id": a.id, "answer_text": a.answer_text}
+                    for a in sorted(q.answers, key=lambda a: a.position)
+                ],
+            }
+            for q in questions
+        ],
+    }
+
+
+@app.post("/api/articles/{article_id}/quiz/attempt", response_model=schemas.QuizAttemptResult)
+def submit_article_quiz_attempt(
+    article_id: int,
+    payload: schemas.QuizAttemptSubmit,
+    current_user: models.User = Depends(security.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Grades a quiz submission server-side, records the attempt (pass or fail),
+    and returns which questions were wrong so the operator can review before retrying."""
+    article = db.query(models.Article).filter(models.Article.id == article_id).first()
+    if not article:
+        raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
+    _assert_article_visible(article, current_user)
+    if not article.quiz_enabled:
+        raise HTTPException(status_code=404, detail="ამ სტატიას კვიზი არ აქვს")
+
+    questions = (
+        db.query(models.QuizQuestion)
+        .filter(models.QuizQuestion.article_id == article_id)
+        .all()
+    )
+    if not questions:
+        raise HTTPException(status_code=404, detail="ამ სტატიას კვიზის კითხვები არ აქვს")
+
+    wrong_question_ids = []
+    score = 0
+    for q in questions:
+        correct_answer = next((a for a in q.answers if a.is_correct), None)
+        chosen_answer_id = payload.answers.get(q.id)
+        if correct_answer is not None and chosen_answer_id == correct_answer.id:
+            score += 1
+        else:
+            wrong_question_ids.append(q.id)
+
+    total = len(questions)
+    passed = score == total
+
+    prior_attempts = db.query(func.count(models.QuizAttempt.id)).filter(
+        models.QuizAttempt.article_id == article_id,
+        models.QuizAttempt.article_version == article.version,
+        models.QuizAttempt.user_id == current_user.id,
+    ).scalar() or 0
+    attempt_number = prior_attempts + 1
+
+    db.add(models.QuizAttempt(
+        article_id=article_id,
+        article_version=article.version,
+        user_id=current_user.id,
+        attempt_number=attempt_number,
+        score=score,
+        total_questions=total,
+        passed=passed,
+    ))
+    db.commit()
+
+    return {
+        "passed": passed,
+        "score": score,
+        "total_questions": total,
+        "wrong_question_ids": wrong_question_ids,
+        "attempt_number": attempt_number,
+    }
+
+
+@app.get("/api/users/me/knowledge-score", response_model=schemas.KnowledgeScoreResponse)
+def get_my_knowledge_score(
+    current_user: models.User = Depends(security.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """'ცოდნის ქულა' — +10 per distinct article quiz passed, +5 bonus if passed
+    on the very first attempt for that article version. Tunable constants, not
+    architecturally load-bearing."""
+    score_data = _compute_knowledge_score(db, current_user.id)
+    return {"user_id": current_user.id, **score_data}
+
+
+def _compute_knowledge_score(db: Session, user_id: int) -> dict:
+    """Shared by the personal score endpoint and the leaderboard."""
+    rows = (
+        db.query(
+            models.QuizAttempt.article_id,
+            models.QuizAttempt.article_version,
+            func.min(models.QuizAttempt.attempt_number),
+        )
+        .filter(models.QuizAttempt.user_id == user_id, models.QuizAttempt.passed == True)  # noqa: E712
+        .group_by(models.QuizAttempt.article_id, models.QuizAttempt.article_version)
+        .all()
+    )
+    articles_passed = len(rows)
+    first_try_passes = sum(1 for _, _, min_attempt in rows if min_attempt == 1)
+    score = 10 * articles_passed + 5 * first_try_passes
+    return {"score": score, "articles_passed": articles_passed, "first_try_passes": first_try_passes}
+
+
+@app.get("/api/knowledge-leaderboard", response_model=schemas.LeaderboardResponse)
+def get_knowledge_leaderboard(
+    scope: str = "department",
+    current_user: models.User = Depends(security.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Ranks users by 'ცოდნის ქულა' within the current user's own department
+    (scope='department', default) or team (scope='team')."""
+    query = db.query(models.User).filter(
+        models.User.is_active == True,  # noqa: E712
+        models.User.role.notin_(_MANAGEMENT_ROLES),
+    )
+    if scope == "team" and current_user.team_id:
+        query = query.filter(models.User.team_id == current_user.team_id)
+    else:
+        query = query.filter(models.User.department == current_user.department)
+    users = query.all()
+
+    entries = []
+    for u in users:
+        data = _compute_knowledge_score(db, u.id)
+        if data["score"] == 0:
+            continue
+        entries.append({
+            "user_id": u.id, "user_name": u.name, "department": u.department, "score": data["score"], "rank": 0,
+        })
+    entries.sort(key=lambda e: e["score"], reverse=True)
+    for i, e in enumerate(entries):
+        e["rank"] = i + 1
+
+    return {"entries": entries, "generated_at": get_tbilisi_time()}
+
+
 @app.get("/api/articles/{article_id}/versions", response_model=list[schemas.ArticleVersionItem])
 def get_article_versions(
     article_id: int,
@@ -2856,9 +3161,10 @@ def create_article_read_receipt(
     db_article = db.query(models.Article).filter(models.Article.id == article_id).first()
     if not db_article:
         raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
-        
+
     _assert_article_visible(db_article, current_user)
-    
+    _check_quiz_gate(db, db_article, current_user)
+
     try:
         receipt = db.query(models.ArticleReadReceipt).filter(
             models.ArticleReadReceipt.article_id == article_id,
@@ -2983,6 +3289,50 @@ def track_article_view(
     db.add(audit_log)
     db.commit()
     return {"status": "success"}
+
+
+@app.get("/api/me/recently-viewed", response_model=list[schemas.RecentlyViewedItem])
+def get_my_recently_viewed(
+    current_user: models.User = Depends(security.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Returns the current user's most recently viewed articles (server-backed,
+    cross-device — distinct from the client-only localStorage strip on the KB page).
+
+    Reuses the AuditLog outer-join pattern from the audit-log export endpoint so a
+    since-deleted article can't break the query (title comes back None and is
+    filtered out below rather than 500ing).
+    """
+    rows = (
+        db.query(models.AuditLog, models.Article.title)
+        .outerjoin(
+            models.Article,
+            and_(
+                func.lower(models.AuditLog.item_type) == "article",
+                models.AuditLog.item_id == models.Article.id,
+            ),
+        )
+        .filter(
+            models.AuditLog.admin_id == current_user.id,
+            models.AuditLog.action == "VIEW",
+            func.lower(models.AuditLog.item_type) == "article",
+        )
+        .order_by(desc(models.AuditLog.timestamp))
+        .limit(30)
+        .all()
+    )
+
+    seen_ids: set[int] = set()
+    items: list[dict] = []
+    for log, title in rows:
+        if title is None or log.item_id in seen_ids:
+            continue
+        seen_ids.add(log.item_id)
+        items.append({"article_id": log.item_id, "title": title, "viewed_at": log.timestamp})
+        if len(items) >= 10:
+            break
+    return items
+
 
 @app.post("/api/videos/{video_id}/view", response_model=schemas.VideoInstructionResponse)
 def view_video(
@@ -5378,7 +5728,7 @@ def nudge_user(
         raise HTTPException(status_code=404, detail="მომხმარებელი ვერ მოიძებნა")
 
     # Broadcast nudge event via SSE broker
-    event_broker.publish({
+    broker.publish({
         "type": "nudge",
         "user_id": user_id,
         "message": f"გთხოვთ გაეცნოთ სავალდებულო მასალებს! (გამოგეგზავნათ მენეჯერისგან: {current_user.name})"

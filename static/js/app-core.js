@@ -284,6 +284,7 @@ window._historyCache = window._historyCache || { articleId: null, versionsData: 
           fetchKPIs(token);
           fetchAndRenderCategories(token);
           fetchAndRenderPopularSearches(token);
+          fetchAndRenderFailedSearches(token);
           fetchStaleArticles(token);
         }
         if (currentUser.role === 'admin') {
@@ -305,6 +306,7 @@ window._historyCache = window._historyCache || { articleId: null, versionsData: 
 
         // Initial render of recently viewed articles
         renderRecentlyViewed();
+        if (typeof fetchAndRenderDashboardRecentlyViewed === 'function') fetchAndRenderDashboardRecentlyViewed(token);
 
         // Set default page from hash if valid, or default to Dashboard.
         const initialHash = window.location.hash.substring(1);
@@ -1550,6 +1552,8 @@ function updateUserInfo(user) {
         const profileEmail = document.getElementById('profile-email');
         if (profileEmail) profileEmail.textContent = user.email || '—';
 
+        if (typeof fetchAndRenderKnowledgeScore === 'function') fetchAndRenderKnowledgeScore();
+
         // Dynamic Card Pack Style Applier
         const cardStyle = user.card_style || localStorage.getItem('magti_card_style') || 'corporate';
         document.body.classList.remove('card-theme-corporate', 'card-theme-glass', 'card-theme-bold', 'card-theme-minimal', 'card-theme-colorful');
@@ -1777,11 +1781,22 @@ function appendComplianceConfirmButton(modalId, readingId) {
         btn.dataset.action = 'confirm-read';
         btn.className = 'mt-6 w-full rounded-xl bg-[#E30613] py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-red-700 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-[#E30613] focus:ring-offset-2';
         btn.innerHTML = '<i aria-hidden="true" class="fa-solid fa-check mr-2"></i>წავიკითხე და გავიგე';
-        btn.onclick = () => {
-          markAsRead(readingId);   // existing API call kept intact
+        const closeThisModal = () => {
           if (modalId === 'article-modal') closeArticleModal();
           else if (modalId === 'news-detail-modal') closeNewsDetailModal();
           else closeReadingModal();
+        };
+        btn.onclick = async () => {
+          const result = await markAsRead(readingId);   // existing API call kept intact
+          if (result && result.quizRequired && modalId === 'article-modal') {
+            const item = (window.myReadings || []).find(r => r.reading.id === readingId);
+            const articleId = item ? item.reading.item_id : null;
+            if (articleId) {
+              openQuizModal(articleId, () => { markAsRead(readingId); closeThisModal(); });
+              return;
+            }
+          }
+          closeThisModal();
         };
         target.appendChild(btn);
       }
@@ -1800,14 +1815,19 @@ async function markAsRead(readingId) {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` }
           });
+          // Quiz gate — caller (appendComplianceConfirmButton) handles launching
+          // the quiz modal; report the signal instead of treating it as a failure.
+          if (response.status === 403) return { quizRequired: true };
           if (!response.ok) throw new Error('Failed to mark as read');
 
           // Re-fetch to update the UI gracefully
           fetchAndRenderMyReadings(token);
           fetchNotificationsCount(token);
+          return { ok: true };
         } catch (error) {
           console.error('Error marking as read:', error);
           alert('სტატუსის განახლება ვერ მოხერხდა.');
+          return { ok: false };
         }
       }
 
@@ -1977,6 +1997,117 @@ function toggleDueDate() {
         }
       }
 
+function toggleQuizBuilder() {
+        const enabledEl = document.getElementById('article-quiz-enabled');
+        const container = document.getElementById('quiz-builder-container');
+        if (!enabledEl || !container) return;
+        if (enabledEl.checked) {
+          container.classList.remove('hidden');
+          container.classList.add('flex');
+          const list = document.getElementById('quiz-questions-list');
+          if (list && list.children.length === 0) addQuizQuestion();
+        } else {
+          container.classList.add('hidden');
+          container.classList.remove('flex');
+        }
+      }
+
+function addQuizQuestion(existingQuestion) {
+        const list = document.getElementById('quiz-questions-list');
+        if (!list) return;
+        const qIndex = list.children.length;
+        const row = document.createElement('div');
+        row.className = 'quiz-question-row rounded-lg border border-gray-200 bg-white p-3 mb-3';
+        const questionText = existingQuestion ? escapeHtml(existingQuestion.question_text) : '';
+        row.innerHTML = `
+          <div class="flex items-start gap-2">
+            <textarea class="quiz-question-text flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]" rows="2" placeholder="კითხვის ტექსტი">${questionText}</textarea>
+            <button type="button" onclick="this.closest('.quiz-question-row').remove()" class="mt-1 text-gray-400 hover:text-[#E30613]" aria-label="კითხვის წაშლა">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          <div class="quiz-answers-list mt-2 space-y-1.5"></div>
+          <button type="button" onclick="addQuizAnswer(this)" class="mt-2 text-xs font-semibold text-gray-500 hover:text-[#B91C1C]">
+            <i class="fa-solid fa-plus mr-1"></i>პასუხის დამატება
+          </button>
+        `;
+        list.appendChild(row);
+
+        const answers = (existingQuestion && existingQuestion.answers) || [{ answer_text: '', is_correct: true }, { answer_text: '', is_correct: false }];
+        const addAnswerBtn = row.querySelector('button[onclick="addQuizAnswer(this)"]') || row.querySelector('.quiz-answers-list').nextElementSibling;
+        answers.forEach(a => addQuizAnswer(addAnswerBtn, a));
+      }
+
+function addQuizAnswer(addBtn, existingAnswer) {
+        const row = addBtn.closest('.quiz-question-row');
+        if (!row) return;
+        const answersList = row.querySelector('.quiz-answers-list');
+        const groupName = 'quiz-correct-' + Math.random().toString(36).slice(2);
+        const answerRow = document.createElement('div');
+        answerRow.className = 'quiz-answer-row flex items-center gap-2';
+        const answerText = existingAnswer ? escapeHtml(existingAnswer.answer_text) : '';
+        const isCorrect = existingAnswer ? !!existingAnswer.is_correct : false;
+        answerRow.innerHTML = `
+          <input type="radio" name="${groupName}" class="quiz-answer-correct h-4 w-4 accent-[#B91C1C]" title="სწორი პასუხი" ${isCorrect ? 'checked' : ''} />
+          <input type="text" class="quiz-answer-text flex-1 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]" placeholder="პასუხის ვარიანტი" value="${answerText}" />
+          <button type="button" onclick="this.closest('.quiz-answer-row').remove()" class="text-gray-300 hover:text-[#E30613]" aria-label="პასუხის წაშლა">
+            <i class="fa-solid fa-xmark text-xs"></i>
+          </button>
+        `;
+        // Every radio in this question's answer rows must share one name so only
+        // one can be marked correct — new rows get the SAME group name as
+        // existing rows in this question, not a fresh random one each time.
+        const firstRadio = answersList.querySelector('.quiz-answer-correct');
+        if (firstRadio) answerRow.querySelector('.quiz-answer-correct').name = firstRadio.name;
+        answersList.appendChild(answerRow);
+      }
+
+function collectQuizQuestionsFromDOM() {
+        const rows = document.querySelectorAll('#quiz-questions-list .quiz-question-row');
+        const questions = [];
+        rows.forEach((row, qi) => {
+          const questionText = row.querySelector('.quiz-question-text')?.value.trim() || '';
+          if (!questionText) return;
+          const answers = [];
+          row.querySelectorAll('.quiz-answer-row').forEach((ansRow, ai) => {
+            const answerText = ansRow.querySelector('.quiz-answer-text')?.value.trim() || '';
+            if (!answerText) return;
+            answers.push({
+              answer_text: answerText,
+              is_correct: !!ansRow.querySelector('.quiz-answer-correct')?.checked,
+              position: ai,
+            });
+          });
+          if (answers.length >= 2) {
+            questions.push({ question_text: questionText, position: qi, answers });
+          }
+        });
+        return questions;
+      }
+
+function renderQuizBuilderFromData(questions) {
+        const list = document.getElementById('quiz-questions-list');
+        if (!list) return;
+        list.innerHTML = '';
+        (questions || []).forEach(q => addQuizQuestion(q));
+      }
+
+async function syncQuizQuestions(articleId, token) {
+        const questions = collectQuizQuestionsFromDOM();
+        if (questions.length === 0) return;
+        try {
+          const res = await fetch(`/api/articles/${articleId}/quiz/admin`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ questions })
+          });
+          if (!res.ok) throw new Error('კვიზის შენახვა ვერ მოხერხდა');
+        } catch (error) {
+          console.error(error);
+          if (typeof showToast === 'function') showToast('კვიზის შენახვა ვერ მოხერხდა', error.message, { variant: 'error' });
+        }
+      }
+
 function toggleScheduledDate() {
         const statusEl = document.getElementById('article-status');
         const schedContainer = document.getElementById('scheduled-date-container');
@@ -2089,7 +2220,8 @@ async function submitArticleForm(event) {
         if (window._removeAttachment) attachmentUrl = null;
 
         const notifyOperators = document.getElementById('article-notify-operators')?.checked || false;
-        const payload = { title, content, category_id: categoryId, audience_profile: audienceProfile, target_departments: targetDepartments, status, published_at: publishedAt, tags: tags || null, visible_to_tech_info: visibleToTechInfo, visible_to_service_center: visibleToServiceCenter, is_draft: false, notify_operators: notifyOperators };
+        const quizEnabled = document.getElementById('article-quiz-enabled')?.checked || false;
+        const payload = { title, content, category_id: categoryId, audience_profile: audienceProfile, target_departments: targetDepartments, status, published_at: publishedAt, tags: tags || null, visible_to_tech_info: visibleToTechInfo, visible_to_service_center: visibleToServiceCenter, is_draft: false, notify_operators: notifyOperators, quiz_enabled: quizEnabled };
         if (editingId) {
           // Preserve fields the form doesn't expose, or PUT would null them out
           const cached = (window.adminArticles || {})[editingId] || {};
@@ -2117,11 +2249,14 @@ async function submitArticleForm(event) {
 
           // [Fix G10] Mandatory flag now syncs on BOTH create and edit (was create-only).
           await syncMandatoryFor('article', articleData.id, targetDepartment, isMandatory, dueDate, token);
+          if (quizEnabled) await syncQuizQuestions(articleData.id, token);
 
           showToast(editingId ? 'სტატია განახლდა' : 'სტატია დაემატა', '', { variant: 'success' });
           event.target.reset();
           if (window.articleQuill) window.articleQuill.setText('');
           toggleDueDate();
+          document.getElementById('quiz-questions-list').innerHTML = '';
+          toggleQuizBuilder();
           exitEditMode();
           fetchAndRenderAdminContent(token); // Refresh the table automatically
           releaseSubmitGuard();
@@ -2273,6 +2408,25 @@ async function editArticle(articleId) {
               }
             }
           } catch { }
+        }
+
+        const quizCheck = $('article-quiz-enabled');
+        const quizList = $('quiz-questions-list');
+        if (quizList) quizList.innerHTML = '';
+        if (quizCheck) quizCheck.checked = false;
+        toggleQuizBuilder();
+        if (article.quiz_enabled && token) {
+          try {
+            const qr = await fetch(`/api/articles/${articleId}/quiz/admin`, {
+              headers: { Authorization: 'Bearer ' + token },
+            });
+            if (qr.ok) {
+              const quizData = await qr.json();
+              if (quizCheck) quizCheck.checked = true;
+              toggleQuizBuilder();
+              renderQuizBuilderFromData(quizData.questions);
+            }
+          } catch (e) { console.warn('[editArticle] quiz load failed:', e); }
         }
 
         const formTitle = $('article-form-title');
@@ -6323,6 +6477,17 @@ window.acknowledgeArticleRead = async function() {
       }
     });
 
+    // Quiz gate — the article has quiz_enabled and this user hasn't passed it
+    // yet for the current version. Launch the quiz; retry this exact call on
+    // a pass rather than duplicating the ack logic in the quiz flow.
+    if (res.status === 403) {
+      ackBtn.disabled = false;
+      ackBtn.className = originalClassName;
+      ackBtn.innerHTML = originalHtml;
+      openQuizModal(articleId, () => window.acknowledgeArticleRead());
+      return;
+    }
+
     if (!res.ok) {
       throw new Error('Failed response');
     }
@@ -6345,6 +6510,119 @@ window.acknowledgeArticleRead = async function() {
     }
   }
 };
+
+// ── Operator quiz-taking modal ──
+// Lazily-injected, mirrors the ensureHistoryModal() pattern used elsewhere in
+// this file. Distinct DOM ids (#quiz-modal) so this never collides with the
+// unrelated admin-only news-history modal (#history-modal) or the article
+// version-history overlay (#modal-history-*).
+function ensureQuizModal() {
+  if (document.getElementById('quiz-modal')) return;
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="quiz-modal" role="dialog" aria-modal="true" class="fixed inset-0 z-[110] hidden items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+      <div class="relative max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-8 shadow-2xl dark:bg-zinc-900">
+        <h3 class="mb-1 text-xl font-bold text-gray-800 dark:text-zinc-100">კვიზი</h3>
+        <p class="mb-5 text-sm text-gray-500 dark:text-zinc-400">საჭიროა ყველა კითხვაზე სწორი პასუხი წაკითხვის დასადასტურებლად.</p>
+        <div id="quiz-modal-questions" class="flex flex-col gap-5"></div>
+        <p id="quiz-modal-feedback" class="mt-4 hidden text-sm font-semibold"></p>
+        <button onclick="submitQuizAttempt()" class="mt-6 w-full rounded-xl bg-[#E30613] py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-red-700 active:scale-[0.98]">
+          დასრულება
+        </button>
+      </div>
+    </div>
+  `);
+}
+
+window._activeQuiz = { articleId: null, onSuccess: null };
+
+async function openQuizModal(articleId, onSuccess) {
+  ensureQuizModal();
+  window._activeQuiz = { articleId, onSuccess };
+
+  const container = document.getElementById('quiz-modal-questions');
+  const feedback = document.getElementById('quiz-modal-feedback');
+  container.innerHTML = '<p class="text-sm text-gray-400">იტვირთება...</p>';
+  feedback.classList.add('hidden');
+
+  const modal = document.getElementById('quiz-modal');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+
+  const token = localStorage.getItem('magti_token') || (typeof Auth !== 'undefined' ? Auth.getToken() : null);
+  try {
+    const res = await fetch(`/api/articles/${articleId}/quiz`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error('კვიზის ჩატვირთვა ვერ მოხერხდა');
+    const quiz = await res.json();
+
+    container.innerHTML = quiz.questions.map((q, qi) => `
+      <div class="quiz-modal-question" data-question-id="${q.id}">
+        <p class="mb-2 text-sm font-semibold text-gray-800 dark:text-zinc-200">${qi + 1}. ${escapeHtml(q.question_text)}</p>
+        <div class="flex flex-col gap-1.5">
+          ${q.answers.map(a => `
+            <label class="flex items-center gap-2.5 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">
+              <input type="radio" name="quiz-q-${q.id}" value="${a.id}" class="h-4 w-4 accent-[#B91C1C]" />
+              ${escapeHtml(a.answer_text)}
+            </label>
+          `).join('')}
+        </div>
+      </div>
+    `).join('');
+  } catch (error) {
+    console.error(error);
+    container.innerHTML = '<p class="text-sm text-red-500">კვიზის ჩატვირთვა ვერ მოხერხდა</p>';
+  }
+}
+
+function closeQuizModal() {
+  const modal = document.getElementById('quiz-modal');
+  if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+}
+
+async function submitQuizAttempt() {
+  const { articleId, onSuccess } = window._activeQuiz;
+  if (!articleId) return;
+
+  const answers = {};
+  document.querySelectorAll('.quiz-modal-question').forEach(qEl => {
+    const questionId = parseInt(qEl.dataset.questionId, 10);
+    const checked = qEl.querySelector('input[type="radio"]:checked');
+    if (checked) answers[questionId] = parseInt(checked.value, 10);
+  });
+
+  const token = localStorage.getItem('magti_token') || (typeof Auth !== 'undefined' ? Auth.getToken() : null);
+  const feedback = document.getElementById('quiz-modal-feedback');
+  try {
+    const res = await fetch(`/api/articles/${articleId}/quiz/attempt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ answers })
+    });
+    if (!res.ok) throw new Error('კვიზის შედეგის შენახვა ვერ მოხერხდა');
+    const result = await res.json();
+
+    if (result.passed) {
+      closeQuizModal();
+      if (typeof showToast === 'function') showToast('წარმატება', 'ქვიზი წარმატებით ჩააბარეთ!', 'success');
+      if (typeof onSuccess === 'function') onSuccess();
+    } else {
+      feedback.classList.remove('hidden');
+      feedback.classList.add('text-[#E30613]');
+      feedback.textContent = `თქვენ არასწორად უპასუხეთ ${result.wrong_question_ids.length} კითხვას — სცადეთ თავიდან`;
+      // Clear only the wrong questions' selections so a correct pick isn't lost on retry.
+      result.wrong_question_ids.forEach(qid => {
+        document.querySelectorAll(`input[name="quiz-q-${qid}"]`).forEach(r => { r.checked = false; });
+      });
+    }
+  } catch (error) {
+    console.error(error);
+    feedback.classList.remove('hidden');
+    feedback.classList.add('text-[#E30613]');
+    feedback.textContent = 'შეცდომა კვიზის შემოწმებისას';
+  }
+}
 
 // ── Modal Admin Audit Overlay Functions ──
 let modalAuditSearchTimeout = null;

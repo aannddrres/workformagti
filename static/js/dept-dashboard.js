@@ -18,6 +18,8 @@
   var COUNTUP_MS = 700;         // count-up animation duration
   var _timer = null;            // single shared interval handle
   var _animTokens = {};         // per-element animation cancellation tokens
+  var _sortMode = 'name';       // 'name' (server default) | 'compliance' (client re-sort)
+  var _lastDepartments = null;  // cached last-fetched departments, for sort-toggle re-render without a new fetch
 
   // Brand + tier palette (subtle accents over a grayscale base).
   function tier(pct, hasReq) {
@@ -120,6 +122,17 @@
       '</div>';
   }
 
+  // Single source of truth for group order, so the DOM built by departmentCard()
+  // and the post-render bar-animation loop in renderDepartments() never disagree
+  // on which gbar-<deptKey>-<idx> id corresponds to which group.
+  function _sortedGroups(dept) {
+    var groups = (dept.groups || []).slice();
+    if (_sortMode === 'compliance') {
+      groups.sort(function (a, b) { return (Number(b.compliance) || 0) - (Number(a.compliance) || 0); });
+    }
+    return groups;
+  }
+
   function departmentCard(dept, di) {
     var deptKey = 'd' + di;
     var pct = Number(dept.compliance) || 0;
@@ -138,7 +151,7 @@
         '</div>';
     }
 
-    var groupsHtml = (dept.groups || []).map(function (g, gi) { return groupRow(g, gi, deptKey, dept.name); }).join('');
+    var groupsHtml = _sortedGroups(dept).map(function (g, gi) { return groupRow(g, gi, deptKey, dept.name); }).join('');
     return '' +
       '<div class="flex flex-col rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60">' +
         '<div class="mb-1 flex items-start justify-between gap-2">' +
@@ -166,7 +179,7 @@
       if (dept.is_empty) return;
       countUp(document.getElementById('dcomp-' + deptKey), dept.compliance, '%');
       animateBar(document.getElementById('dbar-' + deptKey), Number(dept.compliance) || 0);
-      (dept.groups || []).forEach(function (g, gi) {
+      _sortedGroups(dept).forEach(function (g, gi) {
         animateBar(document.getElementById('gbar-' + deptKey + '-' + gi), Number(g.compliance) || 0);
       });
     });
@@ -214,6 +227,7 @@
     if (!token) { renderError('ავტორიზაცია საჭიროა.'); return; }
     if (isInitial) renderSkeleton(); // only the first paint shows skeletons
     fetch_(token).then(function (data) {
+      _lastDepartments = data.departments;
       renderRibbon(data.insights);
       renderDepartments(data.departments);
       applyPctColors();
@@ -242,6 +256,18 @@
   }
 
   function stop() { if (_timer) { clearInterval(_timer); _timer = null; } }
+
+  // Client-side re-sort of already-fetched group data (no new network request).
+  function setSortMode(mode) {
+    _sortMode = (mode === 'compliance') ? 'compliance' : 'name';
+    if (!_lastDepartments) return;
+    renderDepartments(_lastDepartments);
+    applyPctColors();
+    adaptGrid(_lastDepartments);
+    bindGroupRows();
+  }
+
+  function getSortMode() { return _sortMode; }
 
   // Dynamic color for group completion percentages (alarm-fatigue fix).
   function applyPctColors() {
@@ -401,6 +427,7 @@
     renderRibbon: renderRibbon, renderDepartments: renderDepartments,
     renderSkeleton: renderSkeleton, countUp: countUp,
     applyPctColors: applyPctColors, adaptGrid: adaptGrid,
-    bindCriticalCard: bindCriticalCard, bindGroupRows: bindGroupRows
+    bindCriticalCard: bindCriticalCard, bindGroupRows: bindGroupRows,
+    setSortMode: setSortMode, getSortMode: getSortMode
   };
 })();
