@@ -2558,18 +2558,21 @@ def get_article_history(
 def get_article_diff(
     article_id: int,
     history_id: int,
-    current_admin: models.User = Depends(security.get_current_admin_user),
+    current_user: models.User = Depends(security.get_current_user),
     db: Session = Depends(get_db),
 ):
     """Diff a historical snapshot against the article's CURRENT content.
 
-    Returns {'html', 'added', 'removed', 'version_id'} — admin only. The HTML is
-    a structure-safe fragment built from escaped text (see diffing.diff_html), so
-    it is safe to inject directly into the Quick Look modal.
+    Returns {'html', 'added', 'removed', 'version_id'} — available to any user
+    who can already read the article (same department gate as GET
+    /api/articles/{id}). The HTML is a structure-safe fragment built from
+    escaped text (see diffing.diff_html), so it is safe to inject directly
+    into the Quick Look modal.
     """
     art = db.query(models.Article).filter(models.Article.id == article_id).first()
     if not art:
         raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
+    _assert_article_visible(art, current_user)
     snap = db.query(models.ArticleHistory).filter(
         models.ArticleHistory.id == history_id,
         models.ArticleHistory.article_id == article_id,
@@ -2690,14 +2693,20 @@ def _get_eligible_operators(db: Session, article: models.Article) -> list[models
 @app.get("/api/articles/{article_id}/versions", response_model=list[schemas.ArticleVersionItem])
 def get_article_versions(
     article_id: int,
-    current_admin: models.User = Depends(security.get_current_admin_user),
+    current_user: models.User = Depends(security.get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Retrieve all available versions (revisions) of an article (Admins only)."""
+    """Retrieve all available versions (revisions) of an article.
+
+    Available to any user who can already read the article (same department
+    gate as GET /api/articles/{id}) — not admin-only. Lets operators see what
+    changed and when, without exposing who-read-what (see read-receipts).
+    """
     article = db.query(models.Article).filter(models.Article.id == article_id).first()
     if not article:
         raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
-        
+    _assert_article_visible(article, current_user)
+
     current_author_name = None
     if article.author_id:
         author = db.query(models.User).filter(models.User.id == article.author_id).first()
@@ -2718,6 +2727,7 @@ def get_article_versions(
             "title": article.title,
             "updated_at": article.updated_at,
             "author_name": current_author_name,
+            "history_id": None,
         }
     ]
     for h in history:
@@ -2726,6 +2736,7 @@ def get_article_versions(
             "title": h.ArticleHistory.title,
             "updated_at": h.ArticleHistory.updated_at,
             "author_name": h.author_name,
+            "history_id": h.ArticleHistory.id,
         })
     versions.sort(key=lambda x: x["version"], reverse=True)
     return versions

@@ -690,6 +690,7 @@ class ArticleVersionItem(BaseModel):
     title: str
     updated_at: datetime
     author_name: Optional[str] = None
+    history_id: Optional[int] = None  # None for the synthetic "current" row
 
     model_config = ConfigDict(from_attributes=True)
 

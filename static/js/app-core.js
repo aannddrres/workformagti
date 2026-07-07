@@ -5,6 +5,7 @@
    ════════════════════════════════════════════════════ */
 
 window._auditCache = window._auditCache || { articleId: null, versionsData: null, receiptsData: {} };
+window._historyCache = window._historyCache || { articleId: null, versionsData: null };
 
       /* ════════════════════════════════════════════════════════════════════
          App infrastructure — added during the production-readiness refactor.
@@ -3163,6 +3164,26 @@ function ensureArticleModal() {
                   </table>
                 </div>
               </div>
+
+              <!-- Version History / Diff Overlay (all roles with article read access) -->
+              <div id="modal-history-mask" class="hidden fixed inset-0 z-[90] bg-black/40 backdrop-blur-sm" onclick="toggleModalHistoryOverlay()"></div>
+              <div id="modal-history-overlay" onclick="event.stopPropagation()" class="hidden fixed inset-0 m-auto z-[100] bg-white w-[90vw] max-w-4xl h-[80vh] flex flex-col p-6 rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+                <div class="flex items-center justify-between border-b border-gray-100 pb-4 mb-4 shrink-0">
+                  <h3 class="text-lg font-bold text-gray-900">ცვლილებების ისტორია</h3>
+                  <button onclick="toggleModalHistoryOverlay()" class="text-gray-400 hover:text-gray-600 p-1 transition-colors">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                  </button>
+                </div>
+                <div class="flex flex-1 gap-4 overflow-hidden">
+                  <div id="modal-history-list" class="w-64 shrink-0 overflow-y-auto border-r border-gray-100 pr-3 space-y-1.5"></div>
+                  <div class="flex-1 overflow-y-auto">
+                    <div id="modal-history-summary" class="hidden mb-3 flex items-center gap-3 text-xs font-semibold"></div>
+                    <div id="modal-history-diff" class="text-sm leading-relaxed text-gray-700">
+                      <p class="text-gray-400 text-sm">აირჩიეთ ვერსია მარცხენა სიიდან შედარების სანახავად.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>`);
       }
@@ -3433,6 +3454,22 @@ function openArticleModal(article) {
             editBtn.className = 'no-print flex h-9 w-9 items-center justify-center rounded-lg text-blue-500 transition-colors hover:bg-blue-50 hover:text-blue-700';
             editBtn.innerHTML = '<i class="fa-solid fa-pen-to-square text-base"></i>';
             headerActions2.insertBefore(editBtn, headerActions2.firstChild);
+          }
+        }
+
+        // [Version History Button Injection] — visible to all roles (operator+) with article read access
+        {
+          const oldHistBtn = document.getElementById('modal-header-history-btn');
+          if (oldHistBtn) oldHistBtn.remove();
+          const headerActions3 = document.querySelector('#article-modal header .flex.shrink-0.items-center.gap-2');
+          if (headerActions3) {
+            const histBtn = document.createElement('button');
+            histBtn.id = 'modal-header-history-btn';
+            histBtn.title = 'ვერსიების ისტორია';
+            histBtn.onclick = () => { if (typeof window.toggleModalHistoryOverlay === 'function') window.toggleModalHistoryOverlay(); };
+            histBtn.className = 'no-print flex h-9 px-3 items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white text-xs font-bold text-gray-700 shadow-sm transition-colors hover:bg-gray-50';
+            histBtn.innerHTML = '<i class="fa-solid fa-clock-rotate-left"></i><span>ვერსიების ისტორია</span>';
+            headerActions3.insertBefore(histBtn, headerActions3.firstChild);
           }
         }
 
@@ -6457,6 +6494,109 @@ window.forceSyncModalAudit = async function(e) {
     await window.renderModalAuditGrid(window.activeArticleId, version);
   } finally {
     if (icon) icon.classList.remove('fa-spin');
+  }
+};
+
+window.toggleModalHistoryOverlay = function() {
+  const mask = document.getElementById('modal-history-mask');
+  const overlay = document.getElementById('modal-history-overlay');
+  if (!mask || !overlay) return;
+
+  const isHidden = mask.classList.contains('hidden');
+  if (isHidden) {
+    mask.classList.remove('hidden');
+    overlay.classList.remove('hidden');
+    overlay.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+    window.loadModalHistoryList(window.activeArticleId);
+  } else {
+    mask.classList.add('hidden');
+    overlay.classList.add('hidden');
+    overlay.classList.remove('flex');
+    document.body.style.overflow = '';
+  }
+};
+
+window.loadModalHistoryList = async function(articleId) {
+  if (!articleId) return;
+  const list = document.getElementById('modal-history-list');
+  if (!list) return;
+
+  const renderList = (versions) => {
+    list.innerHTML = '';
+    versions.forEach(v => {
+      const dateStr = v.updated_at ? new Date(v.updated_at).toLocaleString('ka-GE', { hour12: false }) : '';
+      const row = document.createElement('div');
+      if (v.history_id === null || v.history_id === undefined) {
+        row.className = 'rounded-lg px-3 py-2 text-xs opacity-50 cursor-not-allowed';
+        row.innerHTML = `<div class="font-semibold text-gray-700">მიმდინარე ვერსია</div><div class="text-gray-400">${v.author_name || 'უცნობი'} — ${dateStr}</div>`;
+      } else {
+        row.className = 'rounded-lg px-3 py-2 text-xs cursor-pointer hover:bg-gray-50 border border-transparent';
+        row.innerHTML = `<div class="font-semibold text-gray-700">ვერსია ${v.version}</div><div class="text-gray-400">${v.author_name || 'უცნობი'} — ${dateStr}</div>`;
+        row.onclick = () => {
+          list.querySelectorAll('[data-history-active]').forEach(el => {
+            el.removeAttribute('data-history-active');
+            el.classList.remove('bg-red-50', 'border-red-100');
+          });
+          row.setAttribute('data-history-active', 'true');
+          row.classList.add('bg-red-50', 'border-red-100');
+          window.loadModalHistoryDiff(articleId, v.history_id);
+        };
+      }
+      list.appendChild(row);
+    });
+  };
+
+  if (window._historyCache.articleId === articleId && window._historyCache.versionsData) {
+    renderList(window._historyCache.versionsData);
+    return;
+  }
+
+  const token = localStorage.getItem('magti_token') || (typeof Auth !== 'undefined' ? Auth.getToken() : null);
+  try {
+    const res = await fetch(`/api/articles/${articleId}/versions`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error('Failed to fetch versions');
+    const versions = await res.json();
+
+    window._historyCache.articleId = articleId;
+    window._historyCache.versionsData = versions;
+    renderList(versions);
+  } catch (err) {
+    console.error('Error loading version history:', err);
+    list.innerHTML = '<p class="text-red-500 text-xs px-3">ვერსიების ისტორიის ჩატვირთვა ვერ მოხერხდა</p>';
+  }
+};
+
+window.loadModalHistoryDiff = async function(articleId, historyId) {
+  const diffEl = document.getElementById('modal-history-diff');
+  const summaryEl = document.getElementById('modal-history-summary');
+  if (!diffEl) return;
+
+  diffEl.innerHTML = '<p class="text-gray-400 text-sm">იტვირთება...</p>';
+  if (summaryEl) summaryEl.classList.add('hidden');
+
+  const token = localStorage.getItem('magti_token') || (typeof Auth !== 'undefined' ? Auth.getToken() : null);
+  try {
+    const res = await fetch(`/api/articles/${articleId}/history/${historyId}/diff`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error('Failed to fetch diff');
+    const result = await res.json();
+
+    diffEl.innerHTML = result.html || '<p class="text-gray-400 text-sm">სხვაობა ვერ მოიძებნა.</p>';
+    if (summaryEl) {
+      summaryEl.classList.remove('hidden');
+      summaryEl.innerHTML = `
+        <span class="text-gray-500">შედარება მიმდინარე ვერსიასთან:</span>
+        <span class="text-green-700">+${result.added || 0} დამატებული</span>
+        <span class="text-red-700">&minus;${result.removed || 0} წაშლილი</span>
+      `;
+    }
+  } catch (err) {
+    console.error('Error loading version diff:', err);
+    diffEl.innerHTML = '<p class="text-red-500 text-sm">შედარების ჩატვირთვა ვერ მოხერხდა</p>';
   }
 };
 
