@@ -1001,7 +1001,27 @@ async function editVideo(videoId) {
           item = window.Store.videos[videoId];
         }
         if (!item) {
-          alert('ვიდეოს მონაცემები ვერ მოიძებნა. სცადეთ გვერდის განახლება.');
+          try {
+            const token = Auth.getToken();
+            const res = await fetch('/api/videos', {
+              headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+            });
+            if (res.ok) {
+              const videos = await res.json();
+              if (window.Store) window.Store.videos = {};
+              if (!window.cachedVideos) window.cachedVideos = {};
+              videos.forEach(v => {
+                if (window.Store) window.Store.videos[v.id] = v;
+                window.cachedVideos[v.id] = v;
+              });
+              item = window.cachedVideos[videoId];
+            }
+          } catch (e) {
+            console.warn('[editVideo] API fallback failed:', e);
+          }
+        }
+        if (!item) {
+          showAlert('ვიდეოს მონაცემები ვერ მოიძებნა.', 'warning');
           return;
         }
 
@@ -1053,7 +1073,7 @@ async function editVideo(videoId) {
       }
 
 async function deleteVideo(videoId) {
-        if (!confirm('ნამდვილად გსურთ ამ ვიდეოს წაშლა?')) return;
+        if (!await showConfirm('ვიდეოს წაშლა', 'ნამდვილად გსურთ ამ ვიდეოს წაშლა?', { confirmText: 'წაშლა', variant: 'danger' })) return;
         const token = Auth.getToken();
         if (!token) return;
 
@@ -1078,7 +1098,7 @@ async function deleteVideo(videoId) {
           fetchAndRenderAdminVideos(token);
         } catch (error) {
           console.error(error);
-          alert('შეცდომა წაშლისას: ' + error.message);
+          showAlert('შეცდომა წაშლისას: ' + error.message, 'error');
         }
       }
 
@@ -1532,8 +1552,10 @@ async function fetchAndRenderAdminFeedback(token) {
             const date = new Date(fb.created_at).toLocaleString('ka-GE');
             const tr = document.createElement('tr');
             tr.className = 'transition-colors hover:bg-gray-50';
-            // [Fix] Status badge now reflects resolved/rejected with color, plus
-            //       action buttons so admins can transition state without leaving the page.
+            // Status badge only — the resolve/reject/reopen action buttons were
+            // removed because PUT /api/admin/feedback/{id}/status is deprecated
+            // (backend always returns 410 Gone); the buttons called it anyway
+            // and silently failed on every click.
             const statusStyles = {
               open: 'bg-yellow-100 text-yellow-800',
               resolved: 'bg-green-100 text-green-800',
@@ -1542,17 +1564,6 @@ async function fetchAndRenderAdminFeedback(token) {
             const statusLabels = { open: 'ღია', resolved: 'მოგვარდა', rejected: 'უარყოფილია' };
             const cls = statusStyles[fb.status] || statusStyles.open;
             const lab = statusLabels[fb.status] || fb.status;
-            const actions = fb.status === 'open' ? `
-              <div class="mt-1 flex justify-center gap-1.5">
-                <button onclick="setFeedbackStatus(${fb.id}, 'resolved')"
-                  class="rounded-md bg-green-600 px-2 py-0.5 text-[10px] font-bold text-white hover:bg-green-700">მოგვარდა</button>
-                <button onclick="setFeedbackStatus(${fb.id}, 'rejected')"
-                  class="rounded-md bg-gray-500 px-2 py-0.5 text-[10px] font-bold text-white hover:bg-gray-600">უარყოფა</button>
-              </div>` : `
-              <div class="mt-1 flex justify-center">
-                <button onclick="setFeedbackStatus(${fb.id}, 'open')"
-                  class="rounded-md border border-gray-300 px-2 py-0.5 text-[10px] font-semibold text-gray-600 hover:bg-gray-50">გახსნა</button>
-              </div>`;
             tr.innerHTML = `
               <td class="px-5 py-3 font-medium text-gray-800">${escapeHtml(fb.user_name || 'უცნობი')}</td>
               <td class="px-5 py-3 text-gray-600">${escapeHtml(fb.article_title || 'უცნობი სტატია')} (ID: ${fb.article_id})</td>
@@ -1560,7 +1571,6 @@ async function fetchAndRenderAdminFeedback(token) {
               <td class="px-5 py-3 text-gray-500">${date}</td>
               <td class="px-5 py-3 text-center">
                 <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold leading-5 ${cls}">${lab}</span>
-                ${actions}
               </td>
             `;
             tbody.appendChild(tr);
@@ -1903,7 +1913,7 @@ async function bulkReassignRole() {
         const newRole = targetSel ? targetSel.value : null;
         if (!newRole) return;
         const label = ROLE_CONSOLE_LABELS[newRole] || newRole;
-        if (!confirm(`${ids.length} მომხმარებლის როლი შეიცვლება: „${label}“. უფლებები განულდება ახალი როლის ნაგულისხმევ ნაკრებზე. გავაგრძელო?`)) return;
+        if (!await showConfirm('როლის შეცვლა', `\ მომხმარებლის როლი შეიცვლება. გავაგრძელო?`, { confirmText: 'შეცვლა', variant: 'warning' })) return;
         try {
           const res = await fetch('/api/admin/roles/bulk-reassign', {
             method: 'POST',
@@ -2126,11 +2136,120 @@ const typeMap = {
   "category": "კატეგორია"
 };
 
-async function fetchAndRenderAuditLog(token) {
+// Global registry for live-tail interval
+window._liveTailInterval = null;
+window._lastLogId = 0; // Tracks the newest log ID rendered to highlight incoming rows
+
+function getActionBadgeClass(action) {
+  const act = (action || '').toLowerCase();
+  if (act.includes('create') || (act.includes('login') && !act.includes('fail'))) {
+    return 'bg-emerald-50 text-emerald-700 border-emerald-200/60';
+  }
+  if (act.includes('update') || act.includes('read') || act.includes('edit')) {
+    return 'bg-blue-50 text-blue-700 border-blue-200/60';
+  }
+  if (act.includes('delete') || act.includes('fail') || act.includes('remove')) {
+    return 'bg-rose-50 text-rose-700 border-rose-200/60';
+  }
+  return 'bg-amber-50 text-amber-700 border-amber-200/60';
+}
+
+function formatAuditDetails(detailsStr) {
+  if (!detailsStr) return '<span class="text-gray-400">დეტალები არ არის</span>';
+  try {
+    const data = typeof detailsStr === 'string' ? JSON.parse(detailsStr) : detailsStr;
+    if (data.changed) {
+      let html = '<div class="space-y-2 font-sans py-1 text-xs">';
+      for (const [key, val] of Object.entries(data.changed)) {
+        // Escaping values safely
+        const oldVal = val.old !== null && val.old !== undefined ? escapeHtml(String(val.old)) : 'NULL';
+        const newVal = val.new !== null && val.new !== undefined ? escapeHtml(String(val.new)) : 'NULL';
+        
+        html += `
+          <div class="flex flex-wrap items-center gap-1.5 leading-relaxed">
+            <span class="font-bold text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">${escapeHtml(key)}:</span>
+            <span class="bg-red-50 text-red-700 px-2 py-0.5 rounded border border-red-100 line-through">${oldVal}</span>
+            <span class="text-gray-400 mx-0.5"><i class="fa-solid fa-arrow-right"></i></span>
+            <span class="bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-100 font-bold">${newVal}</span>
+          </div>`;
+      }
+      html += '</div>';
+      return html;
+    }
+    // Pretty-printed generic JSON fallback
+    return `<pre class="bg-slate-100 p-2.5 rounded-xl text-gray-700 text-[11px] font-mono overflow-x-auto border border-slate-200/50 max-h-48 leading-normal">${escapeHtml(JSON.stringify(data, null, 2))}</pre>`;
+  } catch (e) {
+    return `<span class="text-gray-500 font-mono">${escapeHtml(detailsStr)}</span>`;
+  }
+}
+
+window.toggleAuditRowDetails = function(row, logId) {
+  const detailsRow = document.getElementById(`audit-details-${logId}`);
+  if (!detailsRow) return;
+  const isHidden = detailsRow.classList.toggle('hidden');
+  const chev = row.querySelector('.fa-chevron-down');
+  if (chev) {
+    if (isHidden) {
+      chev.classList.remove('rotate-180');
+    } else {
+      chev.classList.add('rotate-180');
+    }
+  }
+};
+
+window.setAuditDatePreset = function(days) {
+  const fp = document.querySelector("#log-date-range")._flatpickr;
+  if (!fp) return;
+  const end = new Date();
+  const start = new Date();
+  start.setDate(end.getDate() - days);
+  fp.setDate([start, end], true);
+  // Trigger update after setting date
+  fetchAndRenderAuditLog(Auth.getToken());
+};
+
+window.toggleLiveTail = function() {
+  const checkbox = document.getElementById('log-live-tail');
+  const dot = document.getElementById('live-dot');
+  if (!checkbox) return;
+
+  if (checkbox.checked) {
+    if (dot) dot.classList.remove('hidden');
+    // Fetch immediately, then set interval
+    fetchAndRenderAuditLog(Auth.getToken(), true);
+    window._liveTailInterval = setInterval(() => {
+      fetchAndRenderAuditLog(Auth.getToken(), true);
+    }, 5000);
+  } else {
+    if (dot) dot.classList.add('hidden');
+    if (window._liveTailInterval) {
+      clearInterval(window._liveTailInterval);
+      window._liveTailInterval = null;
+    }
+  }
+};
+
+async function fetchAndRenderAuditLog(token, isLive = false) {
         const tbody = document.getElementById('admin-audit-tbody');
         if (!tbody) return;
-        tbody.innerHTML = '<tr><td colspan="5" class="px-5 py-4 text-center text-gray-400">იტვირთება...</td></tr>';
+        if (!isLive) {
+          tbody.innerHTML = '<tr><td colspan="6" class="px-5 py-4 text-center text-gray-400">იტვირთება...</td></tr>';
+        }
+        
         try {
+          // Fetch dynamic translations from API and merge into actionMap
+          try {
+            const transRes = await fetch('/api/admin/audit-actions', { headers: { Authorization: 'Bearer ' + token } });
+            if (transRes.ok) {
+              const translations = await transRes.json();
+              translations.forEach(t => {
+                actionMap[t.action.toLowerCase()] = t.label_ka;
+              });
+            }
+          } catch (e) {
+            console.warn('Failed to load dynamic audit action translations', e);
+          }
+          
           const userId = document.getElementById('audit-filter-user')?.value || '';
           const action = document.getElementById('audit-filter-action')?.value || '';
           const category = document.getElementById('audit-filter-category')?.value || '';
@@ -2151,39 +2270,51 @@ async function fetchAndRenderAuditLog(token) {
           const res = await fetch(`/api/audit-logs?${params.toString()}`, { headers: { Authorization: 'Bearer ' + token } });
           if (!res.ok) throw new Error('ლოგი ვერ ჩაიტვირთა');
           const logs = await res.json();
-          if (logs.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="px-5 py-4 text-center text-gray-400">ლოგი ცარიელია</td></tr>'; return; }
-          // Resolve admin names if /api/users is available (admin only).
-          let namesById = {};
-          try {
-            const u = await fetch('/api/users', { headers: { Authorization: 'Bearer ' + token } });
-            if (u.ok) {
-              const users = await u.json();
-              namesById = Object.fromEntries(users.map(x => [x.id, x.name]));
-              const userSelect = document.getElementById('audit-filter-user');
-              if (userSelect && userSelect.options.length <= 1) {
-                users.forEach(x => {
-                  const opt = document.createElement('option');
-                  opt.value = x.id;
-                  opt.textContent = `${x.name} (${x.email})`;
-                  userSelect.appendChild(opt);
-                });
-              }
-            }
-          } catch { }
+          if (logs.length === 0) { 
+            tbody.innerHTML = '<tr><td colspan="6" class="px-5 py-4 text-center text-gray-400">ლოგი ცარიელია</td></tr>'; 
+            return; 
+          }
+          
+          // If we are in live-tail mode, we only want to update if there are new logs
+          if (isLive && logs.length > 0 && logs[0].id === window._lastLogId) {
+            return; // No new logs to render
+          }
+          window._lastLogId = logs.length > 0 ? logs[0].id : 0;
+
+          // Render rows with expandability
           tbody.innerHTML = logs.map(l => {
             const actionLabel = actionMap[(l.action || '').toLowerCase()] || l.action;
             const typeLabel = typeMap[(l.item_type || '').toLowerCase()] || l.item_type;
             const objectLabel = l.item_name ? `${typeLabel}: ${l.item_name}` : typeLabel;
+            
+            // Highlight row if it is a new live log row
+            const highlightClass = isLive ? 'bg-red-50/10 animate-pulse' : '';
+            const badgeClass = getActionBadgeClass(l.action);
+            
             return `
-            <tr class="hover:bg-gray-50">
-              <td class="px-5 py-2 whitespace-nowrap text-xs text-gray-500">${new Date(l.timestamp).toLocaleString('ka-GE')}</td>
-              <td class="px-5 py-2 text-gray-800">${escapeHtml(l.admin_name || 'უცნობი')}</td>
-              <td class="px-5 py-2 text-gray-700">${escapeHtml(actionLabel)}</td>
-              <td class="px-5 py-2 text-gray-700">${escapeHtml(objectLabel)}</td>
-              <td class="px-5 py-2 text-gray-500">#${l.item_id}</td>
+            <tr onclick="toggleAuditRowDetails(this, '${l.id}')" class="cursor-pointer hover:bg-gray-50/80 transition-colors ${highlightClass}">
+              <td class="px-5 py-2.5 whitespace-nowrap text-xs text-gray-500">${new Date(l.timestamp).toLocaleString('ka-GE')}</td>
+              <td class="px-5 py-2.5 text-gray-800 font-medium">${escapeHtml(l.admin_name || 'უცნობი')}</td>
+              <td class="px-5 py-2.5">
+                <span class="rounded-lg px-2 py-0.5 text-[11px] font-bold border ${badgeClass}">${escapeHtml(actionLabel)}</span>
+              </td>
+              <td class="px-5 py-2.5 text-gray-700">${escapeHtml(objectLabel)}</td>
+              <td class="px-5 py-2.5 font-mono text-xs font-semibold text-gray-400">#${l.item_id}</td>
+              <td class="px-5 py-2.5 text-right text-gray-400 w-10">
+                <i class="fa-solid fa-chevron-down text-xs transition-transform duration-200"></i>
+              </td>
+            </tr>
+            <tr id="audit-details-${l.id}" class="hidden bg-gray-50/70 border-t-0">
+              <td colspan="6" class="px-8 py-4 text-xs text-gray-600 border-l-4 border-l-[#E30613] shadow-inner">
+                <div class="bg-white p-4 rounded-xl border border-gray-200/60 shadow-sm">
+                  <h4 class="font-bold text-gray-800 mb-2 flex items-center gap-1.5 text-xs"><i class="fa-solid fa-square-poll-horizontal text-[#E30613]"></i> ცვლილებების დეტალები:</h4>
+                  ${formatAuditDetails(l.details)}
+                </div>
+              </td>
             </tr>`;
           }).join('');
+          
         } catch (e) {
-          tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-4 text-center text-red-500">${escapeHtml(e.message)}</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="6" class="px-5 py-4 text-center text-red-500">${escapeHtml(e.message)}</td></tr>`;
         }
       }

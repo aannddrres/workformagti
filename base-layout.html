@@ -2,14 +2,14 @@
 <html lang="ka">
 
 <head>
-    <script defer src="/static/frontend_api.js?v=12"></script>
+    <script defer src="/static/frontend_api.js?v=16"></script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>მაგთი — შიდა საინფორმაციო პორტალი</title>
 
   <!-- Single self-contained compiled stylesheet: Tailwind utilities + hand-written
        branding, built from input.css via the v3 CLI. See README "Rebuilding CSS". -->
-  <link rel="stylesheet" href="/static/css/app.min.css?v=20260627">
+  <link rel="stylesheet" href="/static/css/app.min.css?v=20260707">
 
   <!-- Chart.js CDN -->
   <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -796,10 +796,10 @@
       - Dynamic Rendering: Injects fetched data into the DOM.
     -->
     
-    <script defer src="/static/js/app-core.js?v=20260707b"></script>
-    <script defer src="/static/js/app-renderers.js?v=14"></script>
-    <script defer src="/static/js/app-router.js?v=6"></script>
-    <script defer src="/static/js/admin-cms-enhancements.js?v=20260627"></script>
+    <script defer src="/static/js/app-core.js?v=20260708g"></script>
+    <script defer src="/static/js/app-renderers.js?v=15"></script>
+    <script defer src="/static/js/app-router.js?v=7"></script>
+    <script defer src="/static/js/admin-cms-enhancements.js?v=20260708"></script>
     <script defer src="/static/js/dept-dashboard.js?v=2"></script>
 
 
@@ -1434,32 +1434,29 @@
     <div id="page-admin" class="page-section hidden max-w-[1440px] mx-auto w-full px-4 md:px-6 pt-4 md:pt-6 pb-8">
 
       <!-- ── Admin sub-page toggle buttons ────────────────── -->
-      <div class="mb-6 flex flex-wrap items-center gap-3">
+      <div class="mb-6 flex flex-wrap items-center border-b border-gray-200 dark:border-zinc-800 w-full gap-2 bg-[#F5F5F5] dark:bg-[#121212] py-2" style="position: sticky; top: 64px; z-index: 20;">
         <button onclick="switchAdmin('main')" id="adminBtn-main"
-          class="admin-btn rounded-xl bg-[#B91C1C] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors">
-          ადმინისტრირების პანელი - მთავარი
+          class="admin-btn border-b-2 border-[#E30613] px-4 py-3 text-sm font-bold text-[#E30613] transition-all">
+          მთავარი
         </button>
         <button onclick="switchAdmin('content')" id="adminBtn-content"
-          class="admin-btn rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50">
-          ადმინისტრირების პანელი - კონტენტის მართვა
+          class="admin-btn border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-all">
+          კონტენტის მართვა
         </button>
         <button onclick="switchAdmin('users')" id="adminBtn-users" data-required-role="admin"
-          class="admin-btn rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50">
-          მომხმარებლების მართვა (RBAC)
+          class="admin-btn border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-all">
+          მომხმარებლები
         </button>
-        <!-- Role console (system admin only) — bulk + per-person role management -->
         <button onclick="switchAdmin('roles')" id="adminBtn-roles" data-required-role="admin"
-          class="admin-btn rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50">
-          როლების მართვა
+          class="admin-btn border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-all">
+          როლები
         </button>
-        <!-- Categories management (subcategory tree per spec) -->
         <button onclick="switchAdmin('categories')" id="adminBtn-categories"
-          class="admin-btn rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50">
+          class="admin-btn border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-all">
           კატეგორიები
         </button>
-        <!-- Audit log viewer (system admin only — contains personal user actions) -->
         <button onclick="switchAdmin('audit')" id="adminBtn-audit" data-required-role="admin"
-          class="admin-btn rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50">
+          class="admin-btn border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-all">
           აუდიტ ლოგი
         </button>
         <!-- Export menu (CSV + XLSX) → system admin only because the export carries personal data -->
@@ -1753,8 +1750,8 @@
          ════════════════════════════════════════════════════ -->
       <div id="admin-content" class="admin-panel hidden">
 
-        <div class="mb-5 flex flex-wrap items-start justify-between gap-3 sticky top-[72px] bg-[#F5F5F5] z-10 shadow-sm p-4 rounded-2xl border border-gray-100">
-          <h2 class="text-3xl font-semibold uppercase tracking-wider text-gray-800">კონტენტის მართვა</h2>
+        <div class="mb-5 flex flex-wrap items-start justify-between gap-3 sticky bg-[#F5F5F5] dark:bg-[#121212] z-10 shadow-sm p-4 rounded-2xl border border-gray-100 dark:border-zinc-800/60" style="position: sticky; top: 120px; z-index: 10;">
+          <h2 class="text-3xl font-semibold uppercase tracking-wider text-gray-800 dark:text-zinc-100">კონტენტის მართვა</h2>
           <div class="flex items-start gap-3">
             <button onclick="focusCreateForm()"
               class="rounded-xl bg-[#B91C1C] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700">+
@@ -1966,8 +1963,11 @@
                   class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]" />
               </div>
             </div>
+            <!-- [Fix F] Hidden — visible_to_tech_info/visible_to_service_center are non-functional
+                 (no tech_info/service_center role exists yet; see security.py VALID_ROLES).
+                 Backend columns + JS wiring intentionally left in place. -->
             <!-- Block 5: role-based visibility toggles — Premium Monochrome with Magti Red accent -->
-            <div class="flex flex-col gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4 sm:flex-row sm:items-center sm:gap-8">
+            <div class="hidden flex-col gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4 sm:flex-row sm:items-center sm:gap-8">
               <label class="flex items-center gap-3 cursor-pointer select-none">
                 <span class="relative inline-flex h-6 w-11 shrink-0 items-center">
                   <input type="checkbox" id="news-visible-tech-info" checked class="peer sr-only" />
@@ -2024,9 +2024,10 @@
             <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
               <div>
                 <label for="video-category" class="mb-1.5 block text-sm font-medium text-gray-700">კატეგორია</label>
-                <input type="text" id="video-category" required
-                  class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]"
-                  placeholder="მაგ. როუმინგი, IPTV" />
+                <select id="video-category" required
+                  class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]">
+                  <option value="" disabled selected>აირჩიეთ კატეგორია</option>
+                </select>
               </div>
               <div>
                 <label for="video-department" class="mb-1.5 block text-sm font-medium text-gray-700">სამიზნე
@@ -2324,21 +2325,39 @@
               წვდომა)</p>
           </div>
           
-          <div class="flex flex-wrap items-center gap-4">
-            <input type="text" id="log-search-user" placeholder="სახელი და გვარი" class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm focus:border-red-500 focus:outline-none">
-            <input type="text" id="log-date-range" placeholder="აირჩიეთ პერიოდი" class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm focus:border-red-500 focus:outline-none">
-            <select id="audit-filter-category" class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm focus:border-red-500 focus:outline-none">
+          <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            <!-- Time Presets -->
+            <div class="flex items-center rounded-xl bg-gray-100 p-0.5 border border-gray-200/50">
+              <button type="button" onclick="setAuditDatePreset(0)" class="px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-white hover:shadow-sm transition-all text-gray-600">დღეს</button>
+              <button type="button" onclick="setAuditDatePreset(7)" class="px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-white hover:shadow-sm transition-all text-gray-600">7 დღე</button>
+              <button type="button" onclick="setAuditDatePreset(30)" class="px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-white hover:shadow-sm transition-all text-gray-600">30 დღე</button>
+            </div>
+            
+            <input type="text" id="log-search-user" placeholder="სახელი და გვარი" class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm focus:border-red-500 focus:outline-none w-48">
+            <input type="text" id="log-date-range" placeholder="აირჩიეთ პერიოდი" class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm focus:border-red-500 focus:outline-none w-44">
+            <select id="audit-filter-category" onchange="fetchAndRenderAuditLog(Auth.getToken())" class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm focus:border-red-500 focus:outline-none">
               <option value="">ყველა კატეგორია</option>
-              <option value="SECURITY">უსაფრთხოება (SECURITY)</option>
-              <option value="CONTENT">კონტენტი (CONTENT)</option>
-              <option value="USER">მომხმარებელი (USER)</option>
-              <option value="SYSTEM">სისტემა (SYSTEM)</option>
+              <option value="SECURITY">🛡️ SECURITY</option>
+              <option value="CONTENT">📝 CONTENT</option>
+              <option value="USER">👥 USER</option>
+              <option value="SYSTEM">⚙️ SYSTEM</option>
             </select>
+
+            <!-- Live tail toggle -->
+            <label class="relative inline-flex items-center cursor-pointer select-none">
+              <input type="checkbox" id="log-live-tail" onchange="toggleLiveTail()" class="sr-only peer">
+              <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-red-100 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#E30613]"></div>
+              <span class="ml-2 text-xs font-bold text-gray-700 flex items-center gap-1">
+                <span class="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse hidden" id="live-dot"></span>
+                LIVE
+              </span>
+            </label>
+            
             <button onclick="fetchAndRenderAuditLog(Auth.getToken())"
-              class="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm transition-colors">
-              <i class="fa-solid fa-rotate-right mr-1.5"></i>განახლება
+              class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm transition-colors flex items-center justify-center">
+              <i class="fa-solid fa-rotate-right"></i>
             </button>
-            <button id="btn-export-audit-csv" class="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm flex items-center gap-1 transition-colors">CSV ექსპორტი</button>
+            <button id="btn-export-audit-csv" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold flex items-center gap-1.5 shadow-sm transition-colors"><i class="fa-solid fa-file-csv"></i>ექსპორტი</button>
           </div>
         </div>
         <div class="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm">
@@ -2351,11 +2370,12 @@
                 <th class="px-5 py-3">ქმედება</th>
                 <th class="px-5 py-3">ობიექტი</th>
                 <th class="px-5 py-3">ID</th>
+                <th class="px-5 py-3 w-10 text-right"></th>
               </tr>
             </thead>
             <tbody id="admin-audit-tbody" class="divide-y divide-gray-100">
               <tr>
-                <td colspan="5" class="px-5 py-6 text-center text-gray-400">დააჭირეთ „განახლება"-ს ჩასატვირთად</td>
+                <td colspan="6" class="px-5 py-6 text-center text-gray-400">დააჭირეთ „განახლება"-ს ჩასატვირთად</td>
               </tr>
             </tbody>
           </table>
@@ -2496,7 +2516,10 @@
               <i class="fa-solid fa-chevron-down text-xs text-gray-400 transition-transform duration-200 group-open:rotate-180"></i>
             </summary>
             <div class="mt-4 space-y-4 border-t border-gray-200 pt-4">
-            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-8">
+            <!-- [Fix F] Hidden — visible_to_tech_info/visible_to_service_center are non-functional
+                 (no tech_info/service_center role exists yet; see security.py VALID_ROLES).
+                 Backend columns + JS wiring intentionally left in place. -->
+            <div class="hidden flex-col gap-4 sm:flex-row sm:items-center sm:gap-8">
               <span class="text-xs font-bold text-gray-400 uppercase tracking-widest min-w-[80px]">როლები:</span>
               <label class="flex items-center gap-3 cursor-pointer select-none">
                 <span class="relative inline-flex h-6 w-11 shrink-0 items-center">

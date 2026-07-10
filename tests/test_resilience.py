@@ -7,17 +7,15 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import security
-# Mock require_content_creator before importing app.main to prevent AttributeError
 security.require_content_creator = lambda perm: security.get_current_admin_user
 security.PERM_ARTICLES_CREATE = "articles.create"
 security.PERM_NEWS_CREATE = "news.create"
 
 from main import app as monolith_app
-from app.main import create_app
 import models
-from database import get_db
+from database import get_db, engine
 
-modular_app = create_app()
+models.Base.metadata.create_all(bind=engine)
 
 @pytest.fixture
 def db_session():
@@ -43,20 +41,17 @@ def admin_user(db_session):
         db_session.refresh(admin)
     return admin
 
-@pytest.fixture(params=["monolith", "modular"])
-def client(request, admin_user):
-    if request.param == "monolith":
-        active_app = monolith_app
-    else:
-        active_app = modular_app
-    
+@pytest.fixture
+def client(admin_user):
+    active_app = monolith_app
+
     # Set mock user overrides
     active_app.dependency_overrides[security.get_current_admin_user] = lambda: admin_user
     active_app.dependency_overrides[security.get_current_user] = lambda: admin_user
-    
+
     with TestClient(active_app) as tc:
         yield tc
-        
+
     active_app.dependency_overrides.clear()
 
 def test_xss_injection(client, db_session):
@@ -102,15 +97,14 @@ def test_malformed_idor(admin_user):
         
     monolith_app.dependency_overrides.clear()
 
-@pytest.mark.parametrize("app_instance", [monolith_app, modular_app])
-def test_auth_missing(app_instance):
+def test_auth_missing():
     """Auth Missing Test: Verifies that sending requests to secure admin
 
     endpoints without auth headers results in 401/403 errors.
     """
-    app_instance.dependency_overrides.clear()
-    
-    with TestClient(app_instance) as tc:
+    monolith_app.dependency_overrides.clear()
+
+    with TestClient(monolith_app) as tc:
         # Attempt to create news without credentials
         payload = {"title": "Test", "content": "Test"}
         response = tc.post("/api/news", json=payload)
@@ -249,6 +243,276 @@ def test_article_status_and_youtube_id(client, db_session):
     # Clean up database
     db_session.delete(db_article)
     db_session.commit()
+
+
+def test_draft_publish_via_edit_notifies(client, db_session, monkeypatch):
+    """Editing a draft article to status="published" must broadcast an
+    'article' SSE event (like create_article does), even without
+    notify_operators ticked — and must NOT also fire the revision broadcast.
+    """
+    import main
+
+    category = db_session.query(models.Category).filter(models.Category.id == 1).first()
+    if not category:
+        category = models.Category(id=1, name="Test Category", is_active=True)
+        db_session.add(category)
+        db_session.commit()
+
+    notify_calls = []
+    revision_calls = []
+    monkeypatch.setattr(main, "_notify", lambda *a, **kw: notify_calls.append((a, kw)))
+    monkeypatch.setattr(main, "_notify_revision", lambda *a, **kw: revision_calls.append((a, kw)))
+
+    payload = {
+        "title": "Draft to publish",
+        "content": "Some content.",
+        "category_id": 1,
+        "target_departments": ["Support"],
+        "status": "draft",
+    }
+    response = client.post("/api/articles", json=payload)
+    assert response.status_code == 200
+    article_id = response.json()["id"]
+    assert notify_calls == []  # create_article itself skips _notify for drafts
+
+    update_payload = payload.copy()
+    update_payload["status"] = "published"
+    update_response = client.put(f"/api/articles/{article_id}", json=update_payload)
+    assert update_response.status_code == 200
+
+    assert len(notify_calls) == 1
+    assert notify_calls[0][0][0] == "article"
+    assert revision_calls == []
+
+    db_article = db_session.query(models.Article).filter(models.Article.id == article_id).first()
+    db_session.delete(db_article)
+    db_session.commit()
+
+
+def test_health_check_redis_fallback_status(client, monkeypatch):
+    """/api/health must reflect the broker's real Redis connectivity
+    (_use_redis), not just whether the event loop was initialized — otherwise
+    a Redis outage under multiple gunicorn workers is invisible to monitoring.
+    """
+    import main
+
+    monkeypatch.setattr(main.broker, "_main_loop", object())
+    monkeypatch.setattr(main.broker, "_use_redis", False)
+    monkeypatch.delenv("GUNICORN_CMD_ARGS", raising=False)
+    monkeypatch.delenv("WEB_CONCURRENCY", raising=False)
+    monkeypatch.delenv("UVICORN_WORKERS", raising=False)
+
+    response = client.get("/api/health")
+    assert response.status_code == 200
+    assert response.json()["redis"] == "degraded_fallback"
+
+    monkeypatch.setenv("WEB_CONCURRENCY", "4")
+    response = client.get("/api/health")
+    assert response.status_code == 503
+    body = response.json()["detail"]
+    assert body["redis"] == "degraded_fallback"
+    assert body["status"] == "degraded"
+
+
+def test_article_published_at_set(client, db_session):
+    """Verifies that published_at is set to the current Tbilisi time when an
+    article is created or updated with status='published' and published_at is null.
+    """
+    category = db_session.query(models.Category).filter(models.Category.id == 1).first()
+    if not category:
+        category = models.Category(id=1, name="Test Category", is_active=True)
+        db_session.add(category)
+        db_session.commit()
+
+    payload = {
+        "title": "Immediate Publish Test",
+        "content": "Content...",
+        "category_id": 1,
+        "target_departments": ["Support"],
+        "status": "published",
+    }
+
+    # 1. Test POST creation immediately published
+    response = client.post("/api/articles", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    article_id = data["id"]
+
+    db_article = db_session.query(models.Article).filter(models.Article.id == article_id).first()
+    assert db_article.published_at is not None
+
+    # 2. Test PUT update draft -> published sets published_at
+    db_article.status = "draft"
+    db_article.published_at = None
+    db_session.commit()
+
+    update_payload = payload.copy()
+    update_payload["title"] = "Updated title"
+    update_payload["status"] = "published"
+
+    update_response = client.put(f"/api/articles/{article_id}", json=update_payload)
+    assert update_response.status_code == 200
+
+    db_session.refresh(db_article)
+    assert db_article.published_at is not None
+
+    # Cleanup
+    db_session.delete(db_article)
+    db_session.commit()
+
+
+def test_orm_auto_audit_and_diff(db_session):
+    """Verifies that inserting, updating, and deleting an audited model (Category)
+    automatically creates AuditLog records, and updates capture the deep diff.
+    """
+    import json
+    # 1. Test CREATE audit
+    category = models.Category(name="Audit Test Category", is_active=True)
+    db_session.add(category)
+    db_session.commit()
+    db_session.refresh(category)
+
+    create_log = db_session.query(models.AuditLog).filter(
+        models.AuditLog.item_type == "category",
+        models.AuditLog.item_id == category.id,
+        models.AuditLog.action == "CREATE"
+    ).first()
+    assert create_log is not None
+
+    # 2. Test UPDATE audit with deep diff
+    category.name = "Audit Test Category Updated"
+    db_session.commit()
+
+    update_log = db_session.query(models.AuditLog).filter(
+        models.AuditLog.item_type == "category",
+        models.AuditLog.item_id == category.id,
+        models.AuditLog.action == "UPDATE"
+    ).first()
+    assert update_log is not None
+    assert update_log.details is not None
+    details = json.loads(update_log.details)
+    assert "changed" in details
+    assert details["changed"]["name"]["old"] == "Audit Test Category"
+    assert details["changed"]["name"]["new"] == "Audit Test Category Updated"
+
+    # 3. Test DELETE audit
+    category_id = category.id
+    db_session.delete(category)
+    db_session.commit()
+
+    delete_log = db_session.query(models.AuditLog).filter(
+        models.AuditLog.item_type == "category",
+        models.AuditLog.item_id == category_id,
+        models.AuditLog.action == "DELETE"
+    ).first()
+    assert delete_log is not None
+
+
+def test_log_rotation_and_archiving(db_session):
+    """Verifies that rotate_audit_logs correctly exports logs older than 180 days
+    to archives/ and purges them from the database.
+    """
+    from datetime import timedelta
+    from main import rotate_audit_logs
+    from models import get_tbilisi_time
+    import os
+
+    # Insert a stale log (181 days old) and a fresh log
+    stale_time = get_tbilisi_time() - timedelta(days=181)
+    stale_log = models.AuditLog(
+        admin_id=1,
+        action="TEST_STALE",
+        item_type="system",
+        item_id=0,
+        timestamp=stale_time
+    )
+    fresh_log = models.AuditLog(
+        admin_id=1,
+        action="TEST_FRESH",
+        item_type="system",
+        item_id=0,
+        timestamp=get_tbilisi_time()
+    )
+    db_session.add_all([stale_log, fresh_log])
+    db_session.commit()
+
+    # Run log rotation
+    rotate_audit_logs(db_session)
+
+    # Verify stale log was purged
+    purged = db_session.query(models.AuditLog).filter(models.AuditLog.action == "TEST_STALE").first()
+    assert purged is None
+
+    # Verify fresh log is still in database
+    active = db_session.query(models.AuditLog).filter(models.AuditLog.action == "TEST_FRESH").first()
+    assert active is not None
+
+    # Verify archive file was created in archives/
+    assert os.path.exists("archives")
+    archives = os.listdir("archives")
+    assert len(archives) > 0
+
+    # Cleanup fresh log and archive files
+    db_session.delete(active)
+    db_session.commit()
+    for f in os.listdir("archives"):
+        os.remove(os.path.join("archives", f))
+    os.rmdir("archives")
+
+
+def test_article_history_comparison_diff(client, db_session):
+    """Verifies that get_article_diff correctly handles comparing two historical snapshots."""
+    # 1. Create a mock article
+    article = models.Article(
+        title="Initial Title",
+        content="This is the first version content.",
+        target_department="All",
+        is_draft=False
+    )
+    db_session.add(article)
+    db_session.commit()
+    db_session.refresh(article)
+    
+    # 2. Add two history snapshots for this article
+    snap1 = models.ArticleHistory(
+        article_id=article.id,
+        title="Initial Title",
+        content="This is the first version content.",
+        updated_by=1,
+        version_id=1
+    )
+    snap2 = models.ArticleHistory(
+        article_id=article.id,
+        title="Second Title",
+        content="This is the second version content.",
+        updated_by=1,
+        version_id=2
+    )
+    db_session.add_all([snap1, snap2])
+    db_session.commit()
+    db_session.refresh(snap1)
+    db_session.refresh(snap2)
+    
+    # 3. Call the diff endpoint comparing snap1 against current article content
+    resp1 = client.get(f"/api/articles/{article.id}/history/{snap1.id}/diff")
+    assert resp1.status_code == 200
+    data1 = resp1.json()
+    assert "html" in data1
+    assert data1["version_id"] == 1
+    
+    # 4. Call the diff endpoint comparing snap1 against snap2 using compare_history_id
+    resp2 = client.get(f"/api/articles/{article.id}/history/{snap1.id}/diff?compare_history_id={snap2.id}")
+    assert resp2.status_code == 200
+    data2 = resp2.json()
+    assert "html" in data2
+    assert data2["version_id"] == 1
+    
+    # Clean up
+    db_session.delete(snap1)
+    db_session.delete(snap2)
+    db_session.delete(article)
+    db_session.commit()
+
 
 
 

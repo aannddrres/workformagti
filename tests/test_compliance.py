@@ -17,6 +17,8 @@ from sqlalchemy import text, event
 from main import app as monolith_app
 import models
 
+models.Base.metadata.create_all(bind=engine)
+
 @event.listens_for(engine, "checkin")
 def reset_sqlite_pragma(dbapi_connection, connection_record):
     try:

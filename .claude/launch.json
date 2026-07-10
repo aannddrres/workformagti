@@ -1,0 +1,32 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "magti-base",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "5500", "--bind", "127.0.0.1"],
+      "port": 5500
+    },
+    {
+      "name": "magti-verify",
+      "runtimeExecutable": "C:/Projects/Magti base/venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8001"],
+      "port": 8001,
+      "autoPort": false
+    },
+    {
+      "name": "magti-verify-reload",
+      "runtimeExecutable": "C:/Projects/Magti base/venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "main:app", "--reload", "--host", "127.0.0.1", "--port", "8002"],
+      "port": 8002,
+      "autoPort": false
+    },
+    {
+      "name": "magti-verify-alt",
+      "runtimeExecutable": "C:/Projects/Magti base/venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8003"],
+      "port": 8003,
+      "autoPort": false
+    }
+  ]
+}

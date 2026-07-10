@@ -36,6 +36,13 @@ PG_TRGM_STATEMENTS = (
     "  ON news USING gin (title gin_trgm_ops)",
     "CREATE INDEX IF NOT EXISTS news_content_trgm "
     "  ON news USING gin (content gin_trgm_ops)",
+    # Global search (_run_global_search_sync) ILIKE-matches these two columns
+    # too; they were missing from this list, so video search fell back to a
+    # sequential scan even on Postgres.
+    "CREATE INDEX IF NOT EXISTS video_instructions_title_trgm "
+    "  ON video_instructions USING gin (title gin_trgm_ops)",
+    "CREATE INDEX IF NOT EXISTS video_instructions_category_trgm "
+    "  ON video_instructions USING gin (category gin_trgm_ops)",
 )
 
 

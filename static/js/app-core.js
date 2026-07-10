@@ -505,7 +505,7 @@ window._historyCache = window._historyCache || { articleId: null, versionsData: 
           }
         } catch (err) {
           console.error('Inline image upload failed:', err);
-          alert('სურათის ატვირთვა ვერ მოხერხდა: ' + err.message);
+          showAlert('სურათის ატვირთვა ვერ მოხერხდა: ' + err.message, 'error');
         }
       }
 
@@ -566,7 +566,7 @@ window._historyCache = window._historyCache || { articleId: null, versionsData: 
       async function performAutosave(currentData, currentStr) {
         const statusEl = document.getElementById('autosave-status');
         if (statusEl) {
-          statusEl.textContent = 'Saving...';
+          statusEl.textContent = 'ინახება...';
           statusEl.style.opacity = '1';
         }
 
@@ -639,12 +639,12 @@ window._historyCache = window._historyCache || { articleId: null, versionsData: 
           const now = new Date();
           const timeStr = now.toLocaleTimeString('ka-GE', { hour: '2-digit', minute: '2-digit' });
           if (statusEl) {
-            statusEl.textContent = `Draft saved at ${timeStr}`;
+            statusEl.textContent = `დრაფტი შენახულია ${timeStr}-ზე`;
           }
         } catch (err) {
           console.error('Autosave error:', err);
           if (statusEl) {
-            statusEl.textContent = 'Auto-save failed';
+            statusEl.textContent = 'ავტო-შენახვა ვერ მოხერხდა';
           }
         }
       }
@@ -1462,48 +1462,247 @@ function handleLiveEvent(type, data) {
         } else if (type === 'broadcast') {
           showBroadcastBanner(data.message);
         } else if (type === 'article_revision') {
-          showToast('სტატია განახლდა ✏️', `${data.title} — ვერსია ${data.version}`, () => navTo('page-info'));
+          showToast('სტატია განახლდა ✏️', `${data.title} — ვერსია ${data.version} (+${data.added}/-${data.removed})`, () => {
+            // Invalidate the cached history list for this article so the newly
+            // arrived revision shows up instead of a stale cached list.
+            if (window._historyCache && window._historyCache.articleId === data.id) {
+              window._historyCache.versionsData = null;
+            }
+            openArticleModalById(data.id).then(() => window.toggleModalHistoryOverlay());
+          });
           fetchAndRenderKnowledgeBase(token);   // refresh the KB list in place
         }
       }
 
-function showToast(title, subtitle, optsOrOnClick) {
-        // Backwards-compat: third arg may be a function (legacy onClick) OR an
-        // options object { variant: 'success'|'error'|'info', onClick }.
-        let onClick = null;
-        let variant = 'info';
-        if (typeof optsOrOnClick === 'function') {
-          onClick = optsOrOnClick;
-        } else if (optsOrOnClick && typeof optsOrOnClick === 'object') {
-          variant = optsOrOnClick.variant || 'info';
-          onClick = optsOrOnClick.onClick || null;
-        }
+// ─── Premium Notification System ────────────────────────────────────────────
+// Replaces browser alert() / confirm() with beautiful animated components.
 
-        let host = document.getElementById('toast-host');
-        if (!host) {
-          host = document.createElement('div');
-          host.id = 'toast-host';
-          host.className = 'fixed bottom-5 right-5 z-[100] flex flex-col gap-2';
-          document.body.appendChild(host);
-        }
-        const variantStyles = {
-          success: { box: 'bg-emerald-50 text-emerald-700', icon: 'fa-circle-check' },
-          error:   { box: 'bg-red-50 text-[#E30613]',       icon: 'fa-triangle-exclamation' },
-          info:    { box: 'bg-red-50 text-[#E30613]',       icon: 'fa-bell' },
-        };
-        const v = variantStyles[variant] || variantStyles.info;
-        const card = document.createElement('div');
-        card.className = 'flex w-80 cursor-pointer items-start gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-lg ring-1 ring-black/5';
-        card.innerHTML =
-          `<div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${v.box}"><i aria-hidden="true" class="fa-solid ${v.icon}"></i></div>` +
-          '<div class="flex-1 overflow-hidden"><p class="toast-title text-[13px] font-bold text-gray-800"></p><p class="toast-sub truncate text-xs text-gray-500"></p></div>';
-        // textContent (not innerHTML) so a content title can never inject markup.
-        card.querySelector('.toast-title').textContent = title;
-        card.querySelector('.toast-sub').textContent = subtitle || '';
-        card.onclick = () => { if (onClick) onClick(); card.remove(); };
-        host.appendChild(card);
-        setTimeout(() => card.remove(), 6000);
-      }
+(function() {
+  // Inject global CSS for toast & confirm animations once
+  if (document.getElementById('magti-notif-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'magti-notif-styles';
+  style.textContent = `
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateX(110%) scale(0.92); }
+      to   { opacity: 1; transform: translateX(0)   scale(1); }
+    }
+    @keyframes toast-out {
+      from { opacity: 1; transform: translateX(0)   scale(1)   max-height: 120px; margin-bottom: 8px; }
+      to   { opacity: 0; transform: translateX(110%) scale(0.9); max-height: 0;   margin-bottom: 0; }
+    }
+    @keyframes toast-progress {
+      from { width: 100%; }
+      to   { width: 0%; }
+    }
+    @keyframes confirm-in {
+      from { opacity: 0; transform: scale(0.88) translateY(12px); }
+      to   { opacity: 1; transform: scale(1)    translateY(0); }
+    }
+    @keyframes confirm-out {
+      from { opacity: 1; transform: scale(1)    translateY(0); }
+      to   { opacity: 0; transform: scale(0.92) translateY(8px); }
+    }
+    .magti-toast {
+      animation: toast-in 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+      will-change: transform, opacity;
+    }
+    .magti-toast.removing {
+      animation: toast-out 0.28s ease-in forwards;
+      pointer-events: none;
+    }
+    .magti-toast:hover .toast-progress-bar {
+      animation-play-state: paused !important;
+    }
+    .magti-confirm-panel {
+      animation: confirm-in 0.32s cubic-bezier(0.34, 1.46, 0.64, 1) forwards;
+    }
+    .magti-confirm-panel.removing {
+      animation: confirm-out 0.22s ease-in forwards;
+    }
+  `;
+  document.head.appendChild(style);
+})();
+
+function showToast(title, subtitle, optsOrOnClick) {
+  let onClick = null;
+  let variant = 'info';
+  let duration = 6000;
+  if (typeof optsOrOnClick === 'function') {
+    onClick = optsOrOnClick;
+  } else if (optsOrOnClick && typeof optsOrOnClick === 'object') {
+    variant  = optsOrOnClick.variant  || 'info';
+    onClick  = optsOrOnClick.onClick  || null;
+    duration = optsOrOnClick.duration || 6000;
+  }
+
+  let host = document.getElementById('toast-host');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'toast-host';
+    host.className = 'fixed bottom-5 right-5 flex flex-col-reverse gap-2 items-end';
+    host.style.cssText = 'pointer-events:none;';
+    host.style.setProperty('z-index', '999999', 'important');
+    document.body.appendChild(host);
+  }
+
+  const variants = {
+    success: {
+      bar:    'bg-emerald-500',
+      icon:   'fa-circle-check',
+      iconBg: 'bg-gradient-to-br from-emerald-400 to-emerald-600',
+      accent: 'border-l-emerald-400',
+    },
+    error: {
+      bar:    'bg-rose-500',
+      icon:   'fa-triangle-exclamation',
+      iconBg: 'bg-gradient-to-br from-rose-400 to-rose-600',
+      accent: 'border-l-rose-400',
+    },
+    warning: {
+      bar:    'bg-amber-400',
+      icon:   'fa-circle-exclamation',
+      iconBg: 'bg-gradient-to-br from-amber-400 to-amber-500',
+      accent: 'border-l-amber-400',
+    },
+    info: {
+      bar:    'bg-blue-500',
+      icon:   'fa-bell',
+      iconBg: 'bg-gradient-to-br from-blue-400 to-blue-600',
+      accent: 'border-l-blue-400',
+    },
+  };
+  const v = variants[variant] || variants.info;
+
+  const card = document.createElement('div');
+  card.className = `magti-toast pointer-events-auto relative w-80 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-xl ring-1 ring-black/[0.06] border-l-4 ${v.accent} cursor-pointer select-none`;
+
+  card.innerHTML = `
+    <div class="flex items-start gap-3 p-4 pb-5">
+      <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${v.iconBg} shadow-sm">
+        <i aria-hidden="true" class="fa-solid ${v.icon} text-white text-sm"></i>
+      </div>
+      <div class="flex-1 min-w-0 pt-0.5">
+        <p class="toast-title text-[13px] font-bold leading-snug text-gray-900"></p>
+        <p class="toast-sub text-xs leading-relaxed text-gray-500 mt-0.5"></p>
+      </div>
+      <button class="toast-close flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600" aria-label="დახურვა">
+        <i class="fa-solid fa-xmark text-xs"></i>
+      </button>
+    </div>
+    <div class="absolute bottom-0 left-0 right-0 h-[3px] bg-gray-100">
+      <div class="toast-progress-bar h-full ${v.bar} rounded-full" style="animation: toast-progress ${duration}ms linear forwards;"></div>
+    </div>
+  `;
+
+  card.querySelector('.toast-title').textContent = title;
+  card.querySelector('.toast-sub').textContent   = subtitle || '';
+
+  const removeCard = () => {
+    if (card.classList.contains('removing')) return;
+    card.classList.add('removing');
+    setTimeout(() => card.remove(), 280);
+  };
+
+  card.onclick = (e) => {
+    if (e.target.closest('.toast-close')) { removeCard(); return; }
+    if (onClick) onClick();
+    removeCard();
+  };
+
+  let timer = setTimeout(removeCard, duration);
+  card.addEventListener('mouseenter', () => clearTimeout(timer));
+  card.addEventListener('mouseleave', () => { timer = setTimeout(removeCard, 1500); });
+
+  host.appendChild(card);
+}
+
+// ─── showConfirm — replaces browser confirm() ───────────────────────────────
+// Usage: const ok = await showConfirm('სათაური', 'შეტყობინება', { confirmText, cancelText, variant })
+function showConfirm(title, message, opts = {}) {
+  return new Promise((resolve) => {
+    const confirmText = opts.confirmText || 'დადასტურება';
+    const cancelText  = opts.cancelText  || 'გაუქმება';
+    const variant     = opts.variant     || 'danger'; // 'danger' | 'warning' | 'info'
+
+    const btnStyles = {
+      danger:  'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-200 shadow-sm',
+      warning: 'bg-amber-500 hover:bg-amber-600 text-white',
+      info:    'bg-blue-600 hover:bg-blue-700 text-white',
+    };
+    const iconMap = {
+      danger:  { icon: 'fa-trash-can',           bg: 'bg-rose-100 text-rose-600' },
+      warning: { icon: 'fa-triangle-exclamation', bg: 'bg-amber-100 text-amber-600' },
+      info:    { icon: 'fa-circle-question',       bg: 'bg-blue-100 text-blue-600' },
+    };
+    const vi = iconMap[variant] || iconMap.danger;
+    const vb = btnStyles[variant] || btnStyles.danger;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'fixed inset-0 flex items-center justify-center p-4';
+    overlay.style.cssText = 'backdrop-filter:blur(4px); background:rgba(0,0,0,0.35);';
+    overlay.style.setProperty('z-index', '1000000', 'important');
+
+    overlay.innerHTML = `
+      <div class="magti-confirm-panel w-full max-w-sm rounded-2xl bg-white shadow-2xl ring-1 ring-black/10 overflow-hidden">
+        <div class="flex flex-col items-center gap-4 px-8 pt-8 pb-6 text-center">
+          <div class="flex h-14 w-14 items-center justify-center rounded-2xl ${vi.bg}">
+            <i class="fa-solid ${vi.icon} text-2xl"></i>
+          </div>
+          <div>
+            <h3 class="confirm-title text-base font-bold text-gray-900 mb-1"></h3>
+            <p class="confirm-msg text-sm leading-relaxed text-gray-500"></p>
+          </div>
+        </div>
+        <div class="flex gap-2 border-t border-gray-100 p-4">
+          <button id="confirm-cancel-btn" class="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"></button>
+          <button id="confirm-ok-btn" class="flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${vb}"></button>
+        </div>
+      </div>
+    `;
+
+    overlay.querySelector('.confirm-title').textContent = title;
+    overlay.querySelector('.confirm-msg').textContent   = message;
+    overlay.querySelector('#confirm-cancel-btn').textContent = cancelText;
+    overlay.querySelector('#confirm-ok-btn').textContent     = confirmText;
+
+    const close = (result) => {
+      const panel = overlay.querySelector('.magti-confirm-panel');
+      if (panel) panel.classList.add('removing');
+      overlay.style.transition = 'opacity 0.22s';
+      overlay.style.opacity = '0';
+      setTimeout(() => { overlay.remove(); resolve(result); }, 220);
+    };
+
+    overlay.querySelector('#confirm-ok-btn').onclick     = () => close(true);
+    overlay.querySelector('#confirm-cancel-btn').onclick = () => close(false);
+    overlay.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') close(false);
+      if (e.key === 'Enter')  close(true);
+    });
+
+    document.body.appendChild(overlay);
+    // Focus confirm button so keyboard works immediately
+    setTimeout(() => overlay.querySelector('#confirm-ok-btn').focus(), 50);
+  });
+}
+
+// ─── showAlert — replaces browser alert() ───────────────────────────────────
+function showAlert(message, variant) {
+  variant = variant || 'info';
+  showToast(
+    variant === 'error'   ? 'შეცდომა'    :
+    variant === 'success' ? 'წარმატება'  :
+    variant === 'warning' ? 'გაფრთხილება' : 'შეტყობინება',
+    message,
+    { variant }
+  );
+}
+
+window.showToast   = showToast;
+window.showConfirm = showConfirm;
+window.showAlert   = showAlert;
+
 
 function updateUserInfo(user) {
         // Header updates
@@ -1677,7 +1876,7 @@ function setupGlobalSearch(token) {
 function handleSessionExpiry(response) {
         if (response.status === 401) {
           localStorage.removeItem('magti_token');
-          alert('სესია ამოიწურა — გთხოვთ ხელახლა შეხვიდეთ სისტემაში.');
+          showAlert('სესია ამოიწურა — გთხოვთ ხელახლა შეხვიდეთ სისტემაში.', 'warning');
           window.location.href = 'login.html';
           return true;
         }
@@ -1709,10 +1908,21 @@ function openReadingModal(readingId) {
           const url = safeUrl(item.item_content);
           contentEl.innerHTML = `<p>ვიდეოს სანახავად გადადით ბმულზე:</p><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="font-medium text-blue-600 hover:underline">${escapeHtml(item.item_content)}</a>`;
         } else {
-          // [P0-3] Mirror the article-modal rendering: if backend served sanitized HTML, render it.
+          // [P0-3] Sanitized client-side with DOMPurify (same allowlist as
+          // openNewsDetailModal / app-renderers.js:518-524) — there is no
+          // server-side sanitizer, so this is the only XSS barrier for
+          // Quill-authored rich text.
           const body = item.item_content || '';
           if (/<(p|div|h[1-6]|ul|ol|li|table|br|a|strong|b|em)\b/i.test(body)) {
-            contentEl.innerHTML = body;
+            const ALLOWED_TAGS = ['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol',
+                                  'li', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'br', 'a',
+                                  'strong', 'b', 'em', 'i', 'img', 'pre', 'code', 'blockquote', 'hr'];
+            const ALLOWED_ATTRS = ['href', 'src', 'alt', 'target', 'title', 'class', 'id', 'style'];
+            if (typeof DOMPurify !== 'undefined') {
+              contentEl.innerHTML = DOMPurify.sanitize(body, { ALLOWED_TAGS, ALLOWED_ATTR: ALLOWED_ATTRS, KEEP_CONTENT: true });
+            } else {
+              contentEl.textContent = body;
+            }
           } else {
             contentEl.textContent = body;
           }
@@ -1826,7 +2036,7 @@ async function markAsRead(readingId) {
           return { ok: true };
         } catch (error) {
           console.error('Error marking as read:', error);
-          alert('სტატუსის განახლება ვერ მოხერხდა.');
+          showAlert('სტატუსის განახლება ვერ მოხერხდა.', 'error');
           return { ok: false };
         }
       }
@@ -1931,7 +2141,7 @@ async function nudgeUser(userId, btn) {
           console.error(error);
           btn.disabled = false;
           btn.innerHTML = originalHtml;
-          alert('ნუჯის გაგზავნა ვერ მოხერხდა.');
+          showAlert('ნუჯის გაგზავნა ვერ მოხერხდა.', 'error');
         }
       }
 
@@ -2154,7 +2364,7 @@ async function handleArticleFileUpload(input) {
           showToast('წარმატება', 'ფაილი აიტვირთა სისტემაში');
         } catch (err) {
           console.error(err);
-          alert(err.message);
+          showAlert(err.message, 'error');
         } finally {
           progressEl.classList.add('hidden');
           input.value = '';
@@ -2303,7 +2513,7 @@ async function editArticle(articleId) {
           } catch (e) { console.warn('[editArticle] direct fetch fallback failed:', e); }
         }
         if (!article) {
-          alert('სტატიის მონაცემები ვერ მოიძებნა. სცადეთ გვერდის განახლება.');
+          showAlert('სტატიის მონაცემები ვერ მოიძებნა. სცადეთ გვერდის განახლება.', 'warning');
           return;
         }
 
@@ -2498,7 +2708,7 @@ function cancelEdit() {
       }
 
 async function deleteArticle(articleId) {
-        if (!confirm('ნამდვილად გსურთ სტატიის წაშლა?')) return;
+        if (!await showConfirm('სტატიის წაშლა', 'ნამდვილად გსურთ სტატიის წაშლა? ეს მოქმედება შეუქცევადია.', { confirmText: 'წაშლა', variant: 'danger' })) return;
         const token = localStorage.getItem('magti_token');
         if (!token) return;
 
@@ -2511,7 +2721,7 @@ async function deleteArticle(articleId) {
           fetchAndRenderAdminContent(token); // refresh
         } catch (error) {
           console.error(error);
-          alert('წაშლა ვერ მოხერხდა');
+          showAlert('სტატიის წაშლა ვერ მოხერხდა.', 'error');
         }
       }
 
@@ -2676,7 +2886,7 @@ async function submitNewsForm(event) {
           releaseSubmitGuard();
         } catch (error) {
           console.error(error);
-          alert('დაფიქსირდა შეცდომა: ' + error.message);
+          showAlert('დაფიქსირდა შეცდომა: ' + error.message, 'error');
           releaseSubmitGuard();
         }
       }
@@ -2738,9 +2948,24 @@ function switchContentTab(tabId, element) {
       }
 
 async function editNews(newsId) {
-        const item = (window.cachedNewsItems || {})[newsId];
+        let item = (window.cachedNewsItems || {})[newsId];
         if (!item) {
-          alert('სიახლის მონაცემები ვერ მოიძებნა. სცადეთ გვერდის განახლება.');
+          try {
+            const token = Auth.getToken();
+            const r = await fetch('/api/news/' + newsId, {
+              headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+            });
+            if (r.ok) {
+              item = await r.json();
+              if (!window.cachedNewsItems) window.cachedNewsItems = {};
+              window.cachedNewsItems[newsId] = item;
+            }
+          } catch (e) {
+            console.warn('[editNews] API fallback failed:', e);
+          }
+        }
+        if (!item) {
+          showAlert('სიახლის მონაცემები ვერ მოიძებნა.', 'warning');
           return;
         }
 
@@ -2819,7 +3044,7 @@ async function handleNewsFileUpload(input) {
           document.getElementById('news-attachment-url').value = data.url;
           updateNewsAttachmentChip(data.url);
         } catch (e) {
-          alert(e.message);
+          showAlert(e.message, 'error');
         } finally {
           progress?.classList.add('hidden');
           input.value = '';
@@ -2857,12 +3082,14 @@ async function viewNewsHistory(newsId) {
           if (history.length === 0) {
             container.innerHTML = '<p class="text-sm text-gray-500">ისტორია ცარიელია (სიახლე ჯერ არ დარედაქტირებულა).</p>';
           } else {
+            // Sort ascending (chronological order)
+            history.sort((a, b) => new Date(a.updated_at) - new Date(b.updated_at));
             history.forEach((h, index) => {
               const date = new Date(h.updated_at).toLocaleString('ka-GE');
               container.insertAdjacentHTML('beforeend', `
                 <div class="rounded-xl border border-gray-100 bg-gray-50 p-4">
                   <div class="mb-2 flex items-center justify-between">
-                    <span class="rounded bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-700">ვერსია ${history.length - index}</span>
+                    <span class="rounded bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-700">ვერსია ${index + 1}</span>
                     <div class="flex items-center gap-3">
                       <button onclick="restoreNewsVersion(${newsId}, ${h.id})" class="text-xs font-bold text-[#E30613] hover:text-red-700 hover:underline">აღდგენა</button>
                       <span class="text-[11px] font-medium text-gray-500">${date}</span>
@@ -2879,11 +3106,11 @@ async function viewNewsHistory(newsId) {
           }
           const modal = document.getElementById('history-modal');
           modal.classList.remove('hidden'); modal.classList.add('flex');
-        } catch (e) { alert(e.message); }
+        } catch (e) { showAlert(e.message, 'error'); }
       }
 
 async function restoreNewsVersion(newsId, historyId) {
-        if (!confirm('ნამდვილად გსურთ ამ ვერსიის აღდგენა?')) return;
+        if (!await showConfirm('ვერსიის აღდგენა', 'ნამდვილად გსურთ ამ ვერსიის აღდგენა?', { confirmText: 'აღდგენა', variant: 'warning' })) return;
         const token = Auth.getToken(); if (!token) return;
         try {
           const res = await fetch(`/api/news/${newsId}/history/${historyId}/restore`, {
@@ -2891,15 +3118,15 @@ async function restoreNewsVersion(newsId, historyId) {
             headers: { Authorization: 'Bearer ' + token },
           });
           if (!res.ok) throw new Error('აღდგენა ვერ მოხერხდა');
-          alert('სიახლე წარმატებით აღდგა.');
+          showToast('წარმატება', 'სიახლე წარმატებით აღდგა.', { variant: 'success' });
           closeHistoryModal();
           fetchAndRenderAdminNews(token);
           fetchAndRenderNewsPage(token);
-        } catch (e) { alert(e.message); }
+        } catch (e) { showAlert(e.message, 'error'); }
       }
 
 async function deleteNews(newsId) {
-        if (!confirm('ნამდვილად გსურთ სიახლის წაშლა?')) return;
+        if (!await showConfirm('სიახლის წაშლა', 'ნამდვილად გსურთ ამ სიახლის წაშლა?', { confirmText: 'წაშლა', variant: 'danger' })) return;
         const token = localStorage.getItem('magti_token');
         if (!token) return;
 
@@ -2916,7 +3143,7 @@ async function deleteNews(newsId) {
           fetchAndRenderNewsPage(token); // Refresh dedicated news page
         } catch (error) {
           console.error(error);
-          alert('წაშლა ვერ მოხერხდა.');
+          showAlert('სიახლის წაშლა ვერ მოხერხდა.', 'error');
         }
       }
 
@@ -2972,7 +3199,7 @@ async function handleVideoUpload(input) {
           showToast('წარმატება', 'ვიდეო ფაილი აიტვირთა ლოკალურად');
         } catch (err) {
           console.error(err);
-          alert(err.message);
+          showAlert(err.message, 'error');
         } finally {
           progressEl.classList.add('hidden');
           input.value = '';
@@ -3041,7 +3268,7 @@ async function submitVideoForm(event) {
           releaseSubmitGuard();
         } catch (error) {
           console.error(error);
-          alert('დაფიქსირდა შეცდომა: ' + error.message);
+          showAlert('დაფიქსირდა შეცდომა: ' + error.message, 'error');
           releaseSubmitGuard();
         }
       }
@@ -3064,7 +3291,7 @@ async function downloadExport() {
           a.remove();
         } catch (error) {
           console.error(error);
-          alert('ექსპორტი ვერ მოხერხდა.');
+          showAlert('ექსპორტი ვერ მოხერხდა.', 'error');
         }
       }
 
@@ -3151,7 +3378,7 @@ function toggleSidebar() {
       }
 
 async function logoutUser() {
-        if (!confirm('ნამდვილად გსურთ სისტემიდან გასვლა?')) return;
+        if (!await showConfirm('სისტემიდან გასვლა', 'ნამდვილად გსურთ სისტემიდან გასვლა?', { confirmText: 'გასვლა', cancelText: 'გაუქმება', variant: 'warning' })) return;
         if (window._magtiES) { window._magtiES.close(); window._magtiES = null; }
         // Best-effort: also clear the server-side httpOnly auth cookie.
         try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } catch (e) { }
@@ -3178,30 +3405,50 @@ function ensureArticleModal() {
             <div class="relative flex max-h-[88vh] w-full max-w-[920px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
 
               <!-- Sticky header — always visible while scrolling -->
-              <header class="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-gray-100 bg-white/95 px-7 py-4 backdrop-blur">
-                <div class="min-w-0 flex-1">
-                  <h3 id="article-modal-title" class="truncate text-xl font-bold text-gray-900">
-                    <a id="article-modal-title-link" href="#" target="_blank" class="hover:text-[#E30613] hover:underline" title="გახსნა ცალკე გვერდზე"></a>
-                  </h3>
+              <header class="sticky top-0 z-10 flex flex-col border-b border-gray-100 bg-white/95 px-7 py-4 backdrop-blur">
+                <div class="flex items-start justify-between gap-4 w-full">
+                  <div class="min-w-0 flex-1">
+                    <h3 id="article-modal-title" class="truncate text-xl font-bold text-gray-900">
+                      <a id="article-modal-title-link" href="#" target="_blank" class="hover:text-[#E30613] hover:underline" title="გახსნა ცალკე გვერდზე"></a>
+                    </h3>
+                  </div>
+                  <div class="flex shrink-0 items-center gap-2">
+                    <button onclick="copyFirstScript()" id="modal-copy-script-btn"
+                      class="hidden items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-emerald-700 active:scale-95"
+                      title="Ctrl+Shift+C">
+                      <i aria-hidden="true" class="fa-solid fa-clipboard"></i><span>კოპირება</span>
+                      <kbd class="ml-1 rounded border border-emerald-400 bg-emerald-700/40 px-1 text-[10px]">Ctrl+Shift+C</kbd>
+                    </button>
+                    <button onclick="copyArticleBody(this)" class="no-print flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900" aria-label="ტექსტის კოპირება" title="მთლიანი ტექსტის კოპირება">
+                      <i aria-hidden="true" class="fa-regular fa-copy text-base"></i>
+                    </button>
+                    <button onclick="toggleModalTheme(this)" class="no-print flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900" aria-label="თემის შეცვლა" title="მოდალის თემის შეცვლა (Light/Dark)">
+                      <i aria-hidden="true" class="fa-regular fa-moon text-base"></i>
+                    </button>
+                    <button onclick="window.print()" class="no-print flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900" aria-label="ბეჭდვა" title="ბეჭდვა / PDF-ად შენახვა">
+                      <i aria-hidden="true" class="fa-solid fa-print"></i>
+                    </button>
+                    <button onclick="closeArticleModal()" class="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900" aria-label="დახურვა">
+                      <i aria-hidden="true" class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                  </div>
                 </div>
-                <div class="flex shrink-0 items-center gap-2">
-                  <button onclick="copyFirstScript()" id="modal-copy-script-btn"
-                    class="hidden items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-emerald-700 active:scale-95"
-                    title="Ctrl+Shift+C">
-                    <i aria-hidden="true" class="fa-solid fa-clipboard"></i><span>კოპირება</span>
-                    <kbd class="ml-1 rounded border border-emerald-400 bg-emerald-700/40 px-1 text-[10px]">Ctrl+Shift+C</kbd>
+                <!-- Row 2: Admin management actions bar -->
+                <div id="modal-admin-actions-bar" class="hidden items-center gap-1.5 mt-2 border-t border-gray-100 pt-2 w-full">
+                  <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mr-2 flex items-center gap-1">
+                    <i class="fa-solid fa-shield-halved"></i> მართვა:
+                  </span>
+                  <button id="modal-edit-btn" onclick="editArticleFromModal()"
+                    class="h-7 flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50/30 px-3 text-[11px] font-semibold text-blue-600 transition-colors hover:bg-blue-50">
+                    <i aria-hidden="true" class="fa-solid fa-pen-to-square text-[10px]"></i><span>რედაქტირება</span>
                   </button>
-                  <button onclick="copyArticleBody(this)" class="no-print flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900" aria-label="ტექსტის კოპირება" title="მთლიანი ტექსტის კოპირება">
-                    <i aria-hidden="true" class="fa-regular fa-copy text-base"></i>
+                  <button id="modal-archive-btn" onclick="toggleArticleArchiveFromModal()"
+                    class="h-7 flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50/30 px-3 text-[11px] font-semibold text-amber-600 transition-colors hover:bg-amber-50">
+                    <i aria-hidden="true" class="fa-solid fa-box-archive text-[10px]"></i><span id="modal-archive-btn-text">დაარქივება</span>
                   </button>
-                  <button onclick="toggleModalTheme(this)" class="no-print flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900" aria-label="თემის შეცვლა" title="მოდალის თემის შეცვლა (Light/Dark)">
-                    <i aria-hidden="true" class="fa-regular fa-moon text-base"></i>
-                  </button>
-                  <button onclick="window.print()" class="no-print flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900" aria-label="ბეჭდვა" title="ბეჭდვა / PDF-ად შენახვა">
-                    <i aria-hidden="true" class="fa-solid fa-print"></i>
-                  </button>
-                  <button onclick="closeArticleModal()" class="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900" aria-label="დახურვა">
-                    <i aria-hidden="true" class="fa-solid fa-xmark text-lg"></i>
+                  <button id="modal-delete-btn" onclick="deleteArticleFromModal()"
+                    class="h-7 flex items-center gap-1 rounded-full border border-red-200 bg-red-50/30 px-3 text-[11px] font-semibold text-red-600 transition-colors hover:bg-red-50">
+                    <i aria-hidden="true" class="fa-solid fa-trash-can text-[10px]"></i><span>წაშლა</span>
                   </button>
                 </div>
               </header>
@@ -3321,19 +3568,23 @@ function ensureArticleModal() {
 
               <!-- Version History / Diff Overlay (all roles with article read access) -->
               <div id="modal-history-mask" class="hidden fixed inset-0 z-[90] bg-black/40 backdrop-blur-sm" onclick="toggleModalHistoryOverlay()"></div>
-              <div id="modal-history-overlay" onclick="event.stopPropagation()" class="hidden fixed inset-0 m-auto z-[100] bg-white w-[90vw] max-w-4xl h-[80vh] flex flex-col p-6 rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
-                <div class="flex items-center justify-between border-b border-gray-100 pb-4 mb-4 shrink-0">
-                  <h3 class="text-lg font-bold text-gray-900">ცვლილებების ისტორია</h3>
-                  <button onclick="toggleModalHistoryOverlay()" class="text-gray-400 hover:text-gray-600 p-1 transition-colors">
+              <div id="modal-history-overlay" onclick="event.stopPropagation()" class="hidden fixed inset-0 m-auto z-[100] bg-white dark:bg-zinc-900 w-[90vw] max-w-4xl h-[80vh] flex flex-col p-6 rounded-2xl shadow-2xl border border-gray-200 dark:border-zinc-800 overflow-hidden">
+                <div class="flex items-center justify-between border-b border-gray-100 dark:border-zinc-800 pb-4 mb-4 shrink-0">
+                  <h3 class="text-lg font-bold text-gray-900 dark:text-zinc-100">ცვლილებების ისტორია</h3>
+                  <button onclick="toggleModalHistoryOverlay()" class="text-gray-400 hover:text-gray-600 dark:text-zinc-500 dark:hover:text-zinc-300 p-1 transition-colors">
                     <i class="fa-solid fa-xmark text-xl"></i>
                   </button>
                 </div>
-                <div class="flex flex-1 gap-4 overflow-hidden">
-                  <div id="modal-history-list" class="w-64 shrink-0 overflow-y-auto border-r border-gray-100 pr-3 space-y-1.5"></div>
+                <div class="flex flex-1 flex-col md:flex-row gap-4 overflow-hidden">
+                  <div id="modal-history-list" class="w-full md:w-64 shrink-0 max-h-40 md:max-h-none overflow-y-auto border-b md:border-b-0 md:border-r border-gray-100 dark:border-zinc-800 pb-3 md:pb-0 md:pr-3 space-y-1.5"></div>
                   <div class="flex-1 overflow-y-auto">
+                    <div id="modal-history-compare" class="hidden mb-3 flex items-center gap-2 text-xs">
+                      <label for="modal-history-compare-select" class="font-semibold text-gray-600 dark:text-zinc-400">შედარება:</label>
+                      <select id="modal-history-compare-select" class="rounded-md border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-200 text-xs px-2 py-1"></select>
+                    </div>
                     <div id="modal-history-summary" class="hidden mb-3 flex items-center gap-3 text-xs font-semibold"></div>
-                    <div id="modal-history-diff" class="text-sm leading-relaxed text-gray-700">
-                      <p class="text-gray-400 text-sm">აირჩიეთ ვერსია მარცხენა სიიდან შედარების სანახავად.</p>
+                    <div id="modal-history-diff" class="text-sm leading-relaxed text-gray-700 dark:text-zinc-300">
+                      <p class="text-gray-400 dark:text-zinc-500 text-sm">აირჩიეთ ვერსია მარცხენა სიიდან შედარების სანახავად.</p>
                     </div>
                   </div>
                 </div>
@@ -3423,7 +3674,56 @@ function openArticleModal(article) {
         window.activeArticleTitle = article.title;
         window.activeArticleVersion = article.version;
 
+        // The version-history and admin-audit overlays are lazily-injected
+        // singletons nested inside #article-modal (see ensureArticleModal) and
+        // reused across every article. If one was left open (e.g. the user
+        // jumped to a different article via a "related articles" card without
+        // explicitly closing it first), it would stay visible on top of the
+        // newly-opened article while still showing the PREVIOUS article's
+        // cached version list / audit data. Force both closed on every open so
+        // a fresh click on their toggle buttons always fetches for the article
+        // that's actually showing.
+        const historyMask = document.getElementById('modal-history-mask');
+        const historyOverlay = document.getElementById('modal-history-overlay');
+        if (historyMask) historyMask.classList.add('hidden');
+        if (historyOverlay) { historyOverlay.classList.add('hidden'); historyOverlay.classList.remove('flex'); }
+        const auditMask = document.getElementById('modal-admin-audit-mask');
+        const auditOverlay = document.getElementById('modal-admin-audit-overlay');
+        if (auditMask) auditMask.classList.add('hidden');
+        if (auditOverlay) { auditOverlay.classList.add('hidden'); auditOverlay.classList.remove('flex'); }
+
         const modal = document.getElementById('article-modal');
+        
+        // Show/hide management buttons based on user permissions
+        const role = window.currentUser ? window.currentUser.role : '';
+        const canManage = ['admin', 'content_admin'].includes(role);
+        const adminBar = document.getElementById('modal-admin-actions-bar');
+        const archiveBtn = document.getElementById('modal-archive-btn');
+        const archiveText = document.getElementById('modal-archive-btn-text');
+        
+        if (adminBar) {
+          if (canManage) {
+            adminBar.classList.remove('hidden');
+            adminBar.classList.add('flex');
+            
+            const isArchived = article.status === 'archived';
+            if (archiveBtn) {
+              if (isArchived) {
+                if (archiveText) archiveText.textContent = 'არქივიდან ამოღება';
+                const icon = archiveBtn.querySelector('i');
+                if (icon) icon.className = 'fa-solid fa-box-open text-[10px]';
+              } else {
+                if (archiveText) archiveText.textContent = 'დაარქივება';
+                const icon = archiveBtn.querySelector('i');
+                if (icon) icon.className = 'fa-solid fa-box-archive text-[10px]';
+              }
+            }
+          } else {
+            adminBar.classList.add('hidden');
+            adminBar.classList.remove('flex');
+          }
+        }
+
         const titleLink = document.getElementById('article-modal-title-link');
         if (titleLink) {
           titleLink.textContent = article.title;
@@ -3729,7 +4029,7 @@ async function openArticleModalById(articleId) {
             }).catch(e => console.error('Failed to log article view', e));
           }
         }
-        else alert('სტატია ვერ მოიძებნა.');
+        else showAlert('სტატია ვერ მოიძებნა.', 'warning');
       }
 
 function closeArticleModal() {
@@ -3885,7 +4185,7 @@ async function quickLookDiff(articleId, historyId) {
           m.classList.add('flex');
         } catch (e) {
           console.error(e);
-          alert('შედარება ვერ ჩაიტვირთა.');
+          showAlert('შედარება ვერ ჩაიტვირთა.', 'error');
         }
       }
 
@@ -3907,12 +4207,14 @@ async function viewArticleHistory(articleId) {
           if (history.length === 0) {
             container.innerHTML = '<p class="text-sm text-gray-500">ისტორია ცარიელია (სტატია ჯერ არ დარედაქტირებულა).</p>';
           } else {
+            // Sort ascending (chronological order)
+            history.sort((a, b) => new Date(a.updated_at) - new Date(b.updated_at));
             history.forEach((h, index) => {
               const date = new Date(h.updated_at).toLocaleString('ka-GE');
               container.insertAdjacentHTML('beforeend', `
                 <div class="rounded-xl border border-gray-100 bg-gray-50 p-4 transition-colors hover:bg-gray-100">
                   <div class="mb-2 flex items-center justify-between">
-                    <span class="rounded bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-700">ვერსია ${h.version_id != null ? h.version_id : (history.length - index)}</span>
+                    <span class="rounded bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-700">ვერსია ${h.version_id != null ? h.version_id : (index + 1)}</span>
                     <div class="flex items-center gap-3">
                       <button onclick="quickLookDiff(${articleId}, ${h.id})" class="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline">შედარება</button>
                       <button onclick="restoreArticleVersion(${articleId}, ${h.id})" class="text-xs font-bold text-[#E30613] hover:text-red-700 hover:underline">აღდგენა</button>
@@ -3934,7 +4236,7 @@ async function viewArticleHistory(articleId) {
           modal.classList.add('flex');
         } catch (e) {
           console.error(e);
-          alert('ისტორიის ჩატვირთვა ვერ მოხერხდა.');
+          showAlert('ისტორიის ჩატვირთვა ვერ მოხერხდა.', 'error');
         }
       }
 
@@ -3944,7 +4246,7 @@ function closeHistoryModal() {
       }
 
 async function restoreArticleVersion(articleId, historyId) {
-        if (!confirm('ნამდვილად გსურთ სტატიის ამ ვერსიის აღდგენა?')) return;
+        if (!await showConfirm('ვერსიის აღდგენა', 'ნამდვილად გსურთ სტატიის ამ ვერსიის აღდგენა? მიმდინარე კონტენტი შეიცვლება.', { confirmText: 'აღდგენა', variant: 'warning' })) return;
         const token = Auth.getToken();
         if (!token) return;
         try {
@@ -3956,7 +4258,7 @@ async function restoreArticleVersion(articleId, historyId) {
           });
           if (handleSessionExpiry(response)) return;
           if (!response.ok) throw new Error('Restore failed');
-          alert('სტატიის ვერსია წარმატებით აღდგა.');
+          showToast('წარმატება', 'სტატიის ვერსია წარმატებით აღდგა.', { variant: 'success' });
           closeHistoryModal();
           fetchAndRenderKnowledgeBase(token);
           if (window.currentPageId === 'page-admin') {
@@ -3964,7 +4266,7 @@ async function restoreArticleVersion(articleId, historyId) {
           }
         } catch (error) {
           console.error(error);
-          alert('აღდგენა ვერ მოხერხდა.');
+          showAlert('აღდგენა ვერ მოხერხდა.', 'error');
         }
       }
 
@@ -4246,7 +4548,7 @@ async function markMessageRead(messageId) {
       }
 
 async function deleteMessage(messageId) {
-        if (!confirm('ნამდვილად გსურთ შეტყობინების წაშლა?')) return;
+        if (!await showConfirm('შეტყობინების წაშლა', 'ნამდვილად გსურთ ამ შეტყობინების წაშლა?', { confirmText: 'წაშლა', variant: 'danger' })) return;
         const token = localStorage.getItem('magti_token');
         if (!token) return;
         try {
@@ -4328,7 +4630,7 @@ function applySettings() {
           }
         }
 
-        alert('პარამეტრები შენახულია.');
+        showToast('პარამეტრები', 'პარამეტრები წარმატებით შენახულია.', { variant: 'success' });
       }
 
 function toggleDarkMode() {
@@ -4424,7 +4726,7 @@ async function verifyArticleFromModal() {
           if (!response.ok) throw new Error('Verification failed');
           const updatedArticle = await response.json();
 
-          alert('სტატია წარმატებით მონიშნა როგორც აქტუალური.');
+          showToast('წარმატება', 'სტატია მონიშნულია როგორც აქტუალური.', { variant: 'success' });
 
           // Hide the banner immediately
           const banner = document.getElementById('article-modal-staleness-banner');
@@ -4448,7 +4750,7 @@ async function verifyArticleFromModal() {
           }
         } catch (error) {
           console.error(error);
-          alert('სტატიის გადამოწმება ვერ მოხერხდა: ' + error.message);
+          showAlert('სტატიის გადამოწმება ვერ მოხერხდა: ' + error.message, 'error');
         }
       }
 
@@ -4583,7 +4885,7 @@ function saveArticleNote() {
           })
           .catch(err => {
             console.error('Save note error:', err);
-            alert('ჩანაწერის შენახვა ვერ მოხერხდა: ' + err.message);
+            showAlert('ჩანაწერის შენახვა ვერ მოხერხდა.', 'error');
           });
       }
 
@@ -4706,7 +5008,7 @@ async function saveProfileEdit() {
         const token = localStorage.getItem('magti_token');
         const name = document.getElementById('profile-name-input').value.trim();
         const position = document.getElementById('profile-position-input').value.trim();
-        if (!token || !name) { alert('სახელი სავალდებულოა.'); return; }
+        if (!token || !name) { showAlert('სახელი სავალდებულოა.', 'warning'); return; }
         try {
           const response = await fetch('/api/users/me', {
             method: 'PUT',
@@ -4722,13 +5024,13 @@ async function saveProfileEdit() {
           btn.onclick = startProfileEdit;
         } catch (error) {
           console.error(error);
-          alert('პროფილის განახლება ვერ მოხერხდა.');
+          showAlert('პროფილის განახლება ვერ მოხერხდა.', 'error');
         }
       }
 
 async function toggleUserStatus(userId, isActive) {
         const action = isActive ? 'გააქტიურება' : 'გათიშვა';
-        if (!confirm(`ნამდვილად გსურთ მომხმარებლის ${action}?`)) return;
+        if (!await showConfirm('მომხმარებლის სტატუსი', `ნამდვილად გსურთ მომხმარებლის ${action}?`, { confirmText: 'დადასტურება', variant: 'warning' })) return;
         const token = localStorage.getItem('magti_token');
         if (!token) return;
         try {
@@ -4742,7 +5044,7 @@ async function toggleUserStatus(userId, isActive) {
           fetchKPIs(token);
         } catch (error) {
           console.error(error);
-          alert('სტატუსის შეცვლა ვერ მოხერხდა.');
+          showAlert('სტატუსის შეცვლა ვერ მოხერხდა.', 'error');
         }
       }
 
@@ -4810,8 +5112,12 @@ function closeUserEditModal() {
 
 async function submitUserEditForm(event) {
         event.preventDefault();
+        // See submitArticleForm for why this is deferred via setTimeout(0): the
+        // global double-submit guard attaches resetSubmitGuard on the bubble
+        // phase, which runs after this target-phase handler returns.
+        const releaseSubmitGuard = () => setTimeout(() => event.target.resetSubmitGuard?.(), 0);
         const token = localStorage.getItem('magti_token');
-        if (!token) return;
+        if (!token) { releaseSubmitGuard(); return; }
         const userId = document.getElementById('edit-user-id').value;
         const role = document.getElementById('edit-user-role').value;
         const department = document.getElementById('edit-user-department').value;
@@ -4845,9 +5151,11 @@ async function submitUserEditForm(event) {
           if (rolesPanel && !rolesPanel.classList.contains('hidden') && typeof renderRoleConsole === 'function') {
             renderRoleConsole(token);
           }
+          releaseSubmitGuard();
         } catch (error) {
           console.error(error);
           showToast('მომხმარებლის განახლება ვერ მოხერხდა', error.message, { variant: 'error' });
+          releaseSubmitGuard();
         }
       }
 
@@ -4856,6 +5164,60 @@ function focusCreateForm() {
         document.getElementById('admin-video-panel')?.classList.add('hidden');
         const panel = document.getElementById('admin-panel');
         if (!panel) return;
+
+        // Reset the form for a new article
+        window.editingArticleId = null;
+        window._removeAttachment = false;
+        
+        const form = document.getElementById('create-article-form');
+        if (form) form.reset();
+        
+        if (window.articleQuill) {
+          window.articleQuill.setText('', 'silent');
+        }
+        
+        const attUrl = document.getElementById('article-attachment-url');
+        if (attUrl) attUrl.value = '';
+        
+        const formTitle = document.getElementById('article-form-title');
+        if (formTitle) formTitle.textContent = 'ახალი სტატიის დამატება';
+        
+        const cancelBtn = document.getElementById('cancel-edit-btn');
+        if (cancelBtn) cancelBtn.classList.add('hidden');
+        
+        const attLink = document.getElementById('current-attachment-link');
+        if (attLink) {
+          attLink.classList.add('hidden');
+          attLink.classList.remove('flex');
+        }
+        
+        const mandSection = document.getElementById('mandatory-section');
+        if (mandSection) mandSection.classList.remove('hidden');
+        
+        const statusSelect = document.getElementById('article-status');
+        if (statusSelect) statusSelect.value = 'published';
+        
+        const schedInput = document.getElementById('article-published-at');
+        if (schedInput) schedInput.value = '';
+        
+        const tagsInput = document.getElementById('article-tags');
+        if (tagsInput) tagsInput.value = '';
+
+        const deptInfo = document.getElementById('dept-info');
+        if (deptInfo) deptInfo.checked = false;
+        const deptTech = document.getElementById('dept-tech');
+        if (deptTech) deptTech.checked = false;
+        const deptOffice = document.getElementById('dept-office');
+        if (deptOffice) deptOffice.checked = false;
+
+        const mandCheck = document.getElementById('article-mandatory');
+        if (mandCheck) mandCheck.checked = false;
+        const dueDate = document.getElementById('article-due-date');
+        if (dueDate) dueDate.value = '';
+
+        if (typeof toggleScheduledDate === 'function') toggleScheduledDate();
+        if (typeof toggleDueDate === 'function') toggleDueDate();
+
         panel.classList.remove('hidden');
         setTimeout(() => panel.classList.remove('translate-x-full'), 10);
         document.getElementById('admin-panel-backdrop')?.classList.remove('hidden');
@@ -4906,7 +5268,7 @@ function focusVideoForm() {
 async function archiveSelected() {
         const checked = [...document.querySelectorAll('.archive-check:checked')];
         if (checked.length === 0) { showToast('მონიშნეთ მინიმუმ ერთი სტატია', '', { variant: 'error' }); return; }
-        if (!confirm(`დაარქივდეს ${checked.length} სტატია? ისინი აღარ გამოჩნდება ოპერატორების ცოდნის ბაზაში.`)) return;
+        if (!await showConfirm('სტატიების დაარქივება', `დაარქივდეს ${checked.length} სტატია? ისინი აღარ გამოჩნდება ოპერატორების ცოდნის ბაზაში.`, { confirmText: 'დაარქივება', variant: 'warning' })) return;
         const token = localStorage.getItem('magti_token');
         if (!token) return;
 
@@ -4930,7 +5292,7 @@ async function archiveSelected() {
 async function unarchiveSelected() {
         const checked = [...document.querySelectorAll('.archive-check:checked')];
         if (checked.length === 0) { showToast('მონიშნეთ მინიმუმ ერთი სტატია', '', { variant: 'error' }); return; }
-        if (!confirm(`ამოვიღოთ არქივიდან ${checked.length} სტატია?`)) return;
+        if (!await showConfirm('არქივიდან ამოღება', `ამოვიღოთ არქივიდან ${checked.length} სტატია?`, { confirmText: 'ამოღება', variant: 'info' })) return;
         const token = localStorage.getItem('magti_token');
         if (!token) return;
 
@@ -4960,7 +5322,7 @@ async function toggleArticleArchive(articleId, shouldArchive) {
           ? 'ნამდვილად გსურთ ამ სტატიის დაარქივება? ის აღარ გამოჩნდება ოპერატორებისთვის.' 
           : 'ნამდვილად გსურთ ამ სტატიის არქივიდან ამოღება?';
 
-        if (!confirm(confirmMsg)) return;
+        if (!await showConfirm('სტატიის სტატუსი', confirmMsg, { confirmText: 'დადასტურება', variant: 'warning' })) return;
 
         try {
           const url = `/api/articles/${articleId}/${shouldArchive ? 'archive' : 'unarchive'}`;
@@ -5032,7 +5394,7 @@ async function runAsyncExport(submitUrl, btn) {
           }
           jobId = (await res.json()).job_id;
         } catch (e) {
-          alert(e.message || 'ექსპორტი ვერ მოხერხდა.');
+          showAlert(e.message || 'ექსპორტი ვერ მოხერხდა.', 'error');
           restore();
           return;
         }
@@ -5049,12 +5411,12 @@ async function runAsyncExport(submitUrl, btn) {
               window.location.href = `/api/export/download/${jobId}`;  // cookie auth
               restore();
             } else {
-              alert('ექსპორტი ვერ მოხერხდა. სცადეთ თავიდან.');
+              showAlert('ექსპორტი ვერ მოხერხდა.', 'error');
               restore();
             }
           } catch (e) {
             clearInterval(poll);
-            alert('ექსპორტის სტატუსის შემოწმება ვერ მოხერხდა.');
+            showAlert('ექსპორტის სტატუსის შემოწმება ვერ მოხერხდა.', 'error');
             restore();
           }
         }, 1500);
@@ -5155,11 +5517,11 @@ async function submitCategoryForm(event) {
           fetchAndRenderCategoriesAdmin(token);
           if (typeof fetchKbCategories === 'function') fetchKbCategories(token);
           window._taxonomyLoaded = false;
-        } catch (e) { alert(e.message); }
+        } catch (e) { showAlert(e.message, 'error'); }
       }
 
 async function deleteCategory(id) {
-        if (!confirm('წავშალო ეს კატეგორია? დაკავშირებული სტატიების კატეგორიის ID გახდება null.')) return;
+        if (!await showConfirm('კატეგორიის წაშლა', 'წავშალო ეს კატეგორია? დაკავშირებული სტატიების კატეგორია განულდება.', { confirmText: 'წაშლა', variant: 'danger' })) return;
         const token = Auth.getToken(); if (!token) return;
         try {
           const res = await fetch(`/api/categories/${id}`, { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
@@ -5167,7 +5529,7 @@ async function deleteCategory(id) {
           fetchAndRenderCategoriesAdmin(token);
           if (typeof fetchKbCategories === 'function') fetchKbCategories(token);
           window._taxonomyLoaded = false;
-        } catch (e) { alert(e.message); }
+        } catch (e) { showAlert(e.message, 'error'); }
       }
 
 function openUserCreateForm() {
@@ -5200,7 +5562,7 @@ async function submitCreateUserForm(event) {
           if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'მომხმარებლის შექმნა ვერ მოხერხდა'); }
           closeUserCreateForm();
           if (typeof fetchAndRenderUsers === 'function') fetchAndRenderUsers(token);
-        } catch (e) { alert(e.message); }
+        } catch (e) { showAlert(e.message, 'error'); }
       }
 
 async function submitChangePassword(event) {
@@ -5209,7 +5571,7 @@ async function submitChangePassword(event) {
         const cur = document.getElementById('pw-current').value;
         const nw = document.getElementById('pw-new').value;
         const cfm = document.getElementById('pw-confirm').value;
-        if (nw !== cfm) { alert('ახალი პაროლი და გამეორება არ ემთხვევა.'); return; }
+        if (nw !== cfm) { showAlert('ახალი პაროლი და გამეორება არ ემთხვევა.', 'warning'); return; }
         try {
           const res = await fetch('/api/users/me/password', {
             method: 'POST',
@@ -5218,22 +5580,9 @@ async function submitChangePassword(event) {
           });
           const data = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(data.detail || 'პაროლი ვერ შეიცვალა');
-          alert(data.detail || 'პაროლი წარმატებით შეიცვალა.');
+          showToast('პაროლი', data.detail || 'პაროლი წარმატებით შეიცვალა.', { variant: 'success' });
           event.target.reset();
-        } catch (e) { alert(e.message); }
-      }
-
-async function setFeedbackStatus(feedbackId, newStatus) {
-        const token = Auth.getToken(); if (!token) return;
-        try {
-          const res = await fetch(`/api/admin/feedback/${feedbackId}/status`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-            body: JSON.stringify({ status: newStatus }),
-          });
-          if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'სტატუსი ვერ შეიცვალა'); }
-          if (typeof fetchAndRenderAdminFeedback === 'function') fetchAndRenderAdminFeedback(token);
-        } catch (e) { alert(e.message); }
+        } catch (e) { showAlert(e.message, 'error'); }
       }
 
 function initCharts() {
@@ -5310,7 +5659,7 @@ function showMagtiAiComingSoon() {
         if (typeof showToast === 'function') {
           showToast('Magti AI', 'მალე იქნება!', { variant: 'info' });
         } else {
-          alert('Magti AI — მალე იქნება!');
+          showAlert('Magti AI — მალე იქნება!', 'info');
         }
       }
 
@@ -5491,7 +5840,7 @@ async function triggerKebabAction(userId, action, event) {
             showToast('შეტყობინება 💬', 'შეტყობინება წარმატებით გაიგზავნა!');
           } catch (error) {
             console.error(error);
-            alert('შეტყობინების გაგზავნა ვერ მოხერხდა.');
+            showAlert('შეტყობინების გაგზავნა ვერ მოხერხდა.', 'error');
           }
         }
       }
@@ -5680,7 +6029,7 @@ async function triggerKebabAction(userId, action, event) {
           window.showToast('Magti AI', 'მალე იქნება!', { variant: 'info' });
         } else {
           // Last-ditch fallback: native alert so a user always gets feedback.
-          window.alert('Magti AI — მალე იქნება!');
+          showAlert('Magti AI — მალე იქნება!', 'info');
         }
       }
       // Capture phase on the document — guaranteed to run before any bubble-
@@ -5974,7 +6323,6 @@ window.searchHistoryItemClick = searchHistoryItemClick;
 window.selectKbCategoryByName = selectKbCategoryByName;
 window.setCategoryProfile = setCategoryProfile;
 window.setDockMode = setDockMode;
-window.setFeedbackStatus = setFeedbackStatus;
 window.setupGlobalSearch = setupGlobalSearch;
 window.setupKbSearch = setupKbSearch;
 window.showMagtiAiComingSoon = showMagtiAiComingSoon;
@@ -6043,7 +6391,9 @@ class ToastNotification {
     if (!host) {
       host = document.createElement('div');
       host.id = this.hostId;
-      host.className = 'fixed bottom-5 right-5 z-[200] flex flex-col gap-2.5';
+      host.className = 'fixed bottom-5 right-5 flex flex-col gap-2.5';
+      host.style.cssText = 'pointer-events:none;';
+      host.style.setProperty('z-index', '999999', 'important');
       document.body.appendChild(host);
     }
     return host;
@@ -6198,7 +6548,6 @@ window.setPreviewDevice = function(device) {
   }
 };
 
-window._syncPreviewRAF = null;
 window._syncPreviewHeight = function() {
   try {
     if (window._syncPreviewRAF) cancelAnimationFrame(window._syncPreviewRAF);
@@ -6207,7 +6556,9 @@ window._syncPreviewHeight = function() {
         var editor = document.getElementById('article-content-editor');
         var container = document.getElementById('preview-frame-container');
         if (editor && container) {
-          container.style.height = editor.offsetHeight + 'px';
+          // Set a comfortable min-height of 500px, or match editor if larger
+          var h = Math.max(500, editor.offsetHeight);
+          container.style.height = h + 'px';
         }
       } catch(_) {}
     });
@@ -6310,6 +6661,18 @@ window.updateArticlePreview = function() {
               margin: 1.5rem 0;
               border-radius: 0.75rem;
             }
+            /* Quill rich text alignments & formatting */
+            .ql-align-center { text-align: center; }
+            .ql-align-right { text-align: right; }
+            .ql-align-justify { text-align: justify; }
+            .ql-indent-1 { padding-left: 3em; }
+            .ql-indent-2 { padding-left: 6em; }
+            .ql-indent-3 { padding-left: 9em; }
+            .ql-indent-4 { padding-left: 12em; }
+            .ql-indent-5 { padding-left: 15em; }
+            .ql-indent-6 { padding-left: 18em; }
+            .ql-indent-7 { padding-left: 21em; }
+            .ql-indent-8 { padding-left: 24em; }
           </style>
         </head>
         <body class="prose-content">
@@ -6807,17 +7170,18 @@ window.loadModalHistoryList = async function(articleId) {
       const row = document.createElement('div');
       if (v.history_id === null || v.history_id === undefined) {
         row.className = 'rounded-lg px-3 py-2 text-xs opacity-50 cursor-not-allowed';
-        row.innerHTML = `<div class="font-semibold text-gray-700">მიმდინარე ვერსია</div><div class="text-gray-400">${v.author_name || 'უცნობი'} — ${dateStr}</div>`;
+        row.innerHTML = `<div class="font-semibold text-gray-700 dark:text-zinc-300">მიმდინარე ვერსია</div><div class="text-gray-400 dark:text-zinc-500">${v.author_name || 'უცნობი'} — ${dateStr}</div>`;
       } else {
-        row.className = 'rounded-lg px-3 py-2 text-xs cursor-pointer hover:bg-gray-50 border border-transparent';
-        row.innerHTML = `<div class="font-semibold text-gray-700">ვერსია ${v.version}</div><div class="text-gray-400">${v.author_name || 'უცნობი'} — ${dateStr}</div>`;
+        row.className = 'rounded-lg px-3 py-2 text-xs cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-800 border border-transparent';
+        const versionLabel = v.is_legacy_version ? 'ისტორიული ვერსია' : `ვერსია ${v.version}`;
+        row.innerHTML = `<div class="font-semibold text-gray-700 dark:text-zinc-300">${versionLabel}</div><div class="text-gray-400 dark:text-zinc-500">${v.author_name || 'უცნობი'} — ${dateStr}</div>`;
         row.onclick = () => {
           list.querySelectorAll('[data-history-active]').forEach(el => {
             el.removeAttribute('data-history-active');
-            el.classList.remove('bg-red-50', 'border-red-100');
+            el.classList.remove('bg-red-50', 'border-red-100', 'dark:bg-red-950/40', 'dark:border-red-900/60');
           });
           row.setAttribute('data-history-active', 'true');
-          row.classList.add('bg-red-50', 'border-red-100');
+          row.classList.add('bg-red-50', 'border-red-100', 'dark:bg-red-950/40', 'dark:border-red-900/60');
           window.loadModalHistoryDiff(articleId, v.history_id);
         };
       }
@@ -6843,38 +7207,84 @@ window.loadModalHistoryList = async function(articleId) {
     renderList(versions);
   } catch (err) {
     console.error('Error loading version history:', err);
-    list.innerHTML = '<p class="text-red-500 text-xs px-3">ვერსიების ისტორიის ჩატვირთვა ვერ მოხერხდა</p>';
+    list.innerHTML = '<p class="text-red-500 dark:text-red-400 text-xs px-3">ვერსიების ისტორიის ჩატვირთვა ვერ მოხერხდა</p>';
   }
 };
 
-window.loadModalHistoryDiff = async function(articleId, historyId) {
+// Populates the "შედარება:" dropdown above the diff pane from the already-cached
+// versions list, excluding the synthetic current row and the primary selection,
+// and resets the selection back to "current" (the default option).
+window._populateHistoryCompareSelect = function(articleId, primaryHistoryId) {
+  const wrap = document.getElementById('modal-history-compare');
+  const select = document.getElementById('modal-history-compare-select');
+  const versions = window._historyCache && window._historyCache.versionsData;
+  if (!wrap || !select || !versions) return;
+
+  select.innerHTML = '';
+  const currentOpt = document.createElement('option');
+  currentOpt.value = '';
+  currentOpt.textContent = 'მიმდინარე ვერსია';
+  select.appendChild(currentOpt);
+
+  let otherCount = 0;
+  versions.forEach(v => {
+    if (v.history_id === null || v.history_id === undefined) return; // synthetic current row
+    if (v.history_id === primaryHistoryId) return; // can't compare a version against itself
+    const opt = document.createElement('option');
+    opt.value = String(v.history_id);
+    opt.textContent = v.is_legacy_version ? 'ისტორიული ვერსია' : `ვერსია ${v.version}`;
+    select.appendChild(opt);
+    otherCount++;
+  });
+
+  select.value = '';
+  wrap.classList.toggle('hidden', otherCount === 0);
+  select.onchange = () => {
+    const val = select.value ? parseInt(select.value, 10) : undefined;
+    window.loadModalHistoryDiff(articleId, primaryHistoryId, val);
+  };
+};
+
+window.loadModalHistoryDiff = async function(articleId, historyId, compareHistoryId) {
   const diffEl = document.getElementById('modal-history-diff');
   const summaryEl = document.getElementById('modal-history-summary');
   if (!diffEl) return;
 
-  diffEl.innerHTML = '<p class="text-gray-400 text-sm">იტვირთება...</p>';
+  // Only repopulate/reset the compare dropdown on a fresh primary-row click
+  // (compareHistoryId undefined) — not on a dropdown-driven re-fetch.
+  if (compareHistoryId === undefined) {
+    window._populateHistoryCompareSelect(articleId, historyId);
+  }
+
+  diffEl.innerHTML = '<p class="text-gray-400 dark:text-zinc-500 text-sm">იტვირთება...</p>';
   if (summaryEl) summaryEl.classList.add('hidden');
 
   const token = localStorage.getItem('magti_token') || (typeof Auth !== 'undefined' ? Auth.getToken() : null);
   try {
-    const res = await fetch(`/api/articles/${articleId}/history/${historyId}/diff`, {
+    const url = compareHistoryId
+      ? `/api/articles/${articleId}/history/${historyId}/diff?compare_history_id=${compareHistoryId}`
+      : `/api/articles/${articleId}/history/${historyId}/diff`;
+    const res = await fetch(url, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (!res.ok) throw new Error('Failed to fetch diff');
     const result = await res.json();
 
-    diffEl.innerHTML = result.html || '<p class="text-gray-400 text-sm">სხვაობა ვერ მოიძებნა.</p>';
+    diffEl.innerHTML = result.html || '<p class="text-gray-400 dark:text-zinc-500 text-sm">სხვაობა ვერ მოიძებნა.</p>';
     if (summaryEl) {
       summaryEl.classList.remove('hidden');
+      const compareLabel = compareHistoryId
+        ? 'შედარება არჩეულ ვერსიასთან:'
+        : 'შედარება მიმდინარე ვერსიასთან:';
       summaryEl.innerHTML = `
-        <span class="text-gray-500">შედარება მიმდინარე ვერსიასთან:</span>
-        <span class="text-green-700">+${result.added || 0} დამატებული</span>
-        <span class="text-red-700">&minus;${result.removed || 0} წაშლილი</span>
+        <span class="text-gray-500 dark:text-zinc-400">${compareLabel}</span>
+        <span class="text-green-700 dark:text-green-400">+${result.added || 0} დამატებული</span>
+        <span class="text-red-700 dark:text-red-400">&minus;${result.removed || 0} წაშლილი</span>
       `;
     }
   } catch (err) {
     console.error('Error loading version diff:', err);
-    diffEl.innerHTML = '<p class="text-red-500 text-sm">შედარების ჩატვირთვა ვერ მოხერხდა</p>';
+    diffEl.innerHTML = '<p class="text-red-500 dark:text-red-400 text-sm">შედარების ჩატვირთვა ვერ მოხერხდა</p>';
   }
 };
 
@@ -7039,4 +7449,49 @@ window.exportAuditToCSV = function() {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+};
+
+window.editArticleFromModal = function() {
+  const articleId = window.activeArticleId;
+  if (!articleId) return;
+  closeArticleModal();
+  switchMainPage('page-admin');
+  switchAdmin('content');
+  setTimeout(() => {
+    if (typeof window.editArticle === 'function') {
+      window.editArticle(articleId);
+    }
+  }, 300);
+};
+
+window.toggleArticleArchiveFromModal = async function() {
+  const articleId = window.activeArticleId;
+  if (!articleId) return;
+  const article = Store.articles[articleId] || (window.adminArticles || {})[articleId];
+  if (!article) return;
+  const isArchived = article.status === 'archived';
+  
+  if (typeof window.toggleArticleArchive === 'function') {
+    await window.toggleArticleArchive(articleId, !isArchived);
+    closeArticleModal();
+    if (typeof fetchAndRenderAdminContent === 'function') {
+      fetchAndRenderAdminContent(Auth.getToken());
+    }
+    if (typeof renderDashboardCategoryGrid === 'function') {
+      renderDashboardCategoryGrid();
+    }
+  }
+};
+
+window.deleteArticleFromModal = async function() {
+  const articleId = window.activeArticleId;
+  if (!articleId) return;
+  
+  if (typeof window.deleteArticle === 'function') {
+    await window.deleteArticle(articleId);
+    closeArticleModal();
+    if (typeof renderDashboardCategoryGrid === 'function') {
+      renderDashboardCategoryGrid();
+    }
+  }
 };

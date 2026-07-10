@@ -9,6 +9,10 @@ passlib
 bcrypt==4.0.1
 python-multipart
 
+# Rate limiting for auth endpoints (login, forgot-password, sso callback) —
+# brute-force / credential-stuffing mitigation for the ~600-user internal portal.
+slowapi
+
 # Optional: load configuration from a local .env file (see config.py / .env.example)
 python-dotenv
 
@@ -29,3 +33,7 @@ reportlab
 
 gunicorn
 redis
+
+# HTTP client for outbound webhook dispatch (webhook_dispatcher.py, used from
+# audit_listeners.py's ORM change listeners).
+httpx

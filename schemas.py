@@ -222,6 +222,7 @@ class ArticleSummaryResponse(BaseModel):
     tags: Optional[str] = None
     target_departments: list[str]
     status: str
+    published_at: Optional[datetime] = None
     created_at: datetime
     read_time: int = 1
     audience_profile: str = "all"
@@ -783,6 +784,7 @@ class ArticleVersionItem(BaseModel):
     updated_at: datetime
     author_name: Optional[str] = None
     history_id: Optional[int] = None  # None for the synthetic "current" row
+    is_legacy_version: bool = False  # True when version_id predates the column backfill
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -807,5 +809,33 @@ class ArticleReadReceiptResponse(BaseModel):
     article_title: str
     current_version: int
     receipts: list[ArticleReadReceiptRow]
+
+
+class AuditActionTranslationResponse(BaseModel):
+    id: int
+    action: str
+    label_ka: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AuditActionTranslationCreateUpdate(BaseModel):
+    action: str
+    label_ka: str
+
+
+class WebhookConfigResponse(BaseModel):
+    id: int
+    url: str
+    is_active: bool
+    trigger_actions: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class WebhookConfigCreateUpdate(BaseModel):
+    url: str
+    is_active: bool = True
+    trigger_actions: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)

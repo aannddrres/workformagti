@@ -6,7 +6,11 @@ module.exports = {
     "./static/**/*.js",
     // main.py renders standalone HTML pages (e.g. the SSO mock-login) with
     // Tailwind classes; include it so a local build covers those too.
-    "./main.py"
+    "./main.py",
+    // diffing.py builds <ins>/<del> diff markup from literal class strings
+    // (INS/DEL templates) — scan it so dark-mode/strikethrough utilities
+    // used only there aren't purged from the production build.
+    "./diffing.py"
   ],
   // Dynamic classes assembled at runtime from DB values (status badges built in
   // app-renderers.js statusStylesMap, pastel category colors, dynamic card

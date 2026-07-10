@@ -3,6 +3,7 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -552,3 +553,33 @@ class RolePermission(Base):
 
     role_id = Column(Integer, ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True)
     permission_id = Column(Integer, ForeignKey("permissions.id", ondelete="CASCADE"), primary_key=True)
+
+
+class AuditActionTranslation(Base):
+    __tablename__ = "audit_action_translations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    action = Column(String, unique=True, index=True, nullable=False)
+    label_ka = Column(String, nullable=False)
+
+
+class WebhookConfig(Base):
+    __tablename__ = "webhook_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    url = Column(String, nullable=False)
+    is_active = Column(Boolean, default=True)
+    trigger_actions = Column(String, nullable=True) # comma-separated action names, e.g. "LOGIN_FAILED,UPDATE_PERMISSIONS"
+
+
+class ExportJob(Base):
+    """Background XLSX/PDF/CSV export job status — DB-backed so status/download
+    requests work regardless of which gunicorn worker handles them (an
+    in-process dict here would silently 404 requests that land on a worker
+    other than the one that built the file)."""
+    __tablename__ = "export_jobs"
+
+    id = Column(String, primary_key=True)  # uuid4 string
+    status = Column(String, nullable=False, default="processing")  # processing|completed|failed
+    path = Column(String, nullable=True)
+    expires_at = Column(Float, nullable=False)

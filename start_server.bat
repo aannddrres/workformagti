@@ -14,11 +14,15 @@ pip install -r requirements.txt
 
 if not exist "magti_portal.db" (
     echo.
-    echo [3/4] ვასუფთავებ ძველ ფაილებს და ვქმნი ახალ ბაზას...
+    echo [ბაზის ინიციალიზაცია] ვასუფთავებ ძველ ფაილებს და ვქმნი ახალ ბაზას...
     if exist "magti_portal.db-wal" del /f /q "magti_portal.db-wal"
     if exist "magti_portal.db-shm" del /f /q "magti_portal.db-shm"
     python seed.py
 )
+
+echo.
+echo [3/4] ვაკომპილირებ Tailwind CSS სტილებს...
+.\tailwindcss-v3.exe -i static/css/input.css -o static/css/app.min.css --minify
 
 echo.
 echo [4/4] სერვერი ირთვება...

@@ -431,3 +431,21 @@
     setSortMode: setSortMode, getSortMode: getSortMode
   };
 })();
+
+/* ════════════════════════════════════════════════════════════════════════
+   Bridge function — called from app-router.js switchMainPage('page-manager')
+   to kick off the Department Dashboard lifecycle.
+   ════════════════════════════════════════════════════════════════════════ */
+function fetchAndRenderManagerStats(token) {
+  if (typeof DeptDashboard !== 'undefined' && DeptDashboard.start) {
+    DeptDashboard.start(token);
+  } else {
+    console.warn('DeptDashboard not initialized yet, retrying...');
+    setTimeout(function() {
+      if (typeof DeptDashboard !== 'undefined' && DeptDashboard.start) {
+        DeptDashboard.start(token);
+      }
+    }, 100);
+  }
+}
+window.fetchAndRenderManagerStats = fetchAndRenderManagerStats;

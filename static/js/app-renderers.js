@@ -841,7 +841,11 @@ async function renderDashboardCategoryGrid() {
           const targetSlug = c.slug || c.id;
 
           const recentTime = Date.now() - (48 * 60 * 60 * 1000);
-          const hasRecent = arts.some(a => a.category_id === c.id && new Date(a.created_at).getTime() > recentTime);
+          const hasRecent = arts.some(a => {
+            if (a.category_id !== c.id) return false;
+            const pubDate = a.published_at ? new Date(a.published_at) : new Date(a.created_at);
+            return pubDate.getTime() > recentTime;
+          });
           const indicatorHtml = hasRecent ? `<span class="absolute top-4 right-4 h-2 w-2 rounded-full bg-[#E30613] shadow-[0_0_6px_rgba(227,6,19,0.5)]" title="ბოლო 48 საათში დამატებულია ახალი მასალა"></span>` : '';
           const iconToUse = c.icon || getCategoryIcon(c.id, c.name);
 
@@ -962,11 +966,19 @@ function renderCategoryArticles() {
         const cat = window._activeCategory;
         if (!grid || !cat) return;
         const profile = window._categoryProfile || 'all';
-        const arts = (window._allArticlesCache || []).filter(a => {
+        let arts = (window._allArticlesCache || []).filter(a => {
           if (a.category_id !== cat.id) return false;
           if (profile === 'all') return true;
           return a.audience_profile === profile || a.audience_profile === 'all';
         });
+
+        // Sort articles by publication/creation date descending (newest first)
+        arts.sort((a, b) => {
+          const timeA = new Date(a.published_at || a.created_at).getTime();
+          const timeB = new Date(b.published_at || b.created_at).getTime();
+          return timeB - timeA;
+        });
+
         const countEl = document.getElementById('category-view-count');
         if (countEl) countEl.textContent = `${arts.length} მასალა`;
 
@@ -980,16 +992,26 @@ function renderCategoryArticles() {
           tech:  'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300',
           all:   'bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400'
         };
+
+        const recentTime = Date.now() - (48 * 60 * 60 * 1000);
+
         grid.innerHTML = arts.map(a => {
           const profKey = a.audience_profile || 'all';
+          const pubDate = a.published_at ? new Date(a.published_at) : new Date(a.created_at);
+          const isNew = pubDate.getTime() > recentTime;
+          const newBadgeHtml = isNew ? `<span class="inline-flex items-center rounded-md bg-rose-50 px-1.5 py-0.5 text-[9px] font-bold text-rose-600 border border-rose-100">ახალი</span>` : '';
+
           return `
           <button onclick="openArticleModalById(${a.id})"
             class="kb-item-card group relative flex flex-col justify-between gap-3 overflow-hidden rounded-xl border border-slate-100 bg-white p-4 text-left transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E30613] dark:border-zinc-800 dark:bg-zinc-900">
             <span class="absolute inset-x-0 top-0 h-[2px] origin-left scale-x-0 bg-[#E30613] transition-transform duration-300 ease-out group-hover:scale-x-100"></span>
             <span class="text-[13px] font-semibold leading-snug tracking-tight text-slate-800 line-clamp-2 dark:text-zinc-200">${escapeHtml(a.title)}</span>
-            <span class="flex items-center gap-2 text-[11px] tracking-wide text-slate-400">
-              <span class="rounded-md px-1.5 py-0.5 font-medium transition-colors duration-300 ${profStyles[profKey] || profStyles.all}">${profBadge[profKey] || 'ყველა'}</span>
-              <i aria-hidden="true" class="fa-regular fa-clock text-[10px]"></i> <span>${a.read_time || 1} წთ</span>
+            <span class="flex items-center justify-between w-full text-[11px] tracking-wide text-slate-400">
+              <span class="flex items-center gap-1.5">
+                <span class="rounded-md px-1.5 py-0.5 font-medium transition-colors duration-300 ${profStyles[profKey] || profStyles.all}">${profBadge[profKey] || 'ყველა'}</span>
+                <i aria-hidden="true" class="fa-regular fa-clock text-[10px]"></i> <span>${a.read_time || 1} წთ</span>
+              </span>
+              ${newBadgeHtml}
             </span>
           </button>`;
         }).join('');

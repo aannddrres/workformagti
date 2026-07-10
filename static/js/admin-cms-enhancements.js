@@ -69,10 +69,14 @@
     if (!e.clipboardData || Array.prototype.indexOf.call(e.clipboardData.types || [], 'text/html') === -1) return;
     var html = e.clipboardData.getData('text/html');
     if (!html || !/<img[^>]+src=["']data:/i.test(html)) return;
+    // No sanitizer available — don't process raw pasted HTML ourselves. Let
+    // Quill's own (more limited, but safe) paste handling take over instead
+    // of inserting unsanitized markup into the editor.
+    if (!window.DOMPurify) return;
 
     e.preventDefault();
 
-    var clean = window.DOMPurify ? DOMPurify.sanitize(html) : html;
+    var clean = DOMPurify.sanitize(html);
 
     var template = document.createElement('template');
     template.innerHTML = clean;
@@ -285,11 +289,21 @@
         window._currentAuditArticleId = articleId;
       }
       var result = original.apply(this, arguments);
-      if (window.articleQuill) {
-        updateCharCount();
-        renderStatusBadge();
+      if (result && typeof result.then === 'function') {
+        return result.then(function (val) {
+          if (window.articleQuill) {
+            updateCharCount();
+            renderStatusBadge();
+          }
+          return val;
+        });
+      } else {
+        if (window.articleQuill) {
+          updateCharCount();
+          renderStatusBadge();
+        }
+        return result;
       }
-      return result;
     };
   });
 

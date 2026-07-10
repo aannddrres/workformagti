@@ -34,6 +34,9 @@ from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session, joinedload, defer
 from sqlalchemy import or_, and_, func, desc, case
 from pydantic import BaseModel
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 import models
 import schemas
@@ -80,11 +83,9 @@ _sa_engine_logger.setLevel(logging.DEBUG)
 _sa_engine_logger.propagate = False
 
 # ── Async export job registry (Shape 2a infra) ────────────────────────────
-# In-memory, thread-safe map of background file-export jobs. Mutated from the
-# BackgroundTasks worker thread and read by the status/download handlers, so
-# every access is guarded by _export_jobs_lock.
-_export_jobs: dict[str, dict] = {}
-_export_jobs_lock = threading.Lock()
+# Job status lives in the export_jobs table (models.ExportJob), not an
+# in-process dict — a dict here would silently 404 status/download requests
+# that land on a different gunicorn worker than the one that built the file.
 _EXPORT_JOB_TTL = 3600  # seconds a finished export stays in the registry
 _EXPORT_DIR = os.path.join(settings.UPLOAD_DIR, "exports")
 
@@ -204,6 +205,16 @@ def _lightweight_migrations() -> None:
                 total_questions INTEGER NOT NULL,
                 passed BOOLEAN DEFAULT 0,
                 created_at DATETIME
+            )
+        """,
+        # Background export job status — DB-backed so it survives across the
+        # 4 gunicorn workers in prod (see models.ExportJob).
+        "export_jobs": """
+            CREATE TABLE IF NOT EXISTS export_jobs (
+                id VARCHAR PRIMARY KEY,
+                status VARCHAR NOT NULL DEFAULT 'processing',
+                path VARCHAR,
+                expires_at FLOAT NOT NULL
             )
         """,
     }
@@ -562,6 +573,12 @@ async def lifespan(app: "FastAPI"):
 
 app = FastAPI(title="Magti Internal Portal API", lifespan=lifespan)
 
+# Rate limiting — brute-force / credential-stuffing mitigation for the
+# auth endpoints. Per-IP, in-memory (no Redis backend needed at this scale).
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # Ensure the uploads directory exists
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
@@ -873,9 +890,23 @@ def _stats_cache_set(key: str, value, ttl: int = _STATS_CACHE_TTL) -> None:
         logger.warning("stats cache SET failed (%s): %s", key, e)
 
 
+def _safe_publish(payload: dict) -> None:
+    """Publish an SSE event without ever raising or failing silently.
+
+    All broadcast call sites are documented as best-effort — a live-push
+    failure should never turn an already-successful database write into a
+    client-visible 500 (unhandled), and it should never vanish with zero
+    trace either (bare except/pass). Log it and move on either way.
+    """
+    try:
+        broker.publish(payload)
+    except Exception as e:
+        logger.warning("SSE broadcast failed (type=%s): %s", payload.get("type"), e)
+
+
 def _notify(event_type: str, item) -> None:
     """Publish a 'new content' event to connected clients (best-effort)."""
-    broker.publish({
+    _safe_publish({
         "type": event_type,
         "id": item.id,
         "title": item.title,
@@ -890,7 +921,7 @@ def _notify_revision(article, editor_name: str, summary: dict) -> None:
     the block-level add/remove counts from diffing.diff_html so the client can
     show a meaningful "x changed" toast. Gated by the caller on notify_operators.
     """
-    broker.publish({
+    _safe_publish({
         "type": "article_revision",
         "id": article.id,
         "title": article.title,
@@ -979,7 +1010,9 @@ def favicon():
     return Response(status_code=204)
 
 @app.post("/api/auth/login", response_model=schemas.Token)
+@limiter.limit("10/minute")
 def login_for_access_token(
+    request: Request,
     credentials: schemas.LoginRequest,
     response: Response,
     db: Session = Depends(get_db)
@@ -1359,6 +1392,7 @@ async def event_stream(
     # Offload the synchronous DB query to the threadpool to prevent event loop deadlocks
     user_info = await run_in_threadpool(_get_stream_user, request, bearer_token)
     is_admin = user_info["is_admin"]
+    user_id = user_info["user_id"]
     user_dept = user_info["department"]
     user_role = user_info["role"]
 
@@ -1396,9 +1430,13 @@ async def event_stream(
                 # Deliver only what this user is allowed to see.
                 target_dept = event.get("target_department", "All")
                 target_role = event.get("target_role", "All")
+                # Optional per-user targeting (e.g. nudge/message events) — absent
+                # means no extra restriction, same permissive default as "All".
+                target_user_id = event.get("target_user_id")
                 dept_match = target_dept == "All" or target_dept == user_dept
                 role_match = target_role == "All" or target_role == user_role
-                if is_admin or (dept_match and role_match):
+                user_match = target_user_id is None or target_user_id == user_id
+                if is_admin or (dept_match and role_match and user_match):
                     yield "event: %s\ndata: %s\n\n" % (
                         event.get("type", "message"),
                         json.dumps(event, ensure_ascii=False),
@@ -2037,34 +2075,31 @@ def auto_generate_notifications_for_mandatory(db_reading, current_admin_id, db):
 
     # Single broadcast event for the toast + list refresh. The SSE endpoint
     # gates by target_department, so users outside the dept never see it.
-    try:
-        broker.publish({
-            "type": "required_reading",
-            "id": db_reading.id,
-            "title": item_title,
-            "item_type": db_reading.item_type,
-            "item_id": db_reading.item_id,
-            "due_date": due_str,
-            "target_department": db_reading.target_department,
-        })
-    except Exception:
-        pass
+    _safe_publish({
+        "type": "required_reading",
+        "id": db_reading.id,
+        "title": item_title,
+        "item_type": db_reading.item_type,
+        "item_id": db_reading.item_id,
+        "due_date": due_str,
+        "target_department": db_reading.target_department,
+    })
 
     # Per-user "message" events so each open session gets its unread badge
-    # updated immediately (the badge is keyed by user_id).
+    # updated immediately (the badge is keyed by user_id). target_user_id
+    # restricts server-side delivery to the recipient (+ admins) instead of
+    # relying solely on the client-side user_id check to hide it from others.
     for uid in target_user_ids:
-        try:
-            broker.publish({
-                "type": "message",
-                "user_id": uid,
-                "content": message_content,
-                "sender_id": current_admin_id,
-                # 'All' so the SSE endpoint's department filter doesn't drop it;
-                # the client-side handler checks user_id == me.
-                "target_department": "All",
-            })
-        except Exception:
-            pass
+        _safe_publish({
+            "type": "message",
+            "user_id": uid,
+            "target_user_id": uid,
+            "content": message_content,
+            "sender_id": current_admin_id,
+            # 'All' so the SSE endpoint's department filter doesn't drop it;
+            # target_user_id above is now the real restriction.
+            "target_department": "All",
+        })
 
 @app.post("/api/compliance/required-readings", response_model=schemas.RequiredReadingResponse)
 def create_required_reading(
@@ -2306,6 +2341,8 @@ def create_article(
         models.ArticleTargetDepartment(department=d) for d in target_departments
     ]
     db.add(db_article)
+    if db_article.status == "published" and db_article.published_at is None:
+        db_article.published_at = get_tbilisi_time()
     db.flush()
     sync_tags(db, "article", db_article.id, db_article.tags)
 
@@ -2356,6 +2393,7 @@ def update_article(
 
     # Capture the pre-edit content for the diff BEFORE the setattr loop overwrites it.
     old_content = db_article.content
+    old_status = db_article.status
 
     # Save the current state to history before applying changes. version_id stamps
     # the version this snapshot represents (the value before the bump below).
@@ -2372,6 +2410,12 @@ def update_article(
     # Transient broadcast flag — never a column on Article; pop before setattr.
     notify_operators = update_data.pop("notify_operators", False)
     target_departments = update_data.pop("target_departments")
+    # The edit form never sends these — they're not user-editable — so the
+    # schema defaults them to None. Pop them before the blanket setattr loop
+    # below or every edit silently wipes the article's original author and
+    # its last-verified timestamp.
+    update_data.pop("author_id", None)
+    update_data.pop("last_verified_at", None)
     for key, value in update_data.items():
         setattr(db_article, key, value)
 
@@ -2379,6 +2423,9 @@ def update_article(
     db_article.target_department_rows = [
         models.ArticleTargetDepartment(department=d) for d in target_departments
     ]
+
+    if db_article.status == "published" and db_article.published_at is None:
+        db_article.published_at = get_tbilisi_time()
 
     db_article.version += 1
     sync_tags(db, "article", db_article.id, db_article.tags)
@@ -2393,7 +2440,9 @@ def update_article(
 
     # Real-time broadcast is OPT-IN. The history row is always written above; we
     # only ping the SSE channel when the editor ticked "notify operators".
-    if notify_operators and db_article.status == "published":
+    if old_status == "draft" and db_article.status == "published":
+        _notify("article", db_article)
+    elif notify_operators and db_article.status == "published":
         import diffing
         summary = diffing.diff_html(old_content, db_article.content)
         _notify_revision(db_article, current_admin.name, summary)
@@ -2596,16 +2645,14 @@ def get_article_history(
 def get_article_diff(
     article_id: int,
     history_id: int,
+    compare_history_id: Optional[int] = None,
     current_user: models.User = Depends(security.get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Diff a historical snapshot against the article's CURRENT content.
+    """Diff a historical snapshot against the article's CURRENT content or another historical snapshot.
 
     Returns {'html', 'added', 'removed', 'version_id'} — available to any user
-    who can already read the article (same department gate as GET
-    /api/articles/{id}). The HTML is a structure-safe fragment built from
-    escaped text (see diffing.diff_html), so it is safe to inject directly
-    into the Quick Look modal.
+    who can already read the article.
     """
     art = db.query(models.Article).filter(models.Article.id == article_id).first()
     if not art:
@@ -2619,7 +2666,17 @@ def get_article_diff(
         raise HTTPException(status_code=404, detail="ისტორიის ვერსია ვერ მოიძებნა")
 
     import diffing
-    result = diffing.diff_html(snap.content, art.content)   # old → current
+    if compare_history_id:
+        compare_snap = db.query(models.ArticleHistory).filter(
+            models.ArticleHistory.id == compare_history_id,
+            models.ArticleHistory.article_id == article_id,
+        ).first()
+        if not compare_snap:
+            raise HTTPException(status_code=404, detail="შესადარებელი ისტორიის ვერსია ვერ მოიძებნა")
+        result = diffing.diff_html(snap.content, compare_snap.content)   # old → compare
+    else:
+        result = diffing.diff_html(snap.content, art.content)   # old → current
+        
     result["version_id"] = snap.version_id
     return result
 
@@ -3401,7 +3458,8 @@ def export_readings(
     ).join(
         models.RequiredReading, models.ReadStatus.required_reading_id == models.RequiredReading.id
     ).filter(models.ReadStatus.user_id.in_(eligible_ids)).all()
-    
+    _guard_export_size(len(query))
+
     output = io.StringIO()
     writer = csv.writer(output)
     
@@ -4176,7 +4234,7 @@ def get_team_stats(
 
 # Whitelisted department prefixes, in display order. Matching is by prefix
 # (startswith), so "საინფორმაციო" matches "საინფორმაციო სამსახური — ჯგუფი 01".
-DEPARTMENT_WHITELIST = ["საინფორმაციო", "ტექნიკური", "ოფისები"]
+DEPARTMENT_WHITELIST = ["საინფორმაციო", "ტექნიკური"]
 
 # Fallback bucket for any user.department value that doesn't match a
 # whitelisted prefix, so unrecognized/legacy strings stay visible on the
@@ -4237,22 +4295,26 @@ def build_department_stats(db: Session):
     """
     records = compute_compliance(db)
 
-    # Bucket members by (whitelisted department prefix, group label), with an
-    # always-present fallback bucket for unmatched department strings.
-    buckets = DEPARTMENT_WHITELIST + [OTHER_DEPARTMENT_LABEL]
+    # Bucket members by (whitelisted department prefix, group label).
+    buckets = DEPARTMENT_WHITELIST
     groups_by_dept = {wl: {} for wl in buckets}
     all_members = []  # flat list for the global ribbon
 
     for rec in records:
         user = rec["user"]
         prefix, group_label = _split_dept_group(user.department)
-        matched = next(
-            (wl for wl in DEPARTMENT_WHITELIST if prefix.startswith(wl)), None
-        )
+        matched = None
+        for wl in DEPARTMENT_WHITELIST:
+            if wl == "საინფორმაციო" and (prefix.startswith("საინფორმაციო") or prefix.startswith("საინფო")):
+                matched = wl
+                break
+            elif prefix.startswith(wl):
+                matched = wl
+                break
+
         if matched is None:
-            # Unrecognized/legacy department string — route to the visible
-            # fallback bucket instead of dropping the user.
-            matched = OTHER_DEPARTMENT_LABEL
+            # Skip this user entirely if they are not in the whitelisted departments
+            continue
 
         member = {
             "user_id": user.id,
@@ -4413,6 +4475,20 @@ def get_group_users(
     the full DB value ("საინფორმაციო სამსახური — ჯგუფი 01"), so we match with
     startswith + group label rather than exact equality.
     """
+    dept_filters = []
+    if department == "საინფორმაციო":
+        dept_filters = [
+            models.User.department.like("საინფორმაციო%"),
+            models.User.department.like("საინფო%"),
+        ]
+    elif department == "ტექნიკური":
+        dept_filters = [
+            models.User.department.like("ტექნიკური%"),
+            models.User.department.like("ტექნიკურ%"),
+        ]
+    else:
+        dept_filters = [models.User.department.like(f"{department}%")]
+
     all_candidates = (
         db.query(
             models.User.id, models.User.name, models.User.department,
@@ -4420,7 +4496,7 @@ def get_group_users(
         .filter(
             models.User.is_active == True,  # noqa: E712
             models.User.role.notin_(_MANAGEMENT_ROLES),
-            models.User.department.like(f"{department}%"),
+            or_(*dept_filters),
         )
         .all()
     )
@@ -5429,7 +5505,7 @@ def post_broadcast(
     Returns:
         A dictionary indicating success.
     """
-    broker.publish({
+    _safe_publish({
         "type": "broadcast",
         "message": req.message,
         "target_department": req.target_department,
@@ -5727,19 +5803,61 @@ def nudge_user(
     if not user:
         raise HTTPException(status_code=404, detail="მომხმარებელი ვერ მოიძებნა")
 
-    # Broadcast nudge event via SSE broker
-    broker.publish({
+    # Broadcast nudge event via SSE broker — target_user_id restricts server-side
+    # delivery to the nudged operator (+ admins, who see everything); previously
+    # this had no dept/role/user targeting at all, so the raw SSE payload
+    # (who's being nudged, and the manager's message) reached every connected
+    # client, relying only on client-side JS to hide the toast from the rest.
+    _safe_publish({
         "type": "nudge",
         "user_id": user_id,
+        "target_user_id": user_id,
         "message": f"გთხოვთ გაეცნოთ სავალდებულო მასალებს! (გამოგეგზავნათ მენეჯერისგან: {current_user.name})"
     })
     return {"status": "success", "message": f"Nudge sent to {user.name}"}
+
+
+def rotate_audit_logs(db: Session):
+    """rotate_audit_logs exports logs older than 180 days to archives/ and purges them from the database."""
+    from datetime import timedelta
+    import os
+    import json
+
+    cutoff = get_tbilisi_time() - timedelta(days=180)
+    stale_logs = db.query(models.AuditLog).filter(models.AuditLog.timestamp < cutoff).all()
+
+    if stale_logs:
+        # Ensure archives directory exists
+        os.makedirs("archives", exist_ok=True)
+        archive_path = f"archives/audit_log_archive_{get_tbilisi_time().strftime('%Y%m%d_%H%M%S')}.json"
+        
+        # Write to JSON archive
+        log_data = []
+        for log in stale_logs:
+            log_data.append({
+                "id": log.id,
+                "admin_id": log.admin_id,
+                "action": log.action,
+                "item_type": log.item_type,
+                "item_id": log.item_id,
+                "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+                "category": log.category,
+                "details": log.details,
+            })
+            # Delete from DB
+            db.delete(log)
+            
+        with open(archive_path, "w", encoding="utf-8") as f:
+            json.dump(log_data, f, ensure_ascii=False, indent=2)
+            
+        db.commit()
 
 
 @app.get("/api/health")
 def health_check(db: Session = Depends(get_db)):
     """System health monitoring endpoint for automated checks."""
     from sqlalchemy import text
+    import os
     status = {"status": "ok", "database": "unknown", "redis": "unknown"}
     try:
         db.execute(text("SELECT 1"))
@@ -5748,8 +5866,21 @@ def health_check(db: Session = Depends(get_db)):
         status["database"] = f"error: {str(e)}"
         status["status"] = "degraded"
     
+    # Worker Detection: check if we are in a multi-worker environment
+    is_multi_worker = (
+        "GUNICORN_CMD_ARGS" in os.environ or
+        "WEB_CONCURRENCY" in os.environ or
+        "UVICORN_WORKERS" in os.environ
+    )
+    
     try:
-        status["redis"] = "ok" if broker._main_loop else "not_initialized"
+        # Check active Redis connectivity using broker._use_redis
+        if getattr(broker, "_use_redis", False):
+            status["redis"] = "ok"
+        else:
+            status["redis"] = "degraded_fallback"
+            if is_multi_worker:
+                status["status"] = "degraded"
     except Exception as e:
         status["redis"] = f"error: {str(e)}"
         status["status"] = "degraded"
@@ -5831,17 +5962,6 @@ def restore_news_version(
     db.refresh(db_news)
     search_cache.clear()
     return db_news
-
-
-# ── Knowledge feedback: resolve / reject workflow ─────────────────────────
-@app.put("/api/admin/feedback/{feedback_id}/status", response_model=schemas.KnowledgeFeedbackResponse)
-def update_feedback_status(
-    feedback_id: int,
-    update: schemas.FeedbackStatusUpdate,
-    current_admin: models.User = Depends(security.get_current_admin_user),
-    db: Session = Depends(get_db),
-):
-    raise HTTPException(status_code=410, detail="უკუკავშირის სტატუსის განახლება დეპრეკირებულია")
 
 
 # ── Admin: create user (with password policy) ─────────────────────────────
@@ -5983,7 +6103,9 @@ def admin_update_permissions(
 
 # ── Forgot password: trigger reset (Item 3 audit coverage) ────────────────
 @app.post("/api/auth/forgot-password")
+@limiter.limit("10/minute")
 def forgot_password(
+    request: Request,
     payload: schemas.ForgotPasswordRequest,
     db: Session = Depends(get_db),
 ):
@@ -6325,8 +6447,11 @@ def _build_table_xlsx(title: str, headers: list[str], rows: list[list]) -> bytes
 def _async_file_worker(
     job_id: str, table_rows: list, headers: list, title: str, export_type: str
 ) -> None:
-    """Compile an export file from PRIMITIVE rows only (no DB / session) and
-    record the outcome in _export_jobs. Runs in a BackgroundTasks worker thread."""
+    """Compile an export file from PRIMITIVE rows only (no DB session passed
+    in — it opens its own) and record the outcome in export_jobs. Runs in a
+    BackgroundTasks worker thread, after the original request's session has
+    already closed."""
+    db = SessionLocal()
     try:
         if export_type == "xlsx":
             data, ext = _build_table_xlsx(title, headers, table_rows), "xlsx"
@@ -6336,20 +6461,22 @@ def _async_file_worker(
         path = os.path.join(_EXPORT_DIR, "export_%s.%s" % (job_id, ext))
         with open(path, "wb") as fh:
             fh.write(data)
-        with _export_jobs_lock:
-            _export_jobs[job_id] = {
-                "status": "completed",
-                "path": path,
-                "expires_at": time.time() + _EXPORT_JOB_TTL,
-            }
+        job = db.query(models.ExportJob).filter(models.ExportJob.id == job_id).first()
+        if job:
+            job.status = "completed"
+            job.path = path
+            job.expires_at = time.time() + _EXPORT_JOB_TTL
+            db.commit()
     except Exception as e:
         logger.warning("export worker failed (job %s): %s", job_id, e)
-        with _export_jobs_lock:
-            _export_jobs[job_id] = {
-                "status": "failed",
-                "path": None,
-                "expires_at": time.time() + _EXPORT_JOB_TTL,
-            }
+        job = db.query(models.ExportJob).filter(models.ExportJob.id == job_id).first()
+        if job:
+            job.status = "failed"
+            job.path = None
+            job.expires_at = time.time() + _EXPORT_JOB_TTL
+            db.commit()
+    finally:
+        db.close()
 
 
 def _enqueue_export(
@@ -6361,8 +6488,15 @@ def _enqueue_export(
 ) -> dict:
     """Register a job, schedule the off-request build, and return its id."""
     job_id = str(uuid.uuid4())
-    with _export_jobs_lock:
-        _export_jobs[job_id] = {"status": "processing", "path": None, "expires_at": time.time() + 3600}
+    db = SessionLocal()
+    try:
+        db.add(models.ExportJob(
+            id=job_id, status="processing", path=None,
+            expires_at=time.time() + _EXPORT_JOB_TTL,
+        ))
+        db.commit()
+    finally:
+        db.close()
     background_tasks.add_task(
         _async_file_worker, job_id, table_rows, headers, title, export_type
     )
@@ -6370,40 +6504,44 @@ def _enqueue_export(
 
 
 def _cleanup_export(job_id: str, path: str) -> None:
-    """Delete the served file and drop its registry entry (runs post-download)."""
+    """Delete the served file and drop its registry row (runs post-download)."""
     try:
         if path and os.path.exists(path):
             os.unlink(path)
     except OSError:
         pass
-    with _export_jobs_lock:
-        _export_jobs.pop(job_id, None)
+    db = SessionLocal()
+    try:
+        db.query(models.ExportJob).filter(models.ExportJob.id == job_id).delete()
+        db.commit()
+    finally:
+        db.close()
 
 
 @app.get("/api/export/status/{job_id}")
 def get_export_status(
     job_id: str,
     current_admin: models.User = Depends(security.require_permission(security.PERM_REPORTS_EXPORT)),
+    db: Session = Depends(get_db),
 ):
     """Report the state of a background export job."""
-    with _export_jobs_lock:
-        job = _export_jobs.get(job_id)
+    job = db.query(models.ExportJob).filter(models.ExportJob.id == job_id).first()
     if job is None:
         raise HTTPException(status_code=404, detail="export job not found")
-    return {"job_id": job_id, "status": job["status"]}
+    return {"job_id": job_id, "status": job.status}
 
 
 @app.get("/api/export/download/{job_id}")
 def download_export(
     job_id: str,
     current_admin: models.User = Depends(security.require_permission(security.PERM_REPORTS_EXPORT)),
+    db: Session = Depends(get_db),
 ):
     """Serve a completed export, then delete it once the transfer finishes."""
-    with _export_jobs_lock:
-        job = _export_jobs.get(job_id)
-    if job is None or job.get("status") != "completed" or not job.get("path"):
+    job = db.query(models.ExportJob).filter(models.ExportJob.id == job_id).first()
+    if job is None or job.status != "completed" or not job.path:
         raise HTTPException(status_code=404, detail="export not ready")
-    path = job["path"]
+    path = job.path
     return FileResponse(
         path,
         filename=os.path.basename(path),
@@ -6490,7 +6628,9 @@ def sso_mock_login():
 
 
 @app.post("/api/auth/sso/callback")
+@limiter.limit("10/minute")
 def sso_callback(
+    request: Request,
     email: str,
     response: Response,
     db: Session = Depends(get_db)

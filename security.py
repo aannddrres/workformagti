@@ -282,6 +282,9 @@ def get_current_user(
             detail="User account is disabled",
         )
 
+    from audit_listeners import current_actor_id
+    current_actor_id.set(user.id)
+
     return user
 
 
