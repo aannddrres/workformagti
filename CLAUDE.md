@@ -57,3 +57,4 @@
 - Migrations must stay idempotent (workers race on CREATE TABLE otherwise)
 - Never commit secrets — `SECRET_KEY` and DB password are currently inline in `docker-compose.yml`; move to a `.env`/secrets store before any public push
 - `magti_portal.db` (~183 MB) is local dev data — do not commit or delete
+- Worktree/branch hygiene: when work in a `.claude/worktrees/*` checkout is finished (merged or abandoned), remove the worktree (`git worktree remove`) and its `claude/*` branch (`git branch -D`) in that same session — don't leave it for later. Before deleting an unmerged one, check `git diff`/`git log` against `main` for anything not yet captured. (8 stale worktrees / 16 branches / 1.2GB accumulated silently over ~3 weeks before a full cleanup on 2026-07-11 — see `docs/PRODUCTION_HANDOVER.md` for the one real deliverable that was almost lost in the pile.)

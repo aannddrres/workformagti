@@ -571,7 +571,13 @@ async def lifespan(app: "FastAPI"):
             writer_task.cancel()
 
 
-app = FastAPI(title="Magti Internal Portal API", lifespan=lifespan)
+app = FastAPI(
+    title="Magti Internal Portal API",
+    lifespan=lifespan,
+    docs_url=None if settings.is_production else "/docs",
+    redoc_url=None if settings.is_production else "/redoc",
+    openapi_url=None if settings.is_production else "/openapi.json",
+)
 
 # Rate limiting — brute-force / credential-stuffing mitigation for the
 # auth endpoints. Per-IP, in-memory (no Redis backend needed at this scale).
@@ -4252,21 +4258,47 @@ _DASHBOARD_EXCLUDED_ROLE = "admin"
 # Compliance threshold below which an operator is flagged "critical".
 _CRITICAL_THRESHOLD = 30
 
-# Em dash used as the department/group delimiter in the seeded labels.
-_DEPT_GROUP_DELIM = "—"  # —
+# Regex that matches any dash variant (hyphen-minus, en-dash, em-dash) with
+# optional surrounding whitespace. Handles messy data-entry from production.
+_DASH_RE = re.compile(r'\s*[-–—]\s*')  # - – —
+
+# Em dash used as the canonical delimiter when *reconstructing* department strings.
+_DEPT_GROUP_DELIM = "—"
+
+# Regex for collapsing runs of whitespace / tabs into a single space.
+_WS_RE = re.compile(r'[ \t]+')
+
+
+def _normalize_dept(raw):
+    """Collapse whitespace and strip, but leave dashes untouched."""
+    return _WS_RE.sub(' ', (raw or '').strip())
 
 
 def _split_dept_group(raw_department):
     """Return (department_prefix, group_label) from a raw users.department value.
 
-    "საინფორმაციო სამსახური — ჯგუფი 01" -> ("საინფორმაციო სამსახური", "ჯგუფი 01").
-    Values without the delimiter return (whole, whole) so they still bucket.
+    Handles em-dash, en-dash, ASCII hyphen, missing spaces, extra whitespace,
+    and the "ჯგუფი" keyword as a fallback delimiter when no dash is present.
+
+    "საინფორმაციო სამსახური — ჯგუფი 01" -> ("საინფორმაციო სამსახური", "ჯგუფი 01")
+    "ტექნიკური - ჯგუფი 01"              -> ("ტექნიკური",             "ჯგუფი 01")
+    "ტექნიკური დეპარტამენტი ჯგუფი 01"   -> ("ტექნიკური დეპარტამენტი", "ჯგუფი 01")
     """
-    raw = (raw_department or "").strip()
-    if _DEPT_GROUP_DELIM in raw:
-        prefix, _, suffix = raw.partition(_DEPT_GROUP_DELIM)
-        prefix, suffix = prefix.strip(), suffix.strip()
+    raw = _normalize_dept(raw_department)
+    if not raw:
+        return '', ''
+
+    parts = _DASH_RE.split(raw, maxsplit=1)
+    if len(parts) == 2:
+        prefix, suffix = parts[0].strip(), parts[1].strip()
         return prefix, (suffix or prefix)
+
+    kw_idx = raw.find('ჯგუფი')
+    if kw_idx > 0:
+        prefix = raw[:kw_idx].strip()
+        suffix = raw[kw_idx:].strip()
+        return prefix, suffix
+
     return raw, raw
 
 
