@@ -1166,7 +1166,7 @@ def get_news(
     # Admins manage content across all departments, so they see everything (including expired)
     if current_user.role not in ["admin", "content_admin"]:
         query = query.filter(models.News.is_draft == False)
-        _dept_prefix = current_user.department.split(" —")[0] if " —" in current_user.department else current_user.department
+        _dept_prefix = _split_dept_group(current_user.department)[0]
         query = query.filter(models.News.target_department.in_([current_user.department, _dept_prefix, "All"]))
         query = query.filter(
             or_(
@@ -1689,7 +1689,7 @@ def get_articles(
     # (including archived items); regular users see only published content
     if current_user.role not in ["admin", "content_admin"]:
         now = get_tbilisi_time()
-        _dept_prefix = current_user.department.split(" —")[0] if " —" in current_user.department else current_user.department
+        _dept_prefix = _split_dept_group(current_user.department)[0]
         query = query.filter(
             models.Article.is_draft == False,
             models.Article.target_department_rows.any(
@@ -1781,7 +1781,7 @@ def get_my_readings(
     if current_user.role in _MANAGEMENT_ROLES:
         return []
 
-    _dept_prefix = current_user.department.split(" —")[0] if " —" in current_user.department else current_user.department
+    _dept_prefix = _split_dept_group(current_user.department)[0]
     readings = db.query(models.RequiredReading).filter(
         models.RequiredReading.target_department.in_([current_user.department, _dept_prefix, "All"])
     ).all()
@@ -1897,7 +1897,7 @@ def get_notifications_summary(
     # content, so they get no required-reading items here - mirrors get_my_readings above.
     unread_readings = []
     if current_user.role not in _MANAGEMENT_ROLES:
-        _dept_prefix = current_user.department.split(" —")[0] if " —" in current_user.department else current_user.department
+        _dept_prefix = _split_dept_group(current_user.department)[0]
         readings = db.query(models.RequiredReading).filter(
             models.RequiredReading.target_department.in_([current_user.department, _dept_prefix, "All"])
         ).all()
@@ -3933,7 +3933,7 @@ def _dept_matches(user_dept: str, targets) -> bool:
     for t in targets:
         if t == "All":
             return True
-        if user_dept == t or (t and user_dept.startswith(t + " —")):
+        if user_dept == t or (t and _split_dept_group(user_dept)[0] == t):
             return True
     return False
 
@@ -4268,6 +4268,12 @@ _DEPT_GROUP_DELIM = "—"
 # Regex for collapsing runs of whitespace / tabs into a single space.
 _WS_RE = re.compile(r'[ \t]+')
 
+# Trailing whitespace/dash run — used to clean up a dash that sits right
+# before the "ჯგუფი" keyword (e.g. "ტექნიკური - ჯგუფი 01") once the keyword
+# anchor has already located the split point, so it isn't left stuck to the
+# end of the prefix.
+_TRAILING_DASH_RE = re.compile(r'[\s\-–—]+$')
+
 
 def _normalize_dept(raw):
     """Collapse whitespace and strip, but leave dashes untouched."""
@@ -4288,16 +4294,28 @@ def _split_dept_group(raw_department):
     if not raw:
         return '', ''
 
+    # 1. Canonical em-dash first — the expected format, and immune to a
+    #    hyphen embedded earlier in the department name itself (e.g.
+    #    "IT-Support — ჯგუფი 01" must not split on the "IT-Support" hyphen).
+    if _DEPT_GROUP_DELIM in raw:
+        prefix, _, suffix = raw.partition(_DEPT_GROUP_DELIM)
+        prefix, suffix = prefix.strip(), suffix.strip()
+        return prefix, (suffix or prefix)
+
+    # 2. "ჯგუფი" keyword anchor — also immune to embedded hyphens, so tried
+    #    before the generic dash regex.
+    kw_idx = raw.find('ჯგუფი')
+    if kw_idx > 0:
+        prefix = _TRAILING_DASH_RE.sub('', raw[:kw_idx])
+        suffix = raw[kw_idx:].strip()
+        return prefix, suffix
+
+    # 3. Last resort: any dash variant. Only reached when there's neither an
+    #    em-dash nor a "ჯგუფი" keyword to anchor on.
     parts = _DASH_RE.split(raw, maxsplit=1)
     if len(parts) == 2:
         prefix, suffix = parts[0].strip(), parts[1].strip()
         return prefix, (suffix or prefix)
-
-    kw_idx = raw.find('ჯგუფი')
-    if kw_idx > 0:
-        prefix = raw[:kw_idx].strip()
-        suffix = raw[kw_idx:].strip()
-        return prefix, suffix
 
     return raw, raw
 

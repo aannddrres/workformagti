@@ -79,7 +79,7 @@ All services share the `magti-network` bridge network. Named volumes (`postgres_
 
 ### 3.2 Pre-deployment checklist
 
-1. Provision a `.env` (or equivalent secrets injection) per §2 — **do not** reuse the inline `SECRET_KEY` / DB password currently hardcoded in `docker-compose.yml`.
+1. Provision a `.env` (or equivalent secrets injection) per §2. `docker-compose.yml` now reads `SECRET_KEY`/`POSTGRES_PASSWORD`/`APP_ENV` via `${VAR}` substitution rather than hardcoding them — but that means the app will boot with blank/missing values if `.env` isn't actually populated, which is arguably worse than a wrong-but-present default. Confirm `.env` exists and is populated before first deploy.
 2. Confirm DNS/TLS termination in front of port `8000` (the app does not terminate TLS itself — front it with a reverse proxy / load balancer, e.g. Nginx, Traefik, or a cloud LB).
 3. If host or external/MCP access to PostgreSQL is required, add `ports: ["5432:5432"]` to the `db` service (currently **not** host-mapped — internal network only by design).
 4. Decide log shipping: Gunicorn is configured with `--access-logfile -` / `--error-logfile -` (stdout/stderr) — wire your log aggregator (e.g. Fluentd, CloudWatch, Loki) to the container's stdout, or redirect to the `app_logs` volume.
@@ -196,8 +196,9 @@ The `backup` Compose service runs `backup.py` every 24 hours, producing a ZIP ar
 | **Upload hardening** | Allowed MIME types are an explicit allow-list mapped to a server-controlled extension (never derived from the client-supplied filename); active/executable content types (`.html`, `.svg`, `.js`, `.php`) are intentionally excluded to prevent stored-XSS / arbitrary code execution via upload. Size-capped via `MAX_UPLOAD_SIZE_BYTES`. | `config.py` (`ALLOWED_UPLOAD_TYPES`) |
 | **Static/uploaded content** | Served with `X-Content-Type-Options: nosniff` via a global response middleware, preventing the browser from re-interpreting an uploaded file as active content. | `main.py` (`security_headers` middleware) |
 | **CORS** | Explicit, environment-driven origin allow-list (`CORS_ORIGINS`) — not wildcarded. `allow_credentials=True` requires this to remain a concrete origin list, never `*`. | `main.py`, `config.py` |
-| **Secrets-as-code (current state — NOT production-safe)** | `SECRET_KEY` and the database password are currently **hardcoded inline in `docker-compose.yml`**. This is acceptable for local/dev only. | See §7, item 1 |
-| **Swagger/OpenAPI exposure** | `main.py` now conditionally disables `/docs`, `/redoc`, and `/openapi.json` when `settings.is_production` is true (`docs_url`/`redoc_url`/`openapi_url=None`), keeping them available for local development only. | `main.py` (`FastAPI(...)` constructor) |
+| **Secrets externalized via `.env`** | `SECRET_KEY`, `POSTGRES_PASSWORD`, and `APP_ENV` are read from `${VAR}` substitution in `docker-compose.yml`, not hardcoded. No `.env` exists at the repo root yet — see §7, item 1 — so this only works once one is actually provisioned. | `docker-compose.yml`, `.env.example` |
+| **Swagger/OpenAPI exposure** | `main.py` now conditionally disables `/docs`, `/redoc`, and `/openapi.json` when `settings.is_production` is true (`docs_url`/`redoc_url`/`openapi_url=None`), keeping them available for local development only. This is only effective if `APP_ENV=production` is actually set at runtime (see §7, item 1). | `main.py` (`FastAPI(...)` constructor) |
+| **Rate limiting** | Per-IP, in-memory limiter (`slowapi`) at 10/minute on `/api/auth/login`, `/api/auth/forgot-password`, and `/api/auth/sso/callback` — brute-force/credential-stuffing mitigation. No Redis backend needed at this scale. | `main.py` (`@limiter.limit(...)`) |
 
 ### 5.1 Mock-AD / developer bypass — important operational control
 
@@ -232,13 +233,12 @@ The `backup` Compose service runs `backup.py` every 24 hours, producing a ZIP ar
 
 These are concrete gaps observed in the repository state that should be resolved as part of (not after) the production cutover:
 
-1. **Hardcoded secrets in `docker-compose.yml`.** `SECRET_KEY` and `POSTGRES_PASSWORD` are committed in plaintext in the compose file (see that file directly for current values — deliberately not reproduced here). Move both to `.env` (gitignored) or a secrets manager, and rotate both values — the current `SECRET_KEY` should be considered burned the moment this repo is shared with DevOps.
-2. **`APP_ENV: development` is set on the production-targeted `app`, `migrate`, and `backup` services in `docker-compose.yml`.** Per §5.1, this keeps the six-account password-bypass list active and disables other production-only hardening. **Set `APP_ENV=production` on all three services before deployment**, and confirm app behavior afterward (login flow for the listed accounts will require their real password, not "any password").
-3. ~~Swagger UI / OpenAPI schema publicly reachable~~ — **resolved**: `/docs`, `/redoc`, `/openapi.json` are now disabled when `APP_ENV=production` (see §5).
-4. **No Alembic migration framework yet** — `migrate.py` is a hand-maintained, append-only bootstrap script (§4). Acceptable for current scale; flag to engineering as Phase B work before the schema grows more complex or multi-environment promotion (dev→staging→prod) becomes a recurring need.
-5. **PostgreSQL port not host-mapped by design.** If your monitoring/backup tooling needs direct DB access from outside the Docker network, you must explicitly add a `ports` mapping — don't add it reflexively, as it widens the attack surface for an internal-only datastore.
-6. **`WORKERS` and `DEBUG` env vars are declared in `docker-compose.yml` but not confirmed to be consumed by the application/Gunicorn `CMD`** — reconcile before assuming they control anything at runtime.
-7. **Local dev DB file (`magti_portal.db`, ~183MB)** must never be deployed or treated as a production data source — it is dev-only seed/test data, explicitly excluded from this handover's production data plan.
+1. **No `.env` file provisioned yet.** `docker-compose.yml` no longer hardcodes secrets — `SECRET_KEY`, `POSTGRES_PASSWORD`, and `APP_ENV` are all `${VAR}` substitutions now — but no `.env` exists at the repo root, so those variables are currently unset. **Before first deploy:** create `.env` from `.env.example`, generate a real `SECRET_KEY` (`python -c "import secrets; print(secrets.token_urlsafe(64))"`), set a real `POSTGRES_PASSWORD`, and set `APP_ENV=production`. Per §5.1, `APP_ENV=production` is also what disables the six-account password-bypass list — this is a hard security requirement, not just a config nicety.
+2. ~~Swagger UI / OpenAPI schema publicly reachable~~ — **resolved in code**: `/docs`, `/redoc`, `/openapi.json` are now disabled when `settings.is_production` is true (see §5) — but this is only effective once item 1 above is done and `APP_ENV` actually resolves to `"production"` at runtime.
+3. **No Alembic migration framework yet** — `migrate.py` is a hand-maintained, append-only bootstrap script (§4). Acceptable for current scale; flag to engineering as Phase B work before the schema grows more complex or multi-environment promotion (dev→staging→prod) becomes a recurring need.
+4. **PostgreSQL port not host-mapped by design.** If your monitoring/backup tooling needs direct DB access from outside the Docker network, you must explicitly add a `ports` mapping — don't add it reflexively, as it widens the attack surface for an internal-only datastore.
+5. **`WORKERS` and `DEBUG` env vars are declared in `docker-compose.yml` but not confirmed to be consumed by the application/Gunicorn `CMD`** — reconcile before assuming they control anything at runtime.
+6. **Local dev DB file (`magti_portal.db`, ~183MB)** must never be deployed or treated as a production data source — it is dev-only seed/test data, explicitly excluded from this handover's production data plan.
 
 ---
 
@@ -261,4 +261,4 @@ These are concrete gaps observed in the repository state that should be resolved
 
 ---
 
-*Recovered from an abandoned worktree (`claude/elastic-raman-7dc200`, originally written 2026-06-23) and merged into `docs/` on 2026-07-11. Section 5 and 7 updated to reflect that the `/docs` disable-in-production fix has since been applied.*
+*Recovered from an abandoned worktree (`claude/elastic-raman-7dc200`, originally written 2026-06-23) and merged into `docs/` on 2026-07-11. §3.2, §5, and §7 updated at merge time to reflect drift since the original was written: secrets moved from hardcoded values to `${VAR}` substitution in `docker-compose.yml` (commit `b0d332f`, same day), rate limiting added (same commit), and the `/docs`/`/redoc`/`/openapi.json` production-disable gap closed (commit `8c5adac`). Treat any other claim in this document as a 2026-06-23 snapshot, not necessarily current — verify against the code before relying on it for a real deployment.*
