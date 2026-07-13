@@ -5383,6 +5383,119 @@ def delete_message(
     db.commit()
     return None
 
+def _parse_audit_date(value: str, end_of_day: bool = False) -> Optional[datetime]:
+    """Convert a user-supplied date/datetime string to a naive UTC datetime.
+
+    AuditLog.timestamp is stored as naive UTC (default=datetime.utcnow). If we
+    compared a timezone-aware value directly we'd hit "can't compare offset-naive
+    and offset-aware datetimes" on PostgreSQL and a silent miscompare on SQLite.
+    So: parse the input, normalise it to UTC via astimezone(), then strip tzinfo.
+
+    ``value`` may be a bare date (YYYY-MM-DD) or a full ISO-8601 datetime with
+    optional offset/Z suffix. A bare date is interpreted as midnight UTC.
+    """
+    from datetime import timezone
+
+    if not value:
+        return None
+    text = value.strip()
+    # Accept the JS ".toISOString()" trailing Z.
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        # Full ISO-8601 with optional offset.
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        # Fall back to a bare date — frontend often sends YYYY-MM-DD.
+        try:
+            parsed = datetime.strptime(text.split("T")[0], "%Y-%m-%d")
+        except ValueError:
+            return None
+    if end_of_day and parsed.hour == 0 and parsed.minute == 0 and parsed.second == 0:
+        # End-of-day inclusive: roll forward and apply a < filter at the call site.
+        parsed = parsed + timedelta(days=1)
+    if parsed.tzinfo is not None:
+        # SAFE conversion: shift to UTC, then drop tzinfo so the comparison
+        # matches the naive-UTC values written by get_tbilisi_time().
+        parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+    return parsed
+
+
+_DELETED_USER_LABEL = "წაშლილი მომხმარებელი"
+
+
+def _audit_item_name(log, article_title, news_title, video_title, category_name):
+    """Human-readable target name per item_type (None for system/file/etc.)."""
+    return {
+        "article": article_title,
+        "news": news_title,
+        "video": video_title,
+        "category": category_name,
+    }.get((log.item_type or "").lower())
+
+
+def _build_audit_query(db, start_date, end_date, user_id, user_name, action, category,
+                       *, log_prefix: str = "Audit log"):
+    """Shared join/filter builder for the audit list and its CSV export.
+
+    The User join is OUTER on purpose: deleting an account must not erase its
+    audit history from the view (rows fall back to a 'deleted user' label).
+    Item-name joins cover articles, news, videos and categories.
+    """
+    query = (
+        db.query(
+            models.AuditLog,
+            models.User.name.label("admin_name"),
+            models.Article.title.label("article_title"),
+            models.News.title.label("news_title"),
+            models.VideoInstruction.title.label("video_title"),
+            models.Category.name.label("category_name"),
+        )
+        .outerjoin(models.User, models.AuditLog.admin_id == models.User.id)
+        .outerjoin(models.Article, and_(
+            func.lower(models.AuditLog.item_type) == "article",
+            models.AuditLog.item_id == models.Article.id,
+        ))
+        .outerjoin(models.News, and_(
+            func.lower(models.AuditLog.item_type) == "news",
+            models.AuditLog.item_id == models.News.id,
+        ))
+        .outerjoin(models.VideoInstruction, and_(
+            func.lower(models.AuditLog.item_type) == "video",
+            models.AuditLog.item_id == models.VideoInstruction.id,
+        ))
+        .outerjoin(models.Category, and_(
+            func.lower(models.AuditLog.item_type) == "category",
+            models.AuditLog.item_id == models.Category.id,
+        ))
+    )
+    if start_date:
+        start_dt = _parse_audit_date(start_date)
+        if start_dt is not None:
+            query = query.filter(models.AuditLog.timestamp >= start_dt)
+        else:
+            logger.warning("%s start_date parsing error: invalid format '%s'", log_prefix, start_date)
+    if end_date:
+        end_dt = _parse_audit_date(end_date, end_of_day=True)
+        if end_dt is not None:
+            query = query.filter(models.AuditLog.timestamp < end_dt)
+        else:
+            logger.warning("%s end_date parsing error: invalid format '%s'", log_prefix, end_date)
+    if user_id:
+        query = query.filter(models.AuditLog.admin_id == user_id)
+    if user_name:
+        query = query.filter(models.User.name.ilike(f"%{user_name}%"))
+    if action:
+        if action == "LOGIN":
+            # LOGIN filter aggregates both password-based logins and SSO logins.
+            query = query.filter(models.AuditLog.action.in_(["LOGIN", "LOGIN_SSO"]))
+        else:
+            query = query.filter(models.AuditLog.action == action)
+    if category:
+        query = query.filter(models.AuditLog.category == category.upper())
+    return query.order_by(desc(models.AuditLog.timestamp))
+
+
 @app.get("/api/audit-logs", response_model=list[schemas.AuditLogResponse])
 def get_audit_logs(
     start_date: Optional[str] = None,
@@ -5400,92 +5513,24 @@ def get_audit_logs(
 
     Access: Restricted to system administrators (admin) only.
     """
-    from datetime import timezone
-
-    def _parse_to_naive_utc(value: str, end_of_day: bool = False) -> Optional[datetime]:
-        """Convert a user-supplied date/datetime string to a naive UTC datetime.
-
-        AuditLog.timestamp is stored as naive UTC (default=datetime.utcnow). If we
-        compared a timezone-aware value directly we'd hit "can't compare offset-naive
-        and offset-aware datetimes" on PostgreSQL and a silent miscompare on SQLite.
-        So: parse the input, normalise it to UTC via astimezone(), then strip tzinfo.
-
-        ``value`` may be a bare date (YYYY-MM-DD) or a full ISO-8601 datetime with
-        optional offset/Z suffix. A bare date is interpreted as midnight UTC.
-        """
-        if not value:
-            return None
-        text = value.strip()
-        # Accept the JS ".toISOString()" trailing Z.
-        if text.endswith("Z"):
-            text = text[:-1] + "+00:00"
-        try:
-            # Full ISO-8601 with optional offset.
-            parsed = datetime.fromisoformat(text)
-        except ValueError:
-            # Fall back to a bare date — frontend often sends YYYY-MM-DD.
-            try:
-                parsed = datetime.strptime(text.split("T")[0], "%Y-%m-%d")
-            except ValueError:
-                return None
-        if end_of_day and parsed.hour == 0 and parsed.minute == 0 and parsed.second == 0:
-            # End-of-day inclusive: roll forward and apply a < filter at the call site.
-            parsed = parsed + timedelta(days=1)
-        if parsed.tzinfo is not None:
-            # SAFE conversion: shift to UTC, then drop tzinfo so the comparison
-            # matches the naive-UTC values written by get_tbilisi_time().
-            parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
-        return parsed
-
-    query = db.query(models.AuditLog, models.User.name, models.Article.title).join(
-        models.User, models.AuditLog.admin_id == models.User.id
-    ).outerjoin(
-        models.Article,
-        and_(
-            func.lower(models.AuditLog.item_type) == "article",
-            models.AuditLog.item_id == models.Article.id,
-        ),
+    rows = (
+        _build_audit_query(db, start_date, end_date, user_id, user_name, action, category)
+        .offset(offset).limit(limit).all()
     )
-    if start_date:
-        start_dt = _parse_to_naive_utc(start_date)
-        if start_dt is not None:
-            query = query.filter(models.AuditLog.timestamp >= start_dt)
-        else:
-            logger.warning("Audit log start_date parsing error: invalid format '%s'", start_date)
-    if end_date:
-        end_dt = _parse_to_naive_utc(end_date, end_of_day=True)
-        if end_dt is not None:
-            query = query.filter(models.AuditLog.timestamp < end_dt)
-        else:
-            logger.warning("Audit log end_date parsing error: invalid format '%s'", end_date)
-    if user_id:
-        query = query.filter(models.AuditLog.admin_id == user_id)
-    if user_name:
-        query = query.filter(models.User.name.ilike(f"%{user_name}%"))
-    if action:
-        if action == "LOGIN":
-            # LOGIN filter aggregates both password-based logins and SSO logins.
-            query = query.filter(models.AuditLog.action.in_(["LOGIN", "LOGIN_SSO"]))
-        else:
-            query = query.filter(models.AuditLog.action == action)
-    if category:
-        query = query.filter(models.AuditLog.category == category.upper())
-
-    rows = query.order_by(desc(models.AuditLog.timestamp)).offset(offset).limit(limit).all()
     return [
         {
             "id": log.id,
             "admin_id": log.admin_id,
-            "admin_name": admin_name,
+            "admin_name": admin_name or _DELETED_USER_LABEL,
             "action": log.action,
             "item_type": log.item_type,
             "item_id": log.item_id,
-            "item_name": article_title,
+            "item_name": _audit_item_name(log, article_title, news_title, video_title, category_name),
             "timestamp": log.timestamp,
             "category": log.category,
             "details": log.details,
         }
-        for log, admin_name, article_title in rows
+        for log, admin_name, article_title, news_title, video_title, category_name in rows
     ]
 
 
@@ -5507,59 +5552,10 @@ def export_audit_logs(
 
     Access: Restricted to system administrators (admin) only.
     """
-    from datetime import timezone
-
-    def _parse_to_naive_utc(value: str, end_of_day: bool = False) -> Optional[datetime]:
-        if not value:
-            return None
-        text = value.strip()
-        if text.endswith("Z"):
-            text = text[:-1] + "+00:00"
-        try:
-            parsed = datetime.fromisoformat(text)
-        except ValueError:
-            try:
-                parsed = datetime.strptime(text.split("T")[0], "%Y-%m-%d")
-            except ValueError:
-                return None
-        if end_of_day and parsed.hour == 0 and parsed.minute == 0 and parsed.second == 0:
-            parsed = parsed + timedelta(days=1)
-        if parsed.tzinfo is not None:
-            parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
-        return parsed
-
-    query = db.query(models.AuditLog, models.User.name, models.Article.title).join(
-        models.User, models.AuditLog.admin_id == models.User.id
-    ).outerjoin(
-        models.Article,
-        and_(
-            func.lower(models.AuditLog.item_type) == "article",
-            models.AuditLog.item_id == models.Article.id,
-        ),
+    query = _build_audit_query(
+        db, start_date, end_date, None, user_name, action, category,
+        log_prefix="Audit log export",
     )
-    if start_date:
-        start_dt = _parse_to_naive_utc(start_date)
-        if start_dt is not None:
-            query = query.filter(models.AuditLog.timestamp >= start_dt)
-        else:
-            logger.warning("Audit log export start_date parsing error: invalid format '%s'", start_date)
-    if end_date:
-        end_dt = _parse_to_naive_utc(end_date, end_of_day=True)
-        if end_dt is not None:
-            query = query.filter(models.AuditLog.timestamp < end_dt)
-        else:
-            logger.warning("Audit log export end_date parsing error: invalid format '%s'", end_date)
-    if user_name:
-        query = query.filter(models.User.name.ilike(f"%{user_name}%"))
-    if action:
-        if action == "LOGIN":
-            query = query.filter(models.AuditLog.action.in_(["LOGIN", "LOGIN_SSO"]))
-        else:
-            query = query.filter(models.AuditLog.action == action)
-    if category:
-        query = query.filter(models.AuditLog.category == category.upper())
-
-    query = query.order_by(desc(models.AuditLog.timestamp))
 
     def generate_csv():
         output = io.StringIO()
@@ -5569,13 +5565,14 @@ def export_audit_logs(
         output.seek(0)
         output.truncate(0)
 
-        for log, admin_name, article_title in query.yield_per(1000):
+        for log, admin_name, article_title, news_title, video_title, category_name in query.yield_per(1000):
+            item_name = _audit_item_name(log, article_title, news_title, video_title, category_name)
             writer.writerow([
                 log.id,
                 log.timestamp.strftime("%Y-%m-%d %H:%M:%S") if log.timestamp else "",
-                admin_name or "",
+                admin_name or _DELETED_USER_LABEL,
                 log.action,
-                article_title or log.item_type,
+                item_name or log.item_type,
                 log.details or "",
             ])
             yield output.getvalue()

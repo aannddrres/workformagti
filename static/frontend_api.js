@@ -2117,12 +2117,20 @@ async function fetchAndRenderCategoriesAdmin(token) {
       }
 
 const actionMap = {
+  // read_article/view: retired writers (views live in article_view_logs now) —
+  // labels kept so historical rows render until retention purges them.
   "read_article": "სტატიის წაკითხვა",
   "view": "ნახვა",
   "login": "სისტემაში შესვლა",
+  "login_failed": "შესვლის წარუმატებელი მცდელობა",
   "update": "რედაქტირება",
   "create": "შექმნა",
   "delete": "წაშლა",
+  "mark_read": "წაკითხვის დადასტურება",
+  "archive": "არქივში გადატანა",
+  "unarchive": "არქივიდან აღდგენა",
+  "restore": "ვერსიის აღდგენა",
+  "verify": "აქტუალობის დადასტურება",
   "send_message": "შეტყობინების გაგზავნა",
   "broadcast": "გლობალური შეტყობინება",
   "create_user": "მომხმარებლის შექმნა"
@@ -2133,7 +2141,12 @@ const typeMap = {
   "user": "მომხმარებელი",
   "news": "სიახლე",
   "system": "სისტემა",
-  "category": "კატეგორია"
+  "category": "კატეგორია",
+  "video": "ვიდეო",
+  "required_reading": "სავალდებულო მასალა",
+  "readings": "წაკითხვები",
+  "file": "ფაილი",
+  "team_stats": "გუნდის სტატისტიკა"
 };
 
 // Global registry for live-tail interval

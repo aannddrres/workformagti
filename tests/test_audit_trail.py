@@ -24,7 +24,7 @@ security.PERM_NEWS_CREATE = "news.create"
 from database import engine
 from main import app as monolith_app
 import models
-from tests.factories import make_article
+from tests.factories import make_article, make_user
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -96,4 +96,50 @@ def test_http_article_edit_writes_attributed_diff(db_session):
     art = db_session.query(models.Article).filter(models.Article.id == article.id).first()
     if art:
         db_session.delete(art)
+    db_session.commit()
+
+
+def test_audit_list_survives_deleted_actor_and_resolves_item_names(db_session):
+    """The audit list must not erase history when the acting account is later
+    deleted (OUTER join + fallback label), and must resolve item names beyond
+    articles (here: a category)."""
+    import uuid
+
+    import audit_trail
+
+    actor = make_user(db_session, email="factory_audit_ghost@magti.ge", role="admin")
+    viewer = make_user(db_session, email="factory_audit_viewer@magti.ge", role="admin")
+    unique = f"Audit Ghost Cat {uuid.uuid4().hex[:8]}"
+
+    ctx = audit_trail.current_actor_email.set(actor.email)
+    try:
+        category = models.Category(name=unique, is_active=True)
+        db_session.add(category)
+        db_session.commit()
+        db_session.refresh(category)
+    finally:
+        audit_trail.current_actor_email.reset(ctx)
+
+    actor_id = actor.id
+    # Simulate a later account deletion — the audit row must survive it.
+    db_session.delete(actor)
+    db_session.commit()
+
+    monolith_app.dependency_overrides.clear()
+    monolith_app.dependency_overrides[security.get_current_user] = lambda: viewer
+    monolith_app.dependency_overrides[security.get_current_system_admin_user] = lambda: viewer
+    try:
+        with TestClient(monolith_app) as tc:
+            res = tc.get(f"/api/audit-logs?user_id={actor_id}&action=CREATE")
+            assert res.status_code == 200, res.text
+            rows = [r for r in res.json() if r["item_id"] == category.id and r["item_type"] == "category"]
+            assert rows, "audit row of a deleted actor must remain visible"
+            assert rows[0]["admin_name"] == "წაშლილი მომხმარებელი"
+            assert rows[0]["item_name"] == unique, "category item_name must resolve"
+    finally:
+        monolith_app.dependency_overrides.clear()
+
+    db_session.query(models.AuditLog).filter(models.AuditLog.admin_id == actor_id).delete()
+    db_session.delete(category)
+    db_session.delete(viewer)
     db_session.commit()

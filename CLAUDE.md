@@ -37,6 +37,12 @@
 - `models.py` — SQLAlchemy models
 - `schemas.py` — Pydantic schemas
 - `security.py` — auth/JWT/hashing
+- `audit_trail.py` — ORM auto-audit listeners (deep old/new diffs on
+  Article/News/Category/Video/User/RequiredReading); actor identity comes from
+  main.py's `actor_context_middleware` ContextVar, NOT `get_current_user` —
+  sync dependencies run in a copied threadpool context, so a set there is lost
+- `retention.py` — 180-day archive-then-purge for `audit_logs` +
+  `article_view_logs` (`AUDIT_RETENTION_DAYS`); run daily by `backup.py`
 - `database.py` — DB session/engine
 - `config.py` — settings (`.env` via python-dotenv; see `.env.example`)
 - `migrate.py` — idempotent schema migration (Phase B → Alembic)
