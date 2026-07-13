@@ -13,7 +13,8 @@ security.PERM_NEWS_CREATE = "news.create"
 
 from main import app as monolith_app
 import models
-from database import get_db, engine
+from datetime import timedelta
+from database import get_db, engine, get_tbilisi_time
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -362,50 +363,101 @@ def test_article_published_at_set(client, db_session):
 
 
 def test_orm_auto_audit_and_diff(db_session):
-    """Verifies that inserting, updating, and deleting an audited model (Category)
-    automatically creates AuditLog records, and updates capture the deep diff.
+    """Verifies audit_trail's listeners: ORM insert/update/delete on an audited
+    model (Category) auto-creates ATTRIBUTED AuditLog rows, and the update
+    captures the field-level old/new diff.
+
+    Fossil-proof rewrite: the previous version filtered on generic values and
+    kept passing for months on leftover rows from a long-dead listener chain
+    (SQLite reuses Category ids, so old audit rows matched new categories).
+    Unique names, actor filtering, and a no-actor negative case make that
+    impossible now.
     """
     import json
-    # 1. Test CREATE audit
-    category = models.Category(name="Audit Test Category", is_active=True)
+    import uuid
+
+    import audit_trail
+    from tests.factories import make_user
+
+    actor = make_user(db_session, email="factory_audit_actor@magti.ge", role="admin")
+    unique = f"Audit Trail Cat {uuid.uuid4().hex[:8]}"
+
+    ctx = audit_trail.current_actor_email.set(actor.email)
+    try:
+        # 1. CREATE
+        category = models.Category(name=unique, is_active=True)
+        db_session.add(category)
+        db_session.commit()
+        db_session.refresh(category)
+
+        create_log = db_session.query(models.AuditLog).filter(
+            models.AuditLog.item_type == "category",
+            models.AuditLog.item_id == category.id,
+            models.AuditLog.action == "CREATE",
+            models.AuditLog.admin_id == actor.id,
+        ).first()
+        assert create_log is not None
+
+        # 2. UPDATE with deep diff
+        category.name = unique + " Updated"
+        db_session.commit()
+
+        update_log = db_session.query(models.AuditLog).filter(
+            models.AuditLog.item_type == "category",
+            models.AuditLog.item_id == category.id,
+            models.AuditLog.action == "UPDATE",
+            models.AuditLog.admin_id == actor.id,
+        ).first()
+        assert update_log is not None
+        assert update_log.details is not None
+        details = json.loads(update_log.details)
+        assert details["changed"]["name"]["old"] == unique
+        assert details["changed"]["name"]["new"] == unique + " Updated"
+
+        # 3. DELETE
+        category_id = category.id
+        db_session.delete(category)
+        db_session.commit()
+
+        delete_log = db_session.query(models.AuditLog).filter(
+            models.AuditLog.item_type == "category",
+            models.AuditLog.item_id == category_id,
+            models.AuditLog.action == "DELETE",
+            models.AuditLog.admin_id == actor.id,
+        ).first()
+        assert delete_log is not None
+    finally:
+        audit_trail.current_actor_email.reset(ctx)
+
+    db_session.query(models.AuditLog).filter(models.AuditLog.admin_id == actor.id).delete()
+    db_session.delete(actor)
+    db_session.commit()
+
+
+def test_auto_audit_skips_unattributable_writes(db_session):
+    """No actor in context (background jobs, seeds, migrations) => no audit
+    row — AuditLog.admin_id is NOT NULL by design and an unattributable row
+    is noise."""
+    import uuid
+
+    unique = f"Audit Orphan Cat {uuid.uuid4().hex[:8]}"
+    category = models.Category(name=unique, is_active=True)
     db_session.add(category)
     db_session.commit()
     db_session.refresh(category)
 
-    create_log = db_session.query(models.AuditLog).filter(
-        models.AuditLog.item_type == "category",
-        models.AuditLog.item_id == category.id,
-        models.AuditLog.action == "CREATE"
-    ).first()
-    assert create_log is not None
-
-    # 2. Test UPDATE audit with deep diff
-    category.name = "Audit Test Category Updated"
+    category.name = unique + " Updated"
     db_session.commit()
 
-    update_log = db_session.query(models.AuditLog).filter(
+    logs = db_session.query(models.AuditLog).filter(
         models.AuditLog.item_type == "category",
         models.AuditLog.item_id == category.id,
-        models.AuditLog.action == "UPDATE"
-    ).first()
-    assert update_log is not None
-    assert update_log.details is not None
-    details = json.loads(update_log.details)
-    assert "changed" in details
-    assert details["changed"]["name"]["old"] == "Audit Test Category"
-    assert details["changed"]["name"]["new"] == "Audit Test Category Updated"
+        models.AuditLog.timestamp >= get_tbilisi_time() - timedelta(minutes=1),
+    ).all()
+    assert logs == [], [f"{l.action}:{l.admin_id}" for l in logs]
 
-    # 3. Test DELETE audit
-    category_id = category.id
     db_session.delete(category)
     db_session.commit()
-
-    delete_log = db_session.query(models.AuditLog).filter(
-        models.AuditLog.item_type == "category",
-        models.AuditLog.item_id == category_id,
-        models.AuditLog.action == "DELETE"
-    ).first()
-    assert delete_log is not None
 
 
 def test_log_rotation_and_archiving(db_session):

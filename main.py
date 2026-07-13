@@ -38,11 +38,15 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
+import audit_trail
 import models
 import schemas
 import security
 from config import settings
 from database import engine, get_db, SessionLocal, get_tbilisi_time, format_tbilisi_date
+
+# ORM-level CREATE/UPDATE/DELETE auditing with deep diffs (idempotent).
+audit_trail.register_listeners()
 
 # Paths are resolved relative to THIS file, so the app works regardless of the
 # directory uvicorn is launched from.
@@ -662,9 +666,32 @@ async def security_headers(request: Request, call_next):
 
 
 @app.middleware("http")
-async def qa_monkey_tracker(request: Request, call_next):
-    """Pass-through. (Former stdout timing log disabled — WinError 233 broke responses.)"""
-    return await call_next(request)
+async def actor_context_middleware(request: Request, call_next):
+    """Binds the request's authenticated identity (JWT ``sub``) to a ContextVar
+    so audit_trail's ORM listeners can attribute writes to an actor.
+
+    This has to live in async middleware: sync dependencies (including
+    security.get_current_user) run in a threadpool with a *copied* context, so
+    a ContextVar set there is lost when the call returns. A value set here, in
+    the request's own context, is visible in every downstream copy. Signature
+    validation stays get_current_user's job — a forged token simply 401s there
+    before any audited write can happen.
+    """
+    email = None
+    auth = request.headers.get("authorization", "")
+    if auth.lower().startswith("bearer "):
+        try:
+            payload = security.jwt.decode(
+                auth[7:], security.SECRET_KEY, algorithms=[security.ALGORITHM]
+            )
+            email = payload.get("sub")
+        except Exception:
+            email = None
+    ctx_token = audit_trail.current_actor_email.set(email)
+    try:
+        return await call_next(request)
+    finally:
+        audit_trail.current_actor_email.reset(ctx_token)
 
 
 @app.middleware("http")
@@ -1199,10 +1226,6 @@ def create_news(
     db.add(db_news)
     db.flush()
 
-    audit_log = models.AuditLog(
-        admin_id=current_admin.id, action="CREATE", item_type="news", item_id=db_news.id
-    )
-    db.add(audit_log)
     db.commit()
     search_cache.clear()
 
@@ -1252,10 +1275,6 @@ def update_news(
 
     db_news.version = (db_news.version or 1) + 1
 
-    audit_log = models.AuditLog(
-        admin_id=current_admin.id, action="UPDATE", item_type="news", item_id=db_news.id
-    )
-    db.add(audit_log)
     db.commit()
     search_cache.clear()
     db.refresh(db_news)
@@ -1288,10 +1307,6 @@ def delete_news(
 
     db.delete(db_news)
 
-    audit_log = models.AuditLog(
-        admin_id=current_admin.id, action="DELETE", item_type="news", item_id=news_id
-    )
-    db.add(audit_log)
     db.commit()
     search_cache.clear()
     return None
@@ -1493,9 +1508,6 @@ def create_category(
     db.commit()
     db.refresh(db_category)
 
-    audit_log = models.AuditLog(admin_id=current_admin.id, action="CREATE", item_type="category", item_id=db_category.id)
-    db.add(audit_log)
-    db.commit()
     category_cache.clear()
     search_cache.clear()
     return db_category
@@ -1533,9 +1545,6 @@ def update_category(
     db.commit()
     db.refresh(db_category)
 
-    audit_log = models.AuditLog(admin_id=current_admin.id, action="UPDATE", item_type="category", item_id=db_category.id)
-    db.add(audit_log)
-    db.commit()
     category_cache.clear()
     search_cache.clear()
     return db_category
@@ -1578,9 +1587,6 @@ def delete_category(
     db_category.is_active = False
     db.commit()
 
-    audit_log = models.AuditLog(admin_id=current_admin.id, action="DELETE", item_type="category", item_id=category_id)
-    db.add(audit_log)
-    db.commit()
     category_cache.clear()
     search_cache.clear()
     return None
@@ -2112,13 +2118,6 @@ def create_required_reading(
     except Exception as e:
         logger.exception("Error auto generating mandatory notifications: %s", e)
 
-    audit_log = models.AuditLog(
-        admin_id=current_admin.id,
-        action="CREATE",
-        item_type="required_reading",
-        item_id=db_reading.id
-    )
-    db.add(audit_log)
     db.commit()
     return db_reading
 
@@ -2327,13 +2326,6 @@ def create_article(
     db.flush()
     sync_tags(db, "article", db_article.id, db_article.tags)
 
-    audit_log = models.AuditLog(
-        admin_id=current_admin.id,
-        action="CREATE",
-        item_type="article",
-        item_id=db_article.id
-    )
-    db.add(audit_log)
     db.commit()
 
     # Real-time: notify the target department only about PUBLISHED articles.
@@ -2413,9 +2405,6 @@ def update_article(
     db.commit()
     db.refresh(db_article)
 
-    audit_log = models.AuditLog(admin_id=current_admin.id, action="UPDATE", item_type="article", item_id=db_article.id)
-    db.add(audit_log)
-    db.commit()
     search_cache.clear()
     category_cache.clear()
 
@@ -2496,9 +2485,6 @@ def delete_article(
     db.delete(db_article)
     db.commit()
 
-    audit_log = models.AuditLog(admin_id=current_admin.id, action="DELETE", item_type="article", item_id=article_id)
-    db.add(audit_log)
-    db.commit()
     search_cache.clear()
     category_cache.clear()
     return None
@@ -4823,8 +4809,6 @@ def create_video(
     db.flush()
     sync_tags(db, "video", db_video.id, db_video.tags)
 
-    audit_log = models.AuditLog(admin_id=current_admin.id, action="CREATE", item_type="video", item_id=db_video.id)
-    db.add(audit_log)
     db.commit()
     search_cache.clear()
 
@@ -4868,9 +4852,6 @@ def update_video(
     db.commit()
     db.refresh(db_video)
 
-    audit_log = models.AuditLog(admin_id=current_admin.id, action="UPDATE", item_type="video", item_id=db_video.id)
-    db.add(audit_log)
-    db.commit()
     search_cache.clear()
     return db_video
 
@@ -4902,9 +4883,6 @@ def delete_video(
     db.delete(db_video)
     db.commit()
 
-    audit_log = models.AuditLog(admin_id=current_admin.id, action="DELETE", item_type="video", item_id=video_id)
-    db.add(audit_log)
-    db.commit()
     search_cache.clear()
     return None
 
@@ -5058,14 +5036,6 @@ def update_user_admin(
     if update.team_id is not None:
         user.team_id = update.team_id
 
-    # Audit trail: full user updates must be attributable
-    audit_log = models.AuditLog(
-        admin_id=current_admin.id,
-        action="UPDATE_USER",
-        item_type="user",
-        item_id=user_id
-    )
-    db.add(audit_log)
     db.commit()
     db.refresh(user)
     return user
@@ -6306,9 +6276,6 @@ def update_required_reading(
         raise HTTPException(status_code=404, detail="Required reading not found")
     for k, v in payload.model_dump().items():
         setattr(rr, k, v)
-    db.add(models.AuditLog(
-        admin_id=current_admin.id, action="UPDATE", item_type="required_reading", item_id=rr.id,
-    ))
     db.commit()
     db.refresh(rr)
     return rr
@@ -6325,9 +6292,6 @@ def delete_required_reading(
     if not rr:
         raise HTTPException(status_code=404, detail="სავალდებულო მასალა ვერ მოიძებნა")
     db.delete(rr)
-    db.add(models.AuditLog(
-        admin_id=current_admin.id, action="DELETE", item_type="required_reading", item_id=reading_id,
-    ))
     db.commit()
     return None
 
