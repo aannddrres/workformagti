@@ -71,6 +71,75 @@ def test_build_department_stats_includes_office_operators(db_session):
     db_session.commit()
 
 
+def test_build_department_stats_bare_office_operator_counted(db_session):
+    """A user with department exactly "ოფისი" (no ჯგუფი suffix) must still be
+    counted in both the "ოფისი" department's own totals and the global
+    insights ribbon — a previous version silently dropped these from the
+    global totals too, not just their department's group breakdown. Uses an
+    operator (not a manager) so compute_compliance()'s role filter can't mask
+    the bug the way it does for the one real bare-"ოფისი" seed account.
+    """
+    op = make_user(
+        db_session,
+        email="factory_ds_bare_office_op@magti.ge",
+        role="operator",
+        department="ოფისი",
+        name="ბარე ოფისი ტესტ ოპ",
+    )
+    stats = build_department_stats(db_session)
+    member_ids = {m["user_id"] for m in [
+        m for d in stats["departments"] for g in d["groups"] for m in g["members"]
+    ]}
+    assert op.id in member_ids, "bare-ოფისი operator missing from department groups"
+
+    office = next(d for d in stats["departments"] if d["name"] == "ოფისი")
+    office_member_ids = {m["user_id"] for g in office["groups"] for m in g["members"]}
+    assert op.id in office_member_ids, "bare-ოფისი operator missing from ოფისი department"
+
+    global_ids = set()
+    for d in stats["departments"]:
+        for g in d["groups"]:
+            global_ids |= {m["user_id"] for m in g["members"]}
+    assert op.id in global_ids, "bare-ოფისი operator excluded from global totals"
+    assert stats["insights"]["total_members"] == len(global_ids)
+
+    db_session.delete(op)
+    db_session.commit()
+
+
+def test_get_group_users_endpoint(db_session):
+    """get_group_users() must use _match_department_bucket() (the same
+    whitelist logic as build_department_stats()), not a second, independently
+    hand-maintained .like() filter that could silently drift from it.
+    """
+    from urllib.parse import quote
+
+    op = make_user(
+        db_session,
+        email="factory_ds_group_users_op@magti.ge",
+        role="operator",
+        department="ტექნიკური — ჯგუფი 91",
+        name="ჯგუფი 91 ტესტ ოპ",
+    )
+    admin = make_user(db_session, email="factory_ds_group_users_admin@magti.ge", role="admin")
+    monolith_app.dependency_overrides.clear()
+    monolith_app.dependency_overrides[security.get_current_user] = lambda: admin
+    monolith_app.dependency_overrides[security.get_current_admin_user] = lambda: admin
+    try:
+        with TestClient(monolith_app) as tc:
+            url = f"/api/admin/departments/{quote('ტექნიკური')}/groups/{quote('ჯგუფი 91')}/users"
+            res = tc.get(url)
+            assert res.status_code == 200, res.text
+            body = res.json()
+            assert body["total"] == 1, body
+            assert body["users"][0]["user_id"] == op.id
+    finally:
+        monolith_app.dependency_overrides.clear()
+        db_session.delete(op)
+        db_session.delete(admin)
+        db_session.commit()
+
+
 def test_department_stats_endpoint_returns_three(db_session):
     admin = make_user(db_session, email="factory_ds_api_admin@magti.ge", role="admin")
     monolith_app.dependency_overrides.clear()

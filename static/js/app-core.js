@@ -6716,6 +6716,23 @@ window.onAuditVersionChange = function() {
   }
 };
 
+// 'receipts' = explicit "გავეცანი" acknowledgments; 'views' = every passive
+// open (ArticleViewLog) — same version picker and search, different data set.
+window._auditMode = 'receipts';
+window.setAuditMode = function(mode) {
+  if (mode !== 'receipts' && mode !== 'views') return;
+  window._auditMode = mode;
+  const onCls = 'px-3 py-1 text-xs font-semibold rounded-md transition-all shadow-sm bg-white text-gray-800';
+  const offCls = 'px-3 py-1 text-xs font-semibold rounded-md transition-all text-gray-600 hover:text-gray-800';
+  const rBtn = document.getElementById('audit-mode-receipts-btn');
+  const vBtn = document.getElementById('audit-mode-views-btn');
+  if (rBtn) rBtn.className = mode === 'receipts' ? onCls : offCls;
+  if (vBtn) vBtn.className = mode === 'views' ? onCls : offCls;
+  const col3 = document.getElementById('article-audit-col3');
+  if (col3) col3.textContent = mode === 'views' ? 'ნახვის დრო' : 'სტატუსი';
+  window.onAuditVersionChange();
+};
+
 window.loadArticleAuditPanel = async function(articleId) {
   if (!articleId) return;
   const select = document.getElementById('article-audit-version-select');
@@ -6757,13 +6774,17 @@ window.renderAuditGrid = async function(articleId, version) {
 
   const token = localStorage.getItem('magti_token') || (typeof Auth !== 'undefined' ? Auth.getToken() : null);
   try {
-    const res = await fetch(`/api/articles/${articleId}/read-receipts?version=${version}`, {
+    const isViews = window._auditMode === 'views';
+    const url = isViews
+      ? `/api/articles/${articleId}/views?version=${version}&limit=200`
+      : `/api/articles/${articleId}/read-receipts?version=${version}`;
+    const res = await fetch(url, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    if (!res.ok) throw new Error('Failed to fetch read receipts');
+    if (!res.ok) throw new Error(isViews ? 'Failed to fetch views' : 'Failed to fetch read receipts');
     const data = await res.json();
-    
-    window._auditGridRows = data.receipts || [];
+
+    window._auditGridRows = (isViews ? data.views : data.receipts) || [];
     window.applyAuditFilter();
   } catch (err) {
     console.error('Error rendering audit grid:', err);
@@ -6789,6 +6810,23 @@ window.applyAuditFilter = function() {
 
   if (filtered.length === 0) {
     tbody.innerHTML = '<tr><td colspan="3" class="px-3 py-4 text-center text-gray-500">მონაცემები ვერ მოიძებნა</td></tr>';
+    return;
+  }
+
+  if (window._auditMode === 'views') {
+    // One row per open: who, department, when (+ which version was on screen).
+    tbody.innerHTML = filtered.map(r => {
+      const displayName = r.operator_id ? `${r.operator_name} (${r.operator_email})` : `${r.operator_name} [წაშლილი]`;
+      const whenHtml = `<span class="text-gray-700">${window.escapeHtml(r.viewed_at || '—')}</span>` +
+        ` <span class="text-xs text-gray-400">v${window.escapeHtml(String(r.article_version))}</span>`;
+      return `
+      <tr>
+        <td class="w-2/5 px-3 py-2 whitespace-nowrap text-gray-900 font-medium truncate" title="${window.escapeHtml(displayName)}">${window.escapeHtml(displayName)}</td>
+        <td class="w-2/5 px-3 py-2 whitespace-nowrap text-gray-600 truncate" title="${window.escapeHtml(r.department || '—')}">${window.escapeHtml(r.department || '—')}</td>
+        <td class="w-1/5 px-3 py-2 whitespace-nowrap">${whenHtml}</td>
+      </tr>
+    `;
+    }).join('');
     return;
   }
 

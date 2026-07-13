@@ -661,14 +661,6 @@ async def security_headers(request: Request, call_next):
     return response
 
 
-def _safe_stdout(*args, **kwargs):
-    """print() fails with WinError 233 when uvicorn has no console pipe (minimized / background)."""
-    try:
-        print(*args, **kwargs)
-    except OSError:
-        pass
-
-
 @app.middleware("http")
 async def qa_monkey_tracker(request: Request, call_next):
     """Pass-through. (Former stdout timing log disabled — WinError 233 broke responses.)"""
@@ -680,20 +672,6 @@ async def catch_unhandled_exceptions(request: Request, call_next):
     """Last-resort safety net — log and return generic 500."""
     try:
         return await call_next(request)
-    except OSError as exc:
-        # Broken stdout/stderr pipe when process has no console — not a real app failure.
-        if getattr(exc, "winerror", None) == 233 or getattr(exc, "errno", None) in (22, 32):
-            try:
-                logger.warning("Ignored broken-pipe OSError on %s %s", request.method, request.url.path)
-            except Exception:
-                pass
-            # Cannot recover a lost response; client will retry. Avoid fake 500 if possible.
-            return JSONResponse(status_code=200, content={"detail": "ok"}, media_type="application/json")
-        try:
-            logger.exception("Internal Server Error intercepted (OSError)")
-        except Exception:
-            pass
-        return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
     except Exception:
         try:
             logger.exception("Internal Server Error intercepted")
@@ -1726,37 +1704,20 @@ def get_articles(
     return query.order_by(desc(dept_score), desc(models.Article.created_at)).offset(skip).limit(limit).all()
 
 
-def log_article_read(user_id: int, article_id: int) -> None:
-    """Background task: records an audit-log entry for an article read.
-
-    Opens its own session via SessionLocal() rather than reusing the
-    request's Depends(get_db) session — that session is already closed by
-    the time background tasks run (FastAPI's dependency exit stack closes
-    before Starlette sends the response and executes background tasks).
-    """
-    with SessionLocal() as db:
-        db.add(models.AuditLog(
-            admin_id=user_id,
-            action="READ_ARTICLE",
-            item_type="ARTICLE",
-            item_id=article_id,
-            details="Operator read the article",
-        ))
-        db.commit()
-
-
 @app.get("/api/articles/{article_id}", response_model=schemas.ArticleResponse)
 def get_article(
     article_id: int,
-    background_tasks: BackgroundTasks,
     current_user: models.User = Depends(security.get_current_user),
     db: Session = Depends(get_db)
 ):
     """Retrieves full details of a specific article.
 
+    View tracking does NOT happen here — the client cache means this endpoint
+    fires on a different schedule than actual opens. POST /api/articles/{id}/view
+    (ArticleViewLog) is the single source of truth for who-viewed-what.
+
     Args:
         article_id: ID of the article to retrieve.
-        background_tasks: FastAPI background task queue.
         current_user: The authenticated User object.
         db: SQLAlchemy database session.
 
@@ -1767,7 +1728,6 @@ def get_article(
     if not article:
         raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
     _assert_article_visible(article, current_user)
-    background_tasks.add_task(log_article_read, current_user.id, article.id)
     return article
 
 @app.get("/api/compliance/my-readings", response_model=list[schemas.MyReadingResponse])
@@ -3328,19 +3288,14 @@ def track_article_view(
     current_user: models.User = Depends(security.get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Logs an article view action in the audit logs.
+    """Records a passive view: who opened the article, when, and which version.
 
-    Used to track which content items operators are reading.
+    One ArticleViewLog row per open — no dedup, repeat views are signal.
+    Distinct from the read-receipt flow, which records the operator's explicit
+    "გავეცანი" acknowledgment. Snapshots (name/email/department/title/version)
+    are taken at view time so the record survives later renames and moves.
 
     Access: Authenticated users (any active role).
-
-    Args:
-        article_id: ID of the article viewed.
-        current_user: The authenticated User object.
-        db: SQLAlchemy database session.
-
-    Returns:
-        A dictionary indicating success.
 
     Raises:
         HTTPException: 404 Not Found if the article does not exist.
@@ -3348,17 +3303,75 @@ def track_article_view(
     db_article = db.query(models.Article).filter(models.Article.id == article_id).first()
     if not db_article:
         raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
-    
-    # Log the view action in the audit logs
-    audit_log = models.AuditLog(
-        admin_id=current_user.id,
-        action="VIEW",
-        item_type="article",
-        item_id=article_id
-    )
-    db.add(audit_log)
+
+    db.add(models.ArticleViewLog(
+        article_id=db_article.id,
+        article_title_snapshot=db_article.title,
+        article_version=db_article.version,
+        operator_id=current_user.id,
+        operator_name_snapshot=current_user.name,
+        operator_email_snapshot=current_user.email,
+        operator_department_snapshot=current_user.department,
+        viewed_at=get_tbilisi_time(),
+    ))
     db.commit()
     return {"status": "success"}
+
+
+@app.get("/api/articles/{article_id}/views")
+def get_article_views(
+    article_id: int,
+    version: Optional[int] = None,
+    limit: int = 50,
+    offset: int = 0,
+    current_admin: models.User = Depends(security.get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Who viewed this article, when, and which version was on screen (admins).
+
+    Passive views — the companion of GET .../read-receipts (explicit acks).
+    Optional `version` narrows to one revision; omitted returns every version.
+    """
+    article = db.query(models.Article).filter(models.Article.id == article_id).first()
+    if not article:
+        raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
+
+    filters = [models.ArticleViewLog.article_id == article_id]
+    if version is not None:
+        filters.append(models.ArticleViewLog.article_version == version)
+
+    total_views = db.query(func.count(models.ArticleViewLog.id)).filter(*filters).scalar() or 0
+    unique_viewers = (
+        db.query(func.count(func.distinct(models.ArticleViewLog.operator_id)))
+        .filter(*filters, models.ArticleViewLog.operator_id.isnot(None))
+        .scalar() or 0
+    )
+    rows = (
+        db.query(models.ArticleViewLog)
+        .filter(*filters)
+        .order_by(desc(models.ArticleViewLog.viewed_at))
+        .offset(max(offset, 0))
+        .limit(max(1, min(limit, 200)))
+        .all()
+    )
+    return {
+        "article_id": article_id,
+        "current_version": article.version,
+        "filter_version": version,
+        "total_views": total_views,
+        "unique_viewers": unique_viewers,
+        "views": [
+            {
+                "operator_id": v.operator_id,
+                "operator_name": v.operator_name_snapshot,
+                "operator_email": v.operator_email_snapshot,
+                "department": v.operator_department_snapshot,
+                "article_version": v.article_version,
+                "viewed_at": format_tbilisi_date(v.viewed_at),
+            }
+            for v in rows
+        ],
+    }
 
 
 @app.get("/api/me/recently-viewed", response_model=list[schemas.RecentlyViewedItem])
@@ -3369,36 +3382,26 @@ def get_my_recently_viewed(
     """Returns the current user's most recently viewed articles (server-backed,
     cross-device — distinct from the client-only localStorage strip on the KB page).
 
-    Reuses the AuditLog outer-join pattern from the audit-log export endpoint so a
-    since-deleted article can't break the query (title comes back None and is
-    filtered out below rather than 500ing).
+    Reads ArticleViewLog. The inner join to Article both fetches the LIVE title
+    (snapshots go stale on rename) and drops views of since-deleted articles
+    (their article_id is SET NULL, so they simply don't join).
     """
     rows = (
-        db.query(models.AuditLog, models.Article.title)
-        .outerjoin(
-            models.Article,
-            and_(
-                func.lower(models.AuditLog.item_type) == "article",
-                models.AuditLog.item_id == models.Article.id,
-            ),
-        )
-        .filter(
-            models.AuditLog.admin_id == current_user.id,
-            models.AuditLog.action == "VIEW",
-            func.lower(models.AuditLog.item_type) == "article",
-        )
-        .order_by(desc(models.AuditLog.timestamp))
+        db.query(models.ArticleViewLog.article_id, models.Article.title, models.ArticleViewLog.viewed_at)
+        .join(models.Article, models.ArticleViewLog.article_id == models.Article.id)
+        .filter(models.ArticleViewLog.operator_id == current_user.id)
+        .order_by(desc(models.ArticleViewLog.viewed_at))
         .limit(30)
         .all()
     )
 
     seen_ids: set[int] = set()
     items: list[dict] = []
-    for log, title in rows:
-        if title is None or log.item_id in seen_ids:
+    for article_id, title, viewed_at in rows:
+        if article_id in seen_ids:
             continue
-        seen_ids.add(log.item_id)
-        items.append({"article_id": log.item_id, "title": title, "viewed_at": log.timestamp})
+        seen_ids.add(article_id)
+        items.append({"article_id": article_id, "title": title, "viewed_at": viewed_at})
         if len(items) >= 10:
             break
     return items
@@ -4388,9 +4391,13 @@ def build_department_stats(db: Session):
             # Skip users outside the three Magti service lines
             continue
 
-        # Bare "ოფისი" (no ჯგუფი) — skip; managers already excluded by compute_compliance
-        if matched == "ოფისი" and "ჯგუფი" not in (user.department or ""):
-            continue
+        # No further skip here: a bare "ოფისი" (no ჯგუფი suffix) user still
+        # counts toward department + global totals, landing in a group named
+        # after the department itself via _split_dept_group's fallback. A
+        # previous version dropped these silently from company-wide totals
+        # too, not just their own group breakdown — dangerous for any future
+        # operator with this department shape, even though today's only such
+        # user is a manager already excluded upstream by compute_compliance.
 
         member = {
             "user_id": user.id,
@@ -4547,26 +4554,11 @@ def get_group_users(
     Three scoped queries: users in the target group, reading counts by dept,
     and read counts for those users only — no ORM hydration of RequiredReading.
 
-    The department path param is a whitelist prefix (e.g. "საინფორმაციო"), not
-    the full DB value ("საინფორმაციო სამსახური — ჯგუფი 01"), so we match with
-    startswith + group label rather than exact equality.
+    The department path param is a whitelist bucket (e.g. "საინფორმაციო"), not
+    the full DB value ("საინფორმაციო სამსახური — ჯგუფი 01"), so we match via
+    _match_department_bucket() — the same single source of truth used by
+    build_department_stats() — rather than a second, hand-maintained filter.
     """
-    dept_filters = []
-    if department == "საინფორმაციო":
-        dept_filters = [
-            models.User.department.like("საინფორმაციო%"),
-            models.User.department.like("საინფო%"),
-        ]
-    elif department == "ტექნიკური":
-        dept_filters = [
-            models.User.department.like("ტექნიკური%"),
-            models.User.department.like("ტექნიკურ%"),
-        ]
-    elif department == "ოფისი":
-        dept_filters = [models.User.department.like("ოფისი%")]
-    else:
-        dept_filters = [models.User.department.like(f"{department}%")]
-
     all_candidates = (
         db.query(
             models.User.id, models.User.name, models.User.department,
@@ -4574,14 +4566,14 @@ def get_group_users(
         .filter(
             models.User.is_active == True,  # noqa: E712
             models.User.role.notin_(_MANAGEMENT_ROLES),
-            or_(*dept_filters),
         )
         .all()
     )
-    users = [
-        u for u in all_candidates
-        if _split_dept_group(u.department)[1] == group_name
-    ]
+    users = []
+    for u in all_candidates:
+        prefix, group_label = _split_dept_group(u.department)
+        if _match_department_bucket(prefix) == department and group_label == group_name:
+            users.append(u)
 
     readings_by_dept = dict(
         db.query(
@@ -5077,6 +5069,25 @@ def get_activity_trend(
     for d, c in grouped:
         key = d.strftime(key_fmt) if isinstance(d, datetime) else str(d)[:key_len]
         counts[key] = c
+
+    # Article views live in article_view_logs now (not audit_logs), but they
+    # were the bulk of this chart's USER-category signal — fold them back in
+    # for the "all" and USER views so the trend keeps meaning what it meant.
+    if category is None or category.upper() == "USER":
+        view_bucket_col = (
+            func.date_trunc("hour" if bucket == "hour" else "day", models.ArticleViewLog.viewed_at) if is_pg
+            else (func.strftime("%Y-%m-%d %H:00", models.ArticleViewLog.viewed_at) if bucket == "hour"
+                  else func.date(models.ArticleViewLog.viewed_at))
+        )
+        view_grouped = (
+            db.query(view_bucket_col.label("bucket"), func.count(models.ArticleViewLog.id))
+            .filter(models.ArticleViewLog.viewed_at >= cutoff)
+            .group_by(view_bucket_col)
+            .all()
+        )
+        for d, c in view_grouped:
+            key = d.strftime(key_fmt) if isinstance(d, datetime) else str(d)[:key_len]
+            counts[key] = counts.get(key, 0) + c
 
     series = []
     for i in range(n):
@@ -6206,7 +6217,7 @@ def forgot_password(
         ))
         db.commit()
         if not settings.is_production:
-            print(f"[forgot-password] dev reset token for {user.email}: {token}")
+            logger.info(f"[forgot-password] dev reset token for {user.email}: {token}")
     # Constant-time-ish: always claim success.
     return {"detail": "თუ ეს ელ. ფოსტა რეგისტრირებულია, აღდგენის ინსტრუქცია გამოგზავნილია."}
 

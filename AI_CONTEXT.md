@@ -28,12 +28,11 @@ still-useful engineering notes that don't live elsewhere.
 ## Still-accurate engineering notes
 
 **Lazy imports for cross-module singletons.** Modules outside `main.py`
-(`security.py`, `audit_listeners.py`, `webhook_dispatcher.py`, etc.) that
-need something defined in `main.py` (or in each other) should import it
+that need something defined in `main.py` (or in each other) should import it
 inside the function body that uses it, not at module top level, to avoid
 circular-import failures at load time. This pattern is already in active use
-— see `security.py`'s import of `audit_listeners.current_actor_id` inside
-`get_current_user()`.
+— see `scripts/seed_portal.py`'s import of `main.build_department_stats`
+inside `cmd_org()`.
 
 **No inline Base64 images.** Quill.js editor uploads must go through
 `POST /api/upload` (validates MIME type, saves as a binary file, returns a

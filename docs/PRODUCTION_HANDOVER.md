@@ -202,7 +202,7 @@ The `backup` Compose service runs `backup.py` every 24 hours, producing a ZIP ar
 
 ### 5.1 Mock-AD / developer bypass — important operational control
 
-`security.py` defines a hardcoded set of "mock AD" test emails (`admin@magti.ge`, `content@magti.ge`, `manager@magti.ge`, `nino@magti.ge`, `tech@magti.ge`, `info@magti.ge`) for which **any password is accepted**, plus just-in-time auto-provisioning for any `test_operator_*@...` email. This bypass is gated entirely behind `settings.is_production` (i.e. `APP_ENV == "production"`) — the allow-list is hardcoded empty when `APP_ENV=production`. **This makes correctly setting `APP_ENV=production` a hard security requirement, not just a cosmetic flag** — see §7, item 2, where the current `docker-compose.yml` sets `APP_ENV: development` on the production `app` container.
+`security.py` defines a hardcoded set of "mock AD" test emails (`admin@magti.ge`, `content@magti.ge`, `manager@magti.ge`, `nino@magti.ge`, `tech@magti.ge`, `info@magti.ge`) for which **any password is accepted**, plus just-in-time auto-provisioning for any `test_operator_*@...` email. This bypass is gated entirely behind `settings.is_production` (i.e. `APP_ENV == "production"`) — the allow-list is hardcoded empty when `APP_ENV=production`. **This makes correctly setting `APP_ENV=production` a hard security requirement, not just a cosmetic flag** — see §7, item 1: no `.env` is provisioned in this repo yet. `docker-compose.yml` now defaults each service's `APP_ENV` to `production` (`${APP_ENV:-production}`) if `.env` doesn't set it, so a missing `.env` fails safe rather than silently reopening this bypass — but a `.env` that sets `APP_ENV=development` (or anything other than `production`) will still open it, same as before.
 
 ---
 
@@ -257,7 +257,7 @@ These are concrete gaps observed in the repository state that should be resolved
 | `backup.py` | Scheduled backup job (DB + uploads → ZIP) |
 | `start_server.bat` | Local Windows dev launcher |
 | `docker-compose.yml` / `Dockerfile` | Container topology and image build |
-| `docs/admin-guide.md`, `README.md`, `ინფო_დეველოპერებისთვის.md` | Existing developer/admin documentation |
+| `docs/admin-guide.md`, `README.md` | Existing developer/admin documentation |
 
 ---
 

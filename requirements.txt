@@ -34,6 +34,5 @@ reportlab
 gunicorn
 redis
 
-# HTTP client for outbound webhook dispatch (webhook_dispatcher.py, used from
-# audit_listeners.py's ORM change listeners).
+# Required by fastapi.testclient.TestClient (used throughout tests/).
 httpx

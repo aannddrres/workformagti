@@ -125,11 +125,26 @@ def backfill_read_status_department_snapshot() -> None:
             log.info("Backfilled operator_department_snapshot on %s read_statuses rows", result.rowcount)
 
 
+def normalize_audit_item_type_casing() -> None:
+    """One-time cleanup: the retired log_article_read task wrote
+    item_type='ARTICLE' (uppercase) while every other writer uses 'article',
+    which made those rows miss the case-sensitive category classifier map.
+    Idempotent — matches nothing once normalized.
+    """
+    with engine.begin() as conn:
+        result = conn.execute(text(
+            "UPDATE audit_logs SET item_type = 'article' WHERE item_type = 'ARTICLE'"
+        ))
+        if result.rowcount:
+            log.info("Normalized item_type casing on %s audit_logs rows", result.rowcount)
+
+
 def main() -> int:
     log.info("Creating any missing tables...")
     Base.metadata.create_all(bind=engine)
     ensure_columns()
     backfill_read_status_department_snapshot()
+    normalize_audit_item_type_casing()
     log.info("Schema ensured.")
 
     # Cross-dialect FK lookup indexes (run on SQLite and Postgres alike).

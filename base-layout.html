@@ -796,7 +796,7 @@
       - Dynamic Rendering: Injects fetched data into the DOM.
     -->
     
-    <script defer src="/static/js/app-core.js?v=20260708g"></script>
+    <script defer src="/static/js/app-core.js?v=20260713a"></script>
     <script defer src="/static/js/app-renderers.js?v=15"></script>
     <script defer src="/static/js/app-router.js?v=7"></script>
     <script defer src="/static/js/admin-cms-enhancements.js?v=20260708"></script>
@@ -2603,6 +2603,10 @@
           </div>
           <div id="article-audit-panel" class="hidden w-full h-full flex-col bg-white rounded-xl border border-gray-200 shadow-sm p-4 overflow-hidden">
             <div class="flex flex-col gap-3 mb-4">
+              <div class="flex bg-gray-100 rounded-lg p-0.5 self-start">
+                <button type="button" id="audit-mode-receipts-btn" onclick="setAuditMode('receipts')" class="px-3 py-1 text-xs font-semibold rounded-md shadow-sm transition-all bg-white text-gray-800">ქვითრები</button>
+                <button type="button" id="audit-mode-views-btn" onclick="setAuditMode('views')" class="px-3 py-1 text-xs font-semibold rounded-md transition-all text-gray-600 hover:text-gray-800">ნახვები</button>
+              </div>
               <div class="flex items-center justify-between gap-2">
                 <label for="article-audit-version-select" class="text-xs font-bold text-gray-500 uppercase tracking-wider">ვერსია:</label>
                 <select id="article-audit-version-select" onchange="onAuditVersionChange()" class="text-sm rounded-lg border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 p-1.5 flex-1 max-w-[200px]">
@@ -2621,7 +2625,7 @@
                   <tr>
                     <th scope="col" class="w-2/5 px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">მომხმარებელი</th>
                     <th scope="col" class="w-2/5 px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">დეპარტამენტი</th>
-                    <th scope="col" class="w-1/5 px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">სტატუსი</th>
+                    <th scope="col" id="article-audit-col3" class="w-1/5 px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">სტატუსი</th>
                   </tr>
                 </thead>
                 <tbody id="article-audit-table-body" class="bg-white divide-y divide-gray-200 text-sm">

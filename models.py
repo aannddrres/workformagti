@@ -441,6 +441,38 @@ class ArticleReadReceipt(Base):
     operator = relationship("User")
 
 
+class ArticleViewLog(Base):
+    """One row per article open (passive view) — who viewed, when, and which
+    version was on screen. Distinct from ArticleReadReceipt, which records the
+    operator's explicit "I have read this" acknowledgment. No dedup on
+    (article, operator): repeat views are informative, so every open counts.
+
+    Snapshots mirror ArticleReadReceipt so history survives user/article
+    deletion (FKs are SET NULL, the text columns keep the facts).
+    """
+    __tablename__ = "article_view_logs"
+    __table_args__ = (
+        Index("ix_article_view_logs_article_viewed", "article_id", "viewed_at"),
+        Index("ix_article_view_logs_operator_viewed", "operator_id", "viewed_at"),
+        Index("ix_article_view_logs_article_version", "article_id", "article_version"),
+        # Retention job filters on viewed_at alone (mirrors idx_receipts_retention_date).
+        Index("ix_article_view_logs_retention_date", "viewed_at"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    article_id = Column(Integer, ForeignKey("articles.id", ondelete="SET NULL"), nullable=True)
+    article_title_snapshot = Column(String, nullable=False)
+    article_version = Column(Integer, nullable=False)
+    operator_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    operator_name_snapshot = Column(String, nullable=False)
+    operator_email_snapshot = Column(String, nullable=False)
+    operator_department_snapshot = Column(String, nullable=True)
+    viewed_at = Column(DateTime, default=get_tbilisi_time, nullable=False)
+
+    article = relationship("Article")
+    operator = relationship("User")
+
+
 class QuizQuestion(Base):
     """One multiple-choice question attached to an article's optional quiz."""
     __tablename__ = "quiz_questions"

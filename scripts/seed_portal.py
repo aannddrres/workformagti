@@ -27,6 +27,7 @@ from datetime import timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from config import settings
 from database import SessionLocal, engine, get_tbilisi_time
 import models
 from security import (
@@ -47,6 +48,19 @@ except ImportError:
 models.Base.metadata.create_all(bind=engine)
 
 KEEP_EMAILS = {a["email"].lower() for a in TEST_ACCOUNTS}
+
+
+def _refuse_if_production() -> None:
+    """This script seeds known test credentials (TEST_ACCOUNTS, password
+    Test1234! committed in TEST_LOGINS.md) — it must never touch a real
+    deployment, independent of the mock-AD bypass's own is_production gate."""
+    if settings.is_production:
+        print(
+            "REFUSING: APP_ENV=production. This script seeds known test "
+            "credentials and must never run against a real database.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
 # ── Georgian name pools (deterministic) ──────────────────────────────────────
 _FIRST = [
@@ -272,6 +286,7 @@ def purge_to_test_logins_only() -> int:
 
 
 def cmd_users() -> None:
+    _refuse_if_production()
     print("=" * 50)
     print("seed_portal: მხოლოდ TEST_LOGINS (~20)")
     print("=" * 50)
@@ -292,6 +307,7 @@ def cmd_users() -> None:
 
 def cmd_org() -> None:
     """Full Magti call-center org chart for realistic testing."""
+    _refuse_if_production()
     print("=" * 60)
     print("seed_portal: კომპანიის ორგსტრუქტურა")
     print("=" * 60)
@@ -541,6 +557,7 @@ def cmd_org() -> None:
 
 
 def cmd_demo() -> None:
+    _refuse_if_production()
     print("=" * 50)
     print("seed_portal: მსუბუქი დემო კონტენტი (org/users უკვე უნდა იყოს)")
     print("=" * 50)

@@ -27,8 +27,9 @@
 | `magti-portal-redis` | redis:7-alpine | (internal) | appendonly, 256mb LRU |
 | `magti-portal-migrate` | built | — | one-shot schema init before app |
 | `magti-portal-backup` | built | — | runs `backup.py` every 24h |
+| `magti-portal-compliance-alerts` | built | — | runs `compliance_alerts.py` every 24h (separate process, not imported by `main.py`) |
 
-- DB URL (in-network): `postgresql://appuser:magti_secure_db@db:5432/magti_portal`
+- DB URL (in-network): built from `.env`'s `DATABASE_URL` (e.g. `postgresql+psycopg2://appuser:<POSTGRES_PASSWORD>@db:5432/magti_portal`) — not hardcoded in `docker-compose.yml`.
 - Postgres port 5432 is **not** mapped to the host — add `ports: ["5432:5432"]` to the `db` service if you need host/MCP access.
 
 ## Key Files
@@ -42,7 +43,7 @@
 - `seed.py` / `scripts/seed_test_users.py` — data seeding (one-off/dev seeders live in `scripts/`)
 - `backup.py` — DB backup job
 - `start_server.bat` — local launch
-- `docs/admin-guide.md`, `README.md`, `ინფო_დეველოპერებისთვის.md` — docs
+- `docs/admin-guide.md`, `README.md` — docs
 
 ### Admin CMS Enhancements (Additive)
 - `static/js/admin-cms-enhancements.js` is active and loaded after `app-core.js`/`app-renderers.js`/`app-router.js` in `base-layout.html`; it dynamically hooks into `window.focusCreateForm` and `window.editArticle` (function wrapping, originals preserved) to refresh the char counter and status badge when the article drawer opens.
@@ -55,6 +56,6 @@
 - Dark/light theme support required
 - Mobile-first
 - Migrations must stay idempotent (workers race on CREATE TABLE otherwise)
-- Never commit secrets — `SECRET_KEY` and DB password are currently inline in `docker-compose.yml`; move to a `.env`/secrets store before any public push
+- Never commit secrets — `SECRET_KEY`/`POSTGRES_PASSWORD`/`APP_ENV` are already externalized to `${VAR}` substitution in `docker-compose.yml` (not hardcoded); they come from a local, gitignored `.env` (see `.env.example`). No `.env` currently exists in this repo — one must be created (with a real `SECRET_KEY` and `APP_ENV=production`) before any real deployment. `docker-compose.yml` now falls back to `APP_ENV=production` if `.env` is missing/incomplete, so an absent `.env` fails safe rather than silently reopening the dev-bypass.
 - `magti_portal.db` (~183 MB) is local dev data — do not commit or delete
 - Worktree/branch hygiene: when work in a `.claude/worktrees/*` checkout is finished (merged or abandoned), remove the worktree (`git worktree remove`) and its `claude/*` branch (`git branch -D`) in that same session — don't leave it for later. Before deleting an unmerged one, check `git diff`/`git log` against `main` for anything not yet captured. (8 stale worktrees / 16 branches / 1.2GB accumulated silently over ~3 weeks before a full cleanup on 2026-07-11 — see `docs/PRODUCTION_HANDOVER.md` for the one real deliverable that was almost lost in the pile.)
