@@ -284,16 +284,20 @@
     }
   }
 
-  // Adaptive grid: if empty columns exist, remaining cards span evenly.
+  // Adaptive grid: always prefer up to 3 department cards (ტექ / საინფო / ოფისი).
   function adaptGrid(departments) {
     var host = document.getElementById('dept-dashboard-body');
     if (!host) return;
+    var n = (departments || []).length;
     var nonEmpty = (departments || []).filter(function (d) { return !d.is_empty; });
-    host.classList.remove('xl:grid-cols-3', 'lg:grid-cols-2');
-    if (nonEmpty.length <= 2) {
-      host.classList.add('lg:grid-cols-' + Math.max(1, nonEmpty.length));
-    } else {
+    var count = Math.max(nonEmpty.length, n > 0 ? Math.min(n, 3) : 0);
+    host.classList.remove('xl:grid-cols-3', 'lg:grid-cols-2', 'lg:grid-cols-1', 'lg:grid-cols-3');
+    if (count >= 3) {
       host.classList.add('lg:grid-cols-2', 'xl:grid-cols-3');
+    } else if (count === 2) {
+      host.classList.add('lg:grid-cols-2');
+    } else {
+      host.classList.add('lg:grid-cols-1');
     }
   }
 

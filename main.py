@@ -661,37 +661,44 @@ async def security_headers(request: Request, call_next):
     return response
 
 
+def _safe_stdout(*args, **kwargs):
+    """print() fails with WinError 233 when uvicorn has no console pipe (minimized / background)."""
+    try:
+        print(*args, **kwargs)
+    except OSError:
+        pass
+
+
 @app.middleware("http")
 async def qa_monkey_tracker(request: Request, call_next):
-    """Live terminal chaos-testing stream — a single scannable stdout line
-    per request, deliberately bypassing the logger formatting so it stands
-    out from system logs. Registered inside catch_unhandled_exceptions, so a
-    crash prints its banner+traceback here BEFORE re-raising to the global
-    handler, which then responds with the generic 500."""
-    start = time.perf_counter()
-    try:
-        response = await call_next(request)
-    except Exception:
-        duration_ms = round((time.perf_counter() - start) * 1000, 1)
-        print("[!!! QA CRASH INTERCEPTED !!!]")
-        traceback.print_exc()
-        print(f"[QA-MONKEY] {request.method} {request.url.path} -> Status: 500 ({duration_ms}ms)")
-        raise
-    duration_ms = round((time.perf_counter() - start) * 1000, 1)
-    print(f"[QA-MONKEY] {request.method} {request.url.path} -> Status: {response.status_code} ({duration_ms}ms)")
-    return response
+    """Pass-through. (Former stdout timing log disabled — WinError 233 broke responses.)"""
+    return await call_next(request)
 
 
 @app.middleware("http")
 async def catch_unhandled_exceptions(request: Request, call_next):
-    """Last-resort safety net — added after security_headers so it wraps
-    outermost and catches anything downstream (DB lockups, unhandled
-    runtime errors). Dumps the full traceback to the rotating log file
-    before returning a generic 500 instead of leaking it to the client."""
+    """Last-resort safety net — log and return generic 500."""
     try:
         return await call_next(request)
+    except OSError as exc:
+        # Broken stdout/stderr pipe when process has no console — not a real app failure.
+        if getattr(exc, "winerror", None) == 233 or getattr(exc, "errno", None) in (22, 32):
+            try:
+                logger.warning("Ignored broken-pipe OSError on %s %s", request.method, request.url.path)
+            except Exception:
+                pass
+            # Cannot recover a lost response; client will retry. Avoid fake 500 if possible.
+            return JSONResponse(status_code=200, content={"detail": "ok"}, media_type="application/json")
+        try:
+            logger.exception("Internal Server Error intercepted (OSError)")
+        except Exception:
+            pass
+        return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
     except Exception:
-        logger.exception("Internal Server Error intercepted")
+        try:
+            logger.exception("Internal Server Error intercepted")
+        except Exception:
+            pass
         return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
 
 
@@ -4238,14 +4245,36 @@ def get_team_stats(
 # recover Department (prefix) → Group (suffix) → Members. The Team/team_id FK is
 # NOT used here because the seed never populates it.
 
-# Whitelisted department prefixes, in display order. Matching is by prefix
-# (startswith), so "საინფორმაციო" matches "საინფორმაციო სამსახური — ჯგუფი 01".
-DEPARTMENT_WHITELIST = ["საინფორმაციო", "ტექნიკური"]
+# Whitelisted department prefixes, in display order (team-stats dashboard).
+# Magti call-center org: ტექნიკური | საინფორმაციო | ოფისი — always three cards.
+# Matching is by prefix (startswith), so "საინფორმაციო" also matches
+# "საინფორმაციო სამსახური — ჯგუფი 01" and short form "საინფო — …".
+DEPARTMENT_WHITELIST = ["ტექნიკური", "საინფორმაციო", "ოფისი"]
 
 # Fallback bucket for any user.department value that doesn't match a
 # whitelisted prefix, so unrecognized/legacy strings stay visible on the
 # dashboard instead of being silently dropped.
 OTHER_DEPARTMENT_LABEL = "სხვა / დაუკატეგორიზებელი"
+
+
+def _match_department_bucket(prefix: str):
+    """Map a department prefix (from _split_dept_group) to a whitelist bucket.
+
+    Returns one of DEPARTMENT_WHITELIST or None if unrecognized.
+    """
+    raw = (prefix or "").strip()
+    if not raw:
+        return None
+    if raw.startswith("საინფორმაციო") or raw.startswith("საინფო"):
+        return "საინფორმაციო"
+    if raw.startswith("ტექნიკური") or raw.startswith("ტექნიკურ"):
+        return "ტექნიკური"
+    if raw.startswith("ოფისი"):
+        return "ოფისი"
+    for wl in DEPARTMENT_WHITELIST:
+        if raw.startswith(wl):
+            return wl
+    return None
 
 # Roles excluded from required-reading target-audience calculations.
 # DB has: admin, content_admin, manager, operator.  Only operators are the
@@ -4353,17 +4382,14 @@ def build_department_stats(db: Session):
     for rec in records:
         user = rec["user"]
         prefix, group_label = _split_dept_group(user.department)
-        matched = None
-        for wl in DEPARTMENT_WHITELIST:
-            if wl == "საინფორმაციო" and (prefix.startswith("საინფორმაციო") or prefix.startswith("საინფო")):
-                matched = wl
-                break
-            elif prefix.startswith(wl):
-                matched = wl
-                break
+        matched = _match_department_bucket(prefix)
 
         if matched is None:
-            # Skip this user entirely if they are not in the whitelisted departments
+            # Skip users outside the three Magti service lines
+            continue
+
+        # Bare "ოფისი" (no ჯგუფი) — skip; managers already excluded by compute_compliance
+        if matched == "ოფისი" and "ჯგუფი" not in (user.department or ""):
             continue
 
         member = {
@@ -4536,6 +4562,8 @@ def get_group_users(
             models.User.department.like("ტექნიკური%"),
             models.User.department.like("ტექნიკურ%"),
         ]
+    elif department == "ოფისი":
+        dept_filters = [models.User.department.like("ოფისი%")]
     else:
         dept_filters = [models.User.department.like(f"{department}%")]
 
