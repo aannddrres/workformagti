@@ -360,7 +360,7 @@ class AuditLog(Base):
 # Action names that are security-sensitive (identity/access) regardless of
 # their item_type — these override the item_type-based default below.
 _AUDIT_SECURITY_ACTIONS = {
-    "LOGIN", "LOGIN_SSO", "PASSWORD_CHANGE", "PASSWORD_RESET",
+    "LOGIN", "LOGIN_SSO", "LOGIN_FAILED", "PASSWORD_CHANGE", "PASSWORD_RESET",
     "PASSWORD_RESET_REQUEST", "CREATE_USER", "UPDATE_PERMISSIONS",
 }
 # Actions that describe a user's own activity rather than a content/system

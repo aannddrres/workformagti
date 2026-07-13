@@ -64,6 +64,13 @@ services:
       dockerfile: Dockerfile
     container_name: magti-portal-app
     restart: unless-stopped
+    # Multi-worker mode logs to stdout only (RotatingFileHandler is not
+    # multi-process safe — see main.py's logging block); rotation happens here.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     ports:
       - "8000:8000"
     environment:

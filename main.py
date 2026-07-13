@@ -52,39 +52,59 @@ audit_trail.register_listeners()
 # directory uvicorn is launched from.
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ── Centralized rotating file logging (production-grade) ─────────────────
-os.makedirs("logs", exist_ok=True)
+# ── Centralized logging ───────────────────────────────────────────────────
+# Level comes from settings: production→INFO, development→DEBUG, LOG_LEVEL
+# env var overrides both (config.resolve_log_level).
 _LOG_FORMAT = '%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d - %(message)s'
-_rotating_handler = logging.handlers.RotatingFileHandler(
-    "logs/magti_portal.log", maxBytes=10 * 1024 * 1024, backupCount=5
-)
-_rotating_handler.setFormatter(logging.Formatter(_LOG_FORMAT))
+_log_level = getattr(logging, settings.LOG_LEVEL, logging.INFO)
 
-# Live Terminal Chaos Testing: console stream forced to DEBUG (root + "magti"
-# + sqlalchemy.engine) so every query/error prints to stdout in real time,
-# not just the rotating file.
 _console_handler = logging.StreamHandler()
-_console_handler.setLevel(logging.DEBUG)
+_console_handler.setLevel(_log_level)
 _console_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s"))
-logging.basicConfig(level=logging.DEBUG, format=_LOG_FORMAT, handlers=[_rotating_handler, _console_handler])
+_handlers: list[logging.Handler] = [_console_handler]
+
+# RotatingFileHandler is NOT multi-process safe: under gunicorn all 4 workers
+# would rotate logs/magti_portal.log out from under each other and clobber
+# writes. Multi-worker deployments therefore log to stdout only — Docker
+# captures it and docker-compose.yml's json-file driver handles rotation —
+# while the file handler remains a single-process/dev convenience.
+_is_multi_worker = (
+    any(k in os.environ for k in ("GUNICORN_CMD_ARGS", "WEB_CONCURRENCY", "UVICORN_WORKERS"))
+    or os.getenv("WORKERS", "1") not in ("", "1")
+)
+if not _is_multi_worker:
+    os.makedirs("logs", exist_ok=True)
+    _rotating_handler = logging.handlers.RotatingFileHandler(
+        "logs/magti_portal.log", maxBytes=10 * 1024 * 1024, backupCount=5
+    )
+    _rotating_handler.setLevel(_log_level)
+    _rotating_handler.setFormatter(logging.Formatter(_LOG_FORMAT))
+    _handlers.append(_rotating_handler)
+
+# Root stays at WARNING so third-party libraries can't flood the app's logs;
+# the app's own "magti" logger below gets the configured level.
+logging.basicConfig(level=logging.WARNING, format=_LOG_FORMAT, handlers=_handlers)
 
 # Module logger — replaces ad-hoc print() calls so operational messages get
-# levels/timestamps and route through the app's stdio (captured by gunicorn),
-# and now also through the rotating file handler above (propagate=False means
+# levels/timestamps and route through the app's stdio (captured by gunicorn/
+# Docker) and, in single-process dev, the rotating file (propagate=False means
 # root's handler list is otherwise unreachable from this logger).
 logger = logging.getLogger("magti")
 if not logger.handlers:
-    logger.addHandler(_console_handler)
-    logger.addHandler(_rotating_handler)
-    logger.setLevel(logging.DEBUG)
+    for _h in _handlers:
+        logger.addHandler(_h)
+    logger.setLevel(_log_level)
     logger.propagate = False
 
-# Pipe SQLAlchemy's query engine logger into the same live console stream so
-# every SQL read/write prints in real time during chaos testing.
-_sa_engine_logger = logging.getLogger("sqlalchemy.engine")
-_sa_engine_logger.addHandler(_console_handler)
-_sa_engine_logger.setLevel(logging.DEBUG)
-_sa_engine_logger.propagate = False
+# SQL echo — opt-in dev chaos-testing aid (LOG_SQL=true), never the default:
+# at DEBUG it logs every query from every worker and rotates real errors out
+# of the log file within hours under production traffic.
+if settings.LOG_SQL:
+    _sa_engine_logger = logging.getLogger("sqlalchemy.engine")
+    for _h in _handlers:
+        _sa_engine_logger.addHandler(_h)
+    _sa_engine_logger.setLevel(logging.DEBUG)
+    _sa_engine_logger.propagate = False
 
 # ── Async export job registry (Shape 2a infra) ────────────────────────────
 # Job status lives in the export_jobs table (models.ExportJob), not an
@@ -1040,6 +1060,21 @@ def login_for_access_token(
     try:
         user = security.authenticate_user(db, credentials.email, credentials.password)
         if not user:
+            client_ip = request.client.host if request.client else "unknown"
+            logger.warning("Failed login attempt for %s from %s", credentials.email, client_ip)
+            # Audit row only when the account exists (admin_id is a NOT NULL
+            # FK) — storing unknown attempted emails would both violate the
+            # constraint and hoard enumeration data.
+            existing = db.query(models.User).filter(
+                func.lower(models.User.email) == credentials.email.lower()
+            ).first()
+            if existing:
+                db.add(models.AuditLog(
+                    admin_id=existing.id, action="LOGIN_FAILED",
+                    item_type="user", item_id=existing.id,
+                    details=f"IP: {client_ip}",
+                ))
+                db.commit()
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="არასწორი ელ. ფოსტა ან მომხმარებელი არ არსებობს",

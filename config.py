@@ -25,6 +25,15 @@ def _csv_env(name: str, default: str) -> list[str]:
     return [item.strip() for item in raw.split(",") if item.strip()]
 
 
+def resolve_log_level(app_env: str, explicit: str | None) -> str:
+    """Explicit LOG_LEVEL wins; otherwise production is quiet (INFO) and
+    development verbose (DEBUG). Pure function so tests can pin the contract
+    without re-importing the module under a patched environment."""
+    if explicit and explicit.strip():
+        return explicit.strip().upper()
+    return "INFO" if app_env.lower() == "production" else "DEBUG"
+
+
 class Settings:
     # ── Environment ───────────────────────────────────────────────────
     # "production" disables developer-only conveniences (mock AD allowlist,
@@ -79,6 +88,14 @@ class Settings:
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
         "video/mp4": ".mp4",
     }
+
+    # ── Logging ───────────────────────────────────────────────────────
+    LOG_LEVEL: str = resolve_log_level(
+        os.getenv("APP_ENV", "development"), os.getenv("LOG_LEVEL")
+    )
+    # SQL echo is opt-in ONLY (dev chaos-testing aid): at DEBUG it logs every
+    # query from every worker and rotates real errors out of the log in hours.
+    LOG_SQL: bool = os.getenv("LOG_SQL", "false").lower() == "true"
 
     # ── Data retention ────────────────────────────────────────────────
     # Audit-log and article-view-log rows older than this are exported to a
