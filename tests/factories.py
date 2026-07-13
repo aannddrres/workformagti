@@ -91,6 +91,11 @@ def make_article(
         quiz_enabled=quiz_enabled,
         author_id=author.id,
         target_department=target_department,
+        # Mirror the create-article endpoint: visibility checks read the
+        # junction rows (article.target_departments), not the legacy column.
+        target_department_rows=[
+            models.ArticleTargetDepartment(department=target_department)
+        ],
     )
     db.add(art)
     db.commit()

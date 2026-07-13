@@ -1987,6 +1987,14 @@ def mark_read(
     db.add(audit_log)
     db.commit()
     db.refresh(stat)
+
+    # Receipt bridge: a mandatory-reading acknowledgment of an article is also
+    # a versioned read receipt — keeps "who read which version" complete without
+    # asking the operator to confirm twice. Runs after the commit above so the
+    # helper's rollback-on-retry can't discard the ReadStatus row.
+    if reading.item_type == "article" and reading_article:
+        _upsert_read_receipt(db, reading_article, current_user)
+
     return stat
 
 def auto_generate_notifications_for_mandatory(db_reading, current_admin_id, db):
@@ -3179,44 +3187,36 @@ def get_article_read_receipts(
     }
 
 
-@app.post("/api/articles/{article_id}/read-receipt")
-def create_article_read_receipt(
-    article_id: int,
-    current_user: models.User = Depends(security.get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Mark an article as read by the current user (upsert logic with local integrity retry)."""
+def _upsert_read_receipt(db: Session, db_article: models.Article, user: models.User) -> models.ArticleReadReceipt:
+    """Upsert the (article, current version, operator) read receipt — self-contained
+    commit cycle with an IntegrityError retry, so a concurrent duplicate insert
+    degrades to an update instead of a 500. Callers must commit their own work
+    BEFORE calling: the retry path rolls the session back.
+    """
     from sqlalchemy.exc import IntegrityError
-    
-    db_article = db.query(models.Article).filter(models.Article.id == article_id).first()
-    if not db_article:
-        raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
-
-    _assert_article_visible(db_article, current_user)
-    _check_quiz_gate(db, db_article, current_user)
 
     try:
         receipt = db.query(models.ArticleReadReceipt).filter(
-            models.ArticleReadReceipt.article_id == article_id,
+            models.ArticleReadReceipt.article_id == db_article.id,
             models.ArticleReadReceipt.article_version == db_article.version,
-            models.ArticleReadReceipt.operator_id == current_user.id
+            models.ArticleReadReceipt.operator_id == user.id
         ).first()
-        
+
         if receipt:
             receipt.read_at = get_tbilisi_time()
             receipt.article_title_snapshot = db_article.title
-            receipt.operator_name_snapshot = current_user.name
-            receipt.operator_email_snapshot = current_user.email
-            receipt.operator_department_snapshot = current_user.department
+            receipt.operator_name_snapshot = user.name
+            receipt.operator_email_snapshot = user.email
+            receipt.operator_department_snapshot = user.department
         else:
             receipt = models.ArticleReadReceipt(
                 article_id=db_article.id,
                 article_title_snapshot=db_article.title,
                 article_version=db_article.version,
-                operator_id=current_user.id,
-                operator_name_snapshot=current_user.name,
-                operator_email_snapshot=current_user.email,
-                operator_department_snapshot=current_user.department,
+                operator_id=user.id,
+                operator_name_snapshot=user.name,
+                operator_email_snapshot=user.email,
+                operator_department_snapshot=user.department,
                 read_at=get_tbilisi_time()
             )
             db.add(receipt)
@@ -3226,21 +3226,72 @@ def create_article_read_receipt(
         db.rollback()
         # Retry with select-and-update to avoid race conditions
         receipt = db.query(models.ArticleReadReceipt).filter(
-            models.ArticleReadReceipt.article_id == article_id,
+            models.ArticleReadReceipt.article_id == db_article.id,
             models.ArticleReadReceipt.article_version == db_article.version,
-            models.ArticleReadReceipt.operator_id == current_user.id
+            models.ArticleReadReceipt.operator_id == user.id
         ).first()
         if receipt:
             receipt.read_at = get_tbilisi_time()
             receipt.article_title_snapshot = db_article.title
-            receipt.operator_name_snapshot = current_user.name
-            receipt.operator_email_snapshot = current_user.email
-            receipt.operator_department_snapshot = current_user.department
+            receipt.operator_name_snapshot = user.name
+            receipt.operator_email_snapshot = user.email
+            receipt.operator_department_snapshot = user.department
             db.commit()
             db.refresh(receipt)
         else:
             raise
-            
+    return receipt
+
+
+@app.post("/api/articles/{article_id}/read-receipt")
+def create_article_read_receipt(
+    article_id: int,
+    current_user: models.User = Depends(security.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Mark an article as read by the current user (upsert with integrity retry).
+
+    Bridge to compliance: when this article is also a RequiredReading covering
+    the user's department, the acknowledgment counts there too — the operator
+    should never have to confirm the same article twice in two systems.
+    """
+    db_article = db.query(models.Article).filter(models.Article.id == article_id).first()
+    if not db_article:
+        raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
+
+    _assert_article_visible(db_article, current_user)
+    _check_quiz_gate(db, db_article, current_user)
+
+    receipt = _upsert_read_receipt(db, db_article, current_user)
+
+    # Compliance bridge: only fills gaps — an already-"read" ReadStatus keeps
+    # its original read_at (first acknowledgment is what compliance measures).
+    _dept_prefix = _split_dept_group(current_user.department)[0]
+    covering = db.query(models.RequiredReading).filter(
+        models.RequiredReading.item_type == "article",
+        models.RequiredReading.item_id == article_id,
+        models.RequiredReading.target_department.in_(
+            [current_user.department, _dept_prefix, "All"]
+        ),
+    ).all()
+    bridged = False
+    for rr in covering:
+        stat = db.query(models.ReadStatus).filter(
+            models.ReadStatus.user_id == current_user.id,
+            models.ReadStatus.required_reading_id == rr.id,
+        ).first()
+        if stat and stat.status == "read":
+            continue
+        if not stat:
+            stat = models.ReadStatus(user_id=current_user.id, required_reading_id=rr.id)
+            db.add(stat)
+        stat.status = "read"
+        stat.read_at = get_tbilisi_time()
+        stat.operator_department_snapshot = current_user.department
+        bridged = True
+    if bridged:
+        db.commit()
+
     return {
         "status": "success",
         "read_at": receipt.read_at,
