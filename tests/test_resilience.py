@@ -14,6 +14,7 @@ security.PERM_NEWS_CREATE = "news.create"
 from main import app as monolith_app
 import models
 from datetime import timedelta
+from config import settings
 from database import get_db, engine, get_tbilisi_time
 
 models.Base.metadata.create_all(bind=engine)
@@ -461,16 +462,14 @@ def test_auto_audit_skips_unattributable_writes(db_session):
 
 
 def test_log_rotation_and_archiving(db_session):
-    """Verifies that rotate_audit_logs correctly exports logs older than 180 days
-    to archives/ and purges them from the database.
+    """Verifies retention.rotate_audit_logs exports logs older than the
+    configured window (settings.AUDIT_RETENTION_DAYS) to archives/ and purges
+    them from the database, leaving fresh rows alone.
     """
-    from datetime import timedelta
-    from main import rotate_audit_logs
-    from models import get_tbilisi_time
+    from retention import rotate_audit_logs
     import os
 
-    # Insert a stale log (181 days old) and a fresh log
-    stale_time = get_tbilisi_time() - timedelta(days=181)
+    stale_time = get_tbilisi_time() - timedelta(days=settings.AUDIT_RETENTION_DAYS + 1)
     stale_log = models.AuditLog(
         admin_id=1,
         action="TEST_STALE",
@@ -488,28 +487,71 @@ def test_log_rotation_and_archiving(db_session):
     db_session.add_all([stale_log, fresh_log])
     db_session.commit()
 
-    # Run log rotation
     rotate_audit_logs(db_session)
 
-    # Verify stale log was purged
     purged = db_session.query(models.AuditLog).filter(models.AuditLog.action == "TEST_STALE").first()
     assert purged is None
 
-    # Verify fresh log is still in database
     active = db_session.query(models.AuditLog).filter(models.AuditLog.action == "TEST_FRESH").first()
     assert active is not None
 
-    # Verify archive file was created in archives/
     assert os.path.exists("archives")
-    archives = os.listdir("archives")
+    archives = [f for f in os.listdir("archives") if f.startswith("audit_log_archive_")]
     assert len(archives) > 0
 
     # Cleanup fresh log and archive files
     db_session.delete(active)
     db_session.commit()
-    for f in os.listdir("archives"):
+    for f in archives:
         os.remove(os.path.join("archives", f))
-    os.rmdir("archives")
+    if not os.listdir("archives"):
+        os.rmdir("archives")
+
+
+def test_view_log_rotation_and_archiving(db_session):
+    """Same archive-then-purge contract for article_view_logs (retention.py)."""
+    from retention import rotate_view_logs
+    import os
+
+    stale_view = models.ArticleViewLog(
+        article_id=None,
+        article_title_snapshot="Retention Stale View",
+        article_version=1,
+        operator_id=None,
+        operator_name_snapshot="retention-test",
+        operator_email_snapshot="retention-test@magti.ge",
+        viewed_at=get_tbilisi_time() - timedelta(days=settings.AUDIT_RETENTION_DAYS + 1),
+    )
+    fresh_view = models.ArticleViewLog(
+        article_id=None,
+        article_title_snapshot="Retention Fresh View",
+        article_version=1,
+        operator_id=None,
+        operator_name_snapshot="retention-test",
+        operator_email_snapshot="retention-test@magti.ge",
+        viewed_at=get_tbilisi_time(),
+    )
+    db_session.add_all([stale_view, fresh_view])
+    db_session.commit()
+
+    rotate_view_logs(db_session)
+
+    remaining = db_session.query(models.ArticleViewLog).filter(
+        models.ArticleViewLog.operator_email_snapshot == "retention-test@magti.ge"
+    ).all()
+    assert [v.article_title_snapshot for v in remaining] == ["Retention Fresh View"]
+
+    assert os.path.exists("archives")
+    archives = [f for f in os.listdir("archives") if f.startswith("view_log_archive_")]
+    assert len(archives) > 0
+
+    for v in remaining:
+        db_session.delete(v)
+    db_session.commit()
+    for f in archives:
+        os.remove(os.path.join("archives", f))
+    if not os.listdir("archives"):
+        os.rmdir("archives")
 
 
 def test_article_history_comparison_diff(client, db_session):

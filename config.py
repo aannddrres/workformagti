@@ -80,6 +80,12 @@ class Settings:
         "video/mp4": ".mp4",
     }
 
+    # ── Data retention ────────────────────────────────────────────────
+    # Audit-log and article-view-log rows older than this are exported to a
+    # JSON archive under archives/ and purged from the DB (see retention.py,
+    # run daily by the backup container).
+    AUDIT_RETENTION_DAYS: int = int(os.getenv("AUDIT_RETENTION_DAYS", "180"))
+
     @property
     def is_sqlite(self) -> bool:
         return self.DATABASE_URL.startswith("sqlite")

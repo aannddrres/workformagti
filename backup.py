@@ -59,3 +59,8 @@ def create_backup():
 
 if __name__ == "__main__":
     create_backup()
+    # Data-lifecycle companion: archive-then-purge audit/view rows older than
+    # the retention window (see retention.py). Runs after the backup so the
+    # freshly-purged rows are always still present in today's backup ZIP.
+    from retention import run_retention
+    run_retention()

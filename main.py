@@ -5927,42 +5927,6 @@ def nudge_user(
     return {"status": "success", "message": f"Nudge sent to {user.name}"}
 
 
-def rotate_audit_logs(db: Session):
-    """rotate_audit_logs exports logs older than 180 days to archives/ and purges them from the database."""
-    from datetime import timedelta
-    import os
-    import json
-
-    cutoff = get_tbilisi_time() - timedelta(days=180)
-    stale_logs = db.query(models.AuditLog).filter(models.AuditLog.timestamp < cutoff).all()
-
-    if stale_logs:
-        # Ensure archives directory exists
-        os.makedirs("archives", exist_ok=True)
-        archive_path = f"archives/audit_log_archive_{get_tbilisi_time().strftime('%Y%m%d_%H%M%S')}.json"
-        
-        # Write to JSON archive
-        log_data = []
-        for log in stale_logs:
-            log_data.append({
-                "id": log.id,
-                "admin_id": log.admin_id,
-                "action": log.action,
-                "item_type": log.item_type,
-                "item_id": log.item_id,
-                "timestamp": log.timestamp.isoformat() if log.timestamp else None,
-                "category": log.category,
-                "details": log.details,
-            })
-            # Delete from DB
-            db.delete(log)
-            
-        with open(archive_path, "w", encoding="utf-8") as f:
-            json.dump(log_data, f, ensure_ascii=False, indent=2)
-            
-        db.commit()
-
-
 @app.get("/api/health")
 def health_check(db: Session = Depends(get_db)):
     """System health monitoring endpoint for automated checks."""

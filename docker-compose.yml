@@ -33,6 +33,9 @@ services:
     volumes:
       - app_uploads:/app/uploads
       - ./backups:/app/backups
+      # retention.py (run by backup.py) writes archive-then-purge JSON here —
+      # bind mount like backups/ so purged audit/view rows survive the container.
+      - ./archives:/app/archives
     depends_on:
       db:
         condition: service_healthy
