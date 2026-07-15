@@ -12,6 +12,10 @@
 /* Defensive net: any future fixed/wide element nested somewhere that
    creates a containing block (transform/filter ancestor) should never be
    able to widen the page's own scrollable region again. */
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
 html, body {
   overflow-x: hidden;
 }
@@ -438,22 +442,6 @@ body.dark-mode {
 
       .no-print {
         display: none !important;
-      }
-    }
-
-    .page-section {
-      animation: fadeInPage 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-
-    @keyframes fadeInPage {
-      from {
-        opacity: 0;
-        transform: translateY(8px);
-      }
-
-      to {
-        opacity: 1;
-        transform: translateY(0);
       }
     }
 
@@ -1293,4 +1281,89 @@ body.dark-mode {
       border-radius: 8px;
       box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
       cursor: default;
+    }
+
+    /* =========================================================================
+       PREMIUM DESIGN SYSTEM ADDITIONS (2026-07-13)
+       World-class B2B aesthetics (Linear/Stripe inspired) applied globally.
+       ========================================================================= */
+
+    /* ── 1. Glassmorphic Slide-over Drawers ── */
+    #admin-news-panel,
+    #admin-video-panel,
+    #admin-panel {
+      background-color: rgba(255, 255, 255, 0.8) !important;
+      backdrop-filter: blur(16px) !important;
+      -webkit-backdrop-filter: blur(16px) !important;
+      border-left: 1px solid rgba(229, 231, 235, 0.5) !important;
+      box-shadow: -10px 0 30px rgba(0, 0, 0, 0.03) !important;
+    }
+
+    body.dark-mode #admin-news-panel,
+    body.dark-mode #admin-video-panel,
+    body.dark-mode #admin-panel {
+      background-color: rgba(24, 24, 27, 0.8) !important;
+      border-left: 1px solid rgba(63, 63, 70, 0.5) !important;
+      box-shadow: -10px 0 40px rgba(0, 0, 0, 0.4) !important;
+    }
+
+    /* ── 2. Snappy micro-scale feedback ──
+       Lists every property it owns instead of resetting via the `transition`
+       shorthand, so it can't clobber per-button transition-colors/duration-*
+       classes the way an !important shorthand would. Scoped to real <button>
+       elements only — .sidebar-link/.admin-btn/card active-scale values are
+       untouched (own component styling, different scale deltas by design). */
+    button {
+      transition: transform 90ms cubic-bezier(0.4, 0, 0.2, 1),
+                  background-color 150ms ease,
+                  color 150ms ease,
+                  border-color 150ms ease,
+                  box-shadow 150ms ease !important;
+    }
+
+    button:active {
+      transform: scale(0.96) !important;
+    }
+
+    /* ── 3. High-End Double Shadows & Card Outlines ── */
+    .card-premium,
+    .rounded-xl.border {
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 3px 12px rgba(0, 0, 0, 0.02) !important;
+      border-color: rgba(229, 231, 235, 0.7) !important;
+    }
+
+    body.dark-mode .card-premium,
+    body.dark-mode .rounded-xl.border {
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+      border-color: rgba(63, 63, 70, 0.4) !important;
+    }
+
+    /* ── 4. Smooth Page-Swap Transition Animation ── */
+    @keyframes fadeInSlideUp {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .page-section:not(.hidden),
+    .admin-panel:not(.hidden) {
+      animation: fadeInSlideUp 200ms cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
+    }
+
+    /* ── 5. Global App Loader Progress Bar Animation ── */
+    @keyframes loadingBar {
+      0% {
+        transform: translateX(-100%) scaleX(0.2);
+      }
+      50% {
+        transform: translateX(0) scaleX(0.5);
+      }
+      100% {
+        transform: translateX(100%) scaleX(0.2);
+      }
     }
