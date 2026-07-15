@@ -1,3 +1,32 @@
+/**
+ * Global App Cache Store (SWR Caching Strategy)
+ */
+const CacheStore = {
+  _cache: {},
+  get(key) {
+    const item = this._cache[key];
+    if (!item) return null;
+    return item;
+  },
+  set(key, data) {
+    this._cache[key] = data;
+  },
+  clear(key) {
+    if (key) delete this._cache[key];
+    else this._cache = {};
+  }
+};
+window.CacheStore = CacheStore;
+
+// Monkeypatch window.fetch to automatically invalidate cache on mutations
+const originalFetch = window.fetch;
+window.fetch = async function(resource, init) {
+  if (init && init.method && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(init.method.toUpperCase())) {
+    CacheStore.clear();
+  }
+  return originalFetch.apply(window, arguments);
+};
+
 async function fetchCurrentUser(token) {
         const response = await fetch('/api/users/me', {
           headers: {
@@ -771,24 +800,28 @@ document.addEventListener('change', (e) => {
 // global isn't defined yet at this point in the file.
 document.addEventListener('DOMContentLoaded', () => {
   if (document.getElementById('log-date-range')) {
-    flatpickr("#log-date-range", { mode: "range", dateFormat: "Y-m-d" });
+    flatpickr("#log-date-range", {
+      mode: "range", dateFormat: "Y-m-d",
+      // Reload the grid once a full range is picked. AuditDashboard's own
+      // date-preset buttons reuse this same instance (setDate(..., true)
+      // fires this too), so this is the single place a date change triggers
+      // a fetch -- not duplicated per call site.
+      onChange: (selectedDates) => {
+        if (selectedDates.length === 2 && window.AuditDashboard) AuditDashboard.reload();
+      }
+    });
   }
 
   const exportBtn = document.getElementById('btn-export-audit-csv');
   if (exportBtn) {
     exportBtn.addEventListener('click', () => {
-      const params = new URLSearchParams();
-      const userName = document.getElementById('log-search-user').value;
-      if (userName) params.append('user_name', userName);
-
-      const fp = document.querySelector("#log-date-range")._flatpickr;
-      if (fp && fp.selectedDates.length === 2) {
-        params.append('start_date', fp.formatDate(fp.selectedDates[0], "Y-m-d"));
-        params.append('end_date', fp.formatDate(fp.selectedDates[1], "Y-m-d"));
-      }
-
-      const exportUrl = '/api/audit-logs/export?' + params.toString();
-      window.location.href = exportUrl;
+      // Forwards exactly what the grid is currently showing (category,
+      // actor, action, free-text q, date range) instead of re-reading DOM
+      // elements that no longer exist in the tokenized-search shape.
+      const params = window.AuditDashboard ? AuditDashboard.currentParams() : new URLSearchParams();
+      params.delete('limit');
+      params.delete('offset');
+      window.location.href = '/api/audit-logs/export?' + params.toString();
     });
   }
 });
@@ -1396,7 +1429,13 @@ async function fetchAndRenderNewsPage(token, loadMore = false) {
         if (!loadMore) {
            window.newsCurrentSkip = 0;
            window.allNewsItems = [];
-           container.innerHTML = '<p class="text-gray-400 py-8 text-center col-span-full">იტვირთება...</p>';
+           container.innerHTML = `
+             <div class="animate-pulse col-span-full space-y-4 py-8">
+               <div class="h-24 bg-gray-200/60 dark:bg-zinc-800/60 rounded-2xl w-full"></div>
+               <div class="h-24 bg-gray-200/60 dark:bg-zinc-800/60 rounded-2xl w-full"></div>
+               <div class="h-24 bg-gray-200/60 dark:bg-zinc-800/60 rounded-2xl w-full"></div>
+             </div>
+           `;
         } else {
            window.newsCurrentSkip = (window.newsCurrentSkip || 0) + limit;
            const btn = document.getElementById('news-load-more-btn');
@@ -1606,7 +1645,7 @@ async function fetchAndRenderSearchHistory(token) {
                 <td class="px-6 py-4 font-medium text-gray-800">${escTerm}</td>
                 <td class="px-6 py-4 text-xs text-gray-500">${date}</td>
                 <td class="px-6 py-4 text-right">
-                  <button onclick="searchHistoryItemClick('${escTerm.replace(/'/g, "\\'")}')" 
+                  <button onclick="searchHistoryItemClick('${escTerm.replace(/'/g, "\\'")}')"
                           class="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-600 transition-colors hover:bg-[#E30613] hover:text-white"
                           role="button" tabindex="0">
                     ძებნა
@@ -1672,30 +1711,79 @@ async function fetchKPIs(token) {
         }
       }
 
+function renderUsersAdminTable(users, tbody) {
+  const roleLabels = { admin: 'ადმინისტრატორი', content_admin: 'კონტენტ ადმინი', manager: 'მენეჯერი', operator: 'ოპერატორი' };
+  tbody.innerHTML = '';
+  users.forEach(user => {
+    const isSelf = window.currentUser && user.id === window.currentUser.id;
+    const statusBtn = isSelf
+      ? '<span class="text-xs text-gray-400">თქვენ</span>'
+      : user.is_active
+        ? `<button onclick="toggleUserStatus(${user.id}, false)" class="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700 transition-colors hover:bg-red-100 hover:text-[#E30613]">აქტიური</button>`
+        : `<button onclick="toggleUserStatus(${user.id}, true)" class="rounded-full bg-gray-200 px-3 py-1 text-xs font-bold text-gray-500 transition-colors hover:bg-green-100 hover:text-green-700">გათიშული</button>`;
+
+    const editBtn = isSelf ? '' : `<button onclick="openUserEditModal(${user.id})" class="ml-3 text-gray-400 hover:text-blue-500 transition-colors" aria-label="რედაქტირება"><i class="fa-solid fa-pen-to-square"></i></button>`;
+
+    let progressHtml = '<span class="text-gray-400">—</span>';
+    if (user.role === 'operator') {
+      const readCount = user.read_count || 0;
+      const reqCount = user.required_count || 0;
+      const pct = user.progress_percentage !== undefined ? user.progress_percentage : (reqCount > 0 ? Math.round((readCount / reqCount) * 100) : 0);
+      progressHtml = `
+        <div class="flex items-center gap-2" title="${readCount}/${reqCount} წაკითხული">
+          <div class="w-16 bg-gray-200 rounded-full h-1.5 overflow-hidden">
+            <div class="bg-emerald-500 h-1.5 rounded-full" style="width: ${pct}%"></div>
+          </div>
+          <span class="text-xs font-bold text-gray-600">${pct}%</span>
+        </div>
+      `;
+    }
+
+    tbody.insertAdjacentHTML('beforeend', `
+      <tr class="transition-colors hover:bg-gray-50 ${user.is_active ? '' : 'opacity-60'}">
+        <td class="px-5 py-3 font-medium text-gray-800">${escapeHtml(user.name)}</td>
+        <td class="px-5 py-3 text-gray-500">${escapeHtml(user.email)}</td>
+        <td class="px-5 py-3 text-gray-500">${escapeHtml(user.department || '—')}</td>
+        <td class="px-5 py-3 text-gray-500">${progressHtml}</td>
+        <td class="px-5 py-3"><span class="rounded bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-600">${escapeHtml(roleLabels[user.role] || user.role)}</span></td>
+        <td class="px-5 py-3 text-center">
+          <div class="flex items-center justify-center">
+            ${statusBtn}
+            ${editBtn}
+          </div>
+        </td>
+      </tr>`);
+  });
+}
 
 async function fetchAndRenderUsers(token, managerId = null) {
         const tbody = document.getElementById('admin-users-tbody');
         if (!tbody) return;
 
-        tbody.innerHTML = `
-          <tr class="animate-pulse">
-            <td class="px-5 py-3"><div class="h-4 bg-gray-200 rounded w-1/3"></div></td>
-            <td class="px-5 py-3"><div class="h-4 bg-gray-200 rounded w-1/2"></div></td>
-            <td class="px-5 py-3"><div class="h-4 bg-gray-200 rounded w-1/4"></div></td>
-            <td class="px-5 py-3"><div class="h-4 bg-gray-200 rounded w-16"></div></td>
-            <td class="px-5 py-3 text-center"><div class="h-6 bg-gray-200 rounded w-16 mx-auto"></div></td>
-          </tr>
-          <tr class="animate-pulse">
-            <td class="px-5 py-3"><div class="h-4 bg-gray-200 rounded w-1/4"></div></td>
-            <td class="px-5 py-3"><div class="h-4 bg-gray-200 rounded w-1/3"></div></td>
-            <td class="px-5 py-3"><div class="h-4 bg-gray-200 rounded w-1/4"></div></td>
-            <td class="px-5 py-3"><div class="h-4 bg-gray-200 rounded w-16"></div></td>
-            <td class="px-5 py-3 text-center"><div class="h-6 bg-gray-200 rounded w-16 mx-auto"></div></td>
-          </tr>
-        `;
+        const cacheKey = `users_${managerId || 'all'}`;
+        const cached = CacheStore.get(cacheKey);
+        if (cached) {
+          renderUsersAdminTable(cached, tbody);
+        } else {
+          tbody.innerHTML = `
+            <tr class="animate-pulse">
+              <td class="px-5 py-3"><div class="h-4 bg-gray-200 rounded w-1/3"></div></td>
+              <td class="px-5 py-3"><div class="h-4 bg-gray-200 rounded w-1/2"></div></td>
+              <td class="px-5 py-3"><div class="h-4 bg-gray-200 rounded w-1/4"></div></td>
+              <td class="px-5 py-3"><div class="h-4 bg-gray-200 rounded w-16"></div></td>
+              <td class="px-5 py-3 text-center"><div class="h-6 bg-gray-200 rounded w-16 mx-auto"></div></td>
+            </tr>
+            <tr class="animate-pulse">
+              <td class="px-5 py-3"><div class="h-4 bg-gray-200 rounded w-1/4"></div></td>
+              <td class="px-5 py-3"><div class="h-4 bg-gray-200 rounded w-1/3"></div></td>
+              <td class="px-5 py-3"><div class="h-4 bg-gray-200 rounded w-1/4"></div></td>
+              <td class="px-5 py-3"><div class="h-4 bg-gray-200 rounded w-16"></div></td>
+              <td class="px-5 py-3 text-center"><div class="h-6 bg-gray-200 rounded w-16 mx-auto"></div></td>
+            </tr>
+          `;
+        }
 
         try {
-          // Block 5: optional group/team-lead filter (manager_id).
           const url = managerId ? `/api/users?manager_id=${encodeURIComponent(managerId)}` : '/api/users';
           const response = await fetch(url, {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -1704,52 +1792,13 @@ async function fetchAndRenderUsers(token, managerId = null) {
           const users = await response.json();
 
           window.adminUsersData = users; // Cache for edit modal
-
-          const roleLabels = { admin: 'ადმინისტრატორი', content_admin: 'კონტენტ ადმინი', manager: 'მენეჯერი', operator: 'ოპერატორი' };
-          tbody.innerHTML = '';
-          users.forEach(user => {
-            const isSelf = window.currentUser && user.id === window.currentUser.id;
-            const statusBtn = isSelf
-              ? '<span class="text-xs text-gray-400">თქვენ</span>'
-              : user.is_active
-                ? `<button onclick="toggleUserStatus(${user.id}, false)" class="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700 transition-colors hover:bg-red-100 hover:text-[#E30613]">აქტიური</button>`
-                : `<button onclick="toggleUserStatus(${user.id}, true)" class="rounded-full bg-gray-200 px-3 py-1 text-xs font-bold text-gray-500 transition-colors hover:bg-green-100 hover:text-green-700">გათიშული</button>`;
-
-            const editBtn = isSelf ? '' : `<button onclick="openUserEditModal(${user.id})" class="ml-3 text-gray-400 hover:text-blue-500 transition-colors" aria-label="რედაქტირება"><i class="fa-solid fa-pen-to-square"></i></button>`;
-
-            let progressHtml = '<span class="text-gray-400">—</span>';
-            if (user.role === 'operator') {
-              const readCount = user.read_count || 0;
-              const reqCount = user.required_count || 0;
-              const pct = user.progress_percentage !== undefined ? user.progress_percentage : (reqCount > 0 ? Math.round((readCount / reqCount) * 100) : 0);
-              progressHtml = `
-                <div class="flex items-center gap-2" title="${readCount}/${reqCount} წაკითხული">
-                  <div class="w-16 bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                    <div class="bg-emerald-500 h-1.5 rounded-full" style="width: ${pct}%"></div>
-                  </div>
-                  <span class="text-xs font-bold text-gray-600">${pct}%</span>
-                </div>
-              `;
-            }
-
-            tbody.insertAdjacentHTML('beforeend', `
-              <tr class="transition-colors hover:bg-gray-50 ${user.is_active ? '' : 'opacity-60'}">
-                <td class="px-5 py-3 font-medium text-gray-800">${escapeHtml(user.name)}</td>
-                <td class="px-5 py-3 text-gray-500">${escapeHtml(user.email)}</td>
-                <td class="px-5 py-3 text-gray-500">${escapeHtml(user.department || '—')}</td>
-                <td class="px-5 py-3 text-gray-500">${progressHtml}</td>
-                <td class="px-5 py-3"><span class="rounded bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-600">${escapeHtml(roleLabels[user.role] || user.role)}</span></td>
-                <td class="px-5 py-3 text-center">
-                  <div class="flex items-center justify-center">
-                    ${statusBtn}
-                    ${editBtn}
-                  </div>
-                </td>
-              </tr>`);
-          });
+          CacheStore.set(cacheKey, users);
+          renderUsersAdminTable(users, tbody);
         } catch (error) {
           console.error(error);
-          tbody.innerHTML = '<tr><td colspan="5" class="px-5 py-3 text-center text-red-500">მონაცემების ჩატვირთვა ვერ მოხერხდა.</td></tr>';
+          if (!cached) {
+            tbody.innerHTML = '<tr><td colspan="5" class="px-5 py-3 text-center text-red-500">მონაცემების ჩატვირთვა ვერ მოხერხდა.</td></tr>';
+          }
         }
       }
 
@@ -1935,42 +1984,6 @@ async function bulkReassignRole() {
         }
       }
 
-async function fetchAndRenderAuditLogs(token) {
-        const tbody = document.getElementById('admin-audit-tbody');
-        if (!tbody) return;
-        try {
-          const response = await fetch('/api/audit-logs', {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (!response.ok) throw new Error('Failed to fetch audit logs');
-          const logs = await response.json();
-
-          tbody.innerHTML = '';
-          if (logs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="px-5 py-3 text-center text-gray-500">ლოგები არ მოიძებნა</td></tr>';
-            return;
-          }
-
-          logs.forEach(log => {
-            const date = new Date(log.timestamp).toLocaleString('ka-GE');
-            const tr = `
-              <tr class="transition-colors hover:bg-gray-50">
-                <td class="px-5 py-3 text-gray-500">#${log.id}</td>
-                <td class="px-5 py-3 font-medium text-gray-800">${log.admin_id}</td>
-                <td class="px-5 py-3"><span class="rounded bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-600">${escapeHtml(log.action)}</span></td>
-                <td class="px-5 py-3 text-gray-500">${escapeHtml(log.item_type)}</td>
-                <td class="px-5 py-3 text-gray-500">#${log.item_id}</td>
-                <td class="px-5 py-3 text-gray-500">${date}</td>
-              </tr>
-            `;
-            tbody.insertAdjacentHTML('beforeend', tr);
-          });
-        } catch (error) {
-          console.error(error);
-          tbody.innerHTML = '<tr><td colspan="6" class="px-5 py-3 text-center text-red-500">მონაცემების ჩატვირთვა ვერ მოხერხდა.</td></tr>';
-        }
-      }
-
 async function fetchAndRenderCategories(token) {
         try {
           const response = await fetch('/api/categories', {
@@ -2015,104 +2028,121 @@ function toggleAdminCategoryExpand(parentId) {
   if (chev) chev.classList.toggle('rotate-90');
 }
 
+function renderCategoriesAdminTable(cats, tbody) {
+  // Build name map for parent display
+  const byId = Object.fromEntries(cats.map(c => [c.id, c]));
+  // Refresh the parent dropdown in the create form
+  const parentSel = document.getElementById('cat-parent');
+  if (parentSel) {
+    parentSel.innerHTML = '<option value="">— ძირითადი კატეგორია —</option>' +
+      cats.filter(c => !c.parent_id).map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  }
+  if (cats.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="px-5 py-6 text-center text-gray-400">კატეგორიები არ არის</td></tr>';
+    return;
+  }
+  const tops = cats.filter(c => !c.parent_id);
+  const subsByParent = {};
+  cats.filter(c => c.parent_id).forEach(c => {
+    (subsByParent[c.parent_id] = subsByParent[c.parent_id] || []).push(c);
+  });
+
+  const escSingleQuote = (s) => escapeHtml(s).replace(/'/g, "&#39;");
+
+  const html = tops.map(parent => {
+    const kids = subsByParent[parent.id] || [];
+    const isOpen = window._adminCategoryExpanded.has(parent.id);
+    const chevClass = isOpen ? 'fa-solid fa-chevron-right rotate-90 transition-transform' : 'fa-solid fa-chevron-right transition-transform';
+    const childCountBadge = kids.length
+      ? `<span class="ml-2 inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-600">${kids.length} ქვე-კატ.</span>`
+      : '';
+
+    const parentRow = `
+      <tr class="hover:bg-gray-50">
+        <td class="px-5 py-3">
+          <button onclick="toggleAdminCategoryExpand(${parent.id})"
+                  class="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 ${kids.length ? '' : 'opacity-30 cursor-default'}"
+                  ${kids.length ? '' : 'disabled'}
+                  aria-label="ქვე-კატეგორიების ნახვა">
+            <i id="cat-chev-${parent.id}" class="${chevClass} text-[11px]"></i>
+          </button>
+          <span class="font-semibold text-gray-800">${escapeHtml(parent.name)}</span>
+          ${childCountBadge}
+        </td>
+        <td class="px-5 py-3 text-gray-500">#${parent.id}</td>
+        <td class="px-5 py-3 text-gray-400">—</td>
+        <td class="px-5 py-3 text-center">
+          <button onclick="editCategory(${parent.id}, '${escSingleQuote(parent.name)}', null, '${escSingleQuote(parent.slug || '')}', '${escSingleQuote(parent.icon || '')}')"
+            class="rounded-lg border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50">რედაქტ.</button>
+          <button onclick="deleteCategory(${parent.id})"
+            class="ml-1 rounded-lg border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50">წაშლა</button>
+        </td>
+      </tr>`;
+
+    const childRows = kids.map(sub => `
+      <tr class="bg-gray-50/40 hover:bg-gray-50 ${isOpen ? '' : 'hidden'}" data-parent-of="${parent.id}">
+        <td class="px-5 py-2 pl-12">
+          <span class="mr-2 text-gray-300">└─</span>
+          <span class="text-gray-800">${escapeHtml(sub.name)}</span>
+          <span class="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">ქვე-კატეგორია</span>
+        </td>
+        <td class="px-5 py-2 text-gray-500">#${sub.id}</td>
+        <td class="px-5 py-2 text-gray-500">${escapeHtml(parent.name)}</td>
+        <td class="px-5 py-2 text-center">
+          <button onclick="editCategory(${sub.id}, '${escSingleQuote(sub.name)}', ${parent.id}, '${escSingleQuote(sub.slug || '')}', '${escSingleQuote(sub.icon || '')}')"
+            class="rounded-lg border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50">რედაქტ.</button>
+          <button onclick="deleteCategory(${sub.id})"
+            class="ml-1 rounded-lg border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50">წაშლა</button>
+        </td>
+      </tr>`).join('');
+
+    return parentRow + childRows;
+  }).join('');
+
+  const orphans = cats.filter(c => c.parent_id && !byId[c.parent_id]);
+  const orphanHtml = orphans.map(o => `
+    <tr class="hover:bg-gray-50">
+      <td class="px-5 py-3"><span class="mr-2 text-amber-500">⚠</span><span class="font-medium text-gray-800">${escapeHtml(o.name)}</span><span class="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">ობოლი</span></td>
+      <td class="px-5 py-3 text-gray-500">#${o.id}</td>
+      <td class="px-5 py-3 text-gray-500">#${o.parent_id} (აღარ არსებობს)</td>
+      <td class="px-5 py-3 text-center">
+        <button onclick="editCategory(${o.id}, '${escSingleQuote(o.name)}', ${o.parent_id}, '${escSingleQuote(o.slug || '')}', '${escSingleQuote(o.icon || '')}')" class="rounded-lg border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50">რედაქტ.</button>
+        <button onclick="deleteCategory(${o.id})" class="ml-1 rounded-lg border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50">წაშლა</button>
+      </td>
+    </tr>`).join('');
+
+  tbody.innerHTML = html + orphanHtml;
+}
+
 async function fetchAndRenderCategoriesAdmin(token) {
         const tbody = document.getElementById('admin-categories-tbody');
         if (!tbody) return;
-        tbody.innerHTML = '<tr><td colspan="4" class="px-5 py-4 text-center text-gray-400">იტვირთება...</td></tr>';
+
+        const cached = CacheStore.get('categories_admin');
+        if (cached) {
+          renderCategoriesAdminTable(cached, tbody);
+        } else {
+          tbody.innerHTML = `
+            <tr class="animate-pulse">
+              <td class="px-5 py-4"><div class="h-4 bg-gray-200/60 dark:bg-zinc-800/60 rounded w-1/3"></div></td>
+              <td class="px-5 py-4"><div class="h-4 bg-gray-200/60 dark:bg-zinc-800/60 rounded w-12"></div></td>
+              <td class="px-5 py-4"><div class="h-4 bg-gray-200/60 dark:bg-zinc-800/60 rounded w-1/4"></div></td>
+              <td class="px-5 py-4 text-center"><div class="h-6 bg-gray-200/60 dark:bg-zinc-800/60 rounded w-16 mx-auto"></div></td>
+            </tr>
+          `.repeat(4);
+        }
+
         try {
           const res = await fetch('/api/categories', { headers: { Authorization: 'Bearer ' + token } });
           if (!res.ok) throw new Error('კატეგორიების ჩამოტვირთვა ვერ მოხერხდა');
           const cats = await res.json();
-          // Build name map for parent display
-          const byId = Object.fromEntries(cats.map(c => [c.id, c]));
-          // Refresh the parent dropdown in the create form
-          const parentSel = document.getElementById('cat-parent');
-          if (parentSel) {
-            parentSel.innerHTML = '<option value="">— ძირითადი კატეგორია —</option>' +
-              cats.filter(c => !c.parent_id).map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
-          }
-          if (cats.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="px-5 py-6 text-center text-gray-400">კატეგორიები არ არის</td></tr>';
-            return;
-          }
-          // Item 23: Render parent → children as a single in-place tree.
-          // Parent rows expose a chevron that toggles ALL their children inline,
-          // without re-fetching or switching pages. Subcategory rows start
-          // hidden unless the parent is in the expanded-set.
-          const tops = cats.filter(c => !c.parent_id);
-          const subsByParent = {};
-          cats.filter(c => c.parent_id).forEach(c => {
-            (subsByParent[c.parent_id] = subsByParent[c.parent_id] || []).push(c);
-          });
-
-          const escSingleQuote = (s) => escapeHtml(s).replace(/'/g, "&#39;");
-
-          const html = tops.map(parent => {
-            const kids = subsByParent[parent.id] || [];
-            const isOpen = window._adminCategoryExpanded.has(parent.id);
-            const chevClass = isOpen ? 'fa-solid fa-chevron-right rotate-90 transition-transform' : 'fa-solid fa-chevron-right transition-transform';
-            const childCountBadge = kids.length
-              ? `<span class="ml-2 inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-600">${kids.length} ქვე-კატ.</span>`
-              : '';
-
-            const parentRow = `
-              <tr class="hover:bg-gray-50">
-                <td class="px-5 py-3">
-                  <button onclick="toggleAdminCategoryExpand(${parent.id})"
-                          class="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 ${kids.length ? '' : 'opacity-30 cursor-default'}"
-                          ${kids.length ? '' : 'disabled'}
-                          aria-label="ქვე-კატეგორიების ნახვა">
-                    <i id="cat-chev-${parent.id}" class="${chevClass} text-[11px]"></i>
-                  </button>
-                  <span class="font-semibold text-gray-800">${escapeHtml(parent.name)}</span>
-                  ${childCountBadge}
-                </td>
-                <td class="px-5 py-3 text-gray-500">#${parent.id}</td>
-                <td class="px-5 py-3 text-gray-400">—</td>
-                <td class="px-5 py-3 text-center">
-                  <button onclick="editCategory(${parent.id}, '${escSingleQuote(parent.name)}', null, '${escSingleQuote(parent.slug || '')}', '${escSingleQuote(parent.icon || '')}')"
-                    class="rounded-lg border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50">რედაქტ.</button>
-                  <button onclick="deleteCategory(${parent.id})"
-                    class="ml-1 rounded-lg border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50">წაშლა</button>
-                </td>
-              </tr>`;
-
-            const childRows = kids.map(sub => `
-              <tr class="bg-gray-50/40 hover:bg-gray-50 ${isOpen ? '' : 'hidden'}" data-parent-of="${parent.id}">
-                <td class="px-5 py-2 pl-12">
-                  <span class="mr-2 text-gray-300">└─</span>
-                  <span class="text-gray-800">${escapeHtml(sub.name)}</span>
-                  <span class="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">ქვე-კატეგორია</span>
-                </td>
-                <td class="px-5 py-2 text-gray-500">#${sub.id}</td>
-                <td class="px-5 py-2 text-gray-500">${escapeHtml(parent.name)}</td>
-                <td class="px-5 py-2 text-center">
-                  <button onclick="editCategory(${sub.id}, '${escSingleQuote(sub.name)}', ${parent.id}, '${escSingleQuote(sub.slug || '')}', '${escSingleQuote(sub.icon || '')}')"
-                    class="rounded-lg border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50">რედაქტ.</button>
-                  <button onclick="deleteCategory(${sub.id})"
-                    class="ml-1 rounded-lg border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50">წაშლა</button>
-                </td>
-              </tr>`).join('');
-
-            return parentRow + childRows;
-          }).join('');
-
-          // Orphan rows (parent missing) — always shown at the end.
-          const orphans = cats.filter(c => c.parent_id && !byId[c.parent_id]);
-          const orphanHtml = orphans.map(o => `
-            <tr class="hover:bg-gray-50">
-              <td class="px-5 py-3"><span class="mr-2 text-amber-500">⚠</span><span class="font-medium text-gray-800">${escapeHtml(o.name)}</span><span class="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">ობოლი</span></td>
-              <td class="px-5 py-3 text-gray-500">#${o.id}</td>
-              <td class="px-5 py-3 text-gray-500">#${o.parent_id} (აღარ არსებობს)</td>
-              <td class="px-5 py-3 text-center">
-                <button onclick="editCategory(${o.id}, '${escSingleQuote(o.name)}', ${o.parent_id}, '${escSingleQuote(o.slug || '')}', '${escSingleQuote(o.icon || '')}')" class="rounded-lg border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50">რედაქტ.</button>
-                <button onclick="deleteCategory(${o.id})" class="ml-1 rounded-lg border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50">წაშლა</button>
-              </td>
-            </tr>`).join('');
-
-          tbody.innerHTML = html + orphanHtml;
+          CacheStore.set('categories_admin', cats);
+          renderCategoriesAdminTable(cats, tbody);
         } catch (e) {
-          tbody.innerHTML = `<tr><td colspan="4" class="px-5 py-4 text-center text-red-500">${escapeHtml(e.message)}</td></tr>`;
+          console.error(e);
+          if (!cached) {
+            tbody.innerHTML = `<tr><td colspan="4" class="px-5 py-4 text-center text-red-500">${escapeHtml(e.message)}</td></tr>`;
+          }
         }
       }
 
@@ -2133,7 +2163,11 @@ const actionMap = {
   "verify": "აქტუალობის დადასტურება",
   "send_message": "შეტყობინების გაგზავნა",
   "broadcast": "გლობალური შეტყობინება",
-  "create_user": "მომხმარებლის შექმნა"
+  "create_user": "მომხმარებლის შექმნა",
+  // Meta-audit: someone browsed/exported the audit trail itself (see
+  // main.py's _log_audit_trail_access) — SECURITY-classified, not routine.
+  "view_audit_log": "აუდიტ ლოგის ნახვა",
+  "export_audit_log": "აუდიტ ლოგის ექსპორტი"
 };
 
 const typeMap = {
@@ -2146,188 +2180,14 @@ const typeMap = {
   "required_reading": "სავალდებულო მასალა",
   "readings": "წაკითხვები",
   "file": "ფაილი",
-  "team_stats": "გუნდის სტატისტიკა"
+  "team_stats": "გუნდის სტატისტიკა",
+  "audit_log": "აუდიტ ჟურნალი"
 };
 
-// Global registry for live-tail interval
-window._liveTailInterval = null;
-window._lastLogId = 0; // Tracks the newest log ID rendered to highlight incoming rows
-
-function getActionBadgeClass(action) {
-  const act = (action || '').toLowerCase();
-  if (act.includes('create') || (act.includes('login') && !act.includes('fail'))) {
-    return 'bg-emerald-50 text-emerald-700 border-emerald-200/60';
-  }
-  if (act.includes('update') || act.includes('read') || act.includes('edit')) {
-    return 'bg-blue-50 text-blue-700 border-blue-200/60';
-  }
-  if (act.includes('delete') || act.includes('fail') || act.includes('remove')) {
-    return 'bg-rose-50 text-rose-700 border-rose-200/60';
-  }
-  return 'bg-amber-50 text-amber-700 border-amber-200/60';
-}
-
-function formatAuditDetails(detailsStr) {
-  if (!detailsStr) return '<span class="text-gray-400">დეტალები არ არის</span>';
-  try {
-    const data = typeof detailsStr === 'string' ? JSON.parse(detailsStr) : detailsStr;
-    if (data.changed) {
-      let html = '<div class="space-y-2 font-sans py-1 text-xs">';
-      for (const [key, val] of Object.entries(data.changed)) {
-        // Escaping values safely
-        const oldVal = val.old !== null && val.old !== undefined ? escapeHtml(String(val.old)) : 'NULL';
-        const newVal = val.new !== null && val.new !== undefined ? escapeHtml(String(val.new)) : 'NULL';
-        
-        html += `
-          <div class="flex flex-wrap items-center gap-1.5 leading-relaxed">
-            <span class="font-bold text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">${escapeHtml(key)}:</span>
-            <span class="bg-red-50 text-red-700 px-2 py-0.5 rounded border border-red-100 line-through">${oldVal}</span>
-            <span class="text-gray-400 mx-0.5"><i class="fa-solid fa-arrow-right"></i></span>
-            <span class="bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-100 font-bold">${newVal}</span>
-          </div>`;
-      }
-      html += '</div>';
-      return html;
-    }
-    // Pretty-printed generic JSON fallback
-    return `<pre class="bg-slate-100 p-2.5 rounded-xl text-gray-700 text-[11px] font-mono overflow-x-auto border border-slate-200/50 max-h-48 leading-normal">${escapeHtml(JSON.stringify(data, null, 2))}</pre>`;
-  } catch (e) {
-    return `<span class="text-gray-500 font-mono">${escapeHtml(detailsStr)}</span>`;
-  }
-}
-
-window.toggleAuditRowDetails = function(row, logId) {
-  const detailsRow = document.getElementById(`audit-details-${logId}`);
-  if (!detailsRow) return;
-  const isHidden = detailsRow.classList.toggle('hidden');
-  const chev = row.querySelector('.fa-chevron-down');
-  if (chev) {
-    if (isHidden) {
-      chev.classList.remove('rotate-180');
-    } else {
-      chev.classList.add('rotate-180');
-    }
-  }
-};
-
-window.setAuditDatePreset = function(days) {
-  const fp = document.querySelector("#log-date-range")._flatpickr;
-  if (!fp) return;
-  const end = new Date();
-  const start = new Date();
-  start.setDate(end.getDate() - days);
-  fp.setDate([start, end], true);
-  // Trigger update after setting date
-  fetchAndRenderAuditLog(Auth.getToken());
-};
-
-window.toggleLiveTail = function() {
-  const checkbox = document.getElementById('log-live-tail');
-  const dot = document.getElementById('live-dot');
-  if (!checkbox) return;
-
-  if (checkbox.checked) {
-    if (dot) dot.classList.remove('hidden');
-    // Fetch immediately, then set interval
-    fetchAndRenderAuditLog(Auth.getToken(), true);
-    window._liveTailInterval = setInterval(() => {
-      fetchAndRenderAuditLog(Auth.getToken(), true);
-    }, 5000);
-  } else {
-    if (dot) dot.classList.add('hidden');
-    if (window._liveTailInterval) {
-      clearInterval(window._liveTailInterval);
-      window._liveTailInterval = null;
-    }
-  }
-};
-
-async function fetchAndRenderAuditLog(token, isLive = false) {
-        const tbody = document.getElementById('admin-audit-tbody');
-        if (!tbody) return;
-        if (!isLive) {
-          tbody.innerHTML = '<tr><td colspan="6" class="px-5 py-4 text-center text-gray-400">იტვირთება...</td></tr>';
-        }
-        
-        try {
-          // Fetch dynamic translations from API and merge into actionMap
-          try {
-            const transRes = await fetch('/api/admin/audit-actions', { headers: { Authorization: 'Bearer ' + token } });
-            if (transRes.ok) {
-              const translations = await transRes.json();
-              translations.forEach(t => {
-                actionMap[t.action.toLowerCase()] = t.label_ka;
-              });
-            }
-          } catch (e) {
-            console.warn('Failed to load dynamic audit action translations', e);
-          }
-          
-          const userId = document.getElementById('audit-filter-user')?.value || '';
-          const action = document.getElementById('audit-filter-action')?.value || '';
-          const category = document.getElementById('audit-filter-category')?.value || '';
-
-          const params = new URLSearchParams();
-          const userName = document.getElementById('log-search-user').value;
-          if (userName) params.append('user_name', userName);
-
-          const fp = document.querySelector("#log-date-range")._flatpickr;
-          if (fp && fp.selectedDates.length === 2) {
-            params.append('start_date', fp.formatDate(fp.selectedDates[0], "Y-m-d"));
-            params.append('end_date', fp.formatDate(fp.selectedDates[1], "Y-m-d"));
-          }
-          if (userId) params.append('user_id', userId);
-          if (action) params.append('action', action);
-          if (category) params.append('category', category);
-
-          const res = await fetch(`/api/audit-logs?${params.toString()}`, { headers: { Authorization: 'Bearer ' + token } });
-          if (!res.ok) throw new Error('ლოგი ვერ ჩაიტვირთა');
-          const logs = await res.json();
-          if (logs.length === 0) { 
-            tbody.innerHTML = '<tr><td colspan="6" class="px-5 py-4 text-center text-gray-400">ლოგი ცარიელია</td></tr>'; 
-            return; 
-          }
-          
-          // If we are in live-tail mode, we only want to update if there are new logs
-          if (isLive && logs.length > 0 && logs[0].id === window._lastLogId) {
-            return; // No new logs to render
-          }
-          window._lastLogId = logs.length > 0 ? logs[0].id : 0;
-
-          // Render rows with expandability
-          tbody.innerHTML = logs.map(l => {
-            const actionLabel = actionMap[(l.action || '').toLowerCase()] || l.action;
-            const typeLabel = typeMap[(l.item_type || '').toLowerCase()] || l.item_type;
-            const objectLabel = l.item_name ? `${typeLabel}: ${l.item_name}` : typeLabel;
-            
-            // Highlight row if it is a new live log row
-            const highlightClass = isLive ? 'bg-red-50/10 animate-pulse' : '';
-            const badgeClass = getActionBadgeClass(l.action);
-            
-            return `
-            <tr onclick="toggleAuditRowDetails(this, '${l.id}')" class="cursor-pointer hover:bg-gray-50/80 transition-colors ${highlightClass}">
-              <td class="px-5 py-2.5 whitespace-nowrap text-xs text-gray-500">${new Date(l.timestamp).toLocaleString('ka-GE')}</td>
-              <td class="px-5 py-2.5 text-gray-800 font-medium">${escapeHtml(l.admin_name || 'უცნობი')}</td>
-              <td class="px-5 py-2.5">
-                <span class="rounded-lg px-2 py-0.5 text-[11px] font-bold border ${badgeClass}">${escapeHtml(actionLabel)}</span>
-              </td>
-              <td class="px-5 py-2.5 text-gray-700">${escapeHtml(objectLabel)}</td>
-              <td class="px-5 py-2.5 font-mono text-xs font-semibold text-gray-400">#${l.item_id}</td>
-              <td class="px-5 py-2.5 text-right text-gray-400 w-10">
-                <i class="fa-solid fa-chevron-down text-xs transition-transform duration-200"></i>
-              </td>
-            </tr>
-            <tr id="audit-details-${l.id}" class="hidden bg-gray-50/70 border-t-0">
-              <td colspan="6" class="px-8 py-4 text-xs text-gray-600 border-l-4 border-l-[#E30613] shadow-inner">
-                <div class="bg-white p-4 rounded-xl border border-gray-200/60 shadow-sm">
-                  <h4 class="font-bold text-gray-800 mb-2 flex items-center gap-1.5 text-xs"><i class="fa-solid fa-square-poll-horizontal text-[#E30613]"></i> ცვლილებების დეტალები:</h4>
-                  ${formatAuditDetails(l.details)}
-                </div>
-              </td>
-            </tr>`;
-          }).join('');
-          
-        } catch (e) {
-          tbody.innerHTML = `<tr><td colspan="6" class="px-5 py-4 text-center text-red-500">${escapeHtml(e.message)}</td></tr>`;
-        }
-      }
+// getActionBadgeClass, formatAuditDetails, toggleAuditRowDetails,
+// setAuditDatePreset, toggleLiveTail, renderAuditLogTable, and
+// fetchAndRenderAuditLog (including its dead fetch to the never-implemented
+// /api/admin/audit-actions route) all lived here. Superseded by
+// static/js/audit-dashboard.js's AuditDashboard module -- formatAuditDetails'
+// diff logic was relocated there verbatim, not reimplemented. actionMap and
+// typeMap just above stay: AuditDashboard reads them directly.

@@ -344,6 +344,17 @@ PERM_USERS_MANAGE = "users.manage"
 PERM_COMPLIANCE_ASSIGN = "compliance.assign"
 PERM_REPORTS_EXPORT = "reports.export"
 
+# Colon-named, deliberately NOT matching the dotted style above. The dotted
+# PERM_* constants above are checked via the same Permission.name == perm
+# query as this one, but scripts/seed_rbac.py -- the only script that ever
+# seeds Role/RolePermission/Permission rows -- uses an entirely different,
+# colon-named 13-permission catalog ("content:archive", "system:audit", ...)
+# that shares no strings with the dotted constants. That means those 8
+# dotted PERM_* checks can never match a seeded row (separate, pre-existing,
+# unrelated issue — not fixed here). system:audit is colon-named specifically
+# to land in the catalog seed_rbac.py already seeds, not repeat that bug.
+PERM_SYSTEM_AUDIT = "system:audit"
+
 # Default permission set baked in per role on seed/create. system_admin doesn't
 # need an explicit set — the dependency below grants everything to that role.
 DEFAULT_PERMISSIONS_BY_ROLE: dict[str, list[str]] = {
@@ -402,6 +413,20 @@ TEST_ACCOUNTS: list[dict] = [
 ]
 
 
+def _role_has_permission(db: Session, role_name: str, perm: str) -> bool:
+    """Shared by require_permission() and /api/users/me's can_view_audit_log
+    so the two can never disagree about what a role can do."""
+    if role_name == ROLE_SYSTEM_ADMIN:
+        return True
+    role = db.query(models.Role).filter(models.Role.name == role_name).first()
+    if not role:
+        return False
+    return db.query(models.RolePermission).join(models.Permission).filter(
+        models.RolePermission.role_id == role.id,
+        models.Permission.name == perm
+    ).first() is not None
+
+
 def require_permission(perm: str):
     """Dependency factory: gate an endpoint behind a granular DB-backed permission.
     Checks if the user's role possesses the required permission.
@@ -410,25 +435,7 @@ def require_permission(perm: str):
         current_user: models.User = Depends(get_current_user),
         db: Session = Depends(get_db)
     ) -> models.User:
-        # System Admin operational override
-        if current_user.role == ROLE_SYSTEM_ADMIN:
-            return current_user
-            
-        # Look up user's role
-        role = db.query(models.Role).filter(models.Role.name == current_user.role).first()
-        if not role:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="წვდომა უარყოფილია: არასაკმარისი უფლებები",
-            )
-            
-        # Check if the role contains the required permission
-        has_perm = db.query(models.RolePermission).join(models.Permission).filter(
-            models.RolePermission.role_id == role.id,
-            models.Permission.name == perm
-        ).first() is not None
-        
-        if not has_perm:
+        if not _role_has_permission(db, current_user.role, perm):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="წვდომა უარყოფილია: არასაკმარისი უფლებები",

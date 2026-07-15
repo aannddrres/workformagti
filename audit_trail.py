@@ -23,6 +23,7 @@ from contextvars import ContextVar
 
 from sqlalchemy import event, text
 from sqlalchemy import inspect as sa_inspect
+from sqlalchemy.orm import Session
 
 import models
 from database import get_tbilisi_time
@@ -34,6 +35,53 @@ logger = logging.getLogger("magti")
 # the middleware decodes the JWT without a DB session, so the listener
 # resolves the id on the flush connection instead.
 current_actor_email: ContextVar = ContextVar("current_actor_email", default=None)
+
+# Same request-scoped-ContextVar pattern as current_actor_email, but for the
+# audit_logs hash-chain trigger's ip_address/user_agent columns (see
+# migrate.py's AUDIT_CHAIN_STATEMENTS). Set by main.py's
+# actor_context_middleware.
+current_client_ip: ContextVar = ContextVar("current_client_ip", default=None)
+current_user_agent: ContextVar = ContextVar("current_user_agent", default=None)
+
+
+@event.listens_for(Session, "after_begin")
+def _stamp_request_context(session, transaction, connection):
+    """Re-applies the request's IP/User-Agent as Postgres GUCs at the start of
+    every transaction on every session (registered on the Session *class*,
+    not a specific sessionmaker instance — tests/conftest.py monkey-patches
+    database.SessionLocal to a different sessionmaker object after this
+    module has already imported and registered against the original, so an
+    instance-scoped listener would silently never fire in tests).
+
+    Why GUCs at all, instead of columns set here directly: audit_logs has two
+    write paths (this module's Core-level insert, and ~27 ORM-level
+    `models.AuditLog(...)` sites in main.py), and only a DB-side BEFORE
+    INSERT trigger (migrate.py's AUDIT_CHAIN_STATEMENTS) covers both without
+    touching every call site. GUCs are how a value set here reaches that
+    trigger. set_config() (a function call with bind params) is used rather
+    than string-formatting `SET LOCAL app.user_agent = '...'` -- a
+    User-Agent is arbitrary client-controlled text, and building DDL text out
+    of it directly would be a real injection surface.
+
+    Re-runs on every new transaction (not just once per request) so a
+    request that commits more than once (e.g. the two-phase login flow)
+    stays stamped on its second transaction too. No-op, zero DB round-trip,
+    for every non-request context: background jobs, migrations, tests, and
+    requests with no authenticated actor -- exactly when both ContextVars
+    are unset.
+    """
+    if connection.dialect.name != "postgresql":
+        return
+    ip = current_client_ip.get()
+    ua = current_user_agent.get()
+    if ip is None and ua is None:
+        return
+    connection.execute(
+        text("SELECT set_config('app.client_ip', :ip, true), "
+             "set_config('app.user_agent', :ua, true)"),
+        {"ip": ip or "", "ua": ua or ""},
+    )
+
 
 AUDITED_MODELS = {
     models.Article: "article",
@@ -62,21 +110,24 @@ def _clip(value):
     return str(value)
 
 
-def _resolve_actor_id(connection):
+def _resolve_actor_info(connection):
+    """Returns (user_id, name, email) for the current request actor, or
+    (None, None, None) if there is no authenticated actor."""
     email = current_actor_email.get()
     if not email:
-        return None
+        return None, None, None
     row = connection.execute(
-        text("SELECT id FROM users WHERE lower(email) = :email"),
+        text("SELECT id, name, email FROM users WHERE lower(email) = :email"),
         {"email": email.lower()},
     ).first()
-    return row[0] if row else None
+    return (row[0], row[1], row[2]) if row else (None, None, None)
 
 
-def _write_audit_row(connection, *, actor_id, action, item_type, item_id, details=None):
+def _write_audit_row(connection, *, actor_id, actor_name=None, actor_email=None,
+                     action, item_type, item_id, item_name=None, details=None):
     # Core insert inside the same flush transaction: if the business change
     # rolls back, its audit row rolls back with it. Bypasses the ORM
-    # before_insert classifier, so category is set explicitly here.
+    # before_insert classifier, so category and snapshots are set explicitly.
     connection.execute(
         models.AuditLog.__table__.insert().values(
             admin_id=actor_id,
@@ -86,6 +137,9 @@ def _write_audit_row(connection, *, actor_id, action, item_type, item_id, detail
             timestamp=get_tbilisi_time(),
             category=models.classify_audit_category(item_type, action),
             details=details,
+            admin_name_snapshot=actor_name,
+            admin_email_snapshot=actor_email,
+            item_name_snapshot=item_name,
         )
     )
 
@@ -112,16 +166,25 @@ def _diff_for(target) -> dict:
     return changed
 
 
+def _target_label(target):
+    """Best human-readable label for the audited object."""
+    return (getattr(target, "title", None) or getattr(target, "name", None)
+            or getattr(target, "email", None))
+
+
 def _make_listeners(item_type):
     def after_insert(mapper, connection, target):
-        actor_id = _resolve_actor_id(connection)
+        actor_id, actor_name, actor_email = _resolve_actor_info(connection)
         if actor_id is None:
             return
-        _write_audit_row(connection, actor_id=actor_id, action="CREATE",
-                         item_type=item_type, item_id=target.id)
+        _write_audit_row(connection, actor_id=actor_id,
+                         actor_name=actor_name, actor_email=actor_email,
+                         action="CREATE",
+                         item_type=item_type, item_id=target.id,
+                         item_name=_target_label(target))
 
     def after_update(mapper, connection, target):
-        actor_id = _resolve_actor_id(connection)
+        actor_id, actor_name, actor_email = _resolve_actor_info(connection)
         if actor_id is None:
             return
         changed = _diff_for(target)
@@ -130,20 +193,25 @@ def _make_listeners(item_type):
             # the row dirty without a column diff — nothing worth a row.
             return
         _write_audit_row(
-            connection, actor_id=actor_id, action="UPDATE",
+            connection, actor_id=actor_id,
+            actor_name=actor_name, actor_email=actor_email,
+            action="UPDATE",
             item_type=item_type, item_id=target.id,
+            item_name=_target_label(target),
             details=json.dumps({"changed": changed}, ensure_ascii=False, default=str),
         )
 
     def after_delete(mapper, connection, target):
-        actor_id = _resolve_actor_id(connection)
+        actor_id, actor_name, actor_email = _resolve_actor_info(connection)
         if actor_id is None:
             return
-        label = (getattr(target, "title", None) or getattr(target, "name", None)
-                 or getattr(target, "email", None))
+        label = _target_label(target)
         details = json.dumps({"deleted": _clip(label)}, ensure_ascii=False) if label else None
-        _write_audit_row(connection, actor_id=actor_id, action="DELETE",
-                         item_type=item_type, item_id=target.id, details=details)
+        _write_audit_row(connection, actor_id=actor_id,
+                         actor_name=actor_name, actor_email=actor_email,
+                         action="DELETE",
+                         item_type=item_type, item_id=target.id,
+                         item_name=label, details=details)
 
     return after_insert, after_update, after_delete
 

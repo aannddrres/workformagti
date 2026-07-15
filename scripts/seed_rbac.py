@@ -58,8 +58,9 @@ def seed_rbac():
                 "system:audit", "content:archive", "compliance:assign", "feedback:resolve"
             ],
             security.ROLE_MANAGER: [
-                "compliance:manage", "reports:export", 
-                "content:archive", "compliance:assign", "feedback:resolve"
+                "compliance:manage", "reports:export",
+                "content:archive", "compliance:assign", "feedback:resolve",
+                "system:audit"  # own-department-scoped audit view — see migrate.py's ensure_system_audit_permission_seeded
             ],
             security.ROLE_OPERATOR: []
         }

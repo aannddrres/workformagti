@@ -2,14 +2,14 @@
 <html lang="ka">
 
 <head>
-    <script defer src="/static/frontend_api.js?v=17"></script>
+    <script defer src="/static/frontend_api.js?v=19"></script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>მაგთი — შიდა საინფორმაციო პორტალი</title>
 
   <!-- Single self-contained compiled stylesheet: Tailwind utilities + hand-written
        branding, built from input.css via the v3 CLI. See README "Rebuilding CSS". -->
-  <link rel="stylesheet" href="/static/css/app.min.css?v=20260707">
+  <link rel="stylesheet" href="/static/css/app.min.css?v=20260715a">
 
   <!-- Chart.js CDN -->
   <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -148,6 +148,15 @@
 </head>
 
 <body class="bg-[#F5F5F5] antialiased">
+  <!-- ── Global App Boot Loader ── -->
+  <div id="global-app-loader" class="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-gray-50 dark:bg-zinc-950 transition-opacity duration-300">
+    <div class="flex flex-col items-center gap-4">
+      <img src="/static/magti_logo.png" alt="Magti Logo" class="h-14 w-auto animate-pulse">
+      <div class="h-1 w-28 overflow-hidden rounded-full bg-gray-200 dark:bg-zinc-800">
+        <div class="h-full w-full origin-left animate-[loadingBar_1.2s_infinite_ease-in-out] bg-[#B91C1C] rounded-full"></div>
+      </div>
+    </div>
+  </div>
 
   <!-- Mobile Overlay (Darkens background when sidebar is open on small screens) -->
   <div id="mobile-overlay" onclick="toggleSidebar()"
@@ -302,7 +311,7 @@
                 </a>
               </li>
               <li>
-                <a href="#" data-required-role="admin" onclick="switchMainPage('page-admin', this); switchAdmin('audit'); return false;"
+                <a href="#" id="sidebar-link-audit" data-required-role="admin" onclick="switchMainPage('page-admin', this); switchAdmin('audit'); return false;"
                   class="block rounded-lg px-3 py-2 text-[12px] font-medium text-gray-400 hover:bg-gray-900/[0.04] hover:text-gray-700 transition-all duration-150">
                   <i class="fa-solid fa-shield-halved w-3.5 mr-1.5 text-gray-300"></i>ლოგები
                 </a>
@@ -796,11 +805,12 @@
       - Dynamic Rendering: Injects fetched data into the DOM.
     -->
     
-    <script defer src="/static/js/app-core.js?v=20260713a"></script>
+    <script defer src="/static/js/app-core.js?v=20260713b"></script>
     <script defer src="/static/js/app-renderers.js?v=15"></script>
-    <script defer src="/static/js/app-router.js?v=7"></script>
+    <script defer src="/static/js/app-router.js?v=8"></script>
     <script defer src="/static/js/admin-cms-enhancements.js?v=20260708"></script>
-    <script defer src="/static/js/dept-dashboard.js?v=3"></script>
+    <script defer src="/static/js/dept-dashboard.js?v=4"></script>
+    <script defer src="/static/js/audit-dashboard.js?v=3"></script>
 
 
     <!-- ── კატეგორიის დეტალური ხედი (Category Detail View) ── -->
@@ -1900,166 +1910,181 @@
         </div>
 
         <!-- ── Admin News Form ── -->
-        <div id="admin-news-panel" class="mt-8 hidden rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-          <h3 class="mb-5 text-lg font-bold text-gray-800" id="news-form-title">ახალი სიახლის დამატება</h3>
-          <form id="create-news-form" onsubmit="submitNewsForm(event)" class="space-y-5">
-            <div>
-              <label for="news-title" class="mb-1.5 block text-sm font-medium text-gray-700">სათაური</label>
-              <input type="text" id="news-title" required
-                class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]"
-                placeholder="სიახლის სათაური" />
-            </div>
-            <div>
-              <label for="news-content" class="mb-1.5 block text-sm font-medium text-gray-700">შინაარსი</label>
-              <textarea id="news-content" required rows="4"
-                class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]"
-                placeholder="სიახლის ტექსტი..."></textarea>
-            </div>
-            <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+        <!-- ── Admin News Form (Slide-out Drawer) ── -->
+        <div id="admin-news-panel" class="fixed inset-y-0 right-0 z-50 w-full max-w-xl bg-white shadow-2xl transition-transform transform translate-x-full duration-300 flex flex-col hidden p-0">
+          <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+            <h3 class="text-xl font-bold text-gray-800" id="news-form-title">ახალი სიახლის დამატება</h3>
+            <button type="button" onclick="cancelNewsEdit()" class="text-gray-500 hover:text-gray-700">
+              <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+          </div>
+          <div class="flex-1 overflow-y-auto p-6">
+            <form id="create-news-form" onsubmit="submitNewsForm(event)" class="space-y-5">
               <div>
-                <label for="news-department" class="mb-1.5 block text-sm font-medium text-gray-700">სამიზნე
-                  დეპარტამენტი</label>
-                <select id="news-department"
-                  class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]">
-                  <option value="All">ყველა</option>
-                  <option value="ტექნიკური">ტექნიკური</option>
-                  <option value="საინფო">საინფო</option>
-                  <option value="ოფისი">ოფისი</option>
-                </select>
+                <label for="news-title" class="mb-1.5 block text-sm font-medium text-gray-700">სათაური</label>
+                <input type="text" id="news-title" required
+                  class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]"
+                  placeholder="სიახლის სათაური" />
               </div>
-            </div>
-            <!-- [Fix G9] Centralised file storage per spec — optional PDF/image attachment on news -->
-            <div>
-              <label class="mb-1.5 block text-sm font-medium text-gray-700">მიმაგრებული ფაილი (PDF, Word,
-                სურათი)</label>
-              <div class="flex items-center gap-3">
-                <input type="hidden" id="news-attachment-url" />
-                <input type="file" id="news-upload-file" class="hidden" onchange="handleNewsFileUpload(this)" />
-                <button type="button" onclick="document.getElementById('news-upload-file').click()"
-                  class="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50 flex shrink-0 items-center gap-2">
-                  <i class="fa-solid fa-upload"></i> ატვირთვა
-                </button>
-                <div id="news-current-attachment"
-                  class="hidden items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
-                  <i class="fa-solid fa-paperclip text-gray-400"></i>
-                  <a href="#" target="_blank" class="truncate max-w-[200px] text-blue-600 hover:underline">ფაილის
-                    ნახვა</a>
-                  <button type="button" onclick="removeNewsAttachment()" class="ml-1 text-red-500 hover:text-red-700"
-                    title="ფაილის წაშლა"><i class="fa-solid fa-xmark"></i></button>
+              <div>
+                <label for="news-content" class="mb-1.5 block text-sm font-medium text-gray-700">შინაარსი</label>
+                <textarea id="news-content" required rows="4"
+                  class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]"
+                  placeholder="სიახლის ტექსტი..."></textarea>
+              </div>
+              <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+                <div>
+                  <label for="news-department" class="mb-1.5 block text-sm font-medium text-gray-700">სამიზნე
+                    დეპარტამენტი</label>
+                  <select id="news-department"
+                    class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]">
+                    <option value="All">ყველა</option>
+                    <option value="ტექნიკური">ტექნიკური</option>
+                    <option value="საინფო">საინფო</option>
+                    <option value="ოფისი">ოფისი</option>
+                  </select>
                 </div>
               </div>
-              <div id="news-upload-progress" class="hidden mt-2 text-xs text-blue-600 font-medium animate-pulse">ფაილი
-                იტვირთება...</div>
-            </div>
-            <div id="news-mandatory-section"
-              class="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4">
-              <input type="checkbox" id="news-mandatory" onchange="toggleNewsDueDate()"
-                class="h-4 w-4 accent-[#B91C1C]" />
-              <label for="news-mandatory" class="text-sm font-medium text-gray-800">სავალდებულოდ გასაცნობი</label>
-              <div id="news-due-date-container"
-                class="ml-4 hidden flex-1 items-center gap-3 border-l border-gray-300 pl-4">
-                <label for="news-due-date" class="text-sm font-medium text-gray-600">ვადა:</label>
-                <input type="date" id="news-due-date"
-                  class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]" />
+              <!-- [Fix G9] Centralised file storage per spec — optional PDF/image attachment on news -->
+              <div>
+                <label class="mb-1.5 block text-sm font-medium text-gray-700">მიმაგრებული ფაილი (PDF, Word,
+                  სურათი)</label>
+                <div class="flex items-center gap-3">
+                  <input type="hidden" id="news-attachment-url" />
+                  <input type="file" id="news-upload-file" class="hidden" onchange="handleNewsFileUpload(this)" />
+                  <button type="button" onclick="document.getElementById('news-upload-file').click()"
+                    class="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50 flex shrink-0 items-center gap-2">
+                    <i class="fa-solid fa-upload"></i> ატვირთვა
+                  </button>
+                  <div id="news-current-attachment"
+                    class="hidden items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
+                    <i class="fa-solid fa-paperclip text-gray-400"></i>
+                    <a href="#" target="_blank" class="truncate max-w-[200px] text-blue-600 hover:underline">ფაილის
+                      ნახვა</a>
+                    <button type="button" onclick="removeNewsAttachment()" class="ml-1 text-red-500 hover:text-red-700"
+                      title="ფაილის წაშლა"><i class="fa-solid fa-xmark"></i></button>
+                  </div>
+                </div>
+                <div id="news-upload-progress" class="hidden mt-2 text-xs text-blue-600 font-medium animate-pulse">ფაილი
+                  იტვირთება...</div>
               </div>
-            </div>
-            <!-- [Fix F] Hidden — visible_to_tech_info/visible_to_service_center are non-functional
-                 (no tech_info/service_center role exists yet; see security.py VALID_ROLES).
-                 Backend columns + JS wiring intentionally left in place. -->
-            <!-- Block 5: role-based visibility toggles — Premium Monochrome with Magti Red accent -->
-            <div class="hidden flex-col gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4 sm:flex-row sm:items-center sm:gap-8">
-              <label class="flex items-center gap-3 cursor-pointer select-none">
-                <span class="relative inline-flex h-6 w-11 shrink-0 items-center">
-                  <input type="checkbox" id="news-visible-tech-info" checked class="peer sr-only" />
-                  <span class="absolute inset-0 rounded-full bg-gray-300 transition-colors duration-200 peer-checked:bg-[#B91C1C]"></span>
-                  <span class="absolute left-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-5"></span>
-                </span>
-                <span class="text-sm font-medium text-gray-800">ხილვადია ტექ./ინფო-სთვის (Visible to Tech/Info)</span>
-              </label>
-              <label class="flex items-center gap-3 cursor-pointer select-none">
-                <span class="relative inline-flex h-6 w-11 shrink-0 items-center">
-                  <input type="checkbox" id="news-visible-service-center" class="peer sr-only" />
-                  <span class="absolute inset-0 rounded-full bg-gray-300 transition-colors duration-200 peer-checked:bg-[#B91C1C]"></span>
-                  <span class="absolute left-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-5"></span>
-                </span>
-                <span class="text-sm font-medium text-gray-800">ხილვადია სერვის ცენტრებისთვის (Visible to Service Centers)</span>
-              </label>
-            </div>
-            <div class="flex justify-end gap-3 pt-2">
-              <button type="button" onclick="cancelNewsEdit()"
-                class="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50">გაუქმება</button>
-              <button type="submit"
-                class="rounded-xl bg-[#B91C1C] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700">შენახვა</button>
-            </div>
-          </form>
+              <div id="news-mandatory-section"
+                class="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4">
+                <input type="checkbox" id="news-mandatory" onchange="toggleNewsDueDate()"
+                  class="h-4 w-4 accent-[#B91C1C]" />
+                <label for="news-mandatory" class="text-sm font-medium text-gray-800">სავალდებულოდ გასაცნობი</label>
+                <div id="news-due-date-container"
+                  class="ml-4 hidden flex-1 items-center gap-3 border-l border-gray-300 pl-4">
+                  <label for="news-due-date" class="text-sm font-medium text-gray-600">ვადა:</label>
+                  <input type="date" id="news-due-date"
+                    class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]" />
+                </div>
+              </div>
+              <!-- [Fix F] Hidden — visible_to_tech_info/visible_to_service_center are non-functional
+                   (no tech_info/service_center role exists yet; see security.py VALID_ROLES).
+                   Backend columns + JS wiring intentionally left in place. -->
+              <!-- Block 5: role-based visibility toggles — Premium Monochrome with Magti Red accent -->
+              <div class="hidden flex-col gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4 sm:flex-row sm:items-center sm:gap-8">
+                <label class="flex items-center gap-3 cursor-pointer select-none">
+                  <span class="relative inline-flex h-6 w-11 shrink-0 items-center">
+                    <input type="checkbox" id="news-visible-tech-info" checked class="peer sr-only" />
+                    <span class="absolute inset-0 rounded-full bg-gray-300 transition-colors duration-200 peer-checked:bg-[#B91C1C]"></span>
+                    <span class="absolute left-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-5"></span>
+                  </span>
+                  <span class="text-sm font-medium text-gray-800">ხილვადია ტექ./ინფო-სთვის (Visible to Tech/Info)</span>
+                </label>
+                <label class="flex items-center gap-3 cursor-pointer select-none">
+                  <span class="relative inline-flex h-6 w-11 shrink-0 items-center">
+                    <input type="checkbox" id="news-visible-service-center" class="peer sr-only" />
+                    <span class="absolute inset-0 rounded-full bg-gray-300 transition-colors duration-200 peer-checked:bg-[#B91C1C]"></span>
+                    <span class="absolute left-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-5"></span>
+                  </span>
+                  <span class="text-sm font-medium text-gray-800">ხილვადია სერვის ცენტრებისთვის (Visible to Service Centers)</span>
+                </label>
+              </div>
+              <div class="flex justify-end gap-3 pt-2">
+                <button type="button" onclick="cancelNewsEdit()"
+                  class="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50">გაუქმება</button>
+                <button type="submit"
+                  class="rounded-xl bg-[#B91C1C] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700">შენახვა</button>
+              </div>
+            </form>
+          </div>
         </div>
 
-        <!-- ── Admin Video Form ── -->
-        <div id="admin-video-panel" class="mt-8 hidden rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-          <h3 class="mb-5 text-lg font-bold text-gray-800">ახალი ვიდეოს დამატება</h3>
-          <form id="create-video-form" onsubmit="submitVideoForm(event)" class="space-y-5">
-            <div>
-              <label for="video-title" class="mb-1.5 block text-sm font-medium text-gray-700">სათაური</label>
-              <input type="text" id="video-title" required
-                class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]"
-                placeholder="ვიდეოს სათაური" />
-            </div>
-            <div>
-              <label for="video-url" class="mb-1.5 block text-sm font-medium text-gray-700">ვიდეოს ბმული (URL) ან
-                ატვირთეთ ფაილი</label>
-              <div class="flex gap-2">
-                <input type="text" id="video-url" required
-                  class="flex-1 w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]"
-                  placeholder="https://example.com/video.mp4 ან ატვირთეთ ->" />
-                <input type="file" id="video-upload-file" accept="video/mp4" class="hidden"
-                  onchange="handleVideoUpload(this)" />
-                <button type="button" onclick="document.getElementById('video-upload-file').click()"
-                  class="shrink-0 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50 flex items-center gap-2">
-                  <i class="fa-solid fa-upload"></i> ატვირთვა
-                </button>
-              </div>
-              <div id="video-upload-progress" class="hidden mt-2 text-xs text-blue-600 font-medium animate-pulse">
-                იტვირთება... გთხოვთ დაელოდოთ</div>
-            </div>
-            <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+        <!-- ── Admin Video Form (Slide-out Drawer) ── -->
+        <div id="admin-video-panel" class="fixed inset-y-0 right-0 z-50 w-full max-w-xl bg-white shadow-2xl transition-transform transform translate-x-full duration-300 flex flex-col hidden p-0">
+          <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+            <h3 class="text-xl font-bold text-gray-800">ახალი ვიდეოს დამატება</h3>
+            <button type="button" onclick="cancelVideoEdit()" class="text-gray-500 hover:text-gray-700">
+              <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+          </div>
+          <div class="flex-1 overflow-y-auto p-6">
+            <form id="create-video-form" onsubmit="submitVideoForm(event)" class="space-y-5">
               <div>
-                <label for="video-category" class="mb-1.5 block text-sm font-medium text-gray-700">კატეგორია</label>
-                <select id="video-category" required
-                  class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]">
-                  <option value="" disabled selected>აირჩიეთ კატეგორია</option>
-                </select>
+                <label for="video-title" class="mb-1.5 block text-sm font-medium text-gray-700">სათაური</label>
+                <input type="text" id="video-title" required
+                  class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]"
+                  placeholder="ვიდეოს სათაური" />
               </div>
               <div>
-                <label for="video-department" class="mb-1.5 block text-sm font-medium text-gray-700">სამიზნე
-                  დეპარტამენტი</label>
-                <select id="video-department"
-                  class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]">
-                  <option value="All">ყველა</option>
-                  <option value="ტექნიკური">ტექნიკური</option>
-                  <option value="საინფო">საინფო</option>
-                  <option value="ოფისი">ოფისი</option>
-                </select>
+                <label for="video-url" class="mb-1.5 block text-sm font-medium text-gray-700">ვიდეოს ბმული (URL) ან
+                  ატვირთეთ ფაილი</label>
+                <div class="flex gap-2">
+                  <input type="text" id="video-url" required
+                    class="flex-1 w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]"
+                    placeholder="https://example.com/video.mp4 ან ატვირთეთ ->" />
+                  <input type="file" id="video-upload-file" accept="video/mp4" class="hidden"
+                    onchange="handleVideoUpload(this)" />
+                  <button type="button" onclick="document.getElementById('video-upload-file').click()"
+                    class="shrink-0 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50 flex items-center gap-2">
+                    <i class="fa-solid fa-upload"></i> ატვირთვა
+                  </button>
+                </div>
+                <div id="video-upload-progress" class="hidden mt-2 text-xs text-blue-600 font-medium animate-pulse">
+                  იტვირთება... გთხოვთ დაელოდოთ</div>
               </div>
-            </div>
-            <div id="video-mandatory-section"
-              class="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4">
-              <input type="checkbox" id="video-mandatory" onchange="toggleVideoDueDate()"
-                class="h-4 w-4 accent-[#B91C1C]" />
-              <label for="video-mandatory" class="text-sm font-medium text-gray-800">სავალდებულოდ გასაცნობი</label>
-              <div id="video-due-date-container"
-                class="ml-4 hidden flex-1 items-center gap-3 border-l border-gray-300 pl-4">
-                <label for="video-due-date" class="text-sm font-medium text-gray-600">ვადა:</label>
-                <input type="date" id="video-due-date"
-                  class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]" />
+              <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+                <div>
+                  <label for="video-category" class="mb-1.5 block text-sm font-medium text-gray-700">კატეგორია</label>
+                  <select id="video-category" required
+                    class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]">
+                    <option value="" disabled selected>აირჩიეთ კატეგორია</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="video-department" class="mb-1.5 block text-sm font-medium text-gray-700">სამიზნე
+                    დეპარტამენტი</label>
+                  <select id="video-department"
+                    class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]">
+                    <option value="All">ყველა</option>
+                    <option value="ტექნიკური">ტექნიკური</option>
+                    <option value="საინფო">საინფო</option>
+                    <option value="ოფისი">ოფისი</option>
+                  </select>
+                </div>
               </div>
-            </div>
-            <div class="flex justify-end gap-3 pt-2">
-              <button type="button" onclick="cancelVideoEdit()"
-                class="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50">გაუქმება</button>
-              <button type="submit"
-                class="rounded-xl bg-[#B91C1C] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700">შენახვა</button>
-            </div>
-          </form>
+              <div id="video-mandatory-section"
+                class="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4">
+                <input type="checkbox" id="video-mandatory" onchange="toggleVideoDueDate()"
+                  class="h-4 w-4 accent-[#B91C1C]" />
+                <label for="video-mandatory" class="text-sm font-medium text-gray-800">სავალდებულოდ გასაცნობი</label>
+                <div id="video-due-date-container"
+                  class="ml-4 hidden flex-1 items-center gap-3 border-l border-gray-300 pl-4">
+                  <label for="video-due-date" class="text-sm font-medium text-gray-600">ვადა:</label>
+                  <input type="date" id="video-due-date"
+                    class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C]" />
+                </div>
+              </div>
+              <div class="flex justify-end gap-3 pt-2">
+                <button type="button" onclick="cancelVideoEdit()"
+                  class="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50">გაუქმება</button>
+                <button type="submit"
+                  class="rounded-xl bg-[#B91C1C] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700">შენახვა</button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
 
@@ -2321,21 +2346,26 @@
         <div class="mb-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h2 class="text-3xl font-semibold uppercase tracking-wider text-gray-800">აუდიტ ლოგი</h2>
-            <p class="text-xs text-gray-500">ბოლო 100 მნიშვნელოვანი მოქმედება სისტემაში (კონტენტი, მომხმარებლები,
-              წვდომა)</p>
+            <p class="text-xs text-gray-500">სისტემაში მომხდარი მოქმედებები — კონტენტი, მომხმარებლები, წვდომა</p>
+            <!-- Chain health pill: batch-validated on mount by AuditDashboard.fetchChainHealth -->
+            <div id="audit-chain-health" class="mt-1.5"></div>
+            <!-- Manager-only: mutually exclusive with the pill above (AuditDashboard.renderScopeNote) -->
+            <div id="audit-scope-note" class="hidden mt-1.5 text-xs text-gray-500"></div>
           </div>
-          
+
           <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
             <!-- Time Presets -->
             <div class="flex items-center rounded-xl bg-gray-100 p-0.5 border border-gray-200/50">
-              <button type="button" onclick="setAuditDatePreset(0)" class="px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-white hover:shadow-sm transition-all text-gray-600">დღეს</button>
-              <button type="button" onclick="setAuditDatePreset(7)" class="px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-white hover:shadow-sm transition-all text-gray-600">7 დღე</button>
-              <button type="button" onclick="setAuditDatePreset(30)" class="px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-white hover:shadow-sm transition-all text-gray-600">30 დღე</button>
+              <button type="button" onclick="AuditDashboard.setDatePreset(0)" class="px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-white hover:shadow-sm transition-all text-gray-600">დღეს</button>
+              <button type="button" onclick="AuditDashboard.setDatePreset(7)" class="px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-white hover:shadow-sm transition-all text-gray-600">7 დღე</button>
+              <button type="button" onclick="AuditDashboard.setDatePreset(30)" class="px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-white hover:shadow-sm transition-all text-gray-600">30 დღე</button>
             </div>
-            
-            <input type="text" id="log-search-user" placeholder="სახელი და გვარი" class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm focus:border-red-500 focus:outline-none w-48">
+
+            <!-- Tokenized search: free text, or actor:x / category:x / action:x -->
+            <input type="text" id="audit-search" placeholder="ძებნა… actor:admin category:SECURITY"
+              class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm focus:border-red-500 focus:outline-none w-64">
             <input type="text" id="log-date-range" placeholder="აირჩიეთ პერიოდი" class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm focus:border-red-500 focus:outline-none w-44">
-            <select id="audit-filter-category" onchange="fetchAndRenderAuditLog(Auth.getToken())" class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm focus:border-red-500 focus:outline-none">
+            <select id="audit-filter-category" onchange="AuditDashboard.setCategoryFilter(this.value)" class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm focus:border-red-500 focus:outline-none">
               <option value="">ყველა კატეგორია</option>
               <option value="SECURITY">🛡️ SECURITY</option>
               <option value="CONTENT">📝 CONTENT</option>
@@ -2343,43 +2373,17 @@
               <option value="SYSTEM">⚙️ SYSTEM</option>
             </select>
 
-            <!-- Live tail toggle -->
-            <label class="relative inline-flex items-center cursor-pointer select-none">
-              <input type="checkbox" id="log-live-tail" onchange="toggleLiveTail()" class="sr-only peer">
-              <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-red-100 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#E30613]"></div>
-              <span class="ml-2 text-xs font-bold text-gray-700 flex items-center gap-1">
-                <span class="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse hidden" id="live-dot"></span>
-                LIVE
-              </span>
-            </label>
-            
-            <button onclick="fetchAndRenderAuditLog(Auth.getToken())"
+            <button onclick="AuditDashboard.refresh()"
               class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm transition-colors flex items-center justify-center">
               <i class="fa-solid fa-rotate-right"></i>
             </button>
             <button id="btn-export-audit-csv" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold flex items-center gap-1.5 shadow-sm transition-colors"><i class="fa-solid fa-file-csv"></i>ექსპორტი</button>
           </div>
         </div>
-        <div class="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm">
-          <table class="w-full text-left text-sm">
-            <thead>
-              <tr
-                class="border-b border-gray-200 bg-gray-50 text-xs font-semibold uppercase tracking-wider text-gray-500">
-                <th class="px-5 py-3">დრო</th>
-                <th class="px-5 py-3">ვინ</th>
-                <th class="px-5 py-3">ქმედება</th>
-                <th class="px-5 py-3">ობიექტი</th>
-                <th class="px-5 py-3">ID</th>
-                <th class="px-5 py-3 w-10 text-right"></th>
-              </tr>
-            </thead>
-            <tbody id="admin-audit-tbody" class="divide-y divide-gray-100">
-              <tr>
-                <td colspan="6" class="px-5 py-6 text-center text-gray-400">დააჭირეთ „განახლება"-ს ჩასატვირთად</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <!-- Filled + unhidden by AuditDashboard.renderChainHealth iff status is "tampered" -->
+        <div id="audit-chain-banner" class="hidden mb-4 rounded-2xl border border-red-200 bg-red-50 px-5 py-3"></div>
+        <div id="audit-grid-host" class="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm"></div>
+        <div id="audit-pagination" class="mt-4 flex items-center justify-between text-xs text-gray-500"></div>
       </div>
     </div>
     <!-- /page-admin -->
@@ -2392,10 +2396,21 @@
   <!-- /main -->
 
   <!-- Backdrop for Drawer — body-level so .page-section's persisted
-       transform (fadeInPage forwards) never makes it a fixed-position
+       transform (fadeInSlideUp forwards) never makes it a fixed-position
        containing block; see #magti-ai-overlay/#magti-ai-drawer below for
        the same pattern. -->
   <div id="admin-panel-backdrop" class="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity duration-300 hidden" onclick="closeArticleDrawer()"></div>
+
+  <!-- ── Audit Log Detail Drawer — 4th panel in closeAllDrawers() (app-core.js) ── -->
+  <div id="audit-detail-panel" class="fixed inset-y-0 right-0 z-50 w-full max-w-xl bg-white shadow-2xl transition-transform transform translate-x-full duration-300 flex flex-col hidden p-0">
+    <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+      <h3 class="text-xl font-bold text-gray-800">ლოგის დეტალები</h3>
+      <button type="button" onclick="closeAllDrawers()" class="text-gray-500 hover:text-gray-700">
+        <i class="fa-solid fa-xmark text-xl"></i>
+      </button>
+    </div>
+    <div id="audit-detail-body" class="flex-1 overflow-y-auto p-6 space-y-5"></div>
+  </div>
 
   <!-- ── Admin CMS Form (Slide-out Drawer) ── -->
   <div id="admin-panel" class="fixed inset-y-0 right-0 z-50 w-full max-w-2xl lg:max-w-6xl bg-white shadow-2xl transition-transform transform translate-x-full duration-300 flex flex-col hidden p-0">

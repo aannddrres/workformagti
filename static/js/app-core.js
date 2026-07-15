@@ -258,6 +258,7 @@ window._historyCache = window._historyCache || { articleId: null, versionsData: 
           window.currentUser = currentUser;
           updateUserInfo(currentUser);
           applyRBAC(currentUser.role);
+          applyAuditAccessUI(currentUser.can_view_audit_log);
 
           // Management roles don't get the "აუცილებლად გასაცნობი" column
           // (data-required-role="operator"), so let "ბოლოს დამატებული"
@@ -296,8 +297,10 @@ window._historyCache = window._historyCache || { articleId: null, versionsData: 
         // Fetch statistics + draw charts ONLY for roles that use them.
         // (Operators would otherwise get a 403 from the admin-only stats endpoint.)
         if (currentUser.role === 'admin' || currentUser.role === 'content_admin') {
-          window.dashboardStats = await fetchStatistics(token);
-          window.activityStats = await api('/api/statistics/activity').then(res => res.json()).catch(() => []);
+          [window.dashboardStats, window.activityStats] = await Promise.all([
+            fetchStatistics(token),
+            api('/api/statistics/activity').then(res => res.json()).catch(() => [])
+          ]);
           initCharts();
         }
 
@@ -316,8 +319,7 @@ window._historyCache = window._historyCache || { articleId: null, versionsData: 
           // Deep-link straight to a full-page article; Back falls back to the KB.
           navToArticleView(parseInt(initialArt[1], 10));
         } else if (initialCat) {
-          // Deep-link straight to a category view; Back falls back to dashboard.
-          switchMainPage('page-dashboard', document.querySelector('a[onclick*="page-dashboard"]'));
+          // Deep-link straight to category view without unhiding dashboard first
           navToCategoryView(initialCat[1]);
         } else {
           let defaultPage = 'page-dashboard';
@@ -329,30 +331,27 @@ window._historyCache = window._historyCache || { articleId: null, versionsData: 
         }
 
         // Fetch and Render News
-        try {
-          const newsContainer = document.getElementById('latest-news-container');
-          if (newsContainer) {
-            const skeletonRow = `
-              <li class="animate-pulse flex items-center justify-between rounded-xl bg-white p-4 shadow-sm min-h-[72px] border border-transparent">
-                <div class="flex items-center gap-3 w-full">
-                  <div class="h-10 w-10 shrink-0 rounded-lg bg-gray-200"></div>
-                  <div class="flex-1 space-y-2">
-                    <div class="h-4 bg-gray-200 rounded w-3/4"></div>
-                    <div class="h-3 bg-gray-200 rounded w-1/4"></div>
-                  </div>
+        const newsContainer = document.getElementById('latest-news-container');
+        if (newsContainer) {
+          const skeletonRow = `
+            <li class="animate-pulse flex items-center justify-between rounded-xl bg-white p-4 shadow-sm min-h-[72px] border border-transparent">
+              <div class="flex items-center gap-3 w-full">
+                <div class="h-10 w-10 shrink-0 rounded-lg bg-gray-200"></div>
+                <div class="flex-1 space-y-2">
+                  <div class="h-4 bg-gray-200 rounded w-3/4"></div>
+                  <div class="h-3 bg-gray-200 rounded w-1/4"></div>
                 </div>
-              </li>
-            `;
-            newsContainer.innerHTML = skeletonRow.repeat(3);
-          }
-          const newsItems = await fetchNews(token);
-          renderNews(newsItems);
-        } catch (error) {
+              </div>
+            </li>
+          `;
+          newsContainer.innerHTML = skeletonRow.repeat(3);
+        }
+        fetchNews(token).then(renderNews).catch(error => {
           console.error('Failed to fetch or render news:', error);
           if (error.message.includes('401')) {
             Auth.redirectToLogin();
           }
-        }
+        });
 
         // Load favourites FIRST and await it, so the knowledge-base / video /
         // news grids paint their star icons correctly on first render. This
@@ -479,6 +478,20 @@ window._historyCache = window._historyCache || { articleId: null, versionsData: 
 
         startEventStream();   // open the live (SSE) notification channel
         renderPinnedDock();
+
+        // Fade out and remove the global app boot loader. Anchored to
+        // transitionend (not just a hand-matched setTimeout) so the overlay
+        // never outlives its own fade — pointer-events-none stops it from
+        // swallowing the user's first click while it's still mounted, which
+        // matters most under prefers-reduced-motion (transitions collapse to
+        // 0.01ms, but this code previously still waited the full 300ms).
+        const appLoader = document.getElementById('global-app-loader');
+        if (appLoader) {
+          appLoader.classList.add('opacity-0', 'pointer-events-none');
+          const removeLoader = () => appLoader.remove();
+          appLoader.addEventListener('transitionend', removeLoader, { once: true });
+          setTimeout(removeLoader, 400);
+        }
       });
 
       async function uploadInlineImage(file) {
@@ -1774,6 +1787,21 @@ function applyRBAC(userRole) {
         });
       }
 
+// Re-shows the two audit nav entries for a content_admin holding the
+// system:audit DB-backed permission. applyRBAC() only understands the
+// data-required-role="admin" role string and unconditionally hid them above
+// -- system_admin already passes that check on its own, so this is a no-op
+// for that role. Scoped to exactly these two elements by id, not a blanket
+// data-required-role="admin" re-show, which would leak every other
+// admin-only control to a content_admin regardless of what they hold.
+function applyAuditAccessUI(canViewAudit) {
+        if (!canViewAudit) return;
+        ['sidebar-link-audit', 'adminBtn-audit'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) { el.style.display = ''; el.classList.remove('hidden'); }
+        });
+      }
+
 function setupGlobalSearch(token) {
         const searchInput = document.getElementById('global-search-input');
         const searchResults = document.getElementById('global-search-results');
@@ -2663,18 +2691,31 @@ async function editArticle(articleId) {
         }
       }
 
-function closeArticleDrawer() {
-        const panel = document.getElementById('admin-panel');
-        if (panel) {
-          panel.classList.add('translate-x-full');
-          setTimeout(() => panel.classList.add('hidden'), 300);
+function closeAllDrawers(excludeId) {
+        const panels = ['admin-panel', 'admin-news-panel', 'admin-video-panel', 'audit-detail-panel'];
+        panels.forEach(id => {
+          if (id === excludeId) return;
+          const el = document.getElementById(id);
+          if (el && !el.classList.contains('hidden')) {
+            el.classList.add('translate-x-full');
+            setTimeout(() => {
+              if (el.classList.contains('translate-x-full')) {
+                el.classList.add('hidden');
+              }
+            }, 300);
+          }
+        });
+        if (!excludeId) {
+          document.getElementById('admin-panel-backdrop')?.classList.add('hidden');
+          stopAutosave();
         }
-        document.getElementById('admin-panel-backdrop')?.classList.add('hidden');
+      }
 
-        // Stop autosave
-        stopAutosave();
+function closeArticleDrawer() {
+        closeAllDrawers();
       }
 window.closeArticleDrawer = closeArticleDrawer;
+window.closeAllDrawers = closeAllDrawers;
 
 function exitEditMode() {
         window.editingArticleId = null;
@@ -2824,7 +2865,12 @@ function exitNewsEditMode() {
       }
 
 function cancelNewsEdit() {
-        document.getElementById('admin-news-panel')?.classList.add('hidden');
+        const panel = document.getElementById('admin-news-panel');
+        if (panel) {
+          panel.classList.add('translate-x-full');
+          setTimeout(() => panel.classList.add('hidden'), 300);
+        }
+        document.getElementById('admin-panel-backdrop')?.classList.add('hidden');
         document.getElementById('create-news-form').reset();
         toggleNewsDueDate();
         exitNewsEditMode();
@@ -3014,12 +3060,12 @@ async function editNews(newsId) {
         if (formTitle) formTitle.textContent = 'სიახლის რედაქტირება';
 
         // Focus and display the news form
-        document.getElementById('admin-panel')?.classList.add('hidden');
-        document.getElementById('admin-video-panel')?.classList.add('hidden');
+        closeAllDrawers('admin-news-panel');
         const panel = document.getElementById('admin-news-panel');
         if (panel) {
           panel.classList.remove('hidden');
-          panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          setTimeout(() => panel.classList.remove('translate-x-full'), 10);
+          document.getElementById('admin-panel-backdrop')?.classList.remove('hidden');
         }
         const titleInput = document.getElementById('news-title');
         if (titleInput) titleInput.focus({ preventScroll: true });
@@ -3163,7 +3209,12 @@ function toggleVideoDueDate() {
       }
 
 function cancelVideoEdit() {
-        document.getElementById('admin-video-panel')?.classList.add('hidden');
+        const panel = document.getElementById('admin-video-panel');
+        if (panel) {
+          panel.classList.add('translate-x-full');
+          setTimeout(() => panel.classList.add('hidden'), 300);
+        }
+        document.getElementById('admin-panel-backdrop')?.classList.add('hidden');
         document.getElementById('create-video-form').reset();
         toggleVideoDueDate();
         window.editingVideoId = null;
@@ -5160,8 +5211,7 @@ async function submitUserEditForm(event) {
       }
 
 function focusCreateForm() {
-        document.getElementById('admin-news-panel')?.classList.add('hidden');
-        document.getElementById('admin-video-panel')?.classList.add('hidden');
+        closeAllDrawers('admin-panel');
         const panel = document.getElementById('admin-panel');
         if (!panel) return;
 
@@ -5240,27 +5290,63 @@ function focusCreateForm() {
       }
 
 function focusNewsForm() {
-        document.getElementById('admin-panel')?.classList.add('hidden', 'translate-x-full');
-        document.getElementById('admin-panel-backdrop')?.classList.add('hidden');
-        if (typeof stopAutosave === 'function') stopAutosave();
-        document.getElementById('admin-video-panel')?.classList.add('hidden');
+        closeAllDrawers('admin-news-panel');
         const panel = document.getElementById('admin-news-panel');
         if (!panel) return;
+
+        // Reset the form for a new news item (clears edit mode)
+        window.editingNewsId = null;
+        const form = document.getElementById('create-news-form');
+        if (form) form.reset();
+
+        const attUrl = document.getElementById('news-attachment-url');
+        if (attUrl) attUrl.value = '';
+        if (typeof updateNewsAttachmentChip === 'function') {
+          updateNewsAttachmentChip('');
+        }
+
+        const mandCheck = document.getElementById('news-mandatory');
+        if (mandCheck) mandCheck.checked = false;
+        const dueDate = document.getElementById('news-due-date');
+        if (dueDate) dueDate.value = '';
+        if (typeof toggleNewsDueDate === 'function') toggleNewsDueDate();
+
+        const formTitle = document.getElementById('news-form-title');
+        if (formTitle) formTitle.textContent = 'ახალი სიახლის დამატება';
+
         panel.classList.remove('hidden');
-        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setTimeout(() => panel.classList.remove('translate-x-full'), 10);
+        document.getElementById('admin-panel-backdrop')?.classList.remove('hidden');
+
         const title = document.getElementById('news-title');
         if (title) title.focus({ preventScroll: true });
       }
 
 function focusVideoForm() {
-        document.getElementById('admin-panel')?.classList.add('hidden', 'translate-x-full');
-        document.getElementById('admin-panel-backdrop')?.classList.add('hidden');
-        if (typeof stopAutosave === 'function') stopAutosave();
-        document.getElementById('admin-news-panel')?.classList.add('hidden');
+        closeAllDrawers('admin-video-panel');
         const panel = document.getElementById('admin-video-panel');
         if (!panel) return;
+
+        // Reset the form for a new video item (clears edit mode)
+        window.editingVideoId = null;
+        const form = document.getElementById('create-video-form');
+        if (form) form.reset();
+
+        const mandCheck = document.getElementById('video-mandatory');
+        if (mandCheck) mandCheck.checked = false;
+        const dueDate = document.getElementById('video-due-date');
+        if (dueDate) dueDate.value = '';
+        if (typeof toggleVideoDueDate === 'function') toggleVideoDueDate();
+
+        const titleEl = document.querySelector('#admin-video-panel h3');
+        if (titleEl) {
+          titleEl.textContent = 'ახალი ვიდეოს დამატება';
+        }
+
         panel.classList.remove('hidden');
-        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setTimeout(() => panel.classList.remove('translate-x-full'), 10);
+        document.getElementById('admin-panel-backdrop')?.classList.remove('hidden');
+
         const title = document.getElementById('video-title');
         if (title) title.focus({ preventScroll: true });
       }
@@ -7201,34 +7287,84 @@ window.loadModalHistoryList = async function(articleId) {
   const list = document.getElementById('modal-history-list');
   if (!list) return;
 
-  const renderList = (versions) => {
+  const renderList = async (versions) => {
     list.innerHTML = '';
-    versions.forEach(v => {
+    if (!versions || versions.length === 0) {
+      const diffEl = document.getElementById('modal-history-diff');
+      if (diffEl) {
+        diffEl.innerHTML = '<p class="text-gray-400 dark:text-zinc-500 text-sm">ცვლილებების ისტორია ჯერ არ არსებობს.</p>';
+      }
+      return;
+    }
+
+    const activeVersion = versions[0];
+    let autoSelectRow = null;
+
+    versions.forEach((v, index) => {
       const dateStr = v.updated_at ? new Date(v.updated_at).toLocaleString('ka-GE', { hour12: false }) : '';
+      const name = v.author_name || 'უცნობი';
+      
+      let badgeClass = 'bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-zinc-300';
+      let badgeText = `V${v.version}`;
+      
+      if (index === 0) {
+        badgeClass = 'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400';
+        badgeText = `V${v.version} (მიმდინარე)`;
+      } else if (index === versions.length - 1) {
+        badgeClass = 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400';
+        badgeText = `V${v.version} (ორიგინალი)`;
+      }
+
       const row = document.createElement('div');
-      if (v.history_id === null || v.history_id === undefined) {
-        row.className = 'rounded-lg px-3 py-2 text-xs opacity-50 cursor-not-allowed';
-        row.innerHTML = `<div class="font-semibold text-gray-700 dark:text-zinc-300">მიმდინარე ვერსია</div><div class="text-gray-400 dark:text-zinc-500">${v.author_name || 'უცნობი'} — ${dateStr}</div>`;
-      } else {
-        row.className = 'rounded-lg px-3 py-2 text-xs cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-800 border border-transparent';
-        const versionLabel = v.is_legacy_version ? 'ისტორიული ვერსია' : `ვერსია ${v.version}`;
-        row.innerHTML = `<div class="font-semibold text-gray-700 dark:text-zinc-300">${versionLabel}</div><div class="text-gray-400 dark:text-zinc-500">${v.author_name || 'უცნობი'} — ${dateStr}</div>`;
-        row.onclick = () => {
-          list.querySelectorAll('[data-history-active]').forEach(el => {
-            el.removeAttribute('data-history-active');
-            el.classList.remove('bg-red-50', 'border-red-100', 'dark:bg-red-950/40', 'dark:border-red-900/60');
-          });
-          row.setAttribute('data-history-active', 'true');
-          row.classList.add('bg-red-50', 'border-red-100', 'dark:bg-red-950/40', 'dark:border-red-900/60');
-          window.loadModalHistoryDiff(articleId, v.history_id);
-        };
+      row.className = 'flex flex-col gap-1.5 p-3 rounded-xl cursor-pointer border border-gray-100 dark:border-zinc-800 transition-all hover:bg-gray-50 dark:hover:bg-zinc-800/60 my-1.5';
+      row.innerHTML = `
+        <div class="flex items-center justify-between gap-2">
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold ${badgeClass}">${badgeText}</span>
+        </div>
+        <div class="text-[10px] text-gray-500 dark:text-zinc-400 font-medium">რედაქტორი: ${name}</div>
+        <div class="text-[9px] text-gray-400 dark:text-zinc-500">${dateStr}</div>
+      `;
+
+      row.onclick = async () => {
+        list.querySelectorAll('[data-history-active]').forEach(el => {
+          el.removeAttribute('data-history-active');
+          el.classList.remove('bg-red-50', 'border-red-100', 'dark:bg-red-950/40', 'dark:border-red-900/60');
+          el.classList.add('border-gray-100', 'dark:border-zinc-800');
+        });
+        row.setAttribute('data-history-active', 'true');
+        row.classList.remove('border-gray-100', 'dark:border-zinc-800');
+        row.classList.add('bg-red-50', 'border-red-100', 'dark:bg-red-950/40', 'dark:border-red-900/60');
+        try {
+          await window.loadModalHistoryDiff(articleId, v.history_id);
+        } catch (err) {
+          row.removeAttribute('data-history-active');
+          row.classList.remove('bg-red-50', 'border-red-100', 'dark:bg-red-950/40', 'dark:border-red-900/60');
+          row.classList.add('border-gray-100', 'dark:border-zinc-800');
+        }
+      };
+
+      if (index === 0) {
+        autoSelectRow = row;
       }
       list.appendChild(row);
     });
+
+    if (autoSelectRow) {
+      autoSelectRow.setAttribute('data-history-active', 'true');
+      autoSelectRow.classList.remove('border-gray-100', 'dark:border-zinc-800');
+      autoSelectRow.classList.add('bg-red-50', 'border-red-100', 'dark:bg-red-950/40', 'dark:border-red-900/60');
+      try {
+        await window.loadModalHistoryDiff(articleId, activeVersion.history_id);
+      } catch (err) {
+        autoSelectRow.removeAttribute('data-history-active');
+        autoSelectRow.classList.remove('bg-red-50', 'border-red-100', 'dark:bg-red-950/40', 'dark:border-red-900/60');
+        autoSelectRow.classList.add('border-gray-100', 'dark:border-zinc-800');
+      }
+    }
   };
 
   if (window._historyCache.articleId === articleId && window._historyCache.versionsData) {
-    renderList(window._historyCache.versionsData);
+    await renderList(window._historyCache.versionsData);
     return;
   }
 
@@ -7242,7 +7378,7 @@ window.loadModalHistoryList = async function(articleId) {
 
     window._historyCache.articleId = articleId;
     window._historyCache.versionsData = versions;
-    renderList(versions);
+    await renderList(versions);
   } catch (err) {
     console.error('Error loading version history:', err);
     list.innerHTML = '<p class="text-red-500 dark:text-red-400 text-xs px-3">ვერსიების ისტორიის ჩატვირთვა ვერ მოხერხდა</p>';
@@ -7259,31 +7395,50 @@ window._populateHistoryCompareSelect = function(articleId, primaryHistoryId) {
   if (!wrap || !select || !versions) return;
 
   select.innerHTML = '';
-  const currentOpt = document.createElement('option');
-  currentOpt.value = '';
-  currentOpt.textContent = 'მიმდინარე ვერსია';
-  select.appendChild(currentOpt);
+
+  // Find the primary version info
+  const primaryVersion = versions.find(v => v.history_id === primaryHistoryId);
+  
+  // Find its predecessor version in the list
+  let defaultCompareId = '';
+  if (primaryVersion) {
+    let pred = null;
+    versions.forEach(v => {
+      if (v.history_id !== primaryHistoryId) {
+        if (v.version < primaryVersion.version) {
+          if (!pred || v.version > pred.version) {
+            pred = v;
+          }
+        }
+      }
+    });
+    if (pred) {
+      defaultCompareId = String(pred.history_id);
+    }
+  }
 
   let otherCount = 0;
   versions.forEach(v => {
-    if (v.history_id === null || v.history_id === undefined) return; // synthetic current row
-    if (v.history_id === primaryHistoryId) return; // can't compare a version against itself
+    if (v.history_id === primaryHistoryId) return; // cannot compare a version against itself
+    
     const opt = document.createElement('option');
     opt.value = String(v.history_id);
-    opt.textContent = v.is_legacy_version ? 'ისტორიული ვერსია' : `ვერსია ${v.version}`;
+    opt.textContent = `ვერსია ${v.version}`;
     select.appendChild(opt);
     otherCount++;
   });
 
-  select.value = '';
-  wrap.classList.toggle('hidden', otherCount === 0);
+  select.value = defaultCompareId;
+  
+  // Always keep compare dropdown visible so users know what is being compared
+  wrap.classList.remove('hidden');
   select.onchange = () => {
     const val = select.value ? parseInt(select.value, 10) : undefined;
     window.loadModalHistoryDiff(articleId, primaryHistoryId, val);
   };
 };
 
-window.loadModalHistoryDiff = async function(articleId, historyId, compareHistoryId) {
+window.loadModalHistoryDiff = async function(articleId, historyId, compareHistoryId, usePredecessor = true) {
   const diffEl = document.getElementById('modal-history-diff');
   const summaryEl = document.getElementById('modal-history-summary');
   if (!diffEl) return;
@@ -7299,30 +7454,139 @@ window.loadModalHistoryDiff = async function(articleId, historyId, compareHistor
 
   const token = localStorage.getItem('magti_token') || (typeof Auth !== 'undefined' ? Auth.getToken() : null);
   try {
-    const url = compareHistoryId
-      ? `/api/articles/${articleId}/history/${historyId}/diff?compare_history_id=${compareHistoryId}`
-      : `/api/articles/${articleId}/history/${historyId}/diff`;
+    let url;
+    if (compareHistoryId) {
+      url = `/api/articles/${articleId}/history/${historyId}/diff?compare_history_id=${compareHistoryId}`;
+    } else if (usePredecessor) {
+      url = `/api/articles/${articleId}/history/${historyId}/diff?compare_to_predecessor=true`;
+    } else {
+      url = `/api/articles/${articleId}/history/${historyId}/diff`;
+    }
     const res = await fetch(url, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (!res.ok) throw new Error('Failed to fetch diff');
     const result = await res.json();
 
-    diffEl.innerHTML = result.html || '<p class="text-gray-400 dark:text-zinc-500 text-sm">სხვაობა ვერ მოიძებნა.</p>';
     if (summaryEl) {
       summaryEl.classList.remove('hidden');
-      const compareLabel = compareHistoryId
-        ? 'შედარება არჩეულ ვერსიასთან:'
-        : 'შედარება მიმდინარე ვერსიასთან:';
+      let compareLabel = `ცვლილება: ვერსია ${result.base_version} ➔ ვერსია ${result.compare_version}`;
+      if (result.base_version === result.compare_version) {
+        compareLabel = `ვერსია ${result.base_version} (ორიგინალი)`;
+      }
       summaryEl.innerHTML = `
-        <span class="text-gray-500 dark:text-zinc-400">${compareLabel}</span>
-        <span class="text-green-700 dark:text-green-400">+${result.added || 0} დამატებული</span>
-        <span class="text-red-700 dark:text-red-400">&minus;${result.removed || 0} წაშლილი</span>
+        <span class="text-gray-500 dark:text-zinc-400 font-semibold">${compareLabel}</span>
+        <div class="flex items-center gap-2">
+          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-900/50">
+            <i class="fa-solid fa-plus text-[10px]"></i> ${result.added || 0} დამატებული
+          </span>
+          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900/50">
+            <i class="fa-solid fa-minus text-[10px]"></i> ${result.removed || 0} წაშლილი
+          </span>
+        </div>
       `;
+    }
+
+    let html = result.html || '';
+    // Replace Image tokens with beautiful visual chips
+    html = html.replace(/\[Image:\s*([^\]]+)\]/g, (match, src) => {
+      const filename = src.split('/').pop();
+      return `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 border border-gray-200 dark:border-zinc-700 text-xs font-medium font-sans my-0.5 select-all"><i class="fa-regular fa-image text-gray-400 dark:text-zinc-500"></i>სურათი: <span class="underline text-gray-500 dark:text-zinc-400 truncate max-w-[180px]" title="${src}">${filename}</span></span>`;
+    });
+    // Replace Link tokens with beautiful visual chips
+    html = html.replace(/\[Link:\s*([^\]]+)\]/g, (match, href) => {
+      const displayUrl = href.replace(/https?:\/\/(www\.)?/, '').split('/')[0];
+      return `<a href="${href}" target="_blank" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-900/40 text-xs font-medium font-sans hover:underline my-0.5"><i class="fa-solid fa-link text-blue-400"></i>ბმული: <span class="truncate max-w-[180px]" title="${href}">${displayUrl}</span></a>`;
+    });
+    if (html && ((result.added || 0) > 0 || (result.removed || 0) > 0)) {
+      const legendHtml = `
+        <div class="flex items-center justify-between gap-4 px-3 py-2 mb-3 rounded-lg bg-gray-50 dark:bg-zinc-800/40 border border-gray-100 dark:border-zinc-800 text-[11px] text-gray-500 dark:text-zinc-400 select-none">
+          <div class="flex items-center gap-4">
+            <span class="font-semibold text-gray-600 dark:text-zinc-300">მინიშნება:</span>
+            <span class="flex items-center gap-1"><span class="font-bold text-green-500 dark:text-green-400">+</span> დამატებული</span>
+            <span class="flex items-center gap-1"><span class="font-bold text-red-500 dark:text-red-400">-</span> წაშლილი</span>
+            <span class="flex items-center gap-1"><span class="text-blue-500 dark:text-blue-400">✎</span> შეცვლილი</span>
+          </div>
+          <label class="flex items-center gap-1.5 cursor-pointer font-medium hover:text-gray-700 dark:hover:text-zinc-200">
+            <input type="checkbox" id="diff-show-changes-only" class="rounded border-gray-300 dark:border-zinc-700 text-blue-600 focus:ring-blue-500 dark:bg-zinc-900 w-3.5 h-3.5">
+            <span>მხოლოდ ცვლილებები</span>
+          </label>
+        </div>
+      `;
+      diffEl.innerHTML = legendHtml + html;
+
+      window.toggleDiffContextFilter = function(diffEl, enabled) {
+        if (!diffEl) return;
+
+        if (enabled) {
+          const children = Array.from(diffEl.children).filter(el => el.classList.contains('diff-line'));
+          let currentGroup = [];
+          const groups = [];
+          children.forEach(child => {
+            if (child.classList.contains('diff-equal')) {
+              currentGroup.push(child);
+            } else {
+              if (currentGroup.length > 0) {
+                groups.push(currentGroup);
+                currentGroup = [];
+              }
+            }
+          });
+          if (currentGroup.length > 0) {
+            groups.push(currentGroup);
+          }
+
+          groups.forEach(group => {
+            if (group.length > 4) {
+              const hiddenLines = [];
+              for (let k = 2; k < group.length - 2; k++) {
+                const el = group[k];
+                el.style.display = 'none';
+                el.setAttribute('data-diff-hidden', 'true');
+                hiddenLines.push(el);
+              }
+              const hiddenCount = hiddenLines.length;
+
+              const btn = document.createElement('button');
+              btn.type = 'button';
+              btn.className = 'w-full my-1.5 py-1 px-3 text-center text-xs font-semibold text-gray-500 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 dark:bg-zinc-800/60 dark:hover:bg-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 border border-gray-100 dark:border-zinc-800 rounded transition duration-150 flex items-center justify-center gap-1.5 cursor-pointer diff-accordion-btn select-none';
+              btn.innerHTML = `<i class="fa-solid fa-eye-slash text-[10px]"></i> ... ${hiddenCount} ხაზი უცვლელია (ჩვენება) ...`;
+              
+              group[1].insertAdjacentElement('afterend', btn);
+
+              btn.onclick = () => {
+                hiddenLines.forEach(el => {
+                  el.style.display = '';
+                  el.removeAttribute('data-diff-hidden');
+                });
+                btn.remove();
+              };
+            }
+          });
+        } else {
+          diffEl.querySelectorAll('[data-diff-hidden]').forEach(el => {
+            el.style.display = '';
+            el.removeAttribute('data-diff-hidden');
+          });
+          diffEl.querySelectorAll('.diff-accordion-btn').forEach(btn => {
+            btn.remove();
+          });
+        }
+      };
+
+      const filterCheckbox = document.getElementById('diff-show-changes-only');
+      if (filterCheckbox) {
+        filterCheckbox.addEventListener('change', (e) => {
+          window.toggleDiffContextFilter(diffEl, e.target.checked);
+        });
+      }
+    } else {
+      diffEl.innerHTML = html || '<p class="text-gray-400 dark:text-zinc-500 text-sm">სხვაობა ვერ მოიძებნა.</p>';
     }
   } catch (err) {
     console.error('Error loading version diff:', err);
-    diffEl.innerHTML = '<p class="text-red-500 dark:text-red-400 text-sm">შედარების ჩატვირთვა ვერ მოხერხდა</p>';
+    diffEl.innerHTML = '<p class="text-red-500 dark:text-red-400 text-sm">შეცდომა: სხვაობის ჩატვირთვა ვერ მოხერხდა</p>';
+    throw err;
   }
 };
 

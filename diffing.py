@@ -12,8 +12,8 @@ from bs4 import BeautifulSoup
 _BLOCK_TAGS = ("p", "li", "h1", "h2", "h3", "h4", "h5", "h6",
                "blockquote", "pre", "td", "th")
 
-INS = '<ins class="bg-green-100 dark:bg-green-900/40 no-underline rounded px-0.5">{}</ins>'
-DEL = '<del class="bg-red-100 dark:bg-red-900/40 line-through rounded px-0.5">{}</del>'
+INS = '<ins class="bg-green-200/60 dark:bg-green-900/60 no-underline rounded px-1 font-semibold text-green-950 dark:text-green-200">{}</ins>'
+DEL = '<del class="bg-red-200/60 dark:bg-red-900/60 line-through rounded px-1 text-red-950 dark:text-red-300">{}</del>'
 
 
 def _block_text(node) -> str:
@@ -82,15 +82,15 @@ def diff_html(old_html: str, new_html: str) -> dict:
     for op, i1, i2, j1, j2 in sm.get_opcodes():
         if op == "equal":
             for blk in a[i1:i2]:
-                rows.append(f'<div class="diff-line py-0.5">{html.escape(blk)}</div>')
+                rows.append(f'<div class="diff-line diff-equal flex items-start gap-2 px-3 py-1.5 text-gray-600 dark:text-zinc-400 border-l-2 border-transparent"><span class="select-none text-gray-300 dark:text-zinc-700 w-4 font-mono text-center">•</span><span class="flex-1">{html.escape(blk)}</span></div>')
         elif op == "delete":
             removed += (i2 - i1)
             for blk in a[i1:i2]:
-                rows.append(f'<div class="diff-line py-0.5">{DEL.format(html.escape(blk))}</div>')
+                rows.append(f'<div class="diff-line diff-delete flex items-start gap-2 border-l-2 border-red-500 bg-red-50/40 dark:bg-red-950/20 px-3 py-1.5 rounded-r my-1 text-red-900 dark:text-red-200"><span class="select-none text-red-400 font-bold w-4 font-mono text-center">-</span><span class="flex-1">{html.escape(blk)}</span></div>')
         elif op == "insert":
             added += (j2 - j1)
             for blk in b[j1:j2]:
-                rows.append(f'<div class="diff-line py-0.5">{INS.format(html.escape(blk))}</div>')
+                rows.append(f'<div class="diff-line diff-insert flex items-start gap-2 border-l-2 border-green-500 bg-green-50/40 dark:bg-green-950/20 px-3 py-1.5 rounded-r my-1 text-green-900 dark:text-green-200"><span class="select-none text-green-400 font-bold w-4 font-mono text-center">+</span><span class="flex-1">{html.escape(blk)}</span></div>')
         elif op == "replace":
             added += (j2 - j1)
             removed += (i2 - i1)
@@ -98,5 +98,5 @@ def diff_html(old_html: str, new_html: str) -> dict:
             for k in range(max(i2 - i1, j2 - j1)):
                 ob = a[i1 + k] if i1 + k < i2 else ""
                 nb = b[j1 + k] if j1 + k < j2 else ""
-                rows.append(f'<div class="diff-line py-0.5">{_word_diff(ob, nb)}</div>')
+                rows.append(f'<div class="diff-line diff-modified flex items-start gap-2 border-l-2 border-blue-500 bg-blue-50/20 dark:bg-blue-950/10 px-3 py-1.5 rounded-r my-1 text-gray-800 dark:text-zinc-200"><span class="select-none text-blue-400 font-bold w-4 font-mono text-center">✎</span><span class="flex-1">{_word_diff(ob, nb)}</span></div>')
     return {"html": "\n".join(rows), "added": added, "removed": removed}

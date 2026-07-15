@@ -42,6 +42,7 @@ import audit_trail
 import models
 import schemas
 import security
+import diffing
 from config import settings
 from database import engine, get_db, SessionLocal, get_tbilisi_time, format_tbilisi_date
 
@@ -708,10 +709,22 @@ async def actor_context_middleware(request: Request, call_next):
         except Exception:
             email = None
     ctx_token = audit_trail.current_actor_email.set(email)
+    # Same request.client.host convention LOGIN_FAILED already uses below,
+    # generalized here for every audited write via audit_trail's after_begin
+    # event. Same pre-existing reverse-proxy limitation that capture already
+    # has (captures the proxy's IP if Magti sits behind one).
+    ip = request.client.host if request.client else None
+    ua = request.headers.get("user-agent") or None
+    if ua:
+        ua = ua[:500]
+    ip_token = audit_trail.current_client_ip.set(ip)
+    ua_token = audit_trail.current_user_agent.set(ua)
     try:
         return await call_next(request)
     finally:
         audit_trail.current_actor_email.reset(ctx_token)
+        audit_trail.current_client_ip.reset(ip_token)
+        audit_trail.current_user_agent.reset(ua_token)
 
 
 @app.middleware("http")
@@ -1119,8 +1132,11 @@ def logout(response: Response):
     response.delete_cookie("access_token", path="/")
     return {"detail": "Logged out"}
 
-@app.get("/api/users/me", response_model=schemas.UserResponse)
-def read_users_me(current_user: models.User = Depends(security.get_current_user)):
+@app.get("/api/users/me", response_model=schemas.CurrentUserResponse)
+def read_users_me(
+    current_user: models.User = Depends(security.get_current_user),
+    db: Session = Depends(get_db),
+):
     """Retrieves the profile information of the currently authenticated user.
 
     Access: Authenticated users (any active role).
@@ -1129,9 +1145,15 @@ def read_users_me(current_user: models.User = Depends(security.get_current_user)
         current_user: The authenticated User object.
 
     Returns:
-        The current User details.
+        The current User details, plus permission-derived UI flags
+        (can_view_audit_log) the frontend can't compute on its own since
+        RBAC lives in the DB, not in anything shipped to the client.
     """
-    return current_user
+    resp = schemas.CurrentUserResponse.model_validate(current_user)
+    resp.can_view_audit_log = security._role_has_permission(
+        db, current_user.role, security.PERM_SYSTEM_AUDIT
+    )
+    return resp
 
 @app.put("/api/users/me", response_model=schemas.UserResponse)
 def update_users_me(
@@ -2361,7 +2383,17 @@ def create_article(
     db.flush()
     sync_tags(db, "article", db_article.id, db_article.tags)
 
+    # Save the initial state to history for Unified Revision Log (Version 1)
+    article_history = models.ArticleHistory(
+        article_id=db_article.id,
+        title=db_article.title,
+        content=db_article.content,
+        updated_by=current_admin.id,
+        version_id=1,
+    )
+    db.add(article_history)
     db.commit()
+    db.refresh(db_article)
 
     # Real-time: notify the target department only about PUBLISHED articles.
     if db_article.status == "published":
@@ -2369,6 +2401,27 @@ def create_article(
     search_cache.clear()
     category_cache.clear()
     return db_article
+
+def _ensure_current_version_archived(db: Session, article: models.Article, updated_by_id: int) -> None:
+    """Checks if the current active version of an article is archived in history.
+    If not, archives it under the current version number before any changes or bumps occur.
+    """
+    exists = db.query(models.ArticleHistory).filter(
+        models.ArticleHistory.article_id == article.id,
+        models.ArticleHistory.version_id == article.version,
+    ).first()
+    if not exists:
+        archive_row = models.ArticleHistory(
+            article_id=article.id,
+            title=article.title,
+            content=article.content,
+            updated_by=updated_by_id,
+            version_id=article.version,
+            updated_at=article.updated_at or get_tbilisi_time(),
+        )
+        db.add(archive_row)
+        db.flush()
+
 
 @app.put("/api/articles/{article_id}", response_model=schemas.ArticleResponse)
 def update_article(
@@ -2399,20 +2452,12 @@ def update_article(
     if not db_article:
         raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
 
-    # Capture the pre-edit content for the diff BEFORE the setattr loop overwrites it.
+    # Ensure the pre-edit content is archived in history under the current version
+    _ensure_current_version_archived(db, db_article, current_admin.id)
+
+    # Capture the pre-edit content and status BEFORE updates overwrite it
     old_content = db_article.content
     old_status = db_article.status
-
-    # Save the current state to history before applying changes. version_id stamps
-    # the version this snapshot represents (the value before the bump below).
-    article_history = models.ArticleHistory(
-        article_id=db_article.id,
-        title=db_article.title,
-        content=db_article.content,
-        updated_by=current_admin.id,
-        version_id=db_article.version,
-    )
-    db.add(article_history)
 
     update_data = article.model_dump()
     # Transient broadcast flag — never a column on Article; pop before setattr.
@@ -2437,6 +2482,16 @@ def update_article(
 
     db_article.version += 1
     sync_tags(db, "article", db_article.id, db_article.tags)
+
+    # Save the new (updated) state to history for Unified Revision Log
+    article_history = models.ArticleHistory(
+        article_id=db_article.id,
+        title=db_article.title,
+        content=db_article.content,
+        updated_by=current_admin.id,
+        version_id=db_article.version,
+    )
+    db.add(article_history)
     db.commit()
     db.refresh(db_article)
 
@@ -2448,7 +2503,6 @@ def update_article(
     if old_status == "draft" and db_article.status == "published":
         _notify("article", db_article)
     elif notify_operators and db_article.status == "published":
-        import diffing
         summary = diffing.diff_html(old_content, db_article.content)
         _notify_revision(db_article, current_admin.name, summary)
     else:
@@ -2648,10 +2702,11 @@ def get_article_diff(
     article_id: int,
     history_id: int,
     compare_history_id: Optional[int] = None,
+    compare_to_predecessor: bool = False,
     current_user: models.User = Depends(security.get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Diff a historical snapshot against the article's CURRENT content or another historical snapshot.
+    """Diff a historical snapshot against its predecessor, the article's CURRENT content, or another historical snapshot.
 
     Returns {'html', 'added', 'removed', 'version_id'} — available to any user
     who can already read the article.
@@ -2667,17 +2722,49 @@ def get_article_diff(
     if not snap:
         raise HTTPException(status_code=404, detail="ისტორიის ვერსია ვერ მოიძებნა")
 
-    import diffing
-    if compare_history_id:
+    if compare_to_predecessor:
+        # Find predecessor in history (previous version_id for this article)
+        pred = db.query(models.ArticleHistory).filter(
+            models.ArticleHistory.article_id == article_id,
+            models.ArticleHistory.version_id < snap.version_id,
+        ).order_by(desc(models.ArticleHistory.version_id)).first()
+        
+        if pred:
+            result = diffing.diff_html(pred.content, snap.content)  # pred -> snap
+            result["base_version"] = pred.version_id
+            result["compare_version"] = snap.version_id
+        else:
+            # Original version (Version 1) has no predecessor -> show cleanly without diffs
+            result = diffing.diff_html(snap.content, snap.content)
+            result["base_version"] = snap.version_id
+            result["compare_version"] = snap.version_id
+    elif compare_history_id:
         compare_snap = db.query(models.ArticleHistory).filter(
             models.ArticleHistory.id == compare_history_id,
             models.ArticleHistory.article_id == article_id,
         ).first()
         if not compare_snap:
             raise HTTPException(status_code=404, detail="შესადარებელი ისტორიის ვერსია ვერ მოიძებნა")
-        result = diffing.diff_html(snap.content, compare_snap.content)   # old → compare
+        
+        # Chronological ordering lock
+        if snap.version_id < compare_snap.version_id:
+            result = diffing.diff_html(snap.content, compare_snap.content)
+            result["base_version"] = snap.version_id
+            result["compare_version"] = compare_snap.version_id
+        else:
+            result = diffing.diff_html(compare_snap.content, snap.content)
+            result["base_version"] = compare_snap.version_id
+            result["compare_version"] = snap.version_id
     else:
-        result = diffing.diff_html(snap.content, art.content)   # old → current
+        # Compare snap against current active content
+        if snap.version_id < art.version:
+            result = diffing.diff_html(snap.content, art.content)
+            result["base_version"] = snap.version_id
+            result["compare_version"] = art.version
+        else:
+            result = diffing.diff_html(art.content, snap.content)
+            result["base_version"] = art.version
+            result["compare_version"] = snap.version_id
         
     result["version_id"] = snap.version_id
     return result
@@ -2720,20 +2807,23 @@ def restore_article_version(
     if not history:
         raise HTTPException(status_code=404, detail="ისტორიის ვერსია ვერ მოიძებნა")
 
-    # Save the current state to history first (enabling undo)
-    backup_history = models.ArticleHistory(
+    # Ensure the active state right before restoration is archived in history
+    _ensure_current_version_archived(db, db_article, current_admin.id)
+
+    # Overwrite current row with history values
+    db_article.title = history.title
+    db_article.content = history.content
+    db_article.version += 1
+
+    # Save the restored state to history as a new revision (Version N)
+    restored_history = models.ArticleHistory(
         article_id=db_article.id,
         title=db_article.title,
         content=db_article.content,
         updated_by=current_admin.id,
         version_id=db_article.version,
     )
-    db.add(backup_history)
-
-    # Overwrite current row with history values
-    db_article.title = history.title
-    db_article.content = history.content
-    db_article.version += 1
+    db.add(restored_history)
     db.commit()
     db.refresh(db_article)
 
@@ -3071,29 +3161,41 @@ def get_article_versions(
         raise HTTPException(status_code=404, detail="სტატია ვერ მოიძებნა")
     _assert_article_visible(article, current_user)
 
-    current_author_name = None
-    if article.author_id:
-        author = db.query(models.User).filter(models.User.id == article.author_id).first()
-        if author:
-            current_author_name = author.name
+    # Self-healing migration for Unified Revision Log:
+    # Check if the current version of the article exists in the history table.
+    # If not (e.g. legacy articles or articles created before this migration), we insert it automatically.
+    exists_current = db.query(models.ArticleHistory).filter(
+        models.ArticleHistory.article_id == article_id,
+        models.ArticleHistory.version_id == article.version,
+    ).first()
+    
+    if not exists_current:
+        current_author_name = None
+        if article.author_id:
+            author = db.query(models.User).filter(models.User.id == article.author_id).first()
+            if author:
+                current_author_name = author.name
+
+        current_history = models.ArticleHistory(
+            article_id=article.id,
+            title=article.title,
+            content=article.content,
+            updated_by=article.author_id or current_user.id,
+            version_id=article.version,
+            updated_at=article.updated_at or get_tbilisi_time(),
+        )
+        db.add(current_history)
+        db.commit()
             
     history = (
         db.query(models.ArticleHistory, models.User.name.label("author_name"))
         .outerjoin(models.User, models.ArticleHistory.updated_by == models.User.id)
         .filter(models.ArticleHistory.article_id == article_id)
-        .order_by(desc(models.ArticleHistory.updated_at))
+        .order_by(desc(models.ArticleHistory.version_id))
         .all()
     )
     
-    versions = [
-        {
-            "version": article.version,
-            "title": article.title,
-            "updated_at": article.updated_at,
-            "author_name": current_author_name,
-            "history_id": None,
-        }
-    ]
+    versions = []
     for h in history:
         versions.append({
             "version": h.ArticleHistory.version_id or 0,
@@ -5384,15 +5486,19 @@ def delete_message(
     return None
 
 def _parse_audit_date(value: str, end_of_day: bool = False) -> Optional[datetime]:
-    """Convert a user-supplied date/datetime string to a naive UTC datetime.
+    """Convert a user-supplied date/datetime string to naive Tbilisi-local time.
 
-    AuditLog.timestamp is stored as naive UTC (default=datetime.utcnow). If we
-    compared a timezone-aware value directly we'd hit "can't compare offset-naive
-    and offset-aware datetimes" on PostgreSQL and a silent miscompare on SQLite.
-    So: parse the input, normalise it to UTC via astimezone(), then strip tzinfo.
+    AuditLog.timestamp is stored as naive Tbilisi-local time (UTC+4) —
+    database.get_tbilisi_time(), NOT datetime.utcnow() despite what this
+    docstring used to claim. Comparing a converted-to-UTC value against that
+    column silently skewed every date-range filter by 4 hours. If we compared
+    a timezone-aware value directly we'd hit "can't compare offset-naive and
+    offset-aware datetimes" on PostgreSQL and a silent miscompare on SQLite,
+    so: parse the input, normalise it to Tbilisi-local via astimezone(), then
+    strip tzinfo.
 
     ``value`` may be a bare date (YYYY-MM-DD) or a full ISO-8601 datetime with
-    optional offset/Z suffix. A bare date is interpreted as midnight UTC.
+    optional offset/Z suffix. A bare date is interpreted as midnight Tbilisi-local.
     """
     from datetime import timezone
 
@@ -5415,9 +5521,9 @@ def _parse_audit_date(value: str, end_of_day: bool = False) -> Optional[datetime
         # End-of-day inclusive: roll forward and apply a < filter at the call site.
         parsed = parsed + timedelta(days=1)
     if parsed.tzinfo is not None:
-        # SAFE conversion: shift to UTC, then drop tzinfo so the comparison
-        # matches the naive-UTC values written by get_tbilisi_time().
-        parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+        # SAFE conversion: shift to Tbilisi-local (UTC+4), then drop tzinfo so
+        # the comparison matches the naive-local values get_tbilisi_time() writes.
+        parsed = parsed.astimezone(timezone(timedelta(hours=4))).replace(tzinfo=None)
     return parsed
 
 
@@ -5434,13 +5540,49 @@ def _audit_item_name(log, article_title, news_title, video_title, category_name)
     }.get((log.item_type or "").lower())
 
 
+def _log_audit_trail_access(db: Session, actor: models.User, action: str, filters: dict) -> None:
+    """Meta-audit: records that `actor` looked at (or exported) the audit
+    trail, and with which filters — same shape as every other AuditLog call
+    site in this file (db.add + commit), classified SECURITY via
+    models._AUDIT_SECURITY_ACTIONS. item_id is self-referential (no natural
+    target item), matching the LOGIN row's own convention.
+
+    Best-effort: a failure here must never block the actual read the caller
+    already computed, so errors are logged and swallowed, not raised.
+    """
+    try:
+        details = json.dumps({k: v for k, v in filters.items() if v not in (None, "")}, ensure_ascii=False)
+        db.add(models.AuditLog(
+            admin_id=actor.id, action=action, item_type="audit_log", item_id=actor.id,
+            details=details,
+        ))
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("Failed to write meta-audit row for %s by admin_id=%s", action, actor.id)
+
+
+def _audit_scope_department(current_user: models.User) -> Optional[str]:
+    """None = unrestricted (system_admin, content_admin). A manager is pinned
+    to their own department/group string — same idiom as get_team_stats'
+    existing 'manager sees only their own department' branch (main.py:4380)."""
+    if current_user.role == security.ROLE_MANAGER:
+        return current_user.department
+    return None
+
+
 def _build_audit_query(db, start_date, end_date, user_id, user_name, action, category,
-                       *, log_prefix: str = "Audit log"):
+                       *, log_prefix: str = "Audit log", scope_department: Optional[str] = None):
     """Shared join/filter builder for the audit list and its CSV export.
 
     The User join is OUTER on purpose: deleting an account must not erase its
     audit history from the view (rows fall back to a 'deleted user' label).
     Item-name joins cover articles, news, videos and categories.
+
+    scope_department (manager-only): filters to rows whose actor's CURRENT
+    department matches exactly. Because the User join is OUTER, a deleted
+    actor's row has User.department IS NULL, and NULL == 'X' is never true in
+    SQL — such rows are correctly excluded (fail closed), no extra code needed.
     """
     query = (
         db.query(
@@ -5485,6 +5627,8 @@ def _build_audit_query(db, start_date, end_date, user_id, user_name, action, cat
         query = query.filter(models.AuditLog.admin_id == user_id)
     if user_name:
         query = query.filter(models.User.name.ilike(f"%{user_name}%"))
+    if scope_department:
+        query = query.filter(models.User.department == scope_department)
     if action:
         if action == "LOGIN":
             # LOGIN filter aggregates both password-based logins and SSO logins.
@@ -5498,40 +5642,73 @@ def _build_audit_query(db, start_date, end_date, user_id, user_name, action, cat
 
 @app.get("/api/audit-logs", response_model=list[schemas.AuditLogResponse])
 def get_audit_logs(
+    response: Response,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     user_id: Optional[int] = None,
     user_name: Optional[str] = None,
     action: Optional[str] = None,
     category: Optional[str] = None,
-    limit: int = 100,
+    q: Optional[str] = None,
+    limit: int = 50,
     offset: int = 0,
-    current_admin: models.User = Depends(security.get_current_system_admin_user),
+    current_user: models.User = Depends(security.require_permission(security.PERM_SYSTEM_AUDIT)),
     db: Session = Depends(get_db)
 ):
     """Retrieves system audit logs with optional filters (date, user, action type).
 
-    Access: Restricted to system administrators (admin) only.
+    Access: system administrators and content_admin see everything. A manager
+    holds the same system:audit permission but is hard-pinned to their own
+    department/group (see _audit_scope_department) — "own group only, nothing
+    more" per the access-control requirement this scoping was built for.
     """
-    rows = (
-        _build_audit_query(db, start_date, end_date, user_id, user_name, action, category)
-        .offset(offset).limit(limit).all()
-    )
-    return [
+    limit = max(1, min(limit, 200))  # was unbounded; a runaway limit shouldn't be able to hurt the DB
+    scope_department = _audit_scope_department(current_user)
+    query = _build_audit_query(db, start_date, end_date, user_id, user_name, action, category,
+                                scope_department=scope_department)
+    if q:
+        like = f"%{q}%"
+        query = query.filter(or_(
+            models.AuditLog.action.ilike(like),
+            models.AuditLog.item_type.ilike(like),
+            models.AuditLog.item_name_snapshot.ilike(like),
+            models.AuditLog.details.ilike(like),
+        ))
+    # order_by(None): the base query already carries an ORDER BY for listing,
+    # which Postgres would otherwise sort for pointlessly before counting.
+    response.headers["X-Total-Count"] = str(query.order_by(None).count())
+    rows = query.offset(offset).limit(limit).all()
+    result = [
         {
             "id": log.id,
             "admin_id": log.admin_id,
-            "admin_name": admin_name or _DELETED_USER_LABEL,
+            "admin_name": log.admin_name_snapshot or admin_name or _DELETED_USER_LABEL,
             "action": log.action,
             "item_type": log.item_type,
             "item_id": log.item_id,
-            "item_name": _audit_item_name(log, article_title, news_title, video_title, category_name),
+            "item_name": log.item_name_snapshot or _audit_item_name(log, article_title, news_title, video_title, category_name),
             "timestamp": log.timestamp,
             "category": log.category,
             "details": log.details,
+            "prev_hash": log.prev_hash,
+            "row_hash": log.row_hash,
+            "ip_address": log.ip_address,
+            "user_agent": log.user_agent,
         }
         for log, admin_name, article_title, news_title, video_title, category_name in rows
     ]
+
+    # Meta-audit: record who browsed the audit trail and with which filters —
+    # written AFTER `result` is built so this call's own response can never
+    # include its own row. Not fired by chain-health (passive, on every page
+    # mount) — this is specifically "a person chose to look at this data".
+    _log_audit_trail_access(db, current_user, "VIEW_AUDIT_LOG", {
+        "start_date": start_date, "end_date": end_date, "user_id": user_id,
+        "user_name": user_name, "action": action, "category": category,
+        "q": q, "offset": offset, "limit": limit, "result_count": len(result),
+        "scope_department": scope_department,
+    })
+    return result
 
 
 @app.get("/api/audit-logs/export")
@@ -5541,7 +5718,8 @@ def export_audit_logs(
     user_name: Optional[str] = None,
     action: Optional[str] = None,
     category: Optional[str] = None,
-    current_admin: models.User = Depends(security.get_current_system_admin_user),
+    q: Optional[str] = None,
+    current_user: models.User = Depends(security.require_permission(security.PERM_SYSTEM_AUDIT)),
     db: Session = Depends(get_db),
 ):
     """Memory-safe CSV export of audit logs.
@@ -5550,12 +5728,33 @@ def export_audit_logs(
     the full CSV in memory first, so a large unfiltered export can't bloat
     server memory or block the worker for the whole query duration.
 
-    Access: Restricted to system administrators (admin) only.
+    Access: system administrators and content_admin. A manager holds the same
+    system:audit permission (for the scoped list view) but is explicitly
+    blocked here — view-only for managers, no bulk egress of their group's data.
     """
+    if current_user.role == security.ROLE_MANAGER:
+        raise HTTPException(status_code=403, detail="ეს ფუნქცია ხელმისაწვდომია მხოლოდ ადმინისტრატორებისთვის")
     query = _build_audit_query(
         db, start_date, end_date, None, user_name, action, category,
         log_prefix="Audit log export",
     )
+    if q:
+        like = f"%{q}%"
+        query = query.filter(or_(
+            models.AuditLog.action.ilike(like),
+            models.AuditLog.item_type.ilike(like),
+            models.AuditLog.item_name_snapshot.ilike(like),
+            models.AuditLog.details.ilike(like),
+        ))
+
+    # Written before streaming starts, not inside generate_csv(): the CSV
+    # export is a single higher-risk egress action (data leaves the system),
+    # so it's logged once per request regardless of how many rows stream out
+    # — a row count would need a second full COUNT query just to report it.
+    _log_audit_trail_access(db, current_user, "EXPORT_AUDIT_LOG", {
+        "start_date": start_date, "end_date": end_date,
+        "user_name": user_name, "action": action, "category": category, "q": q,
+    })
 
     def generate_csv():
         output = io.StringIO()
@@ -5566,11 +5765,12 @@ def export_audit_logs(
         output.truncate(0)
 
         for log, admin_name, article_title, news_title, video_title, category_name in query.yield_per(1000):
-            item_name = _audit_item_name(log, article_title, news_title, video_title, category_name)
+            resolved_admin = log.admin_name_snapshot or admin_name or _DELETED_USER_LABEL
+            item_name = log.item_name_snapshot or _audit_item_name(log, article_title, news_title, video_title, category_name)
             writer.writerow([
                 log.id,
                 log.timestamp.strftime("%Y-%m-%d %H:%M:%S") if log.timestamp else "",
-                admin_name or _DELETED_USER_LABEL,
+                resolved_admin,
                 log.action,
                 item_name or log.item_type,
                 log.details or "",
@@ -5584,6 +5784,142 @@ def export_audit_logs(
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=audit_logs.csv"},
     )
+
+
+@app.get("/api/audit-logs/{log_id}/verify", response_model=schemas.AuditLogVerifyResponse)
+def verify_audit_log(
+    log_id: int,
+    current_user: models.User = Depends(security.require_permission(security.PERM_SYSTEM_AUDIT)),
+    db: Session = Depends(get_db),
+):
+    """Re-derives a row's hash and its link to its predecessor and compares
+    against what's stored, to prove (or disprove) the row hasn't been
+    altered since the migrate.py trigger wrote it.
+
+    Postgres-only: the hash chain only exists there (see migrate.py's
+    AUDIT_CHAIN_STATEMENTS). GET, no side effects — matches the existing
+    /api/articles/{id}/history/{id}/diff convention.
+
+    Access: system administrators and content_admin only — a manager holds
+    system:audit (for the scoped list view) but not this tool. The chain is
+    one single global sequence with no per-department sharding, so there's
+    no meaningful "my department's slice" of it to verify.
+    """
+    if current_user.role == security.ROLE_MANAGER:
+        raise HTTPException(status_code=403, detail="ეს ფუნქცია ხელმისაწვდომია მხოლოდ ადმინისტრატორებისთვის")
+    from sqlalchemy import text
+
+    if db.bind.dialect.name != "postgresql":
+        raise HTTPException(
+            status_code=501,
+            detail="მთლიანობის შემოწმება ხელმისაწვდომია მხოლოდ PostgreSQL-ზე",
+        )
+    row = db.execute(text("""
+        SELECT al.row_hash, al.prev_hash,
+               encode(digest(audit_logs_canonical_string(al), 'sha256'), 'hex') AS recomputed_hash,
+               prev.row_hash AS actual_prev_row_hash
+        FROM audit_logs al
+        LEFT JOIN audit_logs prev ON prev.id = (
+            SELECT id FROM audit_logs WHERE id < al.id AND row_hash IS NOT NULL ORDER BY id DESC LIMIT 1
+        )
+        WHERE al.id = :id
+    """), {"id": log_id}).mappings().first()
+    if not row:
+        raise HTTPException(status_code=404, detail="ჩანაწერი ვერ მოიძებნა")
+    if row["row_hash"] is None:
+        return {"status": "unchained"}
+    hash_match = row["row_hash"] == row["recomputed_hash"]
+    # Re-derives the expected predecessor live rather than trusting the
+    # stored prev_hash blindly, so an altered/deleted predecessor is caught
+    # too, not just a directly-altered row.
+    chain_match = row["prev_hash"] == row["actual_prev_row_hash"]
+    return {
+        "status": "ok" if (hash_match and chain_match) else "tampered",
+        "hash_match": hash_match,
+        "chain_match": chain_match,
+        "row_hash": row["row_hash"],
+        "recomputed_hash": row["recomputed_hash"],
+    }
+
+
+@app.get("/api/audit-logs/chain-health", response_model=schemas.AuditChainHealthResponse)
+def audit_chain_health(
+    n: int = 100,
+    current_user: models.User = Depends(security.require_permission(security.PERM_SYSTEM_AUDIT)),
+    db: Session = Depends(get_db),
+):
+    """Batch-validates the last N chained rows in one pass, so the dashboard
+    can show chain health on mount instead of forcing per-row verify clicks.
+
+    Read-only — never touches the trigger's advisory lock, so it can't
+    contend with writers. On SQLite this returns 200 "unavailable" rather
+    than the per-row endpoint's 501: that one is an explicit user click,
+    this one fires passively on every dashboard mount, and a guaranteed
+    console error on every dev load would be noise.
+
+    Access: system administrators and content_admin only — same rationale as
+    verify_audit_log (one global chain, no per-department slice to check;
+    a filtered window would also compare non-adjacent rows and manufacture
+    false "tampered" results).
+    """
+    if current_user.role == security.ROLE_MANAGER:
+        raise HTTPException(status_code=403, detail="ეს ფუნქცია ხელმისაწვდომია მხოლოდ ადმინისტრატორებისთვის")
+    from sqlalchemy import text
+
+    n = max(1, min(n, 500))
+    if db.bind.dialect.name != "postgresql":
+        return {"status": "unavailable", "window": n}
+
+    # JOIN back to the base table rather than selecting from the CTE:
+    # audit_logs_canonical_string(r audit_logs) takes the table's composite
+    # type, and a CTE row is an anonymous record that won't match it.
+    window_rows = db.execute(text("""
+        WITH recent AS (
+          SELECT id FROM audit_logs WHERE row_hash IS NOT NULL ORDER BY id DESC LIMIT :n
+        )
+        SELECT a.id, a.prev_hash, a.row_hash,
+               encode(digest(audit_logs_canonical_string(a), 'sha256'), 'hex') AS recomputed
+        FROM audit_logs a JOIN recent r ON r.id = a.id
+        ORDER BY a.id
+    """), {"n": n}).mappings().all()
+    unchained_total = db.execute(
+        text("SELECT count(*) FROM audit_logs WHERE row_hash IS NULL")
+    ).scalar() or 0
+
+    # Boundary predecessor: the chained row just before the window, so the
+    # window's oldest row gets a real link check instead of a skipped one
+    # (this also catches a fake "second genesis" inside the window).
+    expected_prev = None
+    if window_rows:
+        expected_prev = db.execute(text("""
+            SELECT row_hash FROM audit_logs
+            WHERE row_hash IS NOT NULL AND id < :min_id
+            ORDER BY id DESC LIMIT 1
+        """), {"min_id": window_rows[0]["id"]}).scalar()
+
+    hash_mismatches = link_breaks = 0
+    bad_ids: list[int] = []
+    for r in window_rows:
+        bad = False
+        if r["row_hash"] != r["recomputed"]:
+            hash_mismatches += 1
+            bad = True
+        if r["prev_hash"] != expected_prev:
+            link_breaks += 1
+            bad = True
+        if bad and len(bad_ids) < 10:
+            bad_ids.append(r["id"])
+        expected_prev = r["row_hash"]
+
+    return {
+        "status": "ok" if not (hash_mismatches or link_breaks) else "tampered",
+        "checked": len(window_rows),
+        "window": n,
+        "hash_mismatches": hash_mismatches,
+        "link_breaks": link_breaks,
+        "bad_ids": bad_ids,
+        "unchained_total": unchained_total,
+    }
 
 
 @app.get("/api/tags", response_model=list[schemas.TagResponse])

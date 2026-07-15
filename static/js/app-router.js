@@ -183,7 +183,10 @@ function switchMainPage(pageId, element) {
             fetchAndRenderManagerStats(token);
           }
           if (pageId === 'page-dashboard' && typeof renderDashboardCategoryGrid === 'function') {
-            renderDashboardCategoryGrid();
+            const grid = document.getElementById('dashboard-category-grid');
+            if (grid && (!grid.children || grid.children.length <= 1 || grid.querySelector('.animate-pulse'))) {
+              renderDashboardCategoryGrid();
+            }
           }
           if (pageId === 'page-dashboard' && typeof fetchAndRenderMyProgress === 'function') {
             fetchAndRenderMyProgress();
@@ -236,7 +239,11 @@ function switchProfileTab(tabId, element) {
 function switchAdmin(page) {
         if (page === 'users' || page === 'audit' || page === 'roles') {
           const role = window.currentUser ? window.currentUser.role : '';
-          if (role !== 'admin') {
+          // audit has a second way in: the system:audit DB-backed permission
+          // (default-granted to content_admin, see migrate.py). users/roles
+          // stay strictly system-admin-only.
+          const auditOk = page === 'audit' && window.currentUser && window.currentUser.can_view_audit_log;
+          if (role !== 'admin' && !auditOk) {
             if (typeof showToast === 'function') {
               showToast('წვდომა უარყოფილია', 'ეს სექცია ხელმისაწვდომია მხოლოდ სისტემური ადმინისტრატორისთვის.', { variant: 'error' });
             }
@@ -282,7 +289,7 @@ function switchAdmin(page) {
         const token = Auth.getToken();
         if (!token) return;
         if (page === 'categories' && typeof fetchAndRenderCategoriesAdmin === 'function') fetchAndRenderCategoriesAdmin(token);
-        if (page === 'audit' && typeof fetchAndRenderAuditLog === 'function') fetchAndRenderAuditLog(token);
+        if (page === 'audit' && typeof AuditDashboard !== 'undefined') AuditDashboard.start(token);
         if (page === 'roles' && typeof renderRoleConsole === 'function') renderRoleConsole(token);
         if (page === 'migrated' && typeof fetchAndRenderMigratedArticles === 'function') fetchAndRenderMigratedArticles(token);
         if (page === 'content' && typeof populateArticleCategorySelect === 'function') populateArticleCategorySelect();

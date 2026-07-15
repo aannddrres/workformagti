@@ -608,5 +608,64 @@ def test_article_history_comparison_diff(client, db_session):
     db_session.commit()
 
 
+def test_article_diff_compare_to_predecessor(client, db_session):
+    """Verifies that compare_to_predecessor query param correctly compares to previous version or shows clean text for version 1."""
+    # 1. Create a mock article
+    article = models.Article(
+        title="Current Title",
+        content="This is the current third version.",
+        target_department="All",
+        is_draft=False
+    )
+    db_session.add(article)
+    db_session.commit()
+    db_session.refresh(article)
+    
+    # 2. Add two history snapshots (v1 and v2)
+    snap1 = models.ArticleHistory(
+        article_id=article.id,
+        title="First Title",
+        content="Original content.",
+        updated_by=1,
+        version_id=1
+    )
+    snap2 = models.ArticleHistory(
+        article_id=article.id,
+        title="Second Title",
+        content="Original content revised.",
+        updated_by=1,
+        version_id=2
+    )
+    db_session.add_all([snap1, snap2])
+    db_session.commit()
+    db_session.refresh(snap1)
+    db_session.refresh(snap2)
+    
+    # 3. Diff Version 2 against its predecessor (Version 1)
+    resp = client.get(f"/api/articles/{article.id}/history/{snap2.id}/diff?compare_to_predecessor=true")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "html" in data
+    assert data["version_id"] == 2
+    # From "Original content." to "Original content revised.", we should have 1 added and 1 removed
+    assert data["added"] == 1, f"data is {data}"
+    assert data["removed"] == 1, f"data is {data}"
+    
+    # 4. Diff Version 1 against its predecessor (None) -> should show clean text (no added/removed)
+    resp_v1 = client.get(f"/api/articles/{article.id}/history/{snap1.id}/diff?compare_to_predecessor=true")
+    assert resp_v1.status_code == 200
+    data_v1 = resp_v1.json()
+    assert "html" in data_v1
+    assert data_v1["version_id"] == 1
+    assert data_v1["added"] == 0
+    assert data_v1["removed"] == 0
+    
+    # Clean up
+    db_session.delete(snap1)
+    db_session.delete(snap2)
+    db_session.delete(article)
+    db_session.commit()
+
+
 
 

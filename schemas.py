@@ -40,6 +40,14 @@ class UserResponse(UserBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class CurrentUserResponse(UserResponse):
+    """UserResponse plus fields computed only for the calling user. Kept
+    separate from UserResponse itself, which also backs admin user-LIST
+    endpoints — attaching a permission-resolution query there would mean
+    one extra DB query per row in that list, not just for /me."""
+    can_view_audit_log: bool = False
+
+
 class GroupLeaderResponse(BaseModel):
     """Lightweight schema for the Block 5 group-leader dropdown — id + display
     name only (the User model has no separate `username` field; `name` is the
@@ -599,7 +607,35 @@ class AuditLogResponse(AuditLogBase):
     timestamp: datetime
     category: Optional[str] = None  # CONTENT | USER | SECURITY | SYSTEM
     details: Optional[str] = None
+    prev_hash: Optional[str] = None
+    row_hash: Optional[str] = None
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
+
+
+class AuditLogVerifyResponse(BaseModel):
+    """Response schema for GET /api/audit-logs/{id}/verify."""
+    status: str  # "ok" | "tampered" | "unchained"
+    hash_match: Optional[bool] = None
+    chain_match: Optional[bool] = None
+    row_hash: Optional[str] = None
+    recomputed_hash: Optional[str] = None
+
+
+class AuditChainHealthResponse(BaseModel):
+    """Response schema for GET /api/audit-logs/chain-health.
+
+    status "unavailable" (SQLite dev — the chain only exists on Postgres) is
+    a 200, not an error: the dashboard calls this passively on every mount.
+    """
+    status: str  # "ok" | "tampered" | "unavailable"
+    checked: int = 0            # rows actually validated (<= window)
+    window: int = 0             # requested N after clamping
+    hash_mismatches: int = 0
+    link_breaks: int = 0
+    bad_ids: list[int] = []     # first <=10 offending row ids
+    unchained_total: int = 0    # pre-migration NULL-hash rows
 
 
 class TagResponse(BaseModel):

@@ -225,9 +225,27 @@
 
   function load(token, isInitial) {
     if (!token) { renderError('ავტორიზაცია საჭიროა.'); return; }
-    if (isInitial) renderSkeleton(); // only the first paint shows skeletons
+    
+    var cacheStore = window.CacheStore;
+    var cached = (isInitial && cacheStore) ? cacheStore.get('manager_stats') : null;
+    
+    if (cached) {
+      _lastDepartments = cached.departments;
+      renderRibbon(cached.insights);
+      renderDepartments(cached.departments);
+      applyPctColors();
+      adaptGrid(cached.departments);
+      bindCriticalCard();
+      bindGroupRows();
+    } else if (isInitial) {
+      renderSkeleton();
+    }
+    
     fetch_(token).then(function (data) {
       _lastDepartments = data.departments;
+      if (cacheStore) {
+        cacheStore.set('manager_stats', data);
+      }
       renderRibbon(data.insights);
       renderDepartments(data.departments);
       applyPctColors();
@@ -236,7 +254,9 @@
       bindGroupRows();
     }).catch(function (err) {
       console.error('DeptDashboard load failed:', err);
-      if (isInitial) renderError('მონაცემების ჩატვირთვა ვერ მოხერხდა.');
+      if (!cached && isInitial) {
+        renderError('მონაცემების ჩატვირთვა ვერ მოხერხდა.');
+      }
     });
   }
 

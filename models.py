@@ -152,6 +152,7 @@ class Article(Base):
 
 
     category = relationship("Category", back_populates="articles")
+    history_entries = relationship("ArticleHistory", cascade="all, delete-orphan")
     # Named distinctly from the target_departments *property* below: this is the
     # raw ORM relationship (ArticleTargetDepartment rows), used at the class level
     # for query filtering (e.g. Article.target_department_rows.any(...)).
@@ -355,6 +356,24 @@ class AuditLog(Base):
     # none of the ~40 existing AuditLog(...) call sites need to change.
     category = Column(String, nullable=True, index=True)
     details = Column(Text, nullable=True)
+    # ── Immutable snapshots (2026-07-13) ──────────────────────────────────
+    # Captured at INSERT time so audit rows remain self-contained after the
+    # referenced user or content item is deleted. Nullable for backwards
+    # compatibility with pre-existing rows (the API falls back to the legacy
+    # LEFT JOIN when these are NULL).
+    admin_name_snapshot = Column(String, nullable=True)
+    admin_email_snapshot = Column(String, nullable=True)
+    item_name_snapshot = Column(String, nullable=True)
+    # ── Tamper-evident chain + request metadata (2026-07-15) ───────────────
+    # Populated by a Postgres-only BEFORE INSERT trigger (migrate.py's
+    # AUDIT_CHAIN_STATEMENTS) — never set from Python. NULL on SQLite and on
+    # every row written before the trigger existed; NULL means "unchained",
+    # not "tampered". See audit_trail.py for how ip_address/user_agent reach
+    # the trigger despite audit_logs having two separate Python write paths.
+    prev_hash = Column(String(64), nullable=True)
+    row_hash = Column(String(64), nullable=True)
+    ip_address = Column(String(45), nullable=True)
+    user_agent = Column(String(500), nullable=True)
 
 
 # Action names that are security-sensitive (identity/access) regardless of
@@ -362,6 +381,12 @@ class AuditLog(Base):
 _AUDIT_SECURITY_ACTIONS = {
     "LOGIN", "LOGIN_SSO", "LOGIN_FAILED", "PASSWORD_CHANGE", "PASSWORD_RESET",
     "PASSWORD_RESET_REQUEST", "CREATE_USER", "UPDATE_PERMISSIONS",
+    # Meta-audit: accessing the audit trail itself is a SECURITY event, not a
+    # routine USER "VIEW" — "who looked at whose activity history" needs to
+    # be at least as traceable as the activity itself (Law of Georgia on
+    # Personal Data Protection, Art. 17(4): staff must stay within granted
+    # authority; that's unprovable if access to sensitive data isn't logged).
+    "VIEW_AUDIT_LOG", "EXPORT_AUDIT_LOG",
 }
 # Actions that describe a user's own activity rather than a content/system
 # change, even when item_type points at a content table (e.g. "VIEW" an article).
@@ -394,16 +419,51 @@ def classify_audit_category(item_type: str, action: str) -> str:
 def _auto_classify_audit_log(mapper, connection, target: "AuditLog") -> None:
     """Fires on every ORM-level insert (db.add()+commit()). Bulk operations
     (bulk_insert_mappings) bypass mapper events and must set category explicitly
-    — none of the current call sites use the bulk path for audit rows."""
+    — none of the current call sites use the bulk path for audit rows.
+
+    Also auto-fills the immutable snapshot columns when the caller did not
+    supply them. The Core SELECT runs inside the same flush transaction
+    so the data is guaranteed to be consistent with the business change.
+    """
     if not target.category:
         target.category = classify_audit_category(target.item_type, target.action)
+
+    # ── Admin snapshot ────────────────────────────────────────────────────
+    if target.admin_id and not target.admin_name_snapshot:
+        row = connection.execute(
+            text("SELECT name, email FROM users WHERE id = :uid"),
+            {"uid": target.admin_id},
+        ).first()
+        if row:
+            target.admin_name_snapshot = row[0]
+            target.admin_email_snapshot = row[1]
+
+    # ── Item name snapshot ────────────────────────────────────────────────
+    if not target.item_name_snapshot and target.item_id:
+        item_type_lower = (target.item_type or "").lower()
+        _ITEM_NAME_SQL = {
+            "article": "SELECT title FROM articles WHERE id = :iid",
+            "news": "SELECT title FROM news WHERE id = :iid",
+            "video": "SELECT title FROM video_instructions WHERE id = :iid",
+            "category": "SELECT name FROM categories WHERE id = :iid",
+            "user": "SELECT name FROM users WHERE id = :iid",
+        }
+        sql = _ITEM_NAME_SQL.get(item_type_lower)
+        if sql:
+            row = connection.execute(text(sql), {"iid": target.item_id}).first()
+            if row:
+                target.item_name_snapshot = row[0]
 
 
 class ArticleHistory(Base):
     __tablename__ = "article_history"
 
     id = Column(Integer, primary_key=True, index=True)
-    article_id = Column(Integer, ForeignKey("articles.id"), nullable=False, index=True)
+    # ondelete="CASCADE" only takes effect via create_all() on a fresh DB;
+    # migrate.py never ALTERs existing FK constraints. On a pre-existing
+    # database, the relationship's cascade="all, delete-orphan" is what
+    # actually enforces cleanup on article delete.
+    article_id = Column(Integer, ForeignKey("articles.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String, nullable=False)
     content = Column(Text, nullable=False)
     updated_at = Column(DateTime, default=get_tbilisi_time)
