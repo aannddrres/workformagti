@@ -4,17 +4,21 @@ compliance has fallen below the critical threshold and messages them
 (+ CC their manager, if set). Run by the `compliance-alerts` docker-compose
 service on a 24h sleep loop, mirroring backup.py's convention.
 """
+import logging
 import sys
-
-from sqlalchemy import func
 
 from database import SessionLocal, get_tbilisi_time
 import models
-from compliance_utils import get_compliance_percentage, get_total_required_readings_by_dept, get_read_counts_by_user_dept
+from compliance_utils import (
+    MANAGEMENT_ROLES,
+    CRITICAL_THRESHOLD,
+    get_compliance_percentage,
+    get_total_required_readings_by_dept,
+    get_read_counts_by_user_dept,
+)
 
-# Mirrors main.py:3883/3889 — keep in sync if those change.
-MANAGEMENT_ROLES = ("admin", "content_admin", "manager")
-CRITICAL_THRESHOLD = 30
+logging.basicConfig(level=logging.INFO, format="[compliance-alerts] %(message)s")
+log = logging.getLogger("compliance_alerts")
 
 ALERT_MESSAGE_TEMPLATE = (
     "თქვენი სავალდებულო მასალების წაკითხვის მაჩვენებელი {pct}%-ია, რაც კრიტიკულ "
@@ -57,8 +61,10 @@ def compute_and_alert(db) -> int:
         alerted += 1
 
     db.commit()
-    print(f"[{get_tbilisi_time()}] compliance_alerts: {alerted} operator(s) alerted "
-          f"(threshold={CRITICAL_THRESHOLD}%).")
+    log.info(
+        "compliance_alerts pass done at %s: %d operator(s) alerted (threshold=%d%%)",
+        get_tbilisi_time(), alerted, CRITICAL_THRESHOLD,
+    )
     return alerted
 
 

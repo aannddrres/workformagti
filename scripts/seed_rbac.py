@@ -1,5 +1,4 @@
 import sys
-import os
 
 # Ensure the project root is in the Python path
 sys.path.append('.')

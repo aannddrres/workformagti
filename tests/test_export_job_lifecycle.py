@@ -6,7 +6,6 @@ automated coverage, despite being a recent fix for a real cross-worker 404 bug
 import os
 import sys
 
-import pytest
 from fastapi import BackgroundTasks
 from fastapi.testclient import TestClient
 
@@ -19,9 +18,9 @@ security.PERM_ARTICLES_CREATE = "articles.create"
 security.PERM_NEWS_CREATE = "news.create"
 
 from database import engine
-import main
 from main import app as monolith_app
 import models
+from routers import exports
 from tests.factories import make_user
 
 models.Base.metadata.create_all(bind=engine)
@@ -30,7 +29,7 @@ models.Base.metadata.create_all(bind=engine)
 def test_export_job_enqueue_poll_download_cleanup(db_session):
     admin = make_user(db_session, email="factory_export_admin@magti.ge", role="admin")
 
-    result = main._enqueue_export(
+    result = exports._enqueue_export(
         BackgroundTasks(),
         [["row1col1", "row1col2"], ["row2col1", "row2col2"]],
         ["Header A", "Header B"],
@@ -45,7 +44,7 @@ def test_export_job_enqueue_poll_download_cleanup(db_session):
 
     # Run the queued worker synchronously (BackgroundTasks itself was never
     # invoked above) to simulate the real post-response execution.
-    main._async_file_worker(
+    exports._async_file_worker(
         job_id,
         [["row1col1", "row1col2"], ["row2col1", "row2col2"]],
         ["Header A", "Header B"],
@@ -102,14 +101,14 @@ def test_export_worker_marks_job_failed_on_error(db_session, monkeypatch):
     """If the file build itself raises, the job must land in 'failed', not
     stay stuck in 'processing' forever."""
     admin = make_user(db_session, email="factory_export_fail_admin@magti.ge", role="operator")
-    result = main._enqueue_export(BackgroundTasks(), [], ["H"], "Broken Export", "xlsx")
+    result = exports._enqueue_export(BackgroundTasks(), [], ["H"], "Broken Export", "xlsx")
     job_id = result["job_id"]
 
     def _boom(*args, **kwargs):
         raise RuntimeError("simulated build failure")
 
-    monkeypatch.setattr(main, "_build_table_xlsx", _boom)
-    main._async_file_worker(job_id, [], ["H"], "Broken Export", "xlsx")
+    monkeypatch.setattr(exports, "_build_table_xlsx", _boom)
+    exports._async_file_worker(job_id, [], ["H"], "Broken Export", "xlsx")
 
     db_session.expire_all()
     job = db_session.query(models.ExportJob).filter(models.ExportJob.id == job_id).first()

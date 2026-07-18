@@ -6,6 +6,26 @@ This guide provides a comprehensive overview of the architecture, data models, R
 
 ---
 
+## 0. Documentation Map
+
+This repo has accumulated several docs over time. Before trusting one, check
+which kind it is — a prior mismatch (`docs/agent-handoff.md` claiming rate
+limiting was wired when it wasn't) is exactly what this table is meant to
+prevent.
+
+| Doc | Kind | Audience |
+|---|---|---|
+| [`CLAUDE.md`](CLAUDE.md) | **Authoritative rules — read first** | Anyone (human or AI) making a change |
+| `README.md` (this file) | Living — architecture + local setup | Developers |
+| [`docs/admin-guide.md`](docs/admin-guide.md) | Living — day-to-day operations | Content/system admins, not developers |
+| [`docs/SEED_GUIDE.md`](docs/SEED_GUIDE.md), [`TEST_LOGINS.md`](TEST_LOGINS.md) | Living — quick reference | Anyone seeding/testing locally |
+| [`docs/PRODUCTION_HANDOVER.md`](docs/PRODUCTION_HANDOVER.md) | Living — read before any real deploy | DevOps / whoever hosts this for real |
+| [`AI_CONTEXT.md`](AI_CONTEXT.md), [`.agents/AGENTS.md`](.agents/AGENTS.md) | Living — supplementary AI-agent notes, defer to `CLAUDE.md` on conflict | AI coding agents |
+| [`SPECIFICATION.md`](SPECIFICATION.md) | Historical — original product requirements, not implementation truth | Product context |
+| [`docs/CODE_AUDIT_2026-07-11.md`](docs/CODE_AUDIT_2026-07-11.md), [`docs/agent-handoff.md`](docs/agent-handoff.md), [`docs/analytics_audit.md`](docs/analytics_audit.md), [`docs/article_versioning_blueprint.md`](docs/article_versioning_blueprint.md), [`docs/csp_nonce_refactor_plan.md`](docs/csp_nonce_refactor_plan.md), [`LEGACY_DATA_SAFETY.md`](LEGACY_DATA_SAFETY.md) | **Point-in-time** — findings/plans as of their stated date, not living specs | Historical context only — verify against current code/`git log` before relying on any claim |
+
+---
+
 ## 1. Architectural Overview
 
 The portal utilizes a lightweight, modern, single-process stack optimized for fast responses, low resource overhead, and minimal moving parts:

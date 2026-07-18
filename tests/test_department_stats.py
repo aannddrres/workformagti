@@ -2,7 +2,6 @@
 import os
 import sys
 
-import pytest
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -13,8 +12,9 @@ security.require_content_creator = lambda perm: security.get_current_admin_user
 security.PERM_ARTICLES_CREATE = "articles.create"
 security.PERM_NEWS_CREATE = "news.create"
 
-from database import get_db, engine
-from main import app as monolith_app, build_department_stats, DEPARTMENT_WHITELIST, _match_department_bucket
+from database import engine
+from main import app as monolith_app
+from routers.stats import build_department_stats, DEPARTMENT_WHITELIST, _match_department_bucket
 import models
 from tests.factories import make_user
 

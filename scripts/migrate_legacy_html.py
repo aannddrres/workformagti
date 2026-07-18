@@ -37,7 +37,6 @@ construct rows the same way the app itself would.
 import argparse
 import base64
 import hashlib
-import os
 import re
 import sys
 from pathlib import Path

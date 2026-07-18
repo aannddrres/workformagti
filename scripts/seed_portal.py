@@ -35,13 +35,13 @@ from security import (
     get_password_hash,
 )
 
-# Optional: worktree/security may expose TEST_ACCOUNTS; older Magti base may not.
+# Optional: worktree/qa_accounts may not exist in an older Magti base checkout.
 try:
-    from security import TEST_ACCOUNTS  # type: ignore
+    from qa_accounts import TEST_ACCOUNTS  # type: ignore
 except ImportError:
     TEST_ACCOUNTS = []  # type: ignore
 try:
-    from security import TEST_ACCOUNT_PASSWORD  # type: ignore
+    from qa_accounts import TEST_ACCOUNT_PASSWORD  # type: ignore
 except ImportError:
     TEST_ACCOUNT_PASSWORD = "Test1234!"  # type: ignore
 
@@ -501,7 +501,7 @@ def cmd_org() -> None:
         # Verify team-stats will show all 3 departments
         print("8) გუნდის სტატისტიკის შემოწმება (3 დეპარტამენტი)...")
         try:
-            from main import build_department_stats
+            from routers.stats import build_department_stats
             dash = build_department_stats(db)
             by_name = {d["name"]: d for d in dash["departments"]}
             for expected, eg in (

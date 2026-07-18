@@ -256,6 +256,10 @@
       console.error('DeptDashboard load failed:', err);
       if (!cached && isInitial) {
         renderError('მონაცემების ჩატვირთვა ვერ მოხერხდა.');
+      } else if (cached && typeof showToast === 'function') {
+        // Cached data is still on screen — don't wipe a good view with a
+        // full error block, but don't silently hide the failure either.
+        showToast('განახლება ვერ მოხერხდა', 'ნაჩვენებია ბოლოს ჩატვირთული მონაცემები.', { variant: 'warning' });
       }
     });
   }

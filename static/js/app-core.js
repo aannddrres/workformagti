@@ -7,23 +7,8 @@
 window._auditCache = window._auditCache || { articleId: null, versionsData: null, receiptsData: {} };
 window._historyCache = window._historyCache || { articleId: null, versionsData: null };
 
-      /* ════════════════════════════════════════════════════════════════════
-         App infrastructure — added during the production-readiness refactor.
-         Centralises (1) JWT/auth handling, (2) the API client, and (3) client
-         state, so data fetching is robust against race conditions / partial
-         loads instead of relying on ad-hoc window.* globals.
-         ════════════════════════════════════════════════════════════════════ */
-
-      function escapeHtml(str) {
-        if (str == null) return '';
-        return String(str)
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#039;');
-      }
-      window.escapeHtml = escapeHtml;
+      // escapeHtml lives in app-renderers.js (loaded right after this file) —
+      // one definition, not two that can silently diverge by load order.
 
       /** Single source of truth for the JWT. Swapping localStorage for an
        *  httpOnly cookie later is a change in THIS object only — the backend
@@ -47,20 +32,6 @@ window._historyCache = window._historyCache || { articleId: null, versionsData: 
         },
         redirectToLogin() { this.clear(); window.location.href = 'login.html'; }
       };
-
-      /** One API client for the whole app: injects the bearer token, sends
-       *  cookies (so a future cookie-auth switch needs no call-site changes),
-       *  and funnels every 401 through a single session-expiry handler. */
-      /**
-       * Core API client helper function.
-       * Sends HTTP requests with authorization headers and parses JSON responses.
-       * Handles token extraction and error bubbling.
-       * 
-       * @param {string} path - The relative API URL.
-       * @param {Object} options - Standard fetch configuration options.
-       * @returns {Promise<any>} Parsed response data.
-       */
-      
 
       /** Central client-side store. Replaces scattered window.* state with one
        *  namespaced object and exposes readiness promises so dependent renders
@@ -116,9 +87,6 @@ window._historyCache = window._historyCache || { articleId: null, versionsData: 
         }
       };
 
-      /** In-place object clear — keeps the window.* aliases below valid. */
-      
-
       // Backwards-compatible aliases so existing readers keep working while the
       // state lives in one place. These are NEVER reassigned after this point;
       // fetchers mutate the same objects in place via clearObj().
@@ -134,24 +102,6 @@ window._historyCache = window._historyCache || { articleId: null, versionsData: 
       let sseDisconnectToastShown = false;
 
       /**
-       * Establishes a persistent Server-Sent Events (SSE) stream.
-       * Connects to `/api/stream` and listens for live broadcast announcements, news, or articles.
-       * Handles automatic reconnection on stream drop.
-       */
-      
-
-      /** React to a live "new content" push: toast + refresh the affected list. */
-      /**
-       * Routes incoming SSE live event notifications to appropriate handlers.
-       * Displays emergency broadcast banners or standard top-right toast alerts.
-       * 
-       * @param {string} type - Event type (e.g., 'broadcast', 'news', 'article').
-       * @param {Object} data - Event payload.
-       */
-      
-
-      /** Lightweight toast popup (bottom-right); auto-dismisses after 6s. */
-      /**
        * Displays a dynamic toast alert notification in the top-right corner.
        * Auto-dismisses after 8 seconds.
        * 
@@ -160,7 +110,6 @@ window._historyCache = window._historyCache || { articleId: null, versionsData: 
        * @param {Function} onClick - Optional callback when toast is clicked.
        */
       
-
       document.addEventListener('DOMContentLoaded', async () => {
         // Quill WYSIWYG editor for the article content field; mirrors into the
         // hidden #article-content textarea on submit (submitArticleForm).
@@ -690,348 +639,22 @@ window._historyCache = window._historyCache || { articleId: null, versionsData: 
         if (statusEl) statusEl.textContent = '';
       }
 
-      /**
-       * Fetches current user info from the API.
-       */
-      /**
-       * Profile retriever.
-       * Loads current user information and populates session contexts.
-       * 
-       * @param {string} token - The OAuth2 Bearer token.
-       */
-      
-
-      /**
-       * Updates UI elements with the user's data.
-       */
-      
-
-      /**
-       * Hides elements based on required roles.
-       */
-      /**
-       * Role-Based Access Control (RBAC) UI filter.
-       * Dynamically shows or hides elements (e.g., Admin Panel, Manager Tab) 
-       * based on the current user's authenticated role.
-       * 
-       * @param {string} userRole - The role of the user (admin, content_admin, manager, operator).
-       */
-      
-
       // Global cache for news items so they can be read in a modal by ID
       window.cachedNewsItems = {};
 
-      /**
-       * Fetches news from the API using the provided JWT token.
-       */
-      /**
-       * Fetches general announcements for the news feed container.
-       * Filters by department on the backend automatically.
-       * 
-       * @param {string} token - OAuth2 token.
-       */
-      
-
-      /**
-       * Renders news items into the dashboard's "Latest News" section.
-       */
       // Unified date formatter — DD/MM/YYYY (ka-GE) used across every rendering
       // template (Mandatory Readings, Recently Added, …). Exposed on window so
       // the external static/frontend_api.js sheet can share the exact format.
       const formatDate = (d) => new Date(d).toLocaleDateString('ka-GE', { year: 'numeric', month: '2-digit', day: '2-digit' });
       window.formatDate = formatDate;
 
-      
-
-      /**
-       * Fetches compliance statistics from the API for the admin dashboard.
-       */
-      
-
-      /**
-       * Setup Global Search with Debounce
-       */
-      /**
-       * Initializes keyup listener for global search query input.
-       * Employs search cache to limit database query load.
-       * 
-       * @param {string} token - OAuth2 token.
-       */
-      
-
-      /**
-       * Session guard: a 401 mid-session means the JWT expired —
-       * send the user back to login instead of failing silently.
-       */
-      
-
-      /**
-       * Render grouped search results (articles / news / videos) in the dropdown.
-       * [P0-4] Wider, word-boundary-clamped snippets + per-row TYPE badge so operators can
-       *         distinguish procedure vs. news vs. video at a glance.
-       * [P0-2] Roving-tabindex keyboard nav (Arrow / Enter / Escape) without breaking typing —
-       *         we only intercept those specific keys on the input.
-       */
-      
-
       // Store readings to filter without re-fetching
       window.myReadings = [];
 
-      /**
-       * Fetch and render mandatory readings for the reading page.
-       */
-      /**
-       * Compliance Reading list engine.
-       * Fetches user's assigned readings, parses status fields ('read', 'unread', 'overdue'),
-       * and renders the checklist cards with due dates and quick-read modal hooks.
-       * 
-       * @param {string} token - OAuth2 token.
-       */
-      
-
-      /**
-       * Switch active tab and re-render the list
-       */
-      
-
-      /**
-       * Render the list of readings based on the active filter.
-       */
-      
-
-      /**
-       * Open the reading modal and populate it with content.
-       * [P0-3] Renders HTML when content contains tags (parity with the article modal) instead of
-       *        dumping policy text as a single plain string. Compliance content needs structure.
-       */
-      
-
-      
-
-      /**
-       * [Fix] Type-aware dispatcher for mandatory-reading items.
-       *
-       *   /api/compliance/my-readings returns only a short description in `item_content` —
-       *   that's why opening some articles previously showed a single sentence instead of
-       *   the full procedure. We now route each reading item to the matching reader so
-       *   articles open in the full article modal (TOC, scripts, related, attachments,
-       *   staleness banner, notes, print) and news items open in the news modal.
-       *
-       *   item_type values handled: 'article', 'news', 'video', and a textual fallback.
-       *   Returns the DOM id of the modal that was opened (used by openAndMarkRead to
-       *   attach a "I read and understood" confirm button in the right place).
-       */
-      
-
-      /**
-       * [P0-3] Append the compliance "I read and understood" confirm button to whichever
-       *        modal was opened. Centralised so all reader types get identical behaviour.
-       */
-      
-
-      /**
-       * [P0-3] Open the matching modal and surface an explicit "I read and understood"
-       *        confirm button instead of marking the item read on mere open (which
-       *        counted misclicks as compliance).
-       */
-      
-
-      /**
-       * Fetch and render manager team stats
-       */
-      /**
-       * Departmental Compliance Monitor (Manager View).
-       * Retrieves compliance completion rates for all operators under the manager's department
-       * and lists them in a high-performing leaderboard UI.
-       * 
-       * @param {string} token - OAuth2 token.
-       */
-      
-
-      /**
-       * Fetch notifications count (Unread mandatory readings)
-       */
-      
-
-      /**
-       * Mark a mandatory reading as read.
-       */
-      
-
-      /**
-       * Fetch and render user's favorites
-       */
-      
-
-      /**
-       * Toggle a favorite item
-       */
-      /**
-       * Bookmarks management helper.
-       * Toggles the favorite/starred status of articles, news, or videos.
-       * Updates backend db records and switches star icons in the UI.
-       * 
-       * @param {string} itemType - Type of item ('article', 'news', 'video').
-       * @param {number} itemId - Database ID of the item.
-       * @param {HTMLElement} btnElement - Triggering button element.
-       */
-      
-
-      /**
-       * Remove favorite by ID
-       */
-      
-
-      /**
-       * Sync star icons with current user favorites state
-       */
-      
-
-      /**
-       * Admin CMS: Fetch and render user reading progress
-       */
-      
-
-      
-
-      /**
-       * Admin CMS: render the progress table, honouring the department filter.
-       */
-      
-
-      /**
-       * Admin CMS: Fetch and render popular searches
-       */
-      
-
-      /**
-       * Admin Dashboard: Fetch articles not verified in 180+ days and render
-       * them in the Stale Content Alert panel with one-click verify actions.
-       *
-       * @param {string} [token] - Bearer token (if omitted, reads from Auth).
-       */
-      
-
-      /**
-       * Verify a stale article inline from the admin dashboard panel.
-       * @param {number} articleId - The article ID to verify.
-       * @param {HTMLButtonElement} btn - The clicked button for visual feedback.
-       */
-      
-
-      /**
-       * Admin CMS: Fetch and render content management table
-       */
-      
-
-      /**
-       * Admin CMS: Toggles due date field requirement
-       */
-      
-
-      
-
-      /**
-       * Uploads a file for an article attachment
-       */
-      
-
-      /**
-       * Admin CMS: Submits new article and handles secondary reading assignment
-       */
-      
-
-      /**
-       * Admin CMS: Enter edit mode — populate the article form from the
-       * cached /api/articles data and switch submit to PUT.
-       */
-      /**
-       * Populate the admin article-form <select id="article-category"> from
-       * /api/categories. Prefers the 10 taxonomy categories (those with a slug).
-       * Optionally pre-selects `selectedId`.
-       */
-      
-
-      
-
-      /**
-       * Admin CMS: Leave edit mode and restore the form to "create" state.
-       */
-      
-
-      
-
-      /**
-       * Admin CMS: Cancel button — discard edits and reset the form.
-       */
-      
-
-      /**
-       * Admin CMS: Delete an article
-       */
-      
-
-      /* ── News Details Modal & Admin Forms Submission Handlers ── */
-
-      
-
-      
-
-      
-
-      
-
-      
-
-      
-
-      /**
-       * [Fix G10] Centralised required-reading upsert for content forms.
-       *
-       * Computes the diff between (currentRR | none) and (wantsMandatory ?) and
-       * issues the corresponding POST / PUT / DELETE against the existing
-       * /api/compliance/required-readings endpoints. Idempotent — calling twice
-       * with the same inputs is a no-op.
-       *
-       * Used by submitArticleForm, submitNewsForm, and submitVideoForm so that
-       * the "სავალდებულოდ გასაცნობი" checkbox works identically on create AND edit.
-       */
-      
-
-      
-
-      
-
-      
-
       // [Fix G9] Handle the news attachment upload (mirrors handleArticleFileUpload).
       
-      
-      
-
       // [Fix G9] News revision history viewer — mirrors viewArticleHistory.
       
-      
-
-      
-
-      
-
-      
-
-      
-
-      
-
-      /**
-       * Admin CMS: Handle Export CSV Download
-       */
-      /**
-       * CSV Exporter trigger (System Administrator only).
-       * Streams reading status database tables into a CSV attachment download.
-       */
-      
-
       /**
        * Fetch and render knowledge base articles
        */
@@ -1041,72 +664,8 @@ window._historyCache = window._historyCache || { articleId: null, versionsData: 
       window.kbIsLoading = false;
       window.kbObserver = null;
 
-      
-
-      
-
-      
-
-      /**
-       * Fetch and render video instructions
-       */
-      
-
-      /**
-       * Fetch and render full news page
-       */
-      /**
-       * Fetch and render full news page
-       */
-      
-
-      /**
-       * Render news items list to the container
-       */
-      
-
       // State for favorites toggle
       let newsOnlyStarred = false;
-
-      /**
-       * Toggle the starred-only filter state and update the button styling
-       */
-      
-
-      /**
-       * Core filter and sort function triggered by search input, department filter, sorting, or favorites toggle
-       */
-      
-
-      /* ════════════════════════════════════════════════════
-         Navigation, notifications, modal, messages, settings,
-         admin RBAC & archive — interactive-element handlers
-         ════════════════════════════════════════════════════ */
-
-      /** Navigate to a main page, keeping the sidebar highlight in sync. */
-      /**
-       * Single Page Application (SPA) navigation handler.
-       * Hides all other pages, shows the selected main section, and fires smooth
-       * tab transitions. Resets scroll position.
-       * 
-       * @param {string} pageId - Target page container ID.
-       */
-      
-
-      /** Item 24: expand/collapse the Admin sub-menu in the sidebar.
-       *  Sub-links inside obey the same data-required-role gates as everything
-       *  else (handled centrally by applyRBAC), so a content_admin sees the
-       *  Content + Categories links but never Users or Audit Logs. */
-      
-
-      /** Hamburger: collapse/expand the sidebar. */
-      
-
-      /** Logout: clear the JWT and return to the login page. */
-      
-
-      /** Quick links run a global search for their topic. */
-      
 
       /** [P1-6] Single source of truth for the bottom "quick links" / "recommended" grids.
        *  Mounts the <template id="quick-links-tpl"> into every [data-quick-links] host on the
@@ -1120,23 +679,6 @@ window._historyCache = window._historyCache || { articleId: null, versionsData: 
         { label: 'MyMagti', icon: 'fa-mobile-screen' },
       ];
 
-      
-
-      /** Back-compat alias — callers (1118) still invoke wireQuickLinks(). */
-      
-
-      /** Build the article reader modal once, on demand.
-       *  [P0-1] Scripts panel is now at the TOP (sticky) — operators get to the call script in 0 scrolls.
-       *  [P1-10] Modal widened to 920px max with prose constrained to 72ch for comfortable reading.
-       *  [P1-9] Staleness banner is severity-tiered (medium/high/critical) — set by openArticleModal().
-       *  Existing element IDs (article-modal, -title, -meta, -content, -staleness-banner, -toc,
-       *  -attachment, -note, -scripts, -scripts-list, -related, -related-list, modal-pin-btn,
-       *  modal-report-btn, modal-verify-btn) are PRESERVED so every existing fetcher keeps working. */
-      
-
-      /** [P0-1] Copy the first script block. Triggered by button OR Ctrl+Shift+C. */
-      
-
       // [P0-1] Global keyboard shortcut: Ctrl+Shift+C copies the first script when the modal is open.
       document.addEventListener('keydown', (e) => {
         if (e.ctrlKey && e.shiftKey && (e.key === 'C' || e.key === 'c')) {
@@ -1148,216 +690,8 @@ window._historyCache = window._historyCache || { articleId: null, versionsData: 
         }
       });
 
-      /** Open an article (from search results, KB cards, etc.) in the reader modal. */
-      /**
-       * Shared article-body renderer used by BOTH the reader modal and the
-       * full-page standalone view. Parses markdown code blocks + inline code,
-       * then sanitizes rich HTML via DOMPurify before injecting it. Single
-       * source of truth so the .article-content-optimized layout stays
-       * identical in popup and full-screen contexts.
-       */
-      
-
-      
-
-      
-
-      
-
-      
-
-      
-
-      /** [P1-12] Pinned-dock collision avoidance.
-       *  When ANY *-modal is open we dim the dock and disable pointer events so it stops
-       *  overlapping the modal's bottom-right action area. Called from every open/close hook. */
-      
-
-      
-
-      
-
-      
-
-      
-
-      /** Populate the knowledge-base category filter from /api/categories. */
-      
-
-      /** [Fix G12] Render the KB bento cards from the live category list.
-       *  Falls back gracefully if no categories exist yet. */
-      
-
-      /**
-       * Handle bento card category clicks
-       */
-      
-
-      /**
-       * Update Bento category cards borders and backgrounds based on the selected filter.
-       * [Fix G12] Works on the dynamic data-bento-cat-id markers so the highlight
-       *           tracks whichever categories the admin has actually created.
-       */
-      
-
-      /** Debounced knowledge-base search wired to /api/search. */
-      
-
-      
-
-      /** Client-side filter of the loaded video grid by title. */
-      
-
-      /** Item 20: convert a raw YouTube URL into an embeddable /embed/ form.
-       *  Returns null if the URL is not recognisably YouTube — caller falls back
-       *  to a native <video> element. */
-      
-
-      /** Item 20 (hardened): register a view and open the video in the inline
-       *  modal — never in a new window. Routes YouTube URLs to /embed/, falls
-       *  back to a native <video controls> player for self-hosted /uploads files.
-       *  All property access goes through optional-chaining / fallbacks so a
-       *  partially-loaded Store can't throw "Cannot read properties of undefined". */
-      
-
-      
-
-      /** Envelope: jump straight to the personal messages tab. */
-      
-
-      /** Fetch personal messages, render the tab, update the envelope badge. */
-      
-
-      /** Render the messages list honouring the read/unread radio filter. */
-      
-
-      
-
-      
-
-      /** Settings: apply and persist the chosen font size, background color, and theme style. */
-      /**
-       * User settings visual applier.
-       * Reads theme properties (e.g., custom colors, font sizes) and mutates the DOM
-       * or CSS variables accordingly. Persists selection in localStorage.
-       */
-      
-
-      
-
-      
-
-      
-
-      
-
-      /** Validate that a URL is safe to use as an href/src — blocks javascript:,
-       *  data:text/html, and other active-content schemes. Returns the URL on
-       *  pass, '#' on fail. */
-      
-
-      /**
-       * Copies a Quick-Copy script block to the clipboard and shows visual feedback.
-       * @param {HTMLButtonElement} btn - The clicked copy button element.
-       * @param {number} idx - Index of the script card (for DOM lookup).
-       */
-      
-
-      
-
-      
-
-      
-
-      
-
-      
-
-      
-
-      
-
-      
-
-      /**
-       * Private scratchpad note manager.
-       * Saves personal operator annotations and reminders associated with individual
-       * Knowledge Base articles back to the SQLite backend.
-       */
-      
-
-      /**
-       * Crowdsourced Knowledge feedback submission.
-       * Prompts the operator to describe errors/outdated content on an article and
-       * files an issue report to the admin review queue.
-       */
-      
-
-      
-
-      
-
-      
-
-      
-
-      
-
-      
-
-      
-
-      /** Inline profile editing backed by PUT /api/users/me. */
-      
-
-      
-
-      /** Admin: live KPI counters from /api/statistics/kpi. */
-      
-
-      /** Admin RBAC: user list with activate/deactivate toggles. */
-      
-
-      
-
-      /** Admin: Open User Edit Modal */
-      
-
-      /** Admin: Close User Edit Modal */
-      
-
-      /** Admin: Submit User Edit Form */
-      
-
-      /** Admin: Fetch and render Audit Logs */
-      
-
-      /** Admin: Fetch Categories and populate dropdowns & table */
-      
-
-      /** Admin: Submit new category */
-      
-
-      /** Admin: Delete category */
-      
-
-      /** Admin: scroll to and focus the create-article form. */
-      
-
-      /** Admin: scroll to and focus the create-news form. */
-      
-
-      /** Admin: scroll to and focus the create-video form. */
-      
-
-      /** Admin: archive every checked article via PUT (status -> archived). */
-      /** Admin: archive every checked article via POST /archive */
-      
-
       /** Admin: unarchive every checked article via POST /unarchive */
       
-    
-
 async function api(path, options = {}) {
         const headers = Object.assign({}, options.headers || {});
         const token = Auth.getToken();
@@ -1715,7 +1049,6 @@ function showAlert(message, variant) {
 window.showToast   = showToast;
 window.showConfirm = showConfirm;
 window.showAlert   = showAlert;
-
 
 function updateUserInfo(user) {
         // Header updates
@@ -2865,12 +2198,7 @@ function exitNewsEditMode() {
       }
 
 function cancelNewsEdit() {
-        const panel = document.getElementById('admin-news-panel');
-        if (panel) {
-          panel.classList.add('translate-x-full');
-          setTimeout(() => panel.classList.add('hidden'), 300);
-        }
-        document.getElementById('admin-panel-backdrop')?.classList.add('hidden');
+        closeAllDrawers();
         document.getElementById('create-news-form').reset();
         toggleNewsDueDate();
         exitNewsEditMode();
@@ -3209,12 +2537,7 @@ function toggleVideoDueDate() {
       }
 
 function cancelVideoEdit() {
-        const panel = document.getElementById('admin-video-panel');
-        if (panel) {
-          panel.classList.add('translate-x-full');
-          setTimeout(() => panel.classList.add('hidden'), 300);
-        }
-        document.getElementById('admin-panel-backdrop')?.classList.add('hidden');
+        closeAllDrawers();
         document.getElementById('create-video-form').reset();
         toggleVideoDueDate();
         window.editingVideoId = null;
@@ -4940,7 +4263,6 @@ function saveArticleNote() {
           });
       }
 
-
 function updateBroadcastCounter() {
         const input = document.getElementById('broadcast-message-input');
         const counter = document.getElementById('broadcast-char-counter');
@@ -5749,7 +5071,6 @@ function showMagtiAiComingSoon() {
         }
       }
 
-
 function toggleAiDrawer() {
         const overlay = document.getElementById('magti-ai-overlay');
         const drawer = document.getElementById('magti-ai-drawer');
@@ -5931,57 +5252,17 @@ async function triggerKebabAction(userId, action, event) {
         }
       }
 
-
       // Navigation page switch logic
-      /**
-       * TASK 1 — open the full-screen standalone article view (#page-article-view).
-       * Remembers the section the operator came from so "უკან დაბრუნება" returns
-       * there, fetches the full article (cache-first), and renders it at page
-       * width via the shared .article-content-optimized engine.
-       */
       
-
-      /** Return from the standalone view to the previously active section. */
-      
-
       // ──────────────────────────────────────────────────────────────────
       // TASK 2 — KB taxonomy grid + context-aware category view.
       // ──────────────────────────────────────────────────────────────────
 
-      /** Default audience profile inferred from the operator's department. */
-      
-
-      /** Fetch (once) the taxonomy categories + full article list used by the
-       *  dashboard grid counts and the category view. Cached on window. */
-      
-
-      /** Render the 5×2 category card grid on the dashboard. */
-      
-
-      /** Open the standalone category view for a slug. */
-      
-
-      /** Toggle the audience-profile filter within the category view. */
-      
-
-      
-
-      /** Render the active category's article cards, filtered by profile. */
-      
-
-      
-
-      
-
       // Item 9: back/forward navigation honours the hash. We guard against
       // recursive updates by only acting when the hash actually changed.
       
-
       // Profile Tabs switch logic
       
-
-      
-
       // ══════════════════════════════════════════════════════════════════════
       // [SPEC-COMPLETION] Helpers added 2026 for: categories admin, audit log,
       // user create, feedback resolve, XLSX export, password change. Each block
@@ -5991,20 +5272,11 @@ async function triggerKebabAction(userId, action, event) {
 
       // ── XLSX export ────────────────────────────────────────────────────
       
-
       // ── Notifications Popover ──────────────────────────────────────────
       
-      
-      
-
       // ── Messages Popover (envelope) — Item 1: behaves as a relative dropdown,
       // never navigates away from the current page. ───────────────────────
       
-
-      
-
-      
-
       // Close popovers when clicking outside their button + box. One handler
       // covers both popovers so they don't ever stay stuck open.
       document.addEventListener('click', function(event) {
@@ -6038,59 +5310,29 @@ async function triggerKebabAction(userId, action, event) {
         }
       });
 
-      
-
       // ── Admin: Categories CRUD ─────────────────────────────────────────
       
-
-      
-      
-      
-      
-      
-
       // ── Admin: Audit log ───────────────────────────────────────────────
       
-
       // ── Admin: Create user ─────────────────────────────────────────────
       
-      
-      
-
       // ── Self: change own password ──────────────────────────────────────
       
-
       // ── Admin: Feedback resolve / reject ──────────────────────────────
       
-
-      
-
       // Item 7: Magti AI is not active yet — show a toast instead of opening the drawer.
       // Kept as a tiny shim so the rest of the codebase (keyboard shortcuts, deep
       // links into toggleAiDrawer) keeps working when the feature does ship.
       
-
       // Magti AI Chat Assistant Drawer
       
-
-      
-
-      
-
-      
-
       // User Kebab Dropdown Management
       
-
-      
-
       document.addEventListener('click', function (e) {
         document.querySelectorAll('[id^="user-kebab-"]').forEach(menu => {
           menu.classList.add('hidden');
         });
       });
-
-    
 
 /* --- Magti AI Chat Immediate Click Interceptor --- */
 
@@ -6145,7 +5387,6 @@ async function triggerKebabAction(userId, action, event) {
       window.showMagtiAiComingSoon = window.showMagtiAiComingSoon || showComingSoon;
     })();
   
-
 /* --- Highlight to Note Interceptor --- */
 
         document.addEventListener('selectionchange', () => {
@@ -6192,8 +5433,6 @@ async function triggerKebabAction(userId, action, event) {
             if (tooltip) tooltip.classList.add('hidden');
           }
         });
-
-/* --- Manager Stats Binding Interceptor --- */
 
         // Item 5 (QA regression fix): all listeners are bound via addEventListener
         // at runtime against the live DOM nodes. This guarantees:
@@ -6285,7 +5524,6 @@ async function triggerKebabAction(userId, action, event) {
           window.debouncedTeamStatsFetch = debounced;
         })();
       
-
 /* --- Accessibility Icon Observers --- */
 
     (function () {
@@ -6315,8 +5553,6 @@ async function triggerKebabAction(userId, action, event) {
       else start();
     })();
   
-
-
 // Export to global window scope for backwards compatibility
 window.Auth = Auth;
 window.Store = Store;

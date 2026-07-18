@@ -14,15 +14,31 @@ const CacheStore = {
   clear(key) {
     if (key) delete this._cache[key];
     else this._cache = {};
+  },
+  // Clears every cached entry whose key starts with `prefix` (e.g. 'users'
+  // clears every users_<managerId> variant at once, without touching
+  // unrelated caches like categories_admin).
+  clearByPrefix(prefix) {
+    Object.keys(this._cache).forEach(k => {
+      if (k.startsWith(prefix)) delete this._cache[k];
+    });
   }
 };
 window.CacheStore = CacheStore;
 
-// Monkeypatch window.fetch to automatically invalidate cache on mutations
+// Monkeypatch window.fetch to automatically invalidate cache on mutations.
+// Scoped to the mutated resource instead of a blanket clear(): editing a
+// category shouldn't wipe the unrelated users-table cache. Audit-log data is
+// the one cross-cutting exception — nearly every mutation anywhere writes an
+// audit_logs row, so its cache is always invalidated alongside the mutated
+// resource's own cache.
 const originalFetch = window.fetch;
 window.fetch = async function(resource, init) {
   if (init && init.method && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(init.method.toUpperCase())) {
-    CacheStore.clear();
+    const url = typeof resource === 'string' ? resource : (resource && resource.url) || '';
+    const match = url.match(/\/api\/([^/?]+)/);
+    if (match) CacheStore.clearByPrefix(match[1]);
+    CacheStore.clearByPrefix('audit_');
   }
   return originalFetch.apply(window, arguments);
 };
@@ -85,22 +101,13 @@ async function fetchAndRenderMyReadings(token) {
         }
       }
 
-// Executive Department Dashboard entry point. The render/animation/auto-refresh
-// logic lives in the decoupled DeptDashboard module (static/js/dept-dashboard.js);
-// this thin wrapper preserves the legacy call sites (app-router nav + app-core
-// bindings) that still invoke fetchAndRenderManagerStats(token).
-function fetchAndRenderManagerStats(token) {
-        if (window.DeptDashboard && typeof DeptDashboard.start === 'function') {
-          DeptDashboard.start(token);
-        } else {
-          console.warn('DeptDashboard module not loaded yet.');
-        }
-      }
+// fetchAndRenderManagerStats lives in static/js/dept-dashboard.js (loaded
+// after this file) — that copy is the one every caller actually reaches.
 
 async function fetchNotificationsCount(token) {
         // Mandatory reading is an operator-only obligation - management roles
-        // are exempt (mirrors _MANAGEMENT_ROLES in main.py), so skip entirely
-        // rather than rendering a hidden "all clear" state into the dashboard.
+        // are exempt (mirrors MANAGEMENT_ROLES in compliance_utils.py), so skip
+        // entirely rather than rendering a hidden "all clear" state into the dashboard.
         const role = window.currentUser ? window.currentUser.role : '';
         if (['admin', 'content_admin', 'manager'].includes(role)) return;
 

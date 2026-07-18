@@ -1,0 +1,11 @@
+[tool.ruff]
+line-length = 120
+exclude = ["venv", ".venv", "migrations"]
+
+[tool.ruff.lint]
+# Conservative on purpose: catch real defects (unused imports, undefined
+# names, obvious bugs), not full pycodestyle style — this codebase has no
+# prior formatting pass, and enforcing that now would force a mass reformat
+# CLAUDE.md's "surgical edits only" rule discourages. Widen this ruleset
+# deliberately later, not as a side effect of adding CI.
+select = ["E9", "F"]

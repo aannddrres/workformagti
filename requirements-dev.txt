@@ -1,0 +1,5 @@
+# Dev/test-only tooling — never needed in the production Docker image.
+-r requirements.txt
+
+pytest==9.1.1
+ruff==0.15.22

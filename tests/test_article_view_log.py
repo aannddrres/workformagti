@@ -6,7 +6,6 @@ captured the version (stabilization pass 2026-07-13, findings F1/F2).
 import os
 import sys
 
-import pytest
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

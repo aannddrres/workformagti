@@ -19,10 +19,13 @@
   var _state = { query: '', startDate: null, endDate: null, offset: 0, limit: 50 };
   var _lastRows = [];
   var _searchDebounce = null;
+  var _requestSeq = 0;
 
+  // escapeHtml (app-core.js) already handles null/undefined internally, and
+  // is guaranteed defined by the time this deferred script runs (base-layout.html
+  // loads app-core.js before audit-dashboard.js) — no fallback needed.
   var esc = function (s) {
-    return (typeof escapeHtml === 'function') ? escapeHtml(String(s == null ? '' : s))
-                                              : String(s == null ? '' : s);
+    return escapeHtml(s);
   };
 
   // A manager holds the same system:audit permission as content_admin, but
@@ -36,10 +39,10 @@
   /* ── Category badge map — same convention as window.statusStylesMap
      (app-renderers.js), but for audit CATEGORY, not content status. ──────── */
   window.auditCategoryStylesMap = {
-    SECURITY: { text: 'უსაფრთხოება',   badge: 'bg-rose-50 text-rose-700 border-rose-200/60',       dot: 'bg-rose-500' },
-    USER:     { text: 'მომხმარებელი',  badge: 'bg-blue-50 text-blue-700 border-blue-200/60',        dot: 'bg-blue-500' },
-    CONTENT:  { text: 'კონტენტი',      badge: 'bg-emerald-50 text-emerald-700 border-emerald-200/60', dot: 'bg-emerald-500' },
-    SYSTEM:   { text: 'სისტემა',       badge: 'bg-amber-50 text-amber-700 border-amber-200/60',     dot: 'bg-amber-500' }
+    SECURITY: { text: 'უსაფრთხოება (SECURITY)',   badge: 'bg-rose-50 text-rose-700 border-rose-200/60',       dot: 'bg-rose-500' },
+    USER:     { text: 'მომხმარებელი (USER)',      badge: 'bg-blue-50 text-blue-700 border-blue-200/60',        dot: 'bg-blue-500' },
+    CONTENT:  { text: 'კონტენტი (CONTENT)',        badge: 'bg-emerald-50 text-emerald-700 border-emerald-200/60', dot: 'bg-emerald-500' },
+    SYSTEM:   { text: 'სისტემა (SYSTEM)',          badge: 'bg-amber-50 text-amber-700 border-amber-200/60',     dot: 'bg-amber-500' }
   };
   var CATEGORY_FALLBACK = { text: '—', badge: 'bg-gray-50 text-gray-500 border-gray-200/60', dot: 'bg-gray-400' };
 
@@ -431,12 +434,18 @@
     } else {
       renderSkeleton();
     }
+    // Request-sequencing guard: if a newer load() call starts before this
+    // one's fetch resolves, drop this response instead of letting a slower,
+    // stale request overwrite the grid with out-of-date rows.
+    var requestId = ++_requestSeq;
     fetchPage(token, _state).then(function (data) {
+      if (requestId !== _requestSeq) return;
       if (cacheStore) cacheStore.set(cacheKey, data);
       _lastRows = data.rows;
       renderGrid(data.rows);
       renderPagination(data.total, _state.offset, _state.limit);
     }).catch(function (err) {
+      if (requestId !== _requestSeq) return;
       console.error('AuditDashboard load failed:', err);
       if (!cached) {
         var host = document.getElementById('audit-grid-host');

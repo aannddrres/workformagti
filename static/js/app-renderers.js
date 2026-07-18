@@ -871,8 +871,8 @@ async function fetchAndRenderMyProgress() {
         const widget = document.getElementById('progress-widget');
         if (!widget) return;
         // Management roles are exempt from the mandatory-reading obligation
-        // (mirrors _MANAGEMENT_ROLES in main.py) - leave the widget hidden,
-        // don't even fetch, so it can't flash the "all clear" state on load.
+        // (mirrors MANAGEMENT_ROLES in compliance_utils.py) - leave the widget
+        // hidden, don't even fetch, so it can't flash the "all clear" state on load.
         const role = window.currentUser ? window.currentUser.role : '';
         if (['admin', 'content_admin', 'manager'].includes(role)) return;
         try {

@@ -113,3 +113,18 @@ class Settings:
 
 
 settings = Settings()
+
+if settings.is_production:
+    # Fail loud at startup rather than silently shipping a dev secret or a
+    # cookie sent over plain HTTP — both are the kind of misconfiguration
+    # that's easy to miss in a one-person deployment and expensive once live.
+    if settings.SECRET_KEY == "super-secret-temporary-key-for-local-development":
+        raise RuntimeError(
+            "SECRET_KEY is still the development default with APP_ENV=production. "
+            'Generate one: python -c "import secrets; print(secrets.token_urlsafe(64))"'
+        )
+    if not settings.COOKIE_SECURE:
+        raise RuntimeError(
+            "COOKIE_SECURE=false with APP_ENV=production — the auth cookie would be "
+            "sent over plain HTTP. Set COOKIE_SECURE=true (requires HTTPS)."
+        )

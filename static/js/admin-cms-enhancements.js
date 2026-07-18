@@ -281,7 +281,10 @@
   // ── Wrap drawer-open entry points so the badge/counter reflect current state immediately ──
   ['focusCreateForm', 'editArticle'].forEach(function (fnName) {
     var original = window[fnName];
-    if (typeof original !== 'function') return;
+    if (typeof original !== 'function') {
+      console.warn('admin-cms-enhancements: window.' + fnName + ' not found — char counter/status badge wiring skipped (script load order changed?)');
+      return;
+    }
     window[fnName] = function () {
       if (fnName === 'editArticle') {
         var articleId = arguments[0];

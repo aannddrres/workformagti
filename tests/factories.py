@@ -12,6 +12,7 @@ from typing import Optional
 import models
 import security
 from database import get_tbilisi_time
+from qa_accounts import TEST_ACCOUNT_PASSWORD
 
 
 def make_user(
@@ -21,7 +22,7 @@ def make_user(
     role: str = "operator",
     department: str = "ტექნიკური",
     name: Optional[str] = None,
-    password: str = security.TEST_ACCOUNT_PASSWORD,
+    password: str = TEST_ACCOUNT_PASSWORD,
     permissions: Optional[list] = None,
 ) -> models.User:
     email_l = email.lower()

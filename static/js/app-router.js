@@ -116,8 +116,8 @@ function switchMainPage(pageId, element) {
         }
         if (pageId === 'page-reading') {
           // Mandatory reading is an operator-only obligation - management
-          // roles are exempt (mirrors _MANAGEMENT_ROLES in main.py) and have
-          // no sidebar entry point, but block direct navigation too.
+          // roles are exempt (mirrors MANAGEMENT_ROLES in compliance_utils.py)
+          // and have no sidebar entry point, but block direct navigation too.
           const role = window.currentUser ? window.currentUser.role : '';
           if (['admin', 'content_admin', 'manager'].includes(role)) {
             if (typeof showToast === 'function') {

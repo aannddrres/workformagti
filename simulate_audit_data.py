@@ -1,7 +1,7 @@
 import argparse
 import random
 import sys
-from datetime import datetime, timedelta
+from datetime import timedelta
 from database import SessionLocal, get_tbilisi_time
 import models
 

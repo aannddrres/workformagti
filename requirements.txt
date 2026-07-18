@@ -1,38 +1,38 @@
-fastapi
-uvicorn
-sqlalchemy
-pydantic[email]
-python-jose[cryptography]
-passlib
+fastapi==0.137.2
+uvicorn==0.49.0
+sqlalchemy==2.0.51
+pydantic[email]==2.13.4
+python-jose[cryptography]==3.5.0
+passlib==1.7.4
 # passlib 1.7.4 is unmaintained and breaks with bcrypt >= 4.1
 # (AttributeError: module 'bcrypt' has no attribute '__about__')
 bcrypt==4.0.1
-python-multipart
+python-multipart==0.0.32
 
 # Rate limiting for auth endpoints (login, forgot-password, sso callback) —
 # brute-force / credential-stuffing mitigation for the ~600-user internal portal.
-slowapi
+slowapi==0.1.10
 
 # Optional: load configuration from a local .env file (see config.py / .env.example)
-python-dotenv
+python-dotenv==1.2.2
 
 # PostgreSQL driver — required when DATABASE_URL points at PostgreSQL.
 # Harmless to install in the SQLite-based local dev environment too.
-psycopg2-binary
+psycopg2-binary==2.9.12
 
 # HTML parsing for the legacy KB migration (migrate_kb.py)
-beautifulsoup4
+beautifulsoup4==4.15.0
 
 # XLSX export (admin compliance report). Endpoint degrades to 503 if missing.
-openpyxl
+openpyxl==3.1.5
 
 # PDF export (admin compliance + team-stats). Endpoint degrades to 503 if missing.
 # DejaVu Sans is installed via apt in the Dockerfile (fonts-dejavu-core) to
 # cover Georgian Unicode glyphs.
-reportlab
+reportlab==5.0.0
 
-gunicorn
-redis
+gunicorn==26.0.0
+redis==8.0.0
 
 # Required by fastapi.testclient.TestClient (used throughout tests/).
-httpx
+httpx==0.28.1

@@ -58,6 +58,14 @@ BTREE_INDEX_STATEMENTS = (
     "CREATE INDEX IF NOT EXISTS ix_audit_logs_action_timestamp ON audit_logs (action, timestamp DESC)",
     "CREATE INDEX IF NOT EXISTS ix_article_read_receipts_article_version ON article_read_receipts (article_id, article_version)",
     "CREATE INDEX IF NOT EXISTS ix_article_read_receipts_article_operator ON article_read_receipts (article_id, operator_id)",
+    # Backs _ensure_current_version_archived's race-safety (main.py): two
+    # concurrent archivers of the same version now collide here instead of
+    # creating a duplicate row. NULLs (legacy pre-version_id rows) are always
+    # distinct from each other in a unique index on both SQLite and Postgres,
+    # so they never trip this. Run scripts/repair_article_history_duplicates.py
+    # first on any database where this index has never existed before —
+    # existing duplicates would otherwise make this CREATE fail.
+    "CREATE UNIQUE INDEX IF NOT EXISTS ux_article_history_article_version ON article_history (article_id, version_id)",
 )
 
 
@@ -193,6 +201,16 @@ AUDIT_CHAIN_STATEMENTS = (
       ON audit_logs ((true))
       WHERE prev_hash IS NULL AND row_hash IS NOT NULL
     """,
+
+    # Backs audit_chain_health's `unchained_total` count (main.py), which
+    # otherwise sequentially scans the full table on every passive dashboard
+    # mount. Partial index over just the (small, fixed) set of pre-migration
+    # NULL-hash rows keeps that count cheap regardless of table size.
+    """
+    CREATE INDEX IF NOT EXISTS ix_audit_logs_unchained
+      ON audit_logs (id)
+      WHERE row_hash IS NULL
+    """,
 )
 
 
@@ -293,59 +311,62 @@ def backfill_audit_log_snapshots() -> None:
 
 def backfill_missing_version_1() -> None:
     """Checks all articles in the database. If any article is missing a Version 1
+    entry in the article_history table, it ensures one exists.
 
-    entry in the article_history table, it creates one.
-    If the article has other history entries (e.g. Version 2), Version 1 is backfilled
-    using the oldest history entry's content.
-    If the article has no history entries at all, Version 1 is backfilled using the
-    article's current title and content.
+    If the article has other history entries (e.g. the oldest existing row is
+    version_id=2, a leftover of the old, incorrect versioning semantics), that
+    oldest row is RENUMBERED to version_id=1 rather than cloned — it already
+    IS the article's first revision chronologically, just mislabeled. Cloning
+    it would leave two rows with identical content (a permanent no-op
+    "revision" in the diff view). Renumbering is safe: nothing else keys off
+    an exact version_id besides ordering (get_article_diff's predecessor
+    lookup, the version list) — id-based references (compare_history_id)
+    are untouched.
+
+    If the article has no history entries at all, Version 1 is backfilled
+    using the article's current title and content.
     """
     with engine.begin() as conn:
         articles = conn.execute(text(
             "SELECT id, title, content, author_id, created_at FROM articles"
         )).fetchall()
-        
+
         backfilled_count = 0
         for art in articles:
             art_id, title, content, author_id, created_at = art
-            
+
             # Check if version 1 exists
             exists = conn.execute(text(
                 "SELECT id FROM article_history WHERE article_id = :aid AND version_id = 1"
             ), {"aid": art_id}).first()
-            
-            if not exists:
-                # Find oldest history entry
-                oldest = conn.execute(text("""
-                    SELECT title, content, updated_by, updated_at FROM article_history
-                    WHERE article_id = :aid ORDER BY version_id ASC LIMIT 1
-                """), {"aid": art_id}).first()
-                
-                if oldest:
-                    h_title, h_content, h_updated_by, h_updated_at = oldest
-                    conn.execute(text("""
-                        INSERT INTO article_history (article_id, title, content, updated_by, version_id, updated_at)
-                        VALUES (:aid, :title, :content, :updated_by, 1, :updated_at)
-                    """), {
-                        "aid": art_id,
-                        "title": h_title,
-                        "content": h_content,
-                        "updated_by": h_updated_by,
-                        "updated_at": h_updated_at,
-                    })
-                else:
-                    conn.execute(text("""
-                        INSERT INTO article_history (article_id, title, content, updated_by, version_id, updated_at)
-                        VALUES (:aid, :title, :content, :updated_by, 1, :updated_at)
-                    """), {
-                        "aid": art_id,
-                        "title": title,
-                        "content": content,
-                        "updated_by": author_id or 1,  # fallback to admin ID 1 if no author
-                        "updated_at": created_at,
-                    })
-                backfilled_count += 1
-                
+
+            if exists:
+                continue
+
+            # Find oldest existing history entry (id-tiebreak keeps this
+            # deterministic if two rows ever tied on version_id).
+            oldest = conn.execute(text("""
+                SELECT id FROM article_history
+                WHERE article_id = :aid ORDER BY version_id ASC, id ASC LIMIT 1
+            """), {"aid": art_id}).first()
+
+            if oldest:
+                conn.execute(text(
+                    "UPDATE article_history SET version_id = 1 WHERE id = :hid"
+                ), {"hid": oldest[0]})
+            else:
+                conn.execute(text("""
+                    INSERT INTO article_history (article_id, title, content, updated_by, version_id, updated_at)
+                    VALUES (:aid, :title, :content, :updated_by, 1, :updated_at)
+                """), {
+                    "aid": art_id,
+                    "title": title,
+                    "content": content,
+                    "updated_by": author_id or 1,  # fallback to admin ID 1 if no author
+                    "updated_at": created_at,
+                })
+            backfilled_count += 1
+
         if backfilled_count:
             log.info("Backfilled missing Version 1 on %s articles", backfilled_count)
 

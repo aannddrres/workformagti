@@ -445,9 +445,17 @@ body.dark-mode {
       }
     }
 
-    /* [3.5] Respect prefers-reduced-motion for vestibular disorders */
+    /* [3.5] Respect prefers-reduced-motion for vestibular disorders.
+       Selector list must stay in lockstep with the fadeInSlideUp rule below
+       (section 2026-07-13 PREMIUM DESIGN SYSTEM ADDITIONS) — that rule's
+       `:not(.hidden)` selectors have higher specificity (0,2,0) than a bare
+       `.page-section` (0,1,0), so with both sides `!important` the animation
+       rule would otherwise win regardless of this block existing at all. */
     @media (prefers-reduced-motion: reduce) {
-      .page-section {
+      .page-section,
+      .page-section:not(.hidden),
+      .admin-panel,
+      .admin-panel:not(.hidden) {
         animation: none !important;
       }
 
@@ -733,11 +741,17 @@ body.dark-mode {
     }
 
     /* ── Soft pastel tag chips inside article rows ───────────
-       (bg-red-50/bg-sky-50/bg-slate-100) — lift them above the canvas. */
+       (bg-red-50/bg-sky-50/bg-slate-100) — lift them above the canvas.
+       Also backs the audit-dashboard category badges (auditCategoryStylesMap
+       in static/js/audit-dashboard.js) — bg-rose-50/bg-blue-50 (SECURITY/USER)
+       added alongside the emerald/amber (CONTENT/SYSTEM) pair already here,
+       so all four categories get the same dark-mode treatment. */
     body.dark-mode .bg-red-50,
     body.dark-mode .bg-sky-50,
     body.dark-mode .bg-emerald-50,
-    body.dark-mode .bg-amber-50 {
+    body.dark-mode .bg-amber-50,
+    body.dark-mode .bg-rose-50,
+    body.dark-mode .bg-blue-50 {
       background-color: rgba(127, 127, 127, 0.14) !important;
     }
 

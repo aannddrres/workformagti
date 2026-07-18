@@ -4,10 +4,19 @@ These schemas enforce typing, validation logic, and serialization configurations
 for all FastAPI route endpoints.
 """
 
-import re
 from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
+
+import security
+
+
+def _validate_role(v: str) -> str:
+    """Shared by every schema with a role field, so the allowed set can only
+    ever be defined in one place: security.VALID_ROLES."""
+    if v not in security.VALID_ROLES:
+        raise ValueError(f"Invalid role. Must be one of: {', '.join(sorted(security.VALID_ROLES))}")
+    return v
 
 
 class UserBase(BaseModel):
@@ -138,20 +147,10 @@ class NewsAutosave(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class NewsAutosaveResponse(BaseModel):
+class NewsAutosaveResponse(NewsAutosave):
     id: int
-    title: Optional[str] = None
-    content: Optional[str] = None
-    target_department: Optional[str] = None
-    attachment_url: Optional[str] = None
-    visible_to_tech_info: Optional[bool] = None
-    visible_to_service_center: Optional[bool] = None
-    expires_at: Optional[datetime] = None
-    is_draft: Optional[bool] = None
     created_at: datetime
     version: int
-
-    model_config = ConfigDict(from_attributes=True)
 
 class NewsHistoryResponse(BaseModel):
     """Response schema for a single News revision entry (mirrors ArticleHistory)."""
@@ -248,9 +247,8 @@ class ArticleCreate(ArticleBase):
     notify_operators: bool = False
 
 
-class ArticleUpdate(ArticleBase):
-    """Request schema for updating a Knowledge Base article."""
-    notify_operators: bool = False
+class ArticleUpdate(ArticleCreate):
+    """Request schema for updating a Knowledge Base article (same shape as create)."""
 
 
 class ArticleResponse(ArticleBase):
@@ -287,25 +285,11 @@ class ArticleAutosave(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-class ArticleAutosaveResponse(BaseModel):
+class ArticleAutosaveResponse(ArticleAutosave):
     id: int
-    title: Optional[str] = None
-    content: Optional[str] = None
-    category_id: Optional[int] = None
-    tags: Optional[str] = None
-    target_departments: Optional[list[str]] = None
-    status: Optional[str] = None
-    published_at: Optional[datetime] = None
-    attachment_url: Optional[str] = None
-    audience_profile: Optional[str] = None
-    visible_to_tech_info: Optional[bool] = None
-    visible_to_service_center: Optional[bool] = None
-    is_draft: Optional[bool] = None
     created_at: datetime
     updated_at: datetime
     version: int
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 # ── Per-article quiz / knowledge-check ──────────────────────────────────────
@@ -535,11 +519,7 @@ class UserAdminUpdate(BaseModel):
     @field_validator('role')
     @classmethod
     def validate_role(cls, v: str) -> str:
-        """Enforce validation rules on user role changes."""
-        allowed = {"operator", "manager", "content_admin", "admin"}
-        if v not in allowed:
-            raise ValueError(f"Invalid role. Must be one of: {', '.join(sorted(allowed))}")
-        return v
+        return _validate_role(v)
 
 
 class UserCreateAdmin(BaseModel):
@@ -558,16 +538,29 @@ class UserCreateAdmin(BaseModel):
     @field_validator('role')
     @classmethod
     def validate_role(cls, v: str) -> str:
-        allowed = {"operator", "manager", "content_admin", "admin"}
-        if v not in allowed:
-            raise ValueError(f"Invalid role. Must be one of: {', '.join(sorted(allowed))}")
-        return v
+        return _validate_role(v)
 
 
 class PasswordChangeRequest(BaseModel):
     """Request schema for users to change their own password."""
     current_password: str
     new_password: str
+
+
+class BulkRoleReassignRequest(BaseModel):
+    """Request schema for reassigning a batch of users to a new role at once."""
+    user_ids: list[int]
+    new_role: str
+
+
+class AdminPasswordResetRequest(BaseModel):
+    """Request schema for an admin resetting another user's password."""
+    new_password: str
+
+
+class PermissionsUpdateRequest(BaseModel):
+    """Request schema for an admin editing a user's granular permissions."""
+    permissions: list[str]
 
 
 class FeedbackStatusUpdate(BaseModel):

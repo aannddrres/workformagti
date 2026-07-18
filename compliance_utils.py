@@ -3,6 +3,19 @@ from sqlalchemy import func
 import models
 from typing import Optional
 
+# Shared by routers/stats.py and compliance_alerts.py — one definition,
+# not two copies that can silently drift out of sync.
+#
+# MANAGEMENT_ROLES: excluded from required-reading target-audience
+# calculations. DB has admin, content_admin, manager, operator — only
+# operators are the intended audience; management roles inflate the
+# denominator otherwise.
+#
+# CRITICAL_THRESHOLD: compliance percentage below which an operator is
+# flagged "critical".
+MANAGEMENT_ROLES = ("admin", "content_admin", "manager")
+CRITICAL_THRESHOLD = 30
+
 
 def get_total_required_readings_by_dept(db: Session) -> dict:
     """Fetches the total number of required readings grouped by target department."""

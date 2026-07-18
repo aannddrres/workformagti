@@ -5,7 +5,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from database import SessionLocal
-from main import DEPARTMENT_WHITELIST, build_department_stats
+from routers.stats import DEPARTMENT_WHITELIST, build_department_stats
 
 EXPECTED = ["ტექნიკური", "საინფორმაციო", "ოფისი"]
 

@@ -457,6 +457,14 @@ def _auto_classify_audit_log(mapper, connection, target: "AuditLog") -> None:
 
 class ArticleHistory(Base):
     __tablename__ = "article_history"
+    __table_args__ = (
+        # Same name as migrate.py's raw CREATE UNIQUE INDEX IF NOT EXISTS
+        # (which retrofits pre-existing databases) — declared here too so a
+        # freshly create_all()'d database (tests, a brand-new install) gets
+        # it without waiting on migrate.py to run. Backs
+        # _ensure_current_version_archived's race-safety (main.py).
+        UniqueConstraint("article_id", "version_id", name="ux_article_history_article_version"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     # ondelete="CASCADE" only takes effect via create_all() on a fresh DB;

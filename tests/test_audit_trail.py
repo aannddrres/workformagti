@@ -420,3 +420,129 @@ def test_chain_health_tamper_detection_postgres():
         db.close()
         pg_engine.dispose()
 
+
+def test_export_audit_logs_filters_by_user_id(db_session):
+    """CSV export must honor ?user_id=... exactly like the list endpoint does.
+
+    Regression test: export_audit_logs previously had no user_id parameter at
+    all (only user_name), even though _build_audit_query already supported
+    it and the audit-dashboard grid's actor:<id> search already sent it —
+    FastAPI silently drops unknown query params, so a filtered export
+    silently included every actor's rows instead of just the one filtered on.
+    """
+    import uuid
+
+    monolith_app.dependency_overrides.clear()
+
+    unique = uuid.uuid4().hex[:8]
+    target = make_user(db_session, email=f"export_target_{unique}@magti.ge", role="operator")
+    other = make_user(db_session, email=f"export_other_{unique}@magti.ge", role="operator")
+    db_session.add(models.AuditLog(admin_id=target.id, action="LOGIN", item_type="user", item_id=target.id))
+    db_session.add(models.AuditLog(admin_id=other.id, action="LOGIN", item_type="user", item_id=other.id))
+    db_session.commit()
+
+    try:
+        with TestClient(monolith_app) as tc:
+            login = tc.post("/api/auth/login", json={"email": "admin@magti.ge", "password": "x"})
+            assert login.status_code == 200, login.text
+            headers = {"Authorization": "Bearer " + login.json()["access_token"]}
+
+            res = tc.get(f"/api/audit-logs/export?user_id={target.id}", headers=headers)
+            assert res.status_code == 200, res.text
+            body = res.text
+            assert target.name in body, "export must include the filtered actor's row"
+            assert other.name not in body, "export must NOT include a different actor's row"
+    finally:
+        db_session.query(models.AuditLog).filter(
+            models.AuditLog.admin_id.in_([target.id, other.id])
+        ).delete(synchronize_session=False)
+        db_session.delete(target)
+        db_session.delete(other)
+        db_session.commit()
+
+
+def test_ensure_current_version_archived_is_idempotent(db_session):
+    """Calling _ensure_current_version_archived twice for the same article
+    version must not create a duplicate article_history row.
+
+    Regression test: get_article_versions' self-healing insert-on-GET used to
+    reimplement this check inline with no unique constraint backing it, so
+    two concurrent requests viewing the same under-migrated article could
+    both insert a row for the same (article_id, version_id). This exercises
+    the ordinary (non-racy) path the exists-check already covers; the new
+    ux_article_history_article_version unique index (migrate.py) plus the
+    IntegrityError retry in _ensure_current_version_archived (main.py) are
+    what additionally close the genuine cross-request race, which needs real
+    concurrent connections to reproduce and is covered by manual/integration
+    testing rather than a single-session unit test.
+    """
+    import uuid
+
+    from routers.articles import _ensure_current_version_archived
+    from tests.factories import make_article
+
+    actor = make_user(db_session, email=f"archive_idem_actor_{uuid.uuid4().hex[:8]}@magti.ge", role="admin")
+    article = make_article(db_session, author=actor, title="Archive Idempotent Article")
+
+    try:
+        _ensure_current_version_archived(db_session, article, actor.id)
+        _ensure_current_version_archived(db_session, article, actor.id)
+        db_session.commit()
+
+        rows = db_session.query(models.ArticleHistory).filter(
+            models.ArticleHistory.article_id == article.id,
+            models.ArticleHistory.version_id == article.version,
+        ).all()
+        assert len(rows) == 1, "second call must not create a duplicate history row"
+    finally:
+        db_session.rollback()
+        db_session.query(models.ArticleHistory).filter(
+            models.ArticleHistory.article_id == article.id
+        ).delete(synchronize_session=False)
+        db_session.delete(article)
+        db_session.delete(actor)
+        db_session.commit()
+
+
+def test_article_history_unique_index_rejects_duplicate_version(db_session):
+    """Direct proof that ux_article_history_article_version (migrate.py) is
+    actually in effect: a second, independently-committed row for the same
+    (article_id, version_id) must be rejected at the database level.
+
+    This is the mechanism _ensure_current_version_archived's IntegrityError
+    retry depends on — if this index were ever missing or dropped, that
+    retry logic would silently stop protecting against duplicates.
+    """
+    import uuid
+
+    from sqlalchemy.exc import IntegrityError
+
+    from tests.factories import make_article
+
+    actor = make_user(db_session, email=f"archive_index_actor_{uuid.uuid4().hex[:8]}@magti.ge", role="admin")
+    article = make_article(db_session, author=actor, title="Archive Index Article")
+
+    try:
+        first = models.ArticleHistory(
+            article_id=article.id, title=article.title, content=article.content,
+            updated_by=actor.id, version_id=1,
+        )
+        db_session.add(first)
+        db_session.commit()
+
+        second = models.ArticleHistory(
+            article_id=article.id, title=article.title, content=article.content,
+            updated_by=actor.id, version_id=1,
+        )
+        db_session.add(second)
+        with pytest.raises(IntegrityError):
+            db_session.flush()
+    finally:
+        db_session.rollback()
+        db_session.query(models.ArticleHistory).filter(
+            models.ArticleHistory.article_id == article.id
+        ).delete(synchronize_session=False)
+        db_session.delete(article)
+        db_session.delete(actor)
+        db_session.commit()
+

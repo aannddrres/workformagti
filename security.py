@@ -5,6 +5,7 @@ scopes. It defines role dependencies that match Magti Call Center Portal RBAC pe
 """
 
 from datetime import datetime, timedelta
+from functools import lru_cache
 from typing import Optional
 
 from fastapi import Depends, HTTPException, Request, status
@@ -31,6 +32,11 @@ ROLE_MANAGER = "manager"
 ROLE_CONTENT_ADMIN = "content_admin"
 ROLE_SYSTEM_ADMIN = "admin"
 VALID_ROLES = {ROLE_OPERATOR, ROLE_MANAGER, ROLE_CONTENT_ADMIN, ROLE_SYSTEM_ADMIN}
+
+# The "content admin or system admin" check — same two roles
+# get_current_admin_user gates on — was duplicated ad hoc across routers as
+# `role not in ["admin", "content_admin"]`/`("admin", "content_admin")`.
+CONTENT_ADMIN_ROLES = (ROLE_CONTENT_ADMIN, ROLE_SYSTEM_ADMIN)
 
 # ┌──────────────────────────────────────────────────────────┐
 # │ MOCK AD ACCOUNTS FOR LOCAL TESTING                       │
@@ -145,6 +151,29 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 
+# JIT provisioning: (role, department, name) overrides per known dev/test
+# email — any field left None falls back to the generic operator default.
+# Keeping this table separate from authenticate_user() lets that function
+# stay focused on authentication rather than dev-fixture data.
+_JIT_PROVISION_OVERRIDES: dict[str, tuple[Optional[str], Optional[str], str]] = {
+    "admin@magti.ge": ("admin", "Administration", "სისტემური ადმინი"),
+    "content@magti.ge": ("content_admin", "Content Creation", "კონტენტის ადმინისტრატორი"),
+    "manager@magti.ge": ("manager", "Support", "ჯგუფის მენეჯერი"),
+    "nino@magti.ge": (None, None, "ნინო ჩიტიშვილი"),
+    "tech@magti.ge": (None, None, "ტექნიკური ოპერატორი"),
+    "info@magti.ge": (None, "Informational", "საინფორმაციო ოპერატორი"),
+}
+
+
+def _jit_provision_test_user(lower_email: str) -> tuple[str, str, str]:
+    """Determines (role, department, name) for a JIT-created dev/test user."""
+    role, department, name = "operator", "Support", f"Test User {lower_email.split('@')[0]}"
+    override_role, override_department, override_name = _JIT_PROVISION_OVERRIDES.get(
+        lower_email, (None, None, None)
+    )
+    return override_role or role, override_department or department, override_name or name
+
+
 def authenticate_user(db: Session, email: str, password: str) -> Optional[models.User]:
     """Authenticates a user against database credentials or mock AD list.
     
@@ -169,17 +198,7 @@ def authenticate_user(db: Session, email: str, password: str) -> Optional[models
     if not user and not settings.is_production:
         is_test_account = lower_email.startswith("test_operator_") or lower_email in TEST_EMAILS
         if is_test_account:
-            # Determine role and department from email to create a realistic user
-            role, department, name = "operator", "Support", f"Test User {lower_email.split('@')[0]}"
-            if lower_email == "admin@magti.ge":
-                role, department, name = "admin", "Administration", "სისტემური ადმინი"
-            elif lower_email == "content@magti.ge":
-                role, department, name = "content_admin", "Content Creation", "კონტენტის ადმინისტრატორი"
-            elif lower_email == "manager@magti.ge":
-                role, department, name = "manager", "Support", "ჯგუფის მენეჯერი"
-            elif lower_email == "nino@magti.ge": name = "ნინო ჩიტიშვილი"
-            elif lower_email == "tech@magti.ge": name = "ტექნიკური ოპერატორი"
-            elif lower_email == "info@magti.ge": department, name = "Informational", "საინფორმაციო ოპერატორი"
+            role, department, name = _jit_provision_test_user(lower_email)
 
             user = models.User(
                 email=lower_email, name=name, role=role, department=department, is_active=True,
@@ -380,45 +399,36 @@ DEFAULT_PERMISSIONS_BY_ROLE: dict[str, list[str]] = {
     ],
 }
 
-# ── QA / seed test accounts (scripts/seed_portal.py `users` mode, docs/SEED_GUIDE.md) ──
-# Standing login set independent of the full org seed. Naming: {role}.{dept_code}@magti.ge,
-# dept_code matches seed_portal.py's ORG_TECH/ORG_INFO/ORG_OFFICE codes (tech/info/office).
-TEST_ACCOUNT_PASSWORD = "Test1234!"
-
-TEST_ACCOUNTS: list[dict] = [
-    {"email": "sysadmin@magti.ge", "name": "სისტემური ადმინისტრატორი", "role": ROLE_SYSTEM_ADMIN, "department": "All"},
-    {"email": "admin@magti.ge", "name": "პორტალის ადმინი", "role": ROLE_SYSTEM_ADMIN, "department": "All"},
-    {"email": "content@magti.ge", "name": "კონტენტის ადმინისტრატორი", "role": ROLE_CONTENT_ADMIN, "department": "All"},
-    {"email": "manager@magti.ge", "name": "ტესტ მენეჯერი", "role": ROLE_MANAGER, "department": "All"},
-    {"email": "operator@magti.ge", "name": "ტესტ ოპერატორი", "role": ROLE_OPERATOR, "department": "All"},
-
-    {"email": "admin.tech@magti.ge", "name": "ადმინი (ტექნიკური)", "role": ROLE_SYSTEM_ADMIN, "department": "ტექნიკური"},
-    {"email": "manager.tech@magti.ge", "name": "მენეჯერი (ტექნიკური)", "role": ROLE_MANAGER, "department": "ტექნიკური — ჯგუფი 01"},
-    {"email": "operator.tech@magti.ge", "name": "ოპერატორი (ტექნიკური) 1", "role": ROLE_OPERATOR, "department": "ტექნიკური — ჯგუფი 01"},
-    {"email": "operator2.tech@magti.ge", "name": "ოპერატორი (ტექნიკური) 2", "role": ROLE_OPERATOR, "department": "ტექნიკური — ჯგუფი 01"},
-
-    {"email": "admin.info@magti.ge", "name": "ადმინი (საინფორმაციო)", "role": ROLE_SYSTEM_ADMIN, "department": "საინფორმაციო"},
-    {"email": "manager.info@magti.ge", "name": "მენეჯერი (საინფორმაციო)", "role": ROLE_MANAGER, "department": "საინფორმაციო — ჯგუფი 01"},
-    {"email": "operator.info@magti.ge", "name": "ოპერატორი (საინფორმაციო) 1", "role": ROLE_OPERATOR, "department": "საინფორმაციო — ჯგუფი 01"},
-    {"email": "operator2.info@magti.ge", "name": "ოპერატორი (საინფორმაციო) 2", "role": ROLE_OPERATOR, "department": "საინფორმაციო — ჯგუფი 01"},
-
-    {"email": "admin.office@magti.ge", "name": "ადმინი (ოფისი)", "role": ROLE_SYSTEM_ADMIN, "department": "ოფისი"},
-    {"email": "manager.office@magti.ge", "name": "მენეჯერი (ოფისი)", "role": ROLE_MANAGER, "department": "ოფისი — ჯგუფი 01"},
-    {"email": "operator.office@magti.ge", "name": "ოპერატორი (ოფისი) 1", "role": ROLE_OPERATOR, "department": "ოფისი — ჯგუფი 01"},
-    {"email": "operator2.office@magti.ge", "name": "ოპერატორი (ოფისი) 2", "role": ROLE_OPERATOR, "department": "ოფისი — ჯგუფი 01"},
-
-    {"email": "manager2.tech@magti.ge", "name": "მენეჯერი (ტექნიკური) 2", "role": ROLE_MANAGER, "department": "ტექნიკური — ჯგუფი 02"},
-    {"email": "operator3.tech@magti.ge", "name": "ოპერატორი (ტექნიკური) 3", "role": ROLE_OPERATOR, "department": "ტექნიკური — ჯგუფი 02"},
-    {"email": "operator3.info@magti.ge", "name": "ოპერატორი (საინფორმაციო) 3", "role": ROLE_OPERATOR, "department": "საინფორმაციო — ჯგუფი 02"},
-]
-
-
-def _role_has_permission(db: Session, role_name: str, perm: str) -> bool:
+def role_has_permission(db: Session, current_user: models.User, perm: str) -> bool:
     """Shared by require_permission() and /api/users/me's can_view_audit_log
-    so the two can never disagree about what a role can do."""
-    if role_name == ROLE_SYSTEM_ADMIN:
+    so the two can never disagree about what a role can do.
+
+    Checks two independent grant sources and allows if EITHER matches — they
+    cover disjoint parts of the permission catalog, not the same data twice:
+
+    1. The per-user ``User.permissions`` JSON column. Populated from
+       DEFAULT_PERMISSIONS_BY_ROLE at user creation, and the only thing
+       scripts/sync_rbac.py and the admin "edit permissions" endpoint
+       (PUT /api/users/{user_id}/permissions) actually write to. Every
+       dotted PERM_* constant except PERM_SYSTEM_AUDIT lives here.
+    2. The DB-backed Role/RolePermission/Permission tables seeded by
+       scripts/seed_rbac.py, which uses an unrelated colon-named catalog
+       ("content:archive", "system:audit", ...). PERM_SYSTEM_AUDIT is
+       deliberately spelled "system:audit" to land in that catalog (see
+       migrate.py's ensure_system_audit_permission_seeded), so this path
+       is still load-bearing for audit-log access.
+
+    Before this, `perm` was only ever checked against source 2 — so the 8
+    dotted permissions (which no seed_rbac.py row ever matches) were
+    unreachable for any role but system_admin, even though
+    DEFAULT_PERMISSIONS_BY_ROLE/sync_rbac.py/the admin UI all assumed
+    source 1 was live.
+    """
+    if current_user.role == ROLE_SYSTEM_ADMIN:
         return True
-    role = db.query(models.Role).filter(models.Role.name == role_name).first()
+    if perm in (current_user.permissions or []):
+        return True
+    role = db.query(models.Role).filter(models.Role.name == current_user.role).first()
     if not role:
         return False
     return db.query(models.RolePermission).join(models.Permission).filter(
@@ -427,18 +437,44 @@ def _role_has_permission(db: Session, role_name: str, perm: str) -> bool:
     ).first() is not None
 
 
-def require_permission(perm: str):
+@lru_cache(maxsize=None)
+def require_permission(perm: str, exclude_roles: frozenset = frozenset()):
     """Dependency factory: gate an endpoint behind a granular DB-backed permission.
     Checks if the user's role possesses the required permission.
+
+    exclude_roles: roles that hold `perm` but should still be denied THIS
+    particular endpoint (e.g. a manager holds system:audit for the scoped
+    list view, but not for export/verify/chain-health). Centralizing this
+    here means a new manager-restricted endpoint can't forget the carve-out
+    by copy-pasting an inline role check.
+
+    Cached: without this, every call built a fresh `_dependency` closure, so
+    two routes gating the same perm (or a test's dependency_overrides
+    targeting this factory's return value) could never refer to the same
+    object. FastAPI resolves dependencies by identity, so caching also means
+    identical require_permission(...) calls across the app share one
+    dependency — not just a testability fix, but the correct shared-identity
+    behavior for a stateless factory like this.
+
+    maxsize=None is safe here specifically because every call site passes a
+    literal PERM_* constant + a literal frozenset — a small, closed set of
+    arguments fixed at import time. If a future call site ever passes a
+    dynamically-built perm/exclude_roles value, switch to a bounded maxsize
+    so the cache can't grow unboundedly.
     """
     def _dependency(
         current_user: models.User = Depends(get_current_user),
         db: Session = Depends(get_db)
     ) -> models.User:
-        if not _role_has_permission(db, current_user.role, perm):
+        if not role_has_permission(db, current_user, perm):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="წვდომა უარყოფილია: არასაკმარისი უფლებები",
+            )
+        if current_user.role in exclude_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="ეს ფუნქცია ხელმისაწვდომია მხოლოდ ადმინისტრატორებისთვის",
             )
         return current_user
     return _dependency

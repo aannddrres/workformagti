@@ -115,7 +115,7 @@ def test_auth_missing():
 
 def test_youtube_normalization():
     """Verifies that backend normalizes YouTube URLs correctly."""
-    from main import normalize_youtube_url
+    from routers.videos import normalize_youtube_url
     
     test_cases = {
         "https://www.youtube.com/watch?v=dQw4w9WgXcQ": "https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0",
@@ -252,7 +252,7 @@ def test_draft_publish_via_edit_notifies(client, db_session, monkeypatch):
     'article' SSE event (like create_article does), even without
     notify_operators ticked — and must NOT also fire the revision broadcast.
     """
-    import main
+    import routers.articles as articles_router
 
     category = db_session.query(models.Category).filter(models.Category.id == 1).first()
     if not category:
@@ -262,8 +262,8 @@ def test_draft_publish_via_edit_notifies(client, db_session, monkeypatch):
 
     notify_calls = []
     revision_calls = []
-    monkeypatch.setattr(main, "_notify", lambda *a, **kw: notify_calls.append((a, kw)))
-    monkeypatch.setattr(main, "_notify_revision", lambda *a, **kw: revision_calls.append((a, kw)))
+    monkeypatch.setattr(articles_router, "_notify", lambda *a, **kw: notify_calls.append((a, kw)))
+    monkeypatch.setattr(articles_router, "_notify_revision", lambda *a, **kw: revision_calls.append((a, kw)))
 
     payload = {
         "title": "Draft to publish",

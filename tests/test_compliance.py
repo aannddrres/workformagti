@@ -1,7 +1,6 @@
 import os
 import sys
 import pytest
-from datetime import datetime
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -15,6 +14,8 @@ security.PERM_NEWS_CREATE = "news.create"
 from database import get_db, engine
 from sqlalchemy import text, event
 from main import app as monolith_app
+from routers.stats import _reading_progress
+import compliance_utils
 import models
 
 models.Base.metadata.create_all(bind=engine)
@@ -239,3 +240,20 @@ def test_read_receipt_flow(test_data, db_session):
             db_session.commit()
         except Exception:
             pass
+
+
+def test_zero_required_readings_agree_across_implementations():
+    """compliance_utils.py (used by the standalone compliance_alerts.py cron)
+    and main.py's own _reading_progress() (used by the live dashboard) must
+    keep agreeing on the zero-required-readings edge case — they used to
+    disagree (100% vs 0%), which meant the daily nag cron and the dashboard
+    could classify the same user's compliance differently. Not a live DB
+    test on purpose: this only needs an in-memory user and empty maps."""
+    user = models.User(id=999999, department="NoSuchDepartment")
+
+    main_percentage = _reading_progress(user, 0, {}, {})[2]
+    utils_percentage = compliance_utils.get_compliance_percentage(user, {}, {})
+
+    assert main_percentage == 0
+    assert utils_percentage == 0
+    assert main_percentage == utils_percentage
