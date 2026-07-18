@@ -227,8 +227,8 @@ def authenticate_user(db: Session, email: str, password: str) -> Optional[models
     return user
 
 
-def _extract_token(request: Request, bearer_token: Optional[str]) -> Optional[str]:
-    """Extracts the JWT from the Authorization: Bearer header or the httpOnly cookie.
+def _candidate_tokens(request: Request, bearer_token: Optional[str]) -> list:
+    """Lists JWT candidates from the Authorization header and the httpOnly cookie.
 
     SECURITY (C-1): the previous `?token=` query-parameter fallback was removed —
     tokens in URLs leak into webserver access logs, browser history, Referer
@@ -237,16 +237,22 @@ def _extract_token(request: Request, bearer_token: Optional[str]) -> Optional[st
     flows must use the bearer header (or be redesigned with short-lived signed
     URLs).
 
+    SECURITY (C-2): the header is tried first (so an explicit, validly-signed
+    Bearer token — a non-browser API client, or a caller deliberately acting
+    as a different identity than a stale cookie — still wins), then the
+    cookie. The browser frontend now keeps only an unsigned header+payload
+    shell in localStorage (see login.html), so its Authorization header
+    fails to decode and the caller below falls through to the cookie, which
+    is the only real credential a browser session ever carries.
+
     Args:
         request: FastAPI HTTP request.
         bearer_token: The parsed Bearer token (if supplied via OAuth2PasswordBearer).
 
     Returns:
-        The raw JWT token string if found, or None.
+        Non-empty token candidates, in the order they should be tried.
     """
-    if bearer_token:
-        return bearer_token
-    return request.cookies.get("access_token")
+    return [t for t in (bearer_token, request.cookies.get("access_token")) if t]
 
 
 def get_current_user(
@@ -278,16 +284,16 @@ def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    token = _extract_token(request, bearer_token)
-    if not token:
-        raise credentials_exception
-
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
-            raise credentials_exception
-    except JWTError:
+    email: Optional[str] = None
+    for token in _candidate_tokens(request, bearer_token):
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        except JWTError:
+            continue
+        email = payload.get("sub")
+        if email:
+            break
+    if email is None:
         raise credentials_exception
 
     user = db.query(models.User).filter(models.User.email == email).first()

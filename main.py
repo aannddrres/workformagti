@@ -576,15 +576,23 @@ async def actor_context_middleware(request: Request, call_next):
     before any audited write can happen.
     """
     email = None
+    # Same precedence as security._candidate_tokens: try the Authorization
+    # header first (so a caller deliberately acting as a different identity
+    # than a stale cookie still wins), then the httpOnly cookie.
     auth = request.headers.get("authorization", "")
-    if auth.lower().startswith("bearer "):
+    bearer_token = auth[7:] if auth.lower().startswith("bearer ") else None
+    for token in (bearer_token, request.cookies.get("access_token")):
+        if not token:
+            continue
         try:
             payload = security.jwt.decode(
-                auth[7:], security.SECRET_KEY, algorithms=[security.ALGORITHM]
+                token, security.SECRET_KEY, algorithms=[security.ALGORITHM]
             )
             email = payload.get("sub")
+            if email:
+                break
         except Exception:
-            email = None
+            continue
     ctx_token = audit_trail.current_actor_email.set(email)
     # Same request.client.host convention LOGIN_FAILED already uses below,
     # generalized here for every audited write via audit_trail's after_begin

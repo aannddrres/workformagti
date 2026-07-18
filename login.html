@@ -193,7 +193,12 @@
                 }
 
                 const data = await response.json();
-                localStorage.setItem('magti_token', data.access_token);
+                // Only header+payload are kept client-side, for the proactive
+                // expiry check — the signature is stripped so this value can
+                // never be replayed as a credential. The httpOnly cookie the
+                // server just set is what actually authenticates every request.
+                const [tokenHeader, tokenPayload] = data.access_token.split('.');
+                localStorage.setItem('magti_token', `${tokenHeader}.${tokenPayload}.`);
                 window.location.href = 'base-layout.html';
 
             } catch (error) {

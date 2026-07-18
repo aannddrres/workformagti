@@ -179,7 +179,8 @@ def sso_mock_login():
                     const res = await fetch('/api/auth/sso/callback?email=' + encodeURIComponent(email), { method: 'POST' });
                     if (!res.ok) throw new Error('SSO ავტორიზაცია ჩავარდა');
                     const data = await res.json();
-                    localStorage.setItem('magti_token', data.access_token);
+                    const [tokenHeader, tokenPayload] = data.access_token.split('.');
+                    localStorage.setItem('magti_token', `${tokenHeader}.${tokenPayload}.`);
                     window.location.href = '/base-layout.html';
                 } catch(e) {
                     alert(e.message);

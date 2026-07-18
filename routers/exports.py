@@ -49,6 +49,19 @@ def _guard_export_size(row_count: int) -> None:
         )
 
 
+# Spreadsheet-formula injection (CWE-1236): a free-text field (user name,
+# department, title) starting with =, +, -, @, or a tab/CR is read as a
+# formula by Excel/LibreOffice on open. A leading quote forces it back to
+# literal text in both CSV and XLSX.
+_FORMULA_TRIGGER_CHARS = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _sanitize_cell(value):
+    if isinstance(value, str) and value.startswith(_FORMULA_TRIGGER_CHARS):
+        return "'" + value
+    return value
+
+
 @router.get("/api/export/readings")
 def export_readings(
     current_admin: models.User = Depends(security.get_current_system_admin_user),
@@ -92,7 +105,8 @@ def export_readings(
 
     for rs, user_name, item_type, item_id in query:
         read_at_str = rs.read_at.strftime("%Y-%m-%d %H:%M:%S") if rs.read_at else "N/A"
-        writer.writerow([rs.user_id, user_name, item_type, item_id, rs.status, read_at_str])
+        row = [rs.user_id, user_name, item_type, item_id, rs.status, read_at_str]
+        writer.writerow([_sanitize_cell(v) for v in row])
 
     output.seek(0)
 
@@ -321,7 +335,7 @@ def _build_table_xlsx(title: str, headers: list[str], rows: list[list]) -> bytes
         cell.fill = header_fill
     for i, row in enumerate(rows, start=2):
         for col, val in enumerate(row, start=1):
-            ws.cell(row=i, column=col, value=val)
+            ws.cell(row=i, column=col, value=_sanitize_cell(val))
     for col_cells in ws.columns:
         width = max((len(str(c.value)) for c in col_cells if c.value is not None), default=10)
         ws.column_dimensions[col_cells[0].column_letter].width = min(width + 2, 40)

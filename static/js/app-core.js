@@ -10,13 +10,19 @@ window._historyCache = window._historyCache || { articleId: null, versionsData: 
       // escapeHtml lives in app-renderers.js (loaded right after this file) —
       // one definition, not two that can silently diverge by load order.
 
-      /** Single source of truth for the JWT. Swapping localStorage for an
-       *  httpOnly cookie later is a change in THIS object only — the backend
-       *  already issues such a cookie on login. */
+      /** Single source of truth for the client-side session marker.
+       *
+       *  What's actually stored here is NOT a valid credential: login.html
+       *  (and the SSO callback page) strip the JWT signature before ever
+       *  calling localStorage.setItem, keeping only the unsigned
+       *  header+payload — enough for isExpired()'s client-side check, useless
+       *  if read by an XSS payload or replayed against the API. The httpOnly
+       *  `access_token` cookie the server sets on login is the sole real
+       *  credential; security._extract_token checks it before any
+       *  Authorization header a call site here still attaches. */
       const Auth = {
         KEY: 'magti_token',
         getToken() { return localStorage.getItem(this.KEY); },
-        setToken(t) { localStorage.setItem(this.KEY, t); },
         clear() { localStorage.removeItem(this.KEY); },
         _payload() {
           const t = this.getToken();
