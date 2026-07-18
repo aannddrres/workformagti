@@ -33,7 +33,18 @@
 - Postgres port 5432 is **not** mapped to the host — add `ports: ["5432:5432"]` to the `db` service if you need host/MCP access.
 
 ## Key Files
-- `main.py` (~165 KB) — FastAPI app, routes (`main.py.bak` is a backup)
+- `main.py` (~620 lines) — app/middleware setup only; **no routes live here
+  anymore**. Wires up the 14 domain routers via `include_router` and defines
+  `actor_context_middleware` (see `audit_trail.py` below)
+- `routers/` — the 14 domain routers (articles, auth, users, news, videos,
+  categories, favorites, compliance, messaging, exports, audit_logs, search,
+  stats, platform); each is a self-contained `APIRouter`
+- `db_helpers.py` — shared `get_or_404`, `log_audit`, `resolve_item_title(s_bulk)`
+  used across routers to avoid duplicated fetch-or-404 / audit-log boilerplate
+- `state.py` — shared app-level singletons (moved out of `main.py`)
+- `qa_accounts.py` — QA/dev seed test-account list (`TEST_ACCOUNTS`,
+  `TEST_ACCOUNT_PASSWORD`), imported by `security.py`'s JIT provisioning and
+  `scripts/seed_portal.py`
 - `models.py` — SQLAlchemy models
 - `schemas.py` — Pydantic schemas
 - `security.py` — auth/JWT/hashing
@@ -44,7 +55,9 @@
 - `retention.py` — 180-day archive-then-purge for `audit_logs` +
   `article_view_logs` (`AUDIT_RETENTION_DAYS`); run daily by `backup.py`
 - `database.py` — DB session/engine
-- `config.py` — settings (`.env` via python-dotenv; see `.env.example`)
+- `config.py` — settings (`.env` via python-dotenv; see `.env.example`); also
+  holds a startup guard that refuses to boot when `APP_ENV=production` with a
+  dev-default `SECRET_KEY` or `COOKIE_SECURE=false`
 - `migrate.py` — idempotent schema migration (Phase B → Alembic)
 - `seed.py` / `scripts/seed_test_users.py` — data seeding (one-off/dev seeders live in `scripts/`)
 - `backup.py` — DB backup job
