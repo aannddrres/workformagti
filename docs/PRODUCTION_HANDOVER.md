@@ -5,7 +5,7 @@
 | **Document Owner** | Engineering Team |
 | **Audience** | Enterprise IT / DevOps |
 | **Status** | Pre-Production Handover |
-| **Last Updated** | 2026-06-23 |
+| **Last Updated** | 2026-07-19 |
 
 > ⚠️ **Read [Section 7 — Outstanding Risks Before Go-Live](#7-outstanding-risks-before-go-live) before deploying.** Several items in the current `docker-compose.yml` are development-grade defaults that **must** be remediated prior to any production cutover.
 
@@ -17,15 +17,16 @@ The Magti Internal Portal is a **monolithic FastAPI application** serving a serv
 
 | Layer | Technology | Notes |
 |---|---|---|
-| Web/App Server | **FastAPI** (ASGI) on **Uvicorn** (dev) / **Gunicorn 4 workers w/ `UvicornWorker`** (prod, via Docker) | Single app process (`main.py`, routes + business logic) |
+| Web/App Server | **FastAPI** (ASGI) on **Uvicorn** (dev) / **Gunicorn 4 workers w/ `UvicornWorker`** (prod, via Docker) | `main.py` is now app-instance construction, lifespan, and middleware/router-wiring only — **no route handlers remain in `main.py`** (626 lines: imports/logging + SQLite migration helper, lines 1-348; async log-writer + lifespan, 363-455; `FastAPI()` construction incl. conditional `docs_url`/`redoc_url`/`openapi_url`, 457-463; CORS middleware, 484-490; 14 `include_router()` calls, 494-521; 3 middleware functions — `security_headers`, `actor_context_middleware`, `catch_unhandled_exceptions` — 524-626). See the Routers row below for where routes actually live. |
+| Routers | 14 domain routers under `routers/`: `articles`, `audit_logs`, `auth`, `categories`, `compliance`, `exports`, `favorites`, `messaging`, `news`, `platform`, `search`, `stats`, `users`, `videos` | All HTTP route handlers live here, one module per domain — wired into the app via `include_router()` calls in `main.py` (lines 494-521) |
 | ORM | **SQLAlchemy** (`models.py`) | `Base.metadata.create_all` bootstrap, idempotent column patches in `migrate.py` |
 | Validation | **Pydantic v2** (`schemas.py`), `pydantic[email]` | Request/response schema enforcement |
 | Auth | **JWT** (python-jose, HS256) + **passlib/bcrypt** password hashing (`security.py`) | Stateless bearer token **or** httpOnly cookie; RBAC via FastAPI dependencies |
 | Database | **PostgreSQL 15** (Docker/prod), `pg_trgm` extension + GIN indexes for fast `ILIKE` search | **SQLite** (`magti_portal.db`) is the local-dev-only fallback — not for production |
-| Cache | **Redis 7** (appendonly, 256MB, allkeys-lru) | Provisioned in compose stack; confirm current usage scope in `main.py` before relying on it as a hard dependency |
+| Cache | **Redis 7** (appendonly, 256MB, allkeys-lru) | Backs `RedisEventBroker`, the SSE pub/sub broker for live update push (`state.py:82-228`, not `main.py`) — confirm current usage scope before relying on it as a hard dependency |
 | Exports | **openpyxl** (XLSX), **reportlab** (PDF, DejaVu Sans bundled for Georgian glyph support) | Both degrade gracefully (HTTP 503) if the library is missing — not a hard crash |
 | Templates / Static | Server-rendered HTML (`base-layout.html`, `login.html`, `article.html`), `static/`, `uploads/` | No frontend build pipeline; assets served directly by FastAPI `StaticFiles` mounts |
-| Background Jobs | One-shot `migrate` container (schema bootstrap) + long-running `backup` container (24h cycle, `backup.py`) | Both run as separate Docker Compose services from the same app image |
+| Background Jobs | One-shot `migrate` container (schema bootstrap) + two long-running 24h-cycle sidecars: `backup` (`backup.py`) and `compliance-alerts` (`compliance_alerts.py`) | All three run as separate Docker Compose services from the same app image |
 
 **Bilingual UI:** Georgian + English strings are present throughout templates and validation error messages — do not strip or "clean up" Georgian text during any refactor.
 
@@ -48,13 +49,16 @@ The application is fully environment-driven (`config.py`, loaded via `python-dot
 | `UPLOAD_DIR` | Filesystem path for user-uploaded attachments. | `uploads` | Mount as a persistent volume (already configured as `app_uploads` in compose). |
 | `MAX_UPLOAD_SIZE_BYTES` | Per-file upload size cap. | `10485760` (10 MB) | Adjust per storage/ops policy. |
 
+> **Production-startup guard (`config.py:117-130`):** when `APP_ENV=production`, the app now fails fast at import time rather than booting insecurely — it raises `RuntimeError` if `SECRET_KEY` is still the development default, and again if `COOKIE_SECURE` is not `true`. A misconfigured production deploy refuses to start instead of silently serving traffic with a guessable JWT key or a cookie sent over plain HTTP. This guard only fires once `APP_ENV` actually resolves to `production` — see §7, item 1.
+
 Additional variables consumed directly by `docker-compose.yml` (not read by `config.py`, but required for the Postgres/Redis containers):
 
 | Variable | Purpose |
 |---|---|
-| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | PostgreSQL container credentials and database name — **must match** the credentials embedded in `DATABASE_URL`. |
+| `POSTGRES_PASSWORD` | PostgreSQL container password — **must match** the credentials embedded in `DATABASE_URL`. Substituted via `${POSTGRES_PASSWORD}` in `docker-compose.yml` (lines 78-80, 113-115). |
+| `POSTGRES_USER` / `POSTGRES_DB` | **Not actually configurable.** These are hardcoded literals in `docker-compose.yml` (`appuser` / `magti_portal`, lines 78-80, 113-115) — `.env.example` does not define them either. Setting `POSTGRES_USER=`/`POSTGRES_DB=` in `.env` has **no effect**; if a different user/db name is needed, edit `docker-compose.yml` directly. |
 | `REDIS_URL` | Redis connection string for the app container (`redis://redis:6379/0` in-network). |
-| `WORKERS` | Declared in compose but **not currently consumed** by the Gunicorn `CMD` in the `Dockerfile` (worker count is hardcoded to `4` there) — reconcile before relying on this variable to scale workers. |
+| `WORKERS` | Declared in compose and **consumed for logging behavior only** — `main.py:53-55` uses `os.getenv("WORKERS", "1") not in ("", "1")` to decide whether to skip the (non-multi-process-safe) `RotatingFileHandler` and log to stdout only instead. It does **not** control actual Gunicorn worker count, which remains hardcoded to `--workers 4` in `Dockerfile:41`. |
 | `DEBUG` | Declared in compose; verify consumption in application code before assuming it gates anything. |
 
 ---
@@ -72,7 +76,8 @@ magti-portal-app  ◄──┬── magti-portal-db (postgres:15-alpine, max_co
     4 workers,
     port 8000)
 
-magti-portal-backup    (sidecar, sleeps 24h, then runs backup.py)
+magti-portal-backup             (sidecar, sleeps 24h, then runs backup.py)
+magti-portal-compliance-alerts  (sidecar, sleeps 24h, then runs compliance_alerts.py)
 ```
 
 All services share the `magti-network` bridge network. Named volumes (`postgres_data`, `redis_data`, `app_uploads`, `app_static`, `app_logs`) persist state across container recreation.
@@ -82,7 +87,7 @@ All services share the `magti-network` bridge network. Named volumes (`postgres_
 1. Provision a `.env` (or equivalent secrets injection) per §2. `docker-compose.yml` now reads `SECRET_KEY`/`POSTGRES_PASSWORD`/`APP_ENV` via `${VAR}` substitution rather than hardcoding them — but that means the app will boot with blank/missing values if `.env` isn't actually populated, which is arguably worse than a wrong-but-present default. Confirm `.env` exists and is populated before first deploy.
 2. Confirm DNS/TLS termination in front of port `8000` (the app does not terminate TLS itself — front it with a reverse proxy / load balancer, e.g. Nginx, Traefik, or a cloud LB).
 3. If host or external/MCP access to PostgreSQL is required, add `ports: ["5432:5432"]` to the `db` service (currently **not** host-mapped — internal network only by design).
-4. Decide log shipping: Gunicorn is configured with `--access-logfile -` / `--error-logfile -` (stdout/stderr) — wire your log aggregator (e.g. Fluentd, CloudWatch, Loki) to the container's stdout, or redirect to the `app_logs` volume.
+4. Decide log shipping: Gunicorn is configured with `--access-logfile -` / `--error-logfile -` (stdout/stderr), plus `--worker-tmp-dir /dev/shm --capture-output --enable-stdio-inheritance` — wire your log aggregator (e.g. Fluentd, CloudWatch, Loki) to the container's stdout, or redirect to the `app_logs` volume.
 
 ### 3.3 Build & launch
 
@@ -170,10 +175,14 @@ DATABASE_URL=postgresql+psycopg2://<user>:<pass>@<host>:5432/<db> python migrate
 
 ### 4.4 Seeding initial data
 
-`seed.py` provisions the initial role-based user set and starter knowledge-base content; `seed_test_users.py` provisions broader test/QA accounts. Both are **idempotent upserts by email** — safe to re-run, never delete existing rows. See §6 for the credentials they create.
+`seed.py` provisions the initial role-based user set and starter knowledge-base content — but its behavior is **mode-dependent, not uniformly idempotent** (see §6 for the full breakdown): running it with **no arguments is destructive** (it deletes and re-seeds core tables), while `seed.py org` and `scripts/seed_portal.py` are idempotent upserts. `scripts/seed_test_users.py` provisions a smaller, separate set of test/QA accounts. See §6 for which script to run and what each produces.
 
 ```bash
-docker compose exec app python seed.py
+# Idempotent org-hierarchy seed (safe to re-run)
+docker compose exec app python seed.py org
+
+# Currently recommended seeder — see §6 and docs/SEED_GUIDE.md
+docker compose exec app python scripts/seed_portal.py
 ```
 
 ### 4.5 Backups
@@ -186,7 +195,7 @@ The `backup` Compose service runs `backup.py` every 24 hours, producing a ZIP ar
 
 | Control | Implementation | Location |
 |---|---|---|
-| **Stateless session auth** | JWT (HS256), accepted via either the `Authorization: Bearer` header or an httpOnly cookie set at login. The token-in-URL-query-parameter fallback was deliberately removed (tokens in URLs leak via access logs, browser history, and Referer headers). | `security.py` (`_extract_token`, `create_access_token`) |
+| **Stateless session auth** | JWT (HS256), accepted via either the `Authorization: Bearer` header or an httpOnly cookie set at login — the header is tried first, falling back to the cookie only if no header is present (previously: bearer always won if present). The token-in-URL-query-parameter fallback was deliberately removed (tokens in URLs leak via access logs, browser history, and Referer headers). | `security.py` (`_candidate_tokens`, `create_access_token`) |
 | **Password storage** | bcrypt via passlib (`bcrypt==4.0.1` pinned — passlib 1.7.4 is incompatible with bcrypt ≥ 4.1). | `security.py`, `requirements.txt` |
 | **Password policy** | Server-enforced on user creation and self-service password change: min 8 characters, requires upper, lower, and digit. | `security.py` (`validate_password_policy`) |
 | **RBAC** | Four canonical roles (`operator` < `manager`/`content_admin` < `admin`), enforced via FastAPI dependency injection (`require_roles`, `get_current_admin_user`, `get_current_system_admin_user`, `get_current_manager_user`). | `security.py` |
@@ -199,6 +208,8 @@ The `backup` Compose service runs `backup.py` every 24 hours, producing a ZIP ar
 | **Secrets externalized via `.env`** | `SECRET_KEY`, `POSTGRES_PASSWORD`, and `APP_ENV` are read from `${VAR}` substitution in `docker-compose.yml`, not hardcoded. No `.env` exists at the repo root yet — see §7, item 1 — so this only works once one is actually provisioned. | `docker-compose.yml`, `.env.example` |
 | **Swagger/OpenAPI exposure** | `main.py` now conditionally disables `/docs`, `/redoc`, and `/openapi.json` when `settings.is_production` is true (`docs_url`/`redoc_url`/`openapi_url=None`), keeping them available for local development only. This is only effective if `APP_ENV=production` is actually set at runtime (see §7, item 1). | `main.py` (`FastAPI(...)` constructor) |
 | **Rate limiting** | Per-IP, in-memory limiter (`slowapi`) at 10/minute on `/api/auth/login`, `/api/auth/forgot-password`, and `/api/auth/sso/callback` — brute-force/credential-stuffing mitigation. No Redis backend needed at this scale. | `main.py` (`@limiter.limit(...)`) |
+| **CSV/XLSX export hardening** | Formula-injection (CWE-1236) neutralized by quoting/escaping cells that start with `=`, `+`, `-`, `@`, tab, or CR before they reach a spreadsheet writer, so opening an export in Excel/Sheets can't trigger an embedded formula. | `routers/exports.py` (`_sanitize_cell`) |
+| **Client-side token storage hardening** | Only an unsigned header+payload JWT "shell" is kept in browser `localStorage` — the real signature is stripped before storage (split on `.`, keep header+payload, append a trailing `.`). The actual credential used for authentication is the httpOnly cookie, never the `localStorage` copy. | `login.html`, `routers/auth.py` (mock-SSO callback page) |
 
 ### 5.1 Mock-AD / developer bypass — important operational control
 
@@ -208,24 +219,30 @@ The `backup` Compose service runs `backup.py` every 24 hours, producing a ZIP ar
 
 ## 6. Default / Seeded Credentials
 
-`seed.py` provisions the following accounts with the password **`password`** for all of them (`DEFAULT_PASSWORD = "password"` in `seed.py`):
+There are **three separate, non-overlapping seeding paths** in this repo. They are not interchangeable — know which one you're running before you run it.
+
+| Path | Command | Behavior | Accounts produced | Password |
+|---|---|---|---|---|
+| **1. Legacy full reseed** | `python seed.py` (no args) | **Destructive** — deletes all `ReadStatus`, `ArticleHistory`, `AuditLog`, `SearchLog`, `Message`, `Favorite`, `RequiredReading`, `News`, `VideoInstruction`, and `User` rows before re-seeding (`seed.py:117-126`). **Do not run against a database with real data.** | 6 core role accounts (table below) | `password` |
+| **2. Org-hierarchy seed** | `python seed.py org` | Idempotent — upserts a 165-employee org hierarchy by email, never deletes existing rows. | ~165 org accounts + the 6 core accounts | `password` |
+| **3. Recommended seeder** | `python scripts/seed_portal.py` (`org` / `users` / `demo` modes) | Idempotent upserts. **Currently the recommended path** per `docs/SEED_GUIDE.md`. Refuses to run at all if `APP_ENV=production` (`scripts/seed_portal.py:53-63`) — an explicit safety gate the other two paths lack. | ~650 users + 3 portal admins (`org`/`demo` modes); 20 QA accounts from `qa_accounts.TEST_ACCOUNTS` (`users` mode) | `password` (org/demo) or `Test1234!` (QA accounts via `users` mode) |
+
+**Path 1's 6 core accounts** (also the six accounts gated by the mock-AD bypass in §5.1):
 
 | Email | Role | Department |
 |---|---|---|
-| `admin@magti.ge` | `admin` (System Administrator) | IT Security |
-| `content@magti.ge` | `content_admin` | Content Creation |
-| `manager@magti.ge` | `manager` | Support |
-| `nino@magti.ge` | `operator` | Support (Helpdesk) |
-| `tech@magti.ge` | `operator` | Support (Technical) |
-| `info@magti.ge` | `operator` | Informational |
-| `billing_mgr@magti.ge` | `manager` | Billing |
-| `billing1@magti.ge`, `billing2@magti.ge` | `operator` | Billing |
-| `sales_mgr@magti.ge` | `manager` | Sales |
-| `sales1@magti.ge`, `sales2@magti.ge` | `operator` | Sales |
+| `admin@magti.ge` | `admin` (System Administrator) | Administration |
+| `content@magti.ge` | `content_admin` | All |
+| `manager@magti.ge` | `manager` | ტექნიკური |
+| `nino@magti.ge` | `operator` | ტექნიკური |
+| `tech@magti.ge` | `operator` | ტექნიკური |
+| `info@magti.ge` | `operator` | საინფო |
 
-`seed.py` also references a separately-documented legacy/non-portal credential pair (`telecomadmin` / `admintelecom`) embedded in seeded article content as reference material for operators — this is **knowledge-base content describing an external/legacy system**, not a portal login, but flag it to the content owner if it should be redacted before go-live.
+`seed.py` explicitly notes (`seed.py:159-161`) that Billing and Sales departments were retired (see `scripts/migrate_departments.py`) — do not re-add dedicated Billing/Sales accounts.
 
-> ⚠️ **Action required:** Rotate the `password` default for every account in §6 immediately after the first production data load, and disable or re-credential any accounts not actively needed (especially the six accounts that double as the mock-AD bypass list in §5.1). Treat seeding as a one-time bootstrap step, not a steady-state production credential set.
+**Source of truth for exact current account lists:** the table above covers only Path 1's core accounts — the ones tied to the security-relevant mock-AD bypass. For the full, current account inventory across all three paths (org hierarchy, QA accounts, demo data), which changes independently of this document, see **`docs/SEED_GUIDE.md`** and **`TEST_LOGINS.md`** at the repo root. Treat those files, not this section, as authoritative for "what accounts exist and what do they log in as."
+
+> ⚠️ **Action required:** Whichever path you use, rotate every seeded password (`password` and `Test1234!` alike) immediately after the first production data load, and disable or re-credential any accounts not actively needed — especially the six accounts that double as the mock-AD bypass list in §5.1. Treat seeding as a one-time bootstrap step, not a steady-state production credential set. Prefer Path 3 (`scripts/seed_portal.py`) for new environments: it is the currently recommended seeder and the only one of the three that refuses to run when `APP_ENV=production`.
 
 ---
 
@@ -233,32 +250,44 @@ The `backup` Compose service runs `backup.py` every 24 hours, producing a ZIP ar
 
 These are concrete gaps observed in the repository state that should be resolved as part of (not after) the production cutover:
 
-1. **No `.env` file provisioned yet.** `docker-compose.yml` no longer hardcodes secrets — `SECRET_KEY`, `POSTGRES_PASSWORD`, and `APP_ENV` are all `${VAR}` substitutions now — but no `.env` exists at the repo root, so those variables are currently unset. **Before first deploy:** create `.env` from `.env.example`, generate a real `SECRET_KEY` (`python -c "import secrets; print(secrets.token_urlsafe(64))"`), set a real `POSTGRES_PASSWORD`, and set `APP_ENV=production`. Per §5.1, `APP_ENV=production` is also what disables the six-account password-bypass list — this is a hard security requirement, not just a config nicety.
+1. **No `.env` file provisioned yet — still a live risk, now partially mitigated by a fail-loud startup guard.** `docker-compose.yml` no longer hardcodes secrets — `SECRET_KEY`, `POSTGRES_PASSWORD`, and `APP_ENV` are all `${VAR}` substitutions now — but no `.env` exists at the repo root. Two distinct scenarios follow: **(a) Still-live risk** — with no `.env`, `APP_ENV` defaults to `"development"`, so the guard below does not fire (it only checks when `APP_ENV=production`) and the app boots fine but insecurely: the mock-AD bypass is open (§5.1) and `COOKIE_SECURE` defaults to `false`. **(b) New mitigation** (`config.py:117-130`) — if `APP_ENV=production` is explicitly set but `SECRET_KEY`/`COOKIE_SECURE` are left at their development defaults, the app now **fails loud at import time** (`RuntimeError`) instead of silently booting insecurely — see §2. **Before first deploy:** create `.env` from `.env.example`, generate a real `SECRET_KEY` (`python -c "import secrets; print(secrets.token_urlsafe(64))"`), set a real `POSTGRES_PASSWORD`, set `COOKIE_SECURE=true`, and set `APP_ENV=production`. Per §5.1, `APP_ENV=production` is also what disables the six-account password-bypass list — this is a hard security requirement, not just a config nicety.
 2. ~~Swagger UI / OpenAPI schema publicly reachable~~ — **resolved in code**: `/docs`, `/redoc`, `/openapi.json` are now disabled when `settings.is_production` is true (see §5) — but this is only effective once item 1 above is done and `APP_ENV` actually resolves to `"production"` at runtime.
 3. **No Alembic migration framework yet** — `migrate.py` is a hand-maintained, append-only bootstrap script (§4). Acceptable for current scale; flag to engineering as Phase B work before the schema grows more complex or multi-environment promotion (dev→staging→prod) becomes a recurring need.
 4. **PostgreSQL port not host-mapped by design.** If your monitoring/backup tooling needs direct DB access from outside the Docker network, you must explicitly add a `ports` mapping — don't add it reflexively, as it widens the attack surface for an internal-only datastore.
-5. **`WORKERS` and `DEBUG` env vars are declared in `docker-compose.yml` but not confirmed to be consumed by the application/Gunicorn `CMD`** — reconcile before assuming they control anything at runtime.
+5. **`WORKERS` is consumed for logging behavior only, not for scaling; `DEBUG` is confirmed unused.** `WORKERS` (`main.py:53-55`) decides whether the app logs to a `RotatingFileHandler` file or to stdout only — it does **not** control Gunicorn worker count, which remains hardcoded to `--workers 4` in `Dockerfile:41`. `DEBUG` is declared in `docker-compose.yml` but not read anywhere in application code — don't assume it gates anything.
 6. **Local dev DB file (`magti_portal.db`, ~183MB)** must never be deployed or treated as a production data source — it is dev-only seed/test data, explicitly excluded from this handover's production data plan.
 
 ---
 
 ## 8. Quick Reference — Key Files
 
-| File | Purpose |
+| File / Path | Purpose |
 |---|---|
-| `main.py` | FastAPI app instance, all HTTP routes, middleware (`main.py.bak` is a stale backup, not part of the deployed app) |
+| `main.py` | FastAPI app instance, lifespan, middleware, and router wiring only — **no route handlers live here** (see §1); wires in the 14 routers below via `include_router()` |
+| `routers/*.py` (14 files) | All HTTP route handlers, one module per domain: `articles`, `audit_logs`, `auth`, `categories`, `compliance`, `exports`, `favorites`, `messaging`, `news`, `platform`, `search`, `stats`, `users`, `videos` |
+| `state.py` | Shared app state incl. `RedisEventBroker` (SSE pub/sub for live updates, lines 82-228) |
+| `db_helpers.py` | Shared DB query/helper utilities used across routers |
+| `qa_accounts.py` | QA/dev seed-data account list (`TEST_ACCOUNTS`, 20 accounts, password `Test1234!`) consumed by `scripts/seed_portal.py`'s `users` mode — a seed-data table, not a login bypass (see §6) |
 | `models.py` | SQLAlchemy ORM models — source of truth for schema |
 | `schemas.py` | Pydantic request/response validation |
 | `security.py` | Auth, JWT, RBAC, password policy, mock-AD dev bypass |
 | `database.py` | DB engine/session factory |
-| `config.py` | Centralized environment-driven settings |
+| `config.py` | Centralized environment-driven settings, incl. the production-startup guard (§2, §7) |
 | `migrate.py` | Idempotent schema bootstrap (run before app start) |
-| `seed.py` / `seed_test_users.py` | Initial/test data seeding (idempotent upserts) |
-| `backup.py` | Scheduled backup job (DB + uploads → ZIP) |
-| `start_server.bat` | Local Windows dev launcher |
-| `docker-compose.yml` / `Dockerfile` | Container topology and image build |
-| `docs/admin-guide.md`, `README.md` | Existing developer/admin documentation |
+| `seed.py` | Seeding — **mode-dependent, not uniformly safe**: bare `python seed.py` is destructive, `seed.py org` is idempotent (see §6). `scripts/seed_portal.py` is the currently recommended seeder. |
+| `backup.py` | Scheduled backup job (DB + uploads → ZIP), 24h-cycle `backup` service |
+| `compliance_alerts.py` | Scheduled compliance-alert job, 24h-cycle `compliance-alerts` service (§1, §3) |
+| `retention.py` | Data-retention logic |
+| `audit_trail.py` | Audit-log/audit-hash-chain support |
+| `scripts/` | Operational scripts directory — `seed_portal.py` (recommended seeder), `seed_rbac.py`, `sync_rbac.py`, `seed_test_users.py`, `seed_perfect_users.py`, `migrate_departments.py`, plus one-off cleanup/repair scripts |
+| `docker-compose.yml` / `Dockerfile` | Container topology and image build (6 services incl. `compliance-alerts` — see §1, §3) |
+| `.github/workflows/ci.yml`, `pyproject.toml`, `requirements-dev.txt` | CI pipeline and dev/test tooling config |
+| `docs/` | Documentation directory — now 8 files: this handover, `admin-guide.md`, `SEED_GUIDE.md`, `CODE_AUDIT_2026-07-11.md`, `agent-handoff.md`, `analytics_audit.md`, `article_versioning_blueprint.md`, `csp_nonce_refactor_plan.md` (see also root `README.md`) |
+| `TEST_LOGINS.md` | Repo-root reference for current test/seed account credentials — see §6 |
+| `start_server.bat`, `start_8000.bat` | Local Windows dev launchers (two, not one) |
 
 ---
 
 *Recovered from an abandoned worktree (`claude/elastic-raman-7dc200`, originally written 2026-06-23) and merged into `docs/` on 2026-07-11. §3.2, §5, and §7 updated at merge time to reflect drift since the original was written: secrets moved from hardcoded values to `${VAR}` substitution in `docker-compose.yml` (commit `b0d332f`, same day), rate limiting added (same commit), and the `/docs`/`/redoc`/`/openapi.json` production-disable gap closed (commit `8c5adac`). Treat any other claim in this document as a 2026-06-23 snapshot, not necessarily current — verify against the code before relying on it for a real deployment.*
+
+*Refreshed 2026-07-19 following a `main.py` → 14-router split (`routers/`) and related security/ops changes: §1, §2, §3, §4.4, §5, §6, §7, and §8 updated to reflect the current architecture, seed scripts, and security controls. Treat this document as current as of 2026-07-19; verify against the code for anything not covered above.*
