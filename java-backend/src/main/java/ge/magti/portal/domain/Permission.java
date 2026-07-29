@@ -1,0 +1,93 @@
+package ge.magti.portal.domain;
+
+import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * The single, merged permission catalog for the Java port.
+ *
+ * <p>The Python app carries two disjoint RBAC catalogs that were never meant
+ * to coexist (known bug #5, docs/JAVA_ORACLE_ANGULAR_MIGRATION.md): 8
+ * dot-named permissions checked against users.permissions (a plain JSON
+ * string list, models.py:43, defined security.py:363-370), and a separate
+ * 13 colon-named permissions seeded into Role/Permission/RolePermission DB
+ * tables (scripts/seed_rbac.py:18-32) that no dotted check ever matches --
+ * except "system:audit", which was deliberately spelled to land in both
+ * (security.py:381, migrate.py's ensure_system_audit_permission_seeded).
+ *
+ * <p>Decided 2026-07-29 (migration doc, bug #5): the Java port keeps ONE
+ * catalog, dot-notation, folding system:audit into it as
+ * {@link #SYSTEM_AUDIT} ("system.audit"). The other 12 colon-only
+ * permissions are deliberately NOT ported here -- per that same decision
+ * they get added one at a time, only if and when a Java endpoint actually
+ * needs one:
+ * users:manage, content:editor, content:publisher, compliance:manage,
+ * reports:view_global, reports:export_sensitive, communication:broadcast,
+ * content:archive, feedback:resolve, reports:export_personal_data.
+ * (reports:export and compliance:assign are not in that leftover list --
+ * they already have dotted equivalents below.)
+ */
+public enum Permission {
+    ARTICLES_VIEW("articles.view"),
+    ARTICLES_EDIT("articles.edit"),
+    ARTICLES_PUBLISH("articles.publish"),
+    ARTICLES_ARCHIVE("articles.archive"),
+    VIDEOS_ARCHIVE("videos.archive"),
+    USERS_MANAGE("users.manage"),
+    COMPLIANCE_ASSIGN("compliance.assign"),
+    REPORTS_EXPORT("reports.export"),
+    SYSTEM_AUDIT("system.audit");
+
+    private static final Map<Role, Set<Permission>> DEFAULTS_BY_ROLE = Map.of(
+            Role.OPERATOR, EnumSet.noneOf(Permission.class),
+            Role.MANAGER, EnumSet.of(REPORTS_EXPORT),
+            Role.CONTENT_ADMIN, EnumSet.of(
+                    ARTICLES_VIEW, ARTICLES_EDIT, ARTICLES_PUBLISH, ARTICLES_ARCHIVE,
+                    VIDEOS_ARCHIVE, COMPLIANCE_ASSIGN),
+            Role.SYSTEM_ADMIN, EnumSet.of(
+                    ARTICLES_VIEW, ARTICLES_EDIT, ARTICLES_PUBLISH, ARTICLES_ARCHIVE,
+                    VIDEOS_ARCHIVE, USERS_MANAGE, COMPLIANCE_ASSIGN, REPORTS_EXPORT));
+
+    private final String value;
+
+    Permission(String value) {
+        this.value = value;
+    }
+
+    public String value() {
+        return value;
+    }
+
+    public static Permission fromValue(String value) {
+        return Arrays.stream(values())
+                .filter(permission -> permission.value.equals(value))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Unknown permission: " + value));
+    }
+
+    /**
+     * Mirrors security.py's DEFAULT_PERMISSIONS_BY_ROLE (security.py:385-406)
+     * field-for-field -- same roles, same grants.
+     *
+     * <p>SYSTEM_ADMIN's set is never actually consulted by the Python
+     * dependency that grants that role everything unconditionally
+     * regardless of this list; kept here anyway so the map is a faithful,
+     * complete mirror of the source rather than a partial one.
+     *
+     * <p>Unrelated to known bug #4 (routers/users.py:460-465): a separate
+     * admin-facing "known permissions" whitelist on the manual
+     * permission-edit endpoint lists only 7 of the 8 dotted constants,
+     * omitting VIDEOS_ARCHIVE -- so today, editing a user's permissions by
+     * hand can never grant it even though CONTENT_ADMIN/SYSTEM_ADMIN get it
+     * by default above. Not fixed here (that whitelist hasn't been ported
+     * yet); noted because whoever ports that endpoint should validate
+     * against {@code Permission.values()} rather than hand-copying a
+     * 7-item set a second time, which would remove the trap rather than
+     * carry it forward.
+     */
+    public static Set<Permission> defaultsFor(Role role) {
+        return DEFAULTS_BY_ROLE.get(role);
+    }
+}
