@@ -1,6 +1,6 @@
 package ge.magti.portal.domain;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -20,14 +20,17 @@ import java.util.Set;
  * <p>Two things worth knowing before this is ever wired to a real column:
  * <ul>
  *   <li>{@link #lastActive}/{@link #lastNewsViewedAt} are
- *       {@link LocalDateTime}, not {@link java.time.Instant}, on purpose:
+ *       {@link OffsetDateTime}, not {@link java.time.Instant}, on purpose:
  *       database.py's get_tbilisi_time() (database.py:69-71) takes UTC+4
- *       wall-clock time and then STRIPS the timezone before returning it.
- *       Every timestamp in this table today is naive Tbilisi local time
- *       with no zone attached, not UTC. Mapping it to Instant would
- *       silently shift every value by 4 hours. Whether to preserve that
- *       quirk in Oracle or fix it to real UTC is a decision for whoever
- *       does the Phase 1b schema work -- not decided here.</li>
+ *       wall-clock time and then STRIPS the timezone before returning it,
+ *       so every timestamp in this table today is naive Tbilisi local time
+ *       with no zone attached, not UTC. Decided 2026-07-29: keep storing
+ *       Tbilisi time (not UTC) in the Java port too -- see
+ *       {@link ge.magti.portal.util.TbilisiTime}. The one change from the
+ *       Python side is that the zone is now explicit in the type rather
+ *       than a silently-assumed naive value, which is what closes the risk
+ *       that mapping this to Instant would have silently shifted every
+ *       value by 4 hours.</li>
  *   <li>{@link #lastCategoriesViewedAt} mirrors a column (models.py:51,
  *       JSON, default {@code dict}) that no router, template, or script
  *       anywhere in the current repo reads or writes -- grepped repo-wide,
@@ -48,12 +51,12 @@ public class User {
     private String phone;
     private Role role = Role.OPERATOR;
     private boolean active = true;
-    private LocalDateTime lastActive;
+    private OffsetDateTime lastActive;
     private String hashedPassword;
     private Set<String> permissions = new LinkedHashSet<>();
     private Long teamId;
     private Long managerId;
-    private LocalDateTime lastNewsViewedAt;
+    private OffsetDateTime lastNewsViewedAt;
     private Object lastCategoriesViewedAt;
     private String cardStyle = "corporate";
 
@@ -125,11 +128,11 @@ public class User {
         this.active = active;
     }
 
-    public LocalDateTime getLastActive() {
+    public OffsetDateTime getLastActive() {
         return lastActive;
     }
 
-    public void setLastActive(LocalDateTime lastActive) {
+    public void setLastActive(OffsetDateTime lastActive) {
         this.lastActive = lastActive;
     }
 
@@ -165,11 +168,11 @@ public class User {
         this.managerId = managerId;
     }
 
-    public LocalDateTime getLastNewsViewedAt() {
+    public OffsetDateTime getLastNewsViewedAt() {
         return lastNewsViewedAt;
     }
 
-    public void setLastNewsViewedAt(LocalDateTime lastNewsViewedAt) {
+    public void setLastNewsViewedAt(OffsetDateTime lastNewsViewedAt) {
         this.lastNewsViewedAt = lastNewsViewedAt;
     }
 
