@@ -28,6 +28,12 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
+		<!-- Pinned explicitly rather than relying on JDK 21's JEP 400 UTF-8
+			 default or Maven's own default: source files here contain literal
+			 Georgian text (department-matching keywords/comments), and this
+			 guarantees javac reads them as UTF-8 on any machine/CI runner,
+			 not just this one. -->
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 	<dependencies>
 		<dependency>
