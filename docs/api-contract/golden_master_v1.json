@@ -14,7 +14,7 @@
     "response": {
       "status_code": 200,
       "body": {
-        "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJvcGVyYXRvci50ZWNoQG1hZ3RpLmdlIiwicm9sZSI6Im9wZXJhdG9yIiwiZXhwIjoxNzg1MzMxMDI4fQ.gTWiZlXmsHjkyV995sRy19jO-JXYH-KMzaLNgL3ZPVM",
+        "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJvcGVyYXRvci50ZWNoQG1hZ3RpLmdlIiwicm9sZSI6Im9wZXJhdG9yIiwiZXhwIjoxNzg1MzMyNTQyfQ.sfs6Sv-H8g9IFBTPZ5Noon0Ua6JuM8BlAHMc8SsTjwc",
         "token_type": "bearer"
       }
     },
@@ -103,6 +103,24 @@
       "status_code": 200,
       "body": [
         {
+          "id": 4,
+          "title": "Golden — Disposable Article (delete target)",
+          "category_id": 1,
+          "category_name": "Golden Master Category",
+          "tags": null,
+          "target_departments": [
+            "All"
+          ],
+          "status": "published",
+          "published_at": null,
+          "created_at": "2026-07-29T16:42:18.707671",
+          "read_time": 1,
+          "audience_profile": "all",
+          "visible_to_tech_info": true,
+          "visible_to_service_center": false,
+          "is_draft": false
+        },
+        {
           "id": 2,
           "title": "Golden — Quiz Article",
           "category_id": 1,
@@ -113,7 +131,7 @@
           ],
           "status": "published",
           "published_at": null,
-          "created_at": "2026-07-29T16:17:04.852873",
+          "created_at": "2026-07-29T16:42:18.570081",
           "read_time": 1,
           "audience_profile": "all",
           "visible_to_tech_info": true,
@@ -131,7 +149,7 @@
           ],
           "status": "published",
           "published_at": null,
-          "created_at": "2026-07-29T16:17:04.826873",
+          "created_at": "2026-07-29T16:42:18.501081",
           "read_time": 1,
           "audience_profile": "all",
           "visible_to_tech_info": true,
@@ -155,6 +173,24 @@
       "status_code": 200,
       "body": [
         {
+          "id": 4,
+          "title": "Golden — Disposable Article (delete target)",
+          "category_id": 1,
+          "category_name": "Golden Master Category",
+          "tags": null,
+          "target_departments": [
+            "All"
+          ],
+          "status": "published",
+          "published_at": null,
+          "created_at": "2026-07-29T16:42:18.707671",
+          "read_time": 1,
+          "audience_profile": "all",
+          "visible_to_tech_info": true,
+          "visible_to_service_center": false,
+          "is_draft": false
+        },
+        {
           "id": 3,
           "title": "Golden — Tech-Only Article",
           "category_id": 1,
@@ -165,7 +201,7 @@
           ],
           "status": "published",
           "published_at": null,
-          "created_at": "2026-07-29T16:17:04.863965",
+          "created_at": "2026-07-29T16:42:18.592395",
           "read_time": 1,
           "audience_profile": "all",
           "visible_to_tech_info": true,
@@ -183,7 +219,7 @@
           ],
           "status": "published",
           "published_at": null,
-          "created_at": "2026-07-29T16:17:04.852873",
+          "created_at": "2026-07-29T16:42:18.570081",
           "read_time": 1,
           "audience_profile": "all",
           "visible_to_tech_info": true,
@@ -201,7 +237,7 @@
           ],
           "status": "published",
           "published_at": null,
-          "created_at": "2026-07-29T16:17:04.826873",
+          "created_at": "2026-07-29T16:42:18.501081",
           "read_time": 1,
           "audience_profile": "all",
           "visible_to_tech_info": true,
@@ -236,15 +272,15 @@
         "published_at": null,
         "attachment_url": null,
         "author_id": 3,
-        "last_verified_at": "2026-07-29T16:17:04.863965",
+        "last_verified_at": "2026-07-29T16:42:18.592395",
         "audience_profile": "all",
         "visible_to_tech_info": true,
         "visible_to_service_center": false,
         "is_draft": false,
         "quiz_enabled": false,
         "id": 3,
-        "created_at": "2026-07-29T16:17:04.863965",
-        "updated_at": "2026-07-29T16:17:04.863965",
+        "created_at": "2026-07-29T16:42:18.592395",
+        "updated_at": "2026-07-29T16:42:18.592395",
         "version": 1,
         "read_time": 1
       }
@@ -353,7 +389,7 @@
             "item_type": "article",
             "item_id": 1,
             "target_department": "All",
-            "due_date": "2026-08-03T16:17:04.931016",
+            "due_date": "2026-08-03T16:42:18.676926",
             "priority": "normal",
             "id": 2
           },
@@ -366,9 +402,24 @@
         {
           "reading": {
             "item_type": "article",
+            "item_id": 4,
+            "target_department": "All",
+            "due_date": "2026-08-03T16:42:18.736756",
+            "priority": "normal",
+            "id": 3
+          },
+          "status": "unread",
+          "read_at": null,
+          "is_overdue": false,
+          "item_title": "Golden — Disposable Article (delete target)",
+          "item_content": ""
+        },
+        {
+          "reading": {
+            "item_type": "article",
             "item_id": 3,
             "target_department": "ტექნიკური",
-            "due_date": "2026-08-03T16:17:04.872968",
+            "due_date": "2026-08-03T16:42:18.614213",
             "priority": "normal",
             "id": 1
           },
@@ -394,9 +445,9 @@
     "response": {
       "status_code": 200,
       "body": {
-        "total_mandatory": 2,
+        "total_mandatory": 3,
         "read_completed": 0,
-        "pending": 2,
+        "pending": 3,
         "percentage": 0
       }
     },
@@ -460,7 +511,7 @@
                     "user_name": "ოპერატორი (ტექნიკური) 1",
                     "position": null,
                     "read_count": 0,
-                    "required_count": 2,
+                    "required_count": 3,
                     "percentage": 0,
                     "is_critical": true
                   },
@@ -469,7 +520,7 @@
                     "user_name": "ოპერატორი (ტექნიკური) 2",
                     "position": null,
                     "read_count": 0,
-                    "required_count": 2,
+                    "required_count": 3,
                     "percentage": 0,
                     "is_critical": true
                   }
@@ -488,7 +539,7 @@
                     "user_name": "ოპერატორი (ტექნიკური) 3",
                     "position": null,
                     "read_count": 0,
-                    "required_count": 2,
+                    "required_count": 3,
                     "percentage": 0,
                     "is_critical": true
                   }
@@ -518,7 +569,7 @@
                     "user_name": "ოპერატორი (საინფორმაციო) 1",
                     "position": null,
                     "read_count": 0,
-                    "required_count": 1,
+                    "required_count": 2,
                     "percentage": 0,
                     "is_critical": true
                   },
@@ -527,7 +578,7 @@
                     "user_name": "ოპერატორი (საინფორმაციო) 2",
                     "position": null,
                     "read_count": 0,
-                    "required_count": 1,
+                    "required_count": 2,
                     "percentage": 0,
                     "is_critical": true
                   }
@@ -546,7 +597,7 @@
                     "user_name": "ოპერატორი (საინფორმაციო) 3",
                     "position": null,
                     "read_count": 0,
-                    "required_count": 1,
+                    "required_count": 2,
                     "percentage": 0,
                     "is_critical": true
                   }
@@ -576,7 +627,7 @@
                     "user_name": "ოპერატორი (ოფისი) 1",
                     "position": null,
                     "read_count": 0,
-                    "required_count": 1,
+                    "required_count": 2,
                     "percentage": 0,
                     "is_critical": true
                   },
@@ -585,7 +636,7 @@
                     "user_name": "ოპერატორი (ოფისი) 2",
                     "position": null,
                     "read_count": 0,
-                    "required_count": 1,
+                    "required_count": 2,
                     "percentage": 0,
                     "is_critical": true
                   }
@@ -594,7 +645,7 @@
             ]
           }
         ],
-        "generated_at": "2026-07-29T16:17:09.024853"
+        "generated_at": "2026-07-29T16:42:23.287239"
       }
     },
     "note": ""
@@ -612,9 +663,9 @@
       "status_code": 200,
       "body": {
         "users": 20,
-        "articles": 3,
-        "required_readings": 2,
-        "videos": 1
+        "articles": 4,
+        "required_readings": 3,
+        "videos": 2
       }
     },
     "note": ""
@@ -639,7 +690,7 @@
           "admin_id": 8,
           "admin_name": "ოპერატორი (ტექნიკური) 1",
           "item_name": "ოპერატორი (ტექნიკური) 1",
-          "timestamp": "2026-07-29T16:17:08.578995",
+          "timestamp": "2026-07-29T16:42:22.782577",
           "category": "SECURITY",
           "details": "IP: testclient",
           "prev_hash": null,
@@ -655,7 +706,7 @@
           "admin_id": 8,
           "admin_name": "ოპერატორი (ტექნიკური) 1",
           "item_name": "ოპერატორი (ტექნიკური) 1",
-          "timestamp": "2026-07-29T16:17:08.040898",
+          "timestamp": "2026-07-29T16:42:22.052441",
           "category": "SECURITY",
           "details": null,
           "prev_hash": null,
@@ -671,7 +722,7 @@
           "admin_id": 8,
           "admin_name": "ოპერატორი (ტექნიკური) 1",
           "item_name": "ოპერატორი (ტექნიკური) 1",
-          "timestamp": "2026-07-29T16:17:06.946016",
+          "timestamp": "2026-07-29T16:42:20.872820",
           "category": "SECURITY",
           "details": null,
           "prev_hash": null,
@@ -687,7 +738,7 @@
           "admin_id": 7,
           "admin_name": "მენეჯერი (ტექნიკური)",
           "item_name": "მენეჯერი (ტექნიკური)",
-          "timestamp": "2026-07-29T16:17:06.303571",
+          "timestamp": "2026-07-29T16:42:20.295383",
           "category": "SECURITY",
           "details": null,
           "prev_hash": null,
@@ -825,7 +876,7 @@
       "status_code": 200,
       "body": {
         "status": "success",
-        "read_at": "2026-07-29T16:17:09.312149",
+        "read_at": "2026-07-29T16:42:23.674108",
         "article_version": 1
       }
     },
@@ -872,7 +923,7 @@
             "rank": 1
           }
         ],
-        "generated_at": "2026-07-29T16:17:09.367142"
+        "generated_at": "2026-07-29T16:42:23.771294"
       }
     },
     "note": ""
@@ -967,6 +1018,12 @@
           "title": "Golden — Quiz Article",
           "category_id": 1,
           "tags": null
+        },
+        {
+          "id": 4,
+          "title": "Golden — Disposable Article (delete target)",
+          "category_id": 1,
+          "tags": null
         }
       ]
     },
@@ -1022,8 +1079,8 @@
         "expires_at": null,
         "is_draft": false,
         "author_id": 3,
-        "id": 2,
-        "created_at": "2026-07-29T16:17:09.603969",
+        "id": 3,
+        "created_at": "2026-07-29T16:42:24.002873",
         "version": 1,
         "is_archived": false
       }
@@ -1043,11 +1100,25 @@
       "status_code": 200,
       "body": [
         {
-          "id": 2,
+          "id": 3,
           "title": "Golden — Created News",
           "target_department": "All",
           "attachment_url": null,
-          "created_at": "2026-07-29T16:17:09.603969",
+          "created_at": "2026-07-29T16:42:24.002873",
+          "version": 1,
+          "visible_to_tech_info": true,
+          "visible_to_service_center": false,
+          "is_archived": false,
+          "expires_at": null,
+          "is_draft": false,
+          "author_id": 3
+        },
+        {
+          "id": 2,
+          "title": "Golden — Disposable News",
+          "target_department": "All",
+          "attachment_url": null,
+          "created_at": "2026-07-29T16:42:18.734730",
           "version": 1,
           "visible_to_tech_info": true,
           "visible_to_service_center": false,
@@ -1061,7 +1132,7 @@
           "title": "Golden — News Item",
           "target_department": "All",
           "attachment_url": null,
-          "created_at": "2026-07-29T16:17:04.932917",
+          "created_at": "2026-07-29T16:42:18.680931",
           "version": 1,
           "visible_to_tech_info": true,
           "visible_to_service_center": false,
@@ -1096,7 +1167,7 @@
         "is_draft": false,
         "author_id": 3,
         "id": 1,
-        "created_at": "2026-07-29T16:17:04.932917",
+        "created_at": "2026-07-29T16:42:18.680931",
         "version": 1,
         "is_archived": false
       }
@@ -1130,7 +1201,7 @@
         "is_draft": false,
         "author_id": null,
         "id": 1,
-        "created_at": "2026-07-29T16:17:04.932917",
+        "created_at": "2026-07-29T16:42:18.680931",
         "version": 2,
         "is_archived": false
       }
@@ -1154,7 +1225,7 @@
           "title": "Golden — News Item",
           "content": "<p>News body.</p>",
           "attachment_url": null,
-          "updated_at": "2026-07-29T16:17:09.675571",
+          "updated_at": "2026-07-29T16:42:24.082727",
           "author_name": "კონტენტის ადმინისტრატორი"
         }
       ]
@@ -1183,8 +1254,8 @@
         "category": "ტექნიკური",
         "target_department": "ტექნიკური",
         "tags": null,
-        "id": 2,
-        "created_at": "2026-07-29T16:17:09.730196",
+        "id": 3,
+        "created_at": "2026-07-29T16:42:24.136788",
         "views_count": 0,
         "is_archived": false
       }
@@ -1202,7 +1273,19 @@
     },
     "response": {
       "status_code": 200,
-      "body": []
+      "body": [
+        {
+          "title": "Golden — Disposable Video",
+          "video_url": "https://www.youtube.com/watch?v=000000000",
+          "category": "ტექნიკური",
+          "target_department": "All",
+          "tags": null,
+          "id": 2,
+          "created_at": "2026-07-29T16:42:18.735758",
+          "views_count": 0,
+          "is_archived": false
+        }
+      ]
     },
     "note": "bug #10 CONFIRMED empirically: operator_tech's department is the sub-group 'ტექნიკური — ჯგუფი 01', video targets parent 'ტექნიკური' -- articles/news would show this via prefix-match, but videos.py's exact == returns an EMPTY list here"
   },
@@ -1217,7 +1300,19 @@
     },
     "response": {
       "status_code": 200,
-      "body": []
+      "body": [
+        {
+          "title": "Golden — Disposable Video",
+          "video_url": "https://www.youtube.com/watch?v=000000000",
+          "category": "ტექნიკური",
+          "target_department": "All",
+          "tags": null,
+          "id": 2,
+          "created_at": "2026-07-29T16:42:18.735758",
+          "views_count": 0,
+          "is_archived": false
+        }
+      ]
     },
     "note": "contrast baseline: a genuinely unrelated department, also empty -- same visible symptom as the sub-group case above, for a different (correct) reason"
   },
@@ -1239,7 +1334,7 @@
         "target_department": "ტექნიკური",
         "tags": null,
         "id": 1,
-        "created_at": "2026-07-29T16:17:04.937914",
+        "created_at": "2026-07-29T16:42:18.688054",
         "views_count": 1,
         "is_archived": false
       }
@@ -1264,7 +1359,7 @@
         "target_department": "ტექნიკური",
         "tags": null,
         "id": 1,
-        "created_at": "2026-07-29T16:17:04.937914",
+        "created_at": "2026-07-29T16:42:18.688054",
         "views_count": 1,
         "is_archived": true
       }
@@ -1291,7 +1386,7 @@
         "icon": null,
         "pastel_color_class": null,
         "is_active": true,
-        "id": 2
+        "id": 3
       }
     },
     "note": ""
@@ -1318,13 +1413,22 @@
           "id": 1
         },
         {
-          "name": "Golden — Second Category",
+          "name": "Golden — Disposable Category",
           "parent_id": null,
           "slug": null,
           "icon": null,
           "pastel_color_class": null,
           "is_active": true,
           "id": 2
+        },
+        {
+          "name": "Golden — Second Category",
+          "parent_id": null,
+          "slug": null,
+          "icon": null,
+          "pastel_color_class": null,
+          "is_active": true,
+          "id": 3
         }
       ]
     },
@@ -1372,7 +1476,7 @@
       "body": {
         "item_type": "article",
         "item_id": 1,
-        "id": 1,
+        "id": 2,
         "user_id": 8,
         "item_title": "Golden — Plain Article"
       }
@@ -1394,9 +1498,16 @@
         {
           "item_type": "article",
           "item_id": 1,
-          "id": 1,
+          "id": 2,
           "user_id": 8,
           "item_title": "Golden — Plain Article"
+        },
+        {
+          "item_type": "article",
+          "item_id": 2,
+          "id": 1,
+          "user_id": 8,
+          "item_title": "Golden — Quiz Article"
         }
       ]
     },
@@ -1418,7 +1529,7 @@
       "body": {
         "name": "Golden — Created Team",
         "id": 2,
-        "created_at": "2026-07-29T16:17:09.987051"
+        "created_at": "2026-07-29T16:42:24.453534"
       }
     },
     "note": ""
@@ -1438,12 +1549,12 @@
         {
           "name": "Golden Team",
           "id": 1,
-          "created_at": "2026-07-29T16:17:04.936915"
+          "created_at": "2026-07-29T16:42:18.686053"
         },
         {
           "name": "Golden — Created Team",
           "id": 2,
-          "created_at": "2026-07-29T16:17:09.987051"
+          "created_at": "2026-07-29T16:42:24.453534"
         }
       ]
     },
@@ -1459,7 +1570,7 @@
         "item_type": "article",
         "item_id": 1,
         "target_department": "All",
-        "due_date": "2026-08-08T16:17:07.530811",
+        "due_date": "2026-08-08T16:42:21.517256",
         "priority": "normal"
       },
       "params": null
@@ -1470,9 +1581,9 @@
         "item_type": "article",
         "item_id": 1,
         "target_department": "All",
-        "due_date": "2026-08-08T16:17:07.530811",
+        "due_date": "2026-08-08T16:42:21.517256",
         "priority": "normal",
-        "id": 3
+        "id": 4
       }
     },
     "note": ""
@@ -1492,7 +1603,7 @@
         "item_type": "article",
         "item_id": 3,
         "target_department": "ტექნიკური",
-        "due_date": "2026-08-03T16:17:04.872968",
+        "due_date": "2026-08-03T16:42:18.614213",
         "priority": "normal",
         "id": 1
       }
@@ -1509,7 +1620,7 @@
         "item_type": "article",
         "item_id": 1,
         "target_department": "All",
-        "due_date": "2026-08-18T16:17:07.531810",
+        "due_date": "2026-08-18T16:42:21.518253",
         "priority": "high"
       },
       "params": null
@@ -1520,7 +1631,7 @@
         "item_type": "article",
         "item_id": 1,
         "target_department": "All",
-        "due_date": "2026-08-18T16:17:07.531810",
+        "due_date": "2026-08-18T16:42:21.518253",
         "priority": "high",
         "id": 2
       }
@@ -1551,7 +1662,7 @@
           "is_active": true,
           "last_active": null,
           "read_count": 0,
-          "required_count": 2,
+          "required_count": 3,
           "progress_percentage": 0,
           "card_style": "corporate",
           "permissions": [
@@ -1577,7 +1688,7 @@
           "is_active": true,
           "last_active": null,
           "read_count": 0,
-          "required_count": 2,
+          "required_count": 3,
           "progress_percentage": 0,
           "card_style": "corporate",
           "permissions": [
@@ -1603,7 +1714,7 @@
           "is_active": true,
           "last_active": null,
           "read_count": 0,
-          "required_count": 2,
+          "required_count": 3,
           "progress_percentage": 0,
           "card_style": "corporate",
           "permissions": [
@@ -1627,7 +1738,7 @@
           "is_active": true,
           "last_active": null,
           "read_count": 0,
-          "required_count": 2,
+          "required_count": 3,
           "progress_percentage": 0,
           "card_style": "corporate",
           "permissions": [
@@ -1646,7 +1757,7 @@
           "is_active": true,
           "last_active": null,
           "read_count": 0,
-          "required_count": 2,
+          "required_count": 3,
           "progress_percentage": 0,
           "card_style": "corporate",
           "permissions": []
@@ -1663,7 +1774,7 @@
           "is_active": true,
           "last_active": null,
           "read_count": 0,
-          "required_count": 3,
+          "required_count": 4,
           "progress_percentage": 0,
           "card_style": "corporate",
           "permissions": [
@@ -1689,7 +1800,7 @@
           "is_active": true,
           "last_active": null,
           "read_count": 0,
-          "required_count": 3,
+          "required_count": 4,
           "progress_percentage": 0,
           "card_style": "corporate",
           "permissions": [
@@ -1708,7 +1819,7 @@
           "is_active": true,
           "last_active": null,
           "read_count": 0,
-          "required_count": 3,
+          "required_count": 4,
           "progress_percentage": 0,
           "card_style": "corporate",
           "permissions": []
@@ -1725,7 +1836,7 @@
           "is_active": true,
           "last_active": null,
           "read_count": 0,
-          "required_count": 3,
+          "required_count": 4,
           "progress_percentage": 0,
           "card_style": "corporate",
           "permissions": []
@@ -1742,7 +1853,7 @@
           "is_active": true,
           "last_active": null,
           "read_count": 0,
-          "required_count": 2,
+          "required_count": 3,
           "progress_percentage": 0,
           "card_style": "corporate",
           "permissions": [
@@ -1768,7 +1879,7 @@
           "is_active": true,
           "last_active": null,
           "read_count": 0,
-          "required_count": 2,
+          "required_count": 3,
           "progress_percentage": 0,
           "card_style": "corporate",
           "permissions": [
@@ -1787,7 +1898,7 @@
           "is_active": true,
           "last_active": null,
           "read_count": 0,
-          "required_count": 2,
+          "required_count": 3,
           "progress_percentage": 0,
           "card_style": "corporate",
           "permissions": []
@@ -1804,7 +1915,7 @@
           "is_active": true,
           "last_active": null,
           "read_count": 0,
-          "required_count": 2,
+          "required_count": 3,
           "progress_percentage": 0,
           "card_style": "corporate",
           "permissions": []
@@ -1821,7 +1932,7 @@
           "is_active": true,
           "last_active": null,
           "read_count": 0,
-          "required_count": 2,
+          "required_count": 3,
           "progress_percentage": 0,
           "card_style": "corporate",
           "permissions": [
@@ -1847,7 +1958,7 @@
           "is_active": true,
           "last_active": null,
           "read_count": 0,
-          "required_count": 2,
+          "required_count": 3,
           "progress_percentage": 0,
           "card_style": "corporate",
           "permissions": [
@@ -1866,7 +1977,7 @@
           "is_active": true,
           "last_active": null,
           "read_count": 0,
-          "required_count": 2,
+          "required_count": 3,
           "progress_percentage": 0,
           "card_style": "corporate",
           "permissions": []
@@ -1883,7 +1994,7 @@
           "is_active": true,
           "last_active": null,
           "read_count": 0,
-          "required_count": 2,
+          "required_count": 3,
           "progress_percentage": 0,
           "card_style": "corporate",
           "permissions": []
@@ -1900,7 +2011,7 @@
           "is_active": true,
           "last_active": null,
           "read_count": 0,
-          "required_count": 3,
+          "required_count": 4,
           "progress_percentage": 0,
           "card_style": "corporate",
           "permissions": [
@@ -1919,7 +2030,7 @@
           "is_active": true,
           "last_active": null,
           "read_count": 0,
-          "required_count": 3,
+          "required_count": 4,
           "progress_percentage": 0,
           "card_style": "corporate",
           "permissions": []
@@ -1936,7 +2047,7 @@
           "is_active": true,
           "last_active": null,
           "read_count": 0,
-          "required_count": 2,
+          "required_count": 3,
           "progress_percentage": 0,
           "card_style": "corporate",
           "permissions": []
@@ -2137,12 +2248,12 @@
     "response": {
       "status_code": 200,
       "body": {
-        "id": 20,
+        "id": 21,
         "user_id": 8,
         "sender_id": 7,
         "content": "Golden capture: same-department message.",
         "is_read": false,
-        "created_at": "2026-07-29T16:17:11.156573",
+        "created_at": "2026-07-29T16:42:26.066960",
         "sender_name": "მენეჯერი (ტექნიკური)",
         "recipient_name": "ოპერატორი (ტექნიკური) 1"
       }
@@ -2182,23 +2293,33 @@
       "status_code": 200,
       "body": [
         {
-          "id": 20,
+          "id": 21,
           "user_id": 8,
           "sender_id": 7,
           "content": "Golden capture: same-department message.",
           "is_read": false,
-          "created_at": "2026-07-29T16:17:11.156573",
+          "created_at": "2026-07-29T16:42:26.066960",
           "sender_name": "მენეჯერი (ტექნიკური)",
           "recipient_name": "ოპერატორი (ტექნიკური) 1"
         },
         {
-          "id": 16,
+          "id": 17,
           "user_id": 8,
           "sender_id": 1,
           "content": "ახალი სავალდებულოდ გასაცნობი მასალა: 'Golden — Plain Article' (ვადა: 2026-08-08)",
           "is_read": false,
-          "created_at": "2026-07-29T16:17:10.039770",
+          "created_at": "2026-07-29T16:42:24.518958",
           "sender_name": "სისტემური ადმინისტრატორი",
+          "recipient_name": "ოპერატორი (ტექნიკური) 1"
+        },
+        {
+          "id": 1,
+          "user_id": 8,
+          "sender_id": 7,
+          "content": "Golden — disposable message",
+          "is_read": false,
+          "created_at": "2026-07-29T16:42:18.769800",
+          "sender_name": "მენეჯერი (ტექნიკური)",
           "recipient_name": "ოპერატორი (ტექნიკური) 1"
         }
       ]
@@ -2288,19 +2409,25 @@
         "unread_readings": [],
         "recent_news": [
           {
-            "id": 2,
+            "id": 3,
             "title": "Golden — Created News",
             "target_department": "All",
-            "created_at": "2026-07-29T16:17:09.603969"
+            "created_at": "2026-07-29T16:42:24.002873"
+          },
+          {
+            "id": 2,
+            "title": "Golden — Disposable News",
+            "target_department": "All",
+            "created_at": "2026-07-29T16:42:18.734730"
           },
           {
             "id": 1,
             "title": "Golden — News Item (edited)",
             "target_department": "All",
-            "created_at": "2026-07-29T16:17:04.932917"
+            "created_at": "2026-07-29T16:42:18.680931"
           }
         ],
-        "unread_messages_count": 2
+        "unread_messages_count": 3
       }
     },
     "note": ""
@@ -2332,15 +2459,15 @@
           "published_at": null,
           "attachment_url": null,
           "author_id": 3,
-          "last_verified_at": "2026-07-29T16:17:04.826873",
+          "last_verified_at": "2026-07-29T16:42:18.501081",
           "audience_profile": "all",
           "visible_to_tech_info": true,
           "visible_to_service_center": false,
           "is_draft": false,
           "quiz_enabled": false,
           "id": 1,
-          "created_at": "2026-07-29T16:17:04.826873",
-          "updated_at": "2026-07-29T16:17:04.826873",
+          "created_at": "2026-07-29T16:42:18.501081",
+          "updated_at": "2026-07-29T16:42:18.501081",
           "version": 1,
           "read_time": 1
         },
@@ -2357,15 +2484,15 @@
           "published_at": null,
           "attachment_url": null,
           "author_id": 3,
-          "last_verified_at": "2026-07-29T16:17:04.852873",
+          "last_verified_at": "2026-07-29T16:42:18.570081",
           "audience_profile": "all",
           "visible_to_tech_info": true,
           "visible_to_service_center": false,
           "is_draft": false,
           "quiz_enabled": true,
           "id": 2,
-          "created_at": "2026-07-29T16:17:04.852873",
-          "updated_at": "2026-07-29T16:17:04.852873",
+          "created_at": "2026-07-29T16:42:18.570081",
+          "updated_at": "2026-07-29T16:42:18.570081",
           "version": 1,
           "read_time": 1
         },
@@ -2382,15 +2509,40 @@
           "published_at": null,
           "attachment_url": null,
           "author_id": 3,
-          "last_verified_at": "2026-07-29T16:17:04.863965",
+          "last_verified_at": "2026-07-29T16:42:18.592395",
           "audience_profile": "all",
           "visible_to_tech_info": true,
           "visible_to_service_center": false,
           "is_draft": false,
           "quiz_enabled": false,
           "id": 3,
-          "created_at": "2026-07-29T16:17:04.863965",
-          "updated_at": "2026-07-29T16:17:09.573111",
+          "created_at": "2026-07-29T16:42:18.592395",
+          "updated_at": "2026-07-29T16:42:23.963353",
+          "version": 1,
+          "read_time": 1
+        },
+        {
+          "title": "Golden — Disposable Article (delete target)",
+          "content": "<p>To be deleted.</p>",
+          "category_id": 1,
+          "tags": null,
+          "target_departments": [
+            "All"
+          ],
+          "status": "published",
+          "youtube_id": "",
+          "published_at": null,
+          "attachment_url": null,
+          "author_id": 3,
+          "last_verified_at": "2026-07-29T16:42:18.707671",
+          "audience_profile": "all",
+          "visible_to_tech_info": true,
+          "visible_to_service_center": false,
+          "is_draft": false,
+          "quiz_enabled": false,
+          "id": 4,
+          "created_at": "2026-07-29T16:42:18.707671",
+          "updated_at": "2026-07-29T16:42:18.707671",
           "version": 1,
           "read_time": 1
         }
@@ -2424,7 +2576,7 @@
             ],
             "status": "published",
             "published_at": null,
-            "created_at": "2026-07-29T16:17:04.826873",
+            "created_at": "2026-07-29T16:42:18.501081",
             "read_time": 1,
             "audience_profile": "all",
             "visible_to_tech_info": true,
@@ -2442,7 +2594,7 @@
             ],
             "status": "published",
             "published_at": null,
-            "created_at": "2026-07-29T16:17:04.852873",
+            "created_at": "2026-07-29T16:42:18.570081",
             "read_time": 1,
             "audience_profile": "all",
             "visible_to_tech_info": true,
@@ -2460,7 +2612,25 @@
             ],
             "status": "archived",
             "published_at": null,
-            "created_at": "2026-07-29T16:17:04.863965",
+            "created_at": "2026-07-29T16:42:18.592395",
+            "read_time": 1,
+            "audience_profile": "all",
+            "visible_to_tech_info": true,
+            "visible_to_service_center": false,
+            "is_draft": false
+          },
+          {
+            "id": 4,
+            "title": "Golden — Disposable Article (delete target)",
+            "category_id": 1,
+            "category_name": "Golden Master Category (renamed)",
+            "tags": null,
+            "target_departments": [
+              "All"
+            ],
+            "status": "published",
+            "published_at": null,
+            "created_at": "2026-07-29T16:42:18.707671",
             "read_time": 1,
             "audience_profile": "all",
             "visible_to_tech_info": true,
@@ -2474,7 +2644,7 @@
             "title": "Golden — News Item (edited)",
             "target_department": "All",
             "attachment_url": null,
-            "created_at": "2026-07-29T16:17:04.932917",
+            "created_at": "2026-07-29T16:42:18.680931",
             "version": 2,
             "visible_to_tech_info": true,
             "visible_to_service_center": false,
@@ -2485,10 +2655,24 @@
           },
           {
             "id": 2,
+            "title": "Golden — Disposable News",
+            "target_department": "All",
+            "attachment_url": null,
+            "created_at": "2026-07-29T16:42:18.734730",
+            "version": 1,
+            "visible_to_tech_info": true,
+            "visible_to_service_center": false,
+            "is_archived": false,
+            "expires_at": null,
+            "is_draft": false,
+            "author_id": 3
+          },
+          {
+            "id": 3,
             "title": "Golden — Created News",
             "target_department": "All",
             "attachment_url": null,
-            "created_at": "2026-07-29T16:17:09.603969",
+            "created_at": "2026-07-29T16:42:24.002873",
             "version": 1,
             "visible_to_tech_info": true,
             "visible_to_service_center": false,
@@ -2506,9 +2690,20 @@
             "target_department": "ტექნიკური",
             "tags": null,
             "id": 1,
-            "created_at": "2026-07-29T16:17:04.937914",
+            "created_at": "2026-07-29T16:42:18.688054",
             "views_count": 1,
             "is_archived": true
+          },
+          {
+            "title": "Golden — Disposable Video",
+            "video_url": "https://www.youtube.com/watch?v=000000000",
+            "category": "ტექნიკური",
+            "target_department": "All",
+            "tags": null,
+            "id": 2,
+            "created_at": "2026-07-29T16:42:18.735758",
+            "views_count": 0,
+            "is_archived": false
           },
           {
             "title": "Golden — Created Video",
@@ -2516,8 +2711,8 @@
             "category": "ტექნიკური",
             "target_department": "ტექნიკური",
             "tags": null,
-            "id": 2,
-            "created_at": "2026-07-29T16:17:09.730196",
+            "id": 3,
+            "created_at": "2026-07-29T16:42:24.136788",
             "views_count": 0,
             "is_archived": false
           }
@@ -2546,6 +2741,1620 @@
     "note": ""
   },
   {
+    "name": "create_article",
+    "request": {
+      "method": "POST",
+      "path": "/api/articles",
+      "as_user": "content_admin",
+      "json_body": {
+        "title": "Golden — Created Article",
+        "content": "<p>Body.</p>",
+        "category_id": 1,
+        "target_departments": [
+          "All"
+        ],
+        "status": "published"
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "title": "Golden — Created Article",
+        "content": "<p>Body.</p>",
+        "category_id": 1,
+        "tags": null,
+        "target_departments": [
+          "All"
+        ],
+        "status": "published",
+        "youtube_id": "",
+        "published_at": "2026-07-29T16:42:26.458879",
+        "attachment_url": null,
+        "author_id": 3,
+        "last_verified_at": "2026-07-29T16:42:26.459878",
+        "audience_profile": "all",
+        "visible_to_tech_info": true,
+        "visible_to_service_center": false,
+        "is_draft": true,
+        "quiz_enabled": false,
+        "id": 5,
+        "created_at": "2026-07-29T16:42:26.459878",
+        "updated_at": "2026-07-29T16:42:26.459878",
+        "version": 1,
+        "read_time": 1
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "article_archive_single",
+    "request": {
+      "method": "POST",
+      "path": "/api/articles/4/archive",
+      "as_user": "content_admin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "title": "Golden — Disposable Article (delete target)",
+        "content": "<p>To be deleted.</p>",
+        "category_id": 1,
+        "tags": null,
+        "target_departments": [
+          "All"
+        ],
+        "status": "archived",
+        "youtube_id": "",
+        "published_at": null,
+        "attachment_url": null,
+        "author_id": 3,
+        "last_verified_at": "2026-07-29T16:42:18.707671",
+        "audience_profile": "all",
+        "visible_to_tech_info": true,
+        "visible_to_service_center": false,
+        "is_draft": false,
+        "quiz_enabled": false,
+        "id": 4,
+        "created_at": "2026-07-29T16:42:18.707671",
+        "updated_at": "2026-07-29T16:42:26.525060",
+        "version": 1,
+        "read_time": 1
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "article_unarchive_single",
+    "request": {
+      "method": "POST",
+      "path": "/api/articles/4/unarchive",
+      "as_user": "content_admin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "title": "Golden — Disposable Article (delete target)",
+        "content": "<p>To be deleted.</p>",
+        "category_id": 1,
+        "tags": null,
+        "target_departments": [
+          "All"
+        ],
+        "status": "published",
+        "youtube_id": "",
+        "published_at": null,
+        "attachment_url": null,
+        "author_id": 3,
+        "last_verified_at": "2026-07-29T16:42:18.707671",
+        "audience_profile": "all",
+        "visible_to_tech_info": true,
+        "visible_to_service_center": false,
+        "is_draft": false,
+        "quiz_enabled": false,
+        "id": 4,
+        "created_at": "2026-07-29T16:42:18.707671",
+        "updated_at": "2026-07-29T16:42:26.592838",
+        "version": 1,
+        "read_time": 1
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "article_verify",
+    "request": {
+      "method": "POST",
+      "path": "/api/articles/1/verify",
+      "as_user": "content_admin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "title": "Golden — Plain Article",
+        "content": "<p>Sample body for parity capture.</p>",
+        "category_id": 1,
+        "tags": null,
+        "target_departments": [
+          "All"
+        ],
+        "status": "published",
+        "youtube_id": "",
+        "published_at": null,
+        "attachment_url": null,
+        "author_id": 3,
+        "last_verified_at": "2026-07-29T16:42:26.657018",
+        "audience_profile": "all",
+        "visible_to_tech_info": true,
+        "visible_to_service_center": false,
+        "is_draft": false,
+        "quiz_enabled": false,
+        "id": 1,
+        "created_at": "2026-07-29T16:42:18.501081",
+        "updated_at": "2026-07-29T16:42:26.658985",
+        "version": 1,
+        "read_time": 1
+      }
+    },
+    "note": "marks last_verified_at -- 'still accurate' admin action"
+  },
+  {
+    "name": "article_versions",
+    "request": {
+      "method": "GET",
+      "path": "/api/articles/1/versions",
+      "as_user": "content_admin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": [
+        {
+          "version": 1,
+          "title": "Golden — Plain Article",
+          "updated_at": "2026-07-29T16:42:26.658985",
+          "author_name": "კონტენტის ადმინისტრატორი",
+          "history_id": 2,
+          "is_legacy_version": false
+        }
+      ]
+    },
+    "note": ""
+  },
+  {
+    "name": "article_note_get",
+    "request": {
+      "method": "GET",
+      "path": "/api/articles/1/note",
+      "as_user": "operator_tech",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "id": 1,
+        "user_id": 8,
+        "article_id": 1,
+        "content": "პირადი შენიშვნა golden capture-ისთვის"
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "article_read_receipts_admin",
+    "request": {
+      "method": "GET",
+      "path": "/api/articles/1/read-receipts",
+      "as_user": "content_admin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "article_id": 1,
+        "article_title": "Golden — Plain Article",
+        "current_version": 1,
+        "receipts": [
+          {
+            "operator_id": 5,
+            "operator_name": "ტესტ ოპერატორი",
+            "operator_email": "operator@magti.ge",
+            "department": "All",
+            "read_at": null,
+            "article_version": null,
+            "has_read": false,
+            "is_late": false,
+            "deadline": "18/08/2026 16:42",
+            "status": "unread"
+          },
+          {
+            "operator_id": 9,
+            "operator_name": "ოპერატორი (ტექნიკური) 2",
+            "operator_email": "operator2.tech@magti.ge",
+            "department": "ტექნიკური — ჯგუფი 01",
+            "read_at": null,
+            "article_version": null,
+            "has_read": false,
+            "is_late": false,
+            "deadline": "18/08/2026 16:42",
+            "status": "unread"
+          },
+          {
+            "operator_id": 12,
+            "operator_name": "ოპერატორი (საინფორმაციო) 1",
+            "operator_email": "operator.info@magti.ge",
+            "department": "საინფორმაციო — ჯგუფი 01",
+            "read_at": null,
+            "article_version": null,
+            "has_read": false,
+            "is_late": false,
+            "deadline": "18/08/2026 16:42",
+            "status": "unread"
+          },
+          {
+            "operator_id": 13,
+            "operator_name": "ოპერატორი (საინფორმაციო) 2",
+            "operator_email": "operator2.info@magti.ge",
+            "department": "საინფორმაციო — ჯგუფი 01",
+            "read_at": null,
+            "article_version": null,
+            "has_read": false,
+            "is_late": false,
+            "deadline": "18/08/2026 16:42",
+            "status": "unread"
+          },
+          {
+            "operator_id": 16,
+            "operator_name": "ოპერატორი (ოფისი) 1",
+            "operator_email": "operator.office@magti.ge",
+            "department": "ოფისი — ჯგუფი 01",
+            "read_at": null,
+            "article_version": null,
+            "has_read": false,
+            "is_late": false,
+            "deadline": "18/08/2026 16:42",
+            "status": "unread"
+          },
+          {
+            "operator_id": 17,
+            "operator_name": "ოპერატორი (ოფისი) 2",
+            "operator_email": "operator2.office@magti.ge",
+            "department": "ოფისი — ჯგუფი 01",
+            "read_at": null,
+            "article_version": null,
+            "has_read": false,
+            "is_late": false,
+            "deadline": "18/08/2026 16:42",
+            "status": "unread"
+          },
+          {
+            "operator_id": 19,
+            "operator_name": "ოპერატორი (ტექნიკური) 3",
+            "operator_email": "operator3.tech@magti.ge",
+            "department": "ტექნიკური — ჯგუფი 02",
+            "read_at": null,
+            "article_version": null,
+            "has_read": false,
+            "is_late": false,
+            "deadline": "18/08/2026 16:42",
+            "status": "unread"
+          },
+          {
+            "operator_id": 20,
+            "operator_name": "ოპერატორი (საინფორმაციო) 3",
+            "operator_email": "operator3.info@magti.ge",
+            "department": "საინფორმაციო — ჯგუფი 02",
+            "read_at": null,
+            "article_version": null,
+            "has_read": false,
+            "is_late": false,
+            "deadline": "18/08/2026 16:42",
+            "status": "unread"
+          },
+          {
+            "operator_id": 21,
+            "operator_name": "Golden New User",
+            "operator_email": "golden.newuser@magti.ge",
+            "department": "ტექნიკური",
+            "read_at": null,
+            "article_version": null,
+            "has_read": false,
+            "is_late": false,
+            "deadline": "18/08/2026 16:42",
+            "status": "unread"
+          },
+          {
+            "operator_id": 8,
+            "operator_name": "ოპერატორი (ტექნიკური) 1",
+            "operator_email": "operator.tech@magti.ge",
+            "department": "ტექნიკური — ჯგუფი 01",
+            "read_at": "29/07/2026 16:42",
+            "article_version": 1,
+            "has_read": true,
+            "is_late": false,
+            "deadline": "18/08/2026 16:42",
+            "status": "read"
+          }
+        ]
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "article_read_receipt_me",
+    "request": {
+      "method": "GET",
+      "path": "/api/articles/1/read-receipt/me",
+      "as_user": "operator_tech",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "has_read": true,
+        "read_at": "2026-07-29T16:42:18.636661",
+        "article_version": 1,
+        "current_version": 1
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "article_views",
+    "request": {
+      "method": "GET",
+      "path": "/api/articles/1/views",
+      "as_user": "content_admin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "article_id": 1,
+        "current_version": 1,
+        "filter_version": null,
+        "total_views": 1,
+        "unique_viewers": 1,
+        "views": [
+          {
+            "operator_id": 8,
+            "operator_name": "ოპერატორი (ტექნიკური) 1",
+            "operator_email": "operator.tech@magti.ge",
+            "department": "ტექნიკური — ჯგუფი 01",
+            "article_version": 1,
+            "viewed_at": "29/07/2026 16:42"
+          }
+        ]
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "recently_viewed",
+    "request": {
+      "method": "GET",
+      "path": "/api/me/recently-viewed",
+      "as_user": "operator_tech",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": [
+        {
+          "article_id": 1,
+          "title": "Golden — Plain Article",
+          "viewed_at": "2026-07-29T16:42:23.806869"
+        }
+      ]
+    },
+    "note": ""
+  },
+  {
+    "name": "admin_feedback_list",
+    "request": {
+      "method": "GET",
+      "path": "/api/admin/feedback",
+      "as_user": "content_admin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 410,
+      "body": {
+        "detail": "უკუკავშირის ნახვა დეპრეკირებულია"
+      }
+    },
+    "note": "deliberately deprecated in code -- always 410"
+  },
+  {
+    "name": "admin_articles_stale",
+    "request": {
+      "method": "GET",
+      "path": "/api/admin/articles/stale",
+      "as_user": "content_admin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": []
+    },
+    "note": ""
+  },
+  {
+    "name": "quiz_admin_get",
+    "request": {
+      "method": "GET",
+      "path": "/api/articles/2/quiz/admin",
+      "as_user": "content_admin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "questions": [
+          {
+            "id": 1,
+            "question_text": "2+2?",
+            "position": 0,
+            "answers": [
+              {
+                "id": 1,
+                "answer_text": "3",
+                "is_correct": false,
+                "position": 0
+              },
+              {
+                "id": 2,
+                "answer_text": "4",
+                "is_correct": true,
+                "position": 1
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "quiz_admin_update",
+    "request": {
+      "method": "PUT",
+      "path": "/api/articles/2/quiz/admin",
+      "as_user": "content_admin",
+      "json_body": {
+        "questions": [
+          {
+            "question_text": "3+3?",
+            "position": 0,
+            "answers": [
+              {
+                "answer_text": "5",
+                "is_correct": false,
+                "position": 0
+              },
+              {
+                "answer_text": "6",
+                "is_correct": true,
+                "position": 1
+              }
+            ]
+          }
+        ]
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "questions": [
+          {
+            "id": 1,
+            "question_text": "3+3?",
+            "position": 0,
+            "answers": [
+              {
+                "id": 1,
+                "answer_text": "3",
+                "is_correct": false,
+                "position": 0
+              },
+              {
+                "id": 3,
+                "answer_text": "5",
+                "is_correct": false,
+                "position": 0
+              },
+              {
+                "id": 2,
+                "answer_text": "4",
+                "is_correct": true,
+                "position": 1
+              },
+              {
+                "id": 4,
+                "answer_text": "6",
+                "is_correct": true,
+                "position": 1
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "note": "known gap #2: this full-replace does NOT bump article.version, though the quiz-gate reads version"
+  },
+  {
+    "name": "article_delete",
+    "request": {
+      "method": "DELETE",
+      "path": "/api/articles/4",
+      "as_user": "content_admin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 204,
+      "body": ""
+    },
+    "note": ""
+  },
+  {
+    "name": "forgot_password",
+    "request": {
+      "method": "POST",
+      "path": "/api/auth/forgot-password",
+      "as_user": null,
+      "json_body": {
+        "email": "operator.tech@magti.ge"
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "detail": "თუ ეს ელ. ფოსტა რეგისტრირებულია, აღდგენის ინსტრუქცია გამოგზავნილია."
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "sso_mock_login_page",
+    "request": {
+      "method": "GET",
+      "path": "/api/auth/sso/mock-login",
+      "as_user": null,
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": "\n    <!DOCTYPE html>\n    <html lang=\"ka\">\n    <head>\n        <meta charset=\"UTF-8\">\n        <title>მაგთი კორპორაციული SSO</title>\n        <link rel=\"stylesheet\" href=\"/static/css/app.min.css\">\n        <link href=\"https://fonts.googleapis.com/css2?family=Noto+Sans+Georgian:wght@400;600;700&display=swap\" rel=\"stylesheet\">\n        <style>\n            body { font-family: \"Noto Sans Georgian\", sans-serif; }\n        </style>\n    </head>\n    <body class=\"bg-gray-100 flex items-center justify-center min"
+    },
+    "note": "known gap #11: no production-level route gate on this picker page"
+  },
+  {
+    "name": "sso_callback",
+    "request": {
+      "method": "POST",
+      "path": "/api/auth/sso/callback",
+      "as_user": null,
+      "json_body": null,
+      "params": {
+        "email": "content@magti.ge"
+      }
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjb250ZW50QG1hZ3RpLmdlIiwicm9sZSI6ImNvbnRlbnRfYWRtaW4iLCJleHAiOjE3ODUzMzI1NDd9.IM6wmordogpj39OEfMHy5l5qEfHQ6hHhs5BlSa8wQd4",
+        "token_type": "bearer"
+      }
+    },
+    "note": "security.py's dev-bypass allowlist (6 hardcoded emails) is a DIFFERENT set than qa_accounts.TEST_ACCOUNTS (19 seeded accounts) -- only content@magti.ge/admin@magti.ge/manager@magti.ge overlap, so most seeded accounts here can't actually use mock-SSO"
+  },
+  {
+    "name": "logout",
+    "request": {
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "as_user": "operator_tech",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "detail": "Logged out"
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "category_delete",
+    "request": {
+      "method": "DELETE",
+      "path": "/api/categories/2",
+      "as_user": "content_admin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 204,
+      "body": ""
+    },
+    "note": ""
+  },
+  {
+    "name": "favorite_delete",
+    "request": {
+      "method": "DELETE",
+      "path": "/api/favorites/1",
+      "as_user": "operator_tech",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 204,
+      "body": ""
+    },
+    "note": ""
+  },
+  {
+    "name": "video_update",
+    "request": {
+      "method": "PUT",
+      "path": "/api/videos/1",
+      "as_user": "content_admin",
+      "json_body": {
+        "title": "Golden — Video (edited)",
+        "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "category": "ტექნიკური",
+        "target_department": "ტექნიკური"
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "title": "Golden — Video (edited)",
+        "video_url": "https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0",
+        "category": "ტექნიკური",
+        "target_department": "ტექნიკური",
+        "tags": null,
+        "id": 1,
+        "created_at": "2026-07-29T16:42:18.688054",
+        "views_count": 1,
+        "is_archived": true
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "video_unarchive",
+    "request": {
+      "method": "POST",
+      "path": "/api/videos/1/unarchive",
+      "as_user": "content_admin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "title": "Golden — Video (edited)",
+        "video_url": "https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0",
+        "category": "ტექნიკური",
+        "target_department": "ტექნიკური",
+        "tags": null,
+        "id": 1,
+        "created_at": "2026-07-29T16:42:18.688054",
+        "views_count": 1,
+        "is_archived": false
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "video_delete",
+    "request": {
+      "method": "DELETE",
+      "path": "/api/videos/2",
+      "as_user": "content_admin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 204,
+      "body": ""
+    },
+    "note": ""
+  },
+  {
+    "name": "article_autosave",
+    "request": {
+      "method": "PATCH",
+      "path": "/api/articles/1/autosave",
+      "as_user": "content_admin",
+      "json_body": {
+        "title": "Golden — Plain Article",
+        "content": "<p>Autosaved draft body.</p>"
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "title": "Golden — Plain Article",
+        "content": "<p>Autosaved draft body.</p>",
+        "category_id": 1,
+        "tags": null,
+        "target_departments": [
+          "All"
+        ],
+        "status": "published",
+        "published_at": null,
+        "attachment_url": null,
+        "audience_profile": "all",
+        "visible_to_tech_info": true,
+        "visible_to_service_center": false,
+        "is_draft": false,
+        "id": 1,
+        "created_at": "2026-07-29T16:42:18.501081",
+        "updated_at": "2026-07-29T16:42:27.540563",
+        "version": 1
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "news_autosave",
+    "request": {
+      "method": "PATCH",
+      "path": "/api/news/1/autosave",
+      "as_user": "content_admin",
+      "json_body": {
+        "title": "Golden — News Item",
+        "content": "<p>Autosaved draft body.</p>"
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "title": "Golden — News Item",
+        "content": "<p>Autosaved draft body.</p>",
+        "target_department": "All",
+        "attachment_url": null,
+        "visible_to_tech_info": true,
+        "visible_to_service_center": false,
+        "expires_at": null,
+        "is_draft": false,
+        "id": 1,
+        "created_at": "2026-07-29T16:42:18.680931",
+        "version": 2
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "news_delete",
+    "request": {
+      "method": "DELETE",
+      "path": "/api/news/2",
+      "as_user": "content_admin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 204,
+      "body": ""
+    },
+    "note": ""
+  },
+  {
+    "name": "required_reading_delete",
+    "request": {
+      "method": "DELETE",
+      "path": "/api/compliance/required-readings/3",
+      "as_user": "sysadmin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 204,
+      "body": ""
+    },
+    "note": ""
+  },
+  {
+    "name": "export_readings_xlsx_enqueue",
+    "request": {
+      "method": "GET",
+      "path": "/api/export/readings.xlsx",
+      "as_user": "sysadmin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "job_id": "51f862ff-2968-4e71-8ded-98e03f49664c"
+      }
+    },
+    "note": "async job, same shape as team-stats.pdf"
+  },
+  {
+    "name": "export_readings_pdf_enqueue",
+    "request": {
+      "method": "GET",
+      "path": "/api/export/readings.pdf",
+      "as_user": "manager_tech",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "job_id": "31116415-fb3a-496a-8051-80a7f9126055"
+      }
+    },
+    "note": "PERM_REPORTS_EXPORT -- manager holds this by default, content_admin does not"
+  },
+  {
+    "name": "messages_sent",
+    "request": {
+      "method": "GET",
+      "path": "/api/messages/sent",
+      "as_user": "manager_tech",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": [
+        {
+          "id": 21,
+          "user_id": 8,
+          "sender_id": 7,
+          "content": "Golden capture: same-department message.",
+          "is_read": false,
+          "created_at": "2026-07-29T16:42:26.066960",
+          "sender_name": "მენეჯერი (ტექნიკური)",
+          "recipient_name": "ოპერატორი (ტექნიკური) 1"
+        },
+        {
+          "id": 1,
+          "user_id": 8,
+          "sender_id": 7,
+          "content": "Golden — disposable message",
+          "is_read": false,
+          "created_at": "2026-07-29T16:42:18.769800",
+          "sender_name": "მენეჯერი (ტექნიკური)",
+          "recipient_name": "ოპერატორი (ტექნიკური) 1"
+        }
+      ]
+    },
+    "note": ""
+  },
+  {
+    "name": "message_mark_read",
+    "request": {
+      "method": "POST",
+      "path": "/api/messages/1/read",
+      "as_user": "operator_tech",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "id": 1,
+        "user_id": 8,
+        "sender_id": 7,
+        "content": "Golden — disposable message",
+        "is_read": true,
+        "created_at": "2026-07-29T16:42:18.769800",
+        "sender_name": "მენეჯერი (ტექნიკური)",
+        "recipient_name": "ოპერატორი (ტექნიკური) 1"
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "message_delete",
+    "request": {
+      "method": "DELETE",
+      "path": "/api/messages/1",
+      "as_user": "operator_tech",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 204,
+      "body": ""
+    },
+    "note": ""
+  },
+  {
+    "name": "update_users_me",
+    "request": {
+      "method": "PUT",
+      "path": "/api/users/me",
+      "as_user": "operator_tech",
+      "json_body": {
+        "name": "ოპერატორი (ტექნიკური) 1 (renamed)",
+        "position": "უფროსი ოპერატორი"
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "email": "operator.tech@magti.ge",
+        "name": "ოპერატორი (ტექნიკური) 1 (renamed)",
+        "department": "ტექნიკური — ჯგუფი 01",
+        "position": "უფროსი ოპერატორი",
+        "phone": null,
+        "role": "content_admin",
+        "team_id": null,
+        "id": 8,
+        "is_active": true,
+        "last_active": null,
+        "read_count": null,
+        "required_count": null,
+        "progress_percentage": null,
+        "card_style": "corporate",
+        "permissions": []
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "change_own_password",
+    "request": {
+      "method": "POST",
+      "path": "/api/users/me/password",
+      "as_user": "operator_tech",
+      "json_body": {
+        "current_password": "Test1234!",
+        "new_password": "NewGoldenPass2!"
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "detail": "პაროლი წარმატებით შეიცვალა."
+      }
+    },
+    "note": "uses operator_tech, not operator_office -- operator_office's password was already rotated by admin_reset_password earlier in this list, which would make TEST_ACCOUNT_PASSWORD the wrong 'current_password' by the time this call runs"
+  },
+  {
+    "name": "bulk_reassign_roles",
+    "request": {
+      "method": "POST",
+      "path": "/api/admin/roles/bulk-reassign",
+      "as_user": "sysadmin",
+      "json_body": {
+        "user_ids": [
+          16
+        ],
+        "new_role": "manager"
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "new_role": "manager",
+        "changed": 1,
+        "skipped": 0,
+        "requested": 1
+      }
+    },
+    "note": "unlike the single-user PUT above (bug #3), this DOES reset permissions to the new role's defaults"
+  },
+  {
+    "name": "popular_searches",
+    "request": {
+      "method": "GET",
+      "path": "/api/statistics/popular-searches",
+      "as_user": "content_admin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": [
+        {
+          "search_term": "golden",
+          "count": 1
+        }
+      ]
+    },
+    "note": ""
+  },
+  {
+    "name": "failed_searches",
+    "request": {
+      "method": "GET",
+      "path": "/api/statistics/failed-searches",
+      "as_user": "content_admin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": []
+    },
+    "note": ""
+  },
+  {
+    "name": "user_progress_stats_forbidden",
+    "request": {
+      "method": "GET",
+      "path": "/api/statistics/user-progress",
+      "as_user": "content_admin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 403,
+      "body": {
+        "detail": "Not enough permissions to perform this action"
+      }
+    },
+    "note": "correctly 403 -- this endpoint is system-admin only, unlike most other /statistics/* routes"
+  },
+  {
+    "name": "user_progress_stats_as_sysadmin",
+    "request": {
+      "method": "GET",
+      "path": "/api/statistics/user-progress",
+      "as_user": "sysadmin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": [
+        {
+          "user_id": 5,
+          "user_name": "ტესტ ოპერატორი",
+          "department": "All",
+          "read_count": 0,
+          "required_count": 2,
+          "percentage": "0%"
+        },
+        {
+          "user_id": 9,
+          "user_name": "ოპერატორი (ტექნიკური) 2",
+          "department": "ტექნიკური — ჯგუფი 01",
+          "read_count": 0,
+          "required_count": 3,
+          "percentage": "0%"
+        },
+        {
+          "user_id": 12,
+          "user_name": "ოპერატორი (საინფორმაციო) 1",
+          "department": "საინფორმაციო — ჯგუფი 01",
+          "read_count": 0,
+          "required_count": 2,
+          "percentage": "0%"
+        },
+        {
+          "user_id": 13,
+          "user_name": "ოპერატორი (საინფორმაციო) 2",
+          "department": "საინფორმაციო — ჯგუფი 01",
+          "read_count": 0,
+          "required_count": 2,
+          "percentage": "0%"
+        },
+        {
+          "user_id": 17,
+          "user_name": "ოპერატორი (ოფისი) 2",
+          "department": "ოფისი — ჯგუფი 01",
+          "read_count": 0,
+          "required_count": 2,
+          "percentage": "0%"
+        },
+        {
+          "user_id": 19,
+          "user_name": "ოპერატორი (ტექნიკური) 3",
+          "department": "ტექნიკური — ჯგუფი 02",
+          "read_count": 0,
+          "required_count": 3,
+          "percentage": "0%"
+        },
+        {
+          "user_id": 20,
+          "user_name": "ოპერატორი (საინფორმაციო) 3",
+          "department": "საინფორმაციო — ჯგუფი 02",
+          "read_count": 0,
+          "required_count": 2,
+          "percentage": "0%"
+        },
+        {
+          "user_id": 21,
+          "user_name": "Golden New User",
+          "department": "ტექნიკური",
+          "read_count": 0,
+          "required_count": 3,
+          "percentage": "0%"
+        }
+      ]
+    },
+    "note": ""
+  },
+  {
+    "name": "admin_team_stats",
+    "request": {
+      "method": "GET",
+      "path": "/api/admin/stats/team/1",
+      "as_user": "sysadmin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "team_id": 1,
+        "average_percentage": "0%",
+        "members": []
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "manager_team_stats",
+    "request": {
+      "method": "GET",
+      "path": "/api/manager/team-stats",
+      "as_user": "manager_tech",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "department": "ტექნიკური — ჯგუფი 01",
+        "members": [
+          {
+            "user_id": 9,
+            "user_name": "ოპერატორი (ტექნიკური) 2",
+            "read_count": 0,
+            "required_count": 3,
+            "percentage": "0%"
+          }
+        ]
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "critical_operators",
+    "request": {
+      "method": "GET",
+      "path": "/api/admin/critical-operators",
+      "as_user": "content_admin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "operators": [
+          {
+            "user_id": 9,
+            "first_name": "ოპერატორი",
+            "last_name": "(ტექნიკური) 2",
+            "department": "ტექნიკური — ჯგუფი 01",
+            "overdue_count": 3
+          },
+          {
+            "user_id": 19,
+            "first_name": "ოპერატორი",
+            "last_name": "(ტექნიკური) 3",
+            "department": "ტექნიკური — ჯგუფი 02",
+            "overdue_count": 3
+          },
+          {
+            "user_id": 21,
+            "first_name": "Golden",
+            "last_name": "New User",
+            "department": "ტექნიკური",
+            "overdue_count": 3
+          },
+          {
+            "user_id": 5,
+            "first_name": "ტესტ",
+            "last_name": "ოპერატორი",
+            "department": "All",
+            "overdue_count": 2
+          },
+          {
+            "user_id": 12,
+            "first_name": "ოპერატორი",
+            "last_name": "(საინფორმაციო) 1",
+            "department": "საინფორმაციო — ჯგუფი 01",
+            "overdue_count": 2
+          },
+          {
+            "user_id": 13,
+            "first_name": "ოპერატორი",
+            "last_name": "(საინფორმაციო) 2",
+            "department": "საინფორმაციო — ჯგუფი 01",
+            "overdue_count": 2
+          },
+          {
+            "user_id": 17,
+            "first_name": "ოპერატორი",
+            "last_name": "(ოფისი) 2",
+            "department": "ოფისი — ჯგუფი 01",
+            "overdue_count": 2
+          },
+          {
+            "user_id": 20,
+            "first_name": "ოპერატორი",
+            "last_name": "(საინფორმაციო) 3",
+            "department": "საინფორმაციო — ჯგუფი 02",
+            "overdue_count": 2
+          }
+        ],
+        "total": 8,
+        "generated_at": "2026-07-29T16:42:30.127655"
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "department_group_users",
+    "request": {
+      "method": "GET",
+      "path": "/api/admin/departments/%E1%83%A2%E1%83%94%E1%83%A5%E1%83%9C%E1%83%98%E1%83%99%E1%83%A3%E1%83%A0%E1%83%98/groups/%E1%83%AF%E1%83%92%E1%83%A3%E1%83%A4%E1%83%98%2001/users",
+      "as_user": "content_admin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "department": "ტექნიკური",
+        "group_name": "ჯგუფი 01",
+        "users": [
+          {
+            "user_id": 9,
+            "first_name": "ოპერატორი",
+            "last_name": "(ტექნიკური) 2",
+            "completion_percentage": 0
+          }
+        ],
+        "total": 1
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "statistics_breakdown_by_role",
+    "request": {
+      "method": "GET",
+      "path": "/api/statistics/breakdown",
+      "as_user": "sysadmin",
+      "json_body": null,
+      "params": {
+        "dimension": "role"
+      }
+    },
+    "response": {
+      "status_code": 200,
+      "body": [
+        {
+          "label": "operator",
+          "count": 8
+        },
+        {
+          "label": "manager",
+          "count": 6
+        },
+        {
+          "label": "admin",
+          "count": 5
+        },
+        {
+          "label": "content_admin",
+          "count": 2
+        }
+      ]
+    },
+    "note": ""
+  },
+  {
+    "name": "statistics_activity",
+    "request": {
+      "method": "GET",
+      "path": "/api/statistics/activity",
+      "as_user": "sysadmin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": [
+        {
+          "date": "2026-07-23",
+          "count": 0
+        },
+        {
+          "date": "2026-07-24",
+          "count": 0
+        },
+        {
+          "date": "2026-07-25",
+          "count": 0
+        },
+        {
+          "date": "2026-07-26",
+          "count": 0
+        },
+        {
+          "date": "2026-07-27",
+          "count": 0
+        },
+        {
+          "date": "2026-07-28",
+          "count": 0
+        },
+        {
+          "date": "2026-07-29",
+          "count": 56
+        }
+      ]
+    },
+    "note": ""
+  },
+  {
+    "name": "serve_root",
+    "request": {
+      "method": "GET",
+      "path": "/",
+      "as_user": null,
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": "<!DOCTYPE html>\r\n<html lang=\"ka\">\r\n\r\n<head>\r\n    <script defer src=\"/static/frontend_api.js?v=19\"></script>\r\n  <meta charset=\"UTF-8\" />\r\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\r\n  <title>მაგთი — შიდა საინფორმაციო პორტალი</title>\r\n\r\n  <!-- Single self-contained compiled stylesheet: Tailwind utilities + hand-written\r\n       branding, built from input.css via the v3 CLI. See README \"Rebuilding CSS\". -->\r\n  <link rel=\"stylesheet\" href=\"/static/css/app.min.css?v=202"
+    },
+    "note": ""
+  },
+  {
+    "name": "serve_login_html",
+    "request": {
+      "method": "GET",
+      "path": "/login.html",
+      "as_user": null,
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": "<!DOCTYPE html>\r\n<html lang=\"ka\">\r\n\r\n<head>\r\n    <meta charset=\"UTF-8\" />\r\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\r\n    <title>მაგთი — ავტორიზაცია</title>\r\n\r\n    <!-- Compiled Tailwind utility layer (replaces the cdn.tailwindcss.com JIT). -->\r\n    <link rel=\"stylesheet\" href=\"/static/css/app.min.css\">\r\n\r\n    <!-- Brand Font: Teko & Noto Sans Georgian -->\r\n    <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\r\n    <link rel=\"preconnect\" href=\"https:/"
+    },
+    "note": ""
+  },
+  {
+    "name": "serve_base_layout_html",
+    "request": {
+      "method": "GET",
+      "path": "/base-layout.html",
+      "as_user": null,
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": "<!DOCTYPE html>\r\n<html lang=\"ka\">\r\n\r\n<head>\r\n    <script defer src=\"/static/frontend_api.js?v=19\"></script>\r\n  <meta charset=\"UTF-8\" />\r\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\r\n  <title>მაგთი — შიდა საინფორმაციო პორტალი</title>\r\n\r\n  <!-- Single self-contained compiled stylesheet: Tailwind utilities + hand-written\r\n       branding, built from input.css via the v3 CLI. See README \"Rebuilding CSS\". -->\r\n  <link rel=\"stylesheet\" href=\"/static/css/app.min.css?v=202"
+    },
+    "note": ""
+  },
+  {
+    "name": "serve_article_html",
+    "request": {
+      "method": "GET",
+      "path": "/article.html",
+      "as_user": null,
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": "<!DOCTYPE html>\r\n<html lang=\"ka\">\r\n\r\n<head>\r\n  <meta charset=\"UTF-8\" />\r\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\r\n  <title>სტატია — მაგთის საინფორმაციო პორტალი</title>\r\n\r\n  <!-- Compiled, self-contained Tailwind + branding (replaces the CDN JIT). -->\r\n  <link rel=\"stylesheet\" href=\"/static/css/app.min.css\">\r\n\r\n  <!-- Font Awesome 6 CDN -->\r\n  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css\"\r\n    crossorigin"
+    },
+    "note": ""
+  },
+  {
+    "name": "serve_logo",
+    "request": {
+      "method": "GET",
+      "path": "/static/magti_logo.png",
+      "as_user": null,
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 404,
+      "body": {
+        "detail": "Not Found"
+      }
+    },
+    "note": "NEWLY DISCOVERED (not in the original 11+4 known issues): 404s despite the file existing at the project root. main.py mounts StaticFiles at /static (line 477) BEFORE include_router(platform) (line 499) -- the mount's prefix match wins, so platform.py's dedicated @router.get('/static/magti_logo.png') (whose own docstring claims it 'intercepts the request before it falls through to the StaticFiles mount') never actually runs. Dead code, logo broken."
+  },
+  {
+    "name": "article_update",
+    "request": {
+      "method": "PUT",
+      "path": "/api/articles/3",
+      "as_user": "content_admin"
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "title": "Golden — Tech-Only Article (edited)",
+        "content": "<p>Edited.</p>",
+        "category_id": 1,
+        "tags": null,
+        "target_departments": [
+          "ტექნიკური"
+        ],
+        "status": "published",
+        "youtube_id": "",
+        "published_at": "2026-07-29T16:42:30.397248",
+        "attachment_url": null,
+        "author_id": 3,
+        "last_verified_at": "2026-07-29T16:42:18.592395",
+        "audience_profile": "all",
+        "visible_to_tech_info": true,
+        "visible_to_service_center": false,
+        "is_draft": true,
+        "quiz_enabled": false,
+        "id": 3,
+        "created_at": "2026-07-29T16:42:18.592395",
+        "updated_at": "2026-07-29T16:42:30.401247",
+        "version": 2,
+        "read_time": 1
+      }
+    },
+    "note": "creates a history row, consumed by the diff/restore calls below"
+  },
+  {
+    "name": "article_history_diff",
+    "request": {
+      "method": "GET",
+      "path": "/api/articles/3/history/4/diff",
+      "as_user": "content_admin"
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "html": "<div class=\"diff-line diff-equal flex items-start gap-2 px-3 py-1.5 text-gray-600 dark:text-zinc-400 border-l-2 border-transparent\"><span class=\"select-none text-gray-300 dark:text-zinc-700 w-4 font-mono text-center\">•</span><span class=\"flex-1\">Edited.</span></div>",
+        "added": 0,
+        "removed": 0,
+        "base_version": 2,
+        "compare_version": 2,
+        "version_id": 2
+      }
+    },
+    "note": "diffs the pre-edit snapshot against the article's current content"
+  },
+  {
+    "name": "article_history_restore",
+    "request": {
+      "method": "POST",
+      "path": "/api/articles/3/history/4/restore",
+      "as_user": "content_admin"
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "title": "Golden — Tech-Only Article (edited)",
+        "content": "<p>Edited.</p>",
+        "category_id": 1,
+        "tags": null,
+        "target_departments": [
+          "ტექნიკური"
+        ],
+        "status": "published",
+        "youtube_id": "",
+        "published_at": "2026-07-29T16:42:30.397248",
+        "attachment_url": null,
+        "author_id": 3,
+        "last_verified_at": "2026-07-29T16:42:18.592395",
+        "audience_profile": "all",
+        "visible_to_tech_info": true,
+        "visible_to_service_center": false,
+        "is_draft": true,
+        "quiz_enabled": false,
+        "id": 3,
+        "created_at": "2026-07-29T16:42:18.592395",
+        "updated_at": "2026-07-29T16:42:30.502219",
+        "version": 3,
+        "read_time": 1
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "news_history_restore",
+    "request": {
+      "method": "POST",
+      "path": "/api/news/1/history/1/restore",
+      "as_user": "content_admin"
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "title": "Golden — News Item",
+        "content": "<p>News body.</p>",
+        "target_department": "All",
+        "attachment_url": null,
+        "visible_to_tech_info": true,
+        "visible_to_service_center": false,
+        "expires_at": null,
+        "is_draft": false,
+        "author_id": 3,
+        "id": 1,
+        "created_at": "2026-07-29T16:42:18.680931",
+        "version": 3,
+        "is_archived": false
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "upload_file",
+    "request": {
+      "method": "POST",
+      "path": "/api/upload",
+      "as_user": "content_admin"
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "url": "/uploads/0d3e6442-f544-47c0-a2d6-6b4671a117dc.png",
+        "filename": "0d3e6442-f544-47c0-a2d6-6b4671a117dc.png"
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "sse_stream_connect",
+    "request": {
+      "method": "GET",
+      "path": "/api/stream",
+      "as_user": "operator_tech"
+    },
+    "response": {
+      "status_code": null,
+      "body": null
+    },
+    "note": "NOT CAPTURED -- long-lived stream, hangs under TestClient without a real event loop/Redis; behavior documented in the migration doc instead, see comment above this entry in the script"
+  },
+  {
     "name": "export_readings_csv",
     "request": {
       "method": "GET",
@@ -2568,7 +4377,7 @@
     "response": {
       "status_code": 200,
       "body": {
-        "job_id": "5ad01097-756b-4773-a687-1f6a88597622"
+        "job_id": "7053483c-c599-48be-ae02-4132c47bd32f"
       }
     },
     "note": "async job -- BackgroundTasks resolve synchronously under TestClient, so status should already be completed"
@@ -2577,13 +4386,13 @@
     "name": "export_job_status",
     "request": {
       "method": "GET",
-      "path": "/api/export/status/5ad01097-756b-4773-a687-1f6a88597622",
+      "path": "/api/export/status/7053483c-c599-48be-ae02-4132c47bd32f",
       "as_user": "manager_tech"
     },
     "response": {
       "status_code": 200,
       "body": {
-        "job_id": "5ad01097-756b-4773-a687-1f6a88597622",
+        "job_id": "7053483c-c599-48be-ae02-4132c47bd32f",
         "status": "completed"
       }
     },
@@ -2593,7 +4402,7 @@
     "name": "export_job_download",
     "request": {
       "method": "GET",
-      "path": "/api/export/download/5ad01097-756b-4773-a687-1f6a88597622",
+      "path": "/api/export/download/7053483c-c599-48be-ae02-4132c47bd32f",
       "as_user": "manager_tech"
     },
     "response": {

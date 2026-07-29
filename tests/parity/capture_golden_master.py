@@ -70,6 +70,7 @@ from tests.factories import (  # noqa: E402
 )
 from database import get_tbilisi_time  # noqa: E402
 from datetime import timedelta  # noqa: E402
+from urllib.parse import quote  # noqa: E402
 
 app = monolith_app_module.app
 db = _SessionLocal()
@@ -142,10 +143,45 @@ reading_all = make_required_reading(
     db, item_id=plain_article.id, item_type="article",
     target_department="All", due_days=5,
 )
+
+# Dedicated, disposable rows for the DELETE endpoints -- kept separate from
+# the fixtures above so deleting them can't break a later call in the list.
+article_to_delete = make_article(
+    db, author=content_admin, title="Golden — Disposable Article (delete target)",
+    content="<p>To be deleted.</p>", category_id=cat.id, target_department="All",
+)
+news_to_delete = models.News(
+    title="Golden — Disposable News", content="<p>To be deleted.</p>",
+    target_department="All", is_draft=False, author_id=content_admin.id,
+)
+db.add(news_to_delete)
+video_to_delete = models.VideoInstruction(
+    title="Golden — Disposable Video", video_url="https://www.youtube.com/watch?v=000000000",
+    category="ტექნიკური", target_department="All",
+)
+db.add(video_to_delete)
+category_to_delete = models.Category(name="Golden — Disposable Category", is_active=True)
+db.add(category_to_delete)
+db.flush()
+reading_to_delete = make_required_reading(
+    db, item_id=article_to_delete.id, item_type="article",
+    target_department="All", due_days=5,
+)
+favorite_to_delete = models.Favorite(user_id=operator_tech.id, item_type="article", item_id=quiz_article.id)
+db.add(favorite_to_delete)
+message_to_delete = models.Message(
+    user_id=operator_tech.id, sender_id=manager_tech.id, content="Golden — disposable message",
+)
+db.add(message_to_delete)
 db.commit()
 db.refresh(news_item)
 db.refresh(video_item)
 db.refresh(team)
+db.refresh(news_to_delete)
+db.refresh(video_to_delete)
+db.refresh(category_to_delete)
+db.refresh(favorite_to_delete)
+db.refresh(message_to_delete)
 
 # NOTE: the audit-CSV formula-injection gap (bug #8) needs a real audit row
 # whose admin_name/details contain a formula-trigger character, which means
@@ -347,6 +383,111 @@ GOLDEN_CALLS: list[Call] = [
 
     # ── Health / platform ─────────────────────────────────────────────────
     Call("health", "GET", "/api/health", None),
+
+    # ── Articles: remaining coverage (create, single archive/unarchive, ────
+    # ── verify, versions, note-get, read-receipts, views, admin quiz, etc.) ─
+    Call("create_article", "POST", "/api/articles", "content_admin",
+         {"title": "Golden — Created Article", "content": "<p>Body.</p>", "category_id": cat.id,
+          "target_departments": ["All"], "status": "published"}),
+    Call("article_archive_single", "POST", f"/api/articles/{article_to_delete.id}/archive", "content_admin"),
+    Call("article_unarchive_single", "POST", f"/api/articles/{article_to_delete.id}/unarchive", "content_admin"),
+    Call("article_verify", "POST", f"/api/articles/{plain_article.id}/verify", "content_admin",
+         note="marks last_verified_at -- 'still accurate' admin action"),
+    Call("article_versions", "GET", f"/api/articles/{plain_article.id}/versions", "content_admin"),
+    Call("article_note_get", "GET", f"/api/articles/{plain_article.id}/note", "operator_tech"),
+    Call("article_read_receipts_admin", "GET", f"/api/articles/{plain_article.id}/read-receipts", "content_admin"),
+    Call("article_read_receipt_me", "GET", f"/api/articles/{plain_article.id}/read-receipt/me", "operator_tech"),
+    Call("article_views", "GET", f"/api/articles/{plain_article.id}/views", "content_admin"),
+    Call("recently_viewed", "GET", "/api/me/recently-viewed", "operator_tech"),
+    Call("admin_feedback_list", "GET", "/api/admin/feedback", "content_admin",
+         note="deliberately deprecated in code -- always 410"),
+    Call("admin_articles_stale", "GET", "/api/admin/articles/stale", "content_admin"),
+    Call("quiz_admin_get", "GET", f"/api/articles/{quiz_article.id}/quiz/admin", "content_admin"),
+    Call("quiz_admin_update", "PUT", f"/api/articles/{quiz_article.id}/quiz/admin", "content_admin",
+         {"questions": [{"question_text": "3+3?", "position": 0, "answers": [
+             {"answer_text": "5", "is_correct": False, "position": 0},
+             {"answer_text": "6", "is_correct": True, "position": 1},
+         ]}]},
+         note="known gap #2: this full-replace does NOT bump article.version, though the quiz-gate reads version"),
+    Call("article_delete", "DELETE", f"/api/articles/{article_to_delete.id}", "content_admin"),
+
+    # ── Auth: remaining ────────────────────────────────────────────────────
+    Call("forgot_password", "POST", "/api/auth/forgot-password", None, {"email": "operator.tech@magti.ge"}),
+    Call("sso_mock_login_page", "GET", "/api/auth/sso/mock-login", None,
+         note="known gap #11: no production-level route gate on this picker page"),
+    Call("sso_callback", "POST", "/api/auth/sso/callback", None, params={"email": "content@magti.ge"},
+         note="security.py's dev-bypass allowlist (6 hardcoded emails) is a DIFFERENT set than "
+              "qa_accounts.TEST_ACCOUNTS (19 seeded accounts) -- only content@magti.ge/admin@magti.ge/"
+              "manager@magti.ge overlap, so most seeded accounts here can't actually use mock-SSO"),
+    Call("logout", "POST", "/api/auth/logout", "operator_tech"),
+
+    # ── Categories / Favorites / Videos: remaining CRUD ────────────────────
+    Call("category_delete", "DELETE", f"/api/categories/{category_to_delete.id}", "content_admin"),
+    Call("favorite_delete", "DELETE", f"/api/favorites/{favorite_to_delete.id}", "operator_tech"),
+    Call("video_update", "PUT", f"/api/videos/{video_item.id}", "content_admin",
+         {"title": "Golden — Video (edited)", "video_url": video_item.video_url,
+          "category": "ტექნიკური", "target_department": "ტექნიკური"}),
+    Call("video_unarchive", "POST", f"/api/videos/{video_item.id}/unarchive", "content_admin"),
+    Call("video_delete", "DELETE", f"/api/videos/{video_to_delete.id}", "content_admin"),
+
+    # ── Articles / News: autosave ──────────────────────────────────────────
+    Call("article_autosave", "PATCH", f"/api/articles/{plain_article.id}/autosave", "content_admin",
+         {"title": plain_article.title, "content": "<p>Autosaved draft body.</p>"}),
+    Call("news_autosave", "PATCH", f"/api/news/{news_item.id}/autosave", "content_admin",
+         {"title": news_item.title, "content": "<p>Autosaved draft body.</p>"}),
+    Call("news_delete", "DELETE", f"/api/news/{news_to_delete.id}", "content_admin"),
+
+    # ── Compliance: remaining ──────────────────────────────────────────────
+    Call("required_reading_delete", "DELETE", f"/api/compliance/required-readings/{reading_to_delete.id}", "sysadmin"),
+
+    # ── Exports: the two synchronous formats not yet captured ─────────────
+    Call("export_readings_xlsx_enqueue", "GET", "/api/export/readings.xlsx", "sysadmin",
+         note="async job, same shape as team-stats.pdf"),
+    Call("export_readings_pdf_enqueue", "GET", "/api/export/readings.pdf", "manager_tech",
+         note="PERM_REPORTS_EXPORT -- manager holds this by default, content_admin does not"),
+
+    # ── Messaging: remaining ───────────────────────────────────────────────
+    Call("messages_sent", "GET", "/api/messages/sent", "manager_tech"),
+    Call("message_mark_read", "POST", f"/api/messages/{message_to_delete.id}/read", "operator_tech"),
+    Call("message_delete", "DELETE", f"/api/messages/{message_to_delete.id}", "operator_tech"),
+
+    # ── Users: remaining self-service + admin ──────────────────────────────
+    Call("update_users_me", "PUT", "/api/users/me", "operator_tech",
+         {"name": "ოპერატორი (ტექნიკური) 1 (renamed)", "position": "უფროსი ოპერატორი"}),
+    Call("change_own_password", "POST", "/api/users/me/password", "operator_tech",
+         {"current_password": TEST_ACCOUNT_PASSWORD, "new_password": "NewGoldenPass2!"},
+         note="uses operator_tech, not operator_office -- operator_office's password was already "
+              "rotated by admin_reset_password earlier in this list, which would make TEST_ACCOUNT_PASSWORD "
+              "the wrong 'current_password' by the time this call runs"),
+    Call("bulk_reassign_roles", "POST", "/api/admin/roles/bulk-reassign", "sysadmin",
+         {"user_ids": [operator_office.id], "new_role": "manager"},
+         note="unlike the single-user PUT above (bug #3), this DOES reset permissions to the new role's defaults"),
+
+    # ── Stats: remaining ────────────────────────────────────────────────────
+    Call("popular_searches", "GET", "/api/statistics/popular-searches", "content_admin"),
+    Call("failed_searches", "GET", "/api/statistics/failed-searches", "content_admin"),
+    Call("user_progress_stats_forbidden", "GET", "/api/statistics/user-progress", "content_admin",
+         note="correctly 403 -- this endpoint is system-admin only, unlike most other /statistics/* routes"),
+    Call("user_progress_stats_as_sysadmin", "GET", "/api/statistics/user-progress", "sysadmin"),
+    Call("admin_team_stats", "GET", f"/api/admin/stats/team/{team.id}", "sysadmin"),
+    Call("manager_team_stats", "GET", "/api/manager/team-stats", "manager_tech"),
+    Call("critical_operators", "GET", "/api/admin/critical-operators", "content_admin"),
+    Call("department_group_users", "GET",
+         f"/api/admin/departments/{quote('ტექნიკური')}/groups/{quote('ჯგუფი 01')}/users", "content_admin"),
+    Call("statistics_breakdown_by_role", "GET", "/api/statistics/breakdown", "sysadmin", params={"dimension": "role"}),
+    Call("statistics_activity", "GET", "/api/statistics/activity", "sysadmin"),
+
+    # ── Platform: static pages + upload ─────────────────────────────────────
+    Call("serve_root", "GET", "/", None),
+    Call("serve_login_html", "GET", "/login.html", None),
+    Call("serve_base_layout_html", "GET", "/base-layout.html", None),
+    Call("serve_article_html", "GET", "/article.html", None),
+    Call("serve_logo", "GET", "/static/magti_logo.png", None,
+         note="NEWLY DISCOVERED (not in the original 11+4 known issues): 404s despite the file existing at "
+              "the project root. main.py mounts StaticFiles at /static (line 477) BEFORE include_router(platform) "
+              "(line 499) -- the mount's prefix match wins, so platform.py's dedicated "
+              "@router.get('/static/magti_logo.png') (whose own docstring claims it 'intercepts the request "
+              "before it falls through to the StaticFiles mount') never actually runs. Dead code, logo broken."),
 ]
 
 
@@ -377,6 +518,82 @@ def _run(call: Call) -> dict:
 
 
 results = [_run(c) for c in GOLDEN_CALLS]
+
+# ── Articles: update -> history -> diff -> restore chain ───────────────────
+# The diff/restore endpoints need a real history_id, which only exists after
+# an edit -- so this is a short dynamic sequence, not a static Call entry.
+_put_res = client.put(
+    f"/api/articles/{dept_article.id}", headers=_auth("content_admin"),
+    json={"title": "Golden — Tech-Only Article (edited)", "content": "<p>Edited.</p>",
+          "category_id": cat.id, "target_departments": ["ტექნიკური"], "status": "published"},
+)
+results.append({
+    "name": "article_update", "request": {"method": "PUT", "path": f"/api/articles/{dept_article.id}", "as_user": "content_admin"},
+    "response": {"status_code": _put_res.status_code, "body": _put_res.json() if _put_res.status_code == 200 else _put_res.text[:500]},
+    "note": "creates a history row, consumed by the diff/restore calls below",
+})
+_hist_res = client.get(f"/api/articles/{dept_article.id}/history", headers=_auth("content_admin"))
+_hist_rows = _hist_res.json() if _hist_res.status_code == 200 else []
+_hist_id = _hist_rows[0]["id"] if _hist_rows else None
+if _hist_id:
+    _diff_res = client.get(f"/api/articles/{dept_article.id}/history/{_hist_id}/diff", headers=_auth("content_admin"))
+    results.append({
+        "name": "article_history_diff",
+        "request": {"method": "GET", "path": f"/api/articles/{dept_article.id}/history/{_hist_id}/diff", "as_user": "content_admin"},
+        "response": {"status_code": _diff_res.status_code, "body": _diff_res.json() if _diff_res.status_code == 200 else _diff_res.text[:500]},
+        "note": "diffs the pre-edit snapshot against the article's current content",
+    })
+    _restore_res = client.post(f"/api/articles/{dept_article.id}/history/{_hist_id}/restore", headers=_auth("content_admin"))
+    results.append({
+        "name": "article_history_restore",
+        "request": {"method": "POST", "path": f"/api/articles/{dept_article.id}/history/{_hist_id}/restore", "as_user": "content_admin"},
+        "response": {"status_code": _restore_res.status_code, "body": _restore_res.json() if _restore_res.status_code == 200 else _restore_res.text[:500]},
+        "note": "",
+    })
+
+# ── News: history -> restore chain (update_news above already produced ────
+# a history row) ─────────────────────────────────────────────────────────
+_news_hist_res = client.get(f"/api/news/{news_item.id}/history", headers=_auth("content_admin"))
+_news_hist_rows = _news_hist_res.json() if _news_hist_res.status_code == 200 else []
+_news_hist_id = _news_hist_rows[0]["id"] if _news_hist_rows else None
+if _news_hist_id:
+    _news_restore_res = client.post(f"/api/news/{news_item.id}/history/{_news_hist_id}/restore", headers=_auth("content_admin"))
+    results.append({
+        "name": "news_history_restore",
+        "request": {"method": "POST", "path": f"/api/news/{news_item.id}/history/{_news_hist_id}/restore", "as_user": "content_admin"},
+        "response": {"status_code": _news_restore_res.status_code, "body": _news_restore_res.json() if _news_restore_res.status_code == 200 else _news_restore_res.text[:500]},
+        "note": "",
+    })
+
+# ── Upload: multipart file (needs a `files=` kwarg, not `json=`) ──────────
+_upload_res = client.post(
+    "/api/upload", headers=_auth("content_admin"),
+    files={"file": ("golden.png", b"\x89PNG\r\n\x1a\n" + b"\x00" * 32, "image/png")},
+)
+results.append({
+    "name": "upload_file", "request": {"method": "POST", "path": "/api/upload", "as_user": "content_admin"},
+    "response": {"status_code": _upload_res.status_code, "body": _upload_res.json() if _upload_res.status_code == 200 else _upload_res.text[:500]},
+    "note": "",
+})
+
+# ── SSE stream: deliberately NOT captured here ────────────────────────────
+# GET /api/stream is a long-lived connection, not a request/response pair --
+# under TestClient it depends on the broker's Redis probe (state.py's
+# check_redis(), which needs a real event loop from the app's lifespan,
+# never started by this script) and can hang indefinitely rather than
+# fail fast. A first attempt confirmed this: the capture run hung for
+# minutes with no local Redis reachable and had to be killed. The endpoint's
+# filtering behaviour (department/role/user_id match, admin-sees-all) is
+# already fully documented in docs/JAVA_ORACLE_ANGULAR_MIGRATION.md section
+# 2.2 -- covering it here would need a real running server + a short client
+# timeout, not this in-process TestClient approach. Left for a dedicated,
+# timeout-guarded test rather than this static capture.
+results.append({
+    "name": "sse_stream_connect", "request": {"method": "GET", "path": "/api/stream", "as_user": "operator_tech"},
+    "response": {"status_code": None, "body": None},
+    "note": "NOT CAPTURED -- long-lived stream, hangs under TestClient without a real event loop/Redis; "
+            "behavior documented in the migration doc instead, see comment above this entry in the script",
+})
 
 # ── Exports: async job flow (create -> status -> download) ────────────────
 # Needs the job_id from the create response, so it's a short dynamic
@@ -423,7 +640,8 @@ with open(out_path, "w", encoding="utf-8") as f:
 print(f"Wrote {out_path}")
 print(f"{len(results)} calls captured")
 for r in results:
-    print(f"  {r['response']['status_code']:>3}  {r['name']}")
+    sc = r['response']['status_code']
+    print(f"  {sc if sc is not None else '--':>3}  {r['name']}")
 
 db.close()
 _engine.dispose()
