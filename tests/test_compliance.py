@@ -257,3 +257,25 @@ def test_zero_required_readings_agree_across_implementations():
     assert main_percentage == 0
     assert utils_percentage == 0
     assert main_percentage == utils_percentage
+
+
+def test_group_suffixed_user_counts_department_reading_in_both_implementations():
+    """A user in a sub-group ("ტექნიკური — ჯგუფი 03") must be counted for a
+    reading targeted at the parent department ("ტექნიკური") — the same rule
+    _dept_matches already applies for visibility/my-readings. Both
+    _reading_progress (live dashboard) and compliance_utils.get_compliance_percentage
+    (compliance_alerts.py's daily cron) must agree, or an operator can see
+    "100% complete" on their own page while the dashboard/cron report 0%."""
+    user = models.User(id=999999, department="ტექნიკური — ჯგუფი 03")
+    readings_by_dept = {"ტექნიკური": 2}
+    read_map = {(999999, "ტექნიკური"): 1}
+
+    required, read, main_percentage = _reading_progress(user, 0, readings_by_dept, read_map)
+    utils_required, utils_read, utils_percentage = compliance_utils.get_compliance_data_tuple(
+        user, readings_by_dept, read_map
+    )
+
+    assert required == 2
+    assert read == 1
+    assert main_percentage == 50
+    assert (utils_required, utils_read, utils_percentage) == (required, read, main_percentage)

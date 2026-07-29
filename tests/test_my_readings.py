@@ -109,3 +109,54 @@ def test_my_progress_reflects_mark_read(db_session):
     finally:
         monolith_app.dependency_overrides.clear()
         _cleanup(db_session, article, reading, [operator, admin])
+
+
+def test_mark_read_rejects_department_mismatch(db_session):
+    """A user outside the reading's target department must not be able to
+    mark it read via a direct API call — previously mark_read had zero
+    department check at all."""
+    admin = make_user(db_session, email="factory_myread_admin4@magti.ge", role="admin")
+    operator = make_user(
+        db_session, email="factory_myread_op4@magti.ge", role="operator",
+        department="ოფისი",
+    )
+    article = make_article(db_session, author=admin, title="Dept-Mismatch Marker Article")
+    reading = make_required_reading(
+        db_session, item_id=article.id, target_department="ტექნიკური", due_days=5
+    )
+
+    monolith_app.dependency_overrides.clear()
+    monolith_app.dependency_overrides[security.get_current_user] = lambda: operator
+    try:
+        with TestClient(monolith_app) as tc:
+            res = tc.post(f"/api/compliance/mark-read/{reading.id}")
+            assert res.status_code == 403, res.text
+    finally:
+        monolith_app.dependency_overrides.clear()
+        _cleanup(db_session, article, reading, [operator, admin])
+
+
+def test_mark_read_allows_group_suffixed_department(db_session):
+    """A user in a sub-group ("ტექნიკური — ჯგუფი 03") must still be able to
+    mark read a reading targeted at the parent department ("ტექნიკური") —
+    the eligibility check must accept the same prefix match that
+    get_my_readings already uses to show them the reading in the first place."""
+    admin = make_user(db_session, email="factory_myread_admin5@magti.ge", role="admin")
+    operator = make_user(
+        db_session, email="factory_myread_op5@magti.ge", role="operator",
+        department="ტექნიკური — ჯგუფი 03",
+    )
+    article = make_article(db_session, author=admin, title="Group-Suffix Marker Article")
+    reading = make_required_reading(
+        db_session, item_id=article.id, target_department="ტექნიკური", due_days=5
+    )
+
+    monolith_app.dependency_overrides.clear()
+    monolith_app.dependency_overrides[security.get_current_user] = lambda: operator
+    try:
+        with TestClient(monolith_app) as tc:
+            res = tc.post(f"/api/compliance/mark-read/{reading.id}")
+            assert res.status_code == 200, res.text
+    finally:
+        monolith_app.dependency_overrides.clear()
+        _cleanup(db_session, article, reading, [operator, admin])

@@ -17,10 +17,11 @@ from sqlalchemy.orm import Session
 import models
 import schemas
 import security
+from compliance_utils import _split_dept_group
 from config import settings
 from database import get_db, get_tbilisi_time
 from db_helpers import log_audit, resolve_item_titles_bulk
-from routers.stats import _MANAGEMENT_ROLES, _split_dept_group
+from routers.stats import _MANAGEMENT_ROLES
 from state import broker
 
 router = APIRouter()

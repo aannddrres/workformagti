@@ -24,8 +24,9 @@ import models
 import schemas
 import security
 from database import format_tbilisi_date, get_db, get_tbilisi_time
+from compliance_utils import _dept_matches, _split_dept_group
 from db_helpers import get_or_404, log_audit
-from routers.stats import _dept_matches, _MANAGEMENT_ROLES, _split_dept_group
+from routers.stats import _MANAGEMENT_ROLES
 from state import _notify, _notify_revision, category_cache, search_cache
 
 router = APIRouter(tags=["articles"])

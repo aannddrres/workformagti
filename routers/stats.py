@@ -2,11 +2,16 @@
 helpers they share — Phase 12 of the main.py monolith split.
 
 This is where the widely-lazy-imported cross-domain helpers
-(_MANAGEMENT_ROLES, _split_dept_group, _dept_matches, compute_compliance,
-DEPARTMENT_WHITELIST, _match_department_bucket) finally get a real home —
-routers/compliance.py, platform.py, exports.py, and news.py all reached
-these via a temporary `import main` lazy import, now repointed to this
-module as part of this same phase.
+(_MANAGEMENT_ROLES, compute_compliance, DEPARTMENT_WHITELIST,
+_match_department_bucket) finally get a real home — routers/compliance.py,
+platform.py, exports.py, and news.py all reached these via a temporary
+`import main` lazy import, now repointed to this module as part of this
+same phase.
+
+_split_dept_group/_dept_matches/_normalize_dept moved to compliance_utils.py
+(imported below) so the department-eligibility rule has exactly one home,
+shared with the standalone compliance_alerts.py cron — see that module's
+docstring.
 
 OTHER_DEPARTMENT_LABEL and _DASHBOARD_EXCLUDED_ROLE were dropped here —
 confirmed zero references anywhere in the repo before this phase.
@@ -14,7 +19,6 @@ confirmed zero references anywhere in the repo before this phase.
 import asyncio
 import json
 import logging
-import re
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -26,7 +30,12 @@ from sqlalchemy.orm import Session
 import models
 import schemas
 import security
-from compliance_utils import MANAGEMENT_ROLES as _MANAGEMENT_ROLES, CRITICAL_THRESHOLD as _CRITICAL_THRESHOLD
+from compliance_utils import (
+    MANAGEMENT_ROLES as _MANAGEMENT_ROLES,
+    CRITICAL_THRESHOLD as _CRITICAL_THRESHOLD,
+    _DEPT_GROUP_DELIM,
+    _split_dept_group,
+)
 from database import get_db, get_tbilisi_time
 from state import broker
 
@@ -215,32 +224,25 @@ def get_compliance_statistics(
     return result
 
 
-def _dept_matches(user_dept: str, targets) -> bool:
-    """True if user_dept matches any target, with prefix support for sub-groups.
-    e.g. target 'ტექნიკური' matches user dept 'ტექნიკური — ჯგუფი 03'."""
-    for t in targets:
-        if t == "All":
-            return True
-        if user_dept == t or (t and _split_dept_group(user_dept)[0] == t):
-            return True
-    return False
-
-
 def _reading_progress(user, all_required, readings_by_dept, read_map):
     """Compute (required_count, read_count, percentage) for one user from
     pre-aggregated maps — no per-user query, so callers avoid the N+1.
 
-    Applicable readings = those targeting "All" plus those targeting the user's
-    own department; read_map is keyed by (user_id, reading_target_department).
+    Applicable readings = those targeting "All" plus those targeting the
+    user's own department, matched prefix-aware via _split_dept_group (a
+    reading targeted at "ტექნიკური" applies to a user in "ტექნიკური —
+    ჯგუფი 03") — the same rule _dept_matches uses for visibility, so this
+    can no longer disagree with what the user's own "my readings" list
+    shows them. read_map is keyed by (user_id, reading_target_department).
     """
     if not user.department or user.department == "All":
         required_count = all_required
         read_count = read_map.get((user.id, "All"), 0)
     else:
-        required_count = all_required + readings_by_dept.get(user.department, 0)
-        read_count = (
-            read_map.get((user.id, "All"), 0)
-            + read_map.get((user.id, user.department), 0)
+        dept_keys = {user.department, _split_dept_group(user.department)[0]}
+        required_count = all_required + sum(readings_by_dept.get(k, 0) for k in dept_keys)
+        read_count = read_map.get((user.id, "All"), 0) + sum(
+            read_map.get((user.id, k), 0) for k in dept_keys
         )
 
     if required_count == 0:
@@ -553,67 +555,6 @@ def _match_department_bucket(prefix: str):
         if raw.startswith(wl):
             return wl
     return None
-
-# Regex that matches any dash variant (hyphen-minus, en-dash, em-dash) with
-# optional surrounding whitespace. Handles messy data-entry from production.
-_DASH_RE = re.compile(r'\s*[-–—]\s*')  # - – —
-
-# Em dash used as the canonical delimiter when *reconstructing* department strings.
-_DEPT_GROUP_DELIM = "—"
-
-# Regex for collapsing runs of whitespace / tabs into a single space.
-_WS_RE = re.compile(r'[ \t]+')
-
-# Trailing whitespace/dash run — used to clean up a dash that sits right
-# before the "ჯგუფი" keyword (e.g. "ტექნიკური - ჯგუფი 01") once the keyword
-# anchor has already located the split point, so it isn't left stuck to the
-# end of the prefix.
-_TRAILING_DASH_RE = re.compile(r'[\s\-–—]+$')
-
-
-def _normalize_dept(raw):
-    """Collapse whitespace and strip, but leave dashes untouched."""
-    return _WS_RE.sub(' ', (raw or '').strip())
-
-
-def _split_dept_group(raw_department):
-    """Return (department_prefix, group_label) from a raw users.department value.
-
-    Handles em-dash, en-dash, ASCII hyphen, missing spaces, extra whitespace,
-    and the "ჯგუფი" keyword as a fallback delimiter when no dash is present.
-
-    "საინფორმაციო სამსახური — ჯგუფი 01" -> ("საინფორმაციო სამსახური", "ჯგუფი 01")
-    "ტექნიკური - ჯგუფი 01"              -> ("ტექნიკური",             "ჯგუფი 01")
-    "ტექნიკური დეპარტამენტი ჯგუფი 01"   -> ("ტექნიკური დეპარტამენტი", "ჯგუფი 01")
-    """
-    raw = _normalize_dept(raw_department)
-    if not raw:
-        return '', ''
-
-    # 1. Canonical em-dash first — the expected format, and immune to a
-    #    hyphen embedded earlier in the department name itself (e.g.
-    #    "IT-Support — ჯგუფი 01" must not split on the "IT-Support" hyphen).
-    if _DEPT_GROUP_DELIM in raw:
-        prefix, _, suffix = raw.partition(_DEPT_GROUP_DELIM)
-        prefix, suffix = prefix.strip(), suffix.strip()
-        return prefix, (suffix or prefix)
-
-    # 2. "ჯგუფი" keyword anchor — also immune to embedded hyphens, so tried
-    #    before the generic dash regex.
-    kw_idx = raw.find('ჯგუფი')
-    if kw_idx > 0:
-        prefix = _TRAILING_DASH_RE.sub('', raw[:kw_idx])
-        suffix = raw[kw_idx:].strip()
-        return prefix, suffix
-
-    # 3. Last resort: any dash variant. Only reached when there's neither an
-    #    em-dash nor a "ჯგუფი" keyword to anchor on.
-    parts = _DASH_RE.split(raw, maxsplit=1)
-    if len(parts) == 2:
-        prefix, suffix = parts[0].strip(), parts[1].strip()
-        return prefix, (suffix or prefix)
-
-    return raw, raw
 
 
 def _aggregate_members(members):

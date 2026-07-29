@@ -10,16 +10,17 @@ procedure.
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 import models
 import schemas
 import security
+from compliance_utils import _dept_matches, _split_dept_group
 from database import get_db, get_tbilisi_time
 from db_helpers import get_or_404, log_audit, resolve_item_title
 from routers.articles import _check_quiz_gate, _upsert_read_receipt
-from routers.stats import _MANAGEMENT_ROLES, _split_dept_group, compute_compliance
+from routers.stats import _MANAGEMENT_ROLES, compute_compliance
 from state import _safe_publish
 
 router = APIRouter(tags=["compliance"])
@@ -164,6 +165,8 @@ def mark_read(
         HTTPException: 404 Not Found if the required reading assignment does not exist.
     """
     reading = get_or_404(db, models.RequiredReading, reading_id, "სავალდებულო მასალა ვერ მოიძებნა")
+    if not _dept_matches(current_user.department, [reading.target_department]):
+        raise HTTPException(status_code=403, detail="ეს მასალა თქვენს დეპარტამენტს არ ეხება")
 
     reading_article = None
     if reading.item_type == "article":
@@ -215,10 +218,21 @@ def auto_generate_notifications_for_mandatory(db_reading, current_admin_id, db):
     item_title = resolve_item_title(db, db_reading.item_type, db_reading.item_id) or f"მასალა #{db_reading.item_id}"
 
     # Find all active users in the target department (excluding the admin).
-    users_q = db.query(models.User.id).filter(models.User.is_active == True)
-    if db_reading.target_department != "All":
-        users_q = users_q.filter(models.User.department == db_reading.target_department)
-    target_user_ids = [uid for (uid,) in users_q.all() if uid != current_admin_id]
+    # Prefix-aware via _dept_matches (org is ~600 users — one query, then an
+    # in-memory filter, no N+1) so a "ტექნიკური"-targeted reading also
+    # notifies users in "ტექნიკური — ჯგუფი 03", matching what their own
+    # "my readings" list already shows them.
+    if db_reading.target_department == "All":
+        active_users = db.query(models.User.id).filter(models.User.is_active == True).all()
+        target_user_ids = [uid for (uid,) in active_users if uid != current_admin_id]
+    else:
+        active_users = db.query(models.User.id, models.User.department).filter(
+            models.User.is_active == True
+        ).all()
+        target_user_ids = [
+            uid for uid, dept in active_users
+            if uid != current_admin_id and _dept_matches(dept, [db_reading.target_department])
+        ]
 
     if not target_user_ids:
         return

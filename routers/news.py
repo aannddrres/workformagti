@@ -12,9 +12,9 @@ from sqlalchemy.orm import Session
 import models
 import schemas
 import security
+from compliance_utils import _dept_matches, _split_dept_group
 from database import get_db, get_tbilisi_time
 from db_helpers import get_or_404, log_audit
-from routers.stats import _dept_matches, _split_dept_group
 from state import _notify, search_cache
 
 router = APIRouter(tags=["news"])
