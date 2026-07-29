@@ -14,7 +14,7 @@
     "response": {
       "status_code": 200,
       "body": {
-        "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJvcGVyYXRvci50ZWNoQG1hZ3RpLmdlIiwicm9sZSI6Im9wZXJhdG9yIiwiZXhwIjoxNzg1MzI5ODcxfQ.sIJyzl7Pv06HknIFzdluDMnM5nki5HvxnTW_wkKAsAQ",
+        "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJvcGVyYXRvci50ZWNoQG1hZ3RpLmdlIiwicm9sZSI6Im9wZXJhdG9yIiwiZXhwIjoxNzg1MzMxMDI4fQ.gTWiZlXmsHjkyV995sRy19jO-JXYH-KMzaLNgL3ZPVM",
         "token_type": "bearer"
       }
     },
@@ -113,7 +113,7 @@
           ],
           "status": "published",
           "published_at": null,
-          "created_at": "2026-07-29T15:57:49.010369",
+          "created_at": "2026-07-29T16:17:04.852873",
           "read_time": 1,
           "audience_profile": "all",
           "visible_to_tech_info": true,
@@ -131,7 +131,7 @@
           ],
           "status": "published",
           "published_at": null,
-          "created_at": "2026-07-29T15:57:48.980362",
+          "created_at": "2026-07-29T16:17:04.826873",
           "read_time": 1,
           "audience_profile": "all",
           "visible_to_tech_info": true,
@@ -165,7 +165,7 @@
           ],
           "status": "published",
           "published_at": null,
-          "created_at": "2026-07-29T15:57:49.031318",
+          "created_at": "2026-07-29T16:17:04.863965",
           "read_time": 1,
           "audience_profile": "all",
           "visible_to_tech_info": true,
@@ -183,7 +183,7 @@
           ],
           "status": "published",
           "published_at": null,
-          "created_at": "2026-07-29T15:57:49.010369",
+          "created_at": "2026-07-29T16:17:04.852873",
           "read_time": 1,
           "audience_profile": "all",
           "visible_to_tech_info": true,
@@ -201,7 +201,7 @@
           ],
           "status": "published",
           "published_at": null,
-          "created_at": "2026-07-29T15:57:48.980362",
+          "created_at": "2026-07-29T16:17:04.826873",
           "read_time": 1,
           "audience_profile": "all",
           "visible_to_tech_info": true,
@@ -236,15 +236,15 @@
         "published_at": null,
         "attachment_url": null,
         "author_id": 3,
-        "last_verified_at": "2026-07-29T15:57:49.031318",
+        "last_verified_at": "2026-07-29T16:17:04.863965",
         "audience_profile": "all",
         "visible_to_tech_info": true,
         "visible_to_service_center": false,
         "is_draft": false,
         "quiz_enabled": false,
         "id": 3,
-        "created_at": "2026-07-29T15:57:49.031318",
-        "updated_at": "2026-07-29T15:57:49.031318",
+        "created_at": "2026-07-29T16:17:04.863965",
+        "updated_at": "2026-07-29T16:17:04.863965",
         "version": 1,
         "read_time": 1
       }
@@ -351,9 +351,24 @@
         {
           "reading": {
             "item_type": "article",
+            "item_id": 1,
+            "target_department": "All",
+            "due_date": "2026-08-03T16:17:04.931016",
+            "priority": "normal",
+            "id": 2
+          },
+          "status": "unread",
+          "read_at": null,
+          "is_overdue": false,
+          "item_title": "Golden — Plain Article",
+          "item_content": ""
+        },
+        {
+          "reading": {
+            "item_type": "article",
             "item_id": 3,
             "target_department": "ტექნიკური",
-            "due_date": "2026-08-03T15:57:49.049202",
+            "due_date": "2026-08-03T16:17:04.872968",
             "priority": "normal",
             "id": 1
           },
@@ -379,9 +394,9 @@
     "response": {
       "status_code": 200,
       "body": {
-        "total_mandatory": 1,
+        "total_mandatory": 2,
         "read_completed": 0,
-        "pending": 1,
+        "pending": 2,
         "percentage": 0
       }
     },
@@ -418,7 +433,7 @@
       "body": {
         "insights": {
           "global_compliance": 0,
-          "critical_operators": 3,
+          "critical_operators": 8,
           "total_output_volume": 0,
           "total_members": 8
         },
@@ -445,7 +460,7 @@
                     "user_name": "ოპერატორი (ტექნიკური) 1",
                     "position": null,
                     "read_count": 0,
-                    "required_count": 1,
+                    "required_count": 2,
                     "percentage": 0,
                     "is_critical": true
                   },
@@ -454,7 +469,7 @@
                     "user_name": "ოპერატორი (ტექნიკური) 2",
                     "position": null,
                     "read_count": 0,
-                    "required_count": 1,
+                    "required_count": 2,
                     "percentage": 0,
                     "is_critical": true
                   }
@@ -473,7 +488,7 @@
                     "user_name": "ოპერატორი (ტექნიკური) 3",
                     "position": null,
                     "read_count": 0,
-                    "required_count": 1,
+                    "required_count": 2,
                     "percentage": 0,
                     "is_critical": true
                   }
@@ -487,7 +502,7 @@
             "group_count": 2,
             "compliance": 0,
             "output_volume": 0,
-            "critical_count": 0,
+            "critical_count": 3,
             "is_empty": false,
             "groups": [
               {
@@ -496,25 +511,25 @@
                 "member_count": 2,
                 "compliance": 0,
                 "output_volume": 0,
-                "critical_count": 0,
+                "critical_count": 2,
                 "members": [
                   {
                     "user_id": 12,
                     "user_name": "ოპერატორი (საინფორმაციო) 1",
                     "position": null,
                     "read_count": 0,
-                    "required_count": 0,
+                    "required_count": 1,
                     "percentage": 0,
-                    "is_critical": false
+                    "is_critical": true
                   },
                   {
                     "user_id": 13,
                     "user_name": "ოპერატორი (საინფორმაციო) 2",
                     "position": null,
                     "read_count": 0,
-                    "required_count": 0,
+                    "required_count": 1,
                     "percentage": 0,
-                    "is_critical": false
+                    "is_critical": true
                   }
                 ]
               },
@@ -524,16 +539,16 @@
                 "member_count": 1,
                 "compliance": 0,
                 "output_volume": 0,
-                "critical_count": 0,
+                "critical_count": 1,
                 "members": [
                   {
                     "user_id": 20,
                     "user_name": "ოპერატორი (საინფორმაციო) 3",
                     "position": null,
                     "read_count": 0,
-                    "required_count": 0,
+                    "required_count": 1,
                     "percentage": 0,
-                    "is_critical": false
+                    "is_critical": true
                   }
                 ]
               }
@@ -545,7 +560,7 @@
             "group_count": 1,
             "compliance": 0,
             "output_volume": 0,
-            "critical_count": 0,
+            "critical_count": 2,
             "is_empty": false,
             "groups": [
               {
@@ -554,32 +569,32 @@
                 "member_count": 2,
                 "compliance": 0,
                 "output_volume": 0,
-                "critical_count": 0,
+                "critical_count": 2,
                 "members": [
                   {
                     "user_id": 16,
                     "user_name": "ოპერატორი (ოფისი) 1",
                     "position": null,
                     "read_count": 0,
-                    "required_count": 0,
+                    "required_count": 1,
                     "percentage": 0,
-                    "is_critical": false
+                    "is_critical": true
                   },
                   {
                     "user_id": 17,
                     "user_name": "ოპერატორი (ოფისი) 2",
                     "position": null,
                     "read_count": 0,
-                    "required_count": 0,
+                    "required_count": 1,
                     "percentage": 0,
-                    "is_critical": false
+                    "is_critical": true
                   }
                 ]
               }
             ]
           }
         ],
-        "generated_at": "2026-07-29T15:57:53.207332"
+        "generated_at": "2026-07-29T16:17:09.024853"
       }
     },
     "note": ""
@@ -598,8 +613,8 @@
       "body": {
         "users": 20,
         "articles": 3,
-        "required_readings": 1,
-        "videos": 0
+        "required_readings": 2,
+        "videos": 1
       }
     },
     "note": ""
@@ -624,7 +639,7 @@
           "admin_id": 8,
           "admin_name": "ოპერატორი (ტექნიკური) 1",
           "item_name": "ოპერატორი (ტექნიკური) 1",
-          "timestamp": "2026-07-29T15:57:52.411498",
+          "timestamp": "2026-07-29T16:17:08.578995",
           "category": "SECURITY",
           "details": "IP: testclient",
           "prev_hash": null,
@@ -640,7 +655,7 @@
           "admin_id": 8,
           "admin_name": "ოპერატორი (ტექნიკური) 1",
           "item_name": "ოპერატორი (ტექნიკური) 1",
-          "timestamp": "2026-07-29T15:57:51.816585",
+          "timestamp": "2026-07-29T16:17:08.040898",
           "category": "SECURITY",
           "details": null,
           "prev_hash": null,
@@ -656,7 +671,7 @@
           "admin_id": 8,
           "admin_name": "ოპერატორი (ტექნიკური) 1",
           "item_name": "ოპერატორი (ტექნიკური) 1",
-          "timestamp": "2026-07-29T15:57:50.836706",
+          "timestamp": "2026-07-29T16:17:06.946016",
           "category": "SECURITY",
           "details": null,
           "prev_hash": null,
@@ -672,7 +687,7 @@
           "admin_id": 7,
           "admin_name": "მენეჯერი (ტექნიკური)",
           "item_name": "მენეჯერი (ტექნიკური)",
-          "timestamp": "2026-07-29T15:57:50.345542",
+          "timestamp": "2026-07-29T16:17:06.303571",
           "category": "SECURITY",
           "details": null,
           "prev_hash": null,
@@ -746,6 +761,1551 @@
     "note": "known gap #4: videos.archive should be grantable but the whitelist rejects it"
   },
   {
+    "name": "quiz_attempt_wrong_answer",
+    "request": {
+      "method": "POST",
+      "path": "/api/articles/2/quiz/attempt",
+      "as_user": "operator_tech",
+      "json_body": {
+        "answers": {
+          "1": 1
+        }
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "passed": false,
+        "score": 0,
+        "total_questions": 1,
+        "wrong_question_ids": [
+          1
+        ],
+        "attempt_number": 1
+      }
+    },
+    "note": "passed=false expected"
+  },
+  {
+    "name": "quiz_attempt_correct_answer",
+    "request": {
+      "method": "POST",
+      "path": "/api/articles/2/quiz/attempt",
+      "as_user": "operator_tech",
+      "json_body": {
+        "answers": {
+          "1": 2
+        }
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "passed": true,
+        "score": 1,
+        "total_questions": 1,
+        "wrong_question_ids": [],
+        "attempt_number": 2
+      }
+    },
+    "note": "passed=true expected; +10/+5 knowledge-score bonus on first try"
+  },
+  {
+    "name": "read_receipt_after_passing_quiz",
+    "request": {
+      "method": "POST",
+      "path": "/api/articles/2/read-receipt",
+      "as_user": "operator_tech",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "status": "success",
+        "read_at": "2026-07-29T16:17:09.312149",
+        "article_version": 1
+      }
+    },
+    "note": "must now succeed -- gate lifted after the attempt above"
+  },
+  {
+    "name": "knowledge_score_after_pass",
+    "request": {
+      "method": "GET",
+      "path": "/api/users/me/knowledge-score",
+      "as_user": "operator_tech",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "user_id": 8,
+        "score": 10,
+        "articles_passed": 1,
+        "first_try_passes": 0
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "knowledge_leaderboard",
+    "request": {
+      "method": "GET",
+      "path": "/api/knowledge-leaderboard",
+      "as_user": "operator_tech",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "entries": [
+          {
+            "user_id": 8,
+            "user_name": "ოპერატორი (ტექნიკური) 1",
+            "department": "ტექნიკური — ჯგუფი 01",
+            "score": 10,
+            "rank": 1
+          }
+        ],
+        "generated_at": "2026-07-29T16:17:09.367142"
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "article_history",
+    "request": {
+      "method": "GET",
+      "path": "/api/articles/1/history",
+      "as_user": "content_admin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": []
+    },
+    "note": ""
+  },
+  {
+    "name": "article_view_log",
+    "request": {
+      "method": "POST",
+      "path": "/api/articles/1/view",
+      "as_user": "operator_tech",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "status": "success"
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "article_note_upsert",
+    "request": {
+      "method": "PUT",
+      "path": "/api/articles/1/note",
+      "as_user": "operator_tech",
+      "json_body": {
+        "content": "პირადი შენიშვნა golden capture-ისთვის"
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "id": 1,
+        "user_id": 8,
+        "article_id": 1,
+        "content": "პირადი შენიშვნა golden capture-ისთვის"
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "article_feedback",
+    "request": {
+      "method": "POST",
+      "path": "/api/articles/1/feedback",
+      "as_user": "operator_tech",
+      "json_body": {
+        "message": "ტიპოგრაფიული შეცდომა სათაურში."
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 410,
+      "body": {
+        "detail": "ხარვეზის რეპორტირება დეპრეკირებულია"
+      }
+    },
+    "note": "deliberately deprecated in code -- always 410, not a capture bug"
+  },
+  {
+    "name": "article_related",
+    "request": {
+      "method": "GET",
+      "path": "/api/articles/1/related",
+      "as_user": "operator_tech",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": [
+        {
+          "id": 2,
+          "title": "Golden — Quiz Article",
+          "category_id": 1,
+          "tags": null
+        }
+      ]
+    },
+    "note": ""
+  },
+  {
+    "name": "articles_bulk_archive",
+    "request": {
+      "method": "POST",
+      "path": "/api/articles/bulk-archive",
+      "as_user": "content_admin",
+      "json_body": {
+        "ids": [
+          3
+        ],
+        "archive": true
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "updated": 1,
+        "status": "archived",
+        "skipped_ids": []
+      }
+    },
+    "note": "requires PERM_ARTICLES_ARCHIVE"
+  },
+  {
+    "name": "create_news",
+    "request": {
+      "method": "POST",
+      "path": "/api/news",
+      "as_user": "content_admin",
+      "json_body": {
+        "title": "Golden — Created News",
+        "content": "<p>Body.</p>",
+        "target_department": "All",
+        "is_draft": false
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "title": "Golden — Created News",
+        "content": "<p>Body.</p>",
+        "target_department": "All",
+        "attachment_url": null,
+        "visible_to_tech_info": true,
+        "visible_to_service_center": false,
+        "expires_at": null,
+        "is_draft": false,
+        "author_id": 3,
+        "id": 2,
+        "created_at": "2026-07-29T16:17:09.603969",
+        "version": 1,
+        "is_archived": false
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "list_news",
+    "request": {
+      "method": "GET",
+      "path": "/api/news",
+      "as_user": "operator_tech",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": [
+        {
+          "id": 2,
+          "title": "Golden — Created News",
+          "target_department": "All",
+          "attachment_url": null,
+          "created_at": "2026-07-29T16:17:09.603969",
+          "version": 1,
+          "visible_to_tech_info": true,
+          "visible_to_service_center": false,
+          "is_archived": false,
+          "expires_at": null,
+          "is_draft": false,
+          "author_id": 3
+        },
+        {
+          "id": 1,
+          "title": "Golden — News Item",
+          "target_department": "All",
+          "attachment_url": null,
+          "created_at": "2026-07-29T16:17:04.932917",
+          "version": 1,
+          "visible_to_tech_info": true,
+          "visible_to_service_center": false,
+          "is_archived": false,
+          "expires_at": null,
+          "is_draft": false,
+          "author_id": 3
+        }
+      ]
+    },
+    "note": ""
+  },
+  {
+    "name": "get_news",
+    "request": {
+      "method": "GET",
+      "path": "/api/news/1",
+      "as_user": "operator_tech",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "title": "Golden — News Item",
+        "content": "<p>News body.</p>",
+        "target_department": "All",
+        "attachment_url": null,
+        "visible_to_tech_info": true,
+        "visible_to_service_center": false,
+        "expires_at": null,
+        "is_draft": false,
+        "author_id": 3,
+        "id": 1,
+        "created_at": "2026-07-29T16:17:04.932917",
+        "version": 1,
+        "is_archived": false
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "update_news",
+    "request": {
+      "method": "PUT",
+      "path": "/api/news/1",
+      "as_user": "content_admin",
+      "json_body": {
+        "title": "Golden — News Item (edited)",
+        "content": "<p>Edited body.</p>",
+        "target_department": "All",
+        "is_draft": false
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "title": "Golden — News Item (edited)",
+        "content": "<p>Edited body.</p>",
+        "target_department": "All",
+        "attachment_url": null,
+        "visible_to_tech_info": true,
+        "visible_to_service_center": false,
+        "expires_at": null,
+        "is_draft": false,
+        "author_id": null,
+        "id": 1,
+        "created_at": "2026-07-29T16:17:04.932917",
+        "version": 2,
+        "is_archived": false
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "news_history",
+    "request": {
+      "method": "GET",
+      "path": "/api/news/1/history",
+      "as_user": "content_admin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": [
+        {
+          "id": 1,
+          "title": "Golden — News Item",
+          "content": "<p>News body.</p>",
+          "attachment_url": null,
+          "updated_at": "2026-07-29T16:17:09.675571",
+          "author_name": "კონტენტის ადმინისტრატორი"
+        }
+      ]
+    },
+    "note": ""
+  },
+  {
+    "name": "create_video",
+    "request": {
+      "method": "POST",
+      "path": "/api/videos",
+      "as_user": "content_admin",
+      "json_body": {
+        "title": "Golden — Created Video",
+        "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "category": "ტექნიკური",
+        "target_department": "ტექნიკური"
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "title": "Golden — Created Video",
+        "video_url": "https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0",
+        "category": "ტექნიკური",
+        "target_department": "ტექნიკური",
+        "tags": null,
+        "id": 2,
+        "created_at": "2026-07-29T16:17:09.730196",
+        "views_count": 0,
+        "is_archived": false
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "list_videos_as_tech_operator",
+    "request": {
+      "method": "GET",
+      "path": "/api/videos",
+      "as_user": "operator_tech",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": []
+    },
+    "note": "bug #10 CONFIRMED empirically: operator_tech's department is the sub-group 'ტექნიკური — ჯგუფი 01', video targets parent 'ტექნიკური' -- articles/news would show this via prefix-match, but videos.py's exact == returns an EMPTY list here"
+  },
+  {
+    "name": "list_videos_as_office_operator",
+    "request": {
+      "method": "GET",
+      "path": "/api/videos",
+      "as_user": "operator_office",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": []
+    },
+    "note": "contrast baseline: a genuinely unrelated department, also empty -- same visible symptom as the sub-group case above, for a different (correct) reason"
+  },
+  {
+    "name": "video_view",
+    "request": {
+      "method": "POST",
+      "path": "/api/videos/1/view",
+      "as_user": "operator_tech",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "title": "Golden — Video",
+        "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "category": "ტექნიკური",
+        "target_department": "ტექნიკური",
+        "tags": null,
+        "id": 1,
+        "created_at": "2026-07-29T16:17:04.937914",
+        "views_count": 1,
+        "is_archived": false
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "video_archive",
+    "request": {
+      "method": "POST",
+      "path": "/api/videos/1/archive",
+      "as_user": "content_admin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "title": "Golden — Video",
+        "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "category": "ტექნიკური",
+        "target_department": "ტექნიკური",
+        "tags": null,
+        "id": 1,
+        "created_at": "2026-07-29T16:17:04.937914",
+        "views_count": 1,
+        "is_archived": true
+      }
+    },
+    "note": "requires PERM_VIDEOS_ARCHIVE"
+  },
+  {
+    "name": "create_category",
+    "request": {
+      "method": "POST",
+      "path": "/api/categories",
+      "as_user": "content_admin",
+      "json_body": {
+        "name": "Golden — Second Category"
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "name": "Golden — Second Category",
+        "parent_id": null,
+        "slug": null,
+        "icon": null,
+        "pastel_color_class": null,
+        "is_active": true,
+        "id": 2
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "list_categories",
+    "request": {
+      "method": "GET",
+      "path": "/api/categories",
+      "as_user": "operator_tech",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": [
+        {
+          "name": "Golden Master Category",
+          "parent_id": null,
+          "slug": null,
+          "icon": null,
+          "pastel_color_class": null,
+          "is_active": true,
+          "id": 1
+        },
+        {
+          "name": "Golden — Second Category",
+          "parent_id": null,
+          "slug": null,
+          "icon": null,
+          "pastel_color_class": null,
+          "is_active": true,
+          "id": 2
+        }
+      ]
+    },
+    "note": ""
+  },
+  {
+    "name": "update_category",
+    "request": {
+      "method": "PUT",
+      "path": "/api/categories/1",
+      "as_user": "content_admin",
+      "json_body": {
+        "name": "Golden Master Category (renamed)"
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "name": "Golden Master Category (renamed)",
+        "parent_id": null,
+        "slug": null,
+        "icon": null,
+        "pastel_color_class": null,
+        "is_active": true,
+        "id": 1
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "add_favorite",
+    "request": {
+      "method": "POST",
+      "path": "/api/favorites",
+      "as_user": "operator_tech",
+      "json_body": {
+        "item_type": "article",
+        "item_id": 1
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "item_type": "article",
+        "item_id": 1,
+        "id": 1,
+        "user_id": 8,
+        "item_title": "Golden — Plain Article"
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "list_favorites",
+    "request": {
+      "method": "GET",
+      "path": "/api/favorites",
+      "as_user": "operator_tech",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": [
+        {
+          "item_type": "article",
+          "item_id": 1,
+          "id": 1,
+          "user_id": 8,
+          "item_title": "Golden — Plain Article"
+        }
+      ]
+    },
+    "note": ""
+  },
+  {
+    "name": "create_team",
+    "request": {
+      "method": "POST",
+      "path": "/api/teams",
+      "as_user": "sysadmin",
+      "json_body": {
+        "name": "Golden — Created Team"
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "name": "Golden — Created Team",
+        "id": 2,
+        "created_at": "2026-07-29T16:17:09.987051"
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "list_teams",
+    "request": {
+      "method": "GET",
+      "path": "/api/teams",
+      "as_user": "sysadmin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": [
+        {
+          "name": "Golden Team",
+          "id": 1,
+          "created_at": "2026-07-29T16:17:04.936915"
+        },
+        {
+          "name": "Golden — Created Team",
+          "id": 2,
+          "created_at": "2026-07-29T16:17:09.987051"
+        }
+      ]
+    },
+    "note": ""
+  },
+  {
+    "name": "create_required_reading",
+    "request": {
+      "method": "POST",
+      "path": "/api/compliance/required-readings",
+      "as_user": "sysadmin",
+      "json_body": {
+        "item_type": "article",
+        "item_id": 1,
+        "target_department": "All",
+        "due_date": "2026-08-08T16:17:07.530811",
+        "priority": "normal"
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "item_type": "article",
+        "item_id": 1,
+        "target_department": "All",
+        "due_date": "2026-08-08T16:17:07.530811",
+        "priority": "normal",
+        "id": 3
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "required_reading_by_item",
+    "request": {
+      "method": "GET",
+      "path": "/api/compliance/required-readings/by-item/article/3",
+      "as_user": "content_admin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "item_type": "article",
+        "item_id": 3,
+        "target_department": "ტექნიკური",
+        "due_date": "2026-08-03T16:17:04.872968",
+        "priority": "normal",
+        "id": 1
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "update_required_reading",
+    "request": {
+      "method": "PUT",
+      "path": "/api/compliance/required-readings/2",
+      "as_user": "sysadmin",
+      "json_body": {
+        "item_type": "article",
+        "item_id": 1,
+        "target_department": "All",
+        "due_date": "2026-08-18T16:17:07.531810",
+        "priority": "high"
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "item_type": "article",
+        "item_id": 1,
+        "target_department": "All",
+        "due_date": "2026-08-18T16:17:07.531810",
+        "priority": "high",
+        "id": 2
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "list_users_as_sysadmin",
+    "request": {
+      "method": "GET",
+      "path": "/api/users",
+      "as_user": "sysadmin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": [
+        {
+          "email": "sysadmin@magti.ge",
+          "name": "სისტემური ადმინისტრატორი",
+          "department": "All",
+          "position": null,
+          "phone": null,
+          "role": "admin",
+          "team_id": null,
+          "id": 1,
+          "is_active": true,
+          "last_active": null,
+          "read_count": 0,
+          "required_count": 2,
+          "progress_percentage": 0,
+          "card_style": "corporate",
+          "permissions": [
+            "articles.view",
+            "articles.edit",
+            "articles.publish",
+            "articles.archive",
+            "videos.archive",
+            "users.manage",
+            "compliance.assign",
+            "reports.export"
+          ]
+        },
+        {
+          "email": "admin@magti.ge",
+          "name": "პორტალის ადმინი",
+          "department": "All",
+          "position": null,
+          "phone": null,
+          "role": "admin",
+          "team_id": null,
+          "id": 2,
+          "is_active": true,
+          "last_active": null,
+          "read_count": 0,
+          "required_count": 2,
+          "progress_percentage": 0,
+          "card_style": "corporate",
+          "permissions": [
+            "articles.view",
+            "articles.edit",
+            "articles.publish",
+            "articles.archive",
+            "videos.archive",
+            "users.manage",
+            "compliance.assign",
+            "reports.export"
+          ]
+        },
+        {
+          "email": "content@magti.ge",
+          "name": "კონტენტის ადმინისტრატორი",
+          "department": "All",
+          "position": null,
+          "phone": null,
+          "role": "content_admin",
+          "team_id": null,
+          "id": 3,
+          "is_active": true,
+          "last_active": null,
+          "read_count": 0,
+          "required_count": 2,
+          "progress_percentage": 0,
+          "card_style": "corporate",
+          "permissions": [
+            "articles.view",
+            "articles.edit",
+            "articles.publish",
+            "articles.archive",
+            "videos.archive",
+            "compliance.assign"
+          ]
+        },
+        {
+          "email": "manager@magti.ge",
+          "name": "ტესტ მენეჯერი",
+          "department": "All",
+          "position": null,
+          "phone": null,
+          "role": "manager",
+          "team_id": null,
+          "id": 4,
+          "is_active": true,
+          "last_active": null,
+          "read_count": 0,
+          "required_count": 2,
+          "progress_percentage": 0,
+          "card_style": "corporate",
+          "permissions": [
+            "reports.export"
+          ]
+        },
+        {
+          "email": "operator@magti.ge",
+          "name": "ტესტ ოპერატორი",
+          "department": "All",
+          "position": null,
+          "phone": null,
+          "role": "operator",
+          "team_id": null,
+          "id": 5,
+          "is_active": true,
+          "last_active": null,
+          "read_count": 0,
+          "required_count": 2,
+          "progress_percentage": 0,
+          "card_style": "corporate",
+          "permissions": []
+        },
+        {
+          "email": "admin.tech@magti.ge",
+          "name": "ადმინი (ტექნიკური)",
+          "department": "ტექნიკური",
+          "position": null,
+          "phone": null,
+          "role": "admin",
+          "team_id": null,
+          "id": 6,
+          "is_active": true,
+          "last_active": null,
+          "read_count": 0,
+          "required_count": 3,
+          "progress_percentage": 0,
+          "card_style": "corporate",
+          "permissions": [
+            "articles.view",
+            "articles.edit",
+            "articles.publish",
+            "articles.archive",
+            "videos.archive",
+            "users.manage",
+            "compliance.assign",
+            "reports.export"
+          ]
+        },
+        {
+          "email": "manager.tech@magti.ge",
+          "name": "მენეჯერი (ტექნიკური)",
+          "department": "ტექნიკური — ჯგუფი 01",
+          "position": null,
+          "phone": null,
+          "role": "manager",
+          "team_id": null,
+          "id": 7,
+          "is_active": true,
+          "last_active": null,
+          "read_count": 0,
+          "required_count": 3,
+          "progress_percentage": 0,
+          "card_style": "corporate",
+          "permissions": [
+            "reports.export"
+          ]
+        },
+        {
+          "email": "operator.tech@magti.ge",
+          "name": "ოპერატორი (ტექნიკური) 1",
+          "department": "ტექნიკური — ჯგუფი 01",
+          "position": null,
+          "phone": null,
+          "role": "operator",
+          "team_id": null,
+          "id": 8,
+          "is_active": true,
+          "last_active": null,
+          "read_count": 0,
+          "required_count": 3,
+          "progress_percentage": 0,
+          "card_style": "corporate",
+          "permissions": []
+        },
+        {
+          "email": "operator2.tech@magti.ge",
+          "name": "ოპერატორი (ტექნიკური) 2",
+          "department": "ტექნიკური — ჯგუფი 01",
+          "position": null,
+          "phone": null,
+          "role": "operator",
+          "team_id": null,
+          "id": 9,
+          "is_active": true,
+          "last_active": null,
+          "read_count": 0,
+          "required_count": 3,
+          "progress_percentage": 0,
+          "card_style": "corporate",
+          "permissions": []
+        },
+        {
+          "email": "admin.info@magti.ge",
+          "name": "ადმინი (საინფორმაციო)",
+          "department": "საინფორმაციო",
+          "position": null,
+          "phone": null,
+          "role": "admin",
+          "team_id": null,
+          "id": 10,
+          "is_active": true,
+          "last_active": null,
+          "read_count": 0,
+          "required_count": 2,
+          "progress_percentage": 0,
+          "card_style": "corporate",
+          "permissions": [
+            "articles.view",
+            "articles.edit",
+            "articles.publish",
+            "articles.archive",
+            "videos.archive",
+            "users.manage",
+            "compliance.assign",
+            "reports.export"
+          ]
+        },
+        {
+          "email": "manager.info@magti.ge",
+          "name": "მენეჯერი (საინფორმაციო)",
+          "department": "საინფორმაციო — ჯგუფი 01",
+          "position": null,
+          "phone": null,
+          "role": "manager",
+          "team_id": null,
+          "id": 11,
+          "is_active": true,
+          "last_active": null,
+          "read_count": 0,
+          "required_count": 2,
+          "progress_percentage": 0,
+          "card_style": "corporate",
+          "permissions": [
+            "reports.export"
+          ]
+        },
+        {
+          "email": "operator.info@magti.ge",
+          "name": "ოპერატორი (საინფორმაციო) 1",
+          "department": "საინფორმაციო — ჯგუფი 01",
+          "position": null,
+          "phone": null,
+          "role": "operator",
+          "team_id": null,
+          "id": 12,
+          "is_active": true,
+          "last_active": null,
+          "read_count": 0,
+          "required_count": 2,
+          "progress_percentage": 0,
+          "card_style": "corporate",
+          "permissions": []
+        },
+        {
+          "email": "operator2.info@magti.ge",
+          "name": "ოპერატორი (საინფორმაციო) 2",
+          "department": "საინფორმაციო — ჯგუფი 01",
+          "position": null,
+          "phone": null,
+          "role": "operator",
+          "team_id": null,
+          "id": 13,
+          "is_active": true,
+          "last_active": null,
+          "read_count": 0,
+          "required_count": 2,
+          "progress_percentage": 0,
+          "card_style": "corporate",
+          "permissions": []
+        },
+        {
+          "email": "admin.office@magti.ge",
+          "name": "ადმინი (ოფისი)",
+          "department": "ოფისი",
+          "position": null,
+          "phone": null,
+          "role": "admin",
+          "team_id": null,
+          "id": 14,
+          "is_active": true,
+          "last_active": null,
+          "read_count": 0,
+          "required_count": 2,
+          "progress_percentage": 0,
+          "card_style": "corporate",
+          "permissions": [
+            "articles.view",
+            "articles.edit",
+            "articles.publish",
+            "articles.archive",
+            "videos.archive",
+            "users.manage",
+            "compliance.assign",
+            "reports.export"
+          ]
+        },
+        {
+          "email": "manager.office@magti.ge",
+          "name": "მენეჯერი (ოფისი)",
+          "department": "ოფისი — ჯგუფი 01",
+          "position": null,
+          "phone": null,
+          "role": "manager",
+          "team_id": null,
+          "id": 15,
+          "is_active": true,
+          "last_active": null,
+          "read_count": 0,
+          "required_count": 2,
+          "progress_percentage": 0,
+          "card_style": "corporate",
+          "permissions": [
+            "reports.export"
+          ]
+        },
+        {
+          "email": "operator.office@magti.ge",
+          "name": "ოპერატორი (ოფისი) 1",
+          "department": "ოფისი — ჯგუფი 01",
+          "position": null,
+          "phone": null,
+          "role": "operator",
+          "team_id": null,
+          "id": 16,
+          "is_active": true,
+          "last_active": null,
+          "read_count": 0,
+          "required_count": 2,
+          "progress_percentage": 0,
+          "card_style": "corporate",
+          "permissions": []
+        },
+        {
+          "email": "operator2.office@magti.ge",
+          "name": "ოპერატორი (ოფისი) 2",
+          "department": "ოფისი — ჯგუფი 01",
+          "position": null,
+          "phone": null,
+          "role": "operator",
+          "team_id": null,
+          "id": 17,
+          "is_active": true,
+          "last_active": null,
+          "read_count": 0,
+          "required_count": 2,
+          "progress_percentage": 0,
+          "card_style": "corporate",
+          "permissions": []
+        },
+        {
+          "email": "manager2.tech@magti.ge",
+          "name": "მენეჯერი (ტექნიკური) 2",
+          "department": "ტექნიკური — ჯგუფი 02",
+          "position": null,
+          "phone": null,
+          "role": "manager",
+          "team_id": null,
+          "id": 18,
+          "is_active": true,
+          "last_active": null,
+          "read_count": 0,
+          "required_count": 3,
+          "progress_percentage": 0,
+          "card_style": "corporate",
+          "permissions": [
+            "reports.export"
+          ]
+        },
+        {
+          "email": "operator3.tech@magti.ge",
+          "name": "ოპერატორი (ტექნიკური) 3",
+          "department": "ტექნიკური — ჯგუფი 02",
+          "position": null,
+          "phone": null,
+          "role": "operator",
+          "team_id": null,
+          "id": 19,
+          "is_active": true,
+          "last_active": null,
+          "read_count": 0,
+          "required_count": 3,
+          "progress_percentage": 0,
+          "card_style": "corporate",
+          "permissions": []
+        },
+        {
+          "email": "operator3.info@magti.ge",
+          "name": "ოპერატორი (საინფორმაციო) 3",
+          "department": "საინფორმაციო — ჯგუფი 02",
+          "position": null,
+          "phone": null,
+          "role": "operator",
+          "team_id": null,
+          "id": 20,
+          "is_active": true,
+          "last_active": null,
+          "read_count": 0,
+          "required_count": 2,
+          "progress_percentage": 0,
+          "card_style": "corporate",
+          "permissions": []
+        }
+      ]
+    },
+    "note": ""
+  },
+  {
+    "name": "create_user_as_sysadmin",
+    "request": {
+      "method": "POST",
+      "path": "/api/users",
+      "as_user": "sysadmin",
+      "json_body": {
+        "email": "golden.newuser@magti.ge",
+        "name": "Golden New User",
+        "role": "operator",
+        "department": "ტექნიკური",
+        "password": "Test1234!"
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "email": "golden.newuser@magti.ge",
+        "name": "Golden New User",
+        "department": "ტექნიკური",
+        "position": null,
+        "phone": null,
+        "role": "operator",
+        "team_id": null,
+        "id": 21,
+        "is_active": true,
+        "last_active": null,
+        "read_count": null,
+        "required_count": null,
+        "progress_percentage": null,
+        "card_style": "corporate",
+        "permissions": []
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "update_user_admin_no_permission_reset",
+    "request": {
+      "method": "PUT",
+      "path": "/api/users/8",
+      "as_user": "sysadmin",
+      "json_body": {
+        "role": "content_admin",
+        "department": "ტექნიკური — ჯგუფი 01"
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "email": "operator.tech@magti.ge",
+        "name": "ოპერატორი (ტექნიკური) 1",
+        "department": "ტექნიკური — ჯგუფი 01",
+        "position": null,
+        "phone": null,
+        "role": "content_admin",
+        "team_id": null,
+        "id": 8,
+        "is_active": true,
+        "last_active": null,
+        "read_count": null,
+        "required_count": null,
+        "progress_percentage": null,
+        "card_style": "corporate",
+        "permissions": []
+      }
+    },
+    "note": "known gap #3: unlike bulk-reassign, this must NOT reset granular permissions -- capture as-is"
+  },
+  {
+    "name": "update_user_status",
+    "request": {
+      "method": "PUT",
+      "path": "/api/users/16/status",
+      "as_user": "sysadmin",
+      "json_body": {
+        "is_active": true
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "email": "operator.office@magti.ge",
+        "name": "ოპერატორი (ოფისი) 1",
+        "department": "ოფისი — ჯგუფი 01",
+        "position": null,
+        "phone": null,
+        "role": "operator",
+        "team_id": null,
+        "id": 16,
+        "is_active": true,
+        "last_active": null,
+        "read_count": null,
+        "required_count": null,
+        "progress_percentage": null,
+        "card_style": "corporate",
+        "permissions": []
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "nudge_user",
+    "request": {
+      "method": "POST",
+      "path": "/api/users/8/nudge",
+      "as_user": "content_admin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "status": "success",
+        "message": "Nudge sent to ოპერატორი (ტექნიკური) 1"
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "admin_reset_password",
+    "request": {
+      "method": "POST",
+      "path": "/api/users/16/reset-password",
+      "as_user": "sysadmin",
+      "json_body": {
+        "new_password": "NewGoldenPass1!"
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "detail": "პაროლი წარმატებით აღდგა."
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "group_leaders",
+    "request": {
+      "method": "GET",
+      "path": "/api/admin/group-leaders",
+      "as_user": "sysadmin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": [
+        {
+          "id": 15,
+          "name": "მენეჯერი (ოფისი)"
+        },
+        {
+          "id": 11,
+          "name": "მენეჯერი (საინფორმაციო)"
+        },
+        {
+          "id": 7,
+          "name": "მენეჯერი (ტექნიკური)"
+        },
+        {
+          "id": 18,
+          "name": "მენეჯერი (ტექნიკური) 2"
+        },
+        {
+          "id": 4,
+          "name": "ტესტ მენეჯერი"
+        }
+      ]
+    },
+    "note": ""
+  },
+  {
+    "name": "send_message_same_department",
+    "request": {
+      "method": "POST",
+      "path": "/api/messages",
+      "as_user": "manager_tech",
+      "json_body": {
+        "user_id": 8,
+        "content": "Golden capture: same-department message."
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "id": 20,
+        "user_id": 8,
+        "sender_id": 7,
+        "content": "Golden capture: same-department message.",
+        "is_read": false,
+        "created_at": "2026-07-29T16:17:11.156573",
+        "sender_name": "მენეჯერი (ტექნიკური)",
+        "recipient_name": "ოპერატორი (ტექნიკური) 1"
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "send_message_cross_department_manager_blocked",
+    "request": {
+      "method": "POST",
+      "path": "/api/messages",
+      "as_user": "manager_tech",
+      "json_body": {
+        "user_id": 16,
+        "content": "Golden capture: should be blocked."
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 403,
+      "body": {
+        "detail": "მენეჯერებს შეუძლიათ შეტყობინების გაგზავნა მხოლოდ საკუთარი დეპარტამენტის თანამშრომლებისთვის"
+      }
+    },
+    "note": "exact-match today: manager confined to own department for direct messages"
+  },
+  {
+    "name": "list_messages_operator",
+    "request": {
+      "method": "GET",
+      "path": "/api/messages",
+      "as_user": "operator_tech",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": [
+        {
+          "id": 20,
+          "user_id": 8,
+          "sender_id": 7,
+          "content": "Golden capture: same-department message.",
+          "is_read": false,
+          "created_at": "2026-07-29T16:17:11.156573",
+          "sender_name": "მენეჯერი (ტექნიკური)",
+          "recipient_name": "ოპერატორი (ტექნიკური) 1"
+        },
+        {
+          "id": 16,
+          "user_id": 8,
+          "sender_id": 1,
+          "content": "ახალი სავალდებულოდ გასაცნობი მასალა: 'Golden — Plain Article' (ვადა: 2026-08-08)",
+          "is_read": false,
+          "created_at": "2026-07-29T16:17:10.039770",
+          "sender_name": "სისტემური ადმინისტრატორი",
+          "recipient_name": "ოპერატორი (ტექნიკური) 1"
+        }
+      ]
+    },
+    "note": ""
+  },
+  {
+    "name": "broadcast_as_sysadmin",
+    "request": {
+      "method": "POST",
+      "path": "/api/broadcast",
+      "as_user": "sysadmin",
+      "json_body": {
+        "message": "Golden capture broadcast.",
+        "target_department": "All",
+        "target_role": "All"
+      },
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "status": "success"
+      }
+    },
+    "note": ""
+  },
+  {
+    "name": "audit_verify_single_row_sqlite",
+    "request": {
+      "method": "GET",
+      "path": "/api/audit-logs/1/verify",
+      "as_user": "sysadmin",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 501,
+      "body": {
+        "detail": "მთლიანობის შემოწმება ხელმისაწვდომია მხოლოდ PostgreSQL-ზე"
+      }
+    },
+    "note": "must 501 on SQLite -- chain only exists on Postgres"
+  },
+  {
+    "name": "search_history",
+    "request": {
+      "method": "GET",
+      "path": "/api/search/history",
+      "as_user": "operator_tech",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": []
+    },
+    "note": ""
+  },
+  {
+    "name": "tags_list",
+    "request": {
+      "method": "GET",
+      "path": "/api/tags",
+      "as_user": "operator_tech",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": []
+    },
+    "note": ""
+  },
+  {
+    "name": "notifications_summary",
+    "request": {
+      "method": "GET",
+      "path": "/api/notifications/summary",
+      "as_user": "operator_tech",
+      "json_body": null,
+      "params": null
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "unread_readings": [],
+        "recent_news": [
+          {
+            "id": 2,
+            "title": "Golden — Created News",
+            "target_department": "All",
+            "created_at": "2026-07-29T16:17:09.603969"
+          },
+          {
+            "id": 1,
+            "title": "Golden — News Item (edited)",
+            "target_department": "All",
+            "created_at": "2026-07-29T16:17:04.932917"
+          }
+        ],
+        "unread_messages_count": 2
+      }
+    },
+    "note": ""
+  },
+  {
     "name": "search_basic",
     "request": {
       "method": "GET",
@@ -772,15 +2332,15 @@
           "published_at": null,
           "attachment_url": null,
           "author_id": 3,
-          "last_verified_at": "2026-07-29T15:57:48.980362",
+          "last_verified_at": "2026-07-29T16:17:04.826873",
           "audience_profile": "all",
           "visible_to_tech_info": true,
           "visible_to_service_center": false,
           "is_draft": false,
           "quiz_enabled": false,
           "id": 1,
-          "created_at": "2026-07-29T15:57:48.980362",
-          "updated_at": "2026-07-29T15:57:48.980362",
+          "created_at": "2026-07-29T16:17:04.826873",
+          "updated_at": "2026-07-29T16:17:04.826873",
           "version": 1,
           "read_time": 1
         },
@@ -797,15 +2357,40 @@
           "published_at": null,
           "attachment_url": null,
           "author_id": 3,
-          "last_verified_at": "2026-07-29T15:57:49.010369",
+          "last_verified_at": "2026-07-29T16:17:04.852873",
           "audience_profile": "all",
           "visible_to_tech_info": true,
           "visible_to_service_center": false,
           "is_draft": false,
           "quiz_enabled": true,
           "id": 2,
-          "created_at": "2026-07-29T15:57:49.010369",
-          "updated_at": "2026-07-29T15:57:49.010369",
+          "created_at": "2026-07-29T16:17:04.852873",
+          "updated_at": "2026-07-29T16:17:04.852873",
+          "version": 1,
+          "read_time": 1
+        },
+        {
+          "title": "Golden — Tech-Only Article",
+          "content": "<p>Only ტექნიკური should see this.</p>",
+          "category_id": 1,
+          "tags": null,
+          "target_departments": [
+            "ტექნიკური"
+          ],
+          "status": "archived",
+          "youtube_id": "",
+          "published_at": null,
+          "attachment_url": null,
+          "author_id": 3,
+          "last_verified_at": "2026-07-29T16:17:04.863965",
+          "audience_profile": "all",
+          "visible_to_tech_info": true,
+          "visible_to_service_center": false,
+          "is_draft": false,
+          "quiz_enabled": false,
+          "id": 3,
+          "created_at": "2026-07-29T16:17:04.863965",
+          "updated_at": "2026-07-29T16:17:09.573111",
           "version": 1,
           "read_time": 1
         }
@@ -832,14 +2417,14 @@
             "id": 1,
             "title": "Golden — Plain Article",
             "category_id": 1,
-            "category_name": "Golden Master Category",
+            "category_name": "Golden Master Category (renamed)",
             "tags": null,
             "target_departments": [
               "All"
             ],
             "status": "published",
             "published_at": null,
-            "created_at": "2026-07-29T15:57:48.980362",
+            "created_at": "2026-07-29T16:17:04.826873",
             "read_time": 1,
             "audience_profile": "all",
             "visible_to_tech_info": true,
@@ -850,14 +2435,32 @@
             "id": 2,
             "title": "Golden — Quiz Article",
             "category_id": 1,
-            "category_name": "Golden Master Category",
+            "category_name": "Golden Master Category (renamed)",
             "tags": null,
             "target_departments": [
               "All"
             ],
             "status": "published",
             "published_at": null,
-            "created_at": "2026-07-29T15:57:49.010369",
+            "created_at": "2026-07-29T16:17:04.852873",
+            "read_time": 1,
+            "audience_profile": "all",
+            "visible_to_tech_info": true,
+            "visible_to_service_center": false,
+            "is_draft": false
+          },
+          {
+            "id": 3,
+            "title": "Golden — Tech-Only Article",
+            "category_id": 1,
+            "category_name": "Golden Master Category (renamed)",
+            "tags": null,
+            "target_departments": [
+              "ტექნიკური"
+            ],
+            "status": "archived",
+            "published_at": null,
+            "created_at": "2026-07-29T16:17:04.863965",
             "read_time": 1,
             "audience_profile": "all",
             "visible_to_tech_info": true,
@@ -865,8 +2468,60 @@
             "is_draft": false
           }
         ],
-        "news": [],
-        "videos": []
+        "news": [
+          {
+            "id": 1,
+            "title": "Golden — News Item (edited)",
+            "target_department": "All",
+            "attachment_url": null,
+            "created_at": "2026-07-29T16:17:04.932917",
+            "version": 2,
+            "visible_to_tech_info": true,
+            "visible_to_service_center": false,
+            "is_archived": false,
+            "expires_at": null,
+            "is_draft": false,
+            "author_id": null
+          },
+          {
+            "id": 2,
+            "title": "Golden — Created News",
+            "target_department": "All",
+            "attachment_url": null,
+            "created_at": "2026-07-29T16:17:09.603969",
+            "version": 1,
+            "visible_to_tech_info": true,
+            "visible_to_service_center": false,
+            "is_archived": false,
+            "expires_at": null,
+            "is_draft": false,
+            "author_id": 3
+          }
+        ],
+        "videos": [
+          {
+            "title": "Golden — Video",
+            "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "category": "ტექნიკური",
+            "target_department": "ტექნიკური",
+            "tags": null,
+            "id": 1,
+            "created_at": "2026-07-29T16:17:04.937914",
+            "views_count": 1,
+            "is_archived": true
+          },
+          {
+            "title": "Golden — Created Video",
+            "video_url": "https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0",
+            "category": "ტექნიკური",
+            "target_department": "ტექნიკური",
+            "tags": null,
+            "id": 2,
+            "created_at": "2026-07-29T16:17:09.730196",
+            "views_count": 0,
+            "is_archived": false
+          }
+        ]
       }
     },
     "note": ""
@@ -889,5 +2544,62 @@
       }
     },
     "note": ""
+  },
+  {
+    "name": "export_readings_csv",
+    "request": {
+      "method": "GET",
+      "path": "/api/export/readings",
+      "as_user": "sysadmin"
+    },
+    "response": {
+      "status_code": 200,
+      "body": "User ID,User Name,Item Type,Item ID,Status,Read At\r\n"
+    },
+    "note": "system-admin only; CSV formula-sanitized (contrast with audit-log export's missing sanitization, bug #8)"
+  },
+  {
+    "name": "export_team_stats_pdf_enqueue",
+    "request": {
+      "method": "GET",
+      "path": "/api/export/team-stats.pdf",
+      "as_user": "manager_tech"
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "job_id": "5ad01097-756b-4773-a687-1f6a88597622"
+      }
+    },
+    "note": "async job -- BackgroundTasks resolve synchronously under TestClient, so status should already be completed"
+  },
+  {
+    "name": "export_job_status",
+    "request": {
+      "method": "GET",
+      "path": "/api/export/status/5ad01097-756b-4773-a687-1f6a88597622",
+      "as_user": "manager_tech"
+    },
+    "response": {
+      "status_code": 200,
+      "body": {
+        "job_id": "5ad01097-756b-4773-a687-1f6a88597622",
+        "status": "completed"
+      }
+    },
+    "note": "bug #9: expires_at is written but nothing ever reads/reaps it -- captured as-is"
+  },
+  {
+    "name": "export_job_download",
+    "request": {
+      "method": "GET",
+      "path": "/api/export/download/5ad01097-756b-4773-a687-1f6a88597622",
+      "as_user": "manager_tech"
+    },
+    "response": {
+      "status_code": 200,
+      "body": "<38466 bytes, application/pdf>"
+    },
+    "note": "file deleted server-side after this download completes (BackgroundTask cleanup)"
   }
 ]

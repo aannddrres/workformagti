@@ -68,6 +68,8 @@ from qa_accounts import TEST_ACCOUNTS, TEST_ACCOUNT_PASSWORD  # noqa: E402
 from tests.factories import (  # noqa: E402
     make_user, make_category, make_article, make_required_reading, make_read_receipt,
 )
+from database import get_tbilisi_time  # noqa: E402
+from datetime import timedelta  # noqa: E402
 
 app = monolith_app_module.app
 db = _SessionLocal()
@@ -111,11 +113,39 @@ make_read_receipt(db, article=plain_article, operator=operator_tech)
 quiz_question = models.QuizQuestion(article_id=quiz_article.id, question_text="2+2?", position=0)
 db.add(quiz_question)
 db.flush()
-db.add_all([
-    models.QuizAnswer(question_id=quiz_question.id, answer_text="3", is_correct=False, position=0),
-    models.QuizAnswer(question_id=quiz_question.id, answer_text="4", is_correct=True, position=1),
-])
+wrong_answer = models.QuizAnswer(question_id=quiz_question.id, answer_text="3", is_correct=False, position=0)
+right_answer = models.QuizAnswer(question_id=quiz_question.id, answer_text="4", is_correct=True, position=1)
+db.add_all([wrong_answer, right_answer])
 db.commit()
+db.refresh(right_answer)
+
+# Non-Article fixtures seeded directly via ORM (no factory helper exists for
+# these yet) so GET/PUT/DELETE calls below have a known, stable id -- the
+# separate create_* calls in GOLDEN_CALLS exercise POST against a distinct
+# new row instead of chaining off these ids.
+news_item = models.News(
+    title="Golden — News Item", content="<p>News body.</p>",
+    target_department="All", is_draft=False, author_id=content_admin.id,
+)
+db.add(news_item)
+
+video_item = models.VideoInstruction(
+    title="Golden — Video", video_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    category="ტექნიკური", target_department="ტექნიკური",
+)
+db.add(video_item)
+
+team = models.Team(name="Golden Team")
+db.add(team)
+
+reading_all = make_required_reading(
+    db, item_id=plain_article.id, item_type="article",
+    target_department="All", due_days=5,
+)
+db.commit()
+db.refresh(news_item)
+db.refresh(video_item)
+db.refresh(team)
 
 # NOTE: the audit-CSV formula-injection gap (bug #8) needs a real audit row
 # whose admin_name/details contain a formula-trigger character, which means
@@ -205,6 +235,112 @@ GOLDEN_CALLS: list[Call] = [
          {"permissions": ["videos.archive"]},
          note="known gap #4: videos.archive should be grantable but the whitelist rejects it"),
 
+    # ── Quiz: full pass flow, then the gate that was previously blocking ──
+    Call("quiz_attempt_wrong_answer", "POST", f"/api/articles/{quiz_article.id}/quiz/attempt", "operator_tech",
+         {"answers": {str(quiz_question.id): wrong_answer.id}},
+         note="passed=false expected"),
+    Call("quiz_attempt_correct_answer", "POST", f"/api/articles/{quiz_article.id}/quiz/attempt", "operator_tech",
+         {"answers": {str(quiz_question.id): right_answer.id}},
+         note="passed=true expected; +10/+5 knowledge-score bonus on first try"),
+    Call("read_receipt_after_passing_quiz", "POST", f"/api/articles/{quiz_article.id}/read-receipt", "operator_tech",
+         note="must now succeed -- gate lifted after the attempt above"),
+    Call("knowledge_score_after_pass", "GET", "/api/users/me/knowledge-score", "operator_tech"),
+    Call("knowledge_leaderboard", "GET", "/api/knowledge-leaderboard", "operator_tech"),
+
+    # ── Articles: history/diff/view/note/feedback/related/bulk-archive ───
+    Call("article_history", "GET", f"/api/articles/{plain_article.id}/history", "content_admin"),
+    Call("article_view_log", "POST", f"/api/articles/{plain_article.id}/view", "operator_tech"),
+    Call("article_note_upsert", "PUT", f"/api/articles/{plain_article.id}/note", "operator_tech",
+         {"content": "პირადი შენიშვნა golden capture-ისთვის"}),
+    Call("article_feedback", "POST", f"/api/articles/{plain_article.id}/feedback", "operator_tech",
+         {"message": "ტიპოგრაფიული შეცდომა სათაურში."},
+         note="deliberately deprecated in code -- always 410, not a capture bug"),
+    Call("article_related", "GET", f"/api/articles/{plain_article.id}/related", "operator_tech"),
+    Call("articles_bulk_archive", "POST", "/api/articles/bulk-archive", "content_admin",
+         {"ids": [dept_article.id], "archive": True},
+         note="requires PERM_ARTICLES_ARCHIVE"),
+
+    # ── News: create/list/get/update/history ──────────────────────────────
+    Call("create_news", "POST", "/api/news", "content_admin",
+         {"title": "Golden — Created News", "content": "<p>Body.</p>", "target_department": "All", "is_draft": False}),
+    Call("list_news", "GET", "/api/news", "operator_tech"),
+    Call("get_news", "GET", f"/api/news/{news_item.id}", "operator_tech"),
+    Call("update_news", "PUT", f"/api/news/{news_item.id}", "content_admin",
+         {"title": "Golden — News Item (edited)", "content": "<p>Edited body.</p>", "target_department": "All", "is_draft": False}),
+    Call("news_history", "GET", f"/api/news/{news_item.id}/history", "content_admin"),
+
+    # ── Videos: create/list (bug #10 exact-match probe)/view/archive ─────
+    Call("create_video", "POST", "/api/videos", "content_admin",
+         {"title": "Golden — Created Video", "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+          "category": "ტექნიკური", "target_department": "ტექნიკური"}),
+    Call("list_videos_as_tech_operator", "GET", "/api/videos", "operator_tech",
+         note="bug #10 CONFIRMED empirically: operator_tech's department is the sub-group "
+              "'ტექნიკური — ჯგუფი 01', video targets parent 'ტექნიკური' -- articles/news would show "
+              "this via prefix-match, but videos.py's exact == returns an EMPTY list here"),
+    Call("list_videos_as_office_operator", "GET", "/api/videos", "operator_office",
+         note="contrast baseline: a genuinely unrelated department, also empty -- same visible symptom "
+              "as the sub-group case above, for a different (correct) reason"),
+    Call("video_view", "POST", f"/api/videos/{video_item.id}/view", "operator_tech"),
+    Call("video_archive", "POST", f"/api/videos/{video_item.id}/archive", "content_admin",
+         note="requires PERM_VIDEOS_ARCHIVE"),
+
+    # ── Categories ─────────────────────────────────────────────────────────
+    Call("create_category", "POST", "/api/categories", "content_admin", {"name": "Golden — Second Category"}),
+    Call("list_categories", "GET", "/api/categories", "operator_tech"),
+    Call("update_category", "PUT", f"/api/categories/{cat.id}", "content_admin",
+         {"name": "Golden Master Category (renamed)"}),
+
+    # ── Favorites ──────────────────────────────────────────────────────────
+    Call("add_favorite", "POST", "/api/favorites", "operator_tech", {"item_type": "article", "item_id": plain_article.id}),
+    Call("list_favorites", "GET", "/api/favorites", "operator_tech"),
+
+    # ── Teams ──────────────────────────────────────────────────────────────
+    Call("create_team", "POST", "/api/teams", "sysadmin", {"name": "Golden — Created Team"}),
+    Call("list_teams", "GET", "/api/teams", "sysadmin"),
+
+    # ── Required readings: CRUD + by-item lookup ──────────────────────────
+    Call("create_required_reading", "POST", "/api/compliance/required-readings", "sysadmin",
+         {"item_type": "article", "item_id": plain_article.id, "target_department": "All",
+          "due_date": (get_tbilisi_time() + timedelta(days=10)).isoformat(), "priority": "normal"}),
+    Call("required_reading_by_item", "GET",
+         f"/api/compliance/required-readings/by-item/article/{dept_article.id}", "content_admin"),
+    Call("update_required_reading", "PUT", f"/api/compliance/required-readings/{reading_all.id}", "sysadmin",
+         {"item_type": "article", "item_id": plain_article.id, "target_department": "All",
+          "due_date": (get_tbilisi_time() + timedelta(days=20)).isoformat(), "priority": "high"}),
+
+    # ── Users / RBAC admin console ──────────────────────────────────────────
+    Call("list_users_as_sysadmin", "GET", "/api/users", "sysadmin"),
+    Call("create_user_as_sysadmin", "POST", "/api/users", "sysadmin",
+         {"email": "golden.newuser@magti.ge", "name": "Golden New User", "role": "operator",
+          "department": "ტექნიკური", "password": TEST_ACCOUNT_PASSWORD}),
+    Call("update_user_admin_no_permission_reset", "PUT", f"/api/users/{operator_tech.id}", "sysadmin",
+         {"role": "content_admin", "department": operator_tech.department},
+         note="known gap #3: unlike bulk-reassign, this must NOT reset granular permissions -- capture as-is"),
+    Call("update_user_status", "PUT", f"/api/users/{operator_office.id}/status", "sysadmin", {"is_active": True}),
+    Call("nudge_user", "POST", f"/api/users/{operator_tech.id}/nudge", "content_admin"),
+    Call("admin_reset_password", "POST", f"/api/users/{operator_office.id}/reset-password", "sysadmin",
+         {"new_password": "NewGoldenPass1!"}),
+    Call("group_leaders", "GET", "/api/admin/group-leaders", "sysadmin"),
+
+    # ── Messaging: department confidentiality boundary (exact-match today) ─
+    Call("send_message_same_department", "POST", "/api/messages", "manager_tech",
+         {"user_id": operator_tech.id, "content": "Golden capture: same-department message."}),
+    Call("send_message_cross_department_manager_blocked", "POST", "/api/messages", "manager_tech",
+         {"user_id": operator_office.id, "content": "Golden capture: should be blocked."},
+         note="exact-match today: manager confined to own department for direct messages"),
+    Call("list_messages_operator", "GET", "/api/messages", "operator_tech"),
+    Call("broadcast_as_sysadmin", "POST", "/api/broadcast", "sysadmin",
+         {"message": "Golden capture broadcast.", "target_department": "All", "target_role": "All"}),
+
+    # ── Audit log: single-row verify (SQLite degradation) ──────────────────
+    Call("audit_verify_single_row_sqlite", "GET", "/api/audit-logs/1/verify", "sysadmin",
+         note="must 501 on SQLite -- chain only exists on Postgres"),
+
+    # ── Search history, platform tags/notifications ────────────────────────
+    Call("search_history", "GET", "/api/search/history", "operator_tech"),
+    Call("tags_list", "GET", "/api/tags", "operator_tech"),
+    Call("notifications_summary", "GET", "/api/notifications/summary", "operator_tech"),
+
     # ── Search ────────────────────────────────────────────────────────────
     Call("search_basic", "GET", "/api/search", "operator_tech", params={"q": "Golden"}),
     Call("search_global", "GET", "/api/search/global", "operator_tech", params={"q": "Golden"}),
@@ -241,6 +377,41 @@ def _run(call: Call) -> dict:
 
 
 results = [_run(c) for c in GOLDEN_CALLS]
+
+# ── Exports: async job flow (create -> status -> download) ────────────────
+# Needs the job_id from the create response, so it's a short dynamic
+# sequence rather than a static Call entry. PERM_REPORTS_EXPORT is a
+# manager-default permission (DEFAULT_PERMISSIONS_BY_ROLE), not
+# content_admin's -- these calls use manager_tech accordingly.
+_csv_res = client.get("/api/export/readings", headers=_auth("sysadmin"))
+results.append({
+    "name": "export_readings_csv", "request": {"method": "GET", "path": "/api/export/readings", "as_user": "sysadmin"},
+    "response": {"status_code": _csv_res.status_code, "body": _csv_res.text[:1000]},
+    "note": "system-admin only; CSV formula-sanitized (contrast with audit-log export's missing sanitization, bug #8)",
+})
+
+_pdf_res = client.get("/api/export/team-stats.pdf", headers=_auth("manager_tech"))
+_job_id = _pdf_res.json().get("job_id") if _pdf_res.status_code == 200 else None
+_status_res = client.get(f"/api/export/status/{_job_id}", headers=_auth("manager_tech")) if _job_id else None
+_download_res = client.get(f"/api/export/download/{_job_id}", headers=_auth("manager_tech")) if _job_id else None
+results.append({
+    "name": "export_team_stats_pdf_enqueue",
+    "request": {"method": "GET", "path": "/api/export/team-stats.pdf", "as_user": "manager_tech"},
+    "response": {"status_code": _pdf_res.status_code, "body": _pdf_res.json() if _pdf_res.status_code == 200 else _pdf_res.text[:500]},
+    "note": "async job -- BackgroundTasks resolve synchronously under TestClient, so status should already be completed",
+})
+if _status_res is not None:
+    results.append({
+        "name": "export_job_status", "request": {"method": "GET", "path": f"/api/export/status/{_job_id}", "as_user": "manager_tech"},
+        "response": {"status_code": _status_res.status_code, "body": _status_res.json()},
+        "note": "bug #9: expires_at is written but nothing ever reads/reaps it -- captured as-is",
+    })
+    results.append({
+        "name": "export_job_download",
+        "request": {"method": "GET", "path": f"/api/export/download/{_job_id}", "as_user": "manager_tech"},
+        "response": {"status_code": _download_res.status_code, "body": f"<{len(_download_res.content)} bytes, {_download_res.headers.get('content-type')}>"},
+        "note": "file deleted server-side after this download completes (BackgroundTask cleanup)",
+    })
 
 out_dir = os.path.join(_PROJECT_ROOT, "docs", "api-contract")
 os.makedirs(out_dir, exist_ok=True)
