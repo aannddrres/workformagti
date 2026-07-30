@@ -34,7 +34,9 @@ import java.util.regex.Pattern;
 public final class DepartmentMatcher {
 
     private static final String GROUP_KEYWORD = "ჯგუფი"; // "ჯგუფი"
-    private static final String CANONICAL_DELIMITER = "—"; // em dash "—"
+
+    /** Public: routers/stats.py's _group_full_department reuses this same delimiter to reconstruct a full department string. */
+    public static final String CANONICAL_DELIMITER = "—"; // em dash "—"
 
     private static final Pattern DASH_PATTERN = Pattern.compile("\\s*[-–—]\\s*");
     private static final Pattern WHITESPACE_RUN = Pattern.compile("[ \\t]+");
