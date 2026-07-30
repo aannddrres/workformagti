@@ -354,6 +354,31 @@ X.5-ზე მოხვდება (მაგ. 1 წაკითხული 8-
 
 9 ახალი ტესტი `ComplianceCalculator`-ზე (50/50 საერთო ჯამში).
 
+**◐ გაგრძელდა — დეშბორდის დეპარტამენტების დაჯგუფება (2026-07-29):** ახალი
+`ge.magti.portal.stats` პაკეტი პორტირებს `build_department_stats`-ის
+(`routers/stats.py:573-665`) ბაზისგან-დამოუკიდებელ ნახევარს —
+`DEPARTMENT_WHITELIST`/`_match_department_bucket` (3 ჯგუფად დაჯგუფება,
+ადრე მითითებული, ჯერ არ პორტირებული) და `_aggregate_members`/
+`_group_full_department`. მთლიანი Department → Group → Member
+ხის აწყობა (`DepartmentStatsBuilder`) მუშაობს — მხოლოდ თავად
+`compute_compliance(db)`-ის ბაზის-მოთხოვნა აკლია (რეპოზიტორიის საქმეა).
+
+⚠️ **პატარა აღმოჩენა: მკვდარი კოდი.** `_match_department_bucket`-ს აქვს
+loop სამივე ცხადი შემოწმების შემდეგ (`for wl in DEPARTMENT_WHITELIST:
+if raw.startswith(wl): return wl`), მაგრამ **ეს არასდროს არ სრულდება** —
+ყველა სტრიქონი, რომელიც ამ loop-ს დაემთხვეოდა, უკვე დამთხვეული იქნებოდა
+ზემოთ სამი ცხადი `if`-დან (ორი მათგანი უკვე ამოწმებს ზუსტად იმავე
+`startswith(wl)`-ს). არ პორტირებულა — არაფერი დასაცავი არ იყო.
+
+7 ახალი ტესტი, მათ შორის 5 პირდაპირ იმეორებს
+`tests/test_department_stats.py::test_match_department_bucket`-ის
+ზუსტ მტკიცებებს (57/57 საერთო ჯამში).
+
+**ამით Compliance/Stats-ის ბირთვი დასრულებულია.** დარჩენილი, ჯერ არ
+დაწყებული: `get_critical_operators`/`get_group_users` endpoint-ების
+დანარჩენი ლოგიკა (დიდწილად იგივე ნიმუშების გამეორებაა), Team
+Statistics-ის საფუძველი (`Team` მოდელი ჯერ არ გამოყენებულა).
+
 განსაკუთრებული ყურადღება:
 - **SSE real-time** (`state.py`-ის Redis broker) — `asyncio.
   run_coroutine_threadsafe`-ის მექანიზმს Java-ში საერთოდ არ სჭირდება
