@@ -17,6 +17,7 @@ prevent.
 |---|---|---|
 | [`CLAUDE.md`](CLAUDE.md) | **Authoritative rules — read first** | Anyone (human or AI) making a change |
 | `README.md` (this file) | Living — architecture + local setup | Developers |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Living — system architecture (arc42-lite + C4 diagrams): why it's built this way, not how to run it | IT / Engineering, architecture-level questions |
 | [`docs/admin-guide.md`](docs/admin-guide.md) | Living — day-to-day operations | Content/system admins, not developers |
 | [`docs/SEED_GUIDE.md`](docs/SEED_GUIDE.md), [`TEST_LOGINS.md`](TEST_LOGINS.md) | Living — quick reference | Anyone seeding/testing locally |
 | [`docs/PRODUCTION_HANDOVER.md`](docs/PRODUCTION_HANDOVER.md) | Living — read before any real deploy | DevOps / whoever hosts this for real |
