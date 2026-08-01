@@ -879,6 +879,65 @@ fallback-გადანაწილება, fallback-ის თვითო�
 
 ---
 
+**Articles-ის პირველი ნაწილი (Core CRUD) აშენდა (2026-08-01)** — Content-ის
+ყველაზე დიდი და რთული დომენი (32 endpoint სულ), ამიტომ ერთბაშად კი არა,
+ეტაპობრივად შენდება, ისევე როგორც Python-ის საკუთარი routers/articles.py
+5 ქვე-ფაზად აშენდა (14a-14e). ეს პირველი ეტაპი მოიცავს 9 endpoint-ს: სია
+(რთული ხილვადობის ლოგიკით), ცალკეული სტატია, შექმნა, განახლება, autosave,
+წაშლა, archive/unarchive, bulk-archive. **დარჩენილი 23 endpoint** (ისტორია/
+diff/restore, quiz, ცოდნის-ქულა/ლიდერბორდი, read-receipt/views, შენიშვნები/
+verify/stale/related) შემდეგი ეტაპებია, ცალკე დღეს არ აშენებულა.
+
+**სიის endpoint-ის ვიზუალურ-ლოგიკა** (`GET /api/articles`) ზუსტადაა
+გადმოტანილი — მათ შორის ერთი დახვეწილი დეტალი, რომელიც თავიდან რომ არ
+გადმოგეცათ, ადვილად გამოტოვებადია: `is_draft==false OR author_id==me`
+ფილტრი უპირობოდ ვრცელდება ყველაზე (ადმინზეც), მაგრამ non-admin-ებისთვის
+დამატებითი `is_draft==false` მოთხოვნა ANDდება — რაც ფაქტობრივად ნიშნავს,
+რომ **non-admin-ს საკუთარი დრაფტიც არ უჩანს ამ სიაში**, მხოლოდ ადმინს (და
+მხოლოდ საკუთარი დრაფტი, არა სხვისი). Python-ის კოდის ეს ქცევა ზუსტადაა
+გამეორებული, არა "გასწორებული" — ტესტმაც ეს კონკრეტულად დაადასტურა
+(`contentAdminSeesEverythingIncludingDraftsAndUnpublished`).
+
+**ორი რეალური, ამ ეტაპზე ახლად აღმოჩენილი საკითხი, ორივე გადაწყვეტილი
+დამატებითი მოკვლევის და არა ვარაუდის საფუძველზე:**
+
+1. **დამალული role-შემოწმება, რომელიც არასდროს ეშვება.** სიის ფილტრს
+   აქვს `tech_info`/`service_center` როლის შემოწმებაც (routers/articles.py
+   "Block 5"), მაგრამ `security.py`-ის `VALID_ROLES`/`_validate_role`
+   არასდროს უშვებს ამ ორი მნიშვნელობის მინიჭებას რომელიმე user-ისთვის
+   რომელიმე ვალიდირებულ გზაზე — ესე იგი, ეს კოდი დღეს **მკვდარია**,
+   Python-შივე. `Role` enum-ს სწორად არც აქვს ეს მნიშვნელობები, ამიტომ
+   Java-პორტმა უბრალოდ არ გაიმეორა მიუწვდომელი branch-ი (ინფრასტრუქტურა
+   კი უცვლელადაა — `visible_to_tech_info`/`visible_to_service_center`
+   სვეტები არსებობს და მუშაობს, უბრალოდ ვერასდროს ააქტიურდება ამ როლის
+   მეშვეობით). არ არის ცნობილი ხარვეზების ორიგინალურ სიაში — ახალი
+   დამატებითი აღმოჩენაა, გადაწყვეტილება არ საჭიროებდა (ვერც ერთმა
+   მხარემ ვერაფერი "დაკარგა", ორივე მხარეს იგივე მკვდარი კოდია).
+
+2. **ნამდვილი Java-ბაგი, თავად ტესტმა დაიჭირა (არა წინასწარმა
+   ანალიზმა):** `_ensure_current_version_archived`-ის (განახლების წინ
+   ძველი ვერსიის history-ში დაარქივება) Python-ის საწყისი "insert,
+   დაიჭირე constraint-შეცდომა, rollback" მიდგომა Spring-ში სიტყვასიტყვით
+   ვერ მუშაობს — ჯერ ცალკე nested-ტრანზაქციაც ვცადე (`REQUIRES_NEW`),
+   მაგრამ ეს **დედლოკში ჩავარდა ტესტების დროს**: გარე ტრანზაქცია (რომელიც
+   ტესტის fixture-ს ქმნის) ინახავს row-lock-ს იმავე article-ზე, შიდა
+   ტრანზაქცია იმავე article-ზე დამოკიდებულ history-row-ს ცდილობს ჩაწეროს
+   — წრიული ლოდინი. საბოლოო გამოსავალი: ერთი ატომური SQL-ინსტრუქცია
+   (`INSERT ... WHERE NOT EXISTS`), რომელსაც არც meta-ტრანზაქცია
+   სჭირდება და არც შეცდომის დაჭერა. ეს პრობლემა რეალურ გამოყენებაშიც
+   შესაძლებელი იყო (თუმცა უფრო იშვიათად) — production-ში არ გამოვლინდა
+   მხოლოდ იმიტომ, რომ ჩვეულებრივი request არასდროს აკეთებს row-ზე
+   uncommitted ცვლილებას ამ ფუნქციის გამოძახებამდე.
+
+**20 ახალი ტესტი** (თავდაპირველი წერისას 2 ტესტში ცდომილება იყო ჩემი
+მხრიდან — ერთი არასწორი მოლოდინი დრაფტების ხილვადობაზე, მეორე
+Hibernate-ის L1-cache-ის კიდევ ერთი გამოვლინება, Categories-ის
+`clearAutomatically`-ს მსგავსი, ოღონდ `findById`-ის საკუთარ ქეშზე, არა
+bulk-query-ზე — ორივე ტესტშივე გასწორდა, არა production-კოდში).
+198/198 ტესტი მწვანეა სულ.
+
+---
+
 ## ფაზა 2 — Parity ვალიდაციის კარიბჭე
 
 Angular არ იწყება, სანამ Parity-ჰარნესი (§3) არ აჩვენებს 100%-იან თანხმობას
@@ -1084,15 +1143,15 @@ Postgres-ზე:
 
 | მოდული | ფუნქცია/ბიზნეს-ლოგიკა | Endpoint | ტესტირების მეთოდი | მიღების კრიტერიუმი |
 |---|---|---|---|---|
-| Articles | CRUD + ავტომატური ORM-auditing (§0-ის შესწორება) — `version` იზრდება ყოველ update-ზე | `POST/PUT/DELETE /api/articles`, `/api/articles/{id}` | Parity + `test_audit_trail.py`-ის ეკვივალენტი | UPDATE-აუდიტ-ჩანაწერი იწერება ველების diff-ით, `version` +1 |
-| Articles | Archive/unarchive + bulk-archive | `POST /api/articles/{id}/archive`, `/unarchive`, `/bulk-archive` | Parity | აუდიტ-ჩანაწერი ARCHIVE/UNARCHIVE action-ით |
-| Articles | Autosave (დრაფტი, ცალკე `version`-ის გარეშე) | `PATCH /api/articles/{id}/autosave` | Parity | draft state არ ცვლის published `version`-ს |
+| Articles | ✅ **Core CRUD აშენებული და გადამოწმებული (2026-08-01)** — `version` იზრდება ყოველ update-ზე, ძველი state ავტომატურად ინახება history-ში. ORM auto-audit ჯერ არ არსებობს Java-ში (ცნობილი, დოკუმენტირებული ხარვეზი — Videos/Categories-ის იგივე გამონაკლისი) | `GET/POST/PUT/DELETE /api/articles`, `/api/articles/{id}` | 20 ტესტი რეალურ Oracle-ზე | ✔ დაკმაყოფილებულია (ამ ნაწილისთვის) |
+| Articles | ✅ **Archive/unarchive + bulk-archive აშენებული (2026-08-01)** | `POST /api/articles/{id}/archive`, `/unarchive`, `/bulk-archive` | ზემოთ ჩამოთვლილ 20 ტესტში შედის | აუდიტ-ჩანაწერი ARCHIVE/UNARCHIVE action-ით |
+| Articles | ✅ **Autosave აშენებული (2026-08-01)** — `exclude_unset` ნაწილობრივი-განახლების სემანტიკა (Jackson-ის `Map<String,Object>`-ით, არა ტიპიზებული schema-თი) | `PATCH /api/articles/{id}/autosave` | ზემოთ ჩამოთვლილ 20 ტესტში შედის | draft state არ ცვლის published `version`-ს |
 | Articles | ისტორია + diff-ის გამოთვლა (predecessor/explicit/current შედარება) | `GET /api/articles/{id}/history`, `/history/{hid}/diff`, `POST /history/{hid}/restore` | Parity + diffing.py-ის გამომავალი HTML-ის სტრუქტურული შედარება | identical `<ins>`/`<del>` სემანტიკა (არა აუცილებლად identical markup) |
 | Articles | **Quiz admin-რედაქტირება არ ზრდის `version`-ს, თუმცა quiz-gate `version`-ზეა მიბმული** (ცნობილი ხარვეზი #2) | `PUT /api/articles/{id}/quiz/admin` | Parity + გადაწყვეტილება (§5) | გადაწყვეტილებაზეა დამოკიდებული — მაღალი პრიორიტეტი, რადგან ცოცხალ მონაცემებზე მოქმედებს |
 | Articles | Quiz-ჩაბარება: server-side grading, ერთჯერადი "ცოდნის ქულის" +10/+5 ბონუსი | `GET /api/articles/{id}/quiz`, `POST /quiz/attempt` | Parity + score-ფორმულის უნიტ-ტესტი | `is_correct` არასდროს გამოჩნდება public schema-ში |
 | Articles | Read-receipt + quiz-gate enforcement | `POST /api/articles/{id}/read-receipt`, `GET /read-receipt/me` | Parity | gate 403-ობს ჩაუბარებელ quiz-ზე |
 | Articles | View-logging (passive) | `POST /api/articles/{id}/view`, `GET /views` | Parity | `ArticleViewLog` ერთადერთი passive-view წყარო რჩება |
-| Articles | დეპარტამენტის prefix-aware ხილვადობა | `GET /api/articles` (list-ფილტრი) | Parity + §3.3-ის რეგრესია | იდენტური ხილვადობა 3 დეპარტამენტ-ფორმატზე |
+| Articles | ✅ **დეპარტამენტის prefix-aware ხილვადობა აშენებული (2026-08-01)** — list-ფილტრი (`GET /api/articles`) და ცალკეული სტატიის ხილვადობა (`_assert_article_visible`) ორივე | `GET /api/articles`, `GET /api/articles/{id}` | ზემოთ ჩამოთვლილ 20 ტესტში შედის | ✔ დაკმაყოფილებულია |
 | Articles | Knowledge-score, leaderboard, recently-viewed | `GET /api/users/me/knowledge-score`, `/api/knowledge-leaderboard`, `/api/me/recently-viewed` | Parity | ფორმულა იდენტური (+10/+5 bonus) |
 | Articles | User notes + feedback | `GET/PUT /api/articles/{id}/note`, `POST /feedback`, `GET /api/admin/feedback` | Parity smoke-test | — |
 | Articles | Verify (მენეჯერული დადასტურება) + related-articles (tag-based) | `POST /api/articles/{id}/verify`, `GET /related` | Parity | — |
