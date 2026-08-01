@@ -938,6 +938,33 @@ bulk-query-ზე — ორივე ტესტშივე გასწო�
 
 ---
 
+**Articles-ის Quiz + Knowledge ნაწილი აშენდა (2026-08-01, იმავე სესიაში)**
+— 6 endpoint: admin quiz-ის GET/PUT (სრული replace + 3 422-ვალიდაცია),
+საჯარო quiz-ის GET (`is_correct`-ის გარეშე), ჩაბარების POST
+(server-side grading), პირადი ცოდნის-ქულა, ლიდერბორდი. არჩეული, რადგან
+ყველაზე დაბალი-რისკის შემდეგი ნაბიჯი იყო history/diff-ის ნაცვლად: ქულის
+დათვლის ლოგიკა (`QuizGrader`/`QuizGradeResult`) **ადრეც არსებობდა**
+Phase 1b/1d-დან, ტესტირებული, უბრალოდ ვებ-გვერდთან დაკავშირებული არასდროს
+ყოფილა — ამ ეტაპმა მხოლოდ HTTP-ფენა და storage-ინტეგრაცია დაამატა.
+
+**ცნობილი ხარვეზი #2 შეგნებულად არ გასწორებულა.** admin-ის quiz-რედაქტირება
+ისევ არ ზრდის სტატიის `version`-ს — Python-ის ზუსტი ქცევაა, არა ამ ეტაპის
+გამოტოვება. გადაწყვეტილება ჯერ არავის მოუთხოვია (§5-ში ჩამოთვლილია
+გადასაწყვეტ საკითხებში), ამიტომ არ შეცვლილა cross-cutting: ვინც მომავალში
+წყვეტს ამ ხარვეზს, `Article.version`-ის ინკრემენტი quiz-endpoint-შიც უნდა
+დაამატოს, არა მხოლოდ ცალკე.
+
+**ეს იყო პირველი Content-slice ამ სესიაში, სადაც ტესტმა ვერაფერი ახალი ვერ
+დაიჭირა** — ყველა 10 ტესტი პირველივე რეალურ-Oracle გაშვებაზე გაუშვა
+(Articles core-CRUD-ის REQUIRES_NEW-დედლოკის და L1-cache-ის ორივე
+გაკვეთილი წინასწარ იყო გამოყენებული ახალი კოდის წერისას: bulk `@Modifying`
+ნაცვლად derived `deleteByArticleId`-ი questions-ისთვის, რომელიც
+persistence context-ის მეშვეობით შლის row-ის მიხედვით, არა ერთი ბალკ SQL-ით).
+
+208/208 ტესტი მწვანეა სულ.
+
+---
+
 ## ფაზა 2 — Parity ვალიდაციის კარიბჭე
 
 Angular არ იწყება, სანამ Parity-ჰარნესი (§3) არ აჩვენებს 100%-იან თანხმობას
@@ -1147,12 +1174,13 @@ Postgres-ზე:
 | Articles | ✅ **Archive/unarchive + bulk-archive აშენებული (2026-08-01)** | `POST /api/articles/{id}/archive`, `/unarchive`, `/bulk-archive` | ზემოთ ჩამოთვლილ 20 ტესტში შედის | აუდიტ-ჩანაწერი ARCHIVE/UNARCHIVE action-ით |
 | Articles | ✅ **Autosave აშენებული (2026-08-01)** — `exclude_unset` ნაწილობრივი-განახლების სემანტიკა (Jackson-ის `Map<String,Object>`-ით, არა ტიპიზებული schema-თი) | `PATCH /api/articles/{id}/autosave` | ზემოთ ჩამოთვლილ 20 ტესტში შედის | draft state არ ცვლის published `version`-ს |
 | Articles | ისტორია + diff-ის გამოთვლა (predecessor/explicit/current შედარება) | `GET /api/articles/{id}/history`, `/history/{hid}/diff`, `POST /history/{hid}/restore` | Parity + diffing.py-ის გამომავალი HTML-ის სტრუქტურული შედარება | identical `<ins>`/`<del>` სემანტიკა (არა აუცილებლად identical markup) |
-| Articles | **Quiz admin-რედაქტირება არ ზრდის `version`-ს, თუმცა quiz-gate `version`-ზეა მიბმული** (ცნობილი ხარვეზი #2) | `PUT /api/articles/{id}/quiz/admin` | Parity + გადაწყვეტილება (§5) | გადაწყვეტილებაზეა დამოკიდებული — მაღალი პრიორიტეტი, რადგან ცოცხალ მონაცემებზე მოქმედებს |
-| Articles | Quiz-ჩაბარება: server-side grading, ერთჯერადი "ცოდნის ქულის" +10/+5 ბონუსი | `GET /api/articles/{id}/quiz`, `POST /quiz/attempt` | Parity + score-ფორმულის უნიტ-ტესტი | `is_correct` არასდროს გამოჩნდება public schema-ში |
+| Articles | ✅ **Quiz admin CRUD აშენებული (2026-08-01)** — GET/PUT, სრული replace + 3 422-ვალიდაცია. **ცნობილი ხარვეზი #2 უცვლელადაა გადმოტანილი, არ გასწორებულა** (გადაწყვეტილება ჯერ არ მიღებულა, §5): admin-რედაქტირება ჯერ კიდევ არ ზრდის `version`-ს, თუმცა quiz-gate `version`-ზეა მიბმული | `GET/PUT /api/articles/{id}/quiz/admin` | 10 ტესტი რეალურ Oracle-ზე | ✔ endpoint-ი დაკმაყოფილებულია; ბაგი #2 ცალკე გადაწყვეტილებას ითხოვს |
+| Articles | ✅ **Quiz-ჩაბარება აშენებული (2026-08-01)**: server-side grading (`QuizGrader`, წინასწარ აშენებული ამ სესიამდე), ერთჯერადი "ცოდნის ქულის" +10/+5 ბონუსი | `GET /api/articles/{id}/quiz`, `POST /quiz/attempt` | 10 ტესტი რეალურ Oracle-ზე | ✔ დაკმაყოფილებულია — `is_correct` არასდროს ჩანს public schema-ში, დადასტურებულია ტესტით |
 | Articles | Read-receipt + quiz-gate enforcement | `POST /api/articles/{id}/read-receipt`, `GET /read-receipt/me` | Parity | gate 403-ობს ჩაუბარებელ quiz-ზე |
 | Articles | View-logging (passive) | `POST /api/articles/{id}/view`, `GET /views` | Parity | `ArticleViewLog` ერთადერთი passive-view წყარო რჩება |
 | Articles | ✅ **დეპარტამენტის prefix-aware ხილვადობა აშენებული (2026-08-01)** — list-ფილტრი (`GET /api/articles`) და ცალკეული სტატიის ხილვადობა (`_assert_article_visible`) ორივე | `GET /api/articles`, `GET /api/articles/{id}` | ზემოთ ჩამოთვლილ 20 ტესტში შედის | ✔ დაკმაყოფილებულია |
-| Articles | Knowledge-score, leaderboard, recently-viewed | `GET /api/users/me/knowledge-score`, `/api/knowledge-leaderboard`, `/api/me/recently-viewed` | Parity | ფორმულა იდენტური (+10/+5 bonus) |
+| Articles | ✅ **Knowledge-score + leaderboard აშენებული (2026-08-01)** | `GET /api/users/me/knowledge-score`, `/api/knowledge-leaderboard` | 10 ტესტი რეალურ Oracle-ზე | ✔ დაკმაყოფილებულია — ფორმულა იდენტურია (+10/+5 bonus) |
+| Articles | Recently-viewed | `GET /api/me/recently-viewed` | Parity | — |
 | Articles | User notes + feedback | `GET/PUT /api/articles/{id}/note`, `POST /feedback`, `GET /api/admin/feedback` | Parity smoke-test | — |
 | Articles | Verify (მენეჯერული დადასტურება) + related-articles (tag-based) | `POST /api/articles/{id}/verify`, `GET /related` | Parity | — |
 | Articles | Stale-content რეპორტი | `GET /api/admin/articles/stale` | Parity smoke-test | — |
