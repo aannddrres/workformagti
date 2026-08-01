@@ -1,5 +1,10 @@
 package ge.magti.portal.domain;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
 /**
  * Mirrors models.py's ExportJob (models.py:675-685, table
  * {@code export_jobs}) -- the registry row a background XLSX/PDF export
@@ -29,11 +34,23 @@ package ge.magti.portal.domain;
  * is written, the same way {@link VideoInstruction#getTargetDepartment()}
  * flags bug #10 for its own later repository step.
  */
+@Entity
+@Table(name = "export_jobs")
 public class ExportJob {
 
+    // No @GeneratedValue: the ID is an application-assigned UUID4 string
+    // (routers/exports.py), not DB-generated.
+    @Id
+    @Column(name = "id", length = 36)
     private String id;
+
+    @Column(name = "status", nullable = false, length = 20)
     private String status = "processing";
+
+    @Column(name = "path", length = 1000)
     private String path;
+
+    @Column(name = "expires_at", nullable = false)
     private double expiresAt;
 
     public String getId() {

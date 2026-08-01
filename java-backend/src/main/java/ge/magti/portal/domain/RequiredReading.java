@@ -1,10 +1,16 @@
 package ge.magti.portal.domain;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
 import java.time.OffsetDateTime;
 
 /**
- * Mirrors models.py's RequiredReading (models.py:201-214). Plain shape
- * only, no persistence annotations (Phase 1b), same rule as {@link User}.
+ * Mirrors models.py's RequiredReading (models.py:201-214).
  *
  * <p>{@link #itemType}/{@link #itemId} is a polymorphic reference (an
  * article or a news item today) rather than a foreign key to one table --
@@ -13,13 +19,28 @@ import java.time.OffsetDateTime;
  * not ported here; it's needed once a repository layer can actually look
  * items up.
  */
+@Entity
+@Table(name = "required_readings")
 public class RequiredReading {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     private Long id;
+
+    @Column(name = "item_type", nullable = false, length = 20)
     private String itemType;
+
+    @Column(name = "item_id", nullable = false)
     private Long itemId;
+
+    @Column(name = "target_department", length = 200)
     private String targetDepartment = "All";
+
+    @Column(name = "due_date", nullable = false)
     private OffsetDateTime dueDate;
+
+    @Column(name = "priority", length = 20)
     private String priority = "normal";
 
     public Long getId() {

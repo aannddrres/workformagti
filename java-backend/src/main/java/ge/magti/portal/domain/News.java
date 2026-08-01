@@ -1,14 +1,20 @@
 package ge.magti.portal.domain;
 
 import ge.magti.portal.util.TbilisiTime;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
+import jakarta.persistence.Table;
 
 import java.time.OffsetDateTime;
 
 /**
- * Mirrors models.py's News (models.py:58-79). Plain shape only, no
- * persistence annotations (Phase 1b) -- same rule as {@link User}. Unlike
- * {@link Article}, News has no multi-department junction table -- just the
- * one {@link #targetDepartment} column.
+ * Mirrors models.py's News (models.py:58-79). Unlike {@link Article}, News
+ * has no multi-department junction table -- just the one
+ * {@link #targetDepartment} column.
  *
  * <p>{@link #isArchived()} mirrors Python's {@code is_archived}
  * {@code @property} (models.py:77-79) exactly: computed from
@@ -17,19 +23,47 @@ import java.time.OffsetDateTime;
  * field vs. a real column -- not decided here; this class only preserves
  * today's actual behavior so nothing changes silently either way.
  */
+@Entity
+@Table(name = "news")
 public class News {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     private Long id;
+
+    @Column(name = "title", nullable = false, length = 500)
     private String title;
+
+    @Lob
+    @Column(name = "content", nullable = false)
     private String content;
+
+    @Column(name = "target_department", length = 200)
     private String targetDepartment = "All";
+
+    @Column(name = "created_at")
     private OffsetDateTime createdAt;
+
+    @Column(name = "attachment_url", length = 1000)
     private String attachmentUrl;
+
+    @Column(name = "version")
     private int version = 1;
+
+    @Column(name = "visible_to_tech_info")
     private boolean visibleToTechInfo = true;
+
+    @Column(name = "visible_to_service_center")
     private boolean visibleToServiceCenter = false;
+
+    @Column(name = "expires_at")
     private OffsetDateTime expiresAt;
+
+    @Column(name = "is_draft")
     private boolean isDraft = true;
+
+    @Column(name = "author_id")
     private Long authorId;
 
     public boolean isArchived() {

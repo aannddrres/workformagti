@@ -1,6 +1,30 @@
 spring:
   application:
     name: portal-backend
+  datasource:
+    url: ${ORACLE_DB_URL:jdbc:oracle:thin:@localhost:1521/orclpdb1}
+    username: ${ORACLE_DB_USER:magti_app}
+    # Same "insecure-but-workable local default" convention as
+    # portal.security.jwt.secret below -- unlike POSTGRES_PASSWORD (which has
+    # NO default and lives in a gitignored .env, per CLAUDE.md), this points
+    # at a dev-only Oracle instance on localhost that isn't network-exposed
+    # and holds no real data yet, so the same low-friction default is used
+    # here rather than requiring an env var the non-technical project owner
+    # would have to set by hand. Override with ORACLE_DB_PASSWORD before any
+    # real deployment.
+    password: ${ORACLE_DB_PASSWORD:MagtiAppDev2026Pw}
+    driver-class-name: oracle.jdbc.OracleDriver
+  jpa:
+    # Schema shape is owned by Flyway (db/migration/*.sql), not Hibernate --
+    # validate only checks the entities match what Flyway already created,
+    # it never issues DDL itself. Matches CLAUDE.md's idempotent-migrations
+    # rule; ddl-auto=update would let Hibernate guess column types/lengths
+    # instead of the deliberate choices in the migration scripts.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    locations: classpath:db/migration
 
 server:
   port: 8080

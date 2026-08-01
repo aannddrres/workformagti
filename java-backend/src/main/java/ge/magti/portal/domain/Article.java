@@ -1,15 +1,23 @@
 package ge.magti.portal.domain;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
+
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Mirrors models.py's Article (models.py:111-186). Plain shape only, no
- * persistence annotations (Phase 1b) -- same rule as {@link User}. History
- * ({@code ArticleHistory}), read receipts, and quiz questions are separate
- * tables, deliberately not modeled as part of this class -- later Content
- * sub-steps, same reasoning as {@link User} deferring {@code Team}.
+ * Mirrors models.py's Article (models.py:111-186). {@link ArticleHistory},
+ * read receipts, and quiz questions are separate tables, deliberately not
+ * modeled as part of this class, same reasoning as {@link User} deferring
+ * {@link Team} as an object reference.
  *
  * <p>Not ported: the {@code category_name} and {@code read_time} Python
  * {@code @property}s (models.py:163-186). Both are response-shaping
@@ -37,17 +45,45 @@ import java.util.List;
  * doc since it wasn't in the original known-issues list and isn't this
  * initiative's to resolve unilaterally.
  */
+@Entity
+@Table(name = "articles")
 public class Article {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     private Long id;
+
+    @Column(name = "title", nullable = false, length = 500)
     private String title;
+
+    @Lob
+    @Column(name = "content", nullable = false)
     private String content;
+
+    @Column(name = "category_id")
     private Long categoryId;
+
+    @Column(name = "tags", length = 500)
     private String tags;
+
+    @Column(name = "target_department", length = 200)
     private String targetDepartment = "All";
+
+    // @Transient: not a column on this table at all -- the authoritative
+    // list lives in the article_target_departments junction table (see
+    // ArticleTargetDepartment), populated by a repository query, not a
+    // JPA relationship yet (that's later work once queries exist).
+    @Transient
     private List<String> targetDepartments = new ArrayList<>();
+
+    @Column(name = "audience_profile", length = 20)
     private String audienceProfile = "all";
+
+    @Column(name = "created_at")
     private OffsetDateTime createdAt;
+
+    @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
     /**
      * Known bug #2, decided fix (2026-07-29): editing an article's quiz
@@ -58,16 +94,37 @@ public class Article {
      * entity should increment {@code version} there; not fixed here since
      * there is no service/repository layer yet.
      */
+    @Column(name = "version")
     private int version = 1;
+
+    @Column(name = "author_id")
     private Long authorId;
+
+    @Column(name = "status", length = 30)
     private String status = "draft";
+
+    @Column(name = "youtube_id", length = 50)
     private String youtubeId;
+
+    @Column(name = "published_at")
     private OffsetDateTime publishedAt;
+
+    @Column(name = "attachment_url", length = 1000)
     private String attachmentUrl;
+
+    @Column(name = "last_verified_at")
     private OffsetDateTime lastVerifiedAt;
+
+    @Column(name = "visible_to_tech_info")
     private boolean visibleToTechInfo = true;
+
+    @Column(name = "visible_to_service_center")
     private boolean visibleToServiceCenter = false;
+
+    @Column(name = "is_draft")
     private boolean isDraft = true;
+
+    @Column(name = "quiz_enabled")
     private boolean quizEnabled = false;
 
     public Long getId() {

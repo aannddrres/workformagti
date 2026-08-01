@@ -1,0 +1,200 @@
+package ge.magti.portal.security;
+
+import ge.magti.portal.config.PortalProperties;
+import ge.magti.portal.domain.Role;
+import ge.magti.portal.domain.User;
+import ge.magti.portal.repository.UserRepository;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+
+import java.util.Map;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+class JwtAuthenticationFilterTest {
+
+    private static final String TEST_SECRET = "test-secret-key-for-jwt-authentication-filter-unit-tests-1234567890";
+
+    private JwtService jwtService;
+    private UserRepository userRepository;
+    private JwtAuthenticationFilter filter;
+
+    @BeforeEach
+    void setUp() {
+        PortalProperties properties = new PortalProperties();
+        properties.getSecurity().getJwt().setSecret(TEST_SECRET);
+        jwtService = new JwtService(properties);
+        userRepository = mock(UserRepository.class);
+        filter = new JwtAuthenticationFilter(jwtService, userRepository);
+        SecurityContextHolder.clearContext();
+    }
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
+
+    private User activeUser(String email, Role role) {
+        User user = new User();
+        user.setEmail(email);
+        user.setName("Test User");
+        user.setRole(role);
+        user.setActive(true);
+        return user;
+    }
+
+    @Test
+    void validAuthorizationHeaderPopulatesSecurityContext() throws Exception {
+        String token = jwtService.createAccessToken(Map.of("sub", "operator@magti.ge"));
+        User user = activeUser("operator@magti.ge", Role.OPERATOR);
+        when(userRepository.findByEmail("operator@magti.ge")).thenReturn(Optional.of(user));
+
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        FilterChain chain = mock(FilterChain.class);
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
+
+        filter.doFilter(request, response, chain);
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        assertEquals(user, auth.getPrincipal());
+        verify(chain).doFilter(request, response);
+    }
+
+    @Test
+    void validCookieTokenPopulatesSecurityContextWhenNoHeader() throws Exception {
+        String token = jwtService.createAccessToken(Map.of("sub", "manager@magti.ge"));
+        User user = activeUser("manager@magti.ge", Role.MANAGER);
+        when(userRepository.findByEmail("manager@magti.ge")).thenReturn(Optional.of(user));
+
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        FilterChain chain = mock(FilterChain.class);
+        when(request.getHeader("Authorization")).thenReturn(null);
+        when(request.getCookies()).thenReturn(new Cookie[]{new Cookie("access_token", token)});
+
+        filter.doFilter(request, response, chain);
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        assertEquals(user, auth.getPrincipal());
+        verify(chain).doFilter(request, response);
+    }
+
+    @Test
+    void headerTakesPrecedenceOverCookie() throws Exception {
+        String headerToken = jwtService.createAccessToken(Map.of("sub", "header.user@magti.ge"));
+        String cookieToken = jwtService.createAccessToken(Map.of("sub", "cookie.user@magti.ge"));
+        User headerUser = activeUser("header.user@magti.ge", Role.OPERATOR);
+        when(userRepository.findByEmail("header.user@magti.ge")).thenReturn(Optional.of(headerUser));
+
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        FilterChain chain = mock(FilterChain.class);
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + headerToken);
+        when(request.getCookies()).thenReturn(new Cookie[]{new Cookie("access_token", cookieToken)});
+
+        filter.doFilter(request, response, chain);
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        assertEquals(headerUser, auth.getPrincipal());
+    }
+
+    @Test
+    void missingTokenLeavesContextEmptyButChainStillProceeds() throws Exception {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        FilterChain chain = mock(FilterChain.class);
+        when(request.getHeader("Authorization")).thenReturn(null);
+        when(request.getCookies()).thenReturn(null);
+
+        filter.doFilter(request, response, chain);
+
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+        verify(chain).doFilter(request, response);
+    }
+
+    @Test
+    void malformedTokenLeavesContextEmptyButChainStillProceeds() throws Exception {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        FilterChain chain = mock(FilterChain.class);
+        when(request.getHeader("Authorization")).thenReturn("Bearer not-a-real-token");
+        when(request.getCookies()).thenReturn(null);
+
+        filter.doFilter(request, response, chain);
+
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+        verify(chain).doFilter(request, response);
+    }
+
+    @Test
+    void disabledAccountGetsImmediate403AndChainNeverRuns() throws Exception {
+        String token = jwtService.createAccessToken(Map.of("sub", "disabled@magti.ge"));
+        User disabledUser = activeUser("disabled@magti.ge", Role.OPERATOR);
+        disabledUser.setActive(false);
+        when(userRepository.findByEmail("disabled@magti.ge")).thenReturn(Optional.of(disabledUser));
+
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        FilterChain chain = mock(FilterChain.class);
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
+
+        filter.doFilter(request, response, chain);
+
+        verify(response).sendError(eq(HttpServletResponse.SC_FORBIDDEN), any());
+        verify(chain, never()).doFilter(any(), any());
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    @Test
+    void unknownUserLeavesContextEmptyButChainStillProceeds() throws Exception {
+        String token = jwtService.createAccessToken(Map.of("sub", "ghost@magti.ge"));
+        when(userRepository.findByEmail("ghost@magti.ge")).thenReturn(Optional.empty());
+
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        FilterChain chain = mock(FilterChain.class);
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
+
+        filter.doFilter(request, response, chain);
+
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+        verify(chain).doFilter(request, response);
+    }
+
+    @Test
+    void authoritiesIncludeRolePrefixAndEachPermission() throws Exception {
+        String token = jwtService.createAccessToken(Map.of("sub", "admin@magti.ge"));
+        User admin = activeUser("admin@magti.ge", Role.SYSTEM_ADMIN);
+        admin.setPermissions(java.util.Set.of("users.manage"));
+        when(userRepository.findByEmail("admin@magti.ge")).thenReturn(Optional.of(admin));
+
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        FilterChain chain = mock(FilterChain.class);
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
+
+        filter.doFilter(request, response, chain);
+
+        var authorityStrings = SecurityContextHolder.getContext().getAuthentication().getAuthorities()
+                .stream().map(Object::toString).toList();
+        assertTrue(authorityStrings.contains("ROLE_SYSTEM_ADMIN"));
+        assertTrue(authorityStrings.contains("users.manage"));
+    }
+}

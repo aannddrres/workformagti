@@ -1,8 +1,14 @@
 package ge.magti.portal.domain;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
 /**
- * Mirrors models.py's QuizAnswer (models.py:556-564). Plain shape only, no
- * persistence annotations (Phase 1b), same rule as {@link User}.
+ * Mirrors models.py's QuizAnswer (models.py:556-564).
  *
  * <p><b>{@link #correct} must never reach an operator-facing response.</b>
  * Python enforces this with two separate Pydantic schemas --
@@ -13,12 +19,25 @@ package ge.magti.portal.domain;
  * operator-facing response DTO later must build a separate public shape
  * that leaves this field out, not just skip serializing it.
  */
+@Entity
+@Table(name = "quiz_answers")
 public class QuizAnswer {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     private Long id;
+
+    @Column(name = "question_id", nullable = false)
     private Long questionId;
+
+    @Column(name = "answer_text", nullable = false, length = 1000)
     private String answerText;
+
+    @Column(name = "is_correct")
     private boolean correct = false;
+
+    @Column(name = "position")
     private int position = 0;
 
     public Long getId() {

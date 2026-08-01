@@ -1,13 +1,19 @@
 package ge.magti.portal.domain;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+
 import java.time.OffsetDateTime;
 
 /**
  * Mirrors models.py's ArticleReadReceipt (models.py:486-509) -- an
  * operator's explicit "I have read this" acknowledgment, distinct from
- * {@code ArticleViewLog}'s passive open-tracking (not ported in this step).
- * Plain shape only, no persistence annotations (Phase 1b), same rule as
- * {@link User}.
+ * {@link ArticleViewLog}'s passive open-tracking.
  *
  * <p>The four {@code *Snapshot} fields are deliberately denormalized
  * copies (article title, operator name/email/department) taken at
@@ -23,16 +29,39 @@ import java.time.OffsetDateTime;
  * (routers/articles.py:1020-1029) -- see {@link QuizAttempt}'s Javadoc for
  * how known bug #2 affects that check.
  */
+@Entity
+@Table(name = "article_read_receipts", uniqueConstraints = @UniqueConstraint(
+        name = "uq_article_read_receipt_version_operator",
+        columnNames = {"article_id", "article_version", "operator_id"}))
 public class ArticleReadReceipt {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     private Long id;
+
+    @Column(name = "article_id")
     private Long articleId;
+
+    @Column(name = "article_title_snapshot", nullable = false, length = 500)
     private String articleTitleSnapshot;
+
+    @Column(name = "article_version", nullable = false)
     private int articleVersion;
+
+    @Column(name = "operator_id")
     private Long operatorId;
+
+    @Column(name = "operator_name_snapshot", nullable = false, length = 200)
     private String operatorNameSnapshot;
+
+    @Column(name = "operator_email_snapshot", nullable = false, length = 255)
     private String operatorEmailSnapshot;
+
+    @Column(name = "operator_department_snapshot", length = 200)
     private String operatorDepartmentSnapshot;
+
+    @Column(name = "read_at", nullable = false)
     private OffsetDateTime readAt;
 
     public Long getId() {

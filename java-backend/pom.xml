@@ -40,17 +40,36 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
-		<!-- spring-boot-starter-data-jpa deliberately NOT declared yet: no
-			 Oracle dev environment exists (decided 2026-07-29), and pulling it
-			 in triggers DataSourceAutoConfiguration, which fails app startup
-			 without a real connection URL. Re-add once entities/repositories
-			 are ready to be wired to a real datasource; don't work around
-			 this with exclude-by-classname. Spring Boot 4.1 moved
-			 DataSourceAutoConfiguration to org.springframework.boot.jdbc.autoconfigure
-			 (confirmed by inspecting the actual jars, not assumed), and
-			 chasing exact autoconfiguration class names across a framework
-			 major version is more fragile than just not declaring the
-			 dependency until it's actually used. -->
+		<!-- Re-added 2026-07-30: real Oracle dev instance now exists
+			 (localhost:1521/orclpdb1, see docs/JAVA_ORACLE_ANGULAR_MIGRATION.md
+			 Phase 1b). Schema is Flyway-owned, not Hibernate-owned, see
+			 application.yml's jpa.hibernate.ddl-auto=validate comment. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+		<!-- Explicit, versioned, idempotent migrations, same reason
+			 CLAUDE.md requires migrate.py to stay idempotent on the Python
+			 side ("workers race on CREATE TABLE otherwise"). Flyway's own
+			 locking table closes that race; Hibernate ddl-auto=update would
+			 not. -->
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-core</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-database-oracle</artifactId>
+		</dependency>
+		<!-- Spring Boot 4.1 split FlywayAutoConfiguration out of the old
+			 monolithic spring-boot-autoconfigure jar into its own module,
+			 same pattern as spring-boot-hibernate/spring-boot-jdbc above.
+			 flyway-core alone (the vendor-neutral migration engine) does not
+			 pull this in. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-flyway</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security</artifactId>
@@ -62,6 +81,21 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc</artifactId>
+		</dependency>
+		<!-- PermissionsConverter needs raw Jackson at compile scope for the
+			 JSON-in-a-CLOB column encoding. spring-boot-starter-json exists
+			 in Spring Boot 4.1 but only pulls in the new spring-boot-jackson
+			 wrapper module, not com.fasterxml.jackson.databind directly
+			 (that currently reaches this project only transitively, at
+			 runtime scope, via jjwt-jackson), confirmed by inspecting the
+			 actual dependency:tree output, not assumed. Declaring it
+			 directly here is simpler than adopting Spring's new Jackson
+			 abstraction for one converter class. No version pinned: Spring
+			 Boot's own BOM manages it (resolves to the same 2.21.4
+			 jjwt-jackson already pulls in). -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
 		</dependency>
 
 		<dependency>

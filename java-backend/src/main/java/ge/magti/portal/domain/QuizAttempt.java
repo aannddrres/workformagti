@@ -1,11 +1,17 @@
 package ge.magti.portal.domain;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
 import java.time.OffsetDateTime;
 
 /**
  * Mirrors models.py's QuizAttempt (models.py:567-587) -- every submission,
- * pass or fail. Plain shape only, no persistence annotations (Phase 1b),
- * same rule as {@link User}.
+ * pass or fail.
  *
  * <p>{@link #attemptNumber} and the pass/fail gate are both scoped to
  * {@link #articleVersion}, not just {@link #articleId}
@@ -27,16 +33,37 @@ import java.time.OffsetDateTime;
  * for the one part of quiz submission that doesn't need a database
  * (scoring the answers themselves).
  */
+@Entity
+@Table(name = "quiz_attempts")
 public class QuizAttempt {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     private Long id;
+
+    @Column(name = "article_id", nullable = false)
     private Long articleId;
+
+    @Column(name = "article_version", nullable = false)
     private int articleVersion;
+
+    @Column(name = "user_id", nullable = false)
     private Long userId;
+
+    @Column(name = "attempt_number", nullable = false)
     private int attemptNumber;
+
+    @Column(name = "score", nullable = false)
     private int score;
+
+    @Column(name = "total_questions", nullable = false)
     private int totalQuestions;
+
+    @Column(name = "passed")
     private boolean passed = false;
+
+    @Column(name = "created_at")
     private OffsetDateTime createdAt;
 
     public Long getId() {

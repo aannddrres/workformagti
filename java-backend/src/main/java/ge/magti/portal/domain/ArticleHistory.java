@@ -1,11 +1,19 @@
 package ge.magti.portal.domain;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+
 import java.time.OffsetDateTime;
 
 /**
  * Mirrors models.py's ArticleHistory (models.py:458-483) -- one snapshot
- * row per edit. Plain shape only, no persistence annotations (Phase 1b),
- * same rule as {@link User}.
+ * row per edit.
  *
  * <p>{@link #versionId} is nullable on purpose, matching the Python column
  * exactly: it's the {@code article.version} value the snapshot represents
@@ -13,14 +21,33 @@ import java.time.OffsetDateTime;
  * created before that column existed have it as null -- the UI falls back
  * to list index for those. Not backfilled or defaulted here.
  */
+@Entity
+@Table(name = "article_history", uniqueConstraints = @UniqueConstraint(
+        name = "ux_article_history_article_version", columnNames = {"article_id", "version_id"}))
 public class ArticleHistory {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     private Long id;
+
+    @Column(name = "article_id", nullable = false)
     private Long articleId;
+
+    @Column(name = "title", nullable = false, length = 500)
     private String title;
+
+    @Lob
+    @Column(name = "content", nullable = false)
     private String content;
+
+    @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
+
+    @Column(name = "updated_by", nullable = false)
     private Long updatedBy;
+
+    @Column(name = "version_id")
     private Integer versionId;
 
     public Long getId() {

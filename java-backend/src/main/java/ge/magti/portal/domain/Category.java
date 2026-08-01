@@ -1,22 +1,45 @@
 package ge.magti.portal.domain;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
 /**
- * Mirrors models.py's Category (models.py:96-108). Plain shape only, no
- * persistence annotations (Phase 1b) -- same rule as {@link User}.
+ * Mirrors models.py's Category (models.py:96-108).
  *
  * <p>{@link #parentId} is the raw self-referencing foreign key
  * (models.py's {@code parent_id}); the parent/children object graph and the
  * {@code articles} back-reference are repository-layer concerns, not
  * modeled here, same reasoning as {@link User#getTeamId()}.
  */
+@Entity
+@Table(name = "categories")
 public class Category {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     private Long id;
+
+    @Column(name = "name", nullable = false, length = 200)
     private String name;
+
+    @Column(name = "parent_id")
     private Long parentId;
+
+    @Column(name = "slug", length = 150)
     private String slug;
+
+    @Column(name = "icon", length = 100)
     private String icon;
+
+    @Column(name = "pastel_color_class", length = 100)
     private String pastelColorClass;
+
+    @Column(name = "is_active")
     private boolean active = true;
 
     public Long getId() {

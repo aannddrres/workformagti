@@ -1,5 +1,14 @@
 package ge.magti.portal.domain;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
+
 import java.time.OffsetDateTime;
 
 /**
@@ -12,15 +21,36 @@ import java.time.OffsetDateTime;
  * relationships (models.py:327-333) -- plain fields here, not recomputed,
  * same rule already used for {@code Article.categoryName}.
  */
+@Entity
+@Table(name = "messages")
 public class Message {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     private Long id;
+
+    @Column(name = "user_id", nullable = false)
     private Long userId;
+
+    @Column(name = "sender_id")
     private Long senderId;
+
+    @Lob
+    @Column(name = "content", nullable = false)
     private String content;
+
+    @Column(name = "is_read")
     private boolean read = false;
+
+    @Column(name = "created_at")
     private OffsetDateTime createdAt;
+
+    // @Transient: joined from users.name via sender_id/user_id at query
+    // time in Python (models.py:327-333), not stored columns.
+    @Transient
     private String senderName;
+    @Transient
     private String recipientName;
 
     public Long getId() {

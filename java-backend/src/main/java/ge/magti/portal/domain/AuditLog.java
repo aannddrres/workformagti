@@ -1,10 +1,21 @@
 package ge.magti.portal.domain;
 
+import ge.magti.portal.audit.AuditCategoryClassifier;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+
 import java.time.OffsetDateTime;
 
 /**
- * Mirrors models.py's AuditLog (models.py:336-376). Plain shape only, no
- * persistence annotations (Phase 1b), same rule as {@link User}.
+ * Mirrors models.py's AuditLog (models.py:336-376).
  *
  * <p>{@link #prevHash}/{@link #rowHash}/{@link #ipAddress}/{@link #userAgent}
  * are populated by a Postgres-only {@code BEFORE INSERT} trigger
@@ -21,23 +32,74 @@ import java.time.OffsetDateTime;
  * can be honestly written without a real Oracle connection to test
  * against.
  */
+@Entity
+@Table(name = "audit_logs")
 public class AuditLog {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     private Long id;
+
+    @Column(name = "admin_id", nullable = false)
     private Long adminId;
+
+    @Column(name = "action", nullable = false, length = 50)
     private String action;
+
+    @Column(name = "item_type", nullable = false, length = 30)
     private String itemType;
+
+    @Column(name = "item_id", nullable = false)
     private Long itemId;
+
+    @Column(name = "timestamp")
     private OffsetDateTime timestamp;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "category", length = 20)
     private AuditCategory category;
+
+    @Lob
+    @Column(name = "details")
     private String details;
+
+    @Column(name = "admin_name_snapshot", length = 255)
     private String adminNameSnapshot;
+
+    @Column(name = "admin_email_snapshot", length = 255)
     private String adminEmailSnapshot;
+
+    @Column(name = "item_name_snapshot", length = 500)
     private String itemNameSnapshot;
+
+    @Column(name = "prev_hash", length = 64)
     private String prevHash;
+
+    @Column(name = "row_hash", length = 64)
     private String rowHash;
+
+    @Column(name = "ip_address", length = 45)
     private String ipAddress;
+
+    @Column(name = "user_agent", length = 500)
     private String userAgent;
+
+    /**
+     * Mirrors the pure-logic half of models.py's {@code
+     * _auto_classify_audit_log} before_insert hook (models.py:418-429):
+     * fires on every insert automatically, same as the SQLAlchemy
+     * listener, so no call site needs to remember to set it. The
+     * snapshot-column half of that same hook (admin_name_snapshot etc.,
+     * models.py:431-439) needs a live DB lookup a {@code @PrePersist}
+     * callback can't do -- that part is each call site's own job for now.
+     */
+    @PrePersist
+    private void classifyCategoryIfMissing() {
+        if (category == null) {
+            category = AuditCategoryClassifier.classify(itemType, action);
+        }
+    }
 
     public Long getId() {
         return id;

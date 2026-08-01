@@ -1,63 +1,100 @@
 package ge.magti.portal.domain;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+
 import java.time.OffsetDateTime;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
 /**
- * Mirrors models.py's User (models.py:22-55) -- the users table exactly as
- * it exists today, not yet mapped to Oracle. No persistence annotations on
- * purpose: that's Phase 1b work, once the Oracle column types/lengths (68
- * of 202 columns portal-wide currently have neither -- see
- * docs/JAVA_ORACLE_ANGULAR_MIGRATION.md Phase 1) are consciously decided
- * rather than guessed here. This class only fixes the *shape*.
+ * Mirrors models.py's User (models.py:22-55) -- the users table.
  *
  * <p>Deliberately NOT modeled: {@code team}/{@code manager} as object
  * references (models.py:54-55) -- {@link #teamId}/{@link #managerId} carry
  * the raw foreign key only. Wiring the actual object graph is repository
  * work, not a data-structure decision.
  *
- * <p>Two things worth knowing before this is ever wired to a real column:
- * <ul>
- *   <li>{@link #lastActive}/{@link #lastNewsViewedAt} are
- *       {@link OffsetDateTime}, not {@link java.time.Instant}, on purpose:
- *       database.py's get_tbilisi_time() (database.py:69-71) takes UTC+4
- *       wall-clock time and then STRIPS the timezone before returning it,
- *       so every timestamp in this table today is naive Tbilisi local time
- *       with no zone attached, not UTC. Decided 2026-07-29: keep storing
- *       Tbilisi time (not UTC) in the Java port too -- see
- *       {@link ge.magti.portal.util.TbilisiTime}. The one change from the
- *       Python side is that the zone is now explicit in the type rather
- *       than a silently-assumed naive value, which is what closes the risk
- *       that mapping this to Instant would have silently shifted every
- *       value by 4 hours.</li>
- *   <li>{@link #lastCategoriesViewedAt} mirrors a column (models.py:51,
- *       JSON, default {@code dict}) that no router, template, or script
- *       anywhere in the current repo reads or writes -- grepped repo-wide,
- *       zero hits outside models.py/migrate.py. It may simply be dead.
- *       Carried over as a raw, untyped placeholder rather than dropped
- *       silently or guessed at; worth confirming with the org before Phase
- *       1b decides its Oracle type. Logged as an additional finding in the
- *       migration doc.</li>
- * </ul>
+ * <p>{@link #lastActive}/{@link #lastNewsViewedAt} are {@link
+ * OffsetDateTime}, not {@link java.time.Instant}, on purpose: database.py's
+ * get_tbilisi_time() (database.py:69-71) takes UTC+4 wall-clock time and
+ * then STRIPS the timezone before returning it, so every timestamp in this
+ * table today is naive Tbilisi local time with no zone attached, not UTC.
+ * Decided 2026-07-29: keep storing Tbilisi time (not UTC) in the Java port
+ * too -- see {@link ge.magti.portal.util.TbilisiTime} and {@link
+ * ge.magti.portal.util.TbilisiTimestampConverter}, which maps this back to
+ * a plain (zoneless) {@code TIMESTAMP(6)} column so the physical storage
+ * matches the Python side exactly; only the Java-side type gets the offset
+ * made explicit.
+ *
+ * <p>{@code last_categories_viewed_at} (models.py:51, JSON, default
+ * {@code dict}) is deliberately NOT carried over to the Oracle schema:
+ * grepped repo-wide, no router/template/script anywhere reads or writes it
+ * -- confirmed dead, and you chose to drop it rather than reserve space for
+ * it (2026-07-30).
  */
+@Entity
+@Table(name = "users", uniqueConstraints = @UniqueConstraint(name = "uq_users_email", columnNames = "email"))
 public class User {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     private Long id;
+
+    @Column(name = "email", nullable = false, length = 255)
     private String email;
+
+    @Column(name = "name", nullable = false, length = 200)
     private String name;
+
+    @Column(name = "department", length = 200)
     private String department;
+
+    @Column(name = "position", length = 200)
     private String position;
+
+    @Column(name = "phone", length = 30)
     private String phone;
+
+    @Column(name = "role", length = 30)
     private Role role = Role.OPERATOR;
+
+    @Column(name = "is_active")
     private boolean active = true;
+
+    @Column(name = "last_active")
     private OffsetDateTime lastActive;
+
+    @Column(name = "hashed_password", length = 255)
     private String hashedPassword;
+
+    // @Lob: without it, Hibernate infers the converted (String) column as a
+    // default-length VARCHAR2(255), not the CLOB the migration actually
+    // creates -- schema validation failed on exactly this before @Lob was
+    // added (confirmed against the real Oracle instance, not assumed).
+    @Lob
+    @Convert(converter = PermissionsConverter.class)
+    @Column(name = "permissions")
     private Set<String> permissions = new LinkedHashSet<>();
+
+    @Column(name = "team_id")
     private Long teamId;
+
+    @Column(name = "manager_id")
     private Long managerId;
+
+    @Column(name = "last_news_viewed_at")
     private OffsetDateTime lastNewsViewedAt;
-    private Object lastCategoriesViewedAt;
+
+    @Column(name = "card_style", length = 50)
     private String cardStyle = "corporate";
 
     public boolean hasPermission(Permission permission) {
@@ -174,14 +211,6 @@ public class User {
 
     public void setLastNewsViewedAt(OffsetDateTime lastNewsViewedAt) {
         this.lastNewsViewedAt = lastNewsViewedAt;
-    }
-
-    public Object getLastCategoriesViewedAt() {
-        return lastCategoriesViewedAt;
-    }
-
-    public void setLastCategoriesViewedAt(Object lastCategoriesViewedAt) {
-        this.lastCategoriesViewedAt = lastCategoriesViewedAt;
     }
 
     public String getCardStyle() {
