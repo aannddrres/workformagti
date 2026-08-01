@@ -78,6 +78,8 @@ public class AuthController {
                 failedLogin.setItemId(existing.getId());
                 failedLogin.setTimestamp(TbilisiTime.now());
                 failedLogin.setDetails("IP: " + httpRequest.getRemoteAddr());
+                failedLogin.setIpAddress(httpRequest.getRemoteAddr());
+                failedLogin.setUserAgent(truncatedUserAgent(httpRequest));
                 auditLogRepository.save(failedLogin);
             });
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -93,6 +95,8 @@ public class AuthController {
             successfulLogin.setItemType("user");
             successfulLogin.setItemId(user.getId());
             successfulLogin.setTimestamp(TbilisiTime.now());
+            successfulLogin.setIpAddress(httpRequest.getRemoteAddr());
+            successfulLogin.setUserAgent(truncatedUserAgent(httpRequest));
             auditLogRepository.save(successfulLogin);
         }
 
@@ -113,6 +117,16 @@ public class AuthController {
                 .build();
         httpResponse.addHeader(HttpHeaders.SET_COOKIE, cleared.toString());
         return ResponseEntity.ok(Map.of("detail", "Logged out"));
+    }
+
+    /** Mirrors audit_trail.py's actor_context_middleware bounding user_agent to
+     *  the audit_logs.user_agent column's 500-char width before it's stored. */
+    private static String truncatedUserAgent(HttpServletRequest httpRequest) {
+        String userAgent = httpRequest.getHeader("User-Agent");
+        if (userAgent == null) {
+            return null;
+        }
+        return userAgent.length() > 500 ? userAgent.substring(0, 500) : userAgent;
     }
 
     private ResponseCookie accessTokenCookie(String accessToken) {
