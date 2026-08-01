@@ -840,6 +840,45 @@ routers/videos.py-ის საკუთარი კოდი ცალსა�
 
 ---
 
+**Categories აშენდა (2026-08-01)** — შემდეგი, უფრო პატარა Content-ნაწილი
+Videos-ის შემდეგ (როგორც წინა ჩანაწერშია ნახსენები, სია დანარჩენისთვის).
+4 endpoint: სია (ნებისმიერი ავთენტიფიცირებული როლი, მხოლოდ აქტიური
+კატეგორიები — ვიდეოსგან განსხვავებით, აქ ადმინისთვისაც არ ჩანს
+დეარქივებული/inactive ჩანაწერი, Python-ის ორიგინალის ზუსტი ასლი), და
+content_admin/system_admin create/update/delete.
+
+**წაშლის fallback-გადანაწილება** (routers/categories.py:104-142) ზუსტადაა
+გადმოტანილი: წაშლა თავად soft-delete-ია (`is_active=false`), მაგრამ
+ჯერ ამოწმებს/ქმნის ფიქსირებული სახელის "ზოგადი" fallback-კატეგორიას
+(თუ არ არსებობს) და მასზე გადააქვს ყველა სტატია, რომელიც წაშლილ
+კატეგორიაზე იყო მიბმული — ერთი bulk UPDATE-ით, არა თითო-სტატიით.
+კიდური შემთხვევაც (თუ თვითონ "ზოგადი"-ს შლი) იქცევა ზუსტად ისე, როგორც
+Python-ის კოდი: თვითდამიბმა გამორიცხულია, არაფერი გადანაწილდება,
+სტატიები (already inactive) კატეგორიაზე მიბმულად რჩება — ეს ცალსახად
+Python-ის საკუთარი ლოგიკის კიდური შემთხვევაა, არა ამ ინიციატივის მიერ
+შემოტანილი ან გასწორებული რამ.
+
+**ერთი რეალური, ამ პორტში ახლად აღმოჩენილი ბაგი, გასწორებული ტესტის
+ჩავარდნით (არა წინასწარი ვარაუდით):** bulk `@Modifying` JPQL UPDATE
+Hibernate-ის persistence context-ს გვერდს უვლის — ტესტმა დაიჭირა
+ზუსტად ეს: სტატიის თავიდანვე ჩატვირთული ობიექტი მომდევნო `findById`-ზე
+ისევ ძველ (გადაუნაწილებელ) `category_id`-ს აბრუნებდა L1 cache-დან,
+მიუხედავად იმისა, რომ ბაზაში სწორად იყო განახლებული. გასწორდა
+`@Modifying(clearAutomatically = true)`-ით (`ArticleRepository.
+reassignCategory`), რომელიც bulk UPDATE-ის შემდეგ ასუფთავებს
+persistence context-ს.
+
+**იგივე ორი გააზრებული ხარვეზი, რაც Videos-ში:** ORM-listener ავტო-აუდიტი
+(models.Category იმავე classified-map-შია audit_trail.py-ში, მაგრამ
+Java-ეკვივალენტი ჯერ არ არსებობს) და `category_cache`/`search_cache`
+TTL-cache გაწმენდა (არცერთი cache არ არსებობს Java-პორტში ჯერ).
+
+7 ახალი ტესტი (178/178 საერთო ჯამში): CRUD lifecycle, 404 update/delete-ზე,
+fallback-გადანაწილება, fallback-ის თვითონ-წაშლის კიდური შემთხვევა,
+401/403 auth-გეითები, აქტიური/inactive ფილტრი.
+
+---
+
 ## ფაზა 2 — Parity ვალიდაციის კარიბჭე
 
 Angular არ იწყება, სანამ Parity-ჰარნესი (§3) არ აჩვენებს 100%-იან თანხმობას
@@ -1061,7 +1100,7 @@ Postgres-ზე:
 | News | CRUD + ისტორია/restore, **`is_archived` არის `@property` (expires_at-ზე გამოთვლადი, არა queryable სვეტი)** | `GET/POST/PUT/DELETE /api/news`, `/api/news/{id}`, history/restore, autosave | Parity | ARCHIVE-ლოგიკა ცალკე Java-ში — ან computed field, ან real column (გადაწყვეტილება) |
 | News | დეპარტამენტის prefix-aware ხილვადობა (identical to Articles) | `GET /api/news` | Parity + §3.3 | — |
 | Videos | ✅ **აშენებული და გადამოწმებული (2026-08-01)** — CRUD + archive/unarchive + view-count. ბაგი #10 **გასწორებულია**: დეპარტამენტის ფილტრი ახლა prefix-aware-ია (`DepartmentMatcher`), არა ზუსტი-დამთხვევა — თქვენი გადაწყვეტილებით | `GET/POST/PUT/DELETE /api/videos`, `/archive`, `/unarchive`, `/{id}/view` | 25 ტესტი რეალურ Oracle-ზე (YouTube URL, ტეგები, ხილვადობა, ნებართვები, აუდიტი) | ✔ დაკმაყოფილებულია |
-| Categories | ტრივიალური CRUD | `GET/POST/PUT/DELETE /api/categories` | Parity smoke-test | — |
+| Categories | ✅ **აშენებული და გადამოწმებული (2026-08-01)** — CRUD + წაშლისას "ზოგადი" fallback-კატეგორიაზე სტატიების ავტომატური გადანაწილება (on-the-fly შექმნით, თუ არ არსებობს) | `GET/POST/PUT/DELETE /api/categories` | 7 ტესტი რეალურ Oracle-ზე (lifecycle, 404, fallback-გადანაწილება, თვითონ fallback-ის წაშლის კიდური შემთხვევა) | ✔ დაკმაყოფილებულია |
 | Platform | ატვირთვა, ტეგები, servable-pages whitelist, health-check | `POST /api/upload`, `GET /api/tags`, `GET /api/health`, static/HTML routes | Parity smoke-test | — |
 
 ## Compliance
