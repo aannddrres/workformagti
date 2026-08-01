@@ -9,17 +9,20 @@ import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.Category;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.User;
+import ge.magti.portal.domain.UserNote;
 import ge.magti.portal.repository.ArticleHistoryRepository;
 import ge.magti.portal.repository.ArticleRepository;
 import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
 import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.CategoryRepository;
+import ge.magti.portal.repository.UserNoteRepository;
 import ge.magti.portal.security.PermissionChecker;
 import ge.magti.portal.util.DepartmentMatcher;
 import ge.magti.portal.util.TbilisiTime;
 import ge.magti.portal.video.TagSyncService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,8 +36,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -74,6 +81,7 @@ public class ArticleController {
     private final ArticleHistoryRepository articleHistoryRepository;
     private final CategoryRepository categoryRepository;
     private final AuditLogRepository auditLogRepository;
+    private final UserNoteRepository userNoteRepository;
     private final PermissionChecker permissionChecker;
     private final TagSyncService tagSyncService;
     private final ArticleQueryService articleQueryService;
@@ -84,6 +92,7 @@ public class ArticleController {
             ArticleHistoryRepository articleHistoryRepository,
             CategoryRepository categoryRepository,
             AuditLogRepository auditLogRepository,
+            UserNoteRepository userNoteRepository,
             PermissionChecker permissionChecker,
             TagSyncService tagSyncService,
             ArticleQueryService articleQueryService) {
@@ -92,6 +101,7 @@ public class ArticleController {
         this.articleHistoryRepository = articleHistoryRepository;
         this.categoryRepository = categoryRepository;
         this.auditLogRepository = auditLogRepository;
+        this.userNoteRepository = userNoteRepository;
         this.permissionChecker = permissionChecker;
         this.tagSyncService = tagSyncService;
         this.articleQueryService = articleQueryService;
@@ -430,6 +440,200 @@ public class ArticleController {
         return ResponseEntity.ok(new ArticleBulkArchiveResponse(updated, target, skipped));
     }
 
+    @PostMapping("/api/articles/{id}/feedback")
+    public ResponseEntity<?> createArticleFeedback(@PathVariable Long id, @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        if (denial != null) {
+            return denial;
+        }
+        return ResponseEntity.status(HttpStatus.GONE).body(Map.of("detail", "ხარვეზის რეპორტირება დეპრეკირებულია"));
+    }
+
+    @GetMapping("/api/admin/feedback")
+    public ResponseEntity<?> getAdminFeedback(@AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        if (denial != null) {
+            return denial;
+        }
+        return ResponseEntity.status(HttpStatus.GONE).body(Map.of("detail", "უკუკავშირის ნახვა დეპრეკირებულია"));
+    }
+
+    @GetMapping("/api/articles/{id}/note")
+    public ResponseEntity<?> getUserNote(@PathVariable Long id, @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        if (denial != null) {
+            return denial;
+        }
+        ResponseEntity<Map<String, String>> lookup = requireVisibleArticle(id, user);
+        if (lookup != null) {
+            return lookup;
+        }
+
+        Optional<UserNote> note = userNoteRepository.findByUserIdAndArticleId(user.getId(), id);
+        if (note.isEmpty()) {
+            // response_model=Optional[UserNoteResponse] -- FastAPI serializes
+            // a None return as the literal JSON `null`, not an empty body;
+            // ResponseEntity.ok(null) would otherwise make Spring write zero
+            // bytes, which a client's response.json() would fail to parse.
+            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body("null");
+        }
+        return ResponseEntity.ok(UserNoteResponse.from(note.get()));
+    }
+
+    @PutMapping("/api/articles/{id}/note")
+    @Transactional
+    public ResponseEntity<?> putUserNote(
+            @PathVariable Long id, @Valid @RequestBody UserNoteRequest request, @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        if (denial != null) {
+            return denial;
+        }
+        ResponseEntity<Map<String, String>> lookup = requireVisibleArticle(id, user);
+        if (lookup != null) {
+            return lookup;
+        }
+
+        UserNote note = userNoteRepository.findByUserIdAndArticleId(user.getId(), id).orElseGet(UserNote::new);
+        boolean isNew = note.getId() == null;
+        note.setContent(request.content());
+        if (isNew) {
+            note.setUserId(user.getId());
+            note.setArticleId(id);
+            note.setCreatedAt(TbilisiTime.now());
+        }
+        note.setUpdatedAt(TbilisiTime.now());
+        UserNote saved = userNoteRepository.save(note);
+        return ResponseEntity.ok(UserNoteResponse.from(saved));
+    }
+
+    @PostMapping("/api/articles/{id}/verify")
+    @Transactional
+    public ResponseEntity<?> verifyArticle(@PathVariable Long id, @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        if (denial != null) {
+            return denial;
+        }
+
+        Optional<Article> found = articleRepository.findById(id);
+        if (found.isEmpty()) {
+            return notFound();
+        }
+        Article article = found.get();
+        article.setLastVerifiedAt(TbilisiTime.now());
+        article.setUpdatedAt(TbilisiTime.now());
+        writeAuditLog(user.getId(), "VERIFY", id);
+        Article saved = articleRepository.save(article);
+        return ResponseEntity.ok(ArticleResponse.from(saved, resolveTargetDepartments(id)));
+    }
+
+    @GetMapping("/api/admin/articles/stale")
+    public ResponseEntity<?> getStaleArticles(@AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        if (denial != null) {
+            return denial;
+        }
+
+        OffsetDateTime cutoff = TbilisiTime.now().minusDays(180);
+        List<StaleArticleResponse> stale = articleRepository
+                .findByStatusAndLastVerifiedAtBeforeOrderByLastVerifiedAtAsc("published", cutoff).stream()
+                .map(a -> new StaleArticleResponse(
+                        a.getId(), a.getTitle(), resolveTargetDepartments(a.getId()), a.getLastVerifiedAt(),
+                        Duration.between(a.getLastVerifiedAt(), TbilisiTime.now()).toDays()))
+                .toList();
+        return ResponseEntity.ok(stale);
+    }
+
+    @GetMapping("/api/articles/{id}/related")
+    public ResponseEntity<?> getRelatedArticles(@PathVariable Long id, @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        if (denial != null) {
+            return denial;
+        }
+
+        // routers/articles.py:1582-1584 -- a plain lookup, not get_or_404: a
+        // missing source article returns an empty list, not a 404.
+        Optional<Article> found = articleRepository.findById(id);
+        if (found.isEmpty()) {
+            return ResponseEntity.ok(List.of());
+        }
+        Article source = found.get();
+        ResponseEntity<Map<String, String>> visibility =
+                assertArticleVisible(source, resolveTargetDepartments(id), user);
+        if (visibility != null) {
+            return visibility;
+        }
+
+        List<Article> published = articleRepository.findByStatus("published").stream()
+                .filter(a -> !a.getId().equals(id))
+                .toList();
+        Set<Long> candidateIds = published.stream().map(Article::getId).collect(Collectors.toSet());
+        Map<Long, List<String>> deptsByArticle = targetDepartmentRepository.findByArticleIdIn(candidateIds).stream()
+                .collect(Collectors.groupingBy(ArticleTargetDepartment::getArticleId,
+                        Collectors.mapping(ArticleTargetDepartment::getDepartment, Collectors.toList())));
+        boolean isAdmin = user.getRole().isContentAdmin();
+        // Deliberately exact-match + "All" only, NOT DepartmentMatcher's
+        // prefix-aware rule -- routers/articles.py:1596-1601 narrows this
+        // one candidate filter differently than get_articles' own list
+        // query does, and this port carries that difference forward
+        // unchanged rather than unifying it.
+        List<Article> candidates = published.stream()
+                .filter(a -> isAdmin
+                        || relatedArticleDeptMatches(user.getDepartment(), deptsByArticle.getOrDefault(a.getId(), List.of())))
+                .toList();
+
+        List<Article> results = new ArrayList<>(candidates.stream()
+                .filter(a -> Objects.equals(a.getCategoryId(), source.getCategoryId()))
+                .limit(4)
+                .toList());
+
+        if (results.size() < 4 && source.getTags() != null && !source.getTags().isBlank()) {
+            Set<Long> existingIds = new LinkedHashSet<>();
+            results.forEach(a -> existingIds.add(a.getId()));
+            List<String> tagList = Arrays.stream(source.getTags().split(","))
+                    .map(t -> t.strip().toLowerCase())
+                    .filter(t -> !t.isEmpty())
+                    .toList();
+            for (String tag : tagList) {
+                if (results.size() >= 4) {
+                    break;
+                }
+                int remaining = 4 - results.size();
+                List<Article> tagMatches = candidates.stream()
+                        .filter(a -> !existingIds.contains(a.getId()))
+                        .filter(a -> a.getTags() != null && a.getTags().toLowerCase().contains(tag))
+                        .limit(remaining)
+                        .toList();
+                for (Article a : tagMatches) {
+                    if (existingIds.add(a.getId())) {
+                        results.add(a);
+                    }
+                }
+            }
+        }
+
+        if (results.size() < 4) {
+            Set<Long> existingIds = new LinkedHashSet<>();
+            results.forEach(a -> existingIds.add(a.getId()));
+            int remaining = 4 - results.size();
+            List<Article> fillMatches = candidates.stream()
+                    .filter(a -> !existingIds.contains(a.getId()))
+                    .sorted(Comparator.comparing(Article::getCreatedAt).reversed())
+                    .limit(remaining)
+                    .toList();
+            for (Article a : fillMatches) {
+                if (existingIds.add(a.getId())) {
+                    results.add(a);
+                }
+            }
+        }
+
+        List<RelatedArticleResponse> response = results.stream()
+                .limit(4)
+                .map(a -> new RelatedArticleResponse(a.getId(), a.getTitle(), a.getCategoryId(), a.getTags()))
+                .toList();
+        return ResponseEntity.ok(response);
+    }
+
     private void applySharedFields(Article article, ArticleRequest request) {
         article.setTitle(request.title());
         article.setContent(request.content());
@@ -494,6 +698,31 @@ public class ArticleController {
             return null;
         }
         return notFoundMap();
+    }
+
+    /** Combines the get_or_404 + _assert_article_visible pair every note/quiz-style child route repeats. */
+    private ResponseEntity<Map<String, String>> requireVisibleArticle(Long articleId, User user) {
+        Optional<Article> found = articleRepository.findById(articleId);
+        if (found.isEmpty()) {
+            return notFoundMap();
+        }
+        return assertArticleVisible(found.get(), resolveTargetDepartments(articleId), user);
+    }
+
+    /**
+     * Port of get_related_articles' narrower department filter
+     * (routers/articles.py:1596-1601) -- exact match or "All" only, no
+     * {@link DepartmentMatcher} prefix support. Deliberately not reusing
+     * {@code assertArticleVisible}'s dept check: that one calls
+     * DepartmentMatcher.matches, this endpoint's own Python source doesn't.
+     */
+    private static boolean relatedArticleDeptMatches(String userDepartment, List<String> targets) {
+        for (String target : targets) {
+            if ("All".equals(target) || Objects.equals(target, userDepartment)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static ResponseEntity<Map<String, String>> notFoundMap() {

@@ -965,6 +965,37 @@ persistence context-ის მეშვეობით შლის row-ის �
 
 ---
 
+**Articles-ის მცირე endpoint-ები აშენდა (2026-08-01, იმავე სესიაში)** —
+დეპრეკირებული feedback-stub-ები (2), პირადი შენიშვნები (2), verify (1),
+stale-რეპორტი (1), related-articles (1) = 7 endpoint. თქვენი არჩევანი
+იყო — ყველაზე მარტივი დარჩენილი ნაწილი history/diff-ის ან read-receipt-
+ების ნაცვლად.
+
+**ორი დეტალი, რომლებიც ადვილად გამოტოვებადია პირდაპირი თარგმანისას:**
+
+1. **`GET .../note` ცარიელ პასუხზე რეალურ JSON `null`-ს აბრუნებს, არა
+   ცარიელ body-ს.** Spring ჩვეულებრივ `ResponseEntity`-ის `null` body-ს
+   საერთოდ არაფრით არ წერს (0 ბაიტი), მაშინ როცა Python/FastAPI
+   `Optional[Schema]`-ს `None`-ზე პირდაპირ სტრიქონად `null`-ს წერს.
+   განსხვავება მნიშვნელოვანია frontend-ისთვის: `response.json()` ცარიელ
+   სტრიქონზე გაფუჭდება (SyntaxError), სიტყვასიტყვით `"null"`-ზე კი
+   უსაფრთხოდ დააბრუნებს `null`-ს. გასწორებულია აშკარა `.body("null")`-ით.
+2. **`GET .../related`-ის დეპარტამენტის ფილტრი განზრახ ზუსტ-დამთხვევაზეა
+   აგებული, არა `DepartmentMatcher`-ის prefix-aware წესზე** — Python-ის
+   საკუთარი კოდი (routers/articles.py:1596-1601) ცალკე, ვიწრო IN-სიას
+   იყენებს (`[user.department, "All"]`), განსხვავებით სიის endpoint-ისგან.
+   ეს **არ არის ბაგი და არ გასწორებულა** — ზუსტად ისეა გადმოტანილი,
+   ცალკე ტესტით დადასტურებული (`relatedArticlesDeptFilterIsExactMatchOnlyNotPrefixAware`).
+
+9 ახალი ტესტი (217/217 საერთო ჯამში).
+
+**Articles-ის შემდეგი დარჩენილი ნაწილი: 10 endpoint** — history/diff/
+restore/versions (4, სჭირდება ახალი diffing.py-ის პორტი) და
+read-receipt/views (6, compliance-ხიდით `RequiredReading`/`ReadStatus`-
+თან). ორივე მეტ-ნაკლებად თანაბარი სირთულისაა; შემდეგი შერჩევა თქვენზეა.
+
+---
+
 ## ფაზა 2 — Parity ვალიდაციის კარიბჭე
 
 Angular არ იწყება, სანამ Parity-ჰარნესი (§3) არ აჩვენებს 100%-იან თანხმობას
@@ -1181,9 +1212,9 @@ Postgres-ზე:
 | Articles | ✅ **დეპარტამენტის prefix-aware ხილვადობა აშენებული (2026-08-01)** — list-ფილტრი (`GET /api/articles`) და ცალკეული სტატიის ხილვადობა (`_assert_article_visible`) ორივე | `GET /api/articles`, `GET /api/articles/{id}` | ზემოთ ჩამოთვლილ 20 ტესტში შედის | ✔ დაკმაყოფილებულია |
 | Articles | ✅ **Knowledge-score + leaderboard აშენებული (2026-08-01)** | `GET /api/users/me/knowledge-score`, `/api/knowledge-leaderboard` | 10 ტესტი რეალურ Oracle-ზე | ✔ დაკმაყოფილებულია — ფორმულა იდენტურია (+10/+5 bonus) |
 | Articles | Recently-viewed | `GET /api/me/recently-viewed` | Parity | — |
-| Articles | User notes + feedback | `GET/PUT /api/articles/{id}/note`, `POST /feedback`, `GET /api/admin/feedback` | Parity smoke-test | — |
-| Articles | Verify (მენეჯერული დადასტურება) + related-articles (tag-based) | `POST /api/articles/{id}/verify`, `GET /related` | Parity | — |
-| Articles | Stale-content რეპორტი | `GET /api/admin/articles/stale` | Parity smoke-test | — |
+| Articles | ✅ **User notes + deprecated feedback stubs აშენებული (2026-08-01)** — GET note აბრუნებს **ნამდვილ JSON `null`-ს** (არა ცარიელ body-ს) როცა შენიშვნა არ არსებობს | `GET/PUT /api/articles/{id}/note`, `POST /feedback`, `GET /api/admin/feedback` | 9 ტესტი რეალურ Oracle-ზე | ✔ დაკმაყოფილებულია |
+| Articles | ✅ **Verify + related-articles აშენებული (2026-08-01)** — related-ს დეპარტამენტის ფილტრი **განზრახ ზუსტი-დამთხვევაა, არა prefix-aware** (Python-ის ორიგინალი ქცევა, სხვაგან ამ ფაილში ყველგან prefix-aware-ია) | `POST /api/articles/{id}/verify`, `GET /related` | ზემოთ ჩამოთვლილ 9 ტესტში შედის | ✔ დაკმაყოფილებულია — განსხვავება დადასტურებულია ცალკე ტესტით |
+| Articles | ✅ **Stale-content რეპორტი აშენებული (2026-08-01)** | `GET /api/admin/articles/stale` | ზემოთ ჩამოთვლილ 9 ტესტში შედის | ✔ დაკმაყოფილებულია |
 | News | CRUD + ისტორია/restore, **`is_archived` არის `@property` (expires_at-ზე გამოთვლადი, არა queryable სვეტი)** | `GET/POST/PUT/DELETE /api/news`, `/api/news/{id}`, history/restore, autosave | Parity | ARCHIVE-ლოგიკა ცალკე Java-ში — ან computed field, ან real column (გადაწყვეტილება) |
 | News | დეპარტამენტის prefix-aware ხილვადობა (identical to Articles) | `GET /api/news` | Parity + §3.3 | — |
 | Videos | ✅ **აშენებული და გადამოწმებული (2026-08-01)** — CRUD + archive/unarchive + view-count. ბაგი #10 **გასწორებულია**: დეპარტამენტის ფილტრი ახლა prefix-aware-ია (`DepartmentMatcher`), არა ზუსტი-დამთხვევა — თქვენი გადაწყვეტილებით | `GET/POST/PUT/DELETE /api/videos`, `/archive`, `/unarchive`, `/{id}/view` | 25 ტესტი რეალურ Oracle-ზე (YouTube URL, ტეგები, ხილვადობა, ნებართვები, აუდიტი) | ✔ დაკმაყოფილებულია |

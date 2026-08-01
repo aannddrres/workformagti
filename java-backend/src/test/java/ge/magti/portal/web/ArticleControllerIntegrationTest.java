@@ -11,6 +11,7 @@ import ge.magti.portal.repository.ArticleRepository;
 import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
 import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.CategoryRepository;
+import ge.magti.portal.repository.UserNoteRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.JwtService;
 import ge.magti.portal.util.TbilisiTime;
@@ -42,9 +43,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Real Oracle, real HTTP, real Spring Security filter chain -- same
  * infrastructure as {@link VideoControllerIntegrationTest}/{@link
- * CategoryControllerIntegrationTest}. Covers this slice's core CRUD +
- * lifecycle only (list/get/create/update/autosave/delete/archive/unarchive/
- * bulk-archive); history/diff/restore, quiz, and read-receipts/views are
+ * CategoryControllerIntegrationTest}. Covers core CRUD + lifecycle
+ * (list/get/create/update/autosave/delete/archive/unarchive/bulk-archive)
+ * and the small standalone endpoints (deprecated feedback stubs, notes,
+ * verify, stale report, related); history/diff/restore, quiz (its own
+ * {@link QuizControllerIntegrationTest}), and read-receipts/views are
  * later slices with their own tests.
  */
 @SpringBootTest
@@ -66,6 +69,8 @@ class ArticleControllerIntegrationTest {
     private CategoryRepository categoryRepository;
     @Autowired
     private AuditLogRepository auditLogRepository;
+    @Autowired
+    private UserNoteRepository userNoteRepository;
     @Autowired
     private JwtService jwtService;
     @Autowired
@@ -505,5 +510,185 @@ class ArticleControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"ids\":[1],\"archive\":true}"))
                 .andExpect(status().isForbidden());
+    }
+
+    // ── deprecated feedback stubs ─────────────────────────────────────
+
+    @Test
+    void feedbackEndpointsAreGoneButStillGateOnAuth() throws Exception {
+        mockMvc.perform(post("/api/articles/1/feedback"))
+                .andExpect(status().isUnauthorized());
+
+        User operator = createUser("aa20@magti.ge", Role.OPERATOR, "All");
+        mockMvc.perform(authed(post("/api/articles/1/feedback"), tokenFor(operator)))
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.detail").value("ხარვეზის რეპორტირება დეპრეკირებულია"));
+
+        mockMvc.perform(authed(get("/api/admin/feedback"), tokenFor(operator)))
+                .andExpect(status().isForbidden());
+
+        User admin = createUser("aa21@magti.ge", Role.CONTENT_ADMIN, "All");
+        mockMvc.perform(authed(get("/api/admin/feedback"), tokenFor(admin)))
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.detail").value("უკუკავშირის ნახვა დეპრეკირებულია"));
+    }
+
+    // ── notes ─────────────────────────────────────────────────────────
+
+    @Test
+    void noteRoundTripsFromMissingToCreatedToUpdated() throws Exception {
+        User operator = createUser("aa22@magti.ge", Role.OPERATOR, "All");
+        Category cat = createCategory("კატ-17");
+        Article article = createArticle("სტატია შენიშვნისთვის", cat.getId(), "published", false, List.of("All"), null);
+
+        String initialBody = mockMvc.perform(authed(get("/api/articles/" + article.getId() + "/note"), tokenFor(operator)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertEquals("null", initialBody, "no note yet -- must be the literal JSON null, not an empty body");
+
+        mockMvc.perform(authed(put("/api/articles/" + article.getId() + "/note"), tokenFor(operator))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"პირველი ვერსია\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").value("პირველი ვერსია"))
+                .andExpect(jsonPath("$.user_id").value(operator.getId()))
+                .andExpect(jsonPath("$.article_id").value(article.getId()));
+
+        mockMvc.perform(authed(put("/api/articles/" + article.getId() + "/note"), tokenFor(operator))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"განახლებული ვერსია\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").value("განახლებული ვერსია"));
+
+        assertEquals(1, userNoteRepository.findAll().stream()
+                .filter(n -> n.getUserId().equals(operator.getId()) && n.getArticleId().equals(article.getId()))
+                .count(), "second PUT must update the existing note, not create a second one");
+
+        mockMvc.perform(authed(get("/api/articles/" + article.getId() + "/note"), tokenFor(operator)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").value("განახლებული ვერსია"));
+    }
+
+    @Test
+    void noteOnAnInvisibleArticleIs404() throws Exception {
+        User operator = createUser("aa23@magti.ge", Role.OPERATOR, "საინფორმაციო");
+        Category cat = createCategory("კატ-18");
+        Article article = createArticle("სხვა დეპარტამენტის სტატია", cat.getId(), "published", false,
+                List.of("ტექნიკური"), null);
+
+        mockMvc.perform(authed(get("/api/articles/" + article.getId() + "/note"), tokenFor(operator)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(put("/api/articles/" + article.getId() + "/note"), tokenFor(operator))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"x\"}"))
+                .andExpect(status().isNotFound());
+    }
+
+    // ── verify ────────────────────────────────────────────────────────
+
+    @Test
+    void verifyingAnArticleBumpsLastVerifiedAtAndAudits() throws Exception {
+        User admin = createUser("aa24@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-19");
+        Article article = createArticle("დასადასტურებელი", cat.getId(), "published", false, List.of("All"), null);
+        OffsetDateTime before = TbilisiTime.now();
+
+        mockMvc.perform(authed(post("/api/articles/" + article.getId() + "/verify"), tokenFor(admin)))
+                .andExpect(status().isOk());
+
+        Article reloaded = articleRepository.findById(article.getId()).orElseThrow();
+        assertTrue(!reloaded.getLastVerifiedAt().isBefore(before));
+        assertTrue(auditLogRepository.findAll().stream()
+                .anyMatch(a -> "VERIFY".equals(a.getAction()) && article.getId().equals(a.getItemId())));
+    }
+
+    @Test
+    void operatorCannotVerify() throws Exception {
+        User operator = createUser("aa25@magti.ge", Role.OPERATOR, "All");
+        Category cat = createCategory("კატ-20");
+        Article article = createArticle("სტატია", cat.getId(), "published", false, List.of("All"), null);
+
+        mockMvc.perform(authed(post("/api/articles/" + article.getId() + "/verify"), tokenFor(operator)))
+                .andExpect(status().isForbidden());
+    }
+
+    // ── stale report ──────────────────────────────────────────────────
+
+    @Test
+    void staleReportListsOnlyOldPublishedArticles() throws Exception {
+        User admin = createUser("aa26@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-21");
+
+        Article stalePublished = createArticle("ძველი გამოქვეყნებული", cat.getId(), "published", false, List.of("All"), null);
+        stalePublished.setLastVerifiedAt(TbilisiTime.now().minusDays(200));
+        articleRepository.saveAndFlush(stalePublished);
+
+        Article freshPublished = createArticle("ახალი გამოქვეყნებული", cat.getId(), "published", false, List.of("All"), null);
+        freshPublished.setLastVerifiedAt(TbilisiTime.now().minusDays(5));
+        articleRepository.saveAndFlush(freshPublished);
+
+        Article staleDraft = createArticle("ძველი დრაფტი", cat.getId(), "draft", true, List.of("All"), null);
+        staleDraft.setLastVerifiedAt(TbilisiTime.now().minusDays(200));
+        articleRepository.saveAndFlush(staleDraft);
+
+        String body = mockMvc.perform(authed(get("/api/admin/articles/stale"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        com.fasterxml.jackson.databind.JsonNode entries = new com.fasterxml.jackson.databind.ObjectMapper().readTree(body);
+
+        List<String> titles = new java.util.ArrayList<>();
+        entries.forEach(e -> titles.add(e.get("title").asText()));
+        assertTrue(titles.contains("ძველი გამოქვეყნებული"));
+        assertTrue(!titles.contains("ახალი გამოქვეყნებული"), "recently-verified articles aren't stale");
+        assertTrue(!titles.contains("ძველი დრაფტი"), "only status==published is considered");
+
+        com.fasterxml.jackson.databind.JsonNode staleEntry = java.util.stream.StreamSupport
+                .stream(entries.spliterator(), false)
+                .filter(e -> "ძველი გამოქვეყნებული".equals(e.get("title").asText()))
+                .findFirst().orElseThrow();
+        assertTrue(staleEntry.get("days_stale").asLong() >= 200);
+    }
+
+    // ── related articles ──────────────────────────────────────────────
+
+    @Test
+    void relatedArticlesReturnsEmptyListForAMissingSourceNotA404() throws Exception {
+        User operator = createUser("aa27@magti.ge", Role.OPERATOR, "All");
+
+        mockMvc.perform(authed(get("/api/articles/999999999/related"), tokenFor(operator)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void relatedArticlesPrefersSameCategory() throws Exception {
+        User admin = createUser("aa28@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-22");
+        Category otherCat = createCategory("კატ-23");
+        Article source = createArticle("წყარო", cat.getId(), "published", false, List.of("All"), null);
+        Article sameCat1 = createArticle("იგივე კატეგორია 1", cat.getId(), "published", false, List.of("All"), null);
+        Article sameCat2 = createArticle("იგივე კატეგორია 2", cat.getId(), "published", false, List.of("All"), null);
+        createArticle("სხვა კატეგორია", otherCat.getId(), "published", false, List.of("All"), null);
+
+        mockMvc.perform(authed(get("/api/articles/" + source.getId() + "/related"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].title").value(org.hamcrest.Matchers.hasItems(
+                        "იგივე კატეგორია 1", "იგივე კატეგორია 2")));
+    }
+
+    @Test
+    void relatedArticlesDeptFilterIsExactMatchOnlyNotPrefixAware() throws Exception {
+        // Deliberately different from every other visibility check in this
+        // file: get_related_articles doesn't use the prefix-aware rule, so
+        // a sub-group operator must NOT see a parent-department match here.
+        User operator = createUser("aa29@magti.ge", Role.OPERATOR, "ტექნიკური — ჯგუფი 01");
+        Category cat = createCategory("კატ-24");
+        Article source = createArticle("წყარო2", cat.getId(), "published", false, List.of("ტექნიკური — ჯგუფი 01"), null);
+        createArticle("მშობელი დეპარტამენტის სტატია", cat.getId(), "published", false, List.of("ტექნიკური"), null);
+
+        mockMvc.perform(authed(get("/api/articles/" + source.getId() + "/related"), tokenFor(operator)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].title").value(
+                        org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem("მშობელი დეპარტამენტის სტატია"))));
     }
 }
