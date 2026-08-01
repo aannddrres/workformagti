@@ -691,4 +691,177 @@ class ArticleControllerIntegrationTest {
                 .andExpect(jsonPath("$[*].title").value(
                         org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem("მშობელი დეპარტამენტის სტატია"))));
     }
+
+    // ── history / diff / restore / versions ──────────────────────────
+
+    private long createArticleViaApi(String token, String title, String content, Long categoryId) throws Exception {
+        String body = mockMvc.perform(authed(post("/api/articles"), token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"" + title + "\",\"content\":\"" + content + "\",\"category_id\":"
+                                + categoryId + ",\"target_departments\":[\"All\"],\"status\":\"published\"}"))
+                .andReturn().getResponse().getContentAsString();
+        return new com.fasterxml.jackson.databind.ObjectMapper().readTree(body).get("id").asLong();
+    }
+
+    private void updateArticleViaApi(String token, long articleId, String title, String content, Long categoryId) throws Exception {
+        mockMvc.perform(authed(put("/api/articles/" + articleId), token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"" + title + "\",\"content\":\"" + content + "\",\"category_id\":"
+                                + categoryId + ",\"target_departments\":[\"All\"],\"status\":\"published\"}"))
+                .andExpect(status().isOk());
+    }
+
+    private long historyIdForVersion(long articleId, int versionId) {
+        return articleHistoryRepository.findByArticleId(articleId).stream()
+                .filter(h -> h.getVersionId() != null && h.getVersionId() == versionId)
+                .findFirst().orElseThrow().getId();
+    }
+
+    @Test
+    void historyListsRevisionsOrderedByUpdatedAtDescWithAuthorNames() throws Exception {
+        User admin = createUser("aa30@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-25");
+        long articleId = createArticleViaApi(tokenFor(admin), "ვერსია 1", "შინაარსი 1", cat.getId());
+        updateArticleViaApi(tokenFor(admin), articleId, "ვერსია 2", "შინაარსი 2", cat.getId());
+
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/history"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].title").value("ვერსია 2"))
+                .andExpect(jsonPath("$[0].author_name").value(admin.getName()))
+                .andExpect(jsonPath("$[1].title").value("ვერსია 1"));
+    }
+
+    @Test
+    void historyDoesNotRequireTheArticleToExist() throws Exception {
+        User admin = createUser("aa31@magti.ge", Role.CONTENT_ADMIN, "All");
+
+        mockMvc.perform(authed(get("/api/articles/999999999/history"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void diffDefaultsToComparingAgainstCurrentContent() throws Exception {
+        User admin = createUser("aa32@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-26");
+        long articleId = createArticleViaApi(tokenFor(admin), "თავდაპირველი", "პირველი შინაარსი", cat.getId());
+        updateArticleViaApi(tokenFor(admin), articleId, "განახლებული", "მეორე შინაარსი", cat.getId());
+        long v1HistoryId = historyIdForVersion(articleId, 1);
+
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/history/" + v1HistoryId + "/diff"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.base_version").value(1))
+                .andExpect(jsonPath("$.compare_version").value(2))
+                .andExpect(jsonPath("$.version_id").value(1))
+                .andExpect(jsonPath("$.html").value(org.hamcrest.Matchers.containsString("diff-")));
+    }
+
+    @Test
+    void diffComparesToPredecessorWhenRequested() throws Exception {
+        User admin = createUser("aa33@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-27");
+        long articleId = createArticleViaApi(tokenFor(admin), "v1 სათაური", "v1 შინაარსი", cat.getId());
+        updateArticleViaApi(tokenFor(admin), articleId, "v2 სათაური", "v2 შინაარსი", cat.getId());
+        updateArticleViaApi(tokenFor(admin), articleId, "v3 სათაური", "v3 შინაარსი", cat.getId());
+        long v2HistoryId = historyIdForVersion(articleId, 2);
+
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/history/" + v2HistoryId + "/diff")
+                        .param("compare_to_predecessor", "true"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.base_version").value(1))
+                .andExpect(jsonPath("$.compare_version").value(2));
+    }
+
+    @Test
+    void diffWithNoPredecessorSelfComparesCleanly() throws Exception {
+        User admin = createUser("aa34@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-28");
+        long articleId = createArticleViaApi(tokenFor(admin), "მხოლოდ ვერსია", "შინაარსი", cat.getId());
+        long v1HistoryId = historyIdForVersion(articleId, 1);
+
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/history/" + v1HistoryId + "/diff")
+                        .param("compare_to_predecessor", "true"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.base_version").value(1))
+                .andExpect(jsonPath("$.compare_version").value(1))
+                .andExpect(jsonPath("$.added").value(0))
+                .andExpect(jsonPath("$.removed").value(0));
+    }
+
+    @Test
+    void diffMissingHistorySnapshotIs404() throws Exception {
+        User admin = createUser("aa35@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-29");
+        long articleId = createArticleViaApi(tokenFor(admin), "სათაური", "შინაარსი", cat.getId());
+
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/history/999999999/diff"), tokenFor(admin)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("ისტორიის ვერსია ვერ მოიძებნა"));
+    }
+
+    @Test
+    void restoreBringsBackOldContentAndBumpsVersion() throws Exception {
+        User admin = createUser("aa36@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-30");
+        long articleId = createArticleViaApi(tokenFor(admin), "ორიგინალი სათაური", "ორიგინალი შინაარსი", cat.getId());
+        updateArticleViaApi(tokenFor(admin), articleId, "შეცვლილი სათაური", "შეცვლილი შინაარსი", cat.getId());
+        long v1HistoryId = historyIdForVersion(articleId, 1);
+
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/history/" + v1HistoryId + "/restore"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("ორიგინალი სათაური"))
+                .andExpect(jsonPath("$.version").value(3));
+
+        Article reloaded = articleRepository.findById(articleId).orElseThrow();
+        assertEquals("ორიგინალი სათაური", reloaded.getTitle());
+        assertEquals(3, reloaded.getVersion());
+        assertTrue(auditLogRepository.findAll().stream()
+                .anyMatch(a -> "RESTORE".equals(a.getAction()) && Long.valueOf(articleId).equals(a.getItemId())));
+
+        List<ArticleHistory> allHistory = articleHistoryRepository.findByArticleId(articleId);
+        assertEquals(3, allHistory.size(), "v1, v2 (from the earlier update), and the new v3 restore snapshot");
+        assertTrue(allHistory.stream().anyMatch(h -> h.getVersionId() == 3 && "ორიგინალი სათაური".equals(h.getTitle())));
+    }
+
+    @Test
+    void operatorCannotSeeAdminOnlyHistoryOrRestore() throws Exception {
+        User admin = createUser("aa37@magti.ge", Role.CONTENT_ADMIN, "All");
+        User operator = createUser("aa38@magti.ge", Role.OPERATOR, "All");
+        Category cat = createCategory("კატ-31");
+        long articleId = createArticleViaApi(tokenFor(admin), "სათაური", "შინაარსი", cat.getId());
+        long v1HistoryId = historyIdForVersion(articleId, 1);
+
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/history"), tokenFor(operator)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/history/" + v1HistoryId + "/restore"), tokenFor(operator)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void versionsListsAllRevisionsDescByVersionWithSelfHealing() throws Exception {
+        User admin = createUser("aa39@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-32");
+        long articleId = createArticleViaApi(tokenFor(admin), "ვერსია ა", "შინაარსი ა", cat.getId());
+        updateArticleViaApi(tokenFor(admin), articleId, "ვერსია ბ", "შინაარსი ბ", cat.getId());
+
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/versions"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].version").value(2))
+                .andExpect(jsonPath("$[0].title").value("ვერსია ბ"))
+                .andExpect(jsonPath("$[1].version").value(1));
+
+        // Self-healing: delete the current version's history row directly,
+        // then confirm GET /versions recreates it rather than omitting it.
+        ArticleHistory v2Row = articleHistoryRepository.findByArticleId(articleId).stream()
+                .filter(h -> h.getVersionId() != null && h.getVersionId() == 2).findFirst().orElseThrow();
+        articleHistoryRepository.delete(v2Row);
+        articleHistoryRepository.flush();
+
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/versions"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].version").value(2));
+    }
 }

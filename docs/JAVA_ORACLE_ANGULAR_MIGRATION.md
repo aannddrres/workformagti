@@ -989,10 +989,51 @@ stale-რეპორტი (1), related-articles (1) = 7 endpoint. თქვე
 
 9 ახალი ტესტი (217/217 საერთო ჯამში).
 
-**Articles-ის შემდეგი დარჩენილი ნაწილი: 10 endpoint** — history/diff/
-restore/versions (4, სჭირდება ახალი diffing.py-ის პორტი) და
-read-receipt/views (6, compliance-ხიდით `RequiredReading`/`ReadStatus`-
-თან). ორივე მეტ-ნაკლებად თანაბარი სირთულისაა; შემდეგი შერჩევა თქვენზეა.
+---
+
+**ისტორია + diff + restore + versions აშენდა (2026-08-01, იმავე
+სესიაში)** — თქვენი არჩევანით, read-receipt/views-ის ნაცვლად. ეს იყო
+Articles-ში ერთადერთი ნაწილი, რომელსაც ნამდვილად ახალი ლოგიკის აგება
+სჭირდებოდა (არა უბრალო HTTP-ფენა უკვე არსებულ ლოგიკაზე, Quiz-ის მსგავსად).
+
+**diffing.py პირდაპირ არ ითარგმნა — ორი ბიბლიოთეკა შეიცვალა შეგნებულად:**
+BeautifulSoup → **jsoup** (block-ელემენტების ამოღება); Python-ის
+`difflib.SequenceMatcher` (Ratcliff-Obershelp ალგორითმი) → **java-diff-
+utils** (Myers ალგორითმი). ეს არის *განსხვავებული* diff-ალგორითმი, არა
+იმავეს პორტი — დასაშვები იყო, რადგან ამ endpoint-ის მიღების კრიტერიუმი
+თავიდანვე ამბობდა: "იდენტური `ins`/`del` სემანტიკა, არა აუცილებლად
+იდენტური markup" (იხ. ცხრილი ზემოთ, სექცია 4). ორივე ბიბლიოთეკა ახალი
+Maven-დამოკიდებულებაა (`org.jsoup:jsoup`, `io.github.java-diff-utils`) —
+გადაწყვეტილება ჩემი, არა თქვენთან შეთანხმებული (ტექნიკური არჩევანია,
+არა პროდუქტის გადაწყვეტილება), მაგრამ გამჭვირვალედ ფიქსირდება აქ.
+
+**რთული ნაწილი, საკუთარი unit-ტესტებით გადამოწმებული Oracle-ის გარეშე
+(10 ტესტი, 0.5 წამში):** java-diff-utils-ის `Patch` მხოლოდ *ცვლილებებს*
+აბრუნებს (არა "თანაბარ" მონაკვეთებს, SequenceMatcher-ისგან განსხვავებით)
+— `HtmlDiffer.computeOpcodes`-მა ხელახლა უნდა "შეავსოს" თანაბარი
+ხარვევები Patch-ის დელტებს შორის/გარშემო, რომ Python-ის `(op, i1, i2,
+j1, j2)`-ფორმის opcode-სია გამოვიდეს. ასევე გადამოწმდა Quill-ის
+link/სურათის-ცვლილების "asset-change blindness fix" (Python-ის საკუთარი
+დოკუმენტაცია) — ბმულის/სურათის ცვლილება იჭერება მაშინაც, როცა ხილული
+ტექსტი უცვლელია.
+
+**ერთი დამატებითი აღმოჩენა:** `get_article_history`-ს INNER JOIN-ის და
+`get_article_versions`-ის OUTER JOIN-ის განსხვავება (Python-ის საკუთარი
+კოდი, routers/articles.py:548 vs :952) ორივე გადმოტანილია ზუსტად, მაგრამ
+Oracle-ის FK (`fk_article_history_user`, ON DELETE-ის გარეშე) ფაქტობრივად
+შეუძლებელს ხდის ამ განსხვავების რეალურად გამოვლენას ამ სქემაში — ვერც
+history-row-ს ჩაწერ არარსებულ user-ზე (FK უარყოფს), ვერც user-ს წაშლი,
+თუ მას history-row-ები აქვს მიბმული. კოდი მაინც ორივე ვარიანტს ინახავს
+სწორად (გამოსადეგია, თუ ეს შეზღუდვა მომავალში შეიცვლება), უბრალოდ
+ცოცხალ ტესტში ვერ დადასტურდა უშუალოდ.
+
+19 ახალი ტესტი (10 unit + 9 Oracle-ინტეგრაციული), 236/236 ტესტი მწვანეა
+სულ.
+
+**Articles-ის ერთადერთი დარჩენილი ნაწილი: read-receipt/views (6
+endpoint)** — compliance-ხიდით `RequiredReading`/`ReadStatus`-თან.
+ამის დასრულების შემდეგ Articles 32/32 endpoint-ით სრულად აშენებული
+იქნება.
 
 ---
 
@@ -1204,7 +1245,7 @@ Postgres-ზე:
 | Articles | ✅ **Core CRUD აშენებული და გადამოწმებული (2026-08-01)** — `version` იზრდება ყოველ update-ზე, ძველი state ავტომატურად ინახება history-ში. ORM auto-audit ჯერ არ არსებობს Java-ში (ცნობილი, დოკუმენტირებული ხარვეზი — Videos/Categories-ის იგივე გამონაკლისი) | `GET/POST/PUT/DELETE /api/articles`, `/api/articles/{id}` | 20 ტესტი რეალურ Oracle-ზე | ✔ დაკმაყოფილებულია (ამ ნაწილისთვის) |
 | Articles | ✅ **Archive/unarchive + bulk-archive აშენებული (2026-08-01)** | `POST /api/articles/{id}/archive`, `/unarchive`, `/bulk-archive` | ზემოთ ჩამოთვლილ 20 ტესტში შედის | აუდიტ-ჩანაწერი ARCHIVE/UNARCHIVE action-ით |
 | Articles | ✅ **Autosave აშენებული (2026-08-01)** — `exclude_unset` ნაწილობრივი-განახლების სემანტიკა (Jackson-ის `Map<String,Object>`-ით, არა ტიპიზებული schema-თი) | `PATCH /api/articles/{id}/autosave` | ზემოთ ჩამოთვლილ 20 ტესტში შედის | draft state არ ცვლის published `version`-ს |
-| Articles | ისტორია + diff-ის გამოთვლა (predecessor/explicit/current შედარება) | `GET /api/articles/{id}/history`, `/history/{hid}/diff`, `POST /history/{hid}/restore` | Parity + diffing.py-ის გამომავალი HTML-ის სტრუქტურული შედარება | identical `<ins>`/`<del>` სემანტიკა (არა აუცილებლად identical markup) |
+| Articles | ✅ **ისტორია + diff + restore + versions აშენებული (2026-08-01)** — predecessor/explicit/current შედარება, `HtmlDiffer` (jsoup + java-diff-utils, არა diffing.py-ის სიტყვასიტყვითი პორტი — Myers-ალგორითმი Ratcliff-Obershelp-ის ნაცვლად) | `GET /api/articles/{id}/history`, `/history/{hid}/diff`, `POST /history/{hid}/restore`, `GET /versions` | 10 unit-ტესტი (Oracle-ის გარეშე) + 9 ტესტი რეალურ Oracle-ზე | ✔ დაკმაყოფილებულია — identical `ins`/`del` სემანტიკა, არა byte-იდენტური markup (თავიდანვე ასეთი იყო მიღების კრიტერიუმი) |
 | Articles | ✅ **Quiz admin CRUD აშენებული (2026-08-01)** — GET/PUT, სრული replace + 3 422-ვალიდაცია. **ცნობილი ხარვეზი #2 უცვლელადაა გადმოტანილი, არ გასწორებულა** (გადაწყვეტილება ჯერ არ მიღებულა, §5): admin-რედაქტირება ჯერ კიდევ არ ზრდის `version`-ს, თუმცა quiz-gate `version`-ზეა მიბმული | `GET/PUT /api/articles/{id}/quiz/admin` | 10 ტესტი რეალურ Oracle-ზე | ✔ endpoint-ი დაკმაყოფილებულია; ბაგი #2 ცალკე გადაწყვეტილებას ითხოვს |
 | Articles | ✅ **Quiz-ჩაბარება აშენებული (2026-08-01)**: server-side grading (`QuizGrader`, წინასწარ აშენებული ამ სესიამდე), ერთჯერადი "ცოდნის ქულის" +10/+5 ბონუსი | `GET /api/articles/{id}/quiz`, `POST /quiz/attempt` | 10 ტესტი რეალურ Oracle-ზე | ✔ დაკმაყოფილებულია — `is_correct` არასდროს ჩანს public schema-ში, დადასტურებულია ტესტით |
 | Articles | Read-receipt + quiz-gate enforcement | `POST /api/articles/{id}/read-receipt`, `GET /read-receipt/me` | Parity | gate 403-ობს ჩაუბარებელ quiz-ზე |

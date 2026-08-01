@@ -8,10 +8,23 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface ArticleHistoryRepository extends JpaRepository<ArticleHistory, Long> {
 
     List<ArticleHistory> findByArticleId(Long articleId);
+
+    /** Mirrors get_article_history's order_by (routers/articles.py:551). */
+    List<ArticleHistory> findByArticleIdOrderByUpdatedAtDesc(Long articleId);
+
+    /** Mirrors get_article_versions' order_by (routers/articles.py:954). */
+    List<ArticleHistory> findByArticleIdOrderByVersionIdDesc(Long articleId);
+
+    /** Scopes a {history_id} path param to its owning article -- a snapshot from a different article must not resolve. */
+    Optional<ArticleHistory> findByIdAndArticleId(Long id, Long articleId);
+
+    /** Mirrors get_article_diff's predecessor lookup (routers/articles.py:612-615). */
+    Optional<ArticleHistory> findFirstByArticleIdAndVersionIdLessThanOrderByVersionIdDesc(Long articleId, Integer versionId);
 
     boolean existsByArticleIdAndVersionId(Long articleId, Integer versionId);
 

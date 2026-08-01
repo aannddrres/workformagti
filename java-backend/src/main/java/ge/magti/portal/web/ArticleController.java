@@ -2,6 +2,8 @@ package ge.magti.portal.web;
 
 import ge.magti.portal.article.ArticleListFilter;
 import ge.magti.portal.article.ArticleQueryService;
+import ge.magti.portal.diff.DiffResult;
+import ge.magti.portal.diff.HtmlDiffer;
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.ArticleHistory;
 import ge.magti.portal.domain.ArticleTargetDepartment;
@@ -16,6 +18,7 @@ import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
 import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.CategoryRepository;
 import ge.magti.portal.repository.UserNoteRepository;
+import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.PermissionChecker;
 import ge.magti.portal.util.DepartmentMatcher;
 import ge.magti.portal.util.TbilisiTime;
@@ -82,6 +85,7 @@ public class ArticleController {
     private final CategoryRepository categoryRepository;
     private final AuditLogRepository auditLogRepository;
     private final UserNoteRepository userNoteRepository;
+    private final UserRepository userRepository;
     private final PermissionChecker permissionChecker;
     private final TagSyncService tagSyncService;
     private final ArticleQueryService articleQueryService;
@@ -93,6 +97,7 @@ public class ArticleController {
             CategoryRepository categoryRepository,
             AuditLogRepository auditLogRepository,
             UserNoteRepository userNoteRepository,
+            UserRepository userRepository,
             PermissionChecker permissionChecker,
             TagSyncService tagSyncService,
             ArticleQueryService articleQueryService) {
@@ -102,6 +107,7 @@ public class ArticleController {
         this.categoryRepository = categoryRepository;
         this.auditLogRepository = auditLogRepository;
         this.userNoteRepository = userNoteRepository;
+        this.userRepository = userRepository;
         this.permissionChecker = permissionChecker;
         this.tagSyncService = tagSyncService;
         this.articleQueryService = articleQueryService;
@@ -632,6 +638,194 @@ public class ArticleController {
                 .map(a -> new RelatedArticleResponse(a.getId(), a.getTitle(), a.getCategoryId(), a.getTags()))
                 .toList();
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/api/articles/{id}/history")
+    public ResponseEntity<?> getArticleHistory(@PathVariable Long id, @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        if (denial != null) {
+            return denial;
+        }
+
+        // No get_or_404 here, matching routers/articles.py:539-565 exactly:
+        // a missing article_id isn't checked separately, it just yields zero
+        // matching history rows -- an empty list, not a 404.
+        List<ArticleHistory> history = articleHistoryRepository.findByArticleIdOrderByUpdatedAtDesc(id);
+        Set<Long> authorIds = history.stream().map(ArticleHistory::getUpdatedBy).collect(Collectors.toSet());
+        Map<Long, String> namesByUserId = userRepository.findAllById(authorIds).stream()
+                .collect(Collectors.toMap(User::getId, User::getName));
+
+        // INNER JOIN semantics (routers/articles.py:548-549's .join(User, ...)):
+        // a history row whose updated_by no longer matches any user is
+        // silently dropped, not shown with a null author.
+        List<ArticleHistoryItemResponse> response = history.stream()
+                .filter(h -> namesByUserId.containsKey(h.getUpdatedBy()))
+                .map(h -> new ArticleHistoryItemResponse(
+                        h.getId(), h.getTitle(), h.getContent(), h.getUpdatedAt(),
+                        namesByUserId.get(h.getUpdatedBy()), h.getVersionId()))
+                .toList();
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/api/articles/{id}/history/{historyId}/diff")
+    public ResponseEntity<?> getArticleDiff(
+            @PathVariable Long id, @PathVariable Long historyId,
+            @RequestParam(name = "compare_history_id", required = false) Long compareHistoryId,
+            @RequestParam(name = "compare_to_predecessor", defaultValue = "false") boolean compareToPredecessor,
+            @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        if (denial != null) {
+            return denial;
+        }
+
+        Optional<Article> found = articleRepository.findById(id);
+        if (found.isEmpty()) {
+            return notFound();
+        }
+        Article article = found.get();
+        ResponseEntity<Map<String, String>> visibility = assertArticleVisible(article, resolveTargetDepartments(id), user);
+        if (visibility != null) {
+            return visibility;
+        }
+
+        Optional<ArticleHistory> snapOpt = articleHistoryRepository.findByIdAndArticleId(historyId, id);
+        if (snapOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", "ისტორიის ვერსია ვერ მოიძებნა"));
+        }
+        ArticleHistory snap = snapOpt.get();
+
+        String otherContent;
+        int otherVersion;
+        if (compareToPredecessor) {
+            // No predecessor (version 1) -> self-compare against its own
+            // content, which shows cleanly with no diffs rather than erroring.
+            Optional<ArticleHistory> predecessor = articleHistoryRepository
+                    .findFirstByArticleIdAndVersionIdLessThanOrderByVersionIdDesc(id, snap.getVersionId());
+            otherContent = predecessor.map(ArticleHistory::getContent).orElse(snap.getContent());
+            otherVersion = predecessor.map(ArticleHistory::getVersionId).orElse(snap.getVersionId());
+        } else if (compareHistoryId != null) {
+            Optional<ArticleHistory> compareSnap = articleHistoryRepository.findByIdAndArticleId(compareHistoryId, id);
+            if (compareSnap.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("detail", "შესადარებელი ისტორიის ვერსია ვერ მოიძებნა"));
+            }
+            otherContent = compareSnap.get().getContent();
+            otherVersion = compareSnap.get().getVersionId();
+        } else {
+            otherContent = article.getContent();
+            otherVersion = article.getVersion();
+        }
+
+        return ResponseEntity.ok(diffOrderedByVersion(snap.getContent(), snap.getVersionId(), otherContent, otherVersion, snap.getVersionId()));
+    }
+
+    @PostMapping("/api/articles/{id}/history/{historyId}/restore")
+    @Transactional
+    public ResponseEntity<?> restoreArticleVersion(
+            @PathVariable Long id, @PathVariable Long historyId, @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        if (denial != null) {
+            return denial;
+        }
+
+        Optional<Article> found = articleRepository.findById(id);
+        if (found.isEmpty()) {
+            return notFound();
+        }
+        Article article = found.get();
+
+        Optional<ArticleHistory> historyOpt = articleHistoryRepository.findByIdAndArticleId(historyId, id);
+        if (historyOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", "ისტორიის ვერსია ვერ მოიძებნა"));
+        }
+        ArticleHistory history = historyOpt.get();
+
+        articleHistoryRepository.archiveIfMissing(article.getId(), article.getTitle(), article.getContent(),
+                user.getId(), article.getVersion(),
+                article.getUpdatedAt() != null ? article.getUpdatedAt() : TbilisiTime.now());
+
+        article.setTitle(history.getTitle());
+        article.setContent(history.getContent());
+        article.setVersion(article.getVersion() + 1);
+        article.setUpdatedAt(TbilisiTime.now());
+        Article saved = articleRepository.saveAndFlush(article);
+
+        ArticleHistory restoredHistory = new ArticleHistory();
+        restoredHistory.setArticleId(id);
+        restoredHistory.setTitle(saved.getTitle());
+        restoredHistory.setContent(saved.getContent());
+        restoredHistory.setUpdatedBy(user.getId());
+        restoredHistory.setVersionId(saved.getVersion());
+        restoredHistory.setUpdatedAt(saved.getUpdatedAt());
+        articleHistoryRepository.save(restoredHistory);
+
+        writeAuditLog(user.getId(), "RESTORE", id);
+
+        return ResponseEntity.ok(ArticleResponse.from(saved, resolveTargetDepartments(id)));
+    }
+
+    @GetMapping("/api/articles/{id}/versions")
+    @Transactional
+    public ResponseEntity<?> getArticleVersions(@PathVariable Long id, @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        if (denial != null) {
+            return denial;
+        }
+
+        Optional<Article> found = articleRepository.findById(id);
+        if (found.isEmpty()) {
+            return notFound();
+        }
+        Article article = found.get();
+        ResponseEntity<Map<String, String>> visibility = assertArticleVisible(article, resolveTargetDepartments(id), user);
+        if (visibility != null) {
+            return visibility;
+        }
+
+        // Self-healing (routers/articles.py:943-948): legacy articles
+        // predating the Unified Revision Log feature may be missing a
+        // history row for their current version -- ensure one exists
+        // before listing, sharing the same race-safe archive logic as
+        // update/restore instead of reimplementing it.
+        Long fallbackAuthor = article.getAuthorId() != null ? article.getAuthorId() : user.getId();
+        articleHistoryRepository.archiveIfMissing(article.getId(), article.getTitle(), article.getContent(),
+                fallbackAuthor, article.getVersion(),
+                article.getUpdatedAt() != null ? article.getUpdatedAt() : TbilisiTime.now());
+
+        List<ArticleHistory> history = articleHistoryRepository.findByArticleIdOrderByVersionIdDesc(id);
+        Set<Long> authorIds = history.stream()
+                .map(ArticleHistory::getUpdatedBy).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, String> namesByUserId = userRepository.findAllById(authorIds).stream()
+                .collect(Collectors.toMap(User::getId, User::getName));
+
+        // OUTER JOIN semantics (routers/articles.py:952's .outerjoin), unlike
+        // get_article_history's INNER JOIN above: a row survives even when
+        // updated_by has no matching user, with author_name = null.
+        List<ArticleVersionItemResponse> versions = history.stream()
+                .map(h -> new ArticleVersionItemResponse(
+                        h.getVersionId() != null ? h.getVersionId() : 0, h.getTitle(), h.getUpdatedAt(),
+                        namesByUserId.get(h.getUpdatedBy()), h.getId()))
+                .sorted(Comparator.comparingInt(ArticleVersionItemResponse::version).reversed())
+                .toList();
+        return ResponseEntity.ok(versions);
+    }
+
+    /** Port of _diff_ordered_by_version (routers/articles.py:568-583). */
+    private static ArticleDiffResponse diffOrderedByVersion(
+            String contentA, int versionA, String contentB, int versionB, int snapVersionId) {
+        DiffResult result;
+        int baseVersion;
+        int compareVersion;
+        if (versionA < versionB) {
+            result = HtmlDiffer.diffHtml(contentA, contentB);
+            baseVersion = versionA;
+            compareVersion = versionB;
+        } else {
+            result = HtmlDiffer.diffHtml(contentB, contentA);
+            baseVersion = versionB;
+            compareVersion = versionA;
+        }
+        return new ArticleDiffResponse(result.html(), result.added(), result.removed(), baseVersion, compareVersion, snapVersionId);
     }
 
     private void applySharedFields(Article article, ArticleRequest request) {

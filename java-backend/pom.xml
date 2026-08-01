@@ -123,6 +123,25 @@
 			<version>0.12.6</version>
 			<scope>runtime</scope>
 		</dependency>
+
+		<!-- HtmlDiffer (article revision diffing): mirrors diffing.py's role.
+			 jsoup replaces BeautifulSoup for block-element extraction;
+			 java-diff-utils (Myers algorithm) replaces difflib.SequenceMatcher
+			 (Ratcliff-Obershelp) for the actual diff, a different algorithm,
+			 not a port of Python's, since the migration doc's own acceptance
+			 criterion for this endpoint only requires identical ins/del
+			 semantics, not identical markup. -->
+		<dependency>
+			<groupId>org.jsoup</groupId>
+			<artifactId>jsoup</artifactId>
+			<version>1.18.1</version>
+		</dependency>
+		<dependency>
+			<groupId>io.github.java-diff-utils</groupId>
+			<artifactId>java-diff-utils</artifactId>
+			<version>4.12</version>
+		</dependency>
+
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator-test</artifactId>
