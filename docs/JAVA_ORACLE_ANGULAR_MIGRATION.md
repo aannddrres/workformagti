@@ -799,6 +799,47 @@ endpoint აშენდება, რომ იგივე ხარვეზ�
 
 ---
 
+**Content-დომენის პირველი რეალური HTTP endpoint-ები აშენდა: Videos
+(2026-08-01).** ახალი სესიის დასაწყისში დამოუკიდებელმა აუდიტმა აჩვენა,
+რომ 89-დან **მხოლოდ 3 რეალური endpoint** არსებობდა (login/logout/health)
+— დანარჩენი ყველა ადრე გადმოტანილი კლასი (Article/News/Category/Video
+domain-ობიექტები, QuizGrader, DepartmentMatcher და ა.შ.) მხოლოდ ფორმა ან
+სუფთა ლოგიკა იყო, ვებ-გვერდებთან დაუკავშირებელი. თქვენ აირჩიეთ, ამ
+ხარვეზზე ეზრუნა კონტენტის დომენით (54 endpoint სულ 5 router-ში), და
+პატარა, დასრულებადი ვერტიკალური ნაწილით დაწყება — **Videos** (7
+endpoint), დანარჩენ ვარიანტებზე (Categories, სტატიები პირდაპირ) მეტი.
+
+**აშენდა:** `VideoController` (7 endpoint), `YoutubeUrlNormalizer`
+(`normalize_youtube_url`-ის ზუსტი ასლი, routers/videos.py:25-50),
+`TagSyncService` (`sync_tags`-ის ზუსტი ასლი, articles.py:36-58 — ორივე
+Article-ისთვისაც იქნება საჭირო, აქვე გაზიარებულია), `Role.
+CONTENT_ADMIN_ROLES`/`isContentAdmin()` (`security.py`-ის ერთი
+რეპროდუცირებადი roll-გეითი ყველა მომავალი Content endpoint-ისთვის).
+
+**ერთი კონკრეტული გადაწყვეტილება მიღებულ იქნა თქვენგან, არა
+ივარაუდეს:** ვიდეოების დეპარტამენტ-ხილვადობა (ცნობილი ხარვეზი #10)
+წარსულში ზუსტ-დამთხვევაზე იყო აგებული, სტატიების/სიახლეების
+prefix-aware წესისგან განსხვავებით. კონკრეტული მაგალითით წარმოდგენის
+შემდეგ (ვინც "ტექნიკური — ჯგუფი 01"-შია, ვერ ხედავდა "ტექნიკური"-სთვის
+განკუთვნილ ვიდეოს) — **აირჩიეთ გასწორება**, არა უცვლელად დატოვება.
+`DepartmentMatcher` პირდაპირ გამოყენებულია (SQL-ის ნაცვლად Java-ში
+ფილტრაცია, მცირე ცხრილის ზომის გამო სავსებით საკმარისი).
+
+**გააზრებული, დოკუმენტირებული ხარვეზი (არა დავიწყებული):** Python-ში
+create/update/delete ავტომატურად აუდიტდება SQLAlchemy ORM-listener-ით
+(`audit_trail.py`) — ამის Java-ეკვივალენტი ჯერ არ არსებობს (ცალკე,
+ყველა domain-ს მომცველი ეტაპია, არა მხოლოდ ვიდეოსი). მხოლოდ
+archive/unarchive იწერება აუდიტში აქ, ზუსტად ისე, როგორც
+routers/videos.py-ის საკუთარი კოდი ცალსახად აკეთებს (`log_audit`
+ზარებით) — create/update/delete ჩუმად აღარ არის „დაფარული",
+გამოტოვება ცხადადაა დაფიქსირებული კოდის კომენტარებში.
+
+25 ახალი ტესტი (171/171 საერთო ჯამში), მათ შორის სრული HTTP-ინტეგრაციული
+ტესტი, რომელიც პირდაპირ ამოწმებს ბაგი #10-ის გასწორებას: ოპერატორი
+"ტექნიკური — ჯგუფი 01"-დან ხედავს "ტექნიკური"-სთვის განკუთვნილ ვიდეოს.
+
+---
+
 ## ფაზა 2 — Parity ვალიდაციის კარიბჭე
 
 Angular არ იწყება, სანამ Parity-ჰარნესი (§3) არ აჩვენებს 100%-იან თანხმობას
@@ -1019,7 +1060,7 @@ Postgres-ზე:
 | Articles | Stale-content რეპორტი | `GET /api/admin/articles/stale` | Parity smoke-test | — |
 | News | CRUD + ისტორია/restore, **`is_archived` არის `@property` (expires_at-ზე გამოთვლადი, არა queryable სვეტი)** | `GET/POST/PUT/DELETE /api/news`, `/api/news/{id}`, history/restore, autosave | Parity | ARCHIVE-ლოგიკა ცალკე Java-ში — ან computed field, ან real column (გადაწყვეტილება) |
 | News | დეპარტამენტის prefix-aware ხილვადობა (identical to Articles) | `GET /api/news` | Parity + §3.3 | — |
-| Videos | CRUD + archive/unarchive, **დეპარტამენტის ფილტრი ზუსტი-დამთხვევაა, არა prefix** (ცნობილი ხარვეზი #10) | `GET/POST/PUT/DELETE /api/videos`, `/archive`, `/unarchive`, `/view` | Parity + გადაწყვეტილება (§5) | გადაწყვეტილებაზეა დამოკიდებული |
+| Videos | ✅ **აშენებული და გადამოწმებული (2026-08-01)** — CRUD + archive/unarchive + view-count. ბაგი #10 **გასწორებულია**: დეპარტამენტის ფილტრი ახლა prefix-aware-ია (`DepartmentMatcher`), არა ზუსტი-დამთხვევა — თქვენი გადაწყვეტილებით | `GET/POST/PUT/DELETE /api/videos`, `/archive`, `/unarchive`, `/{id}/view` | 25 ტესტი რეალურ Oracle-ზე (YouTube URL, ტეგები, ხილვადობა, ნებართვები, აუდიტი) | ✔ დაკმაყოფილებულია |
 | Categories | ტრივიალური CRUD | `GET/POST/PUT/DELETE /api/categories` | Parity smoke-test | — |
 | Platform | ატვირთვა, ტეგები, servable-pages whitelist, health-check | `POST /api/upload`, `GET /api/tags`, `GET /api/health`, static/HTML routes | Parity smoke-test | — |
 

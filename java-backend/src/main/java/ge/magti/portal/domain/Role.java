@@ -1,6 +1,7 @@
 package ge.magti.portal.domain;
 
 import java.util.Arrays;
+import java.util.Set;
 
 /**
  * Mirrors security.py's ROLE_* string constants (security.py:30-34) and the
@@ -33,5 +34,14 @@ public enum Role {
                 .filter(role -> role.value.equals(value))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Unknown role: " + value));
+    }
+
+    /** Mirrors security.py's CONTENT_ADMIN_ROLES (security.py:39) -- the
+     *  gate behind get_current_admin_user, reused by every Content-domain
+     *  create/update/delete endpoint (articles/news/categories/videos). */
+    public static final Set<Role> CONTENT_ADMIN_ROLES = Set.of(CONTENT_ADMIN, SYSTEM_ADMIN);
+
+    public boolean isContentAdmin() {
+        return CONTENT_ADMIN_ROLES.contains(this);
     }
 }
