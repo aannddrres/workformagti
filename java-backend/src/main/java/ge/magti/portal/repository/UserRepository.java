@@ -19,4 +19,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     /** Mirrors get_knowledge_leaderboard's scope="department" branch (routers/articles.py:910), exact match only -- no prefix expansion. */
     List<User> findByActiveTrueAndDepartment(String department);
+
+    List<User> findByActiveTrue();
+
+    /** Mirrors _get_eligible_operators' non-"All" branch (routers/articles.py:992-993), exact match only -- no prefix expansion. */
+    List<User> findByActiveTrueAndDepartmentIn(List<String> departments);
 }

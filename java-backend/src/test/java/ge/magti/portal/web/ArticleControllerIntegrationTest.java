@@ -2,15 +2,24 @@ package ge.magti.portal.web;
 
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.ArticleHistory;
+import ge.magti.portal.domain.ArticleReadReceipt;
 import ge.magti.portal.domain.Category;
 import ge.magti.portal.domain.Permission;
+import ge.magti.portal.domain.QuizAttempt;
+import ge.magti.portal.domain.ReadStatus;
+import ge.magti.portal.domain.RequiredReading;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.repository.ArticleHistoryRepository;
+import ge.magti.portal.repository.ArticleReadReceiptRepository;
 import ge.magti.portal.repository.ArticleRepository;
 import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
+import ge.magti.portal.repository.ArticleViewLogRepository;
 import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.CategoryRepository;
+import ge.magti.portal.repository.QuizAttemptRepository;
+import ge.magti.portal.repository.ReadStatusRepository;
+import ge.magti.portal.repository.RequiredReadingRepository;
 import ge.magti.portal.repository.UserNoteRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.JwtService;
@@ -71,6 +80,16 @@ class ArticleControllerIntegrationTest {
     private AuditLogRepository auditLogRepository;
     @Autowired
     private UserNoteRepository userNoteRepository;
+    @Autowired
+    private ArticleReadReceiptRepository articleReadReceiptRepository;
+    @Autowired
+    private ArticleViewLogRepository articleViewLogRepository;
+    @Autowired
+    private RequiredReadingRepository requiredReadingRepository;
+    @Autowired
+    private ReadStatusRepository readStatusRepository;
+    @Autowired
+    private QuizAttemptRepository quizAttemptRepository;
     @Autowired
     private JwtService jwtService;
     @Autowired
@@ -695,10 +714,18 @@ class ArticleControllerIntegrationTest {
     // ── history / diff / restore / versions ──────────────────────────
 
     private long createArticleViaApi(String token, String title, String content, Long categoryId) throws Exception {
+        // is_draft must be set explicitly: ArticleRequest defaults it to
+        // true (matching Python's own ArticleBase schema default) when
+        // absent, regardless of status -- the two fields are independent.
+        // Omitting this made every article this helper creates a draft,
+        // which EligibleOperatorsService.forArticle correctly treats as
+        // "nobody is eligible to read this yet" (found via a failing test,
+        // not assumed).
         String body = mockMvc.perform(authed(post("/api/articles"), token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"title\":\"" + title + "\",\"content\":\"" + content + "\",\"category_id\":"
-                                + categoryId + ",\"target_departments\":[\"All\"],\"status\":\"published\"}"))
+                                + categoryId + ",\"target_departments\":[\"All\"],\"status\":\"published\","
+                                + "\"is_draft\":false}"))
                 .andReturn().getResponse().getContentAsString();
         return new com.fasterxml.jackson.databind.ObjectMapper().readTree(body).get("id").asLong();
     }
@@ -863,5 +890,222 @@ class ArticleControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].version").value(2));
+    }
+
+    // ── read-receipts / views ─────────────────────────────────────────
+
+    private long createArticleViaApiWithDept(
+            String token, String title, String content, Long categoryId, String targetDept) throws Exception {
+        String body = mockMvc.perform(authed(post("/api/articles"), token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"" + title + "\",\"content\":\"" + content + "\",\"category_id\":"
+                                + categoryId + ",\"target_departments\":[\"" + targetDept + "\"],\"status\":\"published\","
+                                + "\"is_draft\":false}"))
+                .andReturn().getResponse().getContentAsString();
+        return new com.fasterxml.jackson.databind.ObjectMapper().readTree(body).get("id").asLong();
+    }
+
+    @Test
+    void readReceiptsShowsEligibleOperatorsAndOrphanedSnapshots() throws Exception {
+        User admin = createUser("aa40@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-33");
+        long articleId = createArticleViaApi(tokenFor(admin), "წასაკითხი სტატია", "შინაარსი", cat.getId());
+
+        User reader = createUser("aa41@magti.ge", Role.OPERATOR, "All");
+        User nonReader = createUser("aa42@magti.ge", Role.OPERATOR, "All");
+        User formerReader = createUser("aa43@magti.ge", Role.OPERATOR, "All");
+
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/read-receipt"), tokenFor(reader)))
+                .andExpect(status().isOk());
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/read-receipt"), tokenFor(formerReader)))
+                .andExpect(status().isOk());
+
+        // formerReader is no longer eligible (deactivated), but their
+        // receipt must still show as a detached snapshot row.
+        formerReader.setActive(false);
+        userRepository.saveAndFlush(formerReader);
+
+        String body = mockMvc.perform(authed(get("/api/articles/" + articleId + "/read-receipts"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        com.fasterxml.jackson.databind.JsonNode receipts =
+                new com.fasterxml.jackson.databind.ObjectMapper().readTree(body).get("receipts");
+        // Keyed by email, not operator_name: this file's createUser gives
+        // every test user the identical fixed display name, unlike
+        // QuizControllerIntegrationTest's helper (which interpolates the
+        // email) -- keying by name here would collapse all three rows onto
+        // one map entry.
+        Map<String, com.fasterxml.jackson.databind.JsonNode> byEmail = new java.util.HashMap<>();
+        receipts.forEach(r -> byEmail.put(r.get("operator_email").asText(), r));
+
+        assertTrue(byEmail.get(reader.getEmail()).get("has_read").asBoolean());
+        assertFalse(byEmail.get(nonReader.getEmail()).get("has_read").asBoolean());
+        assertTrue(byEmail.get(formerReader.getEmail()).get("has_read").asBoolean(),
+                "an orphaned/detached snapshot row must still show as read");
+    }
+
+    @Test
+    void readReceiptsMarksLateReadsPastTheDueDate() throws Exception {
+        User admin = createUser("aa44@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-34");
+        long articleId = createArticleViaApi(tokenFor(admin), "ვადაგადაცილებული", "შინაარსი", cat.getId());
+
+        RequiredReading required = new RequiredReading();
+        required.setItemType("article");
+        required.setItemId(articleId);
+        required.setTargetDepartment("All");
+        required.setDueDate(TbilisiTime.now().minusDays(1));
+        requiredReadingRepository.saveAndFlush(required);
+
+        User lateReader = createUser("aa45@magti.ge", Role.OPERATOR, "All");
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/read-receipt"), tokenFor(lateReader)))
+                .andExpect(status().isOk());
+
+        String body = mockMvc.perform(authed(get("/api/articles/" + articleId + "/read-receipts"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        com.fasterxml.jackson.databind.JsonNode receipts =
+                new com.fasterxml.jackson.databind.ObjectMapper().readTree(body).get("receipts");
+        com.fasterxml.jackson.databind.JsonNode row = java.util.stream.StreamSupport.stream(receipts.spliterator(), false)
+                .filter(r -> lateReader.getName().equals(r.get("operator_name").asText()))
+                .findFirst().orElseThrow();
+
+        assertTrue(row.get("is_late").asBoolean());
+        assertEquals("late_read", row.get("status").asText());
+        assertTrue(row.get("read_at").asText().matches("\\d{2}\\\\\\d{2}\\\\\\d{4} \\d{2}:\\d{2}"),
+                "read_at must use TbilisiTime.format's literal-backslash date separators: " + row.get("read_at").asText());
+    }
+
+    @Test
+    void readReceiptRequiresPassingQuizFirst() throws Exception {
+        User admin = createUser("aa46@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-35");
+        long articleId = createArticleViaApi(tokenFor(admin), "ქვიზიანი", "შინაარსი", cat.getId());
+        Article article = articleRepository.findById(articleId).orElseThrow();
+        article.setQuizEnabled(true);
+        articleRepository.saveAndFlush(article);
+
+        User operator = createUser("aa47@magti.ge", Role.OPERATOR, "All");
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/read-receipt"), tokenFor(operator)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail").value("საჭიროა ქვიზის წარმატებით ჩაბარება წაკითხვის დასადასტურებლად"));
+
+        QuizAttempt passed = new QuizAttempt();
+        passed.setArticleId(articleId);
+        passed.setArticleVersion(article.getVersion());
+        passed.setUserId(operator.getId());
+        passed.setAttemptNumber(1);
+        passed.setScore(1);
+        passed.setTotalQuestions(1);
+        passed.setPassed(true);
+        passed.setCreatedAt(TbilisiTime.now());
+        quizAttemptRepository.saveAndFlush(passed);
+
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/read-receipt"), tokenFor(operator)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void readReceiptBridgesToRequiredReadingComplianceStatus() throws Exception {
+        User admin = createUser("aa48@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-36");
+        long articleId = createArticleViaApi(tokenFor(admin), "სავალდებულო წაკითხვა", "შინაარსი", cat.getId());
+
+        RequiredReading required = new RequiredReading();
+        required.setItemType("article");
+        required.setItemId(articleId);
+        required.setTargetDepartment("All");
+        required.setDueDate(TbilisiTime.now().plusDays(7));
+        RequiredReading savedRequired = requiredReadingRepository.saveAndFlush(required);
+
+        User operator = createUser("aa49@magti.ge", Role.OPERATOR, "All");
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/read-receipt"), tokenFor(operator)))
+                .andExpect(status().isOk());
+
+        ReadStatus stat = readStatusRepository.findByUserIdAndRequiredReadingId(operator.getId(), savedRequired.getId())
+                .orElseThrow();
+        assertEquals("read", stat.getStatus());
+        assertTrue(stat.getReadAt() != null);
+    }
+
+    @Test
+    void myReadReceiptStatusReflectsWhetherIveRead() throws Exception {
+        User admin = createUser("aa50@magti.ge", Role.CONTENT_ADMIN, "All");
+        User operator = createUser("aa51@magti.ge", Role.OPERATOR, "All");
+        Category cat = createCategory("კატ-38");
+        long articleId = createArticleViaApi(tokenFor(admin), "სტატია", "შინაარსი", cat.getId());
+
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/read-receipt/me"), tokenFor(operator)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.has_read").value(false));
+
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/read-receipt"), tokenFor(operator)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/read-receipt/me"), tokenFor(operator)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.has_read").value(true))
+                .andExpect(jsonPath("$.article_version").value(1));
+    }
+
+    @Test
+    void viewTrackingHasNoVisibilityGateUnlikeMostEndpoints() throws Exception {
+        User admin = createUser("aa52@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-39");
+        long articleId = createArticleViaApiWithDept(
+                tokenFor(admin), "ტექნიკურის სტატია", "შინაარსი", cat.getId(), "ტექნიკური");
+        User unrelatedOperator = createUser("aa53@magti.ge", Role.OPERATOR, "საინფორმაციო");
+
+        // Confirm the operator genuinely can't see it via the normal read path...
+        mockMvc.perform(authed(get("/api/articles/" + articleId), tokenFor(unrelatedOperator)))
+                .andExpect(status().isNotFound());
+
+        // ...but view-tracking still succeeds anyway.
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/view"), tokenFor(unrelatedOperator)))
+                .andExpect(status().isOk());
+
+        assertEquals(1, articleViewLogRepository.findByArticleIdOrderByViewedAtDesc(articleId).size());
+    }
+
+    @Test
+    void viewsReportsTotalAndUniqueCountsWithPagination() throws Exception {
+        User admin = createUser("aa54@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-40");
+        long articleId = createArticleViaApi(tokenFor(admin), "ნანახი სტატია", "შინაარსი", cat.getId());
+        User viewer1 = createUser("aa55@magti.ge", Role.OPERATOR, "All");
+        User viewer2 = createUser("aa56@magti.ge", Role.OPERATOR, "All");
+
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/view"), tokenFor(viewer1))).andExpect(status().isOk());
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/view"), tokenFor(viewer1))).andExpect(status().isOk());
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/view"), tokenFor(viewer2))).andExpect(status().isOk());
+
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/views"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total_views").value(3))
+                .andExpect(jsonPath("$.unique_viewers").value(2))
+                .andExpect(jsonPath("$.views.length()").value(3));
+
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/views").param("limit", "1"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.views.length()").value(1));
+    }
+
+    @Test
+    void recentlyViewedDedupesRepeatViews() throws Exception {
+        User admin = createUser("aa57@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-41");
+        long articleA = createArticleViaApi(tokenFor(admin), "სტატია ა", "შინაარსი ა", cat.getId());
+        long articleB = createArticleViaApi(tokenFor(admin), "სტატია ბ", "შინაარსი ბ", cat.getId());
+        User operator = createUser("aa58@magti.ge", Role.OPERATOR, "All");
+
+        mockMvc.perform(authed(post("/api/articles/" + articleA + "/view"), tokenFor(operator))).andExpect(status().isOk());
+        mockMvc.perform(authed(post("/api/articles/" + articleB + "/view"), tokenFor(operator))).andExpect(status().isOk());
+        mockMvc.perform(authed(post("/api/articles/" + articleA + "/view"), tokenFor(operator))).andExpect(status().isOk());
+
+        mockMvc.perform(authed(get("/api/me/recently-viewed"), tokenFor(operator)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].title").value("სტატია ა"))
+                .andExpect(jsonPath("$[1].title").value("სტატია ბ"));
     }
 }

@@ -2,21 +2,31 @@ package ge.magti.portal.web;
 
 import ge.magti.portal.article.ArticleListFilter;
 import ge.magti.portal.article.ArticleQueryService;
+import ge.magti.portal.article.EligibleOperatorsService;
 import ge.magti.portal.diff.DiffResult;
 import ge.magti.portal.diff.HtmlDiffer;
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.ArticleHistory;
+import ge.magti.portal.domain.ArticleReadReceipt;
 import ge.magti.portal.domain.ArticleTargetDepartment;
+import ge.magti.portal.domain.ArticleViewLog;
 import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.Category;
 import ge.magti.portal.domain.Permission;
+import ge.magti.portal.domain.ReadStatus;
+import ge.magti.portal.domain.RequiredReading;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.domain.UserNote;
 import ge.magti.portal.repository.ArticleHistoryRepository;
+import ge.magti.portal.repository.ArticleReadReceiptRepository;
 import ge.magti.portal.repository.ArticleRepository;
 import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
+import ge.magti.portal.repository.ArticleViewLogRepository;
 import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.CategoryRepository;
+import ge.magti.portal.repository.QuizAttemptRepository;
+import ge.magti.portal.repository.ReadStatusRepository;
+import ge.magti.portal.repository.RequiredReadingRepository;
 import ge.magti.portal.repository.UserNoteRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.PermissionChecker;
@@ -44,6 +54,7 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -82,35 +93,53 @@ public class ArticleController {
     private final ArticleRepository articleRepository;
     private final ArticleTargetDepartmentRepository targetDepartmentRepository;
     private final ArticleHistoryRepository articleHistoryRepository;
+    private final ArticleReadReceiptRepository articleReadReceiptRepository;
+    private final ArticleViewLogRepository articleViewLogRepository;
     private final CategoryRepository categoryRepository;
     private final AuditLogRepository auditLogRepository;
     private final UserNoteRepository userNoteRepository;
     private final UserRepository userRepository;
+    private final RequiredReadingRepository requiredReadingRepository;
+    private final ReadStatusRepository readStatusRepository;
+    private final QuizAttemptRepository quizAttemptRepository;
     private final PermissionChecker permissionChecker;
     private final TagSyncService tagSyncService;
     private final ArticleQueryService articleQueryService;
+    private final EligibleOperatorsService eligibleOperatorsService;
 
     public ArticleController(
             ArticleRepository articleRepository,
             ArticleTargetDepartmentRepository targetDepartmentRepository,
             ArticleHistoryRepository articleHistoryRepository,
+            ArticleReadReceiptRepository articleReadReceiptRepository,
+            ArticleViewLogRepository articleViewLogRepository,
             CategoryRepository categoryRepository,
             AuditLogRepository auditLogRepository,
             UserNoteRepository userNoteRepository,
             UserRepository userRepository,
+            RequiredReadingRepository requiredReadingRepository,
+            ReadStatusRepository readStatusRepository,
+            QuizAttemptRepository quizAttemptRepository,
             PermissionChecker permissionChecker,
             TagSyncService tagSyncService,
-            ArticleQueryService articleQueryService) {
+            ArticleQueryService articleQueryService,
+            EligibleOperatorsService eligibleOperatorsService) {
         this.articleRepository = articleRepository;
         this.targetDepartmentRepository = targetDepartmentRepository;
         this.articleHistoryRepository = articleHistoryRepository;
+        this.articleReadReceiptRepository = articleReadReceiptRepository;
+        this.articleViewLogRepository = articleViewLogRepository;
         this.categoryRepository = categoryRepository;
         this.auditLogRepository = auditLogRepository;
         this.userNoteRepository = userNoteRepository;
         this.userRepository = userRepository;
+        this.requiredReadingRepository = requiredReadingRepository;
+        this.readStatusRepository = readStatusRepository;
+        this.quizAttemptRepository = quizAttemptRepository;
         this.permissionChecker = permissionChecker;
         this.tagSyncService = tagSyncService;
         this.articleQueryService = articleQueryService;
+        this.eligibleOperatorsService = eligibleOperatorsService;
     }
 
     @GetMapping("/api/articles")
@@ -826,6 +855,263 @@ public class ArticleController {
             compareVersion = versionA;
         }
         return new ArticleDiffResponse(result.html(), result.added(), result.removed(), baseVersion, compareVersion, snapVersionId);
+    }
+
+    @GetMapping("/api/articles/{id}/read-receipts")
+    public ResponseEntity<?> getArticleReadReceipts(
+            @PathVariable Long id, @RequestParam(required = false) Integer version, @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        if (denial != null) {
+            return denial;
+        }
+
+        Optional<Article> found = articleRepository.findById(id);
+        if (found.isEmpty()) {
+            return notFound();
+        }
+        Article article = found.get();
+
+        OffsetDateTime dueDate = requiredReadingRepository.findFirstByItemTypeAndItemId("article", id)
+                .map(RequiredReading::getDueDate).orElse(null);
+        int targetVersion = version != null ? version : article.getVersion();
+        List<User> eligibleUsers = eligibleOperatorsService.forArticle(article, resolveTargetDepartments(id));
+        List<ArticleReadReceipt> receipts = articleReadReceiptRepository.findByArticleIdAndArticleVersion(id, targetVersion);
+        Map<Long, ArticleReadReceipt> receiptByOperator = receipts.stream()
+                .filter(r -> r.getOperatorId() != null)
+                .collect(Collectors.toMap(ArticleReadReceipt::getOperatorId, r -> r, (a, b) -> a));
+
+        Set<Long> processedOperatorIds = new HashSet<>();
+        List<ArticleReadReceiptRowResponse> rows = new ArrayList<>();
+        for (User u : eligibleUsers) {
+            processedOperatorIds.add(u.getId());
+            ArticleReadReceipt receipt = receiptByOperator.get(u.getId());
+            if (receipt != null) {
+                rows.add(buildReceiptRow(receipt, dueDate));
+            } else {
+                rows.add(new ArticleReadReceiptRowResponse(u.getId(), u.getName(), u.getEmail(), u.getDepartment(),
+                        null, null, false, false, TbilisiTime.format(dueDate), "unread"));
+            }
+        }
+        // Detached/orphaned snapshot rows: a receipt whose operator is no
+        // longer eligible (left the department, deactivated, ...) still
+        // shows, from its own frozen snapshot -- routers/articles.py:1100-1122.
+        for (ArticleReadReceipt receipt : receipts) {
+            if (receipt.getOperatorId() == null || !processedOperatorIds.contains(receipt.getOperatorId())) {
+                rows.add(buildReceiptRow(receipt, dueDate));
+            }
+        }
+
+        return ResponseEntity.ok(new ArticleReadReceiptResponse(id, article.getTitle(), targetVersion, rows));
+    }
+
+    @PostMapping("/api/articles/{id}/read-receipt")
+    @Transactional
+    public ResponseEntity<?> createArticleReadReceipt(@PathVariable Long id, @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        if (denial != null) {
+            return denial;
+        }
+
+        Optional<Article> found = articleRepository.findById(id);
+        if (found.isEmpty()) {
+            return notFound();
+        }
+        Article article = found.get();
+        ResponseEntity<Map<String, String>> visibility = assertArticleVisible(article, resolveTargetDepartments(id), user);
+        if (visibility != null) {
+            return visibility;
+        }
+        ResponseEntity<Map<String, String>> quizGate = requireQuizPassed(article, user);
+        if (quizGate != null) {
+            return quizGate;
+        }
+
+        OffsetDateTime readAt = TbilisiTime.now();
+        articleReadReceiptRepository.upsert(id, article.getTitle(), article.getVersion(), user.getId(),
+                user.getName(), user.getEmail(), user.getDepartment(), readAt);
+        ArticleReadReceipt receipt = articleReadReceiptRepository
+                .findByArticleIdAndArticleVersionAndOperatorId(id, article.getVersion(), user.getId())
+                .orElseThrow();
+
+        // Compliance bridge (routers/articles.py:1207-1233): prefix-aware,
+        // unlike EligibleOperatorsService's exact-match rule -- this one
+        // reuses the same [dept, deptPrefix, "All"] pattern get_articles'
+        // own list query uses. Only fills gaps: an already-"read"
+        // ReadStatus keeps its original read_at.
+        String deptPrefix = DepartmentMatcher.splitGroup(user.getDepartment()).prefix();
+        List<RequiredReading> covering = requiredReadingRepository.findByItemTypeAndItemIdAndTargetDepartmentIn(
+                "article", id, List.of(user.getDepartment(), deptPrefix, "All"));
+        for (RequiredReading rr : covering) {
+            ReadStatus stat = readStatusRepository.findByUserIdAndRequiredReadingId(user.getId(), rr.getId())
+                    .orElseGet(() -> {
+                        ReadStatus fresh = new ReadStatus();
+                        fresh.setUserId(user.getId());
+                        fresh.setRequiredReadingId(rr.getId());
+                        return fresh;
+                    });
+            if ("read".equals(stat.getStatus())) {
+                continue;
+            }
+            stat.setStatus("read");
+            stat.setReadAt(TbilisiTime.now());
+            stat.setOperatorDepartmentSnapshot(user.getDepartment());
+            readStatusRepository.save(stat);
+        }
+
+        return ResponseEntity.ok(new CreateReadReceiptResponse("success", receipt.getReadAt(), receipt.getArticleVersion()));
+    }
+
+    @GetMapping("/api/articles/{id}/read-receipt/me")
+    public ResponseEntity<?> getMyArticleReadReceiptStatus(@PathVariable Long id, @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        if (denial != null) {
+            return denial;
+        }
+
+        Optional<Article> found = articleRepository.findById(id);
+        if (found.isEmpty()) {
+            return notFound();
+        }
+        Article article = found.get();
+        ResponseEntity<Map<String, String>> visibility = assertArticleVisible(article, resolveTargetDepartments(id), user);
+        if (visibility != null) {
+            return visibility;
+        }
+
+        Optional<ArticleReadReceipt> receipt = articleReadReceiptRepository
+                .findByArticleIdAndArticleVersionAndOperatorId(id, article.getVersion(), user.getId());
+        if (receipt.isPresent()) {
+            return ResponseEntity.ok(new MyReadReceiptStatusResponse(
+                    true, receipt.get().getReadAt(), receipt.get().getArticleVersion(), article.getVersion()));
+        }
+        return ResponseEntity.ok(new MyReadReceiptStatusResponse(false, null, null, article.getVersion()));
+    }
+
+    @PostMapping("/api/articles/{id}/view")
+    public ResponseEntity<?> trackArticleView(@PathVariable Long id, @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        if (denial != null) {
+            return denial;
+        }
+
+        // No visibility check here, matching routers/articles.py:1274-1305
+        // exactly: passive view-tracking doesn't gate on department/draft/
+        // status the way nearly every other article endpoint does.
+        Optional<Article> found = articleRepository.findById(id);
+        if (found.isEmpty()) {
+            return notFound();
+        }
+        Article article = found.get();
+
+        ArticleViewLog log = new ArticleViewLog();
+        log.setArticleId(article.getId());
+        log.setArticleTitleSnapshot(article.getTitle());
+        log.setArticleVersion(article.getVersion());
+        log.setOperatorId(user.getId());
+        log.setOperatorNameSnapshot(user.getName());
+        log.setOperatorEmailSnapshot(user.getEmail());
+        log.setOperatorDepartmentSnapshot(user.getDepartment());
+        log.setViewedAt(TbilisiTime.now());
+        articleViewLogRepository.save(log);
+
+        return ResponseEntity.ok(Map.of("status", "success"));
+    }
+
+    @GetMapping("/api/articles/{id}/views")
+    public ResponseEntity<?> getArticleViews(
+            @PathVariable Long id, @RequestParam(required = false) Integer version,
+            @RequestParam(defaultValue = "50") int limit, @RequestParam(defaultValue = "0") int offset,
+            @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        if (denial != null) {
+            return denial;
+        }
+
+        Optional<Article> found = articleRepository.findById(id);
+        if (found.isEmpty()) {
+            return notFound();
+        }
+        Article article = found.get();
+
+        List<ArticleViewLog> all = version != null
+                ? articleViewLogRepository.findByArticleIdAndArticleVersionOrderByViewedAtDesc(id, version)
+                : articleViewLogRepository.findByArticleIdOrderByViewedAtDesc(id);
+
+        long totalViews = all.size();
+        long uniqueViewers = all.stream().map(ArticleViewLog::getOperatorId).filter(Objects::nonNull).distinct().count();
+
+        int safeOffset = Math.max(offset, 0);
+        int safeLimit = Math.max(1, Math.min(limit, 200));
+        List<ArticleViewRowResponse> rows = all.stream()
+                .skip(safeOffset)
+                .limit(safeLimit)
+                .map(v -> new ArticleViewRowResponse(v.getOperatorId(), v.getOperatorNameSnapshot(),
+                        v.getOperatorEmailSnapshot(), v.getOperatorDepartmentSnapshot(), v.getArticleVersion(),
+                        TbilisiTime.format(v.getViewedAt())))
+                .toList();
+
+        return ResponseEntity.ok(new ArticleViewsResponse(id, article.getVersion(), version, totalViews, uniqueViewers, rows));
+    }
+
+    @GetMapping("/api/me/recently-viewed")
+    public ResponseEntity<?> getMyRecentlyViewed(@AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        if (denial != null) {
+            return denial;
+        }
+
+        List<ArticleViewLog> rows = articleViewLogRepository.findTop30ByOperatorIdOrderByViewedAtDesc(user.getId());
+        Set<Long> articleIds = rows.stream().map(ArticleViewLog::getArticleId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, String> titlesByArticleId = articleRepository.findAllById(articleIds).stream()
+                .collect(Collectors.toMap(Article::getId, Article::getTitle));
+
+        Set<Long> seenIds = new LinkedHashSet<>();
+        List<RecentlyViewedItemResponse> items = new ArrayList<>();
+        for (ArticleViewLog row : rows) {
+            Long articleId = row.getArticleId();
+            // INNER JOIN semantics (routers/articles.py:1376): a view of a
+            // since-deleted article (article_id SET NULL on delete) never
+            // resolves a title, so it's silently skipped, not shown blank.
+            if (articleId == null || !titlesByArticleId.containsKey(articleId) || seenIds.contains(articleId)) {
+                continue;
+            }
+            seenIds.add(articleId);
+            items.add(new RecentlyViewedItemResponse(articleId, titlesByArticleId.get(articleId), row.getViewedAt()));
+            if (items.size() >= 10) {
+                break;
+            }
+        }
+        return ResponseEntity.ok(items);
+    }
+
+    private ArticleReadReceiptRowResponse buildReceiptRow(ArticleReadReceipt receipt, OffsetDateTime dueDate) {
+        boolean isLate = false;
+        String status = "read";
+        if (dueDate != null && receipt.getReadAt() != null && receipt.getReadAt().isAfter(dueDate)) {
+            isLate = true;
+            status = "late_read";
+        }
+        return new ArticleReadReceiptRowResponse(
+                receipt.getOperatorId(), receipt.getOperatorNameSnapshot(), receipt.getOperatorEmailSnapshot(),
+                receipt.getOperatorDepartmentSnapshot(), TbilisiTime.format(receipt.getReadAt()), receipt.getArticleVersion(),
+                true, isLate, TbilisiTime.format(dueDate), status);
+    }
+
+    /** Port of _check_quiz_gate (routers/articles.py:1006-1029). */
+    private ResponseEntity<Map<String, String>> requireQuizPassed(Article article, User user) {
+        if (user.getRole().isContentAdmin()) {
+            return null;
+        }
+        if (!article.isQuizEnabled()) {
+            return null;
+        }
+        boolean passed = quizAttemptRepository.existsByArticleIdAndArticleVersionAndUserIdAndPassedTrue(
+                article.getId(), article.getVersion(), user.getId());
+        if (!passed) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("detail", "საჭიროა ქვიზის წარმატებით ჩაბარება წაკითხვის დასადასტურებლად"));
+        }
+        return null;
     }
 
     private void applySharedFields(Article article, ArticleRequest request) {

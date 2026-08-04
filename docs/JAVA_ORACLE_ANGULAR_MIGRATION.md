@@ -1030,10 +1030,36 @@ history-row-ს ჩაწერ არარსებულ user-ზე (FK უ�
 19 ახალი ტესტი (10 unit + 9 Oracle-ინტეგრაციული), 236/236 ტესტი მწვანეა
 სულ.
 
-**Articles-ის ერთადერთი დარჩენილი ნაწილი: read-receipt/views (6
-endpoint)** — compliance-ხიდით `RequiredReading`/`ReadStatus`-თან.
-ამის დასრულების შემდეგ Articles 32/32 endpoint-ით სრულად აშენებული
-იქნება.
+**Articles დასრულდა — read-receipt/views აშენდა, 2026-08-04.** ბოლო 6
+endpoint: read-receipt-ის შექმნა (ატომური Oracle `MERGE` upsert,
+routers/articles.py-ის insert-then-catch-IntegrityError-ის ნაცვლად —
+იგივე პრინციპი, რაც ისტორიის `archiveIfMissing`-ს), ჩემი სტატუსი,
+ადმინის სია, passive view-tracking, ნახვების სია, ბოლოს-ნანახები.
+
+**ორი ტესტ-ფიქსტურის ბაგი ნაპოვნი და გასწორებული ამ სესიაში (ორივე
+ტესტ-კოდში, არა production Java-ში):** (1) `createArticleViaApi`-ს
+დამხმარემ არასდროს დააყენა `is_draft`, ამიტომ ყოველი ტესტ-სტატია
+დეფოლტად draft-ად იქმნებოდა — ხილვადი გახდა მხოლოდ მაშინ, როცა
+`EligibleOperatorsService`-ის draft-გამორიცხვის შემოწმება პირველად
+გამოცდილა. (2) `ArticleControllerIntegrationTest`-ის `createUser`
+დამხმარე ყველა ტესტ-მომხმარებელს ერთსა და იმავე ჰარდქოდილ სახელს
+("ტესტ მომხმარებელი") აძლევდა email-ის გარეშე — ტესტმა, რომელიც
+`operator_name`-ით მუშაობდა Map-key-ად, ამის გამო 3 განსხვავებული
+მომხმარებელი ერთ ჩანაწერად ჩაშალა. ორივე Java-პორტის მხარეს არ
+შეხებია — production-ლოგიკა თავიდანვე სწორად მუშაობდა.
+
+**Java-ს ერთი გააზრებული გადახრა Postgres-ის ip/user_agent-სგან:**
+`format_tbilisi_date`-ის ორიგინალური `\%`-სეპარატორი (`"%d\%m\%Y
+%H:%M"`, ცოცხლად დადასტურებული `python3`-ით, არა ვარაუდით) ზუსტად
+რეპლიცირებულია `TbilisiTime.format()`-ში ადმინის-სიის endpoint-ებზე
+(read-receipts/views), ხოლო "ჩემი" endpoint-ებს (POST read-receipt,
+GET .../me, GET recently-viewed) Python-შიც არ აქვს `response_model`
+და უბრალო ISO serialization იბრუნება — ორივე ქცევა ცალ-ცალკე
+ინახულია.
+
+**Articles ახლა სრულად აშენებულია: 32/32 endpoint, 5 slice-ად.** 46
+ტესტი მხოლოდ ამ ერთ კონტროლერზე (8 ახალი ამ slice-ში), 244/244 ტესტი
+მწვანეა მთელ backend-ში რეგრესიის გარეშე.
 
 ---
 
@@ -1248,11 +1274,11 @@ Postgres-ზე:
 | Articles | ✅ **ისტორია + diff + restore + versions აშენებული (2026-08-01)** — predecessor/explicit/current შედარება, `HtmlDiffer` (jsoup + java-diff-utils, არა diffing.py-ის სიტყვასიტყვითი პორტი — Myers-ალგორითმი Ratcliff-Obershelp-ის ნაცვლად) | `GET /api/articles/{id}/history`, `/history/{hid}/diff`, `POST /history/{hid}/restore`, `GET /versions` | 10 unit-ტესტი (Oracle-ის გარეშე) + 9 ტესტი რეალურ Oracle-ზე | ✔ დაკმაყოფილებულია — identical `ins`/`del` სემანტიკა, არა byte-იდენტური markup (თავიდანვე ასეთი იყო მიღების კრიტერიუმი) |
 | Articles | ✅ **Quiz admin CRUD აშენებული (2026-08-01)** — GET/PUT, სრული replace + 3 422-ვალიდაცია. **ცნობილი ხარვეზი #2 უცვლელადაა გადმოტანილი, არ გასწორებულა** (გადაწყვეტილება ჯერ არ მიღებულა, §5): admin-რედაქტირება ჯერ კიდევ არ ზრდის `version`-ს, თუმცა quiz-gate `version`-ზეა მიბმული | `GET/PUT /api/articles/{id}/quiz/admin` | 10 ტესტი რეალურ Oracle-ზე | ✔ endpoint-ი დაკმაყოფილებულია; ბაგი #2 ცალკე გადაწყვეტილებას ითხოვს |
 | Articles | ✅ **Quiz-ჩაბარება აშენებული (2026-08-01)**: server-side grading (`QuizGrader`, წინასწარ აშენებული ამ სესიამდე), ერთჯერადი "ცოდნის ქულის" +10/+5 ბონუსი | `GET /api/articles/{id}/quiz`, `POST /quiz/attempt` | 10 ტესტი რეალურ Oracle-ზე | ✔ დაკმაყოფილებულია — `is_correct` არასდროს ჩანს public schema-ში, დადასტურებულია ტესტით |
-| Articles | Read-receipt + quiz-gate enforcement | `POST /api/articles/{id}/read-receipt`, `GET /read-receipt/me` | Parity | gate 403-ობს ჩაუბარებელ quiz-ზე |
-| Articles | View-logging (passive) | `POST /api/articles/{id}/view`, `GET /views` | Parity | `ArticleViewLog` ერთადერთი passive-view წყარო რჩება |
+| Articles | ✅ **Read-receipt + quiz-gate enforcement აშენებული (2026-08-04)** — ატომური Oracle `MERGE` upsert (Python-ის insert-then-catch-IntegrityError-ის ნაცვლად), compliance-ხიდი `RequiredReading`/`ReadStatus`-თან (prefix-aware, `EligibleOperatorsService`-ისგან განსხვავებული ზუსტ-დამთხვევის წესით — ორივე შენარჩუნებულია, Python-ის საკუთარი შეუთანხმებლობის მიხედვით) | `POST /api/articles/{id}/read-receipt`, `GET /read-receipt/me`, `GET /read-receipts` | 6 ტესტი რეალურ Oracle-ზე | ✔ დაკმაყოფილებულია — gate 403-ობს ჩაუბარებელ quiz-ზე, დადასტურებულია ტესტით |
+| Articles | ✅ **View-logging (passive) აშენებული (2026-08-04)** — ხილვადობის შემოწმების გარეშე, ზუსტად Python-ის მსგავსად | `POST /api/articles/{id}/view`, `GET /views` | ზემოთ ჩამოთვლილ 6 ტესტში შედის | ✔ დაკმაყოფილებულია — `ArticleViewLog` ერთადერთი passive-view წყარო რჩება |
 | Articles | ✅ **დეპარტამენტის prefix-aware ხილვადობა აშენებული (2026-08-01)** — list-ფილტრი (`GET /api/articles`) და ცალკეული სტატიის ხილვადობა (`_assert_article_visible`) ორივე | `GET /api/articles`, `GET /api/articles/{id}` | ზემოთ ჩამოთვლილ 20 ტესტში შედის | ✔ დაკმაყოფილებულია |
 | Articles | ✅ **Knowledge-score + leaderboard აშენებული (2026-08-01)** | `GET /api/users/me/knowledge-score`, `/api/knowledge-leaderboard` | 10 ტესტი რეალურ Oracle-ზე | ✔ დაკმაყოფილებულია — ფორმულა იდენტურია (+10/+5 bonus) |
-| Articles | Recently-viewed | `GET /api/me/recently-viewed` | Parity | — |
+| Articles | ✅ **Recently-viewed აშენებული (2026-08-04)** — INNER JOIN სემანტიკა (წაშლილი სტატიის ნახვა ჩუმად გამოტოვება, არა ცარიელი სათაურით ჩვენება) | `GET /api/me/recently-viewed` | ზემოთ ჩამოთვლილ 6 ტესტში შედის | ✔ დაკმაყოფილებულია |
 | Articles | ✅ **User notes + deprecated feedback stubs აშენებული (2026-08-01)** — GET note აბრუნებს **ნამდვილ JSON `null`-ს** (არა ცარიელ body-ს) როცა შენიშვნა არ არსებობს | `GET/PUT /api/articles/{id}/note`, `POST /feedback`, `GET /api/admin/feedback` | 9 ტესტი რეალურ Oracle-ზე | ✔ დაკმაყოფილებულია |
 | Articles | ✅ **Verify + related-articles აშენებული (2026-08-01)** — related-ს დეპარტამენტის ფილტრი **განზრახ ზუსტი-დამთხვევაა, არა prefix-aware** (Python-ის ორიგინალი ქცევა, სხვაგან ამ ფაილში ყველგან prefix-aware-ია) | `POST /api/articles/{id}/verify`, `GET /related` | ზემოთ ჩამოთვლილ 9 ტესტში შედის | ✔ დაკმაყოფილებულია — განსხვავება დადასტურებულია ცალკე ტესტით |
 | Articles | ✅ **Stale-content რეპორტი აშენებული (2026-08-01)** | `GET /api/admin/articles/stale` | ზემოთ ჩამოთვლილ 9 ტესტში შედის | ✔ დაკმაყოფილებულია |

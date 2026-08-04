@@ -11,6 +11,9 @@ public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, Long> 
 
     int countByArticleIdAndArticleVersionAndUserId(Long articleId, int articleVersion, Long userId);
 
+    /** Port of _check_quiz_gate's pass-check (routers/articles.py:1022-1027). */
+    boolean existsByArticleIdAndArticleVersionAndUserIdAndPassedTrue(Long articleId, int articleVersion, Long userId);
+
     /**
      * Port of _compute_knowledge_score's grouped query
      * (routers/articles.py:879-888): one row per distinct (article,

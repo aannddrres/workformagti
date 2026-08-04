@@ -27,4 +27,27 @@ public final class TbilisiTime {
     public static OffsetDateTime now() {
         return OffsetDateTime.now(OFFSET);
     }
+
+    /**
+     * Mirrors database.py's format_tbilisi_date (database.py:74-75)
+     * exactly, including its literal backslash date separators --
+     * verified with a real Python run, not assumed from reading the
+     * source: {@code "%d\%m\%Y %H:%M"} is not a valid Python escape
+     * sequence, so the backslashes survive literally into the format
+     * string, producing e.g. {@code "01\08\2026 14:30"}. Almost
+     * certainly an unintentional typo for {@code "%d/%m/%Y"} somewhere
+     * in this codebase's past, but it is the real, live, verified output
+     * today -- ported as-is (flagged as a finding for a decision, not
+     * silently changed either way) rather than "corrected" unasked. Used
+     * only by the two admin list endpoints (read-receipts, views) that
+     * explicitly call format_tbilisi_date in Python; the current-user
+     * endpoints return raw datetimes with no such formatting.
+     */
+    public static String format(OffsetDateTime dt) {
+        if (dt == null) {
+            return null;
+        }
+        return "%02d\\%02d\\%04d %02d:%02d".formatted(
+                dt.getDayOfMonth(), dt.getMonthValue(), dt.getYear(), dt.getHour(), dt.getMinute());
+    }
 }
