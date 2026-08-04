@@ -1063,6 +1063,45 @@ GET .../me, GET recently-viewed) Python-შიც არ აქვს `response_
 
 ---
 
+**News აშენდა, 2026-08-04 (იმავე სესიაში, კონტექსტის შეკუმშვის შემდეგ)**
+— ყველა 8 endpoint. სტრუქტურულად სტატიების მსგავსი, მაგრამ უფრო მარტივი
+(ერთი დეპარტამენტის სვეტი junction-ცხრილის ნაცვლად, diff endpoint არ
+არსებობს). სანამ კოდის წერას დავიწყებდი, პირდაპირ წაკითხვამ
+(routers/news.py-ის და static/js/app-core.js-ის) გამოავლინა **ორი
+ცოცხალი ბაგი production Python-ში**, ორივე წარედგინა მომხმარებელს
+კონკრეტულად და ორივეზე გადაწყვეტილება მიღებულ იქნა — Java-ვერსია
+გასწორებულია, არა უცვლელად გადმოტანილი:
+
+1. **`update_news`-ს არ აქვს Article-ის `update_article`-ის იგივე დაცვა
+   `author_id`-სთვის** (`.pop("author_id", None)`-ის ეკვივალენტი
+   არსად არსებობს) — რადგან რედაქტირების ფორმა ამ ველს საერთოდ არ
+   აგზავნის, `NewsCreate`-ის სრული `model_dump()` ყოველ რედაქტირებაზე
+   ჩუმად ნულავს ავტორს.
+2. **`is_draft`-ის სქემის დეფოლტი (`True`) რეალურად აზიანებს** — ვინაიდან
+   "სიახლის დამატება" ფორმა ამ ველს არასდროს აგზავნის (`submitNewsForm`,
+   static/js/app-core.js:2236-2241), **ყოველი სიახლე, რომელიც ოდესმე
+   შეიქმნა რეალური admin-ფორმით (არა seed-ით), მუდმივად დარჩა
+   უხილავ დრაფტად** — არც საჯარო გვერდზე ჩანდა, არც admin-ის საკუთარ
+   მართვის სიაში, არც ავტორისთვის (მეორე ბაგთან ერთად: ერთხელ
+   რედაქტირების შემდეგ ავტორიც იკარგება, ამიტომ `author_id==me`-ს
+   საკუთარი drafts-visibility fallback-იც წყდება). დღეს ხილული 5 სატესტო
+   სიახლე `seed.py`-ით არის ჩაწერილი პირდაპირ `is_draft=False`-ით, ამ
+   endpoint-ის გვერდის ავლით — ამიტომ ბაგი აქამდე შეუმჩნეველი დარჩა.
+
+**გადაწყვეტილება (მომხმარებელმა, ორივეჯერ რეკომენდებული ვარიანტი
+აირჩია):** გასწორდეს Java-ში. `NewsRequest`-ს არ აქვს `author_id`
+ველი საერთოდ (Article-ის იგივე პატერნი); განახლებისას `author_id`/
+`isDraft`/`expiresAt` სამივე უცვლელად რჩება არსებული row-დან
+(ფორმა არცერთს მართავს); შექმნისას `isDraft` ნაგულისხმევად `false`-ია
+(გამოქვეყნებული), Python-ის `true`-ს საპირისპიროდ. ცოცხალი Python
+აპლიკაცია არ შეხებია — ეს მხოლოდ Java-პორტის ცვლილებაა.
+
+12 ახალი ტესტი (მათ შორის 2 სპეციალურად ამ ორი ბაგის რეგრესიისთვის),
+256/256 ტესტი მწვანეა მთელ backend-ში რეგრესიის გარეშე. News დასრულებულია
+— შემდეგი: Favorites (3 endpoint, პატარა).
+
+---
+
 ## ფაზა 2 — Parity ვალიდაციის კარიბჭე
 
 Angular არ იწყება, სანამ Parity-ჰარნესი (§3) არ აჩვენებს 100%-იან თანხმობას
@@ -1282,8 +1321,8 @@ Postgres-ზე:
 | Articles | ✅ **User notes + deprecated feedback stubs აშენებული (2026-08-01)** — GET note აბრუნებს **ნამდვილ JSON `null`-ს** (არა ცარიელ body-ს) როცა შენიშვნა არ არსებობს | `GET/PUT /api/articles/{id}/note`, `POST /feedback`, `GET /api/admin/feedback` | 9 ტესტი რეალურ Oracle-ზე | ✔ დაკმაყოფილებულია |
 | Articles | ✅ **Verify + related-articles აშენებული (2026-08-01)** — related-ს დეპარტამენტის ფილტრი **განზრახ ზუსტი-დამთხვევაა, არა prefix-aware** (Python-ის ორიგინალი ქცევა, სხვაგან ამ ფაილში ყველგან prefix-aware-ია) | `POST /api/articles/{id}/verify`, `GET /related` | ზემოთ ჩამოთვლილ 9 ტესტში შედის | ✔ დაკმაყოფილებულია — განსხვავება დადასტურებულია ცალკე ტესტით |
 | Articles | ✅ **Stale-content რეპორტი აშენებული (2026-08-01)** | `GET /api/admin/articles/stale` | ზემოთ ჩამოთვლილ 9 ტესტში შედის | ✔ დაკმაყოფილებულია |
-| News | CRUD + ისტორია/restore, **`is_archived` არის `@property` (expires_at-ზე გამოთვლადი, არა queryable სვეტი)** | `GET/POST/PUT/DELETE /api/news`, `/api/news/{id}`, history/restore, autosave | Parity | ARCHIVE-ლოგიკა ცალკე Java-ში — ან computed field, ან real column (გადაწყვეტილება) |
-| News | დეპარტამენტის prefix-aware ხილვადობა (identical to Articles) | `GET /api/news` | Parity + §3.3 | — |
+| News | ✅ **CRUD + ისტორია/restore + autosave აშენებული და გადამოწმებული (2026-08-04)** — `is_archived` არის `@property` (expires_at-ზე გამოთვლადი, არა queryable სვეტი — Python-ის იგივე ქცევა, უცვლელად შენარჩუნებული) | `GET/POST/PUT/DELETE /api/news`, `/api/news/{id}`, `/history`, `/history/{hid}/restore`, `/autosave` | 12 ტესტი რეალურ Oracle-ზე | ✔ დაკმაყოფილებულია — 2 ცოცხალი ბაგი გასწორებულია, იხ. ქვემოთ |
+| News | ✅ **დეპარტამენტის prefix-aware ხილვადობა აშენებული (2026-08-04)** — იდენტური სტატიების წესის (identical to Articles) | `GET /api/news` | ზემოთ ჩამოთვლილ 12 ტესტში შედის | ✔ დაკმაყოფილებულია |
 | Videos | ✅ **აშენებული და გადამოწმებული (2026-08-01)** — CRUD + archive/unarchive + view-count. ბაგი #10 **გასწორებულია**: დეპარტამენტის ფილტრი ახლა prefix-aware-ია (`DepartmentMatcher`), არა ზუსტი-დამთხვევა — თქვენი გადაწყვეტილებით | `GET/POST/PUT/DELETE /api/videos`, `/archive`, `/unarchive`, `/{id}/view` | 25 ტესტი რეალურ Oracle-ზე (YouTube URL, ტეგები, ხილვადობა, ნებართვები, აუდიტი) | ✔ დაკმაყოფილებულია |
 | Categories | ✅ **აშენებული და გადამოწმებული (2026-08-01)** — CRUD + წაშლისას "ზოგადი" fallback-კატეგორიაზე სტატიების ავტომატური გადანაწილება (on-the-fly შექმნით, თუ არ არსებობს) | `GET/POST/PUT/DELETE /api/categories` | 7 ტესტი რეალურ Oracle-ზე (lifecycle, 404, fallback-გადანაწილება, თვითონ fallback-ის წაშლის კიდური შემთხვევა) | ✔ დაკმაყოფილებულია |
 | Platform | ატვირთვა, ტეგები, servable-pages whitelist, health-check | `POST /api/upload`, `GET /api/tags`, `GET /api/health`, static/HTML routes | Parity smoke-test | — |

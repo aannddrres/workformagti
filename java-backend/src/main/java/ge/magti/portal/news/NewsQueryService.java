@@ -1,0 +1,64 @@
+package ge.magti.portal.news;
+
+import ge.magti.portal.domain.News;
+import ge.magti.portal.domain.User;
+import ge.magti.portal.util.DepartmentGroup;
+import ge.magti.portal.util.DepartmentMatcher;
+import ge.magti.portal.util.TbilisiTime;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.TypedQuery;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+/**
+ * Faithful port of get_news' filter/visibility/sort logic
+ * (routers/news.py:47-102) -- same shape as {@link
+ * ge.magti.portal.article.ArticleQueryService}, simpler since News has a
+ * single {@code target_department} column instead of a junction table.
+ *
+ * <p>Not ported: the {@code tech_info}/{@code service_center} "Block 5"
+ * role branches (routers/news.py:91-95) -- unreachable dead code, same
+ * finding as ArticleQueryService's own javadoc explains (no user can hold
+ * either role value through any validated path).
+ */
+@Service
+public class NewsQueryService {
+
+    private static final String LIST_JPQL = """
+            SELECT n FROM News n
+            WHERE (n.isDraft = false OR n.authorId = :userId)
+              AND (
+                    :isAdmin = true
+                    OR (
+                      n.isDraft = false
+                      AND n.targetDepartment IN :depts
+                      AND (n.expiresAt IS NULL OR n.expiresAt >= :now)
+                    )
+                  )
+            ORDER BY
+              CASE WHEN n.targetDepartment = :userDept THEN 1 ELSE 0 END DESC,
+              n.createdAt DESC
+            """;
+
+    @PersistenceContext
+    private EntityManager entityManager;
+
+    public List<News> listVisible(User user, int skip, int limit) {
+        DepartmentGroup group = DepartmentMatcher.splitGroup(user.getDepartment());
+        List<String> depts = List.of(user.getDepartment(), group.prefix(), "All");
+
+        TypedQuery<News> query = entityManager.createQuery(LIST_JPQL, News.class);
+        query.setParameter("userId", user.getId());
+        query.setParameter("isAdmin", user.getRole().isContentAdmin());
+        query.setParameter("depts", depts);
+        query.setParameter("now", TbilisiTime.now());
+        query.setParameter("userDept", user.getDepartment());
+        // No clamping, matching Python exactly -- get_news' skip/limit params
+        // have no ge=0/le=N constraint either.
+        query.setFirstResult(skip);
+        query.setMaxResults(limit);
+        return query.getResultList();
+    }
+}
