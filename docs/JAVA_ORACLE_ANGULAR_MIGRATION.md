@@ -1123,10 +1123,56 @@ constraint, ჯერ კიდევ Phase 1b-დან, მაგრამ Pyt
 6 ახალი ტესტი, 262/262 ტესტი მწვანეა მთელ backend-ში რეგრესიის
 გარეშე. **Content დომენი ახლა სრულად დასრულებულია** — Videos (7),
 Categories (4), Articles (32), News (8), Favorites (3) = 54 endpoint.
-შემდეგი გეგმის მიხედვით: Search (1c) — მოითხოვს თქვენს ტექნოლოგიურ
-გადაწყვეტილებას (Oracle Text) კოდის წერამდე, შემდეგ დანარჩენი
-domain-ები (Users, Compliance, Stats, Messaging, Exports, Audit-ის
-დარჩენილი ნაწილი).
+
+---
+
+**Compliance დომენი აშენდა, 2026-08-04 (Opus, იმავე სესიაში)** — ყველა
+7 endpoint. Content-ის შემდეგ გეგმის ლოგიკური ნაბიჯი; Opus-ზე გადავედით,
+რადგან ეს დომენი აშენებს იმ საერთო საძირკველს, რომელზეც Stats-ის 12
+endpoint-იც დაჯდება.
+
+**ახალი საძირკველი — `ComplianceQueryService` (compute_compliance-ის
+ბაზა-მხარე):** უკვე აშენებული DB-გარეშე ლოგიკა (`ComplianceCalculator`
++ Stats builders წინა ეტაპებიდან) ახლა რეალურ query-ფენას მიიღო —
+eligible მომხმარებლები + grouped required/read counts, scoped by
+user-ids ან department. ეს არის Python-ის `compute_compliance`-ის
+ერთადერთი წყარო; Stats მთლიანად ამას დაეყრდნობა.
+
+**გაზიარებული `QuizGateChecker` (single-source, არა დუბლიკატი):**
+`_check_quiz_gate` Python-ში ორივე "mark as read" გზას აქვს გაზიარებული
+(article read-receipt + compliance mark-read). Java-ში ეს ლოგიკა ცალკე
+`@Service`-ად გამოვიტანე და **ArticleController-იც** მასზე გადავიყვანე
+(კონსტრუქტორის დამოკიდებულება `QuizAttemptRepository`-დან
+`QuizGateChecker`-ზე) — ერთი განსაზღვრება ვერ დაცილდება ორ call site-ს.
+Article-ის 46 ტესტი ისევ მწვანეა ამ რეფაქტორის შემდეგ.
+
+**Notification fan-out (durable ნაწილი აშენდა, SSE გადავადდა):** required
+reading-ის შექმნისას `RequiredReadingNotifier` აფენს inbox `Message`-ჩანაწერებს
+ყველა დაზარალებულ აქტიურ ოპერატორზე (prefix-aware, ავტორის გამოკლებით,
+best-effort try/catch ზუსტად როგორც Python-ში). SSE real-time toast/refresh
+ივენთები გადავადებულია (Messaging დომენის ინფრასტრუქტურა ჯერ არ არსებობს) —
+იგივე graceful degradation, რაც ყველა სხვა SSE call site-ს. Durable
+`Message`-რიგები (რომლებიც unread-badge-ს კვებავენ) დაწერილია.
+
+**ერთი რეალური, ამ ეტაპზე აღმოჩენილი ტექნიკური საკითხი — client-supplied
+თარიღების timezone:** `due_date` არის **პირველი client-იდან მოსული
+თარიღ-ველი** მთელ პორტში (ყველა სხვა timestamp server-side იქმნება
+`TbilisiTime.now()`-ით). Jackson ნაგულისხმევად შემოსულ offset-თარიღს
+UTC-ზე გადაიყვანს, ამიტომ `+04:00`-ით გამოგზავნილი "2030-09-01T00:00"
+in-memory ხდება წინა UTC-დღე (2030-08-31T20:00Z) — რაც notification-ის
+თარიღს აფუჭებდა (ტესტმა დაიჭირა). გასწორება: client-თარიღი boundary-ზე
+ნორმალიზდება Tbilisi offset-ზე (`withOffsetSameInstant(TbilisiTime.OFFSET)`),
+ისე რომ in-memory entity ემთხვევა შენახვის კონვენციას (`TbilisiTimestampConverter`
+ისედაც Tbilisi wall-clock-ს წერს). instant ყოველთვის სწორი იყო; ეს მხოლოდ
+ნაჩვენებ offset/თარიღს ასწორებს. იგივე პატერნი მოქმედია ნებისმიერ სხვა
+client-თარიღზე (მაგ. Articles-ის scheduled `published_at`) — ამ slice-ში
+retrofit არ გამიკეთებია (scope), დაფიქსირებულია მომავლისთვის.
+
+13 ახალი ტესტი (overdue-სტატუსი, quiz-gate 403, cross-dept 403, prefix-match,
+read-receipt bridge, fan-out, timezone), 275/275 ტესტი მწვანეა მთელ
+backend-ში რეგრესიის გარეშე. **Compliance დასრულებულია.** შემდეგი: Stats
+(12 endpoint) — იმავე `ComplianceQueryService`-ს დაეყრდნობა, ან სხვა
+domain თქვენი არჩევანით.
 
 ---
 
@@ -1360,9 +1406,9 @@ Postgres-ზე:
 
 | მოდული | ფუნქცია/ბიზნეს-ლოგიკა | Endpoint | ტესტირების მეთოდი | მიღების კრიტერიუმი |
 |---|---|---|---|---|
-| Compliance | `compute_compliance()` — ერთადერთი გაზიარებული ფორმულა (numerator/denominator) ყველა compliance-ხედვისთვის | `GET /api/compliance/my-readings`, `/my-progress` | Parity + უნიტ-ტესტი ფორმულაზე | ერთი წყარო ბოლომდე — dashboard, export, cron ერთსა და იმავეს აბრუნებენ |
-| Compliance | mark-read + quiz-gate ინტეგრაცია | `POST /api/compliance/mark-read/{id}` | Parity | quiz-ჩაუბარებელზე 403 |
-| Compliance | Required-readings CRUD, დეპარტამენტის prefix-mapping | `GET/POST/PUT/DELETE /api/compliance/required-readings`, `/by-item/{type}/{id}` | Parity + §3.3 | — |
+| Compliance | ✅ **`compute_compliance()` + my-readings/my-progress აშენებული (2026-08-04)** — ერთადერთი გაზიარებული ფორმულა (`ComplianceQueryService`, numerator/denominator) ყველა compliance-ხედვისთვის; Stats-იც ამ ერთ სერვისზე დაჯდება. my-readings: overdue-სტატუსის გამოთვლა, prefix-aware ხილვადობა, batched title/content resolution (`ItemTitleResolver`) | `GET /api/compliance/my-readings`, `/my-progress` | 13 ტესტი რეალურ Oracle-ზე | ✔ დაკმაყოფილებულია — ერთი წყარო ბოლომდე, dashboard/summary/cron ვერ დაცილდებიან |
+| Compliance | ✅ **mark-read + quiz-gate + read-receipt bridge აშენებული (2026-08-04)** — გაზიარებული `QuizGateChecker` (Articles-ის read-receipt-იც იმავეს იყენებს, ზუსტად როგორც Python იზიარებს `_check_quiz_gate`-ს); article-ის mark-read ასევე წერს versioned read-receipt-ს | `POST /api/compliance/mark-read/{id}` | ზემოთ ჩამოთვლილ 13 ტესტში შედის | ✔ quiz-ჩაუბარებელზე 403, cross-dept-ზე 403, prefix-match დაშვებული — სამივე დადასტურებულია ტესტით |
+| Compliance | ✅ **Required-readings CRUD + notification fan-out აშენებული (2026-08-04)** — შექმნისას აფენს inbox `Message`-ჩანაწერებს ყველა დაზარალებულ ოპერატორზე (prefix-aware, best-effort); SSE real-time ივენთები გადავადებულია (Messaging დომენი). დეპარტამენტის prefix-mapping | `GET/POST/PUT/DELETE /api/compliance/required-readings`, `/by-item/{type}/{id}` | ზემოთ ჩამოთვლილ 13 ტესტში შედის | ✔ დაკმაყოფილებულია — fan-out ავტორს არ ატყობინებს, დადასტურებულია ტესტით |
 | Compliance-alerts | 24სთ-იანი cron: critical-threshold (30%) შემოწმება, მენეჯერის CC | (cron, არა HTTP endpoint — `compliance_alerts.py`) | სცენარული ტესტი low-compliance-user-ზე | Message-ჩანაწერი user-ს + manager-ს ეგზავნება |
 
 ## Stats / Reporting

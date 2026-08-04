@@ -24,11 +24,11 @@ import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
 import ge.magti.portal.repository.ArticleViewLogRepository;
 import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.CategoryRepository;
-import ge.magti.portal.repository.QuizAttemptRepository;
 import ge.magti.portal.repository.ReadStatusRepository;
 import ge.magti.portal.repository.RequiredReadingRepository;
 import ge.magti.portal.repository.UserNoteRepository;
 import ge.magti.portal.repository.UserRepository;
+import ge.magti.portal.quiz.QuizGateChecker;
 import ge.magti.portal.security.PermissionChecker;
 import ge.magti.portal.util.DepartmentMatcher;
 import ge.magti.portal.util.TbilisiTime;
@@ -101,7 +101,7 @@ public class ArticleController {
     private final UserRepository userRepository;
     private final RequiredReadingRepository requiredReadingRepository;
     private final ReadStatusRepository readStatusRepository;
-    private final QuizAttemptRepository quizAttemptRepository;
+    private final QuizGateChecker quizGateChecker;
     private final PermissionChecker permissionChecker;
     private final TagSyncService tagSyncService;
     private final ArticleQueryService articleQueryService;
@@ -119,7 +119,7 @@ public class ArticleController {
             UserRepository userRepository,
             RequiredReadingRepository requiredReadingRepository,
             ReadStatusRepository readStatusRepository,
-            QuizAttemptRepository quizAttemptRepository,
+            QuizGateChecker quizGateChecker,
             PermissionChecker permissionChecker,
             TagSyncService tagSyncService,
             ArticleQueryService articleQueryService,
@@ -135,7 +135,7 @@ public class ArticleController {
         this.userRepository = userRepository;
         this.requiredReadingRepository = requiredReadingRepository;
         this.readStatusRepository = readStatusRepository;
-        this.quizAttemptRepository = quizAttemptRepository;
+        this.quizGateChecker = quizGateChecker;
         this.permissionChecker = permissionChecker;
         this.tagSyncService = tagSyncService;
         this.articleQueryService = articleQueryService;
@@ -1097,21 +1097,9 @@ public class ArticleController {
                 true, isLate, TbilisiTime.format(dueDate), status);
     }
 
-    /** Port of _check_quiz_gate (routers/articles.py:1006-1029). */
+    /** Port of _check_quiz_gate -- now delegated to the shared {@link QuizGateChecker}, which ComplianceController's mark-read reuses too. */
     private ResponseEntity<Map<String, String>> requireQuizPassed(Article article, User user) {
-        if (user.getRole().isContentAdmin()) {
-            return null;
-        }
-        if (!article.isQuizEnabled()) {
-            return null;
-        }
-        boolean passed = quizAttemptRepository.existsByArticleIdAndArticleVersionAndUserIdAndPassedTrue(
-                article.getId(), article.getVersion(), user.getId());
-        if (!passed) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("detail", "საჭიროა ქვიზის წარმატებით ჩაბარება წაკითხვის დასადასტურებლად"));
-        }
-        return null;
+        return quizGateChecker.denialFor(article, user);
     }
 
     private void applySharedFields(Article article, ArticleRequest request) {
