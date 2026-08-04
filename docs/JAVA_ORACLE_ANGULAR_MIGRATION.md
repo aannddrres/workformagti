@@ -1097,8 +1097,36 @@ GET .../me, GET recently-viewed) Python-შიც არ აქვს `response_
 აპლიკაცია არ შეხებია — ეს მხოლოდ Java-პორტის ცვლილებაა.
 
 12 ახალი ტესტი (მათ შორის 2 სპეციალურად ამ ორი ბაგის რეგრესიისთვის),
-256/256 ტესტი მწვანეა მთელ backend-ში რეგრესიის გარეშე. News დასრულებულია
-— შემდეგი: Favorites (3 endpoint, პატარა).
+256/256 ტესტი მწვანეა მთელ backend-ში რეგრესიის გარეშე. News დასრულებულია.
+
+---
+
+**Favorites აშენდა, 2026-08-04 (იმავე სესიაში)** — ყველა 3 endpoint
+(სია, დამატება, წაშლა). ყველაზე პატარა დარჩენილი Content-ნაწილი.
+ერთი ახალი გაზიარებული კლასი დაემატა — `ItemTitleResolver`
+(`resolve_item_title`-ის პორტი, db_helpers.py) — რომელიც სტატია/
+სიახლე/ვიდეოს სათაურს პოულობს polymorphic (item_type, item_id)
+წყვილიდან; იმავე კლასს მომავალში Compliance-ის "ჩემი წასაკითხები"
+და Platform-ის შეტყობინებების endpoint-ებიც გამოიყენებენ.
+
+**ერთი პატარა, თავისით გასწორებული საკითხი** (არ საჭიროებდა ცალკე
+კითხვას — იაფი, ცალსახა, იმავე უკვე დამტკიცებული პრინციპის პირდაპირი
+გაგრძელება, რაც read-receipt-ის MERGE-ს ჰქონდა): Python-ის
+`add_favorite` არის plain check-then-insert, `try/except`-ის გარეშე —
+ორი ერთდროული "ჩანიშვნის" დაწკაპუნება თეორიულად ორ იდენტურ row-ს
+შექმნიდა (Oracle-ის სქემას აქვს `uq_favorite_user_item` unique
+constraint, ჯერ კიდევ Phase 1b-დან, მაგრამ Python-ის კოდს არაფერი
+იჭერს ამ constraint-ის დარღვევაზე). Java-ში გამოყენებულია ატომური
+`INSERT ... WHERE NOT EXISTS`, ისევე როგორც ისტორიის
+`archiveIfMissing`-ში — რასის მთელი კლასი საერთოდ არ არსებობს.
+
+6 ახალი ტესტი, 262/262 ტესტი მწვანეა მთელ backend-ში რეგრესიის
+გარეშე. **Content დომენი ახლა სრულად დასრულებულია** — Videos (7),
+Categories (4), Articles (32), News (8), Favorites (3) = 54 endpoint.
+შემდეგი გეგმის მიხედვით: Search (1c) — მოითხოვს თქვენს ტექნოლოგიურ
+გადაწყვეტილებას (Oracle Text) კოდის წერამდე, შემდეგ დანარჩენი
+domain-ები (Users, Compliance, Stats, Messaging, Exports, Audit-ის
+დარჩენილი ნაწილი).
 
 ---
 
@@ -1325,6 +1353,7 @@ Postgres-ზე:
 | News | ✅ **დეპარტამენტის prefix-aware ხილვადობა აშენებული (2026-08-04)** — იდენტური სტატიების წესის (identical to Articles) | `GET /api/news` | ზემოთ ჩამოთვლილ 12 ტესტში შედის | ✔ დაკმაყოფილებულია |
 | Videos | ✅ **აშენებული და გადამოწმებული (2026-08-01)** — CRUD + archive/unarchive + view-count. ბაგი #10 **გასწორებულია**: დეპარტამენტის ფილტრი ახლა prefix-aware-ია (`DepartmentMatcher`), არა ზუსტი-დამთხვევა — თქვენი გადაწყვეტილებით | `GET/POST/PUT/DELETE /api/videos`, `/archive`, `/unarchive`, `/{id}/view` | 25 ტესტი რეალურ Oracle-ზე (YouTube URL, ტეგები, ხილვადობა, ნებართვები, აუდიტი) | ✔ დაკმაყოფილებულია |
 | Categories | ✅ **აშენებული და გადამოწმებული (2026-08-01)** — CRUD + წაშლისას "ზოგადი" fallback-კატეგორიაზე სტატიების ავტომატური გადანაწილება (on-the-fly შექმნით, თუ არ არსებობს) | `GET/POST/PUT/DELETE /api/categories` | 7 ტესტი რეალურ Oracle-ზე (lifecycle, 404, fallback-გადანაწილება, თვითონ fallback-ის წაშლის კიდური შემთხვევა) | ✔ დაკმაყოფილებულია |
+| Favorites | ✅ **აშენებული და გადამოწმებული (2026-08-04)** — ატომური `INSERT ... WHERE NOT EXISTS` (Python-ის plain check-then-insert-ის ნაცვლად, იგივე ანტი-რასის პრინციპი რაც read-receipt-ის MERGE-ს) | `GET/POST /api/favorites`, `DELETE /api/favorites/{id}` | 6 ტესტი რეალურ Oracle-ზე | ✔ დაკმაყოფილებულია — ორმაგი ჩანიშვნა idempotent-ია, დადასტურებულია ტესტით |
 | Platform | ატვირთვა, ტეგები, servable-pages whitelist, health-check | `POST /api/upload`, `GET /api/tags`, `GET /api/health`, static/HTML routes | Parity smoke-test | — |
 
 ## Compliance
