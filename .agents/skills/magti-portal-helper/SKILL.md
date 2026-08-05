@@ -32,6 +32,6 @@ The project has a custom test suite checking compliance, security filters, and n
 - **Warning**: Do not commit or delete the local SQLite database file `magti_portal.db` unless explicitly instructed.
 
 ## 4. Verification checklist
-- When adding or changing routes, ensure they are placed directly in the root `main.py` (preserving the monolith).
+- When adding or changing routes, place them in the matching `routers/*.py` file — `main.py` holds no routes (see `.agents/AGENTS.md` §1 and `CLAUDE.md`).
 - Ensure all new/updated routes have correct authorization guards.
 - Verify health status under multi-worker and fallback modes using `/api/health`.

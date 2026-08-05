@@ -13,6 +13,9 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
     crossorigin="anonymous" />
 
+  <!-- Sanitizes article.content before it is set as innerHTML below (same library/version as base-layout.html). -->
+  <script defer src="https://cdn.jsdelivr.net/npm/dompurify@3.0.5/dist/purify.min.js"></script>
+
   <!-- Brand Font: Noto Sans Georgian -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -364,7 +367,13 @@
 
       // Render content body
       const bodyContainer = document.getElementById('article-body');
-      bodyContainer.innerHTML = article.content; // Content is sanitized HTML from server
+      const ALLOWED_TAGS = ['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol',
+                            'li', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'br', 'a',
+                            'strong', 'b', 'em', 'i', 'img', 'pre', 'code', 'blockquote', 'hr'];
+      const ALLOWED_ATTRS = ['href', 'src', 'alt', 'target', 'title', 'class', 'id', 'style'];
+      bodyContainer.innerHTML = (typeof DOMPurify !== 'undefined')
+        ? DOMPurify.sanitize(article.content, { ALLOWED_TAGS, ALLOWED_ATTR: ALLOWED_ATTRS, KEEP_CONTENT: true })
+        : article.content;
       wireImageLightbox(bodyContainer);
 
       // Update metadata on sidebar — department + tag chips instead of raw text

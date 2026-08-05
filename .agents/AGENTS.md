@@ -2,9 +2,10 @@
 
 This document outlines behavioral constraints and architectural guidelines specific to the Magti Portal codebase.
 
-## 1. Monolith Maintenance (No Modularization)
-- **Constraint**: DO NOT attempt to split the `main.py` codebase into separate subfolders or domain router files (e.g., `app/routers/*.py`).
-- **Reasoning**: A prior attempt to extract routes using the Strangler Pattern was rolled back due to complex circular imports and database session handling issues. `main.py` is the single source of truth for all backend routes and logic. Keep it as a unified monolith.
+## 1. Router-Based Architecture (Corrected 2026-08-05 — see below)
+- **Current state**: `main.py` holds no routes. It only does app/middleware setup and wires up 14 domain routers via `include_router()`. All routes live in `routers/*.py` (articles, auth, users, news, videos, categories, favorites, compliance, messaging, exports, audit_logs, search, stats, platform) — see `CLAUDE.md` for the authoritative file map.
+- **When adding or changing a route**: put it in the matching `routers/*.py` file, not in `main.py`.
+- **Historical note (superseded)**: an earlier Strangler Pattern extraction attempt was rolled back due to circular imports and session-handling issues; the router split was later redone successfully and is now the live, working architecture. Do not attempt to re-consolidate routes back into `main.py`.
 
 ## 2. Health Monitoring & Redis Event Broker Fallbacks
 - **Rule**: When implementing or updating backend health endpoints (e.g., `/api/health`), verify the active Redis connectivity status using `broker._use_redis` instead of checking if the broker loop has been initialized.
