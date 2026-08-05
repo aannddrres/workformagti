@@ -29,4 +29,12 @@ public interface ReadStatusRepository extends JpaRepository<ReadStatus, Long> {
             + "WHERE rs.requiredReadingId = rr.id AND rs.status = 'read' AND rs.userId IN :userIds "
             + "GROUP BY rs.userId, rr.targetDepartment")
     List<Object[]> readCountsByUserAndDepartment(@Param("userIds") List<Long> userIds);
+
+    /**
+     * Mirrors get_statistics_breakdown's "status" dimension
+     * (routers/stats.py:902,921-925) -- every read status row, unfiltered.
+     * Object[] = {status (String), count (Long)}.
+     */
+    @Query("SELECT rs.status, COUNT(rs.id) FROM ReadStatus rs GROUP BY rs.status ORDER BY COUNT(rs.id) DESC")
+    List<Object[]> countGroupedByStatus();
 }

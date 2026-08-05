@@ -1170,9 +1170,61 @@ retrofit არ გამიკეთებია (scope), დაფიქსი
 
 13 ახალი ტესტი (overdue-სტატუსი, quiz-gate 403, cross-dept 403, prefix-match,
 read-receipt bridge, fan-out, timezone), 275/275 ტესტი მწვანეა მთელ
-backend-ში რეგრესიის გარეშე. **Compliance დასრულებულია.** შემდეგი: Stats
-(12 endpoint) — იმავე `ComplianceQueryService`-ს დაეყრდნობა, ან სხვა
-domain თქვენი არჩევანით.
+backend-ში რეგრესიის გარეშე. **Compliance დასრულებულია.**
+
+### Stats დომენი დასრულებული (2026-08-05, 12/12 endpoint)
+
+`ComplianceQueryService`-ის (Compliance ეტაპზე აშენებული) და წინა
+ეტაპების DB-დამოუკიდებელი builder-ების (`DepartmentStatsBuilder`,
+`OperatorStatsBuilder`, `TeamStatsBuilder`, `DisplayName`,
+`DepartmentBuckets`) გამო ეს ეტაპი თითქმის მთლიანად repository-ფენისა
+და `StatsController`-ის აწყობა იყო — ახალი ბიზნეს-ლოგიკა თითქმის არ
+დასჭირდა:
+
+- **ახალი repository query-ები:** `SearchLogRepository` (popular/failed
+  searches, `LOWER(TRIM())` დაჯგუფება + ტოპ-10), `RequiredReadingRepository.
+  topReadArticleIds` (ტოპ-5 ყველაზე წაკითხული სტატია, theta-join
+  RequiredReading+ReadStatus+User-ზე, გამორიცხავს target-department-row-ის
+  გარეშე სტატიებს — `routers/stats.py:192`-ის იგივე დაცვა), `UserRepository`/
+  `ReadStatusRepository`-ის breakdown-დაჯგუფებები (department/role/status),
+  და `AuditLogRepository`/`ArticleViewLogRepository`-ის Oracle-native
+  `TO_CHAR(TRUNC(...))` queries.
+- **გაქრობილი dialect-branch:** Python-ის `func.date_trunc()` (Postgres) vs
+  `func.strftime()` (SQLite) ორმაგი შტო (`routers/stats.py:839-877`) Oracle-ზე
+  საერთოდ არ არსებობს — ერთი `TO_CHAR(TRUNC(timestamp), 'YYYY-MM-DD')` /
+  `TO_CHAR(timestamp, 'YYYY-MM-DD HH24":00"')` query პირდაპირ აწარმოებს
+  Python-ის ზუსტ key-სტრიქონს, ასე რომ day/hour-bucket-ების შერწყმა
+  Java-ს მხარეს string-key-ზეა დაფუძნებული, driver-სპეციფიკური თარიღის
+  ტიპის გარჩევის გარეშე.
+- **გამოტოვებული განზრახ — Redis cache-ფენა** (`_stats_cache_get`/
+  `_stats_cache_set`, `routers/stats.py:45-91`): სუფთა წარმადობის
+  ოპტიმიზაციაა, cache-miss-ის დროსაც იგივე DB query გაეშვება, ასე რომ
+  ქცევითი განსხვავება არ არის — ამ ეტაპზე Spring cache/Redis
+  ინფრასტრუქტურის აშენება არ ღირდა ამის მარტო გულისთვის (მიგრაციის
+  ადრეულ პროგრეს-მიმოხილვაშივე იყო ეს გამარტივება შემჩნეული).
+- **JSON serialization გასწორება:** წინა ეტაპზე აშენებული `stats`-პაკეტის
+  record-ები (`DashboardInsights`, `DepartmentDashboard`, `DepartmentStats`,
+  `DepartmentGroupStats`, `DepartmentMember`, `CriticalOperator`,
+  `GroupMemberCompletion`, `TeamMemberCompletion`) controller-ს ჯერ არ
+  ჰქონდა მიბმული და `@JsonProperty`-ანოტაციები საერთოდ არ ჰქონდა — camelCase
+  ველები Python-ის snake_case schema-ს არ დაემთხვეოდა. გასწორდა ყველგან
+  (ეს ერთადერთი რეალური "ბაგი", რაც აღმოჩნდა ამ ეტაპზე — ტესტმა არა, თავად
+  code review-მ დაიჭირა, სანამ controller აეწყო).
+- **RBAC:** სამი განსხვავებული როლის კარიბჭე ზუსტად Python-ის
+  `require_roles`-ის მიმსგავსებით — `get_current_admin_user`
+  (content_admin/system_admin), `get_current_system_admin_user`
+  (მხოლოდ system_admin — `/user-progress`), `get_current_manager_user`
+  (manager/system_admin — `/team-stats`, `/department-stats`).
+
+16 ახალი ტესტი (მათ შორის მენეჯერის დეპარტამენტზე მიბმის cross-department
+გაჟონვის მცდელობა, `/user-progress`-ის system-admin-only კარიბჭე, invalid
+bucket/dimension 400-ები), 291/291 ტესტი მწვანეა მთელ backend-ში
+რეგრესიის გარეშე. **Content (54) + Compliance (7) + Stats (12) = 73
+endpoint დასრულებულია.** შემდეგი: Users (14 endpoint), Messaging
+(7 endpoint, SSE/real-time ინფრასტრუქტურის გადაწყვეტილება სჭირდება),
+Exports (6 endpoint, Java Excel/PDF ბიბლიოთეკის არჩევანი), Audit-ის
+დარჩენილი list+CSV-export, ან Search (Oracle Text გადაწყვეტილება
+თქვენგან სჭირდება).
 
 ---
 
@@ -1415,11 +1467,11 @@ Postgres-ზე:
 
 | მოდული | ფუნქცია/ბიზნეს-ლოგიკა | Endpoint | ტესტირების მეთოდი | მიღების კრიტერიუმი |
 |---|---|---|---|---|
-| Stats | Team-stats/department-stats — დეპარტამენტის prefix-aware დაჯგუფება, whitelisted bucket-მისადაგება | `GET /api/manager/team-stats`, `/department-stats`, `/api/admin/departments/{d}/groups/{g}/users` | Parity + §3.3 | იდენტური bucket-მისადაგება |
-| Stats | Critical-operators (30%-ის ქვემოთ) | `GET /api/admin/critical-operators` | Parity | იგივე threshold |
-| Stats | KPI/activity/breakdown — Postgres `date_trunc` vs SQLite `strftime` dialect-branch | `GET /api/statistics/kpi`, `/activity`, `/breakdown` | Parity + Oracle `TRUNC()` მესამე შტოს ტესტი | დროის-band-ის იდენტური დაჯგუფება Oracle-ზეც |
-| Stats | Popular/failed searches | `GET /api/statistics/popular-searches`, `/failed-searches` | Parity smoke-test | — |
-| Stats | Compliance-სტატისტიკის ერთიანი schema | `GET /api/statistics/compliance`, `/user-progress` | Parity | იყენებს იმავე `compute_compliance()`-ს |
+| Stats | ✅ **Team-stats/admin-team-stats/department-stats/group-users აშენებული (2026-08-05)** — ყველა ოთხივე `ComplianceQueryService.computeCompliance(scopeUserIds, null)`-ს ეყრდნობა (candidate-ID-ების scoping repository-შია, eligibility-ფილტრი ერთხელ, `ComplianceQueryService`-ში); `DepartmentStatsBuilder`/`OperatorStatsBuilder`/`TeamStatsBuilder` — წინა ეტაპიდან უკვე აშენებული DB-დამოუკიდებელი ნახევრები — უცვლელად გამოყენებულია. მენეჯერი მკაცრად მიბმულია საკუთარ დეპარტამენტზე (ზუსტი დამთხვევა, query-პარამეტრი იგნორირდება) | `GET /api/manager/team-stats`, `/department-stats`, `/api/admin/stats/team/{id}`, `/api/admin/departments/{d}/groups/{g}/users` | 16 ტესტი რეალურ Oracle-ზე, მათ შორის მენეჯერის დეპარტამენტ-გვერდის ავლის მცდელობა | ✔ დაკმაყოფილებულია — cross-department გაჟონვა შეუძლებელია, დადასტურებულია ტესტით |
+| Stats | ✅ **Critical-operators აშენებული (2026-08-05)** — `OperatorStatsBuilder.buildCriticalOperators` (30%-ის ქვემოთ, საჭირო წაკითხვები > 0) | `GET /api/admin/critical-operators` | ზემოთ ჩამოთვლილ 16 ტესტში შედის | ✔ იგივე threshold, დადასტურებულია |
+| Stats | ✅ **KPI/activity/breakdown აშენებული (2026-08-05)** — Postgres `date_trunc()`/SQLite `strftime()` ორმაგი დიალექტ-შტო აღარ საჭიროა (Oracle-only): ერთი Oracle-native `TO_CHAR(TRUNC(...))` query პირდაპირ აწარმოებს Python-ის ზუსტ key-ფორმატს ("YYYY-MM-DD" / "YYYY-MM-DD HH24:00"), ასე რომ თარიღის key-ების დამთხვევა Java-ს მხარეს დამატებითი დამუშავების გარეშე ხდება | `GET /api/statistics/kpi`, `/activity`, `/breakdown` | ზემოთ ჩამოთვლილ 16 ტესტში შედის (day-bucket + ორივე invalid-param 400 შემთხვევა) | ✔ დაკმაყოფილებულია — dialect-branch საერთოდ გაქრა Oracle-ზე გადასვლისას |
+| Stats | ✅ **Popular/failed searches აშენებული (2026-08-05)** — `LOWER(TRIM(search_term))` დაჯგუფება, ტოპ-10 | `GET /api/statistics/popular-searches`, `/failed-searches` | ზემოთ ჩამოთვლილ 16 ტესტში შედის | ✔ დადასტურებულია Georgian ტექსტზეც |
+| Stats | ✅ **Compliance-სტატისტიკის ერთიანი schema აშენებული (2026-08-05)** — `GET /api/statistics/compliance` იყენებს იმავე `ComplianceQueryService.computeCompliance()`-ს + ახალი `RequiredReadingRepository.topReadArticleIds` (ტოპ-5 ყველაზე წაკითხული სტატია, გამორიცხავს target-department-row-ის გარეშე სტატიებს, ზუსტად როგორც Python); `/user-progress` მხოლოდ system_admin-ისთვისაა (არა უბრალო content_admin), დადასტურებულია ტესტით | `GET /api/statistics/compliance`, `/user-progress` | ზემოთ ჩამოთვლილ 16 ტესტში შედის | ✔ დაკმაყოფილებულია — `round(x,2)` round-half-even Java-ს `BigDecimal.HALF_EVEN`-ით ზუსტად იმეორებს |
 | Search | Global-search + per-source რელევანტობის ქულირება (title×10/tags×5/content×1 articles-ზე; title×3/content×1 news-ზე) | `GET /api/search`, `/api/search/global`, `/api/search/history` | Parity + §3.2(გ) რელევანტობის შედარება | ტოპ-N გადაფარვა შეთანხმებულ ზღვარს ზემოთ |
 
 ## Audit / Messaging / Exports

@@ -1,0 +1,439 @@
+package ge.magti.portal.web;
+
+import ge.magti.portal.compliance.ComplianceCalculator;
+import ge.magti.portal.compliance.ComplianceQueryService;
+import ge.magti.portal.domain.Article;
+import ge.magti.portal.domain.ArticleTargetDepartment;
+import ge.magti.portal.domain.Role;
+import ge.magti.portal.domain.User;
+import ge.magti.portal.repository.ArticleRepository;
+import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
+import ge.magti.portal.repository.ArticleViewLogRepository;
+import ge.magti.portal.repository.AuditLogRepository;
+import ge.magti.portal.repository.ReadStatusRepository;
+import ge.magti.portal.repository.RequiredReadingRepository;
+import ge.magti.portal.repository.SearchLogRepository;
+import ge.magti.portal.repository.UserRepository;
+import ge.magti.portal.repository.VideoInstructionRepository;
+import ge.magti.portal.stats.ComplianceRecord;
+import ge.magti.portal.stats.CriticalOperator;
+import ge.magti.portal.stats.DepartmentDashboard;
+import ge.magti.portal.stats.DepartmentStatsBuilder;
+import ge.magti.portal.stats.GroupMemberCompletion;
+import ge.magti.portal.stats.OperatorStatsBuilder;
+import ge.magti.portal.stats.TeamMemberCompletion;
+import ge.magti.portal.stats.TeamStatsBuilder;
+import ge.magti.portal.util.TbilisiTime;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Mirrors routers/stats.py -- all 12 statistics/dashboard endpoints. Reuses
+ * {@link ComplianceQueryService} (the single compute_compliance
+ * implementation, also used by Compliance) plus the DB-free Stats builders
+ * (DepartmentStatsBuilder, OperatorStatsBuilder, TeamStatsBuilder) that were
+ * built ahead of this controller.
+ *
+ * <p><b>Deliberately not ported: the best-effort Redis cache</b>
+ * ({@code _stats_cache_get}/{@code _stats_cache_set}, routers/stats.py:45-91).
+ * It is a pure performance optimisation with a documented always-safe
+ * fallback (a cache miss/outage just re-runs the same DB query Python would
+ * run anyway) -- porting it would mean building Spring cache/Redis
+ * infrastructure this codebase doesn't have yet, for zero behavioural
+ * difference. Every endpoint here always does the "cache miss" path, which
+ * is the one Python guarantees correctness for regardless of Redis state.
+ */
+@RestController
+public class StatsController {
+
+    private static final DateTimeFormatter DAY_KEY = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final DateTimeFormatter HOUR_KEY = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:00");
+
+    private final ComplianceQueryService complianceQueryService;
+    private final UserRepository userRepository;
+    private final SearchLogRepository searchLogRepository;
+    private final RequiredReadingRepository requiredReadingRepository;
+    private final ReadStatusRepository readStatusRepository;
+    private final ArticleRepository articleRepository;
+    private final ArticleTargetDepartmentRepository articleTargetDepartmentRepository;
+    private final VideoInstructionRepository videoInstructionRepository;
+    private final AuditLogRepository auditLogRepository;
+    private final ArticleViewLogRepository articleViewLogRepository;
+
+    public StatsController(
+            ComplianceQueryService complianceQueryService,
+            UserRepository userRepository,
+            SearchLogRepository searchLogRepository,
+            RequiredReadingRepository requiredReadingRepository,
+            ReadStatusRepository readStatusRepository,
+            ArticleRepository articleRepository,
+            ArticleTargetDepartmentRepository articleTargetDepartmentRepository,
+            VideoInstructionRepository videoInstructionRepository,
+            AuditLogRepository auditLogRepository,
+            ArticleViewLogRepository articleViewLogRepository) {
+        this.complianceQueryService = complianceQueryService;
+        this.userRepository = userRepository;
+        this.searchLogRepository = searchLogRepository;
+        this.requiredReadingRepository = requiredReadingRepository;
+        this.readStatusRepository = readStatusRepository;
+        this.articleRepository = articleRepository;
+        this.articleTargetDepartmentRepository = articleTargetDepartmentRepository;
+        this.videoInstructionRepository = videoInstructionRepository;
+        this.auditLogRepository = auditLogRepository;
+        this.articleViewLogRepository = articleViewLogRepository;
+    }
+
+    /** Port of get_popular_searches (routers/stats.py:94-116). */
+    @GetMapping("/api/statistics/popular-searches")
+    public ResponseEntity<?> getPopularSearches(@AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        if (denial != null) {
+            return denial;
+        }
+        List<PopularSearchResponse> results = searchLogRepository.popularSearchTerms(PageRequest.of(0, 10)).stream()
+                .map(row -> new PopularSearchResponse((String) row[0], ((Number) row[1]).longValue()))
+                .toList();
+        return ResponseEntity.ok(results);
+    }
+
+    /** Port of get_failed_searches (routers/stats.py:119-134). */
+    @GetMapping("/api/statistics/failed-searches")
+    public ResponseEntity<?> getFailedSearches(@AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        if (denial != null) {
+            return denial;
+        }
+        List<PopularSearchResponse> results = searchLogRepository.failedSearchTerms(PageRequest.of(0, 10)).stream()
+                .map(row -> new PopularSearchResponse((String) row[0], ((Number) row[1]).longValue()))
+                .toList();
+        return ResponseEntity.ok(results);
+    }
+
+    /** Port of get_compliance_statistics (routers/stats.py:137-224). */
+    @GetMapping("/api/statistics/compliance")
+    public ResponseEntity<?> getComplianceStatistics(@AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        if (denial != null) {
+            return denial;
+        }
+        List<ComplianceRecord> records = complianceQueryService.computeCompliance();
+        int readCount = records.stream().mapToInt(r -> r.progress().readCount()).sum();
+        int totalAssignments = records.stream().mapToInt(r -> r.progress().requiredCount()).sum();
+
+        double readPercentage;
+        double unreadPercentage;
+        if (totalAssignments > 0) {
+            readPercentage = roundHalfEven((readCount / (double) totalAssignments) * 100, 2);
+            unreadPercentage = roundHalfEven(100 - readPercentage, 2);
+        } else {
+            readPercentage = 0.0;
+            unreadPercentage = 100.0;
+        }
+
+        List<Object[]> topRows = requiredReadingRepository.topReadArticleIds(
+                ComplianceCalculator.MANAGEMENT_ROLES, PageRequest.of(0, 5));
+        List<Long> topIds = topRows.stream().map(row -> ((Number) row[0]).longValue()).toList();
+
+        Map<Long, Article> articlesById = new LinkedHashMap<>();
+        for (Article a : articleRepository.findAllById(topIds)) {
+            articlesById.put(a.getId(), a);
+        }
+        Map<Long, List<String>> deptsByArticle = new LinkedHashMap<>();
+        for (ArticleTargetDepartment atd : articleTargetDepartmentRepository.findByArticleIdIn(topIds)) {
+            deptsByArticle.computeIfAbsent(atd.getArticleId(), k -> new ArrayList<>()).add(atd.getDepartment());
+        }
+
+        List<ArticleResponse> topArticles = new ArrayList<>();
+        for (Long id : topIds) {
+            Article a = articlesById.get(id);
+            if (a != null) {
+                topArticles.add(ArticleResponse.from(a, deptsByArticle.getOrDefault(id, List.of())));
+            }
+        }
+
+        return ResponseEntity.ok(new ComplianceStatsResponse(readPercentage, unreadPercentage, topArticles));
+    }
+
+    /** Port of get_user_progress (routers/stats.py:341-391) -- system-admin only, unlike every other endpoint here. */
+    @GetMapping("/api/statistics/user-progress")
+    public ResponseEntity<?> getUserProgress(@AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireSystemAdmin(user);
+        if (denial != null) {
+            return denial;
+        }
+        List<ComplianceRecord> records = complianceQueryService.computeCompliance();
+        List<UserProgressItemResponse> results = records.stream()
+                .map(r -> new UserProgressItemResponse(
+                        r.user().getId(), r.user().getName(), r.user().getDepartment(),
+                        r.progress().readCount(), r.progress().requiredCount(), r.progress().percentage() + "%"))
+                .sorted(Comparator.comparingInt((UserProgressItemResponse u) -> parsePercentage(u.percentage())).reversed())
+                .toList();
+        return ResponseEntity.ok(results);
+    }
+
+    /** Port of get_admin_team_stats (routers/stats.py:394-443). */
+    @GetMapping("/api/admin/stats/team/{teamId}")
+    public ResponseEntity<?> getAdminTeamStats(@PathVariable("teamId") Long teamId, @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        if (denial != null) {
+            return denial;
+        }
+        List<Long> ids = userRepository.findByActiveTrueAndTeamId(teamId).stream().map(User::getId).toList();
+        List<ComplianceRecord> records = complianceQueryService.computeCompliance(ids, null);
+        List<TeamMemberCompletion> members = TeamStatsBuilder.buildTeamMemberCompletions(records);
+        int avg = TeamStatsBuilder.averagePercentage(records);
+        return ResponseEntity.ok(new AdminTeamStatsResponse(teamId, avg + "%", members));
+    }
+
+    /** Port of get_team_stats (routers/stats.py:446-524). */
+    @GetMapping("/api/manager/team-stats")
+    public ResponseEntity<?> getTeamStats(
+            @RequestParam(required = false) String department,
+            @RequestParam(name = "team_id", required = false) Long teamId,
+            @RequestParam(name = "operator_name", required = false) String operatorName,
+            @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireManagerOrAdmin(user);
+        if (denial != null) {
+            return denial;
+        }
+
+        String dept;
+        List<User> candidates;
+        if (user.getRole() == Role.SYSTEM_ADMIN) {
+            if (department != null && !department.isBlank()) {
+                dept = department;
+                candidates = userRepository.findByActiveTrueAndDepartment(dept);
+            } else {
+                dept = "All";
+                candidates = userRepository.findByActiveTrue();
+            }
+        } else {
+            // RBAC: a manager is hard-pinned to their own department, even if a
+            // different one is sent in the query string.
+            dept = user.getDepartment();
+            candidates = userRepository.findByActiveTrueAndDepartment(dept);
+        }
+
+        if (teamId != null) {
+            candidates = candidates.stream().filter(u -> teamId.equals(u.getTeamId())).toList();
+        }
+        if (operatorName != null && !operatorName.isBlank()) {
+            String needle = operatorName.strip().toLowerCase();
+            candidates = candidates.stream()
+                    .filter(u -> u.getName() != null && u.getName().toLowerCase().contains(needle))
+                    .toList();
+        }
+
+        List<Long> ids = candidates.stream().map(User::getId).toList();
+        List<ComplianceRecord> records = complianceQueryService.computeCompliance(ids, null);
+        List<TeamMemberCompletion> members = TeamStatsBuilder.buildTeamMemberCompletions(records);
+        return ResponseEntity.ok(new TeamStatsResponse(dept, members));
+    }
+
+    /** Port of get_department_stats (routers/stats.py:675-688). */
+    @GetMapping("/api/manager/department-stats")
+    public ResponseEntity<?> getDepartmentStats(@AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireManagerOrAdmin(user);
+        if (denial != null) {
+            return denial;
+        }
+        List<ComplianceRecord> records = complianceQueryService.computeCompliance();
+        DepartmentDashboard dashboard = DepartmentStatsBuilder.build(records, TbilisiTime.now());
+        return ResponseEntity.ok(dashboard);
+    }
+
+    /** Port of get_critical_operators (routers/stats.py:691-744). */
+    @GetMapping("/api/admin/critical-operators")
+    public ResponseEntity<?> getCriticalOperators(@AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        if (denial != null) {
+            return denial;
+        }
+        List<ComplianceRecord> records = complianceQueryService.computeCompliance();
+        List<CriticalOperator> operators = OperatorStatsBuilder.buildCriticalOperators(records);
+        return ResponseEntity.ok(new CriticalOperatorsResponse(operators, operators.size(), TbilisiTime.now()));
+    }
+
+    /** Port of get_group_users (routers/stats.py:747-815). */
+    @GetMapping("/api/admin/departments/{department}/groups/{groupName}/users")
+    public ResponseEntity<?> getGroupUsers(
+            @PathVariable String department, @PathVariable("groupName") String groupName,
+            @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        if (denial != null) {
+            return denial;
+        }
+        List<User> candidates = userRepository.findByActiveTrue().stream()
+                .filter(ComplianceCalculator::isEligible)
+                .toList();
+        List<User> matched = OperatorStatsBuilder.filterUsersInGroup(candidates, department, groupName);
+        List<Long> ids = matched.stream().map(User::getId).toList();
+        List<ComplianceRecord> records = complianceQueryService.computeCompliance(ids, null);
+        List<GroupMemberCompletion> users = OperatorStatsBuilder.buildGroupUserCompletions(records);
+        return ResponseEntity.ok(new GroupUsersResponse(department, groupName, users, users.size()));
+    }
+
+    /** Port of get_activity_trend (routers/stats.py:818-894). */
+    @GetMapping("/api/statistics/activity")
+    public ResponseEntity<?> getActivityTrend(
+            @RequestParam(defaultValue = "7") int days,
+            @RequestParam(defaultValue = "day") String bucket,
+            @RequestParam(required = false) String category,
+            @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        if (denial != null) {
+            return denial;
+        }
+        if (!"day".equals(bucket) && !"hour".equals(bucket)) {
+            return ResponseEntity.badRequest().body(Map.of("detail", "bucket must be 'day' or 'hour'"));
+        }
+        int clampedDays = Math.max(1, Math.min(days, 90));
+        String categoryUpper = (category == null || category.isBlank()) ? null : category.toUpperCase();
+
+        OffsetDateTime now = TbilisiTime.now();
+        Map<String, Long> counts = new LinkedHashMap<>();
+        List<String> series = new ArrayList<>();
+
+        if ("hour".equals(bucket)) {
+            OffsetDateTime cutoff = now.withMinute(0).withSecond(0).withNano(0).minusHours((long) clampedDays * 24 - 1);
+            mergeCounts(counts, auditLogRepository.countByHourBucket(cutoff, categoryUpper));
+            if (categoryUpper == null || "USER".equals(categoryUpper)) {
+                mergeCounts(counts, articleViewLogRepository.countByHourBucket(cutoff));
+            }
+            for (int i = 0; i < clampedDays * 24; i++) {
+                series.add(cutoff.plusHours(i).format(HOUR_KEY));
+            }
+        } else {
+            OffsetDateTime cutoff = now.withHour(0).withMinute(0).withSecond(0).withNano(0).minusDays((long) clampedDays - 1);
+            mergeCounts(counts, auditLogRepository.countByDayBucket(cutoff, categoryUpper));
+            if (categoryUpper == null || "USER".equals(categoryUpper)) {
+                mergeCounts(counts, articleViewLogRepository.countByDayBucket(cutoff));
+            }
+            for (int i = 0; i < clampedDays; i++) {
+                series.add(cutoff.plusDays(i).format(DAY_KEY));
+            }
+        }
+
+        List<ActivityPointResponse> result = series.stream()
+                .map(key -> new ActivityPointResponse(key, counts.getOrDefault(key, 0L)))
+                .toList();
+        return ResponseEntity.ok(result);
+    }
+
+    private static void mergeCounts(Map<String, Long> target, List<Object[]> rows) {
+        for (Object[] row : rows) {
+            String key = (String) row[0];
+            long value = ((Number) row[1]).longValue();
+            target.merge(key, value, Long::sum);
+        }
+    }
+
+    private static final java.util.Set<String> BREAKDOWN_DIMENSIONS = java.util.Set.of("department", "role", "status");
+
+    /** Port of get_statistics_breakdown (routers/stats.py:897-927). */
+    @GetMapping("/api/statistics/breakdown")
+    public ResponseEntity<?> getStatisticsBreakdown(
+            @RequestParam String dimension, @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        if (denial != null) {
+            return denial;
+        }
+        if (!BREAKDOWN_DIMENSIONS.contains(dimension)) {
+            return ResponseEntity.badRequest().body(Map.of("detail", "dimension must be one of: department, role, status"));
+        }
+
+        List<BreakdownItemResponse> result = switch (dimension) {
+            case "department" -> userRepository.countGroupedByDepartment().stream()
+                    .map(row -> new BreakdownItemResponse((String) row[0], ((Number) row[1]).longValue()))
+                    .toList();
+            case "role" -> userRepository.countGroupedByRole().stream()
+                    .map(row -> new BreakdownItemResponse(((Role) row[0]).value(), ((Number) row[1]).longValue()))
+                    .toList();
+            default -> readStatusRepository.countGroupedByStatus().stream()
+                    .map(row -> new BreakdownItemResponse((String) row[0], ((Number) row[1]).longValue()))
+                    .toList();
+        };
+        return ResponseEntity.ok(result);
+    }
+
+    /** Port of get_kpi_counts (routers/stats.py:930-965). */
+    @GetMapping("/api/statistics/kpi")
+    public ResponseEntity<?> getKpiCounts(@AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        if (denial != null) {
+            return denial;
+        }
+        KpiResponse result = new KpiResponse(
+                userRepository.countByActiveTrue(), articleRepository.count(),
+                requiredReadingRepository.count(), videoInstructionRepository.count());
+        return ResponseEntity.ok(result);
+    }
+
+    private static double roundHalfEven(double value, int scale) {
+        return BigDecimal.valueOf(value).setScale(scale, RoundingMode.HALF_EVEN).doubleValue();
+    }
+
+    private static int parsePercentage(String percentageLabel) {
+        return Integer.parseInt(percentageLabel.replace("%", ""));
+    }
+
+    private static ResponseEntity<Map<String, String>> requireContentAdmin(User user) {
+        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
+        if (authFailure != null) {
+            return authFailure;
+        }
+        if (!user.getRole().isContentAdmin()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("detail", "Not enough permissions to perform this action"));
+        }
+        return null;
+    }
+
+    private static ResponseEntity<Map<String, String>> requireSystemAdmin(User user) {
+        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
+        if (authFailure != null) {
+            return authFailure;
+        }
+        if (user.getRole() != Role.SYSTEM_ADMIN) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("detail", "Not enough permissions to perform this action"));
+        }
+        return null;
+    }
+
+    private static ResponseEntity<Map<String, String>> requireManagerOrAdmin(User user) {
+        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
+        if (authFailure != null) {
+            return authFailure;
+        }
+        if (user.getRole() != Role.MANAGER && user.getRole() != Role.SYSTEM_ADMIN) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("detail", "Not enough permissions to perform this action"));
+        }
+        return null;
+    }
+
+    private static ResponseEntity<Map<String, String>> requireAuthenticated(User user) {
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("detail", "Could not validate credentials"));
+        }
+        return null;
+    }
+}
