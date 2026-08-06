@@ -1,8 +1,63 @@
 {
+  "nav": {
+    "shell": {
+      "page_title": "მაგთი — შიდა საინფორმაციო პორტალი",
+      "logo_alt": "მაგთი ლოგო"
+    },
+    "sidebar": {
+      "section_org": "ორგანიზაცია",
+      "home": "მთავარი",
+      "team_stats": "გუნდის სტატისტიკა",
+      "section_kb": "ცოდნის ბაზა",
+      "mandatory_reading": "სავალდებულოდ გასაცნობი",
+      "video_instructions": "ვიდეო ინსტრუქციები",
+      "news": "სიახლეები",
+      "section_personal": "პირადი სივრცე",
+      "favorites": "რჩეულები",
+      "personal_cabinet": "პირადი კაბინეტი",
+      "section_admin": "ადმინისტრირება",
+      "admin_stats": "სტატისტიკა",
+      "admin_users": "მომხმარებლები",
+      "admin_roles": "როლების მართვა",
+      "admin_content": "კონტენტის მართვა",
+      "admin_logs": "ლოგები",
+      "admin_categories": "კატეგორიები"
+    },
+    "topbar": {
+      "user_menu_label": "მომხმარებლის მენიუ",
+      "logout": "სისტემიდან გასვლა",
+      "logout_confirm_message": "ნამდვილად გსურთ სისტემიდან გასვლა?"
+    }
+  },
+  "auth": {
+    "login_page": {
+      "title": "მაგთი — ავტორიზაცია",
+      "heading": "ავტორიზაცია",
+      "subtitle": "ავტორიზაცია იმ ელ. ფოსტითა და პაროლით, რომლითაც მაგთიკომის სისტემებში შესვლა ხდება.",
+      "email_label": "ელ. ფოსტა",
+      "password_label": "პაროლი",
+      "password_placeholder": "ნებისმიერი პაროლი",
+      "submit_button": "შესვლა",
+      "submit_button_loading": "შესვლა...",
+      "error_generic": "ავტორიზაცია ვერ მოხერხდა"
+    }
+  },
+  "users": {
+    "profile": {
+      "tab_profile": "პროფილი",
+      "tab_favorites": "ჩემი რჩეულები",
+      "tab_messages": "შეტყობინებები",
+      "tab_settings": "პარამეტრები"
+    }
+  },
+  "search": {
+    "history_tab": {
+      "heading": "ძებნის ისტორია"
+    }
+  },
   "shell": {
-    "i18n_smoke_test": {
-      "title": "i18n მუშაობს",
-      "body": "ეს ტექსტი ka.json ფაილიდან იტვირთება ngx-translate-ის საშუალებით."
+    "placeholder": {
+      "message": "ეს გვერდი ჯერ არ არის აშენებული — მალე დაემატება Phase 3c-ში."
     }
   }
 }

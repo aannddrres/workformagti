@@ -1658,11 +1658,72 @@ domain-ის მიხედვით დაჯგუფებული (იგ
 ეს კატალოგი დასაწყისია, არა საბოლოო key-სია — 3b/3c ფაზაში, რეალური
 Angular-კომპონენტების წერისას, საჭირო იქნება მისი დაზუსტება.
 
-### 3b — Shell + Routing ხელახალი აწყობა
+### 3b — Shell + Routing ხელახალი აწყობა — ✅ დასრულებულია, 2026-08-06
 
 `app-router.js`-ის ჩანაცვლება Angular Router-ით ცალკე ეტაპია, სანამ
-ცალკეული გვერდები გადადის — 11 ძირითადი გვერდი + 7 admin ქვე-პანელი
-+ 5 პროფილის ტაბი = ~23 მისამართი.
+ცალკეული გვერდები გადადის.
+
+**ზუსტი მისამართების რაოდენობა (გადამოწმებული ცოცხალ მარკაფზე, არა
+შეფასებით):** 11 ძირითადი გვერდი + **6** admin ქვე-პანელი (არა 7 — `admin-migrated`
+პანელი `app-router.js`-ში ცოცხალი კოდია მკვდარი ბმულისთვის: `adminBtn-migrated`
+და `switchAdmin('migrated')` არსებობს, მაგრამ `base-layout.html`-ში
+შესაბამისი `admin-migrated` div საერთოდ არ არსებობს — არ აშენებულა
+Angular-ში) + 5 პროფილის ტაბი = 22 მისამართი, პლუს 2 დეტალი-route
+(`article/:id`, `category/:slug`).
+
+**აშენდა:**
+- **`AuthService`** — JWT `localStorage`-ში (`magti_token`, იგივე key რასაც
+  ძველი frontend იყენებდა) + `Authorization: Bearer` header ყოველ request-ზე
+  (`authInterceptor`), არა httpOnly cookie — გააზრებული გამარტივება dev-ის
+  დროისთვის (Angular dev-server-სა და Java backend-ს შორის cross-origin cookie
+  არ სჭირდება; `JwtAuthenticationFilter` ისედაც იღებს header-საც, cookie-საც).
+  `angular-frontend/proxy.conf.json`-ით `/api` პროქსირდება `localhost:8080`-ზე
+  dev-ის დროს — **Java backend-ს CORS არ შეხებია საერთოდ**.
+- **`authGuard`** + **`roleGuard(allowRoles?, denyRoles?)`** — მონაცემებზე
+  დაფუძნებული, ამეორებს `switchMainPage`/`switchAdmin`-ის inline role-შემოწმებებს
+  (`page-admin`: admin+content_admin; `page-manager`: admin+manager;
+  `page-reading`: ყველა გარდა admin/content_admin/manager-ისა — MANAGEMENT_ROLES
+  გამონაკლისი). `audit` ქვე-პანელის `can_view_audit_log`-ზე დაფუძნებული დამატებითი
+  გამონაკლისი **განზრახ არ არის** ამ დონეზე მოდელირებული — ეს რეალურ user-პროფილ
+  fetch-ს საჭიროებს JWT-ის `role` claim-ს მიღმა, ბუნებრივად ეკუთვნის Audit
+  დომენის რეალურ გვერდს (3c), არა ზოგად shell-გარდი guard-ს.
+- **`AppShell`** — header (ლოგო, EN/KA runtime toggle, logout) + sidebar (4
+  სექცია, role-გაფილტრული), **Tailwind v3** დაყენებული Angular-ის PostCSS
+  build-ჯაჭვში (root-ის `tailwind.config.js`-ის იდენტური თემა: `magti: #B91C1C`,
+  `teko` ფონტი).
+- **`Login`** — რეალური, მუშა ფორმა (არა placeholder) — გარეშე ამ ფორმის,
+  guard-ების ტესტვა შეუძლებელი იქნებოდა.
+- **22+2 route**, ყველა `PlaceholderPage`-ზე (route `data.title`-ის i18n
+  key-ით) — რეალური კონტენტი 3c-ის საქმეა, არა ამ ეტაპის.
+- **794-key კატალოგიდან რეალურად გამოყენებული ქვეჯგუფი** (`nav.*`,
+  `auth.login_page.*`, `users.profile.*`) გადატანილია
+  `angular-frontend/public/i18n/{ka,en}.json`-ში — ეს "ცოცხალი" ქვეჯგუფია,
+  სრული კატალოგი (`docs/i18n-catalog/`) რჩება ცნობარად 3c-სთვის.
+
+**ცოცხლად გადამოწმდა ბრაუზერში** (არა მხოლოდ build-ით): არაავტორიზებული
+მომხმარებელი → `/login?returnUrl=...`; რეალური login `admin@magti.ge`-ით
+(JIT-provisioned, `security.py`-ის dev-bypass) ცოცხალ Java+Oracle-ზე;
+sidebar სწორად ფილტრავს ბმულებს როლის მიხედვით; `routerLinkActive`
+active-სტილი მუშაობს; role-guard სწორად აბრუნებს `admin`-ს `/reading`-იდან;
+logout ასუფთავებს token-ს და აბრუნებს `/login`-ზე; EN/KA toggle რეალურ დროში
+ცვლის მთელ გვერდს ხელახალი ჩატვირთვის გარეშე. კონსოლში 0 შეცდომა მთელი
+ციკლის განმავლობაში.
+
+**ტექნიკური quirk, ცოცხლად აღმოჩენილი:** ბრაუზერის preview პანელის
+`computer`-tool-ის კოორდინატებზე-დაფუძნებული click ვერ აღწევდა Angular-ის
+`routerLink`-ის click-listener-ს (მიუხედავად იმისა, რომ კოორდინატები
+`getBoundingClientRect()`-ით დადასტურებულად სწორ ელემენტზე ხვდებოდა) —
+გვერდი უცვლელი რჩებოდა. გამოსავალი: `element.dispatchEvent(new
+MouseEvent('click', ...))` პირდაპირ DOM-ზე, ან `navigate`/`form.requestSubmit()`
+რეალური ნავიგაციისთვის. საბოლოო root cause დაუდგენელია (სავარაუდოდ devicePixelRatio
+1.875-თან დაკავშირებული CDP-click coordinate-scaling), მაგრამ routing/guard
+ლოგიკის სისწორე დამოუკიდებლად დადასტურდა ამ ალტერნატიული მეთოდით — ჩანაწერი
+memory-ში მომავალი სესიებისთვის, რომ დრო არ დაიხარჯოს იმავე გამოძიებაზე.
+
+**ცნობილი ხარვეზი:** `AuthService`/guard-ებისთვის ცალკე unit-ტესტები არ
+დაწერილა ამ ეტაპზე — ცოცხალი ბრაუზერული გადამოწმება (ზემოთ) გაცილებით
+ღირებული აღმოჩნდა ამ ქცევის ტიპისთვის, მაგრამ unit-ტესტები მაინც სასურველია
+მომავალში, სანამ ეს კოდი გაფართოვდება.
 
 ### 3c — დომენი-დომენზე კომპონენტების პორტი
 

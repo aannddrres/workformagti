@@ -1,8 +1,63 @@
 {
+  "nav": {
+    "shell": {
+      "page_title": "Magti — Internal Information Portal",
+      "logo_alt": "Magti logo"
+    },
+    "sidebar": {
+      "section_org": "Organization",
+      "home": "Home",
+      "team_stats": "Team Statistics",
+      "section_kb": "Knowledge Base",
+      "mandatory_reading": "Mandatory Reading",
+      "video_instructions": "Video Instructions",
+      "news": "News",
+      "section_personal": "Personal Space",
+      "favorites": "Favorites",
+      "personal_cabinet": "Personal Cabinet",
+      "section_admin": "Administration",
+      "admin_stats": "Statistics",
+      "admin_users": "Users",
+      "admin_roles": "Role Management",
+      "admin_content": "Content Management",
+      "admin_logs": "Logs",
+      "admin_categories": "Categories"
+    },
+    "topbar": {
+      "user_menu_label": "User menu",
+      "logout": "Log out",
+      "logout_confirm_message": "Are you sure you want to log out?"
+    }
+  },
+  "auth": {
+    "login_page": {
+      "title": "Magti — Sign In",
+      "heading": "Sign In",
+      "subtitle": "Sign in with the same email and password you use for Magticom's internal systems.",
+      "email_label": "Email",
+      "password_label": "Password",
+      "password_placeholder": "Any password",
+      "submit_button": "Sign In",
+      "submit_button_loading": "Signing in...",
+      "error_generic": "Sign-in failed"
+    }
+  },
+  "users": {
+    "profile": {
+      "tab_profile": "Profile",
+      "tab_favorites": "My favorites",
+      "tab_messages": "Messages",
+      "tab_settings": "Settings"
+    }
+  },
+  "search": {
+    "history_tab": {
+      "heading": "Search History"
+    }
+  },
   "shell": {
-    "i18n_smoke_test": {
-      "title": "i18n is working",
-      "body": "This text is loaded from en.json via ngx-translate."
+    "placeholder": {
+      "message": "This page hasn't been built yet — coming in Phase 3c."
     }
   }
 }
