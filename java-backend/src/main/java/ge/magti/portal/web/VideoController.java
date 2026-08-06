@@ -6,6 +6,7 @@ import ge.magti.portal.domain.User;
 import ge.magti.portal.domain.VideoInstruction;
 import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.VideoInstructionRepository;
+import ge.magti.portal.search.SearchReindexService;
 import ge.magti.portal.security.PermissionChecker;
 import ge.magti.portal.util.DepartmentMatcher;
 import ge.magti.portal.util.TbilisiTime;
@@ -60,16 +61,19 @@ public class VideoController {
     private final AuditLogRepository auditLogRepository;
     private final PermissionChecker permissionChecker;
     private final TagSyncService tagSyncService;
+    private final SearchReindexService searchReindexService;
 
     public VideoController(
             VideoInstructionRepository videoRepository,
             AuditLogRepository auditLogRepository,
             PermissionChecker permissionChecker,
-            TagSyncService tagSyncService) {
+            TagSyncService tagSyncService,
+            SearchReindexService searchReindexService) {
         this.videoRepository = videoRepository;
         this.auditLogRepository = auditLogRepository;
         this.permissionChecker = permissionChecker;
         this.tagSyncService = tagSyncService;
+        this.searchReindexService = searchReindexService;
     }
 
     @GetMapping("/api/videos")
@@ -118,6 +122,7 @@ public class VideoController {
         video.setCreatedAt(TbilisiTime.now());
         VideoInstruction saved = videoRepository.saveAndFlush(video);
         tagSyncService.sync("video", saved.getId(), saved.getTags());
+        searchReindexService.reindexVideo(saved);
 
         return ResponseEntity.ok(VideoInstructionResponse.from(saved));
     }
@@ -139,6 +144,7 @@ public class VideoController {
         applyRequest(video, request);
         VideoInstruction saved = videoRepository.saveAndFlush(video);
         tagSyncService.sync("video", saved.getId(), saved.getTags());
+        searchReindexService.reindexVideo(saved);
 
         return ResponseEntity.ok(VideoInstructionResponse.from(saved));
     }
@@ -155,6 +161,7 @@ public class VideoController {
             return notFound();
         }
         videoRepository.delete(found.get());
+        searchReindexService.remove(SearchReindexService.VIDEO, id);
         return ResponseEntity.noContent().build();
     }
 

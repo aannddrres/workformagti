@@ -9,6 +9,9 @@ import java.util.List;
 
 public interface SearchLogRepository extends JpaRepository<SearchLog, Long> {
 
+    /** Mirrors get_search_history (routers/search.py:258-285): most recent first, caller passes limit-50 via Pageable. */
+    List<SearchLog> findByUserIdOrderByTimestampDesc(Long userId, Pageable pageable);
+
     /**
      * Mirrors get_popular_searches (routers/stats.py:94-116): normalised
      * (lower+trim) search terms among logs that did return results, most

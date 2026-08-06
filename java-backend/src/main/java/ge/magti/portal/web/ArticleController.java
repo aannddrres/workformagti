@@ -29,6 +29,7 @@ import ge.magti.portal.repository.RequiredReadingRepository;
 import ge.magti.portal.repository.UserNoteRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.quiz.QuizGateChecker;
+import ge.magti.portal.search.SearchReindexService;
 import ge.magti.portal.security.PermissionChecker;
 import ge.magti.portal.util.DepartmentMatcher;
 import ge.magti.portal.util.TbilisiTime;
@@ -106,6 +107,7 @@ public class ArticleController {
     private final TagSyncService tagSyncService;
     private final ArticleQueryService articleQueryService;
     private final EligibleOperatorsService eligibleOperatorsService;
+    private final SearchReindexService searchReindexService;
 
     public ArticleController(
             ArticleRepository articleRepository,
@@ -123,7 +125,8 @@ public class ArticleController {
             PermissionChecker permissionChecker,
             TagSyncService tagSyncService,
             ArticleQueryService articleQueryService,
-            EligibleOperatorsService eligibleOperatorsService) {
+            EligibleOperatorsService eligibleOperatorsService,
+            SearchReindexService searchReindexService) {
         this.articleRepository = articleRepository;
         this.targetDepartmentRepository = targetDepartmentRepository;
         this.articleHistoryRepository = articleHistoryRepository;
@@ -140,6 +143,7 @@ public class ArticleController {
         this.tagSyncService = tagSyncService;
         this.articleQueryService = articleQueryService;
         this.eligibleOperatorsService = eligibleOperatorsService;
+        this.searchReindexService = searchReindexService;
     }
 
     @GetMapping("/api/articles")
@@ -225,6 +229,7 @@ public class ArticleController {
         Article saved = articleRepository.saveAndFlush(article);
         replaceTargetDepartments(saved.getId(), request.targetDepartments());
         tagSyncService.sync("article", saved.getId(), saved.getTags());
+        searchReindexService.reindexArticle(saved);
 
         ArticleHistory history = new ArticleHistory();
         history.setArticleId(saved.getId());
@@ -271,6 +276,7 @@ public class ArticleController {
         article.setUpdatedAt(TbilisiTime.now());
         Article saved = articleRepository.saveAndFlush(article);
         tagSyncService.sync("article", id, saved.getTags());
+        searchReindexService.reindexArticle(saved);
 
         ArticleHistory history = new ArticleHistory();
         history.setArticleId(id);
@@ -356,6 +362,7 @@ public class ArticleController {
 
         article.setUpdatedAt(TbilisiTime.now());
         Article saved = articleRepository.saveAndFlush(article);
+        searchReindexService.reindexArticle(saved);
 
         return ResponseEntity.ok(ArticleAutosaveResponse.from(saved, resolveTargetDepartments(id)));
     }
@@ -373,6 +380,7 @@ public class ArticleController {
             return notFound();
         }
         articleRepository.delete(found.get());
+        searchReindexService.remove(SearchReindexService.ARTICLE, id);
         return ResponseEntity.noContent().build();
     }
 
@@ -778,6 +786,7 @@ public class ArticleController {
         article.setVersion(article.getVersion() + 1);
         article.setUpdatedAt(TbilisiTime.now());
         Article saved = articleRepository.saveAndFlush(article);
+        searchReindexService.reindexArticle(saved);
 
         ArticleHistory restoredHistory = new ArticleHistory();
         restoredHistory.setArticleId(id);

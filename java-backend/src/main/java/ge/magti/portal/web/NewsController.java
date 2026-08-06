@@ -7,6 +7,7 @@ import ge.magti.portal.news.NewsQueryService;
 import ge.magti.portal.repository.NewsHistoryRepository;
 import ge.magti.portal.repository.NewsRepository;
 import ge.magti.portal.repository.UserRepository;
+import ge.magti.portal.search.SearchReindexService;
 import ge.magti.portal.util.DepartmentMatcher;
 import ge.magti.portal.util.TbilisiTime;
 import jakarta.validation.Valid;
@@ -63,16 +64,19 @@ public class NewsController {
     private final NewsHistoryRepository newsHistoryRepository;
     private final UserRepository userRepository;
     private final NewsQueryService newsQueryService;
+    private final SearchReindexService searchReindexService;
 
     public NewsController(
             NewsRepository newsRepository,
             NewsHistoryRepository newsHistoryRepository,
             UserRepository userRepository,
-            NewsQueryService newsQueryService) {
+            NewsQueryService newsQueryService,
+            SearchReindexService searchReindexService) {
         this.newsRepository = newsRepository;
         this.newsHistoryRepository = newsHistoryRepository;
         this.userRepository = userRepository;
         this.newsQueryService = newsQueryService;
+        this.searchReindexService = searchReindexService;
     }
 
     /** Port of get_news_item (routers/news.py:23-44). */
@@ -133,6 +137,7 @@ public class NewsController {
         news.setAuthorId(user.getId());
         news.setCreatedAt(TbilisiTime.now());
         News saved = newsRepository.save(news);
+        searchReindexService.reindexNews(saved);
         return ResponseEntity.status(HttpStatus.OK).body(NewsResponse.from(saved));
     }
 
@@ -162,6 +167,7 @@ public class NewsController {
         news.setVersion(news.getVersion() + 1);
 
         News saved = newsRepository.save(news);
+        searchReindexService.reindexNews(saved);
         return ResponseEntity.ok(NewsResponse.from(saved));
     }
 
@@ -177,6 +183,7 @@ public class NewsController {
             return notFound();
         }
         newsRepository.delete(found.get());
+        searchReindexService.remove(SearchReindexService.NEWS, id);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 
@@ -232,6 +239,7 @@ public class NewsController {
         }
 
         News saved = newsRepository.saveAndFlush(news);
+        searchReindexService.reindexNews(saved);
         return ResponseEntity.ok(NewsAutosaveResponse.from(saved));
     }
 
@@ -285,6 +293,7 @@ public class NewsController {
         news.setVersion(news.getVersion() + 1);
 
         News saved = newsRepository.save(news);
+        searchReindexService.reindexNews(saved);
         // No AuditLog entity is wired to this controller (Python's log_audit
         // call, routers/news.py:298) -- Audit's own HTTP surface (list/CSV
         // export) isn't built yet, and this restore action's audit coverage
