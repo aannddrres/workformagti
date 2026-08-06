@@ -42,13 +42,13 @@ public enum Permission {
 
     private static final Map<Role, Set<Permission>> DEFAULTS_BY_ROLE = Map.of(
             Role.OPERATOR, EnumSet.noneOf(Permission.class),
-            Role.MANAGER, EnumSet.of(REPORTS_EXPORT),
+            Role.MANAGER, EnumSet.of(REPORTS_EXPORT, SYSTEM_AUDIT),
             Role.CONTENT_ADMIN, EnumSet.of(
                     ARTICLES_VIEW, ARTICLES_EDIT, ARTICLES_PUBLISH, ARTICLES_ARCHIVE,
-                    VIDEOS_ARCHIVE, COMPLIANCE_ASSIGN),
+                    VIDEOS_ARCHIVE, COMPLIANCE_ASSIGN, SYSTEM_AUDIT),
             Role.SYSTEM_ADMIN, EnumSet.of(
                     ARTICLES_VIEW, ARTICLES_EDIT, ARTICLES_PUBLISH, ARTICLES_ARCHIVE,
-                    VIDEOS_ARCHIVE, USERS_MANAGE, COMPLIANCE_ASSIGN, REPORTS_EXPORT));
+                    VIDEOS_ARCHIVE, USERS_MANAGE, COMPLIANCE_ASSIGN, REPORTS_EXPORT, SYSTEM_AUDIT));
 
     private final String value;
 
@@ -69,7 +69,27 @@ public enum Permission {
 
     /**
      * Mirrors security.py's DEFAULT_PERMISSIONS_BY_ROLE (security.py:385-406)
-     * field-for-field -- same roles, same grants.
+     * for every permission except SYSTEM_AUDIT.
+     *
+     * <p><b>SYSTEM_AUDIT is a deliberate addition beyond that dict</b> --
+     * verified missing via a live Phase-2 parity check against the running
+     * Python app (2026-08-06), confirmed with the user, then fixed. In
+     * Python, {@code system:audit} is never granted through
+     * DEFAULT_PERMISSIONS_BY_ROLE at all; it lives only in the separate,
+     * colon-named RBAC-table catalog (security.py:376-381,
+     * {@code migrate.py}'s {@code ensure_system_audit_permission_seeded}),
+     * which explicitly seeds it for {@code content_admin} AND
+     * {@code manager} ("a manager holds the same permission but ...
+     * hard-pins them to their own department/group at query time"). That
+     * separate 3-table RBAC system was consciously retired during this
+     * port (bug #5) and folded into this one dotted catalog -- but the
+     * fold only carried the enum value itself over, not the actual grant,
+     * so real content_admin/manager accounts here could never view the
+     * audit log at all (403) despite that being real, intended Python
+     * behavior. {@link ge.magti.portal.web.AuditLogController}'s own
+     * department-scoping for managers was already built assuming they
+     * *can* reach the endpoint -- this default grant is what actually
+     * makes that reachable.
      *
      * <p>SYSTEM_ADMIN's set is never actually consulted by the Python
      * dependency that grants that role everything unconditionally

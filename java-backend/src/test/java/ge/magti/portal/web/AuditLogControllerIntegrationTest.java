@@ -137,14 +137,22 @@ class AuditLogControllerIntegrationTest {
                 .andExpect(jsonPath("$.status").value("ok"));
     }
 
+    /**
+     * A manager now holds system.audit by default (Permission.java's
+     * DEFAULTS_BY_ROLE, fixed 2026-08-06 after a live parity check found
+     * managers couldn't reach the audit log at all -- a real Python
+     * capability, restored). So this 403 comes from the manager-specific
+     * exclusion (requireSystemAuditNonManager), not the earlier generic
+     * "no permission" gate -- a different, correct message.
+     */
     @Test
-    void managerWithoutThePermissionIsForbidden() throws Exception {
+    void managerIsForbiddenFromChainHealthDespiteHoldingThePermission() throws Exception {
         String token = loginAndGetToken("manager@magti.ge", "10.20.0.3");
 
         mockMvc.perform(get("/api/audit-logs/chain-health")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.detail").value("წვდომა უარყოფილია: არასაკმარისი უფლებები"));
+                .andExpect(jsonPath("$.detail").value("ეს ფუნქცია ხელმისაწვდომია მხოლოდ ადმინისტრატორებისთვის"));
     }
 
     @Test
