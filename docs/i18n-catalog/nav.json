@@ -1,0 +1,247 @@
+{
+  "nav.shell.page_title": {
+    "ka": "მაგთი — შიდა საინფორმაციო პორტალი",
+    "en": "Magti — Internal Information Portal",
+    "reviewed": false,
+    "source": "base-layout.html:8",
+    "context": "Browser <title> for the main SPA shell page."
+  },
+  "nav.shell.logo_alt": {
+    "ka": "მაგთი ლოგო",
+    "en": "Magti logo",
+    "reviewed": false,
+    "source": "base-layout.html:175",
+    "context": "alt text for the sidebar/mobile Magti logo image. Repeats at base-layout.html:372, article.html:125, login.html:37."
+  },
+  "nav.sidebar.section_org": {
+    "ka": "ორგანიზაცია",
+    "en": "Organization",
+    "reviewed": false,
+    "source": "base-layout.html:185",
+    "context": "Sidebar section label heading, groups Home + Team Stats links."
+  },
+  "nav.sidebar.home": {
+    "ka": "მთავარი",
+    "en": "Home",
+    "reviewed": false,
+    "source": "base-layout.html:192",
+    "context": "Sidebar nav link label for the dashboard/home page. Same word is reused as an admin sub-tab label ('მთავარი', base-layout.html:1450) and page heading ('მთავარი პანელი', base-layout.html:1489) — kept as separate keys under admin.json since the context (admin panel tab) differs from top-level navigation."
+  },
+  "nav.sidebar.team_stats": {
+    "ka": "გუნდის სტატისტიკა",
+    "en": "Team Statistics",
+    "reviewed": false,
+    "source": "base-layout.html:200",
+    "context": "Sidebar nav link (Manager/Admin only), also reused as the page heading at base-layout.html:1129."
+  },
+  "nav.sidebar.section_kb": {
+    "ka": "ცოდნის ბაზა",
+    "en": "Knowledge Base",
+    "reviewed": false,
+    "source": "base-layout.html:208",
+    "context": "Sidebar section label AND the nav link label immediately below it (base-layout.html:218) use the identical string in the same navigational context — merged into one key. Also reused as the KB page heading (base-layout.html:745)."
+  },
+  "nav.sidebar.mandatory_reading": {
+    "ka": "სავალდებულოდ გასაცნობი",
+    "en": "Mandatory Reading",
+    "reviewed": false,
+    "source": "base-layout.html:226",
+    "context": "Sidebar nav link label (operator-only obligation, hidden for management roles). Reused as the page heading at base-layout.html:869 and the admin toggle-label 'სავალდებულოდ გასაცნობი' for marking an article/news/video as mandatory (base-layout.html:1975,2072,2504) — the toggle-label usage is kept in admin.json since it is a form control, not navigation."
+  },
+  "nav.sidebar.video_instructions": {
+    "ka": "ვიდეო ინსტრუქციები",
+    "en": "Video Instructions",
+    "reviewed": false,
+    "source": "base-layout.html:236",
+    "context": "Sidebar nav link, reused as page heading at base-layout.html:1048."
+  },
+  "nav.sidebar.news": {
+    "ka": "სიახლეები",
+    "en": "News",
+    "reviewed": false,
+    "source": "base-layout.html:244",
+    "context": "Sidebar nav link label. The same word is reused very widely as a heading/empty-state noun throughout news.json (e.g. news page heading base-layout.html:1066) and as a content-type tab label (base-layout.html:1771,1793) — those are tracked separately in news.json/admin.json."
+  },
+  "nav.sidebar.section_personal": {
+    "ka": "პირადი სივრცე",
+    "en": "Personal Space",
+    "reviewed": false,
+    "source": "base-layout.html:253",
+    "context": "Sidebar section label grouping Favorites + Personal Cabinet."
+  },
+  "nav.sidebar.favorites": {
+    "ka": "რჩეულები",
+    "en": "Favorites",
+    "reviewed": false,
+    "source": "base-layout.html:260",
+    "context": "Sidebar nav link label. Byte-identical string reused in the topbar user-menu dropdown (base-layout.html:475) and as a filter checkbox label 'მხოლოდ რჩეულები' (base-layout.html:1105, different phrase, kept separate)."
+  },
+  "nav.sidebar.personal_cabinet": {
+    "ka": "პირადი კაბინეტი",
+    "en": "Personal Cabinet",
+    "reviewed": false,
+    "source": "base-layout.html:268",
+    "context": "Sidebar nav link label, reused identically in the topbar user-menu dropdown (static/js/app-core.js:472, trailing text after an icon) and as the profile page heading (base-layout.html:1254)."
+  },
+  "nav.sidebar.section_admin": {
+    "ka": "ადმინისტრირება",
+    "en": "Administration",
+    "reviewed": false,
+    "source": "base-layout.html:276",
+    "context": "Sidebar section label grouping the admin-only links (Settings, Stats, Users, Roles, Content, Logs)."
+  },
+  "nav.sidebar.settings": {
+    "ka": "პარამეტრები",
+    "en": "Settings",
+    "reviewed": false,
+    "source": "base-layout.html:283",
+    "context": "Sidebar nav link label. Same word reused as the personal-cabinet settings tab label (base-layout.html:1264) — kept separate since it's a distinct tab, not the admin sidebar link."
+  },
+  "nav.sidebar.admin_stats": {
+    "ka": "სტატისტიკა",
+    "en": "Statistics",
+    "reviewed": false,
+    "source": "base-layout.html:292",
+    "context": "Admin sub-nav icon+label link to the admin main dashboard tab."
+  },
+  "nav.sidebar.admin_users": {
+    "ka": "მომხმარებლები",
+    "en": "Users",
+    "reviewed": false,
+    "source": "base-layout.html:298",
+    "context": "Admin sub-nav link label, reused as admin tab button text (base-layout.html:1458)."
+  },
+  "nav.sidebar.admin_roles": {
+    "ka": "როლების მართვა",
+    "en": "Role Management",
+    "reviewed": false,
+    "source": "base-layout.html:304",
+    "context": "Admin sub-nav link label, reused as the Role Console page heading (base-layout.html:2196) and tab button (base-layout.html:1462)."
+  },
+  "nav.sidebar.admin_content": {
+    "ka": "კონტენტის მართვა",
+    "en": "Content Management",
+    "reviewed": false,
+    "source": "base-layout.html:310",
+    "context": "Admin sub-nav link label, reused as the Content Management page heading (base-layout.html:1764) and tab button (base-layout.html:1454)."
+  },
+  "nav.sidebar.admin_logs": {
+    "ka": "ლოგები",
+    "en": "Logs",
+    "reviewed": false,
+    "source": "base-layout.html:316",
+    "context": "Admin sub-nav link label for the audit log section."
+  },
+  "nav.quicksearch.roaming": {
+    "ka": "როუმინგი",
+    "en": "Roaming",
+    "reviewed": false,
+    "source": "base-layout.html:343",
+    "context": "Quick-search shortcut button (icon + tooltip) that pre-fills the global search with this keyword. Same word is also a real KB category name/desc elsewhere (static/js/app-renderers.js:571) and a chatbot placeholder example (base-layout.html:2718) — flagged in README as recurring across multiple unrelated contexts."
+  },
+  "nav.quicksearch.porting": {
+    "ka": "პორტირება",
+    "en": "Porting",
+    "reviewed": false,
+    "source": "base-layout.html:344",
+    "context": "Quick-search shortcut button. Same word also used as an article-card title example in the dashboard 'recently added' widget (base-layout.html:719)."
+  },
+  "nav.quicksearch.internet": {
+    "ka": "ინტერნეტი",
+    "en": "Internet",
+    "reviewed": false,
+    "source": "base-layout.html:345",
+    "context": "Quick-search shortcut button. Same word is also a KB category name/desc (static/js/app-renderers.js:572)."
+  },
+  "nav.search.placeholder": {
+    "ka": "ძებნა...",
+    "en": "Search...",
+    "reviewed": false,
+    "source": "base-layout.html:380",
+    "context": "Global top-bar search input placeholder. Distinct from the KB-page search placeholder 'ძიება თემით ...' (search.json) and audit search placeholder."
+  },
+  "nav.topbar.sse_connecting": {
+    "ka": "SSE კავშირი: მიერთება...",
+    "en": "Live connection: connecting...",
+    "reviewed": false,
+    "source": "base-layout.html:399",
+    "context": "Title/tooltip on the live-update status dot in the topbar, initial state. Dynamic variants set from JS: 'SSE კავშირი: აქტიური' (active, static/js/app-core.js:750), 'SSE კავშირი: გათიშული — მცდელობა N წამში...' (disconnected, retrying, app-core.js:778, has a variable), 'SSE კავშირი: ჩავარდა' (failed, app-core.js:796) — each tracked as its own key below."
+  },
+  "nav.topbar.sse_active": {
+    "ka": "SSE კავშირი: აქტიური",
+    "en": "Live connection: active",
+    "reviewed": false,
+    "source": "static/js/app-core.js:750",
+    "context": "Live-update status dot tooltip once the SSE stream connects successfully."
+  },
+  "nav.topbar.sse_failed": {
+    "ka": "SSE კავშირი: ჩავარდა",
+    "en": "Live connection: failed",
+    "reviewed": false,
+    "source": "static/js/app-core.js:796",
+    "context": "Live-update status dot tooltip after SSE gives up reconnecting."
+  },
+  "nav.topbar.sse_reconnected_toast": {
+    "ka": "სერვერთან კავშირი აღდგა 🟢",
+    "en": "Connection to the server restored",
+    "reviewed": false,
+    "source": "static/js/app-core.js:744",
+    "context": "Toast message body (title 'Magti AI') shown when the SSE live connection recovers after a drop. Contains an emoji as part of the literal source string."
+  },
+  "nav.topbar.sse_disconnected_toast": {
+    "ka": "სერვერთან კავშირი გაწყდა. ხელახალი მცდელობა... 🔴",
+    "en": "Connection to the server was lost. Retrying...",
+    "reviewed": false,
+    "source": "static/js/app-core.js:782",
+    "context": "Toast body (title 'კავშირი გაწყდა') shown when the SSE connection drops."
+  },
+  "nav.topbar.sse_disconnected_toast_title": {
+    "ka": "კავშირი გაწყდა",
+    "en": "Connection lost",
+    "reviewed": false,
+    "source": "static/js/app-core.js:782",
+    "context": "Toast title paired with nav.topbar.sse_disconnected_toast."
+  },
+  "nav.topbar.theme_toggle": {
+    "ka": "თემის გადართვა",
+    "en": "Toggle theme",
+    "reviewed": false,
+    "source": "base-layout.html:405",
+    "context": "aria-label and title on the light/dark theme toggle button (moon/sun icon)."
+  },
+  "nav.topbar.notifications_label": {
+    "ka": "შეტყობინებები",
+    "en": "Notifications",
+    "reviewed": false,
+    "source": "base-layout.html:413",
+    "context": "aria-label on the notification-bell button AND the popover header text (base-layout.html:420) — same string, same context, merged. NOTE: the identical word 'შეტყობინებები' is also used elsewhere for the personal-messages inbox concept in messaging.json contexts (e.g. empty-state 'ახალი შეტყობინებები არ არის') — flagged as ambiguous, see README (notifications vs. messages)."
+  },
+  "nav.topbar.personal_messages_label": {
+    "ka": "პირადი შეტყობინებები",
+    "en": "Personal messages",
+    "reviewed": false,
+    "source": "base-layout.html:435",
+    "context": "aria-label on the message-envelope button AND popover header (base-layout.html:442) — merged, same context."
+  },
+  "nav.topbar.user_menu_label": {
+    "ka": "მომხმარებლის მენიუ",
+    "en": "User menu",
+    "reviewed": false,
+    "source": "base-layout.html:457",
+    "context": "aria-label on the avatar/name dropdown trigger in the topbar."
+  },
+  "nav.topbar.logout": {
+    "ka": "სისტემიდან გასვლა",
+    "en": "Log out",
+    "reviewed": false,
+    "source": "base-layout.html:484",
+    "context": "aria-label and title on the logout button, and the showConfirm() title at static/js/app-core.js:2761 ('სისტემიდან გასვლა' — 'ნამდვილად გსურთ სისტემიდან გასვლა?')."
+  },
+  "nav.topbar.logout_confirm_message": {
+    "ka": "ნამდვილად გსურთ სისტემიდან გასვლა?",
+    "en": "Are you sure you want to log out?",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2761",
+    "context": "showConfirm() body message for the logout confirmation dialog."
+  }
+}

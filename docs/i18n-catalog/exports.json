@@ -1,0 +1,177 @@
+{
+  "exports.api.too_large": {
+    "ka": "ექსპორტი ძალიან დიდია (${row_count} ჩანაწერი, ზღვარი ${_EXPORT_MAX_ROWS}). დააზუსტეთ ფილტრი და სცადეთ თავიდან.",
+    "en": "The export is too large (${row_count} rows, limit ${_EXPORT_MAX_ROWS}). Narrow your filter and try again.",
+    "reviewed": false,
+    "source": "routers/exports.py:46",
+    "context": "HTTPException detail (text spans lines 46-47) when a requested export exceeds the server-side row cap."
+  },
+  "exports.api.openpyxl_missing": {
+    "ka": "openpyxl ბიბლიოთეკა არ არის დაყენებული. გაუშვით: pip install openpyxl",
+    "en": "The openpyxl library is not installed. Run: pip install openpyxl",
+    "reviewed": false,
+    "source": "routers/exports.py:138",
+    "context": "HTTPException detail (503) when the XLSX export dependency is missing on the server. Contains a literal shell command, which a human should decide whether to keep untranslated/as-is in the Angular UI."
+  },
+  "exports.xlsx.column_employee": {
+    "ka": "თანამშრომელი",
+    "en": "Employee",
+    "reviewed": false,
+    "source": "routers/exports.py:153",
+    "context": "XLSX column header for the compliance/mandatory-reading export."
+  },
+  "exports.xlsx.column_department": {
+    "ka": "დეპარტამენტი",
+    "en": "Department",
+    "reviewed": false,
+    "source": "routers/exports.py:153",
+    "context": "XLSX column header."
+  },
+  "exports.xlsx.column_material_type": {
+    "ka": "მასალის ტიპი",
+    "en": "Material type",
+    "reviewed": false,
+    "source": "routers/exports.py:153",
+    "context": "XLSX column header. NOTE: the PDF export of the same report uses the shorter word 'ტიპი' (Type) instead — see exports.pdf.column_type — flagged in README as an inconsistency between the two export formats."
+  },
+  "exports.xlsx.column_material_id": {
+    "ka": "მასალის ID",
+    "en": "Material ID",
+    "reviewed": false,
+    "source": "routers/exports.py:153",
+    "context": "XLSX column header. The PDF variant uses just 'ID' — see exports.pdf.column_id."
+  },
+  "exports.xlsx.column_status": {
+    "ka": "სტატუსი",
+    "en": "Status",
+    "reviewed": false,
+    "source": "routers/exports.py:153",
+    "context": "XLSX column header."
+  },
+  "exports.xlsx.column_read_date": {
+    "ka": "წაკითხვის თარიღი",
+    "en": "Read date",
+    "reviewed": false,
+    "source": "routers/exports.py:153",
+    "context": "XLSX column header. The PDF variant uses the shorter 'წაკითხვა' (Reading) — see exports.pdf.column_reading."
+  },
+  "exports.xlsx.column_due_date": {
+    "ka": "ვადა",
+    "en": "Due",
+    "reviewed": false,
+    "source": "routers/exports.py:153",
+    "context": "XLSX column header."
+  },
+  "exports.api.reportlab_missing": {
+    "ka": "reportlab ბიბლიოთეკა არ არის დაყენებული. გაუშვით: pip install reportlab",
+    "en": "The reportlab library is not installed. Run: pip install reportlab",
+    "reviewed": false,
+    "source": "routers/exports.py:258",
+    "context": "HTTPException detail (503) when the PDF export dependency is missing. NOTE: a differently-worded, shorter message for the same underlying condition exists at exports.api.reportlab_missing_short — flagged in README."
+  },
+  "exports.pdf.column_type": {
+    "ka": "ტიპი",
+    "en": "Type",
+    "reviewed": false,
+    "source": "routers/exports.py:273",
+    "context": "PDF column header, shorter than exports.xlsx.column_material_type."
+  },
+  "exports.pdf.column_id": {
+    "ka": "ID",
+    "en": "ID",
+    "reviewed": false,
+    "source": "routers/exports.py:273",
+    "context": "PDF column header (not actually Georgian text, included only for completeness of the header row)."
+  },
+  "exports.pdf.column_reading": {
+    "ka": "წაკითხვა",
+    "en": "Reading",
+    "reviewed": false,
+    "source": "routers/exports.py:273",
+    "context": "PDF column header, shorter than exports.xlsx.column_read_date."
+  },
+  "exports.pdf.title_mandatory_status": {
+    "ka": "სავალდებულოდ გასაცნობი სტატუსი",
+    "en": "Mandatory Reading Status",
+    "reviewed": false,
+    "source": "routers/exports.py:284",
+    "context": "PDF report title for the mandatory-reading compliance export."
+  },
+  "exports.api.reportlab_missing_short": {
+    "ka": "reportlab არ არის დაყენებული.",
+    "en": "reportlab is not installed.",
+    "reviewed": false,
+    "source": "routers/exports.py:297",
+    "context": "HTTPException detail (503) for the team-stats PDF export specifically — a shorter variant of exports.api.reportlab_missing for the same underlying condition, flagged in README."
+  },
+  "exports.team_stats.column_department": {
+    "ka": "დეპარტამენტი",
+    "en": "Department",
+    "reviewed": false,
+    "source": "routers/exports.py:311",
+    "context": "PDF column header for the team-statistics export."
+  },
+  "exports.team_stats.column_total_assigned": {
+    "ka": "სულ მიკუთვნებული",
+    "en": "Total assigned",
+    "reviewed": false,
+    "source": "routers/exports.py:311",
+    "context": "PDF column header for the team-statistics export."
+  },
+  "exports.team_stats.column_read": {
+    "ka": "წაკითხული",
+    "en": "Read",
+    "reviewed": false,
+    "source": "routers/exports.py:311",
+    "context": "PDF column header for the team-statistics export."
+  },
+  "exports.team_stats.pdf_title": {
+    "ka": "გუნდის სტატისტიკა — წაკითხვის პროცენტი",
+    "en": "Team Statistics — Reading Percentage",
+    "reviewed": false,
+    "source": "routers/exports.py:317",
+    "context": "PDF report title for the team-statistics export."
+  },
+  "exports.api.job_not_found": {
+    "ka": "საექსპორტო დავალება ვერ მოიძებნა",
+    "en": "Export job not found",
+    "reviewed": false,
+    "source": "routers/exports.py:428",
+    "context": "HTTPException detail (404) for the export-job-status polling endpoint."
+  },
+  "exports.api.not_ready": {
+    "ka": "ექსპორტი ჯერ არ არის მზად",
+    "en": "The export is not ready yet",
+    "reviewed": false,
+    "source": "routers/exports.py:441",
+    "context": "HTTPException detail (still processing) when polling for a background export job that hasn't finished."
+  },
+  "exports.client.failed_alert": {
+    "ka": "ექსპორტი ვერ მოხერხდა.",
+    "en": "The export failed.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2674",
+    "context": "Client-side alert shown when an export request fails; repeats at static/js/app-core.js:4811,4828."
+  },
+  "exports.client.ready_toast_title": {
+    "ka": "ექსპორტი მზადაა",
+    "en": "Export ready",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4824",
+    "context": "Toast title when a background export job finishes."
+  },
+  "exports.client.ready_toast_body": {
+    "ka": "ფაილი ჩამოიტვირთება…",
+    "en": "The file will download…",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4824",
+    "context": "Toast body when a background export job finishes and the download is about to start."
+  },
+  "exports.client.status_check_failed": {
+    "ka": "ექსპორტის სტატუსის შემოწმება ვერ მოხერხდა.",
+    "en": "Failed to check the export status.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4833",
+    "context": "Alert shown when polling the export-job-status endpoint fails."
+  }
+}

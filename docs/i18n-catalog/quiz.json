@@ -1,0 +1,121 @@
+{
+  "quiz.builder.toggle_label": {
+    "ka": "კვიზის დამატება",
+    "en": "Add a quiz",
+    "reviewed": false,
+    "source": "base-layout.html:2516",
+    "context": "Checkbox/toggle label in the article admin form enabling the quiz builder."
+  },
+  "quiz.builder.add_question_button": {
+    "ka": "კითხვის დამატება",
+    "en": "Add question",
+    "reviewed": false,
+    "source": "base-layout.html:2522",
+    "context": "Button to add a new quiz question row in the article admin form."
+  },
+  "quiz.builder.question_text_placeholder": {
+    "ka": "კითხვის ტექსტი",
+    "en": "Question text",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1601",
+    "context": "Placeholder text for a quiz question's textarea in the builder."
+  },
+  "quiz.builder.delete_question_label": {
+    "ka": "კითხვის წაშლა",
+    "en": "Delete question",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1602",
+    "context": "aria-label on the remove-question button in the quiz builder."
+  },
+  "quiz.builder.add_answer_button": {
+    "ka": "პასუხის დამატება",
+    "en": "Add answer",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1608",
+    "context": "Button to add a new answer option to a quiz question in the builder."
+  },
+  "quiz.builder.correct_answer_title": {
+    "ka": "სწორი პასუხი",
+    "en": "Correct answer",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1628",
+    "context": "Title/tooltip on the radio button marking an answer as correct."
+  },
+  "quiz.builder.answer_option_placeholder": {
+    "ka": "პასუხის ვარიანტი",
+    "en": "Answer option",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1629",
+    "context": "Placeholder text for an answer-option text input in the builder."
+  },
+  "quiz.builder.delete_answer_label": {
+    "ka": "პასუხის წაშლა",
+    "en": "Delete answer",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1630",
+    "context": "aria-label on the remove-answer button in the quiz builder."
+  },
+  "quiz.builder.save_failed": {
+    "ka": "კვიზის შენახვა ვერ მოხერხდა",
+    "en": "Failed to save the quiz",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1681",
+    "context": "Error thrown when saving a quiz definition fails; also used as a toast title at static/js/app-core.js:1684."
+  },
+  "quiz.taking_modal.heading": {
+    "ka": "კვიზი",
+    "en": "Quiz",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6254",
+    "context": "Heading of the quiz-taking modal shown to operators completing a mandatory-reading quiz."
+  },
+  "quiz.taking_modal.subtitle": {
+    "ka": "საჭიროა ყველა კითხვაზე სწორი პასუხი წაკითხვის დასადასტურებლად.",
+    "en": "You must answer every question correctly to confirm you've read this.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6255",
+    "context": "Instructional subtitle in the quiz-taking modal."
+  },
+  "quiz.taking_modal.finish_button": {
+    "ka": "დასრულება",
+    "en": "Finish",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6259",
+    "context": "Submit/finish button in the quiz-taking modal."
+  },
+  "quiz.taking_modal.load_failed": {
+    "ka": "კვიზის ჩატვირთვა ვერ მოხერხდა",
+    "en": "Failed to load the quiz",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6286",
+    "context": "Error thrown/displayed when fetching the quiz questions fails; repeats (with trailing period) at static/js/app-core.js:6304."
+  },
+  "quiz.taking_modal.save_result_failed": {
+    "ka": "კვიზის შედეგის შენახვა ვერ მოხერხდა",
+    "en": "Failed to save the quiz result",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6332",
+    "context": "Error thrown when submitting quiz answers fails."
+  },
+  "quiz.taking_modal.passed_toast": {
+    "ka": "ქვიზი წარმატებით ჩააბარეთ!",
+    "en": "You passed the quiz!",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6337",
+    "context": "Success toast body (title 'წარმატება') after passing the quiz. NOTE: spelled 'ქვიზი' here vs 'კვიზი' used everywhere else in the file — likely an unintentional spelling inconsistency ('ქ' vs 'კ'), flagged in README."
+  },
+  "quiz.taking_modal.wrong_answers_feedback": {
+    "ka": "თქვენ არასწორად უპასუხეთ ${result.wrong_question_ids.length} კითხვას — სცადეთ თავიდან",
+    "en": "You answered ${result.wrong_question_ids.length} questions incorrectly — try again",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6342",
+    "context": "Inline feedback message shown after a failed quiz attempt, listing how many questions were wrong."
+  },
+  "quiz.taking_modal.check_error": {
+    "ka": "შეცდომა კვიზის შემოწმებისას",
+    "en": "Error while checking the quiz",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6352",
+    "context": "Generic error message shown if the quiz-grading request throws unexpectedly."
+  }
+}

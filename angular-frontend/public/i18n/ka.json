@@ -1,0 +1,8 @@
+{
+  "shell": {
+    "i18n_smoke_test": {
+      "title": "i18n მუშაობს",
+      "body": "ეს ტექსტი ka.json ფაილიდან იტვირთება ngx-translate-ის საშუალებით."
+    }
+  }
+}

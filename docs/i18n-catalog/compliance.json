@@ -1,0 +1,709 @@
+{
+  "compliance.reading_page.heading": {
+    "ka": "სავალდებულოდ გასაცნობი",
+    "en": "Mandatory Reading",
+    "reviewed": false,
+    "source": "base-layout.html:869",
+    "context": "Page heading for the operator's Mandatory Reading list. Byte-identical to nav.sidebar.mandatory_reading."
+  },
+  "compliance.reading_page.filter_all": {
+    "ka": "ყველა",
+    "en": "All",
+    "reviewed": false,
+    "source": "base-layout.html:872",
+    "context": "Filter tab on the mandatory reading page."
+  },
+  "compliance.reading_page.filter_unread": {
+    "ka": "წასაკითხი",
+    "en": "To read",
+    "reviewed": false,
+    "source": "base-layout.html:874",
+    "context": "Filter tab / status badge meaning 'not yet read'. Also used as an item-status badge (static/js/app-renderers.js:215)."
+  },
+  "compliance.reading_page.filter_read": {
+    "ka": "წაკითხული",
+    "en": "Read",
+    "reviewed": false,
+    "source": "base-layout.html:876",
+    "context": "Filter tab meaning 'already read'."
+  },
+  "compliance.reading_list.empty_state": {
+    "ka": "სია ცარიელია.",
+    "en": "The list is empty.",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:196",
+    "context": "Empty-state message for the mandatory reading list."
+  },
+  "compliance.reading_list.status_read": {
+    "ka": "წაკითხულია",
+    "en": "Read",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:208",
+    "context": "Status badge on a mandatory-reading list item. Byte-identical badge is reused for personal messages ('წაკითხულია' as read-receipt) and article-modal audit rows — see messaging.json/compliance.audit_table.status_read."
+  },
+  "compliance.reading_list.open_button": {
+    "ka": "გახსნა",
+    "en": "Open",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:210",
+    "context": "Button to open an already-read item from the mandatory reading list."
+  },
+  "compliance.reading_list.status_overdue": {
+    "ka": "ვადაგადაცილებული",
+    "en": "Overdue",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:213",
+    "context": "Status badge for an overdue mandatory-reading item. Repeats in the dashboard operational-alerts widget (base-layout.html:655) and notification popover (static/js/app-renderers.js:1115)."
+  },
+  "compliance.reading_list.open_and_read_button": {
+    "ka": "გახსნა და წაკითხვა",
+    "en": "Open and read",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:217",
+    "context": "Button to open an unread/overdue mandatory-reading item and mark it as read."
+  },
+  "compliance.reading_list.due_date_label": {
+    "ka": "ვადა: ${dueDate}",
+    "en": "Due: ${dueDate}",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:228",
+    "context": "Due-date meta line on a mandatory-reading list card."
+  },
+  "compliance.reading_list.item_fallback_title": {
+    "ka": "მასალა #${reading.item_id}",
+    "en": "Item #${reading.item_id}",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:227",
+    "context": "Fallback title for a reading-list item when the underlying article/news/video title couldn't be resolved."
+  },
+  "compliance.reading_modal.meta_line": {
+    "ka": "ვადა: ${date} | ტიპი: ${item.reading.item_type}",
+    "en": "Due: ${date} | Type: ${item.reading.item_type}",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1268",
+    "context": "Meta line inside the mandatory-reading item detail modal."
+  },
+  "compliance.reading_modal.video_link_prompt": {
+    "ka": "ვიდეოს სანახავად გადადით ბმულზე:",
+    "en": "Follow this link to watch the video:",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1276",
+    "context": "Instruction text shown when a mandatory-reading item is actually a video, inside the reading modal."
+  },
+  "compliance.reading_modal.acknowledge_button": {
+    "ka": "წავიკითხე და გავიგე",
+    "en": "I've read and understood",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1360",
+    "context": "Acknowledgment button in the mandatory-reading detail modal. NOTE: different wording from articles.modal.acknowledge_button ('გავეცანი') used in the main article modal — both mean 'I acknowledge this', flagged in README as a wording inconsistency between two acknowledgment surfaces."
+  },
+  "compliance.reading_modal.status_update_failed": {
+    "ka": "სტატუსის განახლება ვერ მოხერხდა.",
+    "en": "Failed to update the status.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1406",
+    "context": "Alert shown when marking a reading item's status fails."
+  },
+  "compliance.nudge.sent_button_label": {
+    "ka": "გაგზავნილი",
+    "en": "Sent",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1496",
+    "context": "Transient button label after successfully sending a compliance 'nudge' reminder to an operator."
+  },
+  "compliance.nudge.success_toast_title": {
+    "ka": "ნუჯი",
+    "en": "Nudge",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1499",
+    "context": "Toast title after sending a nudge."
+  },
+  "compliance.nudge.success_toast_body": {
+    "ka": "შეტყობინება წარმატებით გაეგზავნა ოპერატორს! 🔔",
+    "en": "The reminder was successfully sent to the operator! 🔔",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1499",
+    "context": "Toast body after sending a nudge; literal bell emoji is part of the source string."
+  },
+  "compliance.nudge.failed": {
+    "ka": "ნუჯის გაგზავნა ვერ მოხერხდა.",
+    "en": "Failed to send the nudge.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1511",
+    "context": "Alert shown when sending a nudge fails."
+  },
+  "compliance.nudge.kebab_menu_item": {
+    "ka": "ნუჯის გაგზავნა",
+    "en": "Send nudge",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:346",
+    "context": "Kebab (⋮) dropdown menu item on a manager's team-progress table row."
+  },
+  "compliance.nudge.kebab_view_progress": {
+    "ka": "პროგრესის ნახვა",
+    "en": "View progress",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:349",
+    "context": "Kebab dropdown menu item on a manager's team-progress table row."
+  },
+  "compliance.nudge.kebab_send_message": {
+    "ka": "შეტყობინება",
+    "en": "Message",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:352",
+    "context": "Kebab dropdown menu item to send a direct message from the team-progress table row."
+  },
+  "compliance.nudge.progress_toast": {
+    "ka": "პროგრესი 📊",
+    "en": "Progress 📊",
+    "reviewed": false,
+    "source": "static/js/app-core.js:5225",
+    "context": "Toast title for a quick progress summary; literal chart emoji is part of the source string."
+  },
+  "compliance.nudge.progress_toast_body": {
+    "ka": "${user.user_name} (${user.department}): წაკითხულია ${user.read_count} / ${user.required_count} (${user.percentage}%)",
+    "en": "${user.user_name} (${user.department}): read ${user.read_count} / ${user.required_count} (${user.percentage}%)",
+    "reviewed": false,
+    "source": "static/js/app-core.js:5225",
+    "context": "Toast body summarizing an individual operator's mandatory-reading progress."
+  },
+  "compliance.nudge.draft_message_new_content": {
+    "ka": "გამარჯობა ${user.user_name}, გთხოვ გაეცნო ${activeTitle}-ს სიახლეებს, რომელიც შენი გუნდისთვის პრიორიტეტულია.",
+    "en": "Hi ${user.user_name}, please review the ${activeTitle} update — it's a priority for your team.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:5234",
+    "context": "Auto-drafted nudge message text pre-filled into a prompt() dialog, used when the manager is viewing a category page."
+  },
+  "compliance.nudge.draft_message_all_read": {
+    "ka": "მადლობა ${user.user_name}, თქვენი ყველა სავალდებულო მასალა წაკითხულია.",
+    "en": "Thank you ${user.user_name}, you've read all your mandatory materials.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:5236",
+    "context": "Auto-drafted message text for an operator who is fully compliant, offered as a thank-you note."
+  },
+  "compliance.nudge.prompt_label": {
+    "ka": "შეიყვანეთ შეტყობინების ტექსტი:",
+    "en": "Enter the message text:",
+    "reviewed": false,
+    "source": "static/js/app-core.js:5239",
+    "context": "prompt() dialog label for editing the auto-drafted nudge message before sending."
+  },
+  "compliance.nudge.message_sent_toast_title": {
+    "ka": "შეტყობინება 💬",
+    "en": "Message 💬",
+    "reviewed": false,
+    "source": "static/js/app-core.js:5253",
+    "context": "Toast title after sending a nudge message; literal speech-bubble emoji is part of the source string."
+  },
+  "compliance.nudge.message_sent_toast_body": {
+    "ka": "შეტყობინება წარმატებით გაეგზავნა!",
+    "en": "The message was sent successfully!",
+    "reviewed": false,
+    "source": "static/js/app-core.js:5253",
+    "context": "Toast body after sending a nudge message."
+  },
+  "compliance.nudge.message_send_failed": {
+    "ka": "შეტყობინების გაგზავნა ვერ მოხერხდა.",
+    "en": "Failed to send the message.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:5256",
+    "context": "Alert shown when sending a nudge message fails."
+  },
+  "compliance.audit_table.status_read_late": {
+    "ka": "გაეცნო (დაგვიანებით)",
+    "en": "Acknowledged (late)",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6166",
+    "context": "Badge in the per-article reading-audit table when a user acknowledged the item after its due date. Repeats at static/js/app-core.js:6926 and in a CSV export status value (app-core.js:6978)."
+  },
+  "compliance.audit_table.status_read": {
+    "ka": "წაკითხულია",
+    "en": "Read",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6168",
+    "context": "Badge in the reading-audit table for an on-time read. Byte-identical to compliance.reading_list.status_read."
+  },
+  "compliance.audit_table.status_unread": {
+    "ka": "წაუკითხავია",
+    "en": "Unread",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6171",
+    "context": "Badge in the reading-audit table for a not-yet-read user. Repeats at static/js/app-core.js:6931."
+  },
+  "compliance.audit_table.deleted_user_suffix": {
+    "ka": "${r.operator_name} [წაშლილი]",
+    "en": "${r.operator_name} [deleted]",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6147",
+    "context": "Display-name fallback in the reading-audit table when the operator account has been deleted; the normal format is '${r.operator_name} (${r.operator_email})'."
+  },
+  "compliance.audit_table.title_receipts": {
+    "ka": "'ცოდნის ქულა' — +10 per distinct article quiz passed, +5 bonus if passed",
+    "en": "'Knowledge score' — +10 per distinct article quiz passed, +5 bonus if passed",
+    "reviewed": false,
+    "source": "routers/articles.py:870",
+    "context": "See articles.compliance.knowledge_score_note — duplicated here only as a cross-reference since the concept spans both routers/articles.py scoring logic and the compliance/stats UI."
+  },
+  "compliance.audit_table.load_more": {
+    "ka": "მეტის ჩატვირთვა (დარჩა ${remaining})",
+    "en": "Load more (${remaining} remaining)",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6948",
+    "context": "'Load more' button in the paginated reading-audit table."
+  },
+  "compliance.audit_table.csv_header_row": {
+    "ka": "მომხმარებელი,ელ.ფოსტა,დეპარტამენტი,ვერსია,წაკითხვის თარიღი,სტატუსი",
+    "en": "User,Email,Department,Version,Read Date,Status",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6975",
+    "context": "CSV header row generated client-side for the per-article reading-audit export."
+  },
+  "compliance.audit_stats.total_assigned": {
+    "ka": "სულ დავალებული",
+    "en": "Total assigned",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6872",
+    "context": "Stat label in the reading-audit summary strip."
+  },
+  "compliance.audit_stats.on_time": {
+    "ka": "დროულად",
+    "en": "On time",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6876",
+    "context": "Stat label in the reading-audit summary strip."
+  },
+  "compliance.audit_stats.late": {
+    "ka": "დაგვიანებით",
+    "en": "Late",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6880",
+    "context": "Stat label in the reading-audit summary strip."
+  },
+  "compliance.audit_stats.unread": {
+    "ka": "წაუკითხავი",
+    "en": "Unread",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6884",
+    "context": "Stat label in the reading-audit summary strip (adjective form, distinct from the predicate-form badge compliance.audit_table.status_unread)."
+  },
+  "compliance.dashboard_widget.operational_alerts_heading": {
+    "ka": "სავალდებულო საკითხები",
+    "en": "Mandatory items",
+    "reviewed": false,
+    "source": "base-layout.html:649",
+    "context": "Dashboard operational-alerts card heading, above the overdue/unread counters."
+  },
+  "compliance.dashboard_widget.must_read_heading": {
+    "ka": "აუცილებლად გასაცნობი",
+    "en": "Must read",
+    "reviewed": false,
+    "source": "base-layout.html:666",
+    "context": "Left-column dashboard widget heading listing urgent mandatory items. NOTE: different wording from compliance.reading_page.heading ('სავალდებულოდ გასაცნობი') though both mean 'mandatory reading' — flagged in README as a terminology inconsistency."
+  },
+  "compliance.dashboard_widget.sample_item_ai_chat": {
+    "ka": "AI მაგთი ჩატი - იანვარი 2026",
+    "en": "AI Magti Chat - January 2026",
+    "reviewed": false,
+    "source": "base-layout.html:672",
+    "context": "Static placeholder/sample item title baked into the markup, overwritten by JS at runtime — flagged in README as example content, not real translatable copy, but included since it is literally present in the source until JS replaces it."
+  },
+  "compliance.dashboard_widget.sample_item_roamer_terms": {
+    "ka": "როუმერის ახალი პირობები",
+    "en": "New roaming terms",
+    "reviewed": false,
+    "source": "base-layout.html:684",
+    "context": "Static placeholder/sample item title, same caveat as compliance.dashboard_widget.sample_item_ai_chat."
+  },
+  "compliance.dashboard_widget.new_badge": {
+    "ka": "ახალი",
+    "en": "New",
+    "reviewed": false,
+    "source": "base-layout.html:674",
+    "context": "'New' badge on a dashboard mandatory-item card. Reused broadly elsewhere (e.g. static/js/app-renderers.js:1002, categories new-content marker text)."
+  },
+  "compliance.dashboard_widget.updated_badge": {
+    "ka": "განახლებული",
+    "en": "Updated",
+    "reviewed": false,
+    "source": "base-layout.html:687",
+    "context": "'Updated' badge on a dashboard mandatory-item card."
+  },
+  "compliance.team_stats.page_heading": {
+    "ka": "გუნდის სტატისტიკა",
+    "en": "Team Statistics",
+    "reviewed": false,
+    "source": "base-layout.html:1129",
+    "context": "Page heading for the Manager/Admin team-compliance dashboard. Byte-identical to nav.sidebar.team_stats."
+  },
+  "compliance.team_stats.subtitle": {
+    "ka": "დეპარტამენტებისა და ჯგუფების წაკითხვის შესრულება",
+    "en": "Reading performance by department and group",
+    "reviewed": false,
+    "source": "base-layout.html:1130",
+    "context": "Subtitle under the Team Statistics page heading."
+  },
+  "compliance.team_stats.range_today": {
+    "ka": "დღეს",
+    "en": "Today",
+    "reviewed": false,
+    "source": "base-layout.html:1135",
+    "context": "Date-range filter option. Repeats as a preset button in the audit-log page (base-layout.html:2359)."
+  },
+  "compliance.team_stats.range_this_week": {
+    "ka": "მიმდინარე კვირა",
+    "en": "This week",
+    "reviewed": false,
+    "source": "base-layout.html:1136",
+    "context": "Date-range filter option."
+  },
+  "compliance.team_stats.range_last_30_days": {
+    "ka": "ბოლო 30 დღე",
+    "en": "Last 30 days",
+    "reviewed": false,
+    "source": "base-layout.html:1137",
+    "context": "Date-range filter option."
+  },
+  "compliance.team_stats.range_all_time": {
+    "ka": "ყველა დრო",
+    "en": "All time",
+    "reviewed": false,
+    "source": "base-layout.html:1138",
+    "context": "Date-range filter option (default/selected)."
+  },
+  "compliance.team_stats.sort_by_performance": {
+    "ka": "დალაგება: შესრულების მიხედვით",
+    "en": "Sort: by performance",
+    "reviewed": false,
+    "source": "base-layout.html:1144",
+    "context": "Sort-order button label on the team stats page."
+  },
+  "compliance.team_stats.live_refresh_label": {
+    "ka": "ცოცხალი · განახლება ${label}",
+    "en": "Live · refreshes ${label}",
+    "reviewed": false,
+    "source": "base-layout.html:1152",
+    "context": "Live-refresh indicator text; ${label} is a countdown like '60წმ' (60 seconds, abbreviation embedded elsewhere)."
+  },
+  "compliance.team_stats.group_modal_title_placeholder": {
+    "ka": "ჯგუფი",
+    "en": "Group",
+    "reviewed": false,
+    "source": "base-layout.html:1200",
+    "context": "Placeholder modal title before the real group name loads, when drilling into a department's group members."
+  },
+  "compliance.team_stats.column_name": {
+    "ka": "სახელი",
+    "en": "Name",
+    "reviewed": false,
+    "source": "base-layout.html:1210",
+    "context": "Table column header in the group-members modal."
+  },
+  "compliance.team_stats.column_performance": {
+    "ka": "შესრულება",
+    "en": "Performance",
+    "reviewed": false,
+    "source": "base-layout.html:1211",
+    "context": "Table column header showing per-user compliance percentage."
+  },
+  "compliance.team_stats.critical_operators_heading": {
+    "ka": "კრიტიკული ოპერატორები",
+    "en": "Critical operators",
+    "reviewed": false,
+    "source": "base-layout.html:1225",
+    "context": "Modal heading listing operators with severely low compliance (<30%)."
+  },
+  "compliance.dept_dashboard.global_performance_tile": {
+    "ka": "გლობალური შესრულება",
+    "en": "Overall performance",
+    "reviewed": false,
+    "source": "static/js/dept-dashboard.js:86",
+    "context": "Ribbon stat-tile label showing company-wide compliance percentage."
+  },
+  "compliance.dept_dashboard.employee_count_hint": {
+    "ka": "${insights.total_members} თანამშრომელი",
+    "en": "${insights.total_members} employees",
+    "reviewed": false,
+    "source": "static/js/dept-dashboard.js:87",
+    "context": "Hint text under the global-performance stat tile."
+  },
+  "compliance.dept_dashboard.critical_operators_tile": {
+    "ka": "კრიტიკული ოპერატორები",
+    "en": "Critical operators",
+    "reviewed": false,
+    "source": "static/js/dept-dashboard.js:88",
+    "context": "Ribbon stat-tile label, byte-identical to compliance.team_stats.critical_operators_heading."
+  },
+  "compliance.dept_dashboard.critical_threshold_hint": {
+    "ka": "< 30% შესრულება",
+    "en": "< 30% performance",
+    "reviewed": false,
+    "source": "static/js/dept-dashboard.js:89",
+    "context": "Hint text explaining the 'critical' threshold under the critical-operators stat tile."
+  },
+  "compliance.dept_dashboard.total_read_tile": {
+    "ka": "სულ წაკითხული",
+    "en": "Total read",
+    "reviewed": false,
+    "source": "static/js/dept-dashboard.js:90",
+    "context": "Ribbon stat-tile label for total items read company-wide."
+  },
+  "compliance.dept_dashboard.total_volume_hint": {
+    "ka": "მთლიანი მოცულობა",
+    "en": "Total volume",
+    "reviewed": false,
+    "source": "static/js/dept-dashboard.js:91",
+    "context": "Hint text under the total-read stat tile."
+  },
+  "compliance.dept_dashboard.critical_count_badge": {
+    "ka": "${group.critical_count} კრიტ.",
+    "en": "${group.critical_count} crit.",
+    "reviewed": false,
+    "source": "static/js/dept-dashboard.js:106",
+    "context": "Abbreviated 'critical' count badge next to a group name; 'კრიტ.' is an abbreviation of 'კრიტიკული' (critical). Repeats at static/js/dept-dashboard.js:162."
+  },
+  "compliance.dept_dashboard.zero_groups_badge": {
+    "ka": "0 ჯგუფი",
+    "en": "0 groups",
+    "reviewed": false,
+    "source": "static/js/dept-dashboard.js:146",
+    "context": "Badge shown on an empty department card with no groups."
+  },
+  "compliance.dept_dashboard.no_employees_assigned": {
+    "ka": "თანამშრომლები არ არის მიბმული",
+    "en": "No employees assigned",
+    "reviewed": false,
+    "source": "static/js/dept-dashboard.js:149",
+    "context": "Empty-state message on a department card with zero members."
+  },
+  "compliance.dept_dashboard.group_member_summary": {
+    "ka": "${dept.group_count} ჯგუფი · ${dept.member_count} თანამშრომელი",
+    "en": "${dept.group_count} groups · ${dept.member_count} employees",
+    "reviewed": false,
+    "source": "static/js/dept-dashboard.js:161",
+    "context": "Summary line under a department card heading."
+  },
+  "compliance.dept_dashboard.auth_required_error": {
+    "ka": "ავტორიზაცია საჭიროა.",
+    "en": "Sign-in required.",
+    "reviewed": false,
+    "source": "static/js/dept-dashboard.js:227",
+    "context": "Error message shown when the department dashboard loads without a valid session."
+  },
+  "compliance.dept_dashboard.load_failed": {
+    "ka": "მონაცემების ჩატვირთვა ვერ მოხერხდა.",
+    "en": "Failed to load the data.",
+    "reviewed": false,
+    "source": "static/js/dept-dashboard.js:258",
+    "context": "Error message shown when the department dashboard fetch fails."
+  },
+  "compliance.dept_dashboard.stale_data_toast": {
+    "ka": "ნაჩვენებია ბოლოს ჩატვირთული მონაცემები.",
+    "en": "Showing the last successfully loaded data.",
+    "reviewed": false,
+    "source": "static/js/dept-dashboard.js:262",
+    "context": "Toast body (title 'განახლება ვერ მოხერხდა' — refresh failed) shown when a background auto-refresh fails but stale cached data is still displayed."
+  },
+  "compliance.dept_dashboard.refresh_failed_toast_title": {
+    "ka": "განახლება ვერ მოხერხდა",
+    "en": "Refresh failed",
+    "reviewed": false,
+    "source": "static/js/dept-dashboard.js:262",
+    "context": "Toast title paired with compliance.dept_dashboard.stale_data_toast."
+  },
+  "compliance.dept_dashboard.critical_modal_empty": {
+    "ka": "კრიტიკული ოპერატორები არ მოიძებნა.",
+    "en": "No critical operators found.",
+    "reviewed": false,
+    "source": "static/js/dept-dashboard.js:358",
+    "context": "Empty-state message inside the critical-operators modal (a positive result — no one is critical)."
+  },
+  "compliance.dept_dashboard.critical_modal_col_name": {
+    "ka": "სახელი",
+    "en": "Name",
+    "reviewed": false,
+    "source": "static/js/dept-dashboard.js:371",
+    "context": "Table column header in the critical-operators modal."
+  },
+  "compliance.dept_dashboard.critical_modal_col_department": {
+    "ka": "დეპარტამენტი",
+    "en": "Department",
+    "reviewed": false,
+    "source": "static/js/dept-dashboard.js:371",
+    "context": "Table column header in the critical-operators modal."
+  },
+  "compliance.dept_dashboard.critical_modal_col_missed": {
+    "ka": "გამოტოვ.",
+    "en": "Missed",
+    "reviewed": false,
+    "source": "static/js/dept-dashboard.js:371",
+    "context": "Abbreviated table column header ('გამოტოვ.' = short for 'გამოტოვებული', missed) showing overdue-item counts."
+  },
+  "compliance.dept_dashboard.critical_modal_total": {
+    "ka": "სულ: ${data.total}",
+    "en": "Total: ${data.total}",
+    "reviewed": false,
+    "source": "static/js/dept-dashboard.js:375",
+    "context": "Footer total-count line in the critical-operators modal."
+  },
+  "compliance.dept_dashboard.critical_load_failed": {
+    "ka": "მონაცემების ჩატვირთვა ვერ მოხერხდა.",
+    "en": "Failed to load the data.",
+    "reviewed": false,
+    "source": "static/js/dept-dashboard.js:378",
+    "context": "Error shown inside the critical-operators modal when its fetch fails."
+  },
+  "compliance.dept_dashboard.group_users_error_row": {
+    "ka": "მონაცემების ჩატვირთვა ვერ მოხერხდა.",
+    "en": "Failed to load the data.",
+    "reviewed": false,
+    "source": "static/js/dept-dashboard.js:397",
+    "context": "Error row shown inside the group-members modal table when its fetch fails."
+  },
+  "compliance.dept_dashboard.group_users_empty": {
+    "ka": "თანამშრომლები არ მოიძებნა.",
+    "en": "No employees found.",
+    "reviewed": false,
+    "source": "static/js/dept-dashboard.js:409",
+    "context": "Empty-state row in the group-members modal table."
+  },
+  "compliance.admin_progress_table.heading": {
+    "ka": "სავალდებულო კითხვის პროგრესი",
+    "en": "Mandatory reading progress",
+    "reviewed": false,
+    "source": "base-layout.html:1630",
+    "context": "Heading of the company-wide compliance progress table on the admin main dashboard."
+  },
+  "compliance.admin_progress_table.subtitle": {
+    "ka": "მომხმარებლები • სამიზნე: 100% Compliance",
+    "en": "Users • Target: 100% Compliance",
+    "reviewed": false,
+    "source": "base-layout.html:1631",
+    "context": "Subtitle under the admin progress table heading."
+  },
+  "compliance.admin_progress_table.incomplete_only_filter": {
+    "ka": "მხოლოდ არასრული",
+    "en": "Incomplete only",
+    "reviewed": false,
+    "source": "base-layout.html:1649",
+    "context": "Filter toggle to show only users with incomplete mandatory reading."
+  },
+  "compliance.admin_progress_table.column_user": {
+    "ka": "მომხმარებელი",
+    "en": "User",
+    "reviewed": false,
+    "source": "base-layout.html:1658",
+    "context": "Table column header."
+  },
+  "compliance.admin_progress_table.column_read": {
+    "ka": "წაკითხული",
+    "en": "Read",
+    "reviewed": false,
+    "source": "base-layout.html:1660",
+    "context": "Table column header for count of items read."
+  },
+  "compliance.admin_progress_table.column_total": {
+    "ka": "სულ",
+    "en": "Total",
+    "reviewed": false,
+    "source": "base-layout.html:1661",
+    "context": "Table column header for total assigned items."
+  },
+  "compliance.admin_progress_table.column_progress": {
+    "ka": "პროგრესი",
+    "en": "Progress",
+    "reviewed": false,
+    "source": "base-layout.html:1662",
+    "context": "Table column header for the progress bar."
+  },
+  "compliance.department_label_map.informational": {
+    "ka": "საინფორმაციო",
+    "en": "Informational",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:325",
+    "context": "Display label mapped from the internal 'Informational' department code in the manager team-progress table. Same word as news.card.department_info."
+  },
+  "compliance.department_label_map.support": {
+    "ka": "ტექნიკური",
+    "en": "Technical",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:325",
+    "context": "Display label mapped from the internal 'Support' department code in the team-progress table."
+  },
+  "compliance.department_label_map.all": {
+    "ka": "ყველა",
+    "en": "All",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:325",
+    "context": "Display label mapped from the internal 'All' department code."
+  },
+  "compliance.department_label_map.it_security": {
+    "ka": "IT უსაფრთხოება",
+    "en": "IT Security",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:325",
+    "context": "Display label mapped from the internal 'IT Security' department code."
+  },
+  "compliance.department_label_map.content_creation": {
+    "ka": "კონტენტი",
+    "en": "Content",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:325",
+    "context": "Display label mapped from the internal 'Content Creation' department code."
+  },
+  "compliance.progress_table.no_data": {
+    "ka": "მონაცემები არ არის",
+    "en": "No data",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:284",
+    "context": "Empty-state row in the manager team-progress table."
+  },
+  "compliance.progress_table.kebab_aria_label": {
+    "ka": "მოქმედებები",
+    "en": "Actions",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:341",
+    "context": "aria-label on the per-row kebab (⋮) menu trigger in the team-progress table."
+  },
+  "compliance.widget.all_read": {
+    "ka": "ყველა მასალა გაცნობილია",
+    "en": "All materials reviewed",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:889",
+    "context": "Success state text in the dashboard 'my progress' ring widget when there is nothing left to read."
+  },
+  "compliance.widget.mandatory_materials_label": {
+    "ka": "სავალდებულო მასალები",
+    "en": "Mandatory materials",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:924",
+    "context": "Label in the dashboard 'my progress' ring widget."
+  },
+  "compliance.widget.read_completed_label": {
+    "ka": "წაკითხულია: ${read_completed} / ${total_mandatory}",
+    "en": "Read: ${read_completed} / ${total_mandatory}",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:926",
+    "context": "Progress fraction line in the 'my progress' ring widget."
+  },
+  "compliance.widget.remaining_articles_label": {
+    "ka": "დარჩა ${remaining} სტატია →",
+    "en": "${remaining} left →",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:927",
+    "context": "Call-to-action line in the 'my progress' ring widget linking to the reading page."
+  },
+  "compliance.widget.remaining_articles_tooltip": {
+    "ka": "${remaining} სტატია დარჩა",
+    "en": "${remaining} items left",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:907",
+    "context": "Tooltip title on the 'my progress' ring widget."
+  },
+  "compliance.nudge_api.default_message": {
+    "ka": "გთხოვთ გაეცნოთ სავალდებულო მასალებს! (გამოგეგზავნათ მენეჯერისგან: ${current_user.name})",
+    "en": "Please review your mandatory materials! (sent by manager: ${current_user.name})",
+    "reviewed": false,
+    "source": "routers/users.py:388",
+    "context": "Server-generated default nudge notification message body, sent when a manager nudges an operator via POST (as opposed to the client-side drafted messages in compliance.nudge.draft_message_*, which are a different, richer nudge flow)."
+  }
+}

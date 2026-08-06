@@ -1,0 +1,352 @@
+{
+  "audit.page.heading": {
+    "ka": "აუდიტ ლოგი",
+    "en": "Audit Log",
+    "reviewed": false,
+    "source": "base-layout.html:2348",
+    "context": "Page heading for the audit log admin screen. Byte-identical to stats.admin_tabs.audit_log; different wording from nav.sidebar.admin_logs ('ლოგები')."
+  },
+  "audit.page.subtitle": {
+    "ka": "სისტემაში მომხდარი მოქმედებები — კონტენტი, მომხმარებლები, წვდომა",
+    "en": "Actions that occurred in the system — content, users, access",
+    "reviewed": false,
+    "source": "base-layout.html:2349",
+    "context": "Subtitle under the audit log page heading."
+  },
+  "audit.page.preset_today": {
+    "ka": "დღეს",
+    "en": "Today",
+    "reviewed": false,
+    "source": "base-layout.html:2359",
+    "context": "Date-range quick-filter button. Byte-identical to compliance.team_stats.range_today."
+  },
+  "audit.page.preset_7_days": {
+    "ka": "7 დღე",
+    "en": "7 days",
+    "reviewed": false,
+    "source": "base-layout.html:2360",
+    "context": "Date-range quick-filter button."
+  },
+  "audit.page.preset_30_days": {
+    "ka": "30 დღე",
+    "en": "30 days",
+    "reviewed": false,
+    "source": "base-layout.html:2361",
+    "context": "Date-range quick-filter button."
+  },
+  "audit.page.search_placeholder": {
+    "ka": "ძებნა… actor:admin category:SECURITY",
+    "en": "Search… actor:admin category:SECURITY",
+    "reviewed": false,
+    "source": "base-layout.html:2365",
+    "context": "Search input placeholder demonstrating the audit log's structured query syntax (actor:/category: filters); the field-name examples are literal and probably should stay untranslated."
+  },
+  "audit.page.date_range_placeholder": {
+    "ka": "აირჩიეთ პერიოდი",
+    "en": "Choose a period",
+    "reviewed": false,
+    "source": "base-layout.html:2367",
+    "context": "Placeholder for the custom date-range picker input."
+  },
+  "audit.page.category_filter_all": {
+    "ka": "ყველა კატეგორია",
+    "en": "All categories",
+    "reviewed": false,
+    "source": "base-layout.html:2369",
+    "context": "Dropdown filter default option, byte-identical to categories.kb_page.all_categories_option."
+  },
+  "audit.detail_modal.heading": {
+    "ka": "ლოგის დეტალები",
+    "en": "Log details",
+    "reviewed": false,
+    "source": "base-layout.html:2407",
+    "context": "Heading of the audit-log entry detail modal."
+  },
+  "audit.category.security": {
+    "ka": "უსაფრთხოება (SECURITY)",
+    "en": "Security",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:42",
+    "context": "Category badge label (bilingual: Georgian word + English enum value in parens)."
+  },
+  "audit.category.user": {
+    "ka": "მომხმარებელი (USER)",
+    "en": "User",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:43",
+    "context": "Category badge label."
+  },
+  "audit.category.content": {
+    "ka": "კონტენტი (CONTENT)",
+    "en": "Content",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:44",
+    "context": "Category badge label."
+  },
+  "audit.category.system": {
+    "ka": "სისტემა (SYSTEM)",
+    "en": "System",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:45",
+    "context": "Category badge label."
+  },
+  "audit.integrity.admin_only_tooltip": {
+    "ka": "მთლიანობის შემოწმება ხელმისაწვდომია მხოლოდ ადმინისტრატორებისთვის",
+    "en": "Integrity verification is available to administrators only",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:122",
+    "context": "Tooltip shown to managers (who can view logs but not verify the hash chain) in the integrity column."
+  },
+  "audit.integrity.pre_migration_tooltip": {
+    "ka": "მიგრაციამდელი ჩანაწერი — ჯაჭვი არ გააჩნია",
+    "en": "Pre-migration record — has no chain",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:125",
+    "context": "Tooltip for audit log rows created before the tamper-evident hash-chain feature was introduced."
+  },
+  "audit.integrity.verify_button_title": {
+    "ka": "მთლიანობის შემოწმება",
+    "en": "Verify integrity",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:128",
+    "context": "Title/tooltip on the per-row hash-chain verify button; byte-identical text is also the column header title (static/js/audit-dashboard.js:157) and detail-drawer button label (static/js/audit-dashboard.js:308)."
+  },
+  "audit.grid.unknown_actor": {
+    "ka": "უცნობი",
+    "en": "Unknown",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:137",
+    "context": "Fallback actor name when admin_name is missing on a log row; also used as a fallback in the detail drawer (static/js/audit-dashboard.js:279)."
+  },
+  "audit.grid.empty_state": {
+    "ka": "ლოგები არ მოიძებნა",
+    "en": "No logs found",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:149",
+    "context": "Empty-state message in the audit log grid."
+  },
+  "audit.grid.column_time": {
+    "ka": "დრო",
+    "en": "Time",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:155",
+    "context": "Table column header."
+  },
+  "audit.grid.column_who": {
+    "ka": "ვინ",
+    "en": "Who",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:155",
+    "context": "Table column header."
+  },
+  "audit.grid.column_category": {
+    "ka": "კატეგორია",
+    "en": "Category",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:155",
+    "context": "Table column header."
+  },
+  "audit.grid.column_action": {
+    "ka": "ქმედება",
+    "en": "Action",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:156",
+    "context": "Table column header, byte-identical to common.action_labels.action."
+  },
+  "audit.grid.column_object": {
+    "ka": "ობიექტი",
+    "en": "Object",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:156",
+    "context": "Table column header for the affected item (article/user/etc)."
+  },
+  "audit.pagination.previous": {
+    "ka": "წინა",
+    "en": "Previous",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:182",
+    "context": "Pagination 'previous page' button."
+  },
+  "audit.pagination.next": {
+    "ka": "შემდეგი",
+    "en": "Next",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:185",
+    "context": "Pagination 'next page' button."
+  },
+  "audit.detail_drawer.no_details": {
+    "ka": "დეტალები არ არის",
+    "en": "No details",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:194",
+    "context": "Fallback text when a log entry has no structured 'changed fields' detail payload."
+  },
+  "audit.detail_drawer.unknown_browser": {
+    "ka": "უცნობი ბრაუზერი",
+    "en": "Unknown browser",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:226",
+    "context": "Fallback text when the user-agent string can't be parsed for a browser name."
+  },
+  "audit.detail_drawer.unknown_os": {
+    "ka": "უცნობი OS",
+    "en": "Unknown OS",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:231",
+    "context": "Fallback text when the user-agent string can't be parsed for an OS name."
+  },
+  "audit.integrity_status.verified": {
+    "ka": "ჯაჭვი დამოწმებულია",
+    "en": "Chain verified",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:242",
+    "context": "Status label after a successful single-record hash-chain verification."
+  },
+  "audit.integrity_status.tampered": {
+    "ka": "მთლიანობის დარღვევა აღმოჩენილია!",
+    "en": "Integrity breach detected!",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:243",
+    "context": "Status label when hash-chain verification detects tampering; repeats at static/js/audit-dashboard.js:350."
+  },
+  "audit.integrity_status.unchained": {
+    "ka": "მიგრაციამდელი ჩანაწერი — ვერიფიკაცია მიუწვდომელია",
+    "en": "Pre-migration record — verification unavailable",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:244",
+    "context": "Status label for a record with no hash chain."
+  },
+  "audit.integrity_status.error": {
+    "ka": "შემოწმება ვერ შესრულდა",
+    "en": "The check could not be completed",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:245",
+    "context": "Status label when the single-record verification request itself fails."
+  },
+  "audit.detail_drawer.actor_label": {
+    "ka": "მოქმედი პირი",
+    "en": "Actor",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:279",
+    "context": "Field label in the log detail drawer."
+  },
+  "audit.detail_drawer.object_label": {
+    "ka": "ობიექტი",
+    "en": "Object",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:280",
+    "context": "Field label in the log detail drawer, byte-identical to audit.grid.column_object."
+  },
+  "audit.detail_drawer.ip_address_label": {
+    "ka": "IP მისამართი",
+    "en": "IP address",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:281",
+    "context": "Field label in the log detail drawer."
+  },
+  "audit.detail_drawer.device_label": {
+    "ka": "მოწყობილობა",
+    "en": "Device",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:282",
+    "context": "Field label in the log detail drawer."
+  },
+  "audit.detail_drawer.changes_heading": {
+    "ka": "ცვლილებების დეტალები",
+    "en": "Change details",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:287",
+    "context": "Heading above the old/new field diff in the log detail drawer."
+  },
+  "audit.detail_drawer.chain_heading": {
+    "ka": "მთლიანობის ჯაჭვი",
+    "en": "Integrity chain",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:296",
+    "context": "Heading above the hash-chain verification control in the log detail drawer."
+  },
+  "audit.detail_drawer.verify_chain_button": {
+    "ka": "ჯაჭვის შემოწმება",
+    "en": "Verify chain",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:308",
+    "context": "Button to run the hash-chain verification for this record."
+  },
+  "audit.detail_drawer.verifying": {
+    "ka": "მოწმდება…",
+    "en": "Verifying…",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:324",
+    "context": "Transient status text while the chain-verification request is in flight."
+  },
+  "audit.chain_health.verifying": {
+    "ka": "ჯაჭვი მოწმდება…",
+    "en": "Verifying the chain…",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:347",
+    "context": "Global chain-health status pill, initial 'checking' state."
+  },
+  "audit.chain_health.ok": {
+    "ka": "ჯაჭვი გამართულია · ბოლო ${health.checked || 0}",
+    "en": "Chain healthy · last ${health.checked || 0}",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:348",
+    "context": "Global chain-health status pill, healthy state showing how many recent records were checked."
+  },
+  "audit.chain_health.empty": {
+    "ka": "ჯაჭვი ჯერ ცარიელია",
+    "en": "The chain is empty so far",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:349",
+    "context": "Global chain-health status pill when there are no hash-chained records yet."
+  },
+  "audit.chain_health.unavailable_dev": {
+    "ka": "შემოწმება მიუწვდომელია (dev)",
+    "en": "Check unavailable (dev)",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:351",
+    "context": "Global chain-health status pill shown in local/dev environments where hash-chain verification is disabled."
+  },
+  "audit.chain_health.check_failed": {
+    "ka": "ჯაჭვის შემოწმება ვერ შესრულდა",
+    "en": "The chain check could not be completed",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:352",
+    "context": "Global chain-health status pill when the health-check request itself fails."
+  },
+  "audit.chain_health.unchained_count_tooltip": {
+    "ka": "${health.unchained_total} ჩანაწერი წინ უსწრებს ჯაჭვს",
+    "en": "${health.unchained_total} records precede the chain",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:358",
+    "context": "Tooltip explaining how many pre-migration (unchained) records exist."
+  },
+  "audit.chain_health.breach_summary": {
+    "ka": "მთლიანობის დარღვევა ბოლო ${health.checked} ჩანაწერში: ${health.hash_mismatches} შეცვლილი, ${health.link_breaks} გაწყვეტილი რგოლი.",
+    "en": "Integrity breach in the last ${health.checked} records: ${health.hash_mismatches} modified, ${health.link_breaks} broken links.",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:376",
+    "context": "Detailed breach summary line shown when the chain health check finds tampering (text spans lines 376-377 in source)."
+  },
+  "audit.chain_health.breach_hint": {
+    "ka": "დეტალებისთვის გახსენით ჩანაწერი და გამოიყენეთ „ჯაჭვის შემოწმება\".",
+    "en": "For details, open a record and use \"Verify chain\".",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:381",
+    "context": "Hint directing the admin to a specific record's verify-chain control after a breach is detected; uses Georgian „...\" style quotation marks around the button name it references (audit.detail_drawer.verify_chain_button)."
+  },
+  "audit.manager_scope_notice": {
+    "ka": "თქვენ ხედავთ მხოლოდ თქვენი ჯგუფის (${dept}) ლოგებს",
+    "en": "You are only seeing logs from your own group (${dept})",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:395",
+    "context": "Notice shown to manager-role users explaining that the audit log view is scoped to their own department/group."
+  },
+  "audit.grid.load_failed": {
+    "ka": "მონაცემების ჩატვირთვა ვერ მოხერხდა.",
+    "en": "Failed to load the data.",
+    "reviewed": false,
+    "source": "static/js/audit-dashboard.js:452",
+    "context": "Error message shown in place of the audit grid when the log fetch fails."
+  }
+}

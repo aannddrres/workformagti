@@ -1,0 +1,352 @@
+{
+  "admin.broadcast.heading": {
+    "ka": "საგანგებო ტრანსლაცია (Emergency Broadcast)",
+    "en": "Emergency Broadcast",
+    "reviewed": false,
+    "source": "base-layout.html:1721",
+    "context": "Heading of the admin emergency-broadcast panel (send an urgent message to operators)."
+  },
+  "admin.broadcast.all_divisions_option": {
+    "ka": "ყველა განყოფილება",
+    "en": "All divisions",
+    "reviewed": false,
+    "source": "base-layout.html:1727",
+    "context": "Dropdown option targeting every division. NOTE: uses 'განყოფილება' (division) rather than 'დეპარტამენტი' (department) used everywhere else — flagged in README as a possible terminology inconsistency."
+  },
+  "admin.broadcast.all_roles_option": {
+    "ka": "ყველა როლი",
+    "en": "All roles",
+    "reviewed": false,
+    "source": "base-layout.html:1734",
+    "context": "Dropdown option targeting every role in the broadcast recipient filter."
+  },
+  "admin.broadcast.message_placeholder": {
+    "ka": "შეიყვანეთ შეტყობინება...",
+    "en": "Enter a message...",
+    "reviewed": false,
+    "source": "base-layout.html:1743",
+    "context": "Placeholder in the broadcast message textarea."
+  },
+  "admin.broadcast.send_button": {
+    "ka": "გაგზავნა",
+    "en": "Send",
+    "reviewed": false,
+    "source": "base-layout.html:1746",
+    "context": "Send button for the broadcast message."
+  },
+  "admin.broadcast.realtime_notify_toggle": {
+    "ka": "ოპერატორების შეტყობინება (Real-time Broadcast)",
+    "en": "Notify operators (Real-time Broadcast)",
+    "reviewed": false,
+    "source": "base-layout.html:2594",
+    "context": "Checkbox toggle in the article admin form to also push a real-time broadcast notification when the article is published."
+  },
+  "admin.broadcast.sending_status": {
+    "ka": "იგზავნება...",
+    "en": "Sending...",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4298",
+    "context": "Transient button status while a broadcast is being sent."
+  },
+  "admin.broadcast.sent_to_group_toast": {
+    "ka": "შეტყობინება გაიგზავნა მიზნობრივ ჯგუფს!",
+    "en": "The message was sent to the target group!",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4321",
+    "context": "Success toast body when the broadcast was scoped to a specific department/role, as opposed to admin.broadcast.sent_to_all_toast."
+  },
+  "admin.broadcast.sent_to_all_toast": {
+    "ka": "საგანგებო განცხადება წარმატებით გაიგზავნა ყველა თანამშრომელს!",
+    "en": "The emergency announcement was successfully sent to all employees!",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4322",
+    "context": "Success toast body when the broadcast targeted everyone (ternary alternative to admin.broadcast.sent_to_group_toast)."
+  },
+  "admin.broadcast.success_toast_title": {
+    "ka": "ტრანსლაცია ✅",
+    "en": "Broadcast ✅",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4323",
+    "context": "Toast title after a successful broadcast send; literal checkmark emoji is part of the source string."
+  },
+  "admin.broadcast.cooldown_seconds_button": {
+    "ka": "${remaining}წმ",
+    "en": "${remaining}s",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4328",
+    "context": "Disabled send-button countdown text during the anti-spam cooldown; 'წმ' is the abbreviation for 'წამი' (seconds). Repeats at static/js/app-core.js:4341."
+  },
+  "admin.broadcast.cooldown_wait_hint": {
+    "ka": "მოიცადეთ ხელახალ გაგზავნამდე...",
+    "en": "Please wait before sending again...",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4331",
+    "context": "Hint label shown alongside the cooldown countdown."
+  },
+  "admin.broadcast.send_failed_toast_title": {
+    "ka": "შეცდომა ❌",
+    "en": "Error ❌",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4350",
+    "context": "Toast title when the broadcast send request fails; literal cross-mark emoji is part of the source string."
+  },
+  "admin.broadcast.send_failed_toast_body": {
+    "ka": "განცხადების გაგზავნა ვერ მოხერხდა: ${err.message}",
+    "en": "Failed to send the announcement: ${err.message}",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4350",
+    "context": "Toast body when the broadcast send request fails."
+  },
+  "admin.broadcast.live_banner": {
+    "ka": "საგანგებო განცხადება / BROADCAST",
+    "en": "Emergency Announcement / BROADCAST",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:807",
+    "context": "Small-caps label on the live broadcast banner shown to recipients when an emergency broadcast arrives (mixed Georgian/English by design)."
+  },
+  "admin.content.tab_article": {
+    "ka": "სტატია",
+    "en": "Article",
+    "reviewed": false,
+    "source": "base-layout.html:1768",
+    "context": "Content-type toggle button (singular) in the admin content-creation switcher."
+  },
+  "admin.content.archive_button": {
+    "ka": "არქივი",
+    "en": "Archive",
+    "reviewed": false,
+    "source": "base-layout.html:1777",
+    "context": "Bulk-archive button on the admin content management toolbar."
+  },
+  "admin.content.archive_helper_text": {
+    "ka": "საკითხების (მაგ. დასრულებული სააქციო შეთავაზებების) მონიშვნა და დაარქივება",
+    "en": "Select and archive items (e.g. expired promotional offers)",
+    "reviewed": false,
+    "source": "base-layout.html:1780",
+    "context": "Explanatory helper text under the bulk-archive control."
+  },
+  "admin.content.unarchive_button": {
+    "ka": "ამოღება",
+    "en": "Remove",
+    "reviewed": false,
+    "source": "base-layout.html:1784",
+    "context": "Bulk 'remove from archive' button on the admin content management toolbar."
+  },
+  "admin.content.tab_articles_plural": {
+    "ka": "სტატიები",
+    "en": "Articles",
+    "reviewed": false,
+    "source": "base-layout.html:1791",
+    "context": "Admin content-management sub-tab label listing articles (plural, distinct from the singular content-type toggle admin.content.tab_article)."
+  },
+  "admin.content.tab_issue_reports": {
+    "ka": "ხარვეზების რეპორტები",
+    "en": "Issue reports",
+    "reviewed": false,
+    "source": "base-layout.html:1797",
+    "context": "Admin content-management sub-tab label (text spans lines 1797-1798). NOTE: the backing API endpoints for this feature are deprecated and return HTTP 410 (see articles.api.feedback_deprecated / articles.api.feedback_view_deprecated) — flagged in README as dead UI that should probably be removed rather than translated."
+  },
+  "admin.content.article_search_placeholder": {
+    "ka": "ძიება სათაურით...",
+    "en": "Search by title...",
+    "reviewed": false,
+    "source": "base-layout.html:1806",
+    "context": "Search input placeholder in the admin article management table."
+  },
+  "admin.content.status_filter_all": {
+    "ka": "ყველა სტატუსი",
+    "en": "All statuses",
+    "reviewed": false,
+    "source": "base-layout.html:1818",
+    "context": "Dropdown filter default option for article status."
+  },
+  "admin.content.status_published": {
+    "ka": "გამოქვეყნებული",
+    "en": "Published",
+    "reviewed": false,
+    "source": "base-layout.html:1819",
+    "context": "Status filter dropdown option. Byte-identical to articles.standalone_page.status_published."
+  },
+  "admin.content.status_draft": {
+    "ka": "დრაფტი",
+    "en": "Draft",
+    "reviewed": false,
+    "source": "base-layout.html:1820",
+    "context": "Status filter dropdown option."
+  },
+  "admin.content.status_scheduled": {
+    "ka": "დაგეგმილი",
+    "en": "Scheduled",
+    "reviewed": false,
+    "source": "base-layout.html:1821",
+    "context": "Status filter dropdown option."
+  },
+  "admin.content.column_date_added": {
+    "ka": "დამატების თარიღი",
+    "en": "Date added",
+    "reviewed": false,
+    "source": "base-layout.html:1834",
+    "context": "Table column header in the admin article management table; repeats at base-layout.html:1862,1881 for news/videos."
+  },
+  "admin.content.select_all_checkbox_label": {
+    "ka": "ყველას მონიშვნა",
+    "en": "Select all",
+    "reviewed": false,
+    "source": "base-layout.html:1840",
+    "context": "aria-label on the select-all checkbox in the admin article table. Byte-identical to users.role_console.select_all."
+  },
+  "admin.content.issue_reports_column_employee": {
+    "ka": "თანამშრომელი",
+    "en": "Employee",
+    "reviewed": false,
+    "source": "base-layout.html:1898",
+    "context": "Table column header in the (deprecated) issue-reports admin table."
+  },
+  "admin.content.issue_reports_column_article": {
+    "ka": "სტატია",
+    "en": "Article",
+    "reviewed": false,
+    "source": "base-layout.html:1899",
+    "context": "Table column header in the (deprecated) issue-reports admin table."
+  },
+  "admin.content.issue_reports_column_description": {
+    "ka": "აღწერა",
+    "en": "Description",
+    "reviewed": false,
+    "source": "base-layout.html:1900",
+    "context": "Table column header in the (deprecated) issue-reports admin table."
+  },
+  "admin.article_form.status_option_published": {
+    "ka": "გამოქვეყნებული (Published)",
+    "en": "Published",
+    "reviewed": false,
+    "source": "base-layout.html:2487",
+    "context": "Article-form status dropdown option (bilingual label, distinct from the plain-Georgian admin.content.status_published filter option)."
+  },
+  "admin.article_form.status_option_draft": {
+    "ka": "დრაფტი (Draft)",
+    "en": "Draft",
+    "reviewed": false,
+    "source": "base-layout.html:2488",
+    "context": "Article-form status dropdown option (bilingual label)."
+  },
+  "admin.article_form.status_option_scheduled": {
+    "ka": "დაგეგმილი (Scheduled)",
+    "en": "Scheduled",
+    "reviewed": false,
+    "source": "base-layout.html:2489",
+    "context": "Article-form status dropdown option (bilingual label)."
+  },
+  "admin.article_form.published_at_label": {
+    "ka": "გამოქვეყნების დრო (UTC)",
+    "en": "Publish time (UTC)",
+    "reviewed": false,
+    "source": "base-layout.html:2494",
+    "context": "Form field label for scheduling a publish datetime (text spans lines 2494-2495)."
+  },
+  "admin.article_form.extra_params_toggle": {
+    "ka": "დამატებითი პარამეტრები / აუდიტორია",
+    "en": "Additional parameters / audience",
+    "reviewed": false,
+    "source": "base-layout.html:2530",
+    "context": "Collapsible section toggle in the article form revealing audience-targeting options."
+  },
+  "admin.article_form.roles_label": {
+    "ka": "როლები:",
+    "en": "Roles:",
+    "reviewed": false,
+    "source": "base-layout.html:2538",
+    "context": "Label preceding the audience-profile checkboxes (Tech/Info, Service Centers) in the article form."
+  },
+  "admin.article_form.audience_tech_info": {
+    "ka": "ტექ./ინფო (Tech/Info)",
+    "en": "Tech/Info",
+    "reviewed": false,
+    "source": "base-layout.html:2545",
+    "context": "Audience-profile checkbox label (bilingual, abbreviated Georgian + English)."
+  },
+  "admin.article_form.audience_service_centers": {
+    "ka": "სერვის ცენტრები (Service Centers)",
+    "en": "Service Centers",
+    "reviewed": false,
+    "source": "base-layout.html:2553",
+    "context": "Audience-profile checkbox label (bilingual)."
+  },
+  "admin.article_form.department_inline_label": {
+    "ka": "დეპარტამენტი:",
+    "en": "Department:",
+    "reviewed": false,
+    "source": "base-layout.html:2558",
+    "context": "Inline label preceding the department checkboxes in the article form's audience section."
+  },
+  "admin.article_form.preview_panel_label": {
+    "ka": "წინასწარი ნახვა",
+    "en": "Preview",
+    "reviewed": false,
+    "source": "base-layout.html:2606",
+    "context": "Heading of the live-preview panel in the article admin form."
+  },
+  "admin.article_form.preview_receipts_toggle": {
+    "ka": "ქვითრები",
+    "en": "Receipts",
+    "reviewed": false,
+    "source": "base-layout.html:2622",
+    "context": "Toggle button switching the preview-panel audit table to 'receipts' (explicit acknowledgments) mode."
+  },
+  "admin.article_form.preview_views_toggle": {
+    "ka": "ნახვები",
+    "en": "Views",
+    "reviewed": false,
+    "source": "base-layout.html:2623",
+    "context": "Toggle button switching the preview-panel audit table to 'views' (passive view log) mode."
+  },
+  "admin.article_form.version_label": {
+    "ka": "ვერსია:",
+    "en": "Version:",
+    "reviewed": false,
+    "source": "base-layout.html:2626",
+    "context": "Label preceding the version-picker dropdown in the article form's preview/audit panel."
+  },
+  "admin.article_form.audit_search_placeholder": {
+    "ka": "ძებნა (სახელი, ელ.ფოსტა)...",
+    "en": "Search (name, email)...",
+    "reviewed": false,
+    "source": "base-layout.html:2631",
+    "context": "Search placeholder in the article form's embedded audit panel — shorter than the standalone article-modal version which also searches by department (articles.modal.audit_search_placeholder)."
+  },
+  "admin.settings.saved_toast_title": {
+    "ka": "პარამეტრები",
+    "en": "Settings",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4013",
+    "context": "Toast title after saving a settings change."
+  },
+  "admin.settings.saved_toast_body": {
+    "ka": "პარამეტრები წარმატებით შენახულია.",
+    "en": "Settings saved successfully.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4013",
+    "context": "Toast body after saving a settings change (context suggests the personal-cabinet Settings tab, e.g. theme/notification preferences)."
+  },
+  "admin.editor.image_upload_failed": {
+    "ka": "ფაილის ატვირთვა ჩავარდა",
+    "en": "File upload failed",
+    "reviewed": false,
+    "source": "static/js/app-core.js:465",
+    "context": "Error thrown inside the Quill rich-text editor's inline-image upload handler used by the article body editor."
+  },
+  "admin.editor.image_upload_failed_alert": {
+    "ka": "სურათის ატვირთვა ვერ მოხერხდა: ${err.message}",
+    "en": "Failed to upload the image: ${err.message}",
+    "reviewed": false,
+    "source": "static/js/app-core.js:476",
+    "context": "Alert shown to the admin when the Quill editor's inline image upload fails."
+  },
+  "admin.history_table.empty_state": {
+    "ka": "ისტორია ცარიელია",
+    "en": "History is empty",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4367",
+    "context": "Empty-state table row for a generic admin history/log table (nudge history)."
+  }
+}

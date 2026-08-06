@@ -1,0 +1,163 @@
+{
+  "stats.admin_tabs.main": {
+    "ka": "მთავარი",
+    "en": "Main",
+    "reviewed": false,
+    "source": "base-layout.html:1450",
+    "context": "Admin sub-page tab button label for the main dashboard tab."
+  },
+  "stats.admin_tabs.content": {
+    "ka": "კონტენტის მართვა",
+    "en": "Content Management",
+    "reviewed": false,
+    "source": "base-layout.html:1454",
+    "context": "Admin sub-page tab button label; byte-identical to nav.sidebar.admin_content."
+  },
+  "stats.admin_tabs.users": {
+    "ka": "მომხმარებლები",
+    "en": "Users",
+    "reviewed": false,
+    "source": "base-layout.html:1458",
+    "context": "Admin sub-page tab button label; byte-identical to nav.sidebar.admin_users."
+  },
+  "stats.admin_tabs.roles": {
+    "ka": "როლები",
+    "en": "Roles",
+    "reviewed": false,
+    "source": "base-layout.html:1462",
+    "context": "Admin sub-page tab button label. NOTE: shorter than nav.sidebar.admin_roles ('როლების მართვა' = Role Management) — same feature, different wording depending on surface, flagged in README."
+  },
+  "stats.admin_tabs.categories": {
+    "ka": "კატეგორიები",
+    "en": "Categories",
+    "reviewed": false,
+    "source": "base-layout.html:1466",
+    "context": "Admin sub-page tab button label for the category management screen."
+  },
+  "stats.admin_tabs.audit_log": {
+    "ka": "აუდიტ ლოგი",
+    "en": "Audit Log",
+    "reviewed": false,
+    "source": "base-layout.html:1470",
+    "context": "Admin sub-page tab button label. NOTE: different wording from nav.sidebar.admin_logs ('ლოგები' = Logs) and audit.page.heading ('აუდიტ ლოგი' matches this one) — flagged in README for the sidebar-vs-tab inconsistency."
+  },
+  "stats.admin_dashboard.heading": {
+    "ka": "მთავარი პანელი",
+    "en": "Main Dashboard",
+    "reviewed": false,
+    "source": "base-layout.html:1489",
+    "context": "Page heading for the admin main dashboard sub-page."
+  },
+  "stats.admin_dashboard.kpi_users": {
+    "ka": "მომხმარებლები",
+    "en": "Users",
+    "reviewed": false,
+    "source": "base-layout.html:1500",
+    "context": "KPI stat card label counting total users."
+  },
+  "stats.admin_dashboard.kpi_publications": {
+    "ka": "პუბლიკაციები",
+    "en": "Publications",
+    "reviewed": false,
+    "source": "base-layout.html:1516",
+    "context": "KPI stat card label counting published content items."
+  },
+  "stats.admin_dashboard.kpi_readings_tooltip": {
+    "ka": "დააწკაპეთ წაუკითხავი მომხმარებლებისთვის",
+    "en": "Click to see users with unread items",
+    "reviewed": false,
+    "source": "base-layout.html:1527",
+    "context": "Title/tooltip on the mandatory-reading KPI card, which is clickable to filter the progress table."
+  },
+  "stats.admin_dashboard.kpi_mandatory_reading": {
+    "ka": "სავალდებულო კითხვა",
+    "en": "Mandatory reading",
+    "reviewed": false,
+    "source": "base-layout.html:1532",
+    "context": "KPI stat card label. Byte-identical text also used as the users.edit_modal.permission_mandatory_reading permission checkbox label in a different context."
+  },
+  "stats.admin_dashboard.kpi_videos": {
+    "ka": "ვიდეო",
+    "en": "Video",
+    "reviewed": false,
+    "source": "base-layout.html:1548",
+    "context": "KPI stat card label counting videos."
+  },
+  "stats.admin_dashboard.activity_chart_heading": {
+    "ka": "სისტემური აქტივობა (ბოლო 7 დღე)",
+    "en": "System activity (last 7 days)",
+    "reviewed": false,
+    "source": "base-layout.html:1565",
+    "context": "Heading of the activity-over-time chart panel."
+  },
+  "stats.admin_dashboard.activity_chart_empty": {
+    "ka": "აქტივობა არ არის",
+    "en": "No activity",
+    "reviewed": false,
+    "source": "base-layout.html:1570",
+    "context": "Empty-state message overlay on the activity chart when there's no data."
+  },
+  "stats.admin_dashboard.reading_stats_heading": {
+    "ka": "წაკითხვის სტატისტიკა",
+    "en": "Reading statistics",
+    "reviewed": false,
+    "source": "base-layout.html:1575",
+    "context": "Heading of the read/unread donut-chart panel."
+  },
+  "stats.admin_dashboard.top5_heading": {
+    "ka": "ტოპ 5 ყველაზე წაკითხვადი საკითხი",
+    "en": "Top 5 most-read topics",
+    "reviewed": false,
+    "source": "base-layout.html:1582",
+    "context": "Heading of the top-5 most-read content bar-chart panel."
+  },
+  "stats.admin_dashboard.chart_read_label": {
+    "ka": "წაკითხული (${readVal}%)",
+    "en": "Read (${readVal}%)",
+    "reviewed": false,
+    "source": "static/js/app-core.js:5042",
+    "context": "Donut-chart legend label for the 'read' slice."
+  },
+  "stats.admin_dashboard.chart_unread_label": {
+    "ka": "წაუკითხავი (${unreadVal}%)",
+    "en": "Unread (${unreadVal}%)",
+    "reviewed": false,
+    "source": "static/js/app-core.js:5042",
+    "context": "Donut-chart legend label for the 'unread' slice."
+  },
+  "stats.admin_dashboard.top5_no_data": {
+    "ka": "მონაცემები არ არის",
+    "en": "No data",
+    "reviewed": false,
+    "source": "static/js/app-core.js:5056",
+    "context": "Fallback chart label when the top-5 most-read query returns nothing."
+  },
+  "stats.stale_content.heading": {
+    "ka": "მოძველებული კონტენტი",
+    "en": "Outdated content",
+    "reviewed": false,
+    "source": "base-layout.html:1695",
+    "context": "Heading of the admin-dashboard widget listing articles overdue for a content review, based on the staleness-tier logic described in articles.json."
+  },
+  "stats.stale_content.refresh_button": {
+    "ka": "განახლება",
+    "en": "Refresh",
+    "reviewed": false,
+    "source": "base-layout.html:1700",
+    "context": "Refresh button for the outdated-content widget."
+  },
+  "stats.stale_content.column_title": {
+    "ka": "სათაური",
+    "en": "Title",
+    "reviewed": false,
+    "source": "base-layout.html:1706",
+    "context": "Table column header in the outdated-content widget."
+  },
+  "stats.stale_content.column_days": {
+    "ka": "დღეები",
+    "en": "Days",
+    "reviewed": false,
+    "source": "base-layout.html:1708",
+    "context": "Table column header showing days-since-update in the outdated-content widget."
+  }
+}

@@ -27,6 +27,13 @@
       "runtimeArgs": ["-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8003"],
       "port": 8003,
       "autoPort": false
+    },
+    {
+      "name": "angular-frontend",
+      "runtimeExecutable": "C:/Projects/MAGTIB~1/angular-frontend/dev-serve.cmd",
+      "runtimeArgs": [],
+      "port": 4200,
+      "autoPort": false
     }
   ]
 }

@@ -1,0 +1,233 @@
+{
+  "common.buttons.save": {
+    "ka": "შენახვა",
+    "en": "Save",
+    "reviewed": false,
+    "source": "base-layout.html:1038",
+    "context": "Generic Save button label. Byte-identical string repeats at base-layout.html:2009,2084,2182,2320,2599 and static/js/app-core.js:4382 (profile save) — one shared key is intended to cover all of these call sites."
+  },
+  "common.buttons.cancel": {
+    "ka": "გაუქმება",
+    "en": "Cancel",
+    "reviewed": false,
+    "source": "base-layout.html:1036",
+    "context": "Generic Cancel button label, repeats at base-layout.html:2007,2082,2180,2318,2597 and as showConfirm() cancelText default at static/js/app-core.js:978."
+  },
+  "common.buttons.close": {
+    "ka": "დახურვა",
+    "en": "Close",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2811",
+    "context": "Generic close button aria-label/text for modals. Repeats at static/js/app-core.js:942,3517,3533 and base-layout.html:890,903,921,2733."
+  },
+  "common.buttons.delete": {
+    "ka": "წაშლა",
+    "en": "Delete",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2831",
+    "context": "Generic delete button/aria-label, and showConfirm confirmText for delete-type dialogs. Repeats widely (article delete, news delete, category delete, message delete, quiz question/answer row delete)."
+  },
+  "common.buttons.edit": {
+    "ka": "რედაქტირება",
+    "en": "Edit",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2823",
+    "context": "Generic edit button/icon label inside the article modal admin toolbar; same word reused standalone for 'article edit' title tooltips (app-core.js:3286) and table row edit icons (static/js/app-renderers.js:1345 aria-label)."
+  },
+  "common.buttons.view_all": {
+    "ka": "ყველას ნახვა",
+    "en": "View all",
+    "reviewed": false,
+    "source": "base-layout.html:426",
+    "context": "\"View all\" link under notification/message popovers and dashboard widget footers. Repeats at base-layout.html:448,695,726."
+  },
+  "common.buttons.export": {
+    "ka": "ექსპორტი",
+    "en": "Export",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2917",
+    "context": "Generic export button label/icon text, also used for audit-log CSV export button (base-layout.html:2380)."
+  },
+  "common.buttons.confirm": {
+    "ka": "დადასტურება",
+    "en": "Confirm",
+    "reviewed": false,
+    "source": "static/js/app-core.js:977",
+    "context": "Default confirmText for the shared showConfirm() dialog helper; reused verbatim by several call sites that don't override it (e.g. user status toggle at app-core.js:4412, article status change at app-core.js:4739)."
+  },
+  "common.buttons.copy": {
+    "ka": "კოპირება",
+    "en": "Copy",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2799",
+    "context": "Generic 'copy' button/label used for copy-to-clipboard actions (article body copy, code-block copy). Repeats at app-core.js:2990,3348,4151."
+  },
+  "common.buttons.back": {
+    "ka": "უკან",
+    "en": "Back",
+    "reviewed": false,
+    "source": "base-layout.html:821",
+    "context": "Back-navigation link in the category detail view header ('← უკან'). A longer variant 'უკან დაბრუნება' (Back to portal) exists separately at base-layout.html:848 and article.html:133 — kept as its own key, see articles.json / auth.json."
+  },
+  "common.buttons.load_more": {
+    "ka": "მეტის ნახვა",
+    "en": "Load more",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:248",
+    "context": "'Load more' button appended to the dashboard mandatory-reading/news list when more items exist."
+  },
+  "common.status.loading": {
+    "ka": "იტვირთება...",
+    "en": "Loading...",
+    "reviewed": false,
+    "source": "base-layout.html:464",
+    "context": "Generic loading placeholder text, used as the initial textContent for many async-populated elements (profile fields, dropdowns, modals, popovers). This exact string (with 3 trailing dots) recurs dozens of times across base-layout.html, static/js/app-core.js, static/js/app-renderers.js, static/js/dept-dashboard.js and static/js/audit-dashboard.js — only one representative source is cited."
+  },
+  "common.status.loading_ellipsis": {
+    "ka": "იტვირთება…",
+    "en": "Loading…",
+    "reviewed": false,
+    "source": "static/js/dept-dashboard.js:348",
+    "context": "Same meaning as common.status.loading but uses a single Unicode ellipsis character (…) instead of three periods — kept separate because the bytes differ. Also appears at static/js/audit-dashboard.js:324 and base-layout.html:1215,1233."
+  },
+  "common.toast.error_title": {
+    "ka": "შეცდომა",
+    "en": "Error",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1047",
+    "context": "Default toast title when variant === 'error' in the shared showToast() helper; also used standalone as a toast title in many call sites (e.g. static/js/app-router.js:19,70)."
+  },
+  "common.toast.success_title": {
+    "ka": "წარმატება",
+    "en": "Success",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1048",
+    "context": "Default toast title when variant === 'success'; also used standalone as a toast title (e.g. static/js/app-core.js:1731,3439,6229)."
+  },
+  "common.toast.warning_title": {
+    "ka": "გაფრთხილება",
+    "en": "Warning",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1049",
+    "context": "Default toast title when variant === 'warning' in showToast()."
+  },
+  "common.toast.default_title": {
+    "ka": "შეტყობინება",
+    "en": "Notification",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1049",
+    "context": "Fallback toast title when no variant matches (default case) in showToast()."
+  },
+  "common.session.expired": {
+    "ka": "სესია ამოიწურა — გთხოვთ ხელახლა შეხვიდეთ სისტემაში.",
+    "en": "Your session has expired — please log in again.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1246",
+    "context": "Alert shown when a stored auth token is detected as expired/invalid."
+  },
+  "common.filters.all": {
+    "ka": "ყველა",
+    "en": "All",
+    "reviewed": false,
+    "source": "base-layout.html:872",
+    "context": "Generic 'All' filter/tab/dropdown option, reused as the default option text for department, role, category and status filters across the app (e.g. base-layout.html:944,1085,1727,1734,1812,2101,2148,2296 'All' value option). Ambiguous: the same bare word is used for several different filter axes (all departments, all roles, all statuses, all time) — a human should decide whether these need distinct translation keys per axis or can share one."
+  },
+  "common.departments.tech": {
+    "ka": "ტექნიკური",
+    "en": "Technical",
+    "reviewed": false,
+    "source": "base-layout.html:945",
+    "context": "Department name/dropdown option 'Technical' (call-center technical support dept). Repeats verbatim as an <option> value+label at base-layout.html:1086,1728,1943,2062,2149 and as a display badge in static/js/app-renderers.js:462, static/js/app-core.js:505/1764/1919."
+  },
+  "common.departments.info": {
+    "ka": "საინფო",
+    "en": "Info",
+    "reviewed": false,
+    "source": "base-layout.html:946",
+    "context": "Department name/dropdown option, short form of 'Informational' department. Repeats at base-layout.html:1087,1729,1944,2063,2150 and static/js/app-core.js:504/1763/1917."
+  },
+  "common.departments.office": {
+    "ka": "ოფისი",
+    "en": "Office",
+    "reviewed": false,
+    "source": "base-layout.html:947",
+    "context": "Department name/dropdown option 'Office'. Repeats at base-layout.html:1088,1730,1944(area),2064,2151 and static/js/app-core.js:506/1765/1921."
+  },
+  "common.departments.all_departments": {
+    "ka": "ყველა დეპარტამენტი",
+    "en": "All departments",
+    "reviewed": false,
+    "source": "base-layout.html:1084",
+    "context": "Explicit 'All departments' dropdown option/badge text (distinct from the bare common.filters.all). Repeats at base-layout.html:1637 and static/js/app-core.js:2131/3868 ('ყველა დეპარტამენტი' shown when target_department === 'All')."
+  },
+  "common.roles.operator": {
+    "ka": "ოპერატორი",
+    "en": "Operator",
+    "reviewed": false,
+    "source": "base-layout.html:933",
+    "context": "Role name / dropdown option. Repeats at base-layout.html:1735,2164,2226 and displayed in static/js/app-core.js:1095 (profile role badge fallback)."
+  },
+  "common.roles.manager": {
+    "ka": "მენეჯერი",
+    "en": "Manager",
+    "reviewed": false,
+    "source": "base-layout.html:934",
+    "context": "Role name / dropdown option. Repeats at base-layout.html:1736,2165,2228 and static/js/app-core.js:1095."
+  },
+  "common.roles.content_admin": {
+    "ka": "კონტენტის ადმინი",
+    "en": "Content Admin",
+    "reviewed": false,
+    "source": "base-layout.html:935",
+    "context": "Role name / dropdown option for content_admin role. Repeats at base-layout.html:2166,2228."
+  },
+  "common.roles.system_admin": {
+    "ka": "სისტემის ადმინი",
+    "en": "System Admin",
+    "reviewed": false,
+    "source": "base-layout.html:936",
+    "context": "Role name / dropdown option for admin role. Repeats at base-layout.html:2167,2229. Note: security.py:159 stores a differently-worded 'სისტემური ადმინი' for a seeded test account display name — flagged as a probable near-duplicate for human review, see README."
+  },
+  "common.action_labels.action": {
+    "ka": "ქმედება",
+    "en": "Action",
+    "reviewed": false,
+    "source": "base-layout.html:1663",
+    "context": "Generic 'Action' table column header, repeats across nearly every admin table in base-layout.html (e.g. 1841,1863,1882,2119,2245,2333)."
+  },
+  "common.table.name_column": {
+    "ka": "სახელი",
+    "en": "Name",
+    "reviewed": false,
+    "source": "base-layout.html:1210",
+    "context": "Generic 'Name' table column header, reused across the leaderboard, group-users modal, role console and user management tables (base-layout.html:1309,2114,2242,2330; static/js/audit-dashboard.js implicit via dept-dashboard.js:371)."
+  },
+  "common.table.department_column": {
+    "ka": "დეპარტამენტი",
+    "en": "Department",
+    "reviewed": false,
+    "source": "base-layout.html:1659",
+    "context": "Generic 'Department' table column header/label, reused very widely (base-layout.html:1283,1707,1861,2116,2244; static/js/dept-dashboard.js:371; static/js/app-core.js:2938)."
+  },
+  "common.table.email_column": {
+    "ka": "ელ.ფოსტა",
+    "en": "Email",
+    "reviewed": false,
+    "source": "base-layout.html:2115",
+    "context": "'Email' table column header, repeats at base-layout.html:2243."
+  },
+  "common.errors.data_load_failed": {
+    "ka": "მონაცემების ჩატვირთვა ვერ მოხერხდა",
+    "en": "Failed to load the data",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6119",
+    "context": "Generic table-body error row shown across several admin tables/panels (with or without a trailing period in different call sites) when a data fetch fails. Repeats at static/js/app-core.js:6484, static/js/dept-dashboard.js:378/382/397, static/js/audit-dashboard.js implicitly, and static/js/app-renderers.js host errors."
+  },
+  "common.errors.no_data_found": {
+    "ka": "მონაცემები ვერ მოიძებნა",
+    "en": "No data found",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6140",
+    "context": "Generic empty-state table row, repeats at static/js/app-core.js:6917."
+  }
+}

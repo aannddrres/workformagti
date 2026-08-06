@@ -1,0 +1,373 @@
+{
+  "categories.kb_page.heading": {
+    "ka": "ცოდნის ბაზა",
+    "en": "Knowledge Base",
+    "reviewed": false,
+    "source": "base-layout.html:745",
+    "context": "Page heading for the full Knowledge Base page. Byte-identical to nav.sidebar.section_kb."
+  },
+  "categories.kb_page.subtitle": {
+    "ka": "მოძებნეთ ინსტრუქციები, პროდუქტების აღწერები და ტექნიკური გზამკვლევები.",
+    "en": "Search instructions, product descriptions, and technical guides.",
+    "reviewed": false,
+    "source": "base-layout.html:746",
+    "context": "Subtitle under the Knowledge Base heading (text wraps across two source lines, 746-747)."
+  },
+  "categories.kb_page.search_placeholder": {
+    "ka": "ძიება თემით ...",
+    "en": "Search by topic ...",
+    "reviewed": false,
+    "source": "base-layout.html:760",
+    "context": "Search input placeholder specific to the Knowledge Base page."
+  },
+  "categories.kb_page.all_categories_option": {
+    "ka": "ყველა კატეგორია",
+    "en": "All categories",
+    "reviewed": false,
+    "source": "base-layout.html:769",
+    "context": "Dropdown filter default option. Byte-identical option repeats in the admin article filter (base-layout.html:1812) and audit-log category filter (base-layout.html:2369)."
+  },
+  "categories.kb_page.recently_viewed_button": {
+    "ka": "ბოლოს ნანახი",
+    "en": "Recently viewed",
+    "reviewed": false,
+    "source": "base-layout.html:780",
+    "context": "Toggle button showing the user's recently-viewed KB articles. Byte-identical heading reused for the dashboard 'recently viewed' widget (base-layout.html:732)."
+  },
+  "categories.kb_page.new_badge_hint": {
+    "ka": "ბოლო 4 დღის განმავლობაში განახლებულ სტატიებს აქვს ახალი აღნიშვნა.",
+    "en": "Articles updated within the last 4 days are marked 'New'.",
+    "reviewed": false,
+    "source": "base-layout.html:789",
+    "context": "Explanatory hint text about the 'New' badge convention (with the word 'ახალი' emphasized in a nested <strong> tag, text spans lines 789-790)."
+  },
+  "categories.detail_view.back_link": {
+    "ka": "უკან",
+    "en": "Back",
+    "reviewed": false,
+    "source": "base-layout.html:821",
+    "context": "Back-navigation link on the category detail view."
+  },
+  "categories.detail_view.filter_all": {
+    "ka": "ყველა",
+    "en": "All",
+    "reviewed": false,
+    "source": "base-layout.html:834",
+    "context": "Audience-profile filter pill on the category detail view (all/info/tech articles)."
+  },
+  "categories.detail_view.filter_info": {
+    "ka": "საინფორმაციო",
+    "en": "Informational",
+    "reviewed": false,
+    "source": "base-layout.html:836",
+    "context": "Audience-profile filter pill on the category detail view."
+  },
+  "categories.detail_view.filter_tech": {
+    "ka": "ტექნიკური",
+    "en": "Technical",
+    "reviewed": false,
+    "source": "base-layout.html:838",
+    "context": "Audience-profile filter pill on the category detail view."
+  },
+  "categories.detail_view.article_count": {
+    "ka": "${arts.length} მასალა",
+    "en": "${arts.length} items",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:983",
+    "context": "Item-count label in the category detail view header. Georgian 'მასალა' (material/item) is a countable noun used generically for KB content items across the app; a human should check whether Georgian plural/singular agreement needs ICU pluralization in Angular."
+  },
+  "categories.detail_view.not_found": {
+    "ka": "ამ ფილტრით მასალა ვერ მოიძებნა.",
+    "en": "No items found for this filter.",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:986",
+    "context": "Empty-state message when a category+profile filter combination returns nothing."
+  },
+  "categories.detail_view.badge_info_short": {
+    "ka": "საინფ.",
+    "en": "Info",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:989",
+    "context": "Abbreviated audience badge on article cards within a category view."
+  },
+  "categories.detail_view.badge_tech_short": {
+    "ka": "ტექ.",
+    "en": "Tech",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:989",
+    "context": "Abbreviated audience badge on article cards within a category view."
+  },
+  "categories.detail_view.badge_all_short": {
+    "ka": "ყველა",
+    "en": "All",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:989",
+    "context": "Abbreviated audience badge ('all') on article cards within a category view."
+  },
+  "categories.detail_view.article_read_time": {
+    "ka": "${a.read_time || 1} წთ",
+    "en": "${a.read_time || 1} min",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:1012",
+    "context": "Estimated reading time badge ('წთ' = abbreviation for minutes) on article cards."
+  },
+  "categories.dashboard_grid.not_found": {
+    "ka": "კატეგორიები ვერ მოიძებნა.",
+    "en": "No categories found.",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:833",
+    "context": "Empty-state message for the dashboard category grid widget."
+  },
+  "categories.dashboard_grid.article_count_badge": {
+    "ka": "${counts[c.id] || 0} მასალა",
+    "en": "${counts[c.id] || 0} items",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:864",
+    "context": "Per-category item-count badge on the dashboard category grid tiles."
+  },
+  "categories.dashboard_grid.new_content_tooltip": {
+    "ka": "ბოლო 48 საათში დამატებულია ახალი მასალა",
+    "en": "New material was added in the last 48 hours",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:849",
+    "context": "Tooltip on the 'new content' indicator dot on a category tile."
+  },
+  "categories.bento_grid.empty_admin_hint": {
+    "ka": "კატეგორიები ჯერ არ არის. ადმინისტრატორმა უნდა დაამატოს.",
+    "en": "There are no categories yet. An administrator needs to add some.",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:566",
+    "context": "Empty-state message shown to any user when the KB has zero top-level categories."
+  },
+  "categories.bento_grid.default_desc": {
+    "ka": "სტატიები ამ კატეგორიაში",
+    "en": "Articles in this category",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:580",
+    "context": "Fallback description text for a category tile that isn't one of the hardcoded 'friendly' categories below."
+  },
+  "categories.bento_grid.desc_roaming": {
+    "ka": "ტარიფები, პარტნიორები და აქტივაცია",
+    "en": "Rates, partners, and activation",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:571",
+    "context": "Hardcoded description shown on the dashboard bento tile for a category literally named 'როუმინგი' (Roaming)."
+  },
+  "categories.bento_grid.desc_internet": {
+    "ka": "ოპტიკა, 4G/5G და კავშირის პარამეტრები",
+    "en": "Fiber, 4G/5G, and connection settings",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:572",
+    "context": "Hardcoded description for a category named 'ინტერნეტი' (Internet)."
+  },
+  "categories.bento_grid.desc_iptv": {
+    "ka": "არხები, Set-Top Box და მართვა",
+    "en": "Channels, set-top box, and management",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:573",
+    "context": "Hardcoded description for a category named 'IPTV'."
+  },
+  "categories.bento_grid.desc_technical": {
+    "ka": "ხარვეზები, კონფიგურაცია, დახმარება",
+    "en": "Issues, configuration, help",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:574",
+    "context": "Hardcoded description for a category named 'ტექნიკური' (Technical)."
+  },
+  "categories.bento_grid.desc_billing": {
+    "ka": "გადახდები, ანგარიშები, შეცდომები",
+    "en": "Payments, invoices, errors",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:575",
+    "context": "Hardcoded description for a category named 'ბილინგი' (Billing)."
+  },
+  "categories.bento_grid.desc_loyalty": {
+    "ka": "შეთავაზებები და აქციები",
+    "en": "Offers and promotions",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:576",
+    "context": "Hardcoded description for a category named 'ლოიალობა' (Loyalty)."
+  },
+  "categories.bento_grid.desc_mobile": {
+    "ka": "მობილური სერვისები და ნომრები",
+    "en": "Mobile services and numbers",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:577",
+    "context": "Hardcoded description for a category named 'მობილური' (Mobile)."
+  },
+  "categories.admin.form_title_new": {
+    "ka": "ახალი კატეგორია",
+    "en": "New category",
+    "reviewed": false,
+    "source": "base-layout.html:2262",
+    "context": "Button label / form heading context for adding a new category."
+  },
+  "categories.admin.page_heading": {
+    "ka": "კატეგორიების მართვა",
+    "en": "Category Management",
+    "reviewed": false,
+    "source": "base-layout.html:2259",
+    "context": "Admin page heading for the category tree management screen."
+  },
+  "categories.admin.field_name": {
+    "ka": "სახელი",
+    "en": "Name",
+    "reviewed": false,
+    "source": "base-layout.html:2272",
+    "context": "Form field label; reused generically (also a table column header, see common.table.name_column)."
+  },
+  "categories.admin.field_slug": {
+    "ka": "Slug (URL-ისთვის)",
+    "en": "Slug (for URL)",
+    "reviewed": false,
+    "source": "base-layout.html:2277",
+    "context": "Form field label for the category's URL slug."
+  },
+  "categories.admin.slug_placeholder": {
+    "ka": "მაგ: mobile, iptv, billing",
+    "en": "e.g. mobile, iptv, billing",
+    "reviewed": false,
+    "source": "base-layout.html:2278",
+    "context": "Placeholder example text for the slug input."
+  },
+  "categories.admin.field_icon": {
+    "ka": "აიქონი (Font Awesome)",
+    "en": "Icon (Font Awesome)",
+    "reviewed": false,
+    "source": "base-layout.html:2282",
+    "context": "Form field label for the Font Awesome icon class."
+  },
+  "categories.admin.icon_placeholder": {
+    "ka": "მაგ: fa-wifi, fa-tv, fa-sim-card",
+    "en": "e.g. fa-wifi, fa-tv, fa-sim-card",
+    "reviewed": false,
+    "source": "base-layout.html:2284",
+    "context": "Placeholder example text for the icon-class input."
+  },
+  "categories.admin.field_color_profile": {
+    "ka": "ფერის პროფილი (Pastel Color)",
+    "en": "Color profile (Pastel Color)",
+    "reviewed": false,
+    "source": "base-layout.html:2293",
+    "context": "Form field label for the category's accent color picker."
+  },
+  "categories.admin.color_default": {
+    "ka": "ნაგულისხმევი (Slate)",
+    "en": "Default (Slate)",
+    "reviewed": false,
+    "source": "base-layout.html:2296",
+    "context": "Color-picker dropdown option label."
+  },
+  "categories.admin.color_mobile": {
+    "ka": "ნარინჯისფერი (Mobile/Amber)",
+    "en": "Amber (Mobile)",
+    "reviewed": false,
+    "source": "base-layout.html:2297",
+    "context": "Color-picker dropdown option label. NOTE: the color name 'ნარინჯისფერი' (orange) is reused for a different palette slot at base-layout.html:2305 ('technical' / Tech-Orange) — likely an intentional shared color, flagged in README."
+  },
+  "categories.admin.color_fiber": {
+    "ka": "ლურჯი (Fiber/Blue)",
+    "en": "Blue (Fiber)",
+    "reviewed": false,
+    "source": "base-layout.html:2298",
+    "context": "Color-picker dropdown option label."
+  },
+  "categories.admin.color_iptv": {
+    "ka": "იასამნისფერი (IPTV/Purple)",
+    "en": "Purple (IPTV)",
+    "reviewed": false,
+    "source": "base-layout.html:2299",
+    "context": "Color-picker dropdown option label."
+  },
+  "categories.admin.color_hosting": {
+    "ka": "ცისფერი (Hosting/Cyan)",
+    "en": "Cyan (Hosting)",
+    "reviewed": false,
+    "source": "base-layout.html:2300",
+    "context": "Color-picker dropdown option label."
+  },
+  "categories.admin.color_digital": {
+    "ka": "ინდიგო (Digital/Indigo)",
+    "en": "Indigo (Digital)",
+    "reviewed": false,
+    "source": "base-layout.html:2301",
+    "context": "Color-picker dropdown option label."
+  },
+  "categories.admin.color_billing": {
+    "ka": "ფირუზისფერი (Billing/Teal)",
+    "en": "Teal (Billing)",
+    "reviewed": false,
+    "source": "base-layout.html:2302",
+    "context": "Color-picker dropdown option label."
+  },
+  "categories.admin.color_service": {
+    "ka": "ზურმუხტისფერი (Service/Emerald)",
+    "en": "Emerald (Service)",
+    "reviewed": false,
+    "source": "base-layout.html:2303",
+    "context": "Color-picker dropdown option label."
+  },
+  "categories.admin.color_loyalty": {
+    "ka": "ვარდისფერი (Loyalty/Pink)",
+    "en": "Pink (Loyalty)",
+    "reviewed": false,
+    "source": "base-layout.html:2304",
+    "context": "Color-picker dropdown option label."
+  },
+  "categories.admin.color_technical": {
+    "ka": "ნარინჯისფერი (Tech/Orange)",
+    "en": "Orange (Tech)",
+    "reviewed": false,
+    "source": "base-layout.html:2305",
+    "context": "Color-picker dropdown option label; shares the Georgian color word with categories.admin.color_mobile — see that key's note."
+  },
+  "categories.admin.field_parent": {
+    "ka": "მშობელი (ქვე-კატეგორიისთვის)",
+    "en": "Parent (for a subcategory)",
+    "reviewed": false,
+    "source": "base-layout.html:2309",
+    "context": "Form field label for selecting a parent category, text spans lines 2309-2310."
+  },
+  "categories.admin.parent_root_option": {
+    "ka": "— ძირითადი კატეგორია —",
+    "en": "— Top-level category —",
+    "reviewed": false,
+    "source": "base-layout.html:2313",
+    "context": "Dropdown option meaning 'no parent / this is a root category'."
+  },
+  "categories.admin.table_parent_column": {
+    "ka": "მშობელი",
+    "en": "Parent",
+    "reviewed": false,
+    "source": "base-layout.html:2332",
+    "context": "Table column header in the category management list."
+  },
+  "categories.admin.delete_confirm_title": {
+    "ka": "კატეგორიის წაშლა",
+    "en": "Delete category",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4938",
+    "context": "showConfirm() dialog title for deleting a category."
+  },
+  "categories.admin.delete_confirm_message": {
+    "ka": "წავშალო ეს კატეგორია? დაკავშირებული სტატიების კატეგორია განულდება.",
+    "en": "Delete this category? Articles linked to it will have their category cleared.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4938",
+    "context": "showConfirm() dialog body explaining the effect of deleting a category."
+  },
+  "categories.admin.delete_failed": {
+    "ka": "წაშლა ვერ მოხერხდა",
+    "en": "Delete failed",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4942",
+    "context": "Fallback error message when the category delete request fails."
+  },
+  "categories.admin.save_failed": {
+    "ka": "ვერ შენახულდა",
+    "en": "Could not be saved",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4929",
+    "context": "Fallback error message when creating/updating a category fails."
+  }
+}

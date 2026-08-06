@@ -1,0 +1,163 @@
+{
+  "videos.page.heading": {
+    "ka": "ვიდეო ინსტრუქციები",
+    "en": "Video Instructions",
+    "reviewed": false,
+    "source": "base-layout.html:1048",
+    "context": "Page heading for the Video Instructions list page. Byte-identical to nav.sidebar.video_instructions."
+  },
+  "videos.page.search_placeholder": {
+    "ka": "ძიება...",
+    "en": "Search...",
+    "reviewed": false,
+    "source": "base-layout.html:1052",
+    "context": "Search input placeholder on the video list page."
+  },
+  "videos.search_result_label": {
+    "ka": "ვიდეო",
+    "en": "Video",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:59",
+    "context": "Section label for video results in the global search dropdown; also used as a fallback video title (static/js/app-core.js:3865) when video.title is missing."
+  },
+  "videos.player_modal.auth_required_toast": {
+    "ka": "ავტორიზაცია საჭიროა.",
+    "en": "Sign-in required.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3808",
+    "context": "Toast body (title 'ვიდეო') shown when opening a video player without a valid session."
+  },
+  "videos.player_modal.load_failed_toast": {
+    "ka": "ვიდეო ვერ ჩაიტვირთა.",
+    "en": "The video could not be loaded.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3846",
+    "context": "Toast body (title 'ვიდეო') shown when fetching the video record fails."
+  },
+  "videos.player_modal.player_load_failed_toast": {
+    "ka": "ვიდეო პლეერი ვერ ჩაიტვირთა.",
+    "en": "The video player could not be loaded.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3860",
+    "context": "Toast body (title 'ვიდეო') shown when the embed/player itself fails to initialize."
+  },
+  "videos.player_modal.department_all": {
+    "ka": "ყველა დეპარტამენტი",
+    "en": "All departments",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3868",
+    "context": "Department text shown in the video player modal when target is 'All'. Byte-identical to common.departments.all_departments."
+  },
+  "videos.admin.form_title_new": {
+    "ka": "ახალი ვიდეოს დამატება",
+    "en": "Add new video",
+    "reviewed": false,
+    "source": "base-layout.html:2018",
+    "context": "Admin form heading for creating a video. Repeats at static/js/app-core.js:2552,4671."
+  },
+  "videos.admin.title_placeholder": {
+    "ka": "ვიდეოს სათაური",
+    "en": "Video title",
+    "reviewed": false,
+    "source": "base-layout.html:2029",
+    "context": "Title input placeholder on the video form."
+  },
+  "videos.admin.url_field_label": {
+    "ka": "ვიდეოს ბმული (URL) ან ატვირთეთ ფაილი",
+    "en": "Video link (URL) or upload a file",
+    "reviewed": false,
+    "source": "base-layout.html:2032",
+    "context": "Form field label for the video source input, which accepts either a URL or a file upload."
+  },
+  "videos.admin.url_placeholder": {
+    "ka": "https://example.com/video.mp4 ან ატვირთეთ ->",
+    "en": "https://example.com/video.mp4 or upload ->",
+    "reviewed": false,
+    "source": "base-layout.html:2037",
+    "context": "Placeholder text in the video URL input."
+  },
+  "videos.admin.uploading_please_wait": {
+    "ka": "იტვირთება... გთხოვთ დაელოდოთ",
+    "en": "Uploading... please wait",
+    "reviewed": false,
+    "source": "base-layout.html:2046",
+    "context": "Transient status text while a video file upload is in progress. Similar phrase (with 'ფაილი' prefix) used for article attachments — see admin.json."
+  },
+  "videos.admin.category_field_label": {
+    "ka": "კატეგორია",
+    "en": "Category",
+    "reviewed": false,
+    "source": "base-layout.html:2050",
+    "context": "Form field label; reused generically across article/video admin forms and filters."
+  },
+  "videos.admin.category_placeholder_option": {
+    "ka": "აირჩიეთ კატეგორია",
+    "en": "Choose a category",
+    "reviewed": false,
+    "source": "base-layout.html:2053",
+    "context": "Disabled/selected placeholder <option> in the video category dropdown."
+  },
+  "videos.admin.mandatory_toggle_label": {
+    "ka": "სავალდებულოდ გასაცნობი",
+    "en": "Mandatory reading",
+    "reviewed": false,
+    "source": "base-layout.html:2072",
+    "context": "Checkbox label marking a video as mandatory viewing. Byte-identical toggle repeats for news/articles."
+  },
+  "videos.admin.file_attach_upload_failed": {
+    "ka": "ატვირთვა ვერ მოხერხდა (შესაძლოა ფაილი ზედმეტად დიდია)",
+    "en": "Upload failed (the file may be too large)",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2573",
+    "context": "Error thrown when uploading a video file fails. Byte-identical to articles.admin.file_attach_upload_failed."
+  },
+  "videos.admin.uploaded_locally_toast": {
+    "ka": "ვიდეო ფაილი აიტვირთა ლოკალურად",
+    "en": "Video file uploaded locally",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2579",
+    "context": "Success toast body after a video file finishes uploading (paired with common.toast.success_title)."
+  },
+  "videos.admin.update_failed": {
+    "ka": "ვიდეოს განახლება ვერ მოხერხდა",
+    "en": "Failed to update the video",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2616",
+    "context": "Error thrown when updating an existing video fails."
+  },
+  "videos.admin.updated_toast": {
+    "ka": "ვიდეო განახლდა",
+    "en": "Video updated",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2623",
+    "context": "Success toast title after updating a video."
+  },
+  "videos.admin.create_failed": {
+    "ka": "ვიდეოს შექმნა ვერ მოხერხდა",
+    "en": "Failed to create the video",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2631",
+    "context": "Error thrown when creating a new video fails."
+  },
+  "videos.admin.created_toast": {
+    "ka": "ვიდეო დაემატა",
+    "en": "Video added",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2638",
+    "context": "Success toast title after creating a video."
+  },
+  "videos.admin.tab_label": {
+    "ka": "ვიდეო",
+    "en": "Video",
+    "reviewed": false,
+    "source": "base-layout.html:1774",
+    "context": "Content-type toggle button label in the admin content-creation switcher. Byte-identical to videos.search_result_label."
+  },
+  "videos.admin.content_tab_label": {
+    "ka": "ვიდეოები",
+    "en": "Videos",
+    "reviewed": false,
+    "source": "base-layout.html:1795",
+    "context": "Admin content-management sub-tab label listing videos."
+  }
+}

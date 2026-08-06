@@ -1,0 +1,506 @@
+{
+  "users.edit_modal.heading": {
+    "ka": "მომხმარებლის რედაქტირება",
+    "en": "Edit user",
+    "reviewed": false,
+    "source": "base-layout.html:923",
+    "context": "Modal heading for the admin user-edit form."
+  },
+  "users.edit_modal.subtitle": {
+    "ka": "შეცვალეთ მომხმარებლის როლი, დეპარტამენტი, პოზიცია და მიანიჭეთ უფლებები",
+    "en": "Change the user's role, department, position, and assign permissions",
+    "reviewed": false,
+    "source": "base-layout.html:924",
+    "context": "Subtitle under the user-edit modal heading."
+  },
+  "users.edit_modal.role_label": {
+    "ka": "როლი",
+    "en": "Role",
+    "reviewed": false,
+    "source": "base-layout.html:930",
+    "context": "Form field label; reused generically (also a table column header at base-layout.html:2118)."
+  },
+  "users.edit_modal.department_label": {
+    "ka": "დეპარტამენტი",
+    "en": "Department",
+    "reviewed": false,
+    "source": "base-layout.html:941",
+    "context": "Form field label. Byte-identical to common.table.department_column."
+  },
+  "users.edit_modal.position_label": {
+    "ka": "პოზიცია",
+    "en": "Position",
+    "reviewed": false,
+    "source": "base-layout.html:952",
+    "context": "Form field label. Reused as the profile self-edit input placeholder (static/js/app-core.js:4380)."
+  },
+  "users.edit_modal.permissions_label": {
+    "ka": "უფლებები (Granular Permissions)",
+    "en": "Permissions (Granular Permissions)",
+    "reviewed": false,
+    "source": "base-layout.html:958",
+    "context": "Section label above the granular RBAC permission checkboxes."
+  },
+  "users.edit_modal.permission_group_system": {
+    "ka": "სისტემა და მომხმარებლები",
+    "en": "System and Users",
+    "reviewed": false,
+    "source": "base-layout.html:963",
+    "context": "Permission checkbox group heading (Group 1)."
+  },
+  "users.edit_modal.permission_manage_users": {
+    "ka": "მომხმარებლების მართვა",
+    "en": "Manage users",
+    "reviewed": false,
+    "source": "base-layout.html:967",
+    "context": "Individual permission checkbox label. Each permission label is paired with an inherited-from-role indicator suffix '(როლიდან)' — see users.edit_modal.inherited_from_role_suffix."
+  },
+  "users.edit_modal.permission_send_messages": {
+    "ka": "შეტყობინებების გაგზავნა",
+    "en": "Send messages",
+    "reviewed": false,
+    "source": "base-layout.html:971",
+    "context": "Individual permission checkbox label."
+  },
+  "users.edit_modal.permission_audit_logs": {
+    "ka": "აუდიტის ლოგები",
+    "en": "Audit logs",
+    "reviewed": false,
+    "source": "base-layout.html:975",
+    "context": "Individual permission checkbox label controlling access to the audit log section."
+  },
+  "users.edit_modal.permission_group_content": {
+    "ka": "კონტენტის მართვა",
+    "en": "Content Management",
+    "reviewed": false,
+    "source": "base-layout.html:982",
+    "context": "Permission checkbox group heading (Group 2). Byte-identical text used as the top-level nav link nav.sidebar.admin_content — kept as a separate key since this is a permission-group label, not a navigation link."
+  },
+  "users.edit_modal.permission_create_edit_content": {
+    "ka": "კონტენტის შექმნა/რედაქტირება",
+    "en": "Create/edit content",
+    "reviewed": false,
+    "source": "base-layout.html:986",
+    "context": "Individual permission checkbox label."
+  },
+  "users.edit_modal.permission_publish_content": {
+    "ka": "კონტენტის გამოქვეყნება",
+    "en": "Publish content",
+    "reviewed": false,
+    "source": "base-layout.html:990",
+    "context": "Individual permission checkbox label."
+  },
+  "users.edit_modal.permission_group_compliance": {
+    "ka": "შესაბამისობა",
+    "en": "Compliance",
+    "reviewed": false,
+    "source": "base-layout.html:997",
+    "context": "Permission checkbox group heading (Group 3)."
+  },
+  "users.edit_modal.permission_mandatory_reading": {
+    "ka": "სავალდებულო კითხვა",
+    "en": "Mandatory reading",
+    "reviewed": false,
+    "source": "base-layout.html:1001",
+    "context": "Individual permission checkbox label (controls whether the user's role assigns/tracks mandatory reading)."
+  },
+  "users.edit_modal.permission_group_stats": {
+    "ka": "სტატისტიკა და რეპორტები",
+    "en": "Statistics and Reports",
+    "reviewed": false,
+    "source": "base-layout.html:1008",
+    "context": "Permission checkbox group heading (Group 4)."
+  },
+  "users.edit_modal.permission_kpi_stats": {
+    "ka": "KPI და სტატისტიკა",
+    "en": "KPIs and statistics",
+    "reviewed": false,
+    "source": "base-layout.html:1012",
+    "context": "Individual permission checkbox label."
+  },
+  "users.edit_modal.permission_export_reports": {
+    "ka": "რეპორტების ექსპორტი",
+    "en": "Export reports",
+    "reviewed": false,
+    "source": "base-layout.html:1016",
+    "context": "Individual permission checkbox label."
+  },
+  "users.edit_modal.permission_detailed_export": {
+    "ka": "დეტალური ექსპორტი",
+    "en": "Detailed export",
+    "reviewed": false,
+    "source": "base-layout.html:1022",
+    "context": "Individual permission checkbox label, indented as a sub-permission under export reports."
+  },
+  "users.edit_modal.permission_includes_pii_hint": {
+    "ka": "მოიცავს პერსონალურ მონაცემებს",
+    "en": "Includes personal data",
+    "reviewed": false,
+    "source": "base-layout.html:1025",
+    "context": "Warning hint next to the 'detailed export' permission, noting it exposes PII."
+  },
+  "users.edit_modal.inherited_from_role_suffix": {
+    "ka": "(როლიდან)",
+    "en": "(from role)",
+    "reviewed": false,
+    "source": "base-layout.html:967",
+    "context": "Small inline suffix shown next to a permission checkbox when its value is inherited from the user's role rather than set explicitly; the identical suffix repeats after every permission label in this modal (8 occurrences)."
+  },
+  "users.management_page.heading": {
+    "ka": "მომხმარებლების მართვა (RBAC)",
+    "en": "User Management (RBAC)",
+    "reviewed": false,
+    "source": "base-layout.html:2096",
+    "context": "Page heading for the admin user management screen."
+  },
+  "users.management_page.all_groups_filter": {
+    "ka": "ყველა ჯგუფი",
+    "en": "All groups",
+    "reviewed": false,
+    "source": "base-layout.html:2101",
+    "context": "Dropdown filter default option for the department/group filter on the user list."
+  },
+  "users.management_page.new_user_button": {
+    "ka": "ახალი მომხმარებელი",
+    "en": "New user",
+    "reviewed": false,
+    "source": "base-layout.html:2105",
+    "context": "Button to open the create-user form; also referenced in an HTML comment at base-layout.html:2127."
+  },
+  "users.management_page.column_progress": {
+    "ka": "პროგრესი",
+    "en": "Progress",
+    "reviewed": false,
+    "source": "base-layout.html:2117",
+    "context": "Table column header showing each user's compliance progress bar."
+  },
+  "users.create_form.heading": {
+    "ka": "ახალი მომხმარებლის შექმნა",
+    "en": "Create new user",
+    "reviewed": false,
+    "source": "base-layout.html:2129",
+    "context": "Heading of the inline create-user form."
+  },
+  "users.create_form.full_name_label": {
+    "ka": "სრული სახელი",
+    "en": "Full name",
+    "reviewed": false,
+    "source": "base-layout.html:2133",
+    "context": "Form field label."
+  },
+  "users.create_form.email_label": {
+    "ka": "ელ. ფოსტა",
+    "en": "Email",
+    "reviewed": false,
+    "source": "base-layout.html:2138",
+    "context": "Form field label, byte-identical to auth.login_page.email_label."
+  },
+  "users.create_form.position_placeholder": {
+    "ka": "მაგ. ოპერატორი",
+    "en": "e.g. Operator",
+    "reviewed": false,
+    "source": "base-layout.html:2158",
+    "context": "Placeholder example text for the position input."
+  },
+  "users.create_form.temp_password_label": {
+    "ka": "დროებითი პაროლი",
+    "en": "Temporary password",
+    "reviewed": false,
+    "source": "base-layout.html:2172",
+    "context": "Form field label for the initial password set by an admin."
+  },
+  "users.create_form.temp_password_placeholder": {
+    "ka": "მინ. 8 სიმბოლო, ციფრი, დიდი + პატარა ასო",
+    "en": "Min. 8 characters, a digit, upper + lowercase letter",
+    "reviewed": false,
+    "source": "base-layout.html:2175",
+    "context": "Placeholder hinting at the password policy requirements."
+  },
+  "users.create_form.must_change_hint": {
+    "ka": "მომხმარებელი პირველი შესვლისას უნდა შეცვალოს პროფილში.",
+    "en": "The user must change it from their profile on first login.",
+    "reviewed": false,
+    "source": "base-layout.html:2176",
+    "context": "Hint text under the temporary-password field."
+  },
+  "users.create_form.creation_failed": {
+    "ka": "მომხმარებლის შექმნა ვერ მოხერხდა",
+    "en": "Failed to create the user",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4976",
+    "context": "Fallback error thrown when the create-user API call fails without a detail message."
+  },
+  "users.role_console.heading": {
+    "ka": "როლების მართვა",
+    "en": "Role Management",
+    "reviewed": false,
+    "source": "base-layout.html:2196",
+    "context": "Page heading for the bulk role-management console. Byte-identical to nav.sidebar.admin_roles."
+  },
+  "users.role_console.instructions": {
+    "ka": "აირჩიეთ როლი ბარათზე დაჭერით, რომ ნახოთ მისი წევრები. მონიშნეთ ერთი ან რამდენიმე და ჯგუფურად გადაიყვანეთ სხვა როლში, ან დააჭირეთ ფანქარს ცალკეული მომხმარებლის დასარედაქტირებლად. როლის შეცვლისას უფლებები განულდება ახალი როლის ნაგულისხმევ ნაკრებზე.",
+    "en": "Click a role card to see its members. Select one or more and bulk-convert them to another role, or click the pencil to edit an individual user. Changing role resets permissions to the new role's default set.",
+    "reviewed": false,
+    "source": "base-layout.html:2203",
+    "context": "Explanatory instructions paragraph on the role console page (spans lines 2203-2205 in source)."
+  },
+  "users.role_console.select_all": {
+    "ka": "ყველას მონიშვნა",
+    "en": "Select all",
+    "reviewed": false,
+    "source": "base-layout.html:2218",
+    "context": "Select-all checkbox/button label in the role console."
+  },
+  "users.role_console.selected_count": {
+    "ka": "0 მონიშნული",
+    "en": "0 selected",
+    "reviewed": false,
+    "source": "base-layout.html:2220",
+    "context": "Selection counter, initial '0 selected' state, updated dynamically by JS."
+  },
+  "users.role_console.convert_to_role_label": {
+    "ka": "გადაყვანა როლში:",
+    "en": "Convert to role:",
+    "reviewed": false,
+    "source": "base-layout.html:2223",
+    "context": "Label preceding the bulk role-conversion dropdown."
+  },
+  "users.role_console.convert_button": {
+    "ka": "გადაყვანა",
+    "en": "Convert",
+    "reviewed": false,
+    "source": "base-layout.html:2233",
+    "context": "Button that executes the bulk role conversion."
+  },
+  "users.profile.tab_profile": {
+    "ka": "პროფილი",
+    "en": "Profile",
+    "reviewed": false,
+    "source": "base-layout.html:1257",
+    "context": "Profile page tab label."
+  },
+  "users.profile.tab_favorites": {
+    "ka": "ჩემი რჩეულები",
+    "en": "My favorites",
+    "reviewed": false,
+    "source": "base-layout.html:1259",
+    "context": "Profile page tab label (text spans lines 1259-1260 in source)."
+  },
+  "users.profile.tab_messages": {
+    "ka": "შეტყობინებები",
+    "en": "Messages",
+    "reviewed": false,
+    "source": "base-layout.html:1262",
+    "context": "Profile page tab label for personal messages. Byte-identical word also used for the topbar notifications label (nav.topbar.notifications_label) in a different context — flagged as an ambiguous overload of 'შეტყობინებები' for both 'notifications' and 'messages' in README."
+  },
+  "users.profile.tab_settings": {
+    "ka": "პარამეტრები",
+    "en": "Settings",
+    "reviewed": false,
+    "source": "base-layout.html:1264",
+    "context": "Profile page tab label, byte-identical to nav.sidebar.settings."
+  },
+  "users.profile.department_label": {
+    "ka": "დეპარტამენტი:",
+    "en": "Department:",
+    "reviewed": false,
+    "source": "base-layout.html:1283",
+    "context": "Metadata row label on the profile tab."
+  },
+  "users.profile.position_label": {
+    "ka": "პოზიცია:",
+    "en": "Position:",
+    "reviewed": false,
+    "source": "base-layout.html:1285",
+    "context": "Metadata row label on the profile tab."
+  },
+  "users.profile.email_label": {
+    "ka": "ელ.ფოსტა:",
+    "en": "Email:",
+    "reviewed": false,
+    "source": "base-layout.html:1287",
+    "context": "Metadata row label on the profile tab."
+  },
+  "users.profile.phone_label": {
+    "ka": "ტელეფონი:",
+    "en": "Phone:",
+    "reviewed": false,
+    "source": "base-layout.html:1289",
+    "context": "Metadata row label on the profile tab."
+  },
+  "users.profile.knowledge_score_label": {
+    "ka": "ცოდნის ქულა",
+    "en": "Knowledge score",
+    "reviewed": false,
+    "source": "base-layout.html:1299",
+    "context": "Heading for the quiz-performance score widget on the profile tab — this is the real on-screen occurrence of the term described in routers/articles.py's docstring (articles.compliance.knowledge_score_note)."
+  },
+  "users.profile.leaderboard_heading": {
+    "ka": "ლიდერბორდი (დეპარტამენტი)",
+    "en": "Leaderboard (department)",
+    "reviewed": false,
+    "source": "base-layout.html:1304",
+    "context": "Heading for the department knowledge-score leaderboard table."
+  },
+  "users.profile.leaderboard_rank_column": {
+    "ka": "ადგილი",
+    "en": "Rank",
+    "reviewed": false,
+    "source": "base-layout.html:1308",
+    "context": "Table column header in the leaderboard."
+  },
+  "users.profile.leaderboard_score_column": {
+    "ka": "ქულა",
+    "en": "Score",
+    "reviewed": false,
+    "source": "base-layout.html:1310",
+    "context": "Table column header in the leaderboard."
+  },
+  "users.profile.dark_mode_label": {
+    "ka": "Dark Mode (მუქი):",
+    "en": "Dark Mode:",
+    "reviewed": false,
+    "source": "base-layout.html:1399",
+    "context": "Settings tab toggle label; note the source mixes the English feature name with a Georgian parenthetical translation ('მუქი' = dark)."
+  },
+  "users.profile.name_required_alert": {
+    "ka": "სახელი სავალდებულოა.",
+    "en": "Name is required.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4390",
+    "context": "Validation alert when saving the profile with an empty name field."
+  },
+  "users.profile.edit_position_placeholder": {
+    "ka": "პოზიცია",
+    "en": "Position",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4380",
+    "context": "Placeholder in the inline position-edit input on the profile tab."
+  },
+  "users.profile.edit_profile_button": {
+    "ka": "პროფილის რედაქტირება",
+    "en": "Edit profile",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4402",
+    "context": "Button label reverted to after saving/canceling an inline profile edit."
+  },
+  "users.profile.update_failed": {
+    "ka": "პროფილის განახლება ვერ მოხერხდა.",
+    "en": "Failed to update the profile.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4406",
+    "context": "Alert shown when saving profile changes fails."
+  },
+  "users.admin.activate_action": {
+    "ka": "გააქტიურება",
+    "en": "Activate",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4411",
+    "context": "Action verb interpolated into the status-change confirm dialog when reactivating a deactivated user."
+  },
+  "users.admin.deactivate_action": {
+    "ka": "გათიშვა",
+    "en": "Deactivate",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4411",
+    "context": "Action verb interpolated into the status-change confirm dialog when deactivating an active user."
+  },
+  "users.admin.status_confirm_title": {
+    "ka": "მომხმარებლის სტატუსი",
+    "en": "User status",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4412",
+    "context": "showConfirm() dialog title for toggling a user's active/inactive status."
+  },
+  "users.admin.status_confirm_message": {
+    "ka": "ნამდვილად გსურთ მომხმარებლის ${action}?",
+    "en": "Are you sure you want to ${action} this user?",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4412",
+    "context": "showConfirm() dialog body; ${action} is interpolated with either users.admin.activate_action or users.admin.deactivate_action."
+  },
+  "users.admin.status_change_failed": {
+    "ka": "სტატუსის შეცვლა ვერ მოხერხდა.",
+    "en": "Failed to change the status.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4426",
+    "context": "Alert shown when the status-toggle request fails."
+  },
+  "users.admin.updated_toast": {
+    "ka": "მომხმარებელი განახლდა",
+    "en": "User updated",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4525",
+    "context": "Success toast title after updating a user's role/department/permissions."
+  },
+  "users.admin.update_failed_toast": {
+    "ka": "მომხმარებლის განახლება ვერ მოხერხდა",
+    "en": "Failed to update the user",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4536",
+    "context": "Toast title shown when the user-update request fails."
+  },
+  "users.api.unknown_role": {
+    "ka": "უცნობი როლი",
+    "en": "Unknown role",
+    "reviewed": false,
+    "source": "routers/users.py:121",
+    "context": "HTTPException detail (400) when a bulk role-change request specifies an invalid role."
+  },
+  "users.api.bulk_no_users_selected": {
+    "ka": "არცერთი მომხმარებელი არ არის შესარჩევი (საკუთარი როლის შეცვლა ჯგუფურად შეუძლებელია).",
+    "en": "No users are selectable (you cannot bulk-change your own role).",
+    "reviewed": false,
+    "source": "routers/users.py:128",
+    "context": "HTTPException detail (400) for a bulk role-change request that resolves to zero eligible targets."
+  },
+  "users.api.users_not_found": {
+    "ka": "მომხმარებლები ვერ მოიძებნა",
+    "en": "Users not found",
+    "reviewed": false,
+    "source": "routers/users.py:133",
+    "context": "HTTPException detail (404) for a bulk operation referencing nonexistent user ids."
+  },
+  "users.api.cannot_change_last_admin": {
+    "ka": "ბოლო სისტემური ადმინისტრატორის როლის შეცვლა შეუძლებელია.",
+    "en": "You cannot change the role of the last system administrator.",
+    "reviewed": false,
+    "source": "routers/users.py:152",
+    "context": "HTTPException detail (400) guarding against locking everyone out of admin access."
+  },
+  "users.api.user_not_found": {
+    "ka": "მომხმარებელი ვერ მოიძებნა",
+    "en": "User not found",
+    "reviewed": false,
+    "source": "routers/users.py:212",
+    "context": "HTTPException detail (404), reused as the get_or_404() message across several endpoints in routers/users.py (lines 212, 322, 377, 439) — one representative source cited."
+  },
+  "users.api.cannot_deactivate_self": {
+    "ka": "საკუთარი ანგარიშის დეაქტივაცია არ შეიძლება",
+    "en": "You cannot deactivate your own account",
+    "reviewed": false,
+    "source": "routers/users.py:219",
+    "context": "HTTPException detail (400) preventing self-deactivation."
+  },
+  "users.api.group_already_exists": {
+    "ka": "ამ სახელით ჯგუფი უკვე არსებობს",
+    "en": "A group with this name already exists",
+    "reviewed": false,
+    "source": "routers/users.py:357",
+    "context": "HTTPException detail (400) when creating a duplicate group name."
+  },
+  "users.api.email_already_used": {
+    "ka": "ეს ელ. ფოსტა უკვე გამოყენებულია",
+    "en": "This email is already in use",
+    "reviewed": false,
+    "source": "routers/users.py:403",
+    "context": "HTTPException detail (400) for a duplicate email during user creation; repeats verbatim at routers/users.py:422 (update flow)."
+  },
+  "users.api.unknown_permissions": {
+    "ka": "უცნობი უფლება(ები): ${', '.join(unknown)}",
+    "en": "Unknown permission(s): ${', '.join(unknown)}",
+    "reviewed": false,
+    "source": "routers/users.py:470",
+    "context": "HTTPException detail (400) when a permissions-update payload references invalid permission keys."
+  }
+}

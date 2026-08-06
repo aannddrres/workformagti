@@ -1,0 +1,205 @@
+{
+  "search.global.no_results": {
+    "ka": "შედეგი ვერ მოიძებნა",
+    "en": "No results found",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:51",
+    "context": "Empty-state message in the global topbar search results dropdown."
+  },
+  "search.global.section_article": {
+    "ka": "სტატია",
+    "en": "Article",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:57",
+    "context": "Section label above article results in the global search dropdown."
+  },
+  "search.global.section_news": {
+    "ka": "სიახლე",
+    "en": "News",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:58",
+    "context": "Section label above news results in the global search dropdown."
+  },
+  "search.global.section_video": {
+    "ka": "ვიდეო",
+    "en": "Video",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:59",
+    "context": "Section label above video results in the global search dropdown."
+  },
+  "search.history.empty_dropdown": {
+    "ka": "ძიების ისტორია ცარიელია",
+    "en": "Search history is empty",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1163",
+    "context": "Empty-state message shown in the search-input dropdown before any query is typed, when the user has no search history."
+  },
+  "search.history.recently_viewed_heading": {
+    "ka": "ბოლოს ნანახი სტატიები",
+    "en": "Recently viewed articles",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1170",
+    "context": "Section heading in the search-input dropdown listing recently viewed articles."
+  },
+  "search.history.recent_searches_heading": {
+    "ka": "ბოლო ძიებები",
+    "en": "Recent searches",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1181",
+    "context": "Section heading in the search-input dropdown listing recent search queries."
+  },
+  "search.global.search_error": {
+    "ka": "ძიებისას დაფიქსირდა შეცდომა.",
+    "en": "An error occurred while searching.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1220",
+    "context": "Error message shown in the search dropdown when the search request fails. A near-identical message exists for the KB grid search, see search.kb_grid.search_error."
+  },
+  "search.kb_grid.search_error": {
+    "ka": "ძიებისას დაფიქსირდა შეცდომა.",
+    "en": "An error occurred while searching.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3793",
+    "context": "Error message shown in the Knowledge Base grid when a search request fails (byte-identical to search.global.search_error but a separate DOM host)."
+  },
+  "search.kb_grid.no_results": {
+    "ka": "შედეგი ვერ მოიძებნა.",
+    "en": "No results found.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3746",
+    "context": "Empty-state message in the Knowledge Base grid search results (has a trailing period, unlike search.global.no_results)."
+  },
+  "search.history_tab.heading": {
+    "ka": "ძებნის ისტორია",
+    "en": "Search History",
+    "reviewed": false,
+    "source": "base-layout.html:1417",
+    "context": "Heading of the profile tab listing the user's full search history."
+  },
+  "search.history_tab.clear_button": {
+    "ka": "გასუფთავება (ვიზუალური)",
+    "en": "Clear (visual only)",
+    "reviewed": false,
+    "source": "base-layout.html:1418",
+    "context": "Button to clear the on-screen search history list; the '(visual only)' qualifier indicates it doesn't delete server-side history, text spans lines 1418-1419 in source."
+  },
+  "search.history_tab.column_query": {
+    "ka": "საძიებო სიტყვა",
+    "en": "Search term",
+    "reviewed": false,
+    "source": "base-layout.html:1425",
+    "context": "Table column header. Byte-identical header reused in the admin popular/failed-searches tables (base-layout.html:1594,1612)."
+  },
+  "search.history_tab.column_date": {
+    "ka": "თარიღი",
+    "en": "Date",
+    "reviewed": false,
+    "source": "base-layout.html:1426",
+    "context": "Table column header in the search history tab."
+  },
+  "search.history_tab.empty_state": {
+    "ka": "ისტორია ცარიელია",
+    "en": "History is empty",
+    "reviewed": false,
+    "source": "base-layout.html:1432",
+    "context": "Empty-state table row in the search history tab. Byte-identical to the compliance nudge-history empty row (base-layout.html:4367 context) — kept separate per-component."
+  },
+  "search.admin_stats.popular_searches_heading": {
+    "ka": "პოპულარული ძიებები (ტოპ 10)",
+    "en": "Popular searches (top 10)",
+    "reviewed": false,
+    "source": "base-layout.html:1589",
+    "context": "Heading of the admin-dashboard popular-searches analytics panel."
+  },
+  "search.admin_stats.column_search_count": {
+    "ka": "მოძიებები",
+    "en": "Searches",
+    "reviewed": false,
+    "source": "base-layout.html:1595",
+    "context": "Table column header showing how many times a query was searched."
+  },
+  "search.admin_stats.failed_searches_heading": {
+    "ka": "საძიებო ხარვეზები (ტოპ 10)",
+    "en": "Search failures (top 10)",
+    "reviewed": false,
+    "source": "base-layout.html:1607",
+    "context": "Heading of the admin-dashboard zero-result-searches analytics panel."
+  },
+  "search.admin_stats.column_failed_attempts": {
+    "ka": "უშედეგო ცდები",
+    "en": "Unsuccessful attempts",
+    "reviewed": false,
+    "source": "base-layout.html:1613",
+    "context": "Table column header showing zero-result search attempt counts."
+  },
+  "search.ai_assistant.heading": {
+    "ka": "Magti AI ასისტენტი",
+    "en": "Magti AI Assistant",
+    "reviewed": false,
+    "source": "base-layout.html:2691",
+    "context": "Heading of the floating Magti AI chat-assistant panel."
+  },
+  "search.ai_assistant.subtitle": {
+    "ka": "ხელოვნური ინტელექტი",
+    "en": "Artificial Intelligence",
+    "reviewed": false,
+    "source": "base-layout.html:2692",
+    "context": "Subtitle under the AI assistant heading."
+  },
+  "search.ai_assistant.greeting": {
+    "ka": "გამარჯობა! მე ვარ Magti AI ასისტენტი. რით შემიძლია დაგეხმაროთ დღეს? დასვით კითხვა ცოდნის ბაზის შესახებ.",
+    "en": "Hello! I'm the Magti AI Assistant. How can I help you today? Ask me a question about the Knowledge Base.",
+    "reviewed": false,
+    "source": "base-layout.html:2710",
+    "context": "Initial greeting bubble shown when the AI assistant panel opens."
+  },
+  "search.ai_assistant.input_placeholder": {
+    "ka": "დასვით კითხვა (მაგ. IPTV, როუმინგი)...",
+    "en": "Ask a question (e.g. IPTV, roaming)...",
+    "reviewed": false,
+    "source": "base-layout.html:2718",
+    "context": "Placeholder text in the AI assistant chat input."
+  },
+  "search.ai_assistant.coming_soon_toast_title": {
+    "ka": "Magti AI",
+    "en": "Magti AI",
+    "reviewed": false,
+    "source": "static/js/app-core.js:5074",
+    "context": "Toast title for a 'coming soon' placeholder shown when an unimplemented AI feature is triggered."
+  },
+  "search.ai_assistant.coming_soon_toast_body": {
+    "ka": "მალე იქნება!",
+    "en": "Coming soon!",
+    "reviewed": false,
+    "source": "static/js/app-core.js:5074",
+    "context": "Toast body for the AI 'coming soon' placeholder; repeats at static/js/app-core.js:5363."
+  },
+  "search.ai_assistant.coming_soon_alert": {
+    "ka": "Magti AI — მალე იქნება!",
+    "en": "Magti AI — coming soon!",
+    "reviewed": false,
+    "source": "static/js/app-core.js:5076",
+    "context": "Alert (fallback when toast isn't available) for the AI 'coming soon' placeholder; repeats at static/js/app-core.js:5366."
+  },
+  "search.ai_assistant.you_label": {
+    "ka": "შენ",
+    "en": "You",
+    "reviewed": false,
+    "source": "static/js/app-core.js:5108",
+    "context": "Avatar label for the current user's own chat bubble in the AI assistant conversation."
+  },
+  "search.ai_assistant.found_info_prefix": {
+    "ka": "ვიპოვე შესაბამისი ინფორმაცია ჩვენს ცოდნის ბაზაში:",
+    "en": "I found relevant information in our Knowledge Base:",
+    "reviewed": false,
+    "source": "static/js/app-core.js:5175",
+    "context": "Prefix sentence the AI assistant uses to introduce a matched KB result, followed by the excerpt (source string includes trailing '<br><br>' markup)."
+  },
+  "search.ai_assistant.no_info_found": {
+    "ka": "სამწუხაროდ, ამ თემაზე ინფორმაცია ვერ მოვიძიე. სცადეთ სხვა სიტყვებით ძებნა (მაგალითად: \"როუმინგი\", \"IPTV\", \"მობილური\").",
+    "en": "Unfortunately, I couldn't find information on this topic. Try searching with different words (for example: \"roaming\", \"IPTV\", \"mobile\").",
+    "reviewed": false,
+    "source": "static/js/app-core.js:5187",
+    "context": "Fallback response when the AI assistant's simple keyword search finds nothing relevant in the KB."
+  }
+}

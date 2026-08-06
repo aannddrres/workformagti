@@ -1,0 +1,149 @@
+{
+  "messaging.tab.inbox": {
+    "ka": "შემოსულები",
+    "en": "Inbox",
+    "reviewed": false,
+    "source": "base-layout.html:1330",
+    "context": "Personal-messages tab label (inbox direction)."
+  },
+  "messaging.tab.sent": {
+    "ka": "გაგზავნილები",
+    "en": "Sent",
+    "reviewed": false,
+    "source": "base-layout.html:1332",
+    "context": "Personal-messages tab label (sent direction)."
+  },
+  "messaging.filter.all": {
+    "ka": "ყველა",
+    "en": "All",
+    "reviewed": false,
+    "source": "base-layout.html:1338",
+    "context": "Message read-status filter radio option."
+  },
+  "messaging.filter.read": {
+    "ka": "წაკითხული",
+    "en": "Read",
+    "reviewed": false,
+    "source": "base-layout.html:1342",
+    "context": "Message read-status filter radio option."
+  },
+  "messaging.filter.unread": {
+    "ka": "წაუკითხავი",
+    "en": "Unread",
+    "reviewed": false,
+    "source": "base-layout.html:1346",
+    "context": "Message read-status filter radio option."
+  },
+  "messaging.list.empty_state": {
+    "ka": "შეტყობინებები არ მოიძებნა.",
+    "en": "No messages found.",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:655",
+    "context": "Empty-state message in the personal-messages list."
+  },
+  "messaging.list.read_tooltip": {
+    "ka": "წაკითხულია",
+    "en": "Read",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:668",
+    "context": "Tooltip on the envelope icon of a read inbox message."
+  },
+  "messaging.list.mark_read_label": {
+    "ka": "წაკითხულად მონიშვნა",
+    "en": "Mark as read",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:669",
+    "context": "aria-label on the mark-as-read button for an unread inbox message."
+  },
+  "messaging.list.read_by_recipient_tooltip": {
+    "ka": "წაკითხულია მიმღების მიერ",
+    "en": "Read by recipient",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:672",
+    "context": "Tooltip on a sent message's status icon once the recipient has read it."
+  },
+  "messaging.list.delivered_tooltip": {
+    "ka": "მიწოდებულია",
+    "en": "Delivered",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:673",
+    "context": "Tooltip on a sent message's status icon while it's delivered but not yet read."
+  },
+  "messaging.list.system_sender_fallback": {
+    "ka": "სისტემა",
+    "en": "System",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:678",
+    "context": "Fallback sender display name when a message has no human sender."
+  },
+  "messaging.list.from_label": {
+    "ka": "გამომგზავნი: ${escapeHtml(senderName)}",
+    "en": "From: ${escapeHtml(senderName)}",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:679",
+    "context": "Sender label on an inbox message card."
+  },
+  "messaging.list.unknown_recipient_fallback": {
+    "ka": "უცნობი მომხმარებელი",
+    "en": "Unknown user",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:681",
+    "context": "Fallback recipient display name on a sent message card."
+  },
+  "messaging.list.to_label": {
+    "ka": "მიმღები: ${escapeHtml(recipientName)}",
+    "en": "To: ${escapeHtml(recipientName)}",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:682",
+    "context": "Recipient label on a sent message card."
+  },
+  "messaging.list.delete_label": {
+    "ka": "წაშლა",
+    "en": "Delete",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:690",
+    "context": "aria-label on the delete button for an inbox message."
+  },
+  "messaging.delete_confirm.title": {
+    "ka": "შეტყობინების წაშლა",
+    "en": "Delete message",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3931",
+    "context": "showConfirm() dialog title for deleting a personal message."
+  },
+  "messaging.delete_confirm.message": {
+    "ka": "ნამდვილად გსურთ ამ შეტყობინების წაშლა?",
+    "en": "Are you sure you want to delete this message?",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3931",
+    "context": "showConfirm() dialog body for deleting a personal message."
+  },
+  "messaging.popover.loading": {
+    "ka": "იტვირთება...",
+    "en": "Loading...",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:1023",
+    "context": "Loading placeholder in the topbar messages popover, byte-identical to common.status.loading."
+  },
+  "messaging.popover.auth_required": {
+    "ka": "ავტორიზაცია საჭიროა",
+    "en": "Sign-in required",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:1026",
+    "context": "Error shown in the messages popover when there is no valid session (note: no trailing period, unlike the near-identical string used in dept-dashboard.js)."
+  },
+  "messaging.popover.empty": {
+    "ka": "ახალი შეტყობინებები არ არის",
+    "en": "No new messages",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:1035",
+    "context": "Empty-state message in the messages popover. Byte-identical string is reused in the combined notifications popover (static/js/app-renderers.js:1100), which mixes unread mandatory-readings and recent news, not just messages — a human should decide if these need separate keys since the underlying content differs even though the copy is identical."
+  },
+  "messaging.popover.load_failed": {
+    "ka": "შეტყობინებების ჩატვირთვა ვერ მოხერხდა",
+    "en": "Failed to load messages",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:1052",
+    "context": "Error message in the messages popover when the fetch fails. Byte-identical string repeats in the combined notifications popover (static/js/app-renderers.js:1140)."
+  }
+}

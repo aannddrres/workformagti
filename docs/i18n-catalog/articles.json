@@ -1,0 +1,1136 @@
+{
+  "articles.standalone_page.title": {
+    "ka": "სტატია — მაგთის საინფორმაციო პორტალი",
+    "en": "Article — Magti Information Portal",
+    "reviewed": false,
+    "source": "article.html:7",
+    "context": "Browser <title> of the standalone (non-SPA) article print/share page."
+  },
+  "articles.standalone_page.header_label": {
+    "ka": "საინფორმაციო პორტალი",
+    "en": "Information Portal",
+    "reviewed": false,
+    "source": "article.html:126",
+    "context": "Header brand text next to the logo on the standalone article page."
+  },
+  "articles.standalone_page.back_to_portal": {
+    "ka": "პორტალზე დაბრუნება",
+    "en": "Back to portal",
+    "reviewed": false,
+    "source": "article.html:133",
+    "context": "Header link/button returning to the main SPA from the standalone article page."
+  },
+  "articles.standalone_page.category_placeholder": {
+    "ka": "კატეგორია",
+    "en": "Category",
+    "reviewed": false,
+    "source": "article.html:155",
+    "context": "Placeholder badge text shown before the real category name loads."
+  },
+  "articles.standalone_page.author_placeholder": {
+    "ka": "ავტორი",
+    "en": "Author",
+    "reviewed": false,
+    "source": "article.html:157",
+    "context": "Placeholder text shown before the real author loads."
+  },
+  "articles.standalone_page.date_placeholder": {
+    "ka": "თარიღი",
+    "en": "Date",
+    "reviewed": false,
+    "source": "article.html:159",
+    "context": "Placeholder text shown before the real publish date loads."
+  },
+  "articles.standalone_page.title_placeholder": {
+    "ka": "სტატიის სათაური",
+    "en": "Article title",
+    "reviewed": false,
+    "source": "article.html:163",
+    "context": "Placeholder heading text shown before the real article title loads."
+  },
+  "articles.standalone_page.extra_info_toggle": {
+    "ka": "🎯 დამატებითი ინფორმაცია (ჯგუფები და თეგები)",
+    "en": "🎯 Additional information (groups and tags)",
+    "reviewed": false,
+    "source": "article.html:178",
+    "context": "Collapsible section toggle label revealing target-department/tag metadata. Literal emoji is part of the source string. Byte-identical string also appears in the main SPA article modal (static/js/app-core.js:2871)."
+  },
+  "articles.standalone_page.department_label": {
+    "ka": "დეპარტამენტი:",
+    "en": "Department:",
+    "reviewed": false,
+    "source": "article.html:181",
+    "context": "Metadata row label."
+  },
+  "articles.standalone_page.tags_label": {
+    "ka": "თეგები:",
+    "en": "Tags:",
+    "reviewed": false,
+    "source": "article.html:182",
+    "context": "Metadata row label."
+  },
+  "articles.standalone_page.attachment_heading": {
+    "ka": "მიმაგრებული ფაილი",
+    "en": "Attached file",
+    "reviewed": false,
+    "source": "article.html:188",
+    "context": "Heading above the attachment download link. Byte-identical string reused as an admin form field label (base-layout.html:1950,2458) and as fallback link text (see articles.standalone_page.attachment_download_fallback)."
+  },
+  "articles.standalone_page.attachment_download_fallback": {
+    "ka": "ფაილის ჩამოტვირთვა",
+    "en": "Download file",
+    "reviewed": false,
+    "source": "article.html:191",
+    "context": "Default attachment link text before the real filename loads; also used as a JS fallback when a filename can't be parsed (article.html:425, static/js/app-core.js:1956)."
+  },
+  "articles.standalone_page.note_label": {
+    "ka": "ჩემი პირადი შენიშვნა",
+    "en": "My personal note",
+    "reviewed": false,
+    "source": "article.html:197",
+    "context": "Label above the personal-notes textarea on the standalone article page."
+  },
+  "articles.standalone_page.note_placeholder": {
+    "ka": "აქ შეგიძლიათ ჩაწეროთ პირადი შენიშვნა ამ სტატიაზე...",
+    "en": "You can write a personal note about this article here...",
+    "reviewed": false,
+    "source": "article.html:199",
+    "context": "Placeholder text in the personal-notes textarea."
+  },
+  "articles.standalone_page.info_heading": {
+    "ka": "ინფორმაცია",
+    "en": "Information",
+    "reviewed": false,
+    "source": "article.html:216",
+    "context": "Sidebar section heading (status/views panel)."
+  },
+  "articles.standalone_page.status_label": {
+    "ka": "სტატუსი:",
+    "en": "Status:",
+    "reviewed": false,
+    "source": "article.html:219",
+    "context": "Metadata row label."
+  },
+  "articles.standalone_page.views_label": {
+    "ka": "ნახვები:",
+    "en": "Views:",
+    "reviewed": false,
+    "source": "article.html:220",
+    "context": "Metadata row label."
+  },
+  "articles.standalone_page.footer_copyright": {
+    "ka": "© 2026 მაგთი საინფორმაციო პორტალი. ყველა უფლება დაცულია.",
+    "en": "© 2026 Magti Information Portal. All rights reserved.",
+    "reviewed": false,
+    "source": "article.html:230",
+    "context": "Footer copyright text. NOTE: differs from login.html's footer (auth.login_page.footer_copyright — different year 2024 vs 2026, and different org name 'შპს მაგთიკომი' vs 'მაგთი საინფორმაციო პორტალი') — flagged in README for reconciliation."
+  },
+  "articles.standalone_page.error_missing_id": {
+    "ka": "შეცდომა: სტატიის ID არ არის მითითებული.",
+    "en": "Error: no article ID was specified.",
+    "reviewed": false,
+    "source": "article.html:328",
+    "context": "Error shown in the article body area when the page is loaded without an ?id= query param."
+  },
+  "articles.standalone_page.error_load_failed": {
+    "ka": "შეცდომა სტატიის ჩატვირთვისას.",
+    "en": "Error loading the article.",
+    "reviewed": false,
+    "source": "article.html:351",
+    "context": "Error shown in the article body area when the fetch fails."
+  },
+  "articles.standalone_page.document_title_template": {
+    "ka": "${article.title} — მაგთის საინფორმაციო პორტალი",
+    "en": "${article.title} — Magti Information Portal",
+    "reviewed": false,
+    "source": "article.html:356",
+    "context": "document.title template once the article loads; ${article.title} is interpolated."
+  },
+  "articles.standalone_page.category_fallback": {
+    "ka": "კატეგორია #${article.category_id}",
+    "en": "Category #${article.category_id}",
+    "reviewed": false,
+    "source": "article.html:359",
+    "context": "Fallback category badge text when the category name can't be resolved from the loaded taxonomy map."
+  },
+  "articles.standalone_page.author_fallback": {
+    "ka": "ადმინისტრატორი",
+    "en": "Administrator",
+    "reviewed": false,
+    "source": "article.html:362",
+    "context": "Fallback author display name when article.author_email is missing."
+  },
+  "articles.standalone_page.all_departments_badge": {
+    "ka": "ყველა დეპარტამენტი",
+    "en": "All departments",
+    "reviewed": false,
+    "source": "article.html:383",
+    "context": "Badge shown when an article targets every department. Byte-identical to common.departments.all_departments."
+  },
+  "articles.standalone_page.status_published": {
+    "ka": "გამოქვეყნებული",
+    "en": "Published",
+    "reviewed": false,
+    "source": "article.html:400",
+    "context": "Status label shown when article.status === 'published' on the standalone page. NOTE: the admin CMS table uses a different word 'აქტიური' (Active) for the same 'published' status (static/js/app-renderers.js:1299) — flagged in README as a wording inconsistency between two surfaces."
+  },
+  "articles.standalone_page.toc_heading": {
+    "ka": "სარჩევი",
+    "en": "Table of contents",
+    "reviewed": false,
+    "source": "article.html:408",
+    "context": "Auto-generated table-of-contents heading, shown when the article body has enough subheadings. Byte-identical heading also generated inside the main SPA's article modal (static/js/app-core.js:3132)."
+  },
+  "articles.standalone_page.staleness_critical": {
+    "ka": "კრიტიკული სიძველე: ეს მასალა განახლებულა ${article.days_since_update} დღის წინ. არ გამოიყენოთ კლიენტთან სამუშაოდ გადამოწმების გარეშე!",
+    "en": "Critically outdated: this material was last updated ${article.days_since_update} days ago. Do not use it with a customer without verifying first!",
+    "reviewed": false,
+    "source": "article.html:449",
+    "context": "Staleness warning banner shown on the standalone article page for very old content. NOTE: a differently-worded 'critical' staleness message exists in the main SPA article modal — see articles.modal.staleness_critical — flagged in README."
+  },
+  "articles.standalone_page.staleness_high": {
+    "ka": "მაღალი სიძველე: ეს მასალა განახლებულა ${article.days_since_update} დღის წინ. გთხოვთ გადაამოწმოთ ინფორმაცია.",
+    "en": "High staleness: this material was last updated ${article.days_since_update} days ago. Please double-check the information.",
+    "reviewed": false,
+    "source": "article.html:453",
+    "context": "Staleness warning banner, medium-high tier. See also articles.modal.staleness_high (different wording, same concept)."
+  },
+  "articles.standalone_page.staleness_medium": {
+    "ka": "საშუალო სიძველე: ეს მასალა განახლებულა ${article.days_since_update} დღის წინ.",
+    "en": "Moderate staleness: this material was last updated ${article.days_since_update} days ago.",
+    "reviewed": false,
+    "source": "article.html:457",
+    "context": "Staleness warning banner, lowest tier. See also articles.modal.staleness_medium (different wording, same concept)."
+  },
+  "articles.modal.staleness_medium": {
+    "ka": "ინფორმაცია საჭიროებს გადამოწმებას — ${daysOld} დღის წინ განახლდა",
+    "en": "This information needs verification — last updated ${daysOld} days ago",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3174",
+    "context": "Staleness banner inside the main SPA's article modal (as opposed to the standalone article.html page, which has its own differently-worded three-tier staleness copy)."
+  },
+  "articles.modal.staleness_high": {
+    "ka": "გადაამოწმეთ ხელმძღვანელთან — სტატია ${daysOld} დღის წინ განახლდა",
+    "en": "Check with your supervisor — this article was last updated ${daysOld} days ago",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3175",
+    "context": "Staleness banner, high tier, inside the article modal."
+  },
+  "articles.modal.staleness_critical": {
+    "ka": "⛔ არ გამოიყენოთ ხელმძღვანელის თანხმობის გარეშე — ${daysOld} დღის წინ განახლდა",
+    "en": "⛔ Do not use without your supervisor's approval — last updated ${daysOld} days ago",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3176",
+    "context": "Staleness banner, critical tier, inside the article modal. Literal ⛔ emoji is part of the source string."
+  },
+  "articles.admin.form_title_edit": {
+    "ka": "სტატიის რედაქტირება",
+    "en": "Edit article",
+    "reviewed": false,
+    "source": "static/js/app-core.js:601",
+    "context": "Article form heading shown once autosave promotes a new draft to an editable article; identical text also used as the edit-form heading when opening an existing article (static/js/app-core.js:2010) and as a button tooltip (app-core.js:3286)."
+  },
+  "articles.admin.form_title_new": {
+    "ka": "ახალი სტატიის დამატება",
+    "en": "Add new article",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2063",
+    "context": "Article form heading when creating a brand-new article; repeats at static/js/app-core.js:4561."
+  },
+  "articles.admin.autosave_saving": {
+    "ka": "ინახება...",
+    "en": "Saving...",
+    "reviewed": false,
+    "source": "static/js/app-core.js:537",
+    "context": "Transient autosave status text shown while a draft save request is in flight."
+  },
+  "articles.admin.autosave_saved_at": {
+    "ka": "დრაფტი შენახულია ${timeStr}-ზე",
+    "en": "Draft saved at ${timeStr}",
+    "reviewed": false,
+    "source": "static/js/app-core.js:610",
+    "context": "Autosave status text after a successful save; ${timeStr} is a localized time string."
+  },
+  "articles.admin.autosave_failed": {
+    "ka": "ავტო-შენახვა ვერ მოხერხდა",
+    "en": "Autosave failed",
+    "reviewed": false,
+    "source": "static/js/app-core.js:615",
+    "context": "Autosave status text after a failed save attempt."
+  },
+  "articles.admin.select_department_required": {
+    "ka": "აირჩიეთ მინიმუმ ერთი დეპარტამენტი",
+    "en": "Select at least one department",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1772",
+    "context": "Toast error shown when submitting the article form with no target department checked."
+  },
+  "articles.admin.create_or_update_failed": {
+    "ka": "სტატიის განახლება ვერ მოხერხდა",
+    "en": "Failed to update the article",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1824",
+    "context": "Error thrown when saving an existing article fails; the create variant is articles.admin.create_failed."
+  },
+  "articles.admin.create_failed": {
+    "ka": "სტატიის შექმნა ვერ მოხერხდა",
+    "en": "Failed to create the article",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1824",
+    "context": "Error thrown when creating a new article fails (ternary alternative on the same line as articles.admin.create_or_update_failed)."
+  },
+  "articles.admin.updated_toast": {
+    "ka": "სტატია განახლდა",
+    "en": "Article updated",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1831",
+    "context": "Success toast title after updating an article; the create variant is articles.admin.created_toast."
+  },
+  "articles.admin.created_toast": {
+    "ka": "სტატია დაემატა",
+    "en": "Article added",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1831",
+    "context": "Success toast title after creating a new article (ternary alternative)."
+  },
+  "articles.admin.save_failed_toast": {
+    "ka": "სტატია ვერ შეინახა",
+    "en": "The article could not be saved",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1842",
+    "context": "Toast title shown on save failure (catch block)."
+  },
+  "articles.admin.data_not_found_reload": {
+    "ka": "სტატიის მონაცემები ვერ მოიძებნა. სცადეთ გვერდის განახლება.",
+    "en": "Article data not found. Try refreshing the page.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1883",
+    "context": "Alert shown when trying to open the edit form for an article that isn't in the local cache."
+  },
+  "articles.admin.delete_confirm_title": {
+    "ka": "სტატიის წაშლა",
+    "en": "Delete article",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2091",
+    "context": "showConfirm() dialog title for deleting an article."
+  },
+  "articles.admin.delete_confirm_message": {
+    "ka": "ნამდვილად გსურთ სტატიის წაშლა? ეს მოქმედება შეუქცევადია.",
+    "en": "Are you sure you want to delete this article? This action cannot be undone.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2091",
+    "context": "showConfirm() dialog body for deleting an article."
+  },
+  "articles.admin.delete_failed": {
+    "ka": "სტატიის წაშლა ვერ მოხერხდა.",
+    "en": "Failed to delete the article.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2104",
+    "context": "Alert shown when the delete request fails."
+  },
+  "articles.admin.not_found_reload": {
+    "ka": "სტატია ვერ მოიძებნა.",
+    "en": "Article not found.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3412",
+    "context": "Alert shown when trying to open an article by id that can't be resolved."
+  },
+  "articles.modal.open_in_new_tab_title": {
+    "ka": "გახსნა ცალკე გვერდზე",
+    "en": "Open on a separate page",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2792",
+    "context": "Title/tooltip on the article-modal link that opens the standalone article.html view."
+  },
+  "articles.modal.copy_button": {
+    "ka": "კოპირება",
+    "en": "Copy",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2799",
+    "context": "Copy-to-clipboard button label inside a contact-script code block. Same word as common.buttons.copy but kept local since it's inline label text rather than an icon-only button."
+  },
+  "articles.modal.copy_full_text_label": {
+    "ka": "ტექსტის კოპირება",
+    "en": "Copy text",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2802",
+    "context": "aria-label on the 'copy entire article body' toolbar button."
+  },
+  "articles.modal.copy_full_text_title": {
+    "ka": "მთლიანი ტექსტის კოპირება",
+    "en": "Copy the entire text",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2802",
+    "context": "Title/tooltip on the same 'copy entire article body' button."
+  },
+  "articles.modal.theme_toggle_label": {
+    "ka": "თემის შეცვლა",
+    "en": "Change theme",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2805",
+    "context": "aria-label on the article-modal's own light/dark theme toggle button."
+  },
+  "articles.modal.theme_toggle_title": {
+    "ka": "მოდალის თემის შეცვლა (Light/Dark)",
+    "en": "Change modal theme (Light/Dark)",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2805",
+    "context": "Title/tooltip for the article-modal theme toggle, initial state."
+  },
+  "articles.modal.theme_toggle_title_to_light": {
+    "ka": "მოდალის თემის შეცვლა (Light)",
+    "en": "Switch modal theme to Light",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3456",
+    "context": "Dynamic tooltip text set after toggling the modal to dark mode (offers to switch back to light)."
+  },
+  "articles.modal.theme_toggle_title_to_dark": {
+    "ka": "მოდალის თემის შეცვლა (Dark)",
+    "en": "Switch modal theme to Dark",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3459",
+    "context": "Dynamic tooltip text set after toggling the modal to light mode (offers to switch to dark)."
+  },
+  "articles.modal.print_button_label": {
+    "ka": "ბეჭდვა",
+    "en": "Print",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2808",
+    "context": "aria-label on the print button in the article modal toolbar."
+  },
+  "articles.modal.print_button_title": {
+    "ka": "ბეჭდვა / PDF-ად შენახვა",
+    "en": "Print / Save as PDF",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2808",
+    "context": "Title/tooltip on the print button."
+  },
+  "articles.modal.close_label": {
+    "ka": "დახურვა",
+    "en": "Close",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2811",
+    "context": "aria-label on the article-modal close (X) button."
+  },
+  "articles.modal.admin_manage_label": {
+    "ka": "მართვა:",
+    "en": "Manage:",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2819",
+    "context": "Label prefixing the admin-only edit/archive/delete action row inside the article modal."
+  },
+  "articles.modal.edit_label": {
+    "ka": "რედაქტირება",
+    "en": "Edit",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2823",
+    "context": "Text label next to the pencil icon in the admin action row."
+  },
+  "articles.modal.archive_label": {
+    "ka": "დაარქივება",
+    "en": "Archive",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2827",
+    "context": "Text label next to the archive icon in the admin action row; toggles to articles.modal.unarchive_label when the article is already archived."
+  },
+  "articles.modal.unarchive_label": {
+    "ka": "არქივიდან ამოღება",
+    "en": "Remove from archive",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3092",
+    "context": "Dynamic label swapped in for articles.modal.archive_label when the open article is currently archived."
+  },
+  "articles.modal.delete_label": {
+    "ka": "წაშლა",
+    "en": "Delete",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2831",
+    "context": "Text label next to the trash icon in the admin action row."
+  },
+  "articles.modal.contact_scripts_heading": {
+    "ka": "საკონტაქტო სკრიპტები",
+    "en": "Contact scripts",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2840",
+    "context": "Heading above the [copy]-block extracted call-script snippets in the article modal."
+  },
+  "articles.modal.current_badge": {
+    "ka": "აქტუალურია",
+    "en": "Up to date",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2854",
+    "context": "Badge indicating the article's content has been manually verified as current. Same root word reused in articles.admin.mark_current_button ('✓ აქტუალურია')."
+  },
+  "articles.modal.extra_info_toggle": {
+    "ka": "🎯 დამატებითი ინფორმაცია (ჯგუფები და თეგები)",
+    "en": "🎯 Additional information (groups and tags)",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2871",
+    "context": "Same collapsible toggle as articles.standalone_page.extra_info_toggle, duplicated in the SPA article modal markup."
+  },
+  "articles.modal.attachment_label": {
+    "ka": "თანდართული ფაილი",
+    "en": "Attached file",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2877",
+    "context": "Attachment link label inside the article modal. NOTE: slightly different wording from articles.standalone_page.attachment_heading ('მიმაგრებული ფაილი') — both mean 'attached file' but use different adjectives; flagged in README."
+  },
+  "articles.modal.pin_label": {
+    "ka": "ჩანიშნვა",
+    "en": "Pin",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2884",
+    "context": "Button label to pin/bookmark the article for quick access. NOTE: likely a typo in the source for 'ჩანიშვნა' (missing/misplaced ვ) — flagged in README; compare articles.admin.pinned_label."
+  },
+  "articles.modal.acknowledge_button": {
+    "ka": "გავეცანი",
+    "en": "I have read this",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2886",
+    "context": "'I acknowledge / I have read this' button for mandatory-reading confirmation. Repeats at static/js/app-core.js:3242."
+  },
+  "articles.modal.acknowledged_badge": {
+    "ka": "გაცნობილია",
+    "en": "Acknowledged",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3256",
+    "context": "Badge shown after the user has acknowledged/read the mandatory article. Repeats at static/js/app-core.js:6226."
+  },
+  "articles.modal.personal_notes_label": {
+    "ka": "ჩემი პირადი ჩანაწერები",
+    "en": "My personal notes",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2892",
+    "context": "Label above the personal-notes textarea inside the article modal (distinct wording from the standalone-page equivalent, which uses 'ჩემი პირადი შენიშვნა' singular)."
+  },
+  "articles.modal.personal_notes_placeholder": {
+    "ka": "ჩაწერეთ პირადი შენიშვნა ან მოკლე ინსტრუქცია ამ სტატიისთვის (ავტომატურად ინახება)...",
+    "en": "Write a personal note or short instruction for this article (saved automatically)...",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2895",
+    "context": "Placeholder text for the article-modal personal notes textarea."
+  },
+  "articles.modal.related_instructions_label": {
+    "ka": "დაკავშირებული ინსტრუქციები",
+    "en": "Related instructions",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2901",
+    "context": "Heading above the related-articles list inside the article modal."
+  },
+  "articles.modal.audit_heading": {
+    "ka": "წაკითხვის აუდიტი",
+    "en": "Reading audit",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2912",
+    "context": "Heading of the admin-only 'who has read this' audit panel inside the article modal."
+  },
+  "articles.modal.audit_sync_title": {
+    "ka": "მონაცემების განახლება",
+    "en": "Refresh data",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2919",
+    "context": "Title/tooltip on the manual-refresh button for the audit panel."
+  },
+  "articles.modal.audit_search_placeholder": {
+    "ka": "ძებნა (სახელი, დეპარტამენტი, ელ.ფოსტა)...",
+    "en": "Search (name, department, email)...",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2930",
+    "context": "Placeholder on the audit-panel user search input."
+  },
+  "articles.modal.audit_col_user": {
+    "ka": "მომხმარებელი",
+    "en": "User",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2937",
+    "context": "Audit table column header. Repeats verbatim in the reading-audit tables elsewhere (compliance.json, base-layout.html)."
+  },
+  "articles.modal.audit_col_department": {
+    "ka": "დეპარტამენტი",
+    "en": "Department",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2938",
+    "context": "Audit table column header, same as common.table.department_column."
+  },
+  "articles.modal.audit_col_status": {
+    "ka": "სტატუსი",
+    "en": "Status",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2939",
+    "context": "Audit table column header; toggles between 'სტატუსი' (status) and 'ნახვის დრო' (view time) depending on the receipts/views mode toggle (see static/js/app-core.js:6060)."
+  },
+  "articles.modal.view_time_column": {
+    "ka": "ნახვის დრო",
+    "en": "View time",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6060",
+    "context": "Alternate audit-table column header used in 'views' mode instead of 'სტატუსი' (status), used in 'receipts' mode."
+  },
+  "articles.modal.history_heading": {
+    "ka": "ცვლილებების ისტორია",
+    "en": "Change history",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2953",
+    "context": "Heading of the version-history panel inside the article modal. Repeats as a standalone modal heading (static/js/app-core.js:3520)."
+  },
+  "articles.modal.history_compare_label": {
+    "ka": "შედარება:",
+    "en": "Compare:",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2962",
+    "context": "Label next to the version-picker dropdown used to diff two historical versions."
+  },
+  "articles.modal.history_choose_version_hint": {
+    "ka": "აირჩიეთ ვერსია მარცხენა სიიდან შედარების სანახავად.",
+    "en": "Choose a version from the list on the left to see a comparison.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2967",
+    "context": "Placeholder hint shown in the diff pane before a version is selected."
+  },
+  "articles.modal.no_copy_script_toast": {
+    "ka": "სკრიპტი არ არის",
+    "en": "No script available",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2979",
+    "context": "Toast title shown when Ctrl+Shift+C is pressed but the article has no [copy] block."
+  },
+  "articles.modal.no_copy_script_toast_body": {
+    "ka": "ამ სტატიას [copy] ბლოკი არ აქვს.",
+    "en": "This article has no [copy] block.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2979",
+    "context": "Toast body paired with articles.modal.no_copy_script_toast."
+  },
+  "articles.modal.copied_label": {
+    "ka": "კოპირებულია!",
+    "en": "Copied!",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2987",
+    "context": "Transient label shown after clicking a copy button, before reverting to the default label. Repeats at static/js/app-core.js:4146."
+  },
+  "articles.modal.version_badge": {
+    "ka": "ვერსია ${article.version}",
+    "en": "Version ${article.version}",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3013",
+    "context": "Version-number badge shown in the article modal header."
+  },
+  "articles.modal.audit_export_button": {
+    "ka": "ექსპორტი",
+    "en": "Export",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2917",
+    "context": "Same word as common.buttons.export, used specifically as the article reading-audit CSV export button label."
+  },
+  "articles.admin.mark_current_success_toast": {
+    "ka": "სტატია მონიშნულია როგორც აქტუალური.",
+    "en": "The article has been marked as up to date.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4109",
+    "context": "Success toast after an admin/manager manually marks a stale article as verified/current."
+  },
+  "articles.admin.mark_current_button": {
+    "ka": "✓ აქტუალურია",
+    "en": "✓ Up to date",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1554",
+    "context": "Button label after successfully marking the article as current. Literal checkmark is part of the source string."
+  },
+  "articles.admin.verify_failed_toast": {
+    "ka": "სტატია ვერ მოხერხდა",
+    "en": "Could not process the article",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1550",
+    "context": "First success-toast pairing 'სტატია გადამოწმებულია' — see articles.admin.verified_toast (this key intentionally left minimal; see next key for the real verified-toast text)."
+  },
+  "articles.admin.verified_toast": {
+    "ka": "სტატია გადამოწმებულია",
+    "en": "Article verified",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1550",
+    "context": "Toast title after an admin re-verifies an article's currency from the article-modal 'verify' control (separate flow from mark_current)."
+  },
+  "articles.admin.verify_check_failed": {
+    "ka": "გადამოწმება ვერ მოხერხდა",
+    "en": "Verification failed",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1555",
+    "context": "Toast body shown when the verify-currency request fails."
+  },
+  "articles.admin.verify_failed_alert": {
+    "ka": "სტატიის გადამოწმება ვერ მოხერხდა: ${error.message}",
+    "en": "Failed to verify the article: ${error.message}",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4133",
+    "context": "Alert shown when the mark-current API call throws."
+  },
+  "articles.admin.pinned_label": {
+    "ka": "📌 ჩანიშნულია",
+    "en": "📌 Pinned",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4212",
+    "context": "Pin-toggle button label when the article is currently pinned. Literal pin emoji is part of the source string."
+  },
+  "articles.admin.pin_label": {
+    "ka": "📌 ჩანიშნვა",
+    "en": "📌 Pin",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4215",
+    "context": "Pin-toggle button label when the article is not pinned. NOTE: 'ჩანიშნვა' appears to be a typo for 'ჩანიშვნა' — same likely typo as articles.modal.pin_label — flagged in README."
+  },
+  "articles.admin.note_save_failed": {
+    "ka": "ჩანაწერის შენახვა ვერ მოხერხდა.",
+    "en": "Failed to save the note.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:4268",
+    "context": "Alert shown when saving a personal note (article-modal or standalone page) fails."
+  },
+  "articles.admin.pinned_sidebar_heading": {
+    "ka": "📌 ჩანიშნული სტატიები",
+    "en": "📌 Pinned articles",
+    "reviewed": false,
+    "source": "base-layout.html:2670",
+    "context": "Sidebar widget heading listing the user's pinned articles."
+  },
+  "articles.admin.file_attach_upload_failed": {
+    "ka": "ატვირთვა ვერ მოხერხდა (შესაძლოა ფაილი ზედმეტად დიდია)",
+    "en": "Upload failed (the file may be too large)",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1719",
+    "context": "Error thrown when uploading an article attachment fails. Byte-identical string reused for video file uploads (static/js/app-core.js:2573)."
+  },
+  "articles.admin.attachment_uploaded_toast": {
+    "ka": "ფაილი აიტვირთა სისტემაში",
+    "en": "File uploaded successfully",
+    "reviewed": false,
+    "source": "static/js/app-core.js:1731",
+    "context": "Toast body after a successful article attachment upload (paired with common.toast.success_title)."
+  },
+  "articles.history.heading": {
+    "ka": "ცვლილებების ისტორია",
+    "en": "Change history",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3520",
+    "context": "Modal heading for the standalone version-history modal (distinct DOM element from articles.modal.history_heading, same text)."
+  },
+  "articles.history.quick_compare_heading": {
+    "ka": "სწრაფი შედარება",
+    "en": "Quick comparison",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3536",
+    "context": "Heading of the quick-diff modal."
+  },
+  "articles.history.quick_compare_subtitle": {
+    "ka": "შერჩეული ვერსია → მიმდინარე ვერსია.",
+    "en": "Selected version → current version.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3537",
+    "context": "Subtitle explaining the diff direction in the quick-compare modal."
+  },
+  "articles.history.diff_summary_blocks_changed": {
+    "ka": "+${added} / −${removed} ბლოკი შეიცვალა",
+    "en": "+${added} / −${removed} blocks changed",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3560",
+    "context": "Summary line showing added/removed block counts in a diff view."
+  },
+  "articles.history.no_changes_found": {
+    "ka": "ცვლილებები არ მოიძებნა.",
+    "en": "No changes found.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3562",
+    "context": "Empty-state message in the diff pane when two versions are identical."
+  },
+  "articles.history.compare_failed": {
+    "ka": "შედარება ვერ ჩაიტვირთა.",
+    "en": "Comparison could not be loaded.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3568",
+    "context": "Alert shown when the diff request fails."
+  },
+  "articles.history.empty_state": {
+    "ka": "ისტორია ცარიელია (სტატია ჯერ არ დარედაქტირებულა).",
+    "en": "History is empty (the article hasn't been edited yet).",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3588",
+    "context": "Empty-state message in the version-history list. News has its own near-identical variant, see news.json."
+  },
+  "articles.history.version_badge": {
+    "ka": "ვერსია ${h.version_id != null ? h.version_id : (index + 1)}",
+    "en": "Version ${h.version_id != null ? h.version_id : (index + 1)}",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3597",
+    "context": "Per-row version badge label in the history list."
+  },
+  "articles.history.compare_action": {
+    "ka": "შედარება",
+    "en": "Compare",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3599",
+    "context": "Per-row 'compare this version' link/button in the history list."
+  },
+  "articles.history.restore_action": {
+    "ka": "აღდგენა",
+    "en": "Restore",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3600",
+    "context": "Per-row 'restore this version' link/button in the history list. Byte-identical to the showConfirm() confirmText at static/js/app-core.js:2493/3629 and news' restore action."
+  },
+  "articles.history.editor_label": {
+    "ka": "რედაქტორი:",
+    "en": "Editor:",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3605",
+    "context": "Label preceding the author name of a given history entry."
+  },
+  "articles.history.view_text_summary": {
+    "ka": "ტექსტის ნახვა",
+    "en": "View text",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3607",
+    "context": "Collapsible <summary> label to expand the raw text of an older version."
+  },
+  "articles.history.load_failed": {
+    "ka": "ისტორიის ჩატვირთვა ვერ მოხერხდა.",
+    "en": "Failed to load history.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3619",
+    "context": "Alert shown when fetching version history fails."
+  },
+  "articles.history.restore_confirm_title": {
+    "ka": "ვერსიის აღდგენა",
+    "en": "Restore version",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3629",
+    "context": "showConfirm() dialog title for restoring an older article version."
+  },
+  "articles.history.restore_confirm_message": {
+    "ka": "ნამდვილად გსურთ სტატიის ამ ვერსიის აღდგენა? მიმდინარე კონტენტი შეიცვლება.",
+    "en": "Are you sure you want to restore this version of the article? The current content will be replaced.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3629",
+    "context": "showConfirm() dialog body for restoring an older article version."
+  },
+  "articles.history.restore_success": {
+    "ka": "სტატიის ვერსია წარმატებით აღდგა.",
+    "en": "The article version was successfully restored.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3641",
+    "context": "Success toast body after restoring a version."
+  },
+  "articles.history.restore_failed": {
+    "ka": "აღდგენა ვერ მოხერხდა.",
+    "en": "Restore failed.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3649",
+    "context": "Alert shown when restoring a version fails."
+  },
+  "articles.history.compare_dropdown_intro": {
+    "ka": "შედარება:",
+    "en": "Compare:",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6630",
+    "context": "Code comment describing the compare dropdown (used here as the literal label text too, mirrors articles.modal.history_compare_label)."
+  },
+  "articles.history.version_option_label": {
+    "ka": "ვერსია ${v.version}",
+    "en": "Version ${v.version}",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6668",
+    "context": "Dropdown <option> label for a given version number."
+  },
+  "articles.history.version_option_with_author": {
+    "ka": "ვერსია ${v.version} (${v.author_name || 'უცნობი'} - ${dateStr})",
+    "en": "Version ${v.version} (${v.author_name || 'Unknown'} - ${dateStr})",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6087",
+    "context": "Dropdown <option> label including author name and date; the fallback author name 'უცნობი' (Unknown) is embedded inline. Repeats at static/js/app-core.js:6428,6450."
+  },
+  "articles.history.change_label": {
+    "ka": "ცვლილება: ვერსია ${result.base_version} ➔ ვერსია ${result.compare_version}",
+    "en": "Change: version ${result.base_version} ➔ version ${result.compare_version}",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6715",
+    "context": "Diff-pane header summarizing which two versions are being compared."
+  },
+  "articles.history.original_version_label": {
+    "ka": "ვერსია ${result.base_version} (ორიგინალი)",
+    "en": "Version ${result.base_version} (original)",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6717",
+    "context": "Diff-pane header variant when comparing against the very first version."
+  },
+  "articles.history.added_count_label": {
+    "ka": "${result.added || 0} დამატებული",
+    "en": "${result.added || 0} added",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6723",
+    "context": "Diff summary chip showing the number of added blocks."
+  },
+  "articles.history.removed_count_label": {
+    "ka": "${result.removed || 0} წაშლილი",
+    "en": "${result.removed || 0} removed",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6726",
+    "context": "Diff summary chip showing the number of removed blocks."
+  },
+  "articles.history.diff_image_prefix": {
+    "ka": "სურათი:",
+    "en": "Image:",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6736",
+    "context": "Inline label prefixing an embedded-image reference inside a rendered diff."
+  },
+  "articles.history.diff_link_prefix": {
+    "ka": "ბმული:",
+    "en": "Link:",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6741",
+    "context": "Inline label prefixing an embedded-link reference inside a rendered diff."
+  },
+  "articles.history.diff_legend_label": {
+    "ka": "მინიშნება:",
+    "en": "Legend:",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6747",
+    "context": "Legend label above the diff color key (added/removed/changed)."
+  },
+  "articles.history.diff_legend_added": {
+    "ka": "დამატებული",
+    "en": "Added",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6748",
+    "context": "Diff legend entry for additions (green +)."
+  },
+  "articles.history.diff_legend_removed": {
+    "ka": "წაშლილი",
+    "en": "Removed",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6749",
+    "context": "Diff legend entry for removals (red -)."
+  },
+  "articles.history.diff_legend_changed": {
+    "ka": "შეცვლილი",
+    "en": "Changed",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6750",
+    "context": "Diff legend entry for modifications (✎)."
+  },
+  "articles.history.diff_only_changes_toggle": {
+    "ka": "მხოლოდ ცვლილებები",
+    "en": "Changes only",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6754",
+    "context": "Checkbox label to collapse unchanged lines in the diff view."
+  },
+  "articles.history.diff_show_unchanged_lines": {
+    "ka": "... ${hiddenCount} ხაზი უცვლელია (ჩვენება) ...",
+    "en": "... ${hiddenCount} unchanged lines (show) ...",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6795",
+    "context": "Expandable placeholder row hiding unchanged diff lines, with a click-to-reveal affordance."
+  },
+  "articles.history.diff_no_difference": {
+    "ka": "სხვაობა ვერ მოიძებნა.",
+    "en": "No differences found.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6826",
+    "context": "Empty-state message in the diff pane when there is nothing to show."
+  },
+  "articles.history.diff_load_error": {
+    "ka": "შეცდომა: სხვაობის ჩატვირთვა ვერ მოხერხდა",
+    "en": "Error: failed to load the comparison",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6830",
+    "context": "Error message shown in the diff pane when the diff request throws."
+  },
+  "articles.history.list_load_error": {
+    "ka": "ვერსიების ისტორიის ჩატვირთვა ვერ მოხერხდა",
+    "en": "Failed to load version history",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6626",
+    "context": "Error message shown in the compact version-history sidebar list."
+  },
+  "articles.history.current_badge": {
+    "ka": "V${v.version} (მიმდინარე)",
+    "en": "V${v.version} (current)",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6554",
+    "context": "Badge marking the current version in a compact history list."
+  },
+  "articles.history.original_badge": {
+    "ka": "V${v.version} (ორიგინალი)",
+    "en": "V${v.version} (original)",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6557",
+    "context": "Badge marking the first/original version in a compact history list."
+  },
+  "articles.history.editor_compact_label": {
+    "ka": "რედაქტორი: ${name}",
+    "en": "Editor: ${name}",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6566",
+    "context": "Compact 'edited by' label in the sidebar history list, ${name} falls back to 'უცნობი' (Unknown)."
+  },
+  "articles.history.no_history_yet": {
+    "ka": "ცვლილებების ისტორია ჯერ არ არსებობს.",
+    "en": "No change history yet.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:6537",
+    "context": "Empty-state message in the compact sidebar history list, distinct wording from articles.history.empty_state."
+  },
+  "articles.history.button_title": {
+    "ka": "ვერსიების ისტორია",
+    "en": "Version history",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3302",
+    "context": "Title/tooltip on the 'view history' toolbar button in the article modal; label text repeats at app-core.js:3305."
+  },
+  "articles.modal.audit_button_label": {
+    "ka": "აუდიტი",
+    "en": "Audit",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3275",
+    "context": "Toolbar button label opening the reading-audit panel."
+  },
+  "articles.modal.edit_button_title": {
+    "ka": "სტატიის რედაქტირება",
+    "en": "Edit article",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3286",
+    "context": "Title/tooltip on the edit toolbar button in the article modal (duplicate text of articles.admin.form_title_edit, different UI role)."
+  },
+  "articles.modal.copy_script_title": {
+    "ka": "კოპირება",
+    "en": "Copy",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3347",
+    "context": "Title/tooltip on a contact-script copy button, byte-identical to articles.modal.copy_button."
+  },
+  "articles.modal.script_copied_toast_title": {
+    "ka": "კოპირება",
+    "en": "Copied",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3439",
+    "context": "Toast title after successfully copying a contact-script snippet."
+  },
+  "articles.modal.script_copied_toast_body": {
+    "ka": "სტატიის ტექსტი კოპირებულია!",
+    "en": "The article text has been copied!",
+    "reviewed": false,
+    "source": "static/js/app-core.js:3439",
+    "context": "Toast body after copying the article's full text."
+  },
+  "articles.compliance.knowledge_score_note": {
+    "ka": "'ცოდნის ქულა' — +10 per distinct article quiz passed, +5 bonus if passed",
+    "en": "'Knowledge score' — +10 per distinct article quiz passed, +5 bonus if passed",
+    "reviewed": false,
+    "source": "routers/articles.py:870",
+    "context": "Docstring, not directly rendered — quoted here only because it names the Georgian UI term 'ცოდნის ქულა' (Knowledge score) that DOES appear verbatim as a real UI label; see stats.json/users.json for the actual on-screen occurrence (base-layout.html:1299)."
+  },
+  "articles.compliance.ack_required_before_confirm": {
+    "ka": "საჭიროა ქვიზის წარმატებით ჩაბარება წაკითხვის დასადასტურებლად",
+    "en": "You must pass the quiz to confirm you've read this",
+    "reviewed": false,
+    "source": "routers/articles.py:1029",
+    "context": "HTTPException detail (403) when a user tries to acknowledge a mandatory article that has a quiz without having passed it first."
+  },
+  "articles.api.not_found": {
+    "ka": "სტატია ვერ მოიძებნა",
+    "en": "Article not found",
+    "reviewed": false,
+    "source": "routers/articles.py:85",
+    "context": "HTTPException detail (404) used consistently across ~20 endpoints in routers/articles.py whenever an article id doesn't resolve — one representative source cited, see README for the full list of line numbers."
+  },
+  "articles.api.not_archived": {
+    "ka": "სტატია არ არის არქივში",
+    "en": "The article is not archived",
+    "reviewed": false,
+    "source": "routers/articles.py:488",
+    "context": "HTTPException detail (400) when trying to unarchive a non-archived article."
+  },
+  "articles.api.history_version_not_found": {
+    "ka": "ისტორიის ვერსია ვერ მოიძებნა",
+    "en": "History version not found",
+    "reviewed": false,
+    "source": "routers/articles.py:607",
+    "context": "HTTPException detail (404) for an unresolvable version id; also used for the comparison-side version at routers/articles.py:624 ('შესადარებელი ისტორიის ვერსია ვერ მოიძებნა', slightly different wording — kept as a separate key below)."
+  },
+  "articles.api.compare_version_not_found": {
+    "ka": "შესადარებელი ისტორიის ვერსია ვერ მოიძებნა",
+    "en": "The version to compare against was not found",
+    "reviewed": false,
+    "source": "routers/articles.py:624",
+    "context": "HTTPException detail (404) specifically for the 'compare against' version id in a diff request."
+  },
+  "articles.api.quiz_needs_question": {
+    "ka": "ქვიზს უნდა ჰქონდეს მინიმუმ ერთი კითხვა",
+    "en": "The quiz must have at least one question",
+    "reviewed": false,
+    "source": "routers/articles.py:741",
+    "context": "HTTPException detail (422) validating quiz creation/update payloads."
+  },
+  "articles.api.quiz_answer_min": {
+    "ka": "ყოველ კითხვას უნდა ჰქონდეს მინიმუმ 2 პასუხი",
+    "en": "Each question must have at least 2 answers",
+    "reviewed": false,
+    "source": "routers/articles.py:744",
+    "context": "HTTPException detail (422) validating quiz question structure."
+  },
+  "articles.api.quiz_one_correct_answer": {
+    "ka": "ყოველ კითხვას უნდა ჰქონდეს ზუსტად ერთი სწორი პასუხი",
+    "en": "Each question must have exactly one correct answer",
+    "reviewed": false,
+    "source": "routers/articles.py:747",
+    "context": "HTTPException detail (422) validating quiz answer correctness flags."
+  },
+  "articles.api.quiz_not_found": {
+    "ka": "ამ სტატიას კვიზი არ აქვს",
+    "en": "This article has no quiz",
+    "reviewed": false,
+    "source": "routers/articles.py:778",
+    "context": "HTTPException detail (404), reused at routers/articles.py:815."
+  },
+  "articles.api.quiz_no_questions": {
+    "ka": "ამ სტატიას კვიზის კითხვები არ აქვს",
+    "en": "This article's quiz has no questions",
+    "reviewed": false,
+    "source": "routers/articles.py:823",
+    "context": "HTTPException detail (404) when the quiz exists but has zero questions."
+  },
+  "articles.api.feedback_deprecated": {
+    "ka": "ხარვეზის რეპორტირება დეპრეკირებულია",
+    "en": "Issue reporting is deprecated",
+    "reviewed": false,
+    "source": "routers/articles.py:1402",
+    "context": "HTTPException detail (410 Gone) for the removed article-issue-reporting endpoint."
+  },
+  "articles.api.feedback_view_deprecated": {
+    "ka": "უკუკავშირის ნახვა დეპრეკირებულია",
+    "en": "Viewing feedback is deprecated",
+    "reviewed": false,
+    "source": "routers/articles.py:1410",
+    "context": "HTTPException detail (410 Gone) for the removed feedback-viewing endpoint."
+  },
+  "articles.modal.add_to_notes_tooltip": {
+    "ka": "ჩანაწერებში დამატება",
+    "en": "Add to notes",
+    "reviewed": false,
+    "source": "static/js/app-core.js:5417",
+    "context": "Tooltip shown when a user selects text inside the article body, offering to append the selection to their personal notes for that article."
+  },
+  "articles.modal.added_to_notes_toast": {
+    "ka": "ტექსტი დაემატა პირად ჩანაწერებში",
+    "en": "The text was added to your personal notes",
+    "reviewed": false,
+    "source": "static/js/app-core.js:5425",
+    "context": "Success toast body (title 'ჩანაწერი' — Note) after using the text-selection 'add to notes' tooltip."
+  },
+  "articles.modal.added_to_notes_toast_title": {
+    "ka": "ჩანაწერი",
+    "en": "Note",
+    "reviewed": false,
+    "source": "static/js/app-core.js:5425",
+    "context": "Toast title paired with articles.modal.added_to_notes_toast."
+  }
+}

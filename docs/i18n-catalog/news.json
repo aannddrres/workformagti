@@ -1,0 +1,415 @@
+{
+  "news.page.heading": {
+    "ka": "სიახლეები",
+    "en": "News",
+    "reviewed": false,
+    "source": "base-layout.html:1066",
+    "context": "Page heading for the News list page. Byte-identical to nav.sidebar.news."
+  },
+  "news.page.search_placeholder": {
+    "ka": "ძიება სათაურით ან შინაარსით ...",
+    "en": "Search by title or content ...",
+    "reviewed": false,
+    "source": "base-layout.html:1074",
+    "context": "Search input placeholder on the News list page."
+  },
+  "news.page.filter_all_departments": {
+    "ka": "ყველა დეპარტამენტი",
+    "en": "All departments",
+    "reviewed": false,
+    "source": "base-layout.html:1084",
+    "context": "Dropdown filter option for the news department filter."
+  },
+  "news.page.sort_newest": {
+    "ka": "უახლესი ჯერ",
+    "en": "Newest first",
+    "reviewed": false,
+    "source": "base-layout.html:1096",
+    "context": "Sort dropdown option."
+  },
+  "news.page.sort_oldest": {
+    "ka": "უძველესი ჯერ",
+    "en": "Oldest first",
+    "reviewed": false,
+    "source": "base-layout.html:1097",
+    "context": "Sort dropdown option."
+  },
+  "news.page.sort_alphabetical": {
+    "ka": "ანბანით (ა-ჰ)",
+    "en": "Alphabetical (A-Z)",
+    "reviewed": false,
+    "source": "base-layout.html:1098",
+    "context": "Sort dropdown option."
+  },
+  "news.page.favorites_only_toggle": {
+    "ka": "მხოლოდ რჩეულები",
+    "en": "Favorites only",
+    "reviewed": false,
+    "source": "base-layout.html:1105",
+    "context": "Checkbox/toggle label to filter the news list to starred items only."
+  },
+  "news.page.refresh_button": {
+    "ka": "განახლება",
+    "en": "Refresh",
+    "reviewed": false,
+    "source": "base-layout.html:1117",
+    "context": "Refresh button on the news list page."
+  },
+  "news.page.not_found": {
+    "ka": "სიახლეები არ მოიძებნა.",
+    "en": "No news found.",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:18",
+    "context": "Empty-state message for the dashboard 'latest news' widget; byte-identical empty-state on the full news page at static/js/app-renderers.js:448."
+  },
+  "news.card.department_general": {
+    "ka": "საერთო",
+    "en": "General",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:458",
+    "context": "Department badge text for news items targeting 'All' departments; defaults to this and is also explicitly reassigned for target_department === 'All' (app-renderers.js:468)."
+  },
+  "news.card.department_tech": {
+    "ka": "ტექნიკური",
+    "en": "Technical",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:462",
+    "context": "Department badge text on a news card when target_department === 'Support'. Byte-identical to common.departments.tech."
+  },
+  "news.card.department_info": {
+    "ka": "საინფორმაციო",
+    "en": "Informational",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:465",
+    "context": "Department badge text on a news card when target_department === 'Informational'. NOTE: longer form than common.departments.info ('საინფო') — same meaning, different string, flagged in README."
+  },
+  "news.card.my_department_badge": {
+    "ka": "შენი დეპარტამენტი",
+    "en": "Your department",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:475",
+    "context": "Small badge shown on a news card when it targets the current user's own department."
+  },
+  "news.detail_modal.department_all": {
+    "ka": "ყველა დეპარტამენტი",
+    "en": "All departments",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2131",
+    "context": "Department text shown in the news detail modal when target_department === 'All'."
+  },
+  "news.detail_modal.published_label": {
+    "ka": "გამოქვეყნდა: ${date}",
+    "en": "Published: ${date}",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2134",
+    "context": "Publish-date meta line in the news detail modal."
+  },
+  "news.detail_modal.attachment_link": {
+    "ka": "თანდართული ფაილი",
+    "en": "Attached file",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2166",
+    "context": "Attachment link label inside the news detail modal."
+  },
+  "news.admin.form_title_new": {
+    "ka": "ახალი სიახლის დამატება",
+    "en": "Add news item",
+    "reviewed": false,
+    "source": "base-layout.html:1916",
+    "context": "Admin form heading for creating a news item. Repeats at static/js/app-core.js:2202,4643."
+  },
+  "news.admin.form_title_edit": {
+    "ka": "სიახლის რედაქტირება",
+    "en": "Edit news item",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2394",
+    "context": "Admin form heading when editing an existing news item."
+  },
+  "news.admin.field_title": {
+    "ka": "სათაური",
+    "en": "Title",
+    "reviewed": false,
+    "source": "base-layout.html:1924",
+    "context": "Form field label; reused generically across article/video/category forms and table headers."
+  },
+  "news.admin.title_placeholder": {
+    "ka": "სიახლის სათაური",
+    "en": "News title",
+    "reviewed": false,
+    "source": "base-layout.html:1927",
+    "context": "Title input placeholder on the news form."
+  },
+  "news.admin.field_content": {
+    "ka": "შინაარსი",
+    "en": "Content",
+    "reviewed": false,
+    "source": "base-layout.html:1930",
+    "context": "Form field label for the news body text."
+  },
+  "news.admin.content_placeholder": {
+    "ka": "სიახლის ტექსტი...",
+    "en": "News text...",
+    "reviewed": false,
+    "source": "base-layout.html:1933",
+    "context": "Content textarea placeholder on the news form."
+  },
+  "news.admin.field_target_department": {
+    "ka": "სამიზნე დეპარტამენტი",
+    "en": "Target department",
+    "reviewed": false,
+    "source": "base-layout.html:1937",
+    "context": "Form field label; repeats across news/video admin forms and table column headers (base-layout.html:1861,1881,2057)."
+  },
+  "news.admin.field_attachment": {
+    "ka": "მიმაგრებული ფაილი (PDF, Word, სურათი)",
+    "en": "Attached file (PDF, Word, image)",
+    "reviewed": false,
+    "source": "base-layout.html:1950",
+    "context": "Form field label describing accepted attachment types for news; article form has a slightly larger accepted-type list, see admin.json."
+  },
+  "news.admin.upload_button": {
+    "ka": "ატვირთვა",
+    "en": "Upload",
+    "reviewed": false,
+    "source": "base-layout.html:1957",
+    "context": "Generic upload button label, reused across news/video/article attachment forms."
+  },
+  "news.admin.view_file_link": {
+    "ka": "ფაილის ნახვა",
+    "en": "View file",
+    "reviewed": false,
+    "source": "base-layout.html:1962",
+    "context": "Link text to preview an already-uploaded attachment."
+  },
+  "news.admin.remove_file_title": {
+    "ka": "ფაილის წაშლა",
+    "en": "Remove file",
+    "reviewed": false,
+    "source": "base-layout.html:1965",
+    "context": "Title/tooltip on the button that clears a selected/uploaded attachment."
+  },
+  "news.admin.file_uploading": {
+    "ka": "ფაილი იტვირთება...",
+    "en": "File uploading...",
+    "reviewed": false,
+    "source": "base-layout.html:1968",
+    "context": "Transient status text while an attachment upload is in progress."
+  },
+  "news.admin.mandatory_toggle_label": {
+    "ka": "სავალდებულოდ გასაცნობი",
+    "en": "Mandatory reading",
+    "reviewed": false,
+    "source": "base-layout.html:1975",
+    "context": "Checkbox label marking a news item as mandatory reading, requiring an acknowledgment. Byte-identical toggle repeats for articles (base-layout.html:2504) and videos (base-layout.html:2072)."
+  },
+  "news.admin.due_date_label": {
+    "ka": "ვადა:",
+    "en": "Due:",
+    "reviewed": false,
+    "source": "base-layout.html:1978",
+    "context": "Label preceding the due-date picker for mandatory items; repeats for video/article forms."
+  },
+  "news.admin.visible_tech_info_label": {
+    "ka": "ხილვადია ტექ./ინფო-სთვის (Visible to Tech/Info)",
+    "en": "Visible to Tech/Info",
+    "reviewed": false,
+    "source": "base-layout.html:1994",
+    "context": "Checkbox label controlling audience-profile visibility for a news item."
+  },
+  "news.admin.visible_service_centers_label": {
+    "ka": "ხილვადია სერვის ცენტრებისთვის (Visible to Service Centers)",
+    "en": "Visible to Service Centers",
+    "reviewed": false,
+    "source": "base-layout.html:2002",
+    "context": "Checkbox label controlling extra audience visibility for a news item."
+  },
+  "news.admin.save_update_failed": {
+    "ka": "სიახლის განახლება ვერ მოხერხდა",
+    "en": "Failed to update the news item",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2250",
+    "context": "Error thrown when updating an existing news item fails; create variant is news.admin.save_create_failed."
+  },
+  "news.admin.save_create_failed": {
+    "ka": "სიახლის შექმნა ვერ მოხერხდა",
+    "en": "Failed to create the news item",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2250",
+    "context": "Error thrown when creating a new news item fails (ternary alternative)."
+  },
+  "news.admin.updated_toast": {
+    "ka": "სიახლე განახლდა",
+    "en": "News item updated",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2259",
+    "context": "Success toast title after updating a news item; create variant is news.admin.created_toast."
+  },
+  "news.admin.created_toast": {
+    "ka": "სიახლე დაემატა",
+    "en": "News item added",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2259",
+    "context": "Success toast title after creating a news item (ternary alternative)."
+  },
+  "news.admin.generic_error_prefix": {
+    "ka": "დაფიქსირდა შეცდომა: ${error.message}",
+    "en": "An error occurred: ${error.message}",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2269",
+    "context": "Generic alert prefix used for both news save errors (app-core.js:2269) and video save errors (app-core.js:2651)."
+  },
+  "news.admin.mandatory_update_failed": {
+    "ka": "სავალდებულოდ გასაცნობის განახლება ვერ მოხერხდა",
+    "en": "Failed to update the mandatory-reading flag",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2298",
+    "context": "Error thrown when toggling the mandatory-reading flag on an existing news/article item fails."
+  },
+  "news.admin.mandatory_assign_failed": {
+    "ka": "სავალდებულოდ გასაცნობის მინიჭება ვერ მოხერხდა",
+    "en": "Failed to assign mandatory reading",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2305",
+    "context": "Error thrown when creating a new mandatory-reading assignment fails."
+  },
+  "news.admin.mandatory_remove_failed": {
+    "ka": "სავალდებულოდ გასაცნობის წაშლა ვერ მოხერხდა",
+    "en": "Failed to remove the mandatory-reading assignment",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2313",
+    "context": "Error thrown when removing a mandatory-reading assignment fails."
+  },
+  "news.admin.data_not_found": {
+    "ka": "სიახლის მონაცემები ვერ მოიძებნა.",
+    "en": "News item data not found.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2348",
+    "context": "Alert shown when the edit form can't find the news item in the local cache."
+  },
+  "news.admin.attachment_upload_failed": {
+    "ka": "ფაილი ვერ ატვირთა",
+    "en": "The file could not be uploaded",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2422",
+    "context": "Fallback error message for news attachment upload failures."
+  },
+  "news.history.load_failed": {
+    "ka": "ისტორია ვერ ჩაიტვირთა",
+    "en": "History could not be loaded",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2457",
+    "context": "Error thrown when fetching a news item's edit history fails."
+  },
+  "news.history.empty_state": {
+    "ka": "ისტორია ცარიელია (სიახლე ჯერ არ დარედაქტირებულა).",
+    "en": "History is empty (this news item hasn't been edited yet).",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2463",
+    "context": "Empty-state message in the news version-history list; near-duplicate of articles.history.empty_state with 'სიახლე' (news item) substituted for 'სტატია' (article)."
+  },
+  "news.history.version_badge": {
+    "ka": "ვერსია ${index + 1}",
+    "en": "Version ${index + 1}",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2472",
+    "context": "Per-row version badge in the news history list."
+  },
+  "news.history.restore_action": {
+    "ka": "აღდგენა",
+    "en": "Restore",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2474",
+    "context": "Per-row 'restore this version' button in the news history list."
+  },
+  "news.history.editor_label": {
+    "ka": "რედაქტორი: ${h.author_name || '—'}",
+    "en": "Editor: ${h.author_name || '—'}",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2479",
+    "context": "Editor/author label for a given news history entry."
+  },
+  "news.history.view_text_summary": {
+    "ka": "ტექსტის ნახვა",
+    "en": "View text",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2481",
+    "context": "Collapsible <summary> label to expand raw text of an older news version."
+  },
+  "news.history.restore_confirm_title": {
+    "ka": "ვერსიის აღდგენა",
+    "en": "Restore version",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2493",
+    "context": "showConfirm() dialog title for restoring an older news version."
+  },
+  "news.history.restore_confirm_message": {
+    "ka": "ნამდვილად გსურთ ამ ვერსიის აღდგენა?",
+    "en": "Are you sure you want to restore this version?",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2493",
+    "context": "showConfirm() dialog body for restoring an older news version."
+  },
+  "news.history.restore_failed": {
+    "ka": "აღდგენა ვერ მოხერხდა",
+    "en": "Restore failed",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2500",
+    "context": "Error thrown when the news version-restore request fails."
+  },
+  "news.history.restore_success": {
+    "ka": "სიახლე წარმატებით აღდგა.",
+    "en": "The news item was successfully restored.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2501",
+    "context": "Success toast body after restoring a news version."
+  },
+  "news.admin.delete_confirm_title": {
+    "ka": "სიახლის წაშლა",
+    "en": "Delete news item",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2509",
+    "context": "showConfirm() dialog title for deleting a news item."
+  },
+  "news.admin.delete_confirm_message": {
+    "ka": "ნამდვილად გსურთ ამ სიახლის წაშლა?",
+    "en": "Are you sure you want to delete this news item?",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2509",
+    "context": "showConfirm() dialog body for deleting a news item."
+  },
+  "news.admin.deleted_toast": {
+    "ka": "სიახლე წაიშალა",
+    "en": "News item deleted",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2520",
+    "context": "Success toast title after deleting a news item."
+  },
+  "news.admin.delete_failed": {
+    "ka": "სიახლის წაშლა ვერ მოხერხდა.",
+    "en": "Failed to delete the news item.",
+    "reviewed": false,
+    "source": "static/js/app-core.js:2526",
+    "context": "Alert shown when the delete request fails."
+  },
+  "news.admin.tab_label": {
+    "ka": "სიახლე",
+    "en": "News item",
+    "reviewed": false,
+    "source": "base-layout.html:1771",
+    "context": "Content-type toggle button label (singular 'News item', as opposed to the plural nav label) in the admin content-creation switcher."
+  },
+  "news.admin.content_tab_label": {
+    "ka": "სიახლეები",
+    "en": "News",
+    "reviewed": false,
+    "source": "base-layout.html:1793",
+    "context": "Admin content-management sub-tab label listing news items."
+  },
+  "news.search_result_label": {
+    "ka": "სიახლე",
+    "en": "News",
+    "reviewed": false,
+    "source": "static/js/app-renderers.js:58",
+    "context": "Section label for news results in the global search dropdown (search.json cross-reference; kept here since it names the news content type)."
+  }
+}

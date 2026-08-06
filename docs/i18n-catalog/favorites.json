@@ -1,0 +1,9 @@
+{
+  "favorites.page.heading": {
+    "ka": "ჩემი რჩეულები",
+    "en": "My Favorites",
+    "reviewed": false,
+    "source": "base-layout.html:1242",
+    "context": "Page heading for the standalone Favorites page. Byte-identical text is also used for the Favorites tab inside the personal-cabinet profile (users.profile.tab_favorites) — same meaning, two different DOM surfaces (a dedicated page vs. a profile tab that mirrors it live, per the source comment at base-layout.html:1320). NOTE: the Favorites feature has very little dedicated UI text of its own beyond this heading — the star-toggle icons carry no separate label, and the 'favorites only' filter checkbox that appears on the News page is cataloged as news.page.favorites_only_toggle rather than duplicated here."
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "shell": {
+    "i18n_smoke_test": {
+      "title": "i18n is working",
+      "body": "This text is loaded from en.json via ngx-translate."
+    }
+  }
+}
