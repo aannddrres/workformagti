@@ -1,9 +1,11 @@
 package ge.magti.portal.web;
 
 import ge.magti.portal.audit.AuditChainService;
+import ge.magti.portal.audit.AuditLogQueryService;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
+import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.security.PermissionChecker;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -25,14 +27,21 @@ import static org.mockito.Mockito.when;
  * that exact order, each with its exact source detail text, plus the
  * pass-through case. The slower, real-Oracle wiring proof (does
  * {@code @AuthenticationPrincipal} really resolve through the actual
- * filter chain) lives in AuditChainControllerIntegrationTest.
+ * filter chain) lives in AuditLogControllerIntegrationTest.
+ *
+ * <p>Only exercises verify/chainHealth's requireSystemAuditNonManager
+ * branching -- list/export's plain requireSystemAudit (no manager
+ * exclusion) is covered by the integration test instead, since it needs a
+ * real scoped-department query to be meaningful.
  */
-class AuditChainControllerTest {
+class AuditLogControllerTest {
 
     private final PermissionChecker permissionChecker = new PermissionChecker();
     private final AuditChainService auditChainService = mock(AuditChainService.class);
-    private final AuditChainController controller =
-            new AuditChainController(auditChainService, permissionChecker);
+    private final AuditLogQueryService auditLogQueryService = mock(AuditLogQueryService.class);
+    private final AuditLogRepository auditLogRepository = mock(AuditLogRepository.class);
+    private final AuditLogController controller =
+            new AuditLogController(auditChainService, auditLogQueryService, auditLogRepository, permissionChecker);
 
     private static User userWith(Role role, Set<String> permissions) {
         User user = new User();

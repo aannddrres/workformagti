@@ -18,16 +18,30 @@ public final class CsvExportBuilder {
 
     public static String build(List<String> headers, List<List<Object>> rows) {
         StringBuilder sb = new StringBuilder();
-        writeRow(sb, headers);
+        sb.append(buildHeaderRow(headers));
         for (List<Object> row : rows) {
-            for (int i = 0; i < row.size(); i++) {
-                if (i > 0) {
-                    sb.append(',');
-                }
-                sb.append(escape(ExportCellSanitizer.sanitize(row.get(i))));
-            }
-            sb.append("\r\n");
+            sb.append(buildDataRow(row));
         }
+        return sb.toString();
+    }
+
+    /** Header cells, written as-is (never sanitized) -- for callers streaming rows one at a time. */
+    public static String buildHeaderRow(List<String> headers) {
+        StringBuilder sb = new StringBuilder();
+        writeRow(sb, headers);
+        return sb.toString();
+    }
+
+    /** One sanitized data row -- for callers streaming rows one at a time. */
+    public static String buildDataRow(List<Object> row) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < row.size(); i++) {
+            if (i > 0) {
+                sb.append(',');
+            }
+            sb.append(escape(ExportCellSanitizer.sanitize(row.get(i))));
+        }
+        sb.append("\r\n");
         return sb.toString();
     }
 
