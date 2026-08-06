@@ -1,0 +1,78 @@
+package ge.magti.portal.export;
+
+import ge.magti.portal.domain.ExportJob;
+import ge.magti.portal.config.PortalProperties;
+import ge.magti.portal.repository.ExportJobRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+
+/**
+ * Mirrors {@code _async_file_worker} (routers/exports.py:347-379): compiles
+ * an export file from already-fetched, primitive row data (no DB querying
+ * here -- that already happened synchronously in the controller, same as
+ * Python guarding export size before enqueueing) and records the outcome
+ * on the {@link ExportJob} row. FastAPI's {@code BackgroundTasks} maps to
+ * Spring's {@code @Async} -- see {@code PortalBackendApplication}'s {@code
+ * @EnableAsync}. Must be called through the Spring proxy (i.e. injected as
+ * a bean, not invoked as a same-class method) for {@code @Async} to apply.
+ */
+@Service
+public class ExportJobWorker {
+
+    private static final Logger log = LoggerFactory.getLogger(ExportJobWorker.class);
+
+    /** Mirrors {@code _EXPORT_JOB_TTL} (routers/exports.py:30) -- also used
+     *  by {@link ge.magti.portal.web.ExportController} when it creates the
+     *  initial "processing" row, same as Python's {@code _enqueue_export}. */
+    public static final long EXPORT_JOB_TTL_SECONDS = 3600;
+
+    private final ExportJobRepository exportJobRepository;
+    private final PortalProperties portalProperties;
+
+    public ExportJobWorker(ExportJobRepository exportJobRepository, PortalProperties portalProperties) {
+        this.exportJobRepository = exportJobRepository;
+        this.portalProperties = portalProperties;
+    }
+
+    @Async
+    public void buildAndStore(String jobId, String title, List<String> headers, List<List<Object>> rows, String exportType) {
+        try {
+            byte[] data = "xlsx".equals(exportType)
+                    ? XlsxExportBuilder.build(title, headers, rows)
+                    : PdfExportBuilder.build(title, headers, rows);
+
+            Path dir = Path.of(portalProperties.getUploadsDir(), "exports");
+            Files.createDirectories(dir);
+            Path path = dir.resolve("export_" + jobId + "." + exportType);
+            Files.write(path, data);
+
+            exportJobRepository.findById(jobId).ifPresent(job -> {
+                job.setStatus("completed");
+                job.setPath(path.toString());
+                job.setExpiresAt(nowEpochSeconds() + EXPORT_JOB_TTL_SECONDS);
+                exportJobRepository.save(job);
+            });
+        } catch (RuntimeException | IOException e) {
+            log.warn("export worker failed (job {}): {}", jobId, e.getMessage());
+            exportJobRepository.findById(jobId).ifPresent(job -> markFailed(job));
+        }
+    }
+
+    private void markFailed(ExportJob job) {
+        job.setStatus("failed");
+        job.setPath(null);
+        job.setExpiresAt(nowEpochSeconds() + EXPORT_JOB_TTL_SECONDS);
+        exportJobRepository.save(job);
+    }
+
+    private static double nowEpochSeconds() {
+        return System.currentTimeMillis() / 1000.0;
+    }
+}

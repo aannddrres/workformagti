@@ -15,6 +15,8 @@ public class PortalProperties {
 
 	private String appEnv = "development";
 
+	private String uploadsDir = "uploads";
+
 	@NestedConfigurationProperty
 	private final Security security = new Security();
 
@@ -24,6 +26,14 @@ public class PortalProperties {
 
 	public void setAppEnv(String appEnv) {
 		this.appEnv = appEnv;
+	}
+
+	public String getUploadsDir() {
+		return uploadsDir;
+	}
+
+	public void setUploadsDir(String uploadsDir) {
+		this.uploadsDir = uploadsDir;
 	}
 
 	public boolean isProduction() {

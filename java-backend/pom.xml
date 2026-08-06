@@ -142,6 +142,25 @@
 			<version>4.12</version>
 		</dependency>
 
+		<!-- Exports domain: openpyxl/reportlab equivalents. Apache POI is the
+			 de facto Java standard for XLSX (Apache-2.0, no serious
+			 alternative worth weighing). PDFBox chosen over OpenPDF/iText for
+			 PDF generation: also Apache-2.0 (OpenPDF is LGPL/MPL, iText 7 is
+			 AGPL and a poor fit for a proprietary network-served app);
+			 user-confirmed choice, 2026-08-06. PDFBox has no built-in
+			 high-level "Table" component like reportlab's Platypus, so
+			 PdfExportBuilder lays out rows/pagination by hand. -->
+		<dependency>
+			<groupId>org.apache.poi</groupId>
+			<artifactId>poi-ooxml</artifactId>
+			<version>5.3.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.pdfbox</groupId>
+			<artifactId>pdfbox</artifactId>
+			<version>3.0.3</version>
+		</dependency>
+
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator-test</artifactId>

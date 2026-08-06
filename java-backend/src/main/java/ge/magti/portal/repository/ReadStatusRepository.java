@@ -12,6 +12,14 @@ public interface ReadStatusRepository extends JpaRepository<ReadStatus, Long> {
 
     Optional<ReadStatus> findByUserIdAndRequiredReadingId(Long userId, Long requiredReadingId);
 
+    /**
+     * Mirrors export_readings/export_readings_xlsx/export_readings_pdf's
+     * shared ReadStatus scan (routers/exports.py:94-98,144-150,264-270),
+     * now uniformly scoped to eligible user ids for all three formats (see
+     * {@link ge.magti.portal.export.ExportQueryService}).
+     */
+    List<ReadStatus> findByUserIdIn(List<Long> userIds);
+
     /** get_my_readings' per-user status lookup (routers/compliance.py:88-91). */
     List<ReadStatus> findByUserIdAndRequiredReadingIdIn(Long userId, List<Long> requiredReadingIds);
 

@@ -1307,6 +1307,62 @@ endpoint, Java Excel/PDF ბიბლიოთეკის არჩევან
 list+CSV-export, ან Search (Oracle Text გადაწყვეტილება თქვენგან
 სჭირდება).
 
+### Exports დომენი დასრულებული (2026-08-06, 6/6 endpoint)
+
+Users-ის შემდეგ Exports აირჩიეთ. ამ დომენს პირველად სჭირდებოდა ახალი
+გარე ბიბლიოთეკა (Python-ის openpyxl/reportlab-ის ეკვივალენტი), ამიტომ
+სამი რეალური გადაწყვეტილება წინასწარ დაგისვით, არა ცალკეული:
+
+1. **Excel: Apache POI** — ალტერნატივის შეთავაზების აზრი არ იყო, ეს
+   Java-ს დამკვიდრებული სტანდარტია.
+2. **PDF: PDFBox** (თქვენ აირჩიეთ OpenPDF-ის ნაცვლად) — თავდაპირველ
+   კითხვაში ორივე ვარიანტი კომერციულად უფასო იყო; PDFBox-ის უპირატესობა
+   არის Apache-2.0 ლიცენზია (OpenPDF LGPL/MPL-ია — ასევე გამოსადეგი, მაგრამ
+   ნაკლებად "სუფთა" კომერციული პროდუქტისთვის) ფასად იმისა, რომ
+   ცხრილების განლაგება ხელით უნდა აშენებულიყო (PDFBox-ს არ აქვს
+   reportlab-ის Platypus-ისნაირი მზა "ცხრილი" კომპონენტი).
+3. **xlsx/pdf-ის eligibility-ფილტრის კონსისტენტურობა** — კოდის კითხვისას
+   აღმოვაჩინე, რომ readings.csv ფილტრავს მხოლოდ eligible (აქტიური,
+   არა-მენეჯერული) ოპერატორებზე, მაგრამ readings.xlsx და readings.pdf
+   საერთოდ არ ფილტრავდნენ — იმავე admin-only პირადი მონაცემის
+   ექსპორტში ნაკლები დაცვა იყო ფაილის ფორმატის მიხედვით (ცნობილი
+   ხარვეზი #7). აირჩიეთ ამის გასწორება სამივესთვის ერთნაირად.
+
+**ExportJob-ის TTL-ბაგი (ცნობილი ხარვეზი #9) ასევე გავასწორე** — Python
+წერდა `expires_at`-ს, მაგრამ არასდროს კითხულობდა: დასრულებული
+ექსპორტის ფაილი უსასრულოდ რჩებოდა დისკზე, სანამ ვინმე ნამდვილად არ
+ჩამოტვირთავდა. აშენდა `ExportJobCleanupScheduler` — ახალი `@Scheduled`
+sweep 10 წუთში ერთხელ, შლის ვადაგასულ job-ებს ფაილთან ერთად. ეს **ახალი
+ქცევაა, არა თარგმანი** (ადრეულ ანალიზშიც ასე იყო მონიშნული) — თქვენი
+დადასტურებული გადაწყვეტილება.
+
+აშენდა 6 endpoint: სინქრონული readings CSV, 3 ასინქრონული xlsx/pdf
+job (readings.xlsx, readings.pdf, team-stats.pdf), status/download
+წყვილი. **`_guard_export_size`-ის ეკვივალენტი (`ExportSizeGuard`,
+20,000 მწკრივის ჭერი) ცენტრალიზებულია ერთ ადგილას**
+(`ExportQueryService.eligibleReadingRows()`), სამივე ფორმატი მას
+იზიარებს, ისევე როგორც ერთიან eligibility-query-ს. `ExportJobWorker`
+(`@Async`, Spring-ის FastAPI `BackgroundTasks`-ის ეკვივალენტი) აშენებს
+ფაილს request-ის მიღმა, ზუსტად ისე, როგორც Python primitive
+მწკრივებზეა აგებული (არა DB-სესია worker-ში).
+
+**რატომ არ გადავიდა "ბიბლიოთეკა არ არის დაყენებული" 503-შემოწმებები:**
+Python-ის openpyxl/reportlab არასავალდებულო pip-დამოკიდებულებებია
+(degradation გათვალისწინებულია); POI/PDFBox კი Maven compile-time
+დამოკიდებულებებია, ყოველთვის არსებობს, აქედან გამომდინარე მთელი ეს
+degradation-გზა უბრალოდ არ არსებობს Java მხარეს. ერთადერთი PDF-ის
+წარუმატებლობის სცენარი (ქართული ფონტი ვერ მოიძებნა) ახლა ვლინდება
+job-ის სტატუსის "failed"-ზე გადასვლით, არა request-დროინდელი 503-ით —
+რადგან ყოველი PDF/xlsx აშენება ასინქრონულია Java-ს მხარეს.
+
+17 ახალი ტესტი (7 ინტეგრაციული რეალურ Oracle-ზე + 10 unit-ტესტი
+build-ერებისთვის, ქართული ტექსტის round-trip-ის და პაგინაციის
+ჩათვლით), 335/335 ტესტი მწვანეა რეგრესიის გარეშე. **Content (54) +
+Compliance (7) + Stats (12) + Messaging (6) + Users (13) + Exports (6)
+= 98 endpoint დასრულებულია** ~122-დან. შემდეგი: Audit-ის დარჩენილი
+list+CSV-export, ან Search (Oracle Text გადაწყვეტილება თქვენგან
+სჭირდება).
+
 ---
 
 ## ფაზა 2 — Parity ვალიდაციის კარიბჭე
@@ -1567,9 +1623,9 @@ Postgres-ზე:
 | Messaging | ✅ **პირდაპირი მესიჯინგი აშენებული (2026-08-05)** — მენეჯერი შეზღუდულია საკუთარ დეპარტამენტზე, **prefix-aware** (არა ზუსტი-დამთხვევა — ძველი ბაგი უკვე გასწორებული `DirectMessagePermission`-ით, 2026-07-30-ის გადაწყვეტილებით); `sender_name`/`recipient_name` batch-resolve-ით (N+1 არ არის) | `GET/POST /api/messages`, `/sent`, `POST /{id}/read`, `DELETE /{id}` | 11 ტესტი რეალურ Oracle-ზე | ✔ დაკმაყოფილებულია — cross-department/cross-user წვდომა შეუძლებელია, დადასტურებულია ტესტით |
 | Messaging | ✅ **Broadcast აშენებული (2026-08-05)** — აუდიტ-ლოგი იწერება (SEND_MESSAGE/BROADCAST); SSE ივენთის გავრცელება ზემოთ აღწერილი მიზეზით არ არის პორტირებული | `POST /api/broadcast` | ზემოთ ჩამოთვლილ 11 ტესტში შედის | ✔ დაკმაყოფილებულია დროებადი SSE-გამონაკლისის გარეშე |
 | Messaging | Notifications-summary | `GET /api/notifications/summary` | Parity smoke-test | — |
-| Exports | Readings CSV — ფორმულა-სანიტაცია მოქმედია, `compute_compliance()`-ის eligibility-ფილტრი | `GET /api/export/readings` | Parity + უსაფრთხოების ტესტი | `_sanitize_cell`-ის ეკვივალენტი მოქმედია |
-| Exports | Readings/team-stats XLSX + PDF — **readings.pdf არ იზიარებს CSV-ის ვინაობის ფილტრს** (ცნობილი ხარვეზი #7) | `GET /api/export/readings.xlsx`, `/readings.pdf`, `/team-stats.pdf` | Parity + §3.2(გ) ვიზუალური PDF-შედარება + გადაწყვეტილება (§5) | ფონტი + სანიტაცია + ფილტრი-კონსისტენტურობა |
-| Exports | Async job-status/download, **TTL იწერება არასდროს იკითხება** (ცნობილი ხარვეზი #9) | `GET /api/export/status/{id}`, `/download/{id}` | Parity + reaper-ის დამატების გადაწყვეტილება | — |
+| Exports | ✅ **Readings CSV აშენებული (2026-08-06)** — ფორმულა-სანიტაცია (`ExportCellSanitizer`) + `compute_compliance()`-ის eligibility-ფილტრი (`ComplianceQueryService`) | `GET /api/export/readings` | 7 ტესტი რეალურ Oracle-ზე | ✔ დაკმაყოფილებულია — მენეჯერი/დეაქტივირებული გამორიცხულია, ფორმულა-injection-ცდა დადასტურებულია ტესტით |
+| Exports | ✅ **Readings/team-stats XLSX + PDF აშენებული (2026-08-06) — ცნობილი ხარვეზი #7 გასწორებულია**: xlsx/pdf ახლა იზიარებს CSV-ის იმავე eligibility-ფილტრს (`ExportQueryService` — ერთი გაზიარებული query-გზა სამივესთვის). Excel: Apache POI; PDF: PDFBox (ორივე Apache-2.0, თქვენი დადასტურებული არჩევანი — iText 7-ის AGPL ლიცენზია არ ერგებოდა ქსელზე მომუშავე დახურული-კოდის აპლიკაციას). PDFBox-ს არ აქვს reportlab-ის Platypus-ისნაირი მზა "ცხრილი" კომპონენტი — გვერდების/სვეტების განლაგება ხელით აშენდა (წონაპროპორციული სვეტის სიგანე, ტექსტის შეკვეცა multiline-ის ნაცვლად, header-row-ის გამეორება ყოველ გვერდზე) | `GET /api/export/readings.xlsx`, `/readings.pdf`, `/team-stats.pdf` | ზემოთ ჩამოთვლილ 7 ტესტში შედის + 10 unit-ტესტი (xlsx/pdf builders, ქართული ტექსტის round-trip, პაგინაცია, შეკვეცა) | ✔ დაკმაყოფილებულია — ფონტი (Sylfaen/DejaVuSans candidate-სია), სანიტაცია და ფილტრი-კონსისტენტურობა სამივეში ერთნაირია |
+| Exports | ✅ **Async job-status/download აშენებული (2026-08-06) — ცნობილი ხარვეზი #9 გასწორებულია**: `ExportJobCleanupScheduler` (ახალი `@Scheduled`, 10წთ-იანი sweep) შლის ვადაგასულ job-ებს ფაილთან ერთად — Python-ში `expires_at` იწერებოდა, მაგრამ არასდროს იკითხებოდა, დასრულებული ექსპორტი უსასრულოდ რჩებოდა დისკზე. ეს **ახალი ქცევაა, არა თარგმანი** (როგორც ადრეულ ანალიზშიც იყო აღნიშნული) — თქვენი დადასტურებული გადაწყვეტილება | `GET /api/export/status/{id}`, `/download/{id}` | ზემოთ ჩამოთვლილ 7 ტესტში შედის (job lifecycle: enqueue→completed→download→row+ფაილი წაშლილია; ცალკე ტესტი scheduler-ის პირდაპირი გამოძახებით) | ✔ დაკმაყოფილებულია |
 
 ---
 
