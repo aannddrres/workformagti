@@ -2,6 +2,9 @@ import { Routes } from '@angular/router';
 import { AppShell } from './shell/app-shell';
 import { PlaceholderPage } from './shell/placeholder-page';
 import { Login } from './features/login/login';
+import { KnowledgeBasePage } from './features/knowledge-base/knowledge-base-page';
+import { CategoryViewPage } from './features/category-view/category-view-page';
+import { ArticleDetailPage } from './features/article-detail/article-detail-page';
 import { authGuard } from './core/auth/auth.guard';
 import { roleGuard } from './core/auth/role.guard';
 
@@ -25,7 +28,7 @@ export const routes: Routes = [
         data: { title: 'nav.sidebar.team_stats' },
         canActivate: [roleGuard(MANAGER_ROLES)]
       },
-      { path: 'info', component: PlaceholderPage, data: { title: 'nav.sidebar.section_kb' } },
+      { path: 'info', component: KnowledgeBasePage, data: { title: 'nav.sidebar.section_kb' } },
       {
         path: 'reading',
         component: PlaceholderPage,
@@ -37,8 +40,8 @@ export const routes: Routes = [
       { path: 'favorites', component: PlaceholderPage, data: { title: 'nav.sidebar.favorites' } },
 
       // page-article-view / page-category-view deep-link detail routes
-      { path: 'article/:id', component: PlaceholderPage, data: { title: 'nav.sidebar.section_kb' } },
-      { path: 'category/:slug', component: PlaceholderPage, data: { title: 'nav.sidebar.section_kb' } },
+      { path: 'article/:id', component: ArticleDetailPage, data: { title: 'nav.sidebar.section_kb' } },
+      { path: 'category/:slug', component: CategoryViewPage, data: { title: 'nav.sidebar.section_kb' } },
 
       // page-profile's 5 tabs -- modeled as real child routes (bookmarkable),
       // unlike the current app's client-side-only tab switching.

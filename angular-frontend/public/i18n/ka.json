@@ -59,5 +59,38 @@
     "placeholder": {
       "message": "ეს გვერდი ჯერ არ არის აშენებული — მალე დაემატება Phase 3c-ში."
     }
+  },
+  "articles": {
+    "card": {
+      "new_badge": "ახალი",
+      "read_time": "{{minutes}} წთ. საკითხავი",
+      "uncategorized": "ზოგადი"
+    },
+    "category_tile": {
+      "article_count": "{{count}} მასალა",
+      "recent_indicator": "ბოლო 4 დღეში დამატებულია ახალი მასალა"
+    },
+    "kb_page": {
+      "heading": "ცოდნის ბაზა",
+      "subtitle": "მოძებნეთ ინსტრუქციები, პროდუქტების აღწერები და ტექნიკური გზამკვლევები.",
+      "search_placeholder": "ძიება თემით ...",
+      "all_categories_option": "ყველა კატეგორია",
+      "new_badge_tip": "ბოლო 4 დღის განმავლობაში განახლებულ სტატიებს აქვს ახალი აღნიშვნა.",
+      "no_results": "შედეგი ვერ მოიძებნა.",
+      "search_error": "ძიებისას დაფიქსირდა შეცდომა."
+    },
+    "category_view": {
+      "back_button": "უკან",
+      "empty_state": "ამ ფილტრით მასალა ვერ მოიძებნა.",
+      "profile_all": "ყველა",
+      "profile_info": "საინფორმაციო",
+      "profile_tech": "ტექნიკური"
+    },
+    "detail_page": {
+      "back_button": "უკან დაბრუნება",
+      "attachment_download": "ფაილის ჩამოტვირთვა",
+      "not_found": "სტატია ვერ მოიძებნა",
+      "version_label": "ვერსია {{version}}"
+    }
   }
 }

@@ -1,0 +1,64 @@
+<div class="mx-auto w-full max-w-[1440px] px-4 pb-8 pt-4 md:px-6 md:pt-6">
+  <div class="mb-6">
+    <button
+      (click)="goBack()"
+      class="mb-4 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 shadow-sm transition-all hover:bg-gray-50 hover:text-gray-900 active:scale-[0.98] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+    >
+      <i aria-hidden="true" class="fa-solid fa-arrow-left text-xs"></i> {{ 'articles.category_view.back_button' | translate }}
+    </button>
+
+    @if (category(); as cat) {
+      <div class="flex items-center gap-4">
+        <span class="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 text-2xl text-gray-600 dark:bg-zinc-800 dark:text-zinc-300">
+          <i class="fa-solid" [class]="icon()"></i>
+        </span>
+        <div>
+          <h2 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">{{ cat.name }}</h2>
+          <span class="text-sm font-medium text-slate-400">{{ 'articles.category_tile.article_count' | translate: { count: filteredRows().length } }}</span>
+        </div>
+      </div>
+    }
+  </div>
+
+  <div class="mb-6 flex w-fit items-center gap-1 rounded-xl bg-slate-100/60 p-1 dark:bg-zinc-800/60">
+    <button
+      (click)="setProfile('all')"
+      class="rounded-lg px-4 py-1.5 text-xs font-medium transition-all"
+      [class]="profile() === 'all' ? 'bg-white text-slate-800 shadow-sm dark:bg-zinc-700 dark:text-zinc-100' : 'text-slate-500 hover:text-slate-800 dark:text-zinc-400'"
+    >
+      {{ 'articles.category_view.profile_all' | translate }}
+    </button>
+    <button
+      (click)="setProfile('info')"
+      class="rounded-lg px-4 py-1.5 text-xs font-medium transition-all"
+      [class]="profile() === 'info' ? 'bg-white text-slate-800 shadow-sm dark:bg-zinc-700 dark:text-zinc-100' : 'text-slate-500 hover:text-slate-800 dark:text-zinc-400'"
+    >
+      {{ 'articles.category_view.profile_info' | translate }}
+    </button>
+    <button
+      (click)="setProfile('tech')"
+      class="rounded-lg px-4 py-1.5 text-xs font-medium transition-all"
+      [class]="profile() === 'tech' ? 'bg-white text-slate-800 shadow-sm dark:bg-zinc-700 dark:text-zinc-100' : 'text-slate-500 hover:text-slate-800 dark:text-zinc-400'"
+    >
+      {{ 'articles.category_view.profile_tech' | translate }}
+    </button>
+  </div>
+
+  @if (loading()) {
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      @for (i of [1, 2, 3, 4]; track i) {
+        <div class="h-[160px] animate-pulse rounded-2xl border border-gray-150 bg-white dark:border-zinc-800 dark:bg-zinc-900"></div>
+      }
+    </div>
+  } @else if (filteredRows().length === 0) {
+    <p class="rounded-xl border border-dashed border-slate-200 bg-white/40 p-8 text-center text-xs font-medium tracking-wide text-slate-400 dark:border-zinc-700 dark:bg-zinc-800/40">
+      {{ 'articles.category_view.empty_state' | translate }}
+    </p>
+  } @else {
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      @for (row of filteredRows(); track row.id) {
+        <app-article-card [article]="row" (opened)="openArticle($event)" />
+      }
+    </div>
+  }
+</div>

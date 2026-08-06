@@ -59,5 +59,38 @@
     "placeholder": {
       "message": "This page hasn't been built yet — coming in Phase 3c."
     }
+  },
+  "articles": {
+    "card": {
+      "new_badge": "New",
+      "read_time": "{{minutes}} min read",
+      "uncategorized": "General"
+    },
+    "category_tile": {
+      "article_count": "{{count}} items",
+      "recent_indicator": "New material added in the last 4 days"
+    },
+    "kb_page": {
+      "heading": "Knowledge Base",
+      "subtitle": "Find instructions, product descriptions, and technical guides.",
+      "search_placeholder": "Search by topic ...",
+      "all_categories_option": "All categories",
+      "new_badge_tip": "Articles updated in the last 4 days are marked New.",
+      "no_results": "No results found.",
+      "search_error": "An error occurred while searching."
+    },
+    "category_view": {
+      "back_button": "Back",
+      "empty_state": "No material found for this filter.",
+      "profile_all": "All",
+      "profile_info": "Informational",
+      "profile_tech": "Technical"
+    },
+    "detail_page": {
+      "back_button": "Back",
+      "attachment_download": "Download file",
+      "not_found": "Article not found",
+      "version_label": "Version {{version}}"
+    }
   }
 }
