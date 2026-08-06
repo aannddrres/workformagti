@@ -1,5 +1,6 @@
 package ge.magti.portal.repository;
 
+import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -14,6 +15,19 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     /** Case-insensitive -- mirrors authenticate_user's func.lower() lookup (security.py:193). */
     Optional<User> findByEmailIgnoreCase(String email);
+
+    /** Mirrors list_users' Block-5 group filter (routers/users.py:274-275). */
+    List<User> findByManagerId(Long managerId);
+
+    /** Mirrors get_group_leaders (routers/users.py:246-250). */
+    List<User> findByRoleOrderByName(Role role);
+
+    /**
+     * Mirrors bulk_reassign_roles' last-admin-protection count
+     * (routers/users.py:140-148) -- active system admins not already in the
+     * set about to be demoted.
+     */
+    long countByRoleAndActiveTrueAndIdNotIn(Role role, List<Long> excludedIds);
 
     /** Mirrors get_knowledge_leaderboard's scope="team" branch (routers/articles.py:907-908). */
     List<User> findByActiveTrueAndTeamId(Long teamId);

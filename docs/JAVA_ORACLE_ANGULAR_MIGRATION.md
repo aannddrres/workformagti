@@ -1261,6 +1261,52 @@ Exports (6 endpoint, Java Excel/PDF ბიბლიოთეკის არჩ�
 დარჩენილი list+CSV-export, ან Search (Oracle Text გადაწყვეტილება
 თქვენგან სჭირდება).
 
+### Users დომენი დასრულებული (2026-08-06, 13/14 endpoint — nudge შეგნებულად გადადებული)
+
+Messaging-ის დასრულების შემდეგ თქვენ აირჩიეთ Users შემდეგ ნაბიჯად (4
+ვარიანტიდან: Users, Audit-ის დარჩენილი, Exports, Search). სანამ
+`nudge`-ის ვაშენებდი, თქვენთან ცალკე შევჩერდი: routers/users.py-ის სხვა
+ყველა SSE call site-ისგან განსხვავებით (რომლებსაც ყოველთვის ჰქონდათ
+დურაბელური ნახევარიც — DB-ჩაწერა), `POST /api/users/{id}/nudge`-ს
+საერთოდ არ აქვს DB-გვერდი — მხოლოდ `_safe_publish` წმინდა SSE-ივენთია.
+ვთხოვე არჩევანი: (ა) გადავადება, იგივე მიზეზით რაც Messaging-ის stream
+(რეკომენდებული), თუ (ბ) ხელოვნური replatform-ი `Message`-ცხრილში
+(ქცევის ცვლილება — toast-ის ნაცვლად ინბოქსში ჩანაწერი). აირჩიეთ (ა).
+
+აშენდა 13 endpoint: საკუთარი პროფილის ნახვა/რედაქტირება/პაროლის
+შეცვლა, bulk role-reassign, user status/role/permissions-ის admin-
+რედაქტირება, user-ის შექმნა/პაროლის აღდგენა, group-leaders/teams
+CRUD. ხელახლა გამოყენებულია სამი უკვე აშენებული ნაწილი ახალი ლოგიკის
+გარეშე: `ComplianceCalculator.computeProgress` (`GET /api/users`-ის
+`read_count`/`required_count`/`progress_percentage` — ზუსტად იგივე
+ფორმულა, რასაც Compliance/Stats იყენებენ) და `PermissionChecker`
+(`/me`-ს `can_view_audit_log`).
+
+**კოდის წაკითხვისას აღმოჩენილი, ფასეული დაკვირვება (არა ბაგი):**
+bulk-reassign-ის "ბოლო system-admin-ის დაცვა" პრაქტიკულად ვერასდროს
+ამოქმედდება ერთი მოთხოვნის ფარგლებში — მოქმედი admin ყოველთვის
+თვითონვე გამოირიცხება სამიზნეების სიიდან (self-change აკრძალულია),
+ამიტომ ის ყოველთვის ითვლება "დარჩენილ" admin-ად remaining-count-ში.
+სისტემას ეს არ აზიანებს (ბოლო admin ისედაც ვერასდროს წაიშლება ამ
+გზით) — უბრალოდ დამატებითი, არასდროს-ამოქმედებადი დაცვის ფენაა.
+Python-ის იდენტურადვე გადმოტანილია (behavior-ცვლილება არ იყო საჭირო).
+
+**ერთადერთი შეგნებული ქცევის-ცვლილება:** permissions-განახლების
+whitelist (ცნობილი ხარვეზი #4 — Python-ის ხელით-კოპირებულ სიას აკლდა
+`videos.archive`) გასწორებულია — Java validაციას `Permission.values()`-
+თან ატარებს whitelist-ის ნაცვლად, ეს ადრევე იყო რეკომენდებული
+`Permission`-კლასის javadoc-ში, ამჯერად აღარ დამჭირვებია ცალკე
+დათანხმება. ხარვეზი #3 (permissions ვერ სუფთავდება ერთი user-ის
+admin-რედაქტირებაზე) უცვლელადაა გადმოტანილი — გადაწყვეტილება ჯერ
+კიდევ არ არის მიღებული.
+
+16 ახალი ტესტი რეალურ Oracle-ზე, 318/318 ტესტი მწვანეა რეგრესიის
+გარეშე. **Content (54) + Compliance (7) + Stats (12) + Messaging (6) +
+Users (13) = 92 endpoint დასრულებულია** ~122-დან. შემდეგი: Exports (6
+endpoint, Java Excel/PDF ბიბლიოთეკის არჩევანი), Audit-ის დარჩენილი
+list+CSV-export, ან Search (Oracle Text გადაწყვეტილება თქვენგან
+სჭირდება).
+
 ---
 
 ## ფაზა 2 — Parity ვალიდაციის კარიბჭე
@@ -1456,13 +1502,13 @@ Postgres-ზე:
 | Auth | Mock SSO — 3 ჰარდქოდილი ანგარიშის picker, production-გეიტის გარეშე (ცნობილი ხარვეზი #11) | `GET /api/auth/sso/init`, `GET /api/auth/sso/mock-login`, `POST /api/auth/sso/callback` | Parity + production-გეიტის დამატების გადაწყვეტილება | გვერდის დონეზე production-redirect (თუ გადაწყდა გასწორება) |
 | Auth | ~~Forgot-password~~ **✔ არ გადადის Java-ში (თქვენი გადაწყვეტილება, 2026-07-30)** — პაროლის აღდგენა ხდება ცალკე, სპეციალური არხით (არა ამ საიტზე); Python-ის `POST /api/auth/forgot-password` (dev-log-only, არც კი აგზავნის რეალურ მეილს) უბრალოდ არ ესაჭიროება ახალ სისტემას | — | — | — |
 | Auth | Logout | `POST /api/auth/logout` | Parity | cookie იშლება |
-| Users | `/me`: მიმდინარე user + derived UI flags (`can_view_audit_log`) | `GET/PUT /api/users/me`, `POST /api/users/me/password` | Parity | flags გამომუშავებულია `role_has_permission`-იდან იდენტურად |
-| Users | ერთი user-ის admin-რედაქტირება — **არ ასუფთავებს permissions-ს როლის ცვლილებაზე** (ცნობილი ხარვეზი #3) | `PUT /api/users/{id}` | Parity + გადაწყვეტილება (§5) | გადაწყვეტილებაზეა დამოკიდებული |
-| Users | Bulk role-reassign — ასუფთავებს permissions-ს, იცავს last-admin-ს, ბლოკავს self-change-ს | `POST /api/admin/roles/bulk-reassign` | Parity + უნიტ-ტესტი (self-exclusion, last-admin protection) | ორივე დაცვა ინარჩუნებს ქცევას |
-| Users | Permissions-მატრიცის განახლება — whitelist-ს აკლია `videos.archive` (ცნობილი ხარვეზი #4) | `PUT /api/users/{id}/permissions` | Parity + გადაწყვეტილება (§5) | გადაწყვეტილებაზეა დამოკიდებული |
-| Users | User status (active/inactive) | `PUT /api/users/{id}/status` | Parity | — |
-| Users | User create/reset-password/nudge | `POST /api/users`, `POST /api/users/{id}/reset-password`, `POST /api/users/{id}/nudge` | Parity | default-permissions role-ის მიხედვით |
-| Users, Teams | ტრივიალური CRUD/list (group-leaders, teams get/create) | `GET /api/admin/group-leaders`, `GET/POST /api/teams`, `GET /api/users` | Parity smoke-test | სტანდარტული list/create ქცევა |
+| Users | ✅ **`/me`: მიმდინარე user + derived UI flags (`can_view_audit_log`) აშენებული (2026-08-06)** | `GET/PUT /api/users/me`, `POST /api/users/me/password` | 16 ტესტი რეალურ Oracle-ზე | ✔ დაკმაყოფილებულია — flags გამომუშავებულია `PermissionChecker`-იდან იდენტურად |
+| Users | ✅ **ერთი user-ის admin-რედაქტირება აშენებული (2026-08-06) — ცნობილი ხარვეზი #3 უცვლელადაა გადმოტანილი, არ გასწორებულა** (permissions ისევ არ ასუფთავდება როლის ცვლილებაზე; მხოლოდ bulk-reassign ასუფთავებს — Python-ის იგივე ასიმეტრია) | `PUT /api/users/{id}` | ზემოთ ჩამოთვლილ 16 ტესტში შედის | ✔ endpoint დაკმაყოფილებულია; ბაგი #3 ცალკე გადაწყვეტილებას ითხოვს |
+| Users | ✅ **Bulk role-reassign აშენებული (2026-08-06)** — ასუფთავებს permissions-ს ახალი როლის default-ებზე, ბლოკავს self-change-ს (მოქმედი admin ავტომატურად გამოირიცხება სიიდან). **დადასტურდა კოდის წაკითხვით: last-admin-დაცვა ამ endpoint-ში პრაქტიკულად "მკვდარი" კოდია** — მოქმედი admin თავად ყოველთვის გამოირიცხება სამიზნეებიდან, ესე იგი ყოველთვის თვლის თავს "დარჩენილ" admin-ად remaining-count-ში; `remaining == 0` ვერასდროს დგება ერთი მოთხოვნის ფარგლებში. ეს არ არის შეცდომა ან დაუცველობა (ბოლო admin ვერასდროს წაიშლება ამ გზით ისედაც), უბრალოდ ზედმეტი defensive-შემოწმებაა — Python-ის იდენტურადვე გადმოტანილია, გასწორება არ საჭიროებდა | `POST /api/admin/roles/bulk-reassign` | ზემოთ ჩამოთვლილ 16 ტესტში შედის | ✔ დაკმაყოფილებულია — behavior იდენტურია Python-თან, "მკვდარი" დაცვის ჩათვლით |
+| Users | ✅ **Permissions-მატრიცის განახლება აშენებული (2026-08-06) — ცნობილი ხარვეზი #4 გასწორებულია**: Python-ის hand-copied whitelist-ს აკლდა `videos.archive` (`Permission`-კლასის javadoc-ში წინასწარ დაფიქსირებული რეკომენდაციით); Java-მხარეს whitelist-ის ნაცვლად `Permission.values()`-თან ვალიდაცია ხდება, ასე რომ admin-ს ახლა შეუძლია ხელით მიანიჭოს `videos.archive`-იც | `PUT /api/users/{id}/permissions` | ზემოთ ჩამოთვლილ 16 ტესტში შედის (მათ შორის უცნობი permission-ის უარყოფა და `videos.archive`-ის წარმატებული მინიჭება) | ✔ დაკმაყოფილებულია — ეს ერთადერთი განზრახ ქცევის-ცვლილებაა ამ დომენში |
+| Users | ✅ **User status (active/inactive) აშენებული (2026-08-06)** — საკუთარი ანგარიშის დეაქტივაცია დაბლოკილია | `PUT /api/users/{id}/status` | ზემოთ ჩამოთვლილ 16 ტესტში შედის | ✔ დაკმაყოფილებულია |
+| Users | ✅ **User create/reset-password აშენებული (2026-08-06)**; **`nudge` განზრახ არ აშენდა** — მისი ერთადერთი side-ეფექტი წმინდა SSE-publish-ია, დურაბელური ჩანაწერი საერთოდ არ იწერება (განსხვავებით ყველა სხვა აქამდე გადავადებული SSE-callable-ისგან). თქვენთან ერთად დადასტურდა: იგივე მიზეზით გადავადდეს, რაც Messaging-ის `GET /api/stream` (იმავე broker-ს იყენებს) — frontend-ის nudge-ღილაკი ახლა 404-ს მიიღებს (რეალური შეცდომა), არა ყალბ success-ს | `POST /api/users`, `POST /api/users/{id}/reset-password` | ზემოთ ჩამოთვლილ 16 ტესტში შედის | ✔ 2/2 დაკმაყოფილებულია; nudge შეგნებულად გადავადებულია |
+| Users, Teams | ✅ **ტრივიალური CRUD/list აშენებული (2026-08-06)** (group-leaders, teams get/create — დუბლირებული სახელის უარყოფით) | `GET /api/admin/group-leaders`, `GET/POST /api/teams`, `GET /api/users` | ზემოთ ჩამოთვლილ 16 ტესტში შედის | ✔ დაკმაყოფილებულია — `GET /api/users`-ის progress-ველები (`ComplianceCalculator.computeProgress` გაზიარებული) დადასტურებულია ტესტით |
 
 ## Content — Articles / News / Videos / Categories
 
