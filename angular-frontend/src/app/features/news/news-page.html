@@ -37,6 +37,19 @@
           <option value="alphabetical">{{ 'news.page.sort_alphabetical' | translate }}</option>
         </select>
       </div>
+      <button
+        (click)="toggleFavoritesOnly()"
+        [attr.aria-pressed]="favoritesOnly()"
+        class="flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium shadow-sm transition-colors focus:outline-none"
+        [class]="favoritesOnly() ? 'border-yellow-300 bg-yellow-50 text-yellow-600 dark:border-yellow-700 dark:bg-yellow-950/30' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400'"
+      >
+        @if (favoritesOnly()) {
+          <i class="fa-solid fa-star text-yellow-500"></i>
+        } @else {
+          <i class="fa-regular fa-star text-gray-400"></i>
+        }
+        <span>{{ 'favorites.news_toggle' | translate }}</span>
+      </button>
     </div>
   </div>
 
@@ -77,6 +90,7 @@
               </div>
             </div>
           </div>
+          <app-favorite-star itemType="news" [itemId]="item.id" />
         </div>
       }
     </div>

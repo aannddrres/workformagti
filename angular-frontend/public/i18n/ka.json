@@ -156,5 +156,22 @@
     "detail_page": {
       "not_found": "ვიდეო ვერ მოიძებნა"
     }
+  },
+  "shared": {
+    "favorite_star": {
+      "aria_label": "რჩეულებში დამატება"
+    }
+  },
+  "favorites": {
+    "page": {
+      "heading": "ჩემი რჩეულები",
+      "empty": "რჩეულები არ მოიძებნა.",
+      "load_error": "რჩეულების ჩატვირთვა ვერ მოხერხდა.",
+      "group_article": "სტატიები",
+      "group_news": "სიახლეები",
+      "group_video": "ვიდეო ინსტრუქციები",
+      "remove": "წაშლა"
+    },
+    "news_toggle": "მხოლოდ რჩეულები"
   }
 }

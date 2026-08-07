@@ -10,6 +10,7 @@ import { NewsPage } from './features/news/news-page';
 import { NewsDetailPage } from './features/news/news-detail-page';
 import { VideosPage } from './features/videos/videos-page';
 import { VideoDetailPage } from './features/videos/video-detail-page';
+import { FavoritesPage } from './features/favorites/favorites-page';
 import { authGuard } from './core/auth/auth.guard';
 import { roleGuard } from './core/auth/role.guard';
 
@@ -42,7 +43,7 @@ export const routes: Routes = [
       },
       { path: 'videos', component: VideosPage, data: { title: 'nav.sidebar.video_instructions' } },
       { path: 'news', component: NewsPage, data: { title: 'nav.sidebar.news' } },
-      { path: 'favorites', component: PlaceholderPage, data: { title: 'nav.sidebar.favorites' } },
+      { path: 'favorites', component: FavoritesPage, data: { title: 'nav.sidebar.favorites' } },
 
       // page-article-view / page-category-view deep-link detail routes
       { path: 'article/:id', component: ArticleDetailPage, data: { title: 'nav.sidebar.section_kb' } },
@@ -56,7 +57,7 @@ export const routes: Routes = [
         path: 'profile',
         children: [
           { path: '', component: PlaceholderPage, data: { title: 'users.profile.tab_profile' } },
-          { path: 'favorites', component: PlaceholderPage, data: { title: 'users.profile.tab_favorites' } },
+          { path: 'favorites', component: FavoritesPage, data: { title: 'users.profile.tab_favorites' } },
           { path: 'messages', component: PlaceholderPage, data: { title: 'users.profile.tab_messages' } },
           { path: 'settings', component: PlaceholderPage, data: { title: 'users.profile.tab_settings' } },
           { path: 'search-history', component: PlaceholderPage, data: { title: 'search.history_tab.heading' } }

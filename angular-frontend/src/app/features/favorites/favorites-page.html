@@ -1,0 +1,49 @@
+<div class="mx-auto w-full max-w-[900px] px-4 pb-8 pt-4 md:px-6 md:pt-6">
+  <h2 class="mb-6 text-4xl font-semibold uppercase tracking-wider text-gray-800 dark:text-zinc-100">{{ 'favorites.page.heading' | translate }}</h2>
+
+  @if (loading()) {
+    <div class="space-y-3">
+      @for (i of [1, 2, 3]; track i) {
+        <div class="h-14 animate-pulse rounded-xl border border-gray-100 bg-white dark:border-zinc-800 dark:bg-zinc-900"></div>
+      }
+    </div>
+  } @else if (errorMessage()) {
+    <p class="py-8 text-center text-sm text-red-500">{{ errorMessage() }}</p>
+  } @else if (groups().length === 0) {
+    <p class="py-8 text-center text-sm text-gray-500 dark:text-zinc-400">{{ 'favorites.page.empty' | translate }}</p>
+  } @else {
+    <div class="space-y-8">
+      @for (group of groups(); track group.type) {
+        <div>
+          <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-gray-700 dark:text-zinc-300">{{ groupLabel(group.type) }}</h3>
+          <div class="flex flex-col gap-2">
+            @for (favorite of group.items; track favorite.id) {
+              <div
+                (click)="open(favorite)"
+                (keydown.enter)="open(favorite)"
+                tabindex="0"
+                role="button"
+                class="group flex cursor-pointer items-center justify-between rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-gray-200 hover:bg-gray-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800/60"
+              >
+                <div class="flex min-w-0 flex-1 items-center gap-3">
+                  <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-50 text-[#EE1D23] dark:bg-red-950/30">
+                    <i class="fa-solid" [class]="iconFor(favorite.item_type)" aria-hidden="true"></i>
+                  </div>
+                  <span class="truncate font-medium text-gray-800 dark:text-zinc-100">{{ favorite.item_title }}</span>
+                </div>
+                <button
+                  type="button"
+                  (click)="remove(favorite, $event)"
+                  [attr.aria-label]="'favorites.page.remove' | translate"
+                  class="ml-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-red-50 hover:text-[#B91C1C] focus:outline-none focus:ring-2 focus:ring-[#B91C1C] dark:text-zinc-500 dark:hover:bg-red-950/30"
+                >
+                  <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

@@ -3,9 +3,11 @@ import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { NewsService } from '../../core/services/news.service';
 import { UsersService } from '../../core/services/users.service';
+import { FavoritesService } from '../../core/services/favorites.service';
 import { NewsSummary } from '../../core/models/news';
 import { getDepartmentBadge } from '../../shared/department-badge';
 import { formatKaDate } from '../../shared/ka-date';
+import { FavoriteStar } from '../../shared/favorite-star/favorite-star';
 
 const PAGE_SIZE = 10;
 type SortOrder = 'newest' | 'oldest' | 'alphabetical';
@@ -17,18 +19,19 @@ type SortOrder = 'newest' | 'oldest' | 'alphabetical';
  * page -- its one #news-load-more-btn element is actually created by the
  * unrelated Mandatory-Reading page (a copy-paste/id-collision bug, see
  * migration doc). Real working pagination is built here instead of
- * reproducing the dead button. Favorites-only toggle is out of scope (no
- * Favorites domain in Angular yet).
+ * reproducing the dead button. The favorites-only toggle (#news-fav-toggle
+ * in the original) is now wired up too, now that the Favorites slice exists.
  */
 @Component({
   selector: 'app-news-page',
   standalone: true,
-  imports: [TranslatePipe],
+  imports: [TranslatePipe, FavoriteStar],
   templateUrl: './news-page.html'
 })
 export class NewsPage {
   private readonly newsService = inject(NewsService);
   private readonly usersService = inject(UsersService);
+  protected readonly favoritesService = inject(FavoritesService);
   private readonly translate = inject(TranslateService);
   private readonly router = inject(Router);
 
@@ -43,14 +46,19 @@ export class NewsPage {
   protected readonly searchQuery = signal('');
   protected readonly deptFilter = signal('');
   protected readonly sortOrder = signal<SortOrder>('newest');
+  protected readonly favoritesOnly = signal(false);
 
   private skip = 0;
 
   protected readonly filteredItems = computed(() => {
     const q = this.searchQuery().trim().toLowerCase();
     const dept = this.deptFilter();
+    const favOnly = this.favoritesOnly();
     const items = this.allItems().filter((item) => {
       if (dept && item.target_department !== dept) {
+        return false;
+      }
+      if (favOnly && !this.favoritesService.isFavorited('news', item.id)) {
         return false;
       }
       return !q || item.title.toLowerCase().includes(q);
@@ -120,6 +128,10 @@ export class NewsPage {
 
   onSortChange(value: string): void {
     this.sortOrder.set(value as SortOrder);
+  }
+
+  toggleFavoritesOnly(): void {
+    this.favoritesOnly.set(!this.favoritesOnly());
   }
 
   badgeFor(item: NewsSummary) {

@@ -156,5 +156,22 @@
     "detail_page": {
       "not_found": "Video not found"
     }
+  },
+  "shared": {
+    "favorite_star": {
+      "aria_label": "Add to favorites"
+    }
+  },
+  "favorites": {
+    "page": {
+      "heading": "My favorites",
+      "empty": "No favorites found.",
+      "load_error": "Could not load favorites.",
+      "group_article": "Articles",
+      "group_news": "News",
+      "group_video": "Video Instructions",
+      "remove": "Remove"
+    },
+    "news_toggle": "Favorites only"
   }
 }

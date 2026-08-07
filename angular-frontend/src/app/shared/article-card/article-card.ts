@@ -2,6 +2,7 @@ import { Component, computed, input, output } from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
 import { getCategoryCardStyles, getCategoryIcon, isRecentlyPublished } from '../category-visuals';
 import { formatKaDate } from '../ka-date';
+import { FavoriteStar } from '../favorite-star/favorite-star';
 
 export interface ArticleCardViewModel {
   id: number;
@@ -23,7 +24,7 @@ export interface ArticleCardViewModel {
 @Component({
   selector: 'app-article-card',
   standalone: true,
-  imports: [TranslatePipe],
+  imports: [TranslatePipe, FavoriteStar],
   templateUrl: './article-card.html'
 })
 export class ArticleCard {
