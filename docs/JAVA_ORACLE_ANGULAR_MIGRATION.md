@@ -1982,6 +1982,105 @@ favorite/სტატია/სიახლე/ვიდეო წაიშა�
 overlay), ვიდეოს archive/unarchive UI (backend მზადაა, ორიგინალ
 JS-ს არასდროს ჰქონია).
 
+**Slice 5 — Compliance/Stats, ნაწილი 1: ჩემი წასაკითხი მასალები —
+✅ დასრულებულია, 2026-08-07**
+
+Content დომენის დასრულების შემდეგ მომხმარებელს შევთავაზეთ
+"Compliance/სტატისტიკის ფუნქციები" (ბექენდის საკუთარი build-order
+მიხედვით) — მან დათანხმდა, შემდეგ კვლევამ დაადგინა, რომ ეს დომენი
+სამ სრულიად დამოუკიდებელ ეკრანს მოიცავს (ოპერატორის ჩემი
+წასაკითხი, მენეჯერის Executive Department Dashboard, ადმინის
+KPI/graph/table დაფა), ამიტომ AskUserQuestion-ით ვთხოვეთ რომელი
+ჯერ — აირჩია **ჩემი წასაკითხი მასალები**.
+
+**კვლევის დამატებითი აღმოჩენები, მომავალი 2 ეტაპისთვის ჩაწერილი
+(ამ ეტაპზე გამოუყენებელი, მაგრამ საჭირო რომ ხელახლა არ მოგვიწიოს
+კვლევა):**
+- `#stats-time-filter` (დღეს/კვირა/30დღე/ყველა) სრულად მკვდარი UI —
+  არსად არ არის `onchange` handler; არც ერთ endpoint-ს არ აქვს
+  თარიღის დიაპაზონის პარამეტრი გუნდის სტატისტიკისთვის.
+- `#team-stats-name-filter`/`#team-stats-dept-filter` მიბმულია, მაგრამ
+  არაფექტური — `GET /api/manager/department-stats`-ს საერთოდ არ აქვს
+  query-პარამეტრები; ეს ეტევა `/api/manager/team-stats`-ისთვის
+  აშენებულს ჰგავს, მაგრამ არასდროს დაკავშირებულა.
+- `/api/manager/team-stats` და `/api/admin/stats/team/{id}` — **0
+  frontend caller** (repo-მასშტაბით დადასტურდა grep-ით).
+  `/api/statistics/breakdown`-საც არცერთი caller არა აქვს.
+- `ComplianceStatsResponse.top_articles`-ს არასდროს ჰქონია
+  `read_count` ველი — ორიგინალის Top-5 chart ამის გამო ყოველთვის
+  ყალბ დაღმავალ ფორმულას (95,80,65,50,35) რენდერავდა, არა რეალურ
+  მონაცემს (Java-ვერსიაშიც იგივე ხარვეზია გადმოტანილი).
+- Percentage ველის ტიპი შეუთანხმებელია endpoint-ების მიხედვით:
+  `department-stats`-ს აქვს plain `int` (0-100), დანარჩენებს
+  (`user-progress`, `team-stats`, `admin/stats/team`) — `"NN%"`
+  string, `group-users`-ს კი ისევ `int`. Angular-მა ეს განსხვავებით
+  უნდა გაუმკლავდეს, არა ერთი საერთო ტიპით.
+
+**JIT ტესტ-ანგარიშების აღმოჩენა:** Java backend-ის JIT-provisioning
+სია (`AuthenticationService.java`) გაცილებით მცირეა, ვიდრე Python-ის
+`qa_accounts.py`-ის სრული `TEST_ACCOUNTS` — მხოლოდ `admin@magti.ge`,
+`content@magti.ge`, `manager@magti.ge`, `nino@magti.ge`,
+`tech@magti.ge`, `info@magti.ge`. `operator@magti.ge` (qa_accounts.py-ში
+არსებული) Java-ზე **არ მუშაობს** — ოპერატორის ვერიფიკაციისთვის
+`info@magti.ge` გამოვიყენეთ. მომავალი სესიებისთვის ჩაწერილია, რომ
+დრო არ დაიხარჯოს.
+
+**აშენდა:** `ComplianceService.markRead()` (POST
+`/api/compliance/mark-read/{id}`, 403 ცალკე `quizRequired`
+შედეგად, არა შეცდომად); `MyReadingsPage` (`/reading` route,
+ოპერატორ-მხოლოდ — `MANAGEMENT_ROLES`-ის deny-guard უკვე არსებობდა);
+საზიარო `content-type-visuals.ts` (`iconForContentType`/
+`detailRouteFor`) — ამოღებულია `favorites-page.ts`-ის საკუთარი
+დუბლიკატიდანაც, რომ მესამე ასლი აღარ გაჩენილიყო.
+
+**შეგნებული გადახრები:**
+1. ორიგინალი "გახსნა"-ს და "წავიკითხე"-ს ერთ modal-ში აერთიანებდა
+   (content იხსნება, შემდეგ modal-ის ბოლოში confirm-ღილაკი ემატება).
+   ეს პორტი უკვე აშენებულ route-ბაზირებულ დეტალურ გვერდებს იყენებს
+   (article/news/video — იგივე გადახრა, რაც Slice 3/4-ში), ამიტომ
+   "ნახვა" (row-ზე დაჭერა → navigate) და "წავიკითხე და გავიგე"
+   (ცალკე ღილაკი) ორ დამოუკიდებელ row-ქმედებადაა გაყოფილი.
+2. `markRead()` წარმატებაზე ცვლის მხოლოდ ლოკალურ signal-ს
+   (`status:'read'`), არ თხოულობს მთელ სიას ხელახლა — იგივე
+   direct-cache-update პატერნი, რაც Favorites-ში.
+3. ორიგინალის `renderFilteredReadings` (app-renderers.js:243-259)
+   ქმნის `#news-load-more-btn` ელემენტს — copy-paste/id-collision
+   ბაგი News-გვერდიდან (უკვე დადასტურებული Slice 3-ში,
+   news-page.ts-ის საკუთარ დოკუმენტაციაში). `my-readings` API-ს
+   საერთოდ არ აქვს pagination, ამიტომ აქ "მეტის ნახვა" საერთოდ არ
+   აშენდა.
+
+**ქვიზ-გეიტის ხარვეზი (ცნობილი, დოკუმენტირებული):** Angular-ში ჯერ
+საერთოდ არ არსებობს ქვიზის ჩაბარების UI (Quiz-დომენის frontend ჯერ
+არ აშენებულა). `mark-read`-ის 403 (ქვიზი გაუვლელია) ამჟამად აჩვენებს
+პასიურ, ინფორმაციულ ბანერს ("ეს ფუნქცია ჯერ არ არის ხელმისაწვდომი")
+crash-ის ან ჩუმი ჩავარდნის ნაცვლად. ცოცხალ Oracle-ზე ამ დროისთვის
+**0 required_reading** მიუთითებს ქვიზიან სტატიაზე, ამიტომ ამ ხარვეზს
+ამჟამად რეალური გავლენა არ აქვს — მაგრამ საჭირო იქნება Quiz-დომენის
+frontend-ის აშენებისას დახურვა.
+
+**გადამოწმდა ცოცხლად რეალურ Oracle+Java-ზე:** შეიქმნა სატესტო
+სტატია (ვადაგადაცილებული due_date) + სიახლე + ვიდეო (მომავალი
+due_date) რეალური `POST`-endpoint-ებით, თითოეულისთვის
+`required_reading` რეალური `POST`-ით. ოპერატორის (`info@magti.ge`)
+`/reading`-გვერდზე დადასტურდა: სამივე item სწორი
+სათაურით/თარიღით/badge-ით (ვადაგადაცილებული/წასაკითხი), "ყველა/
+წასაკითხი/წაკითხული" ტაბები სწორად ფილტრავს, სიახლის mark-read
+რეალურად დაბრუნა 200 და UI-მ დაუყოვნებლივ აჩვენა "წაკითხულია"
+ხელახალი fetch-ის გარეშე, სტატიის row-ზე დაჭერით სწორად გადავიდა
+`/article/{id}`-ზე (რეალური content გამოჩნდა). ცალკე შეიქმნა
+ქვიზიანი სტატია + required_reading — mark-read-მა დააბრუნა 403 და
+UI-მ სწორად აჩვენა quiz-gate ბანერი. ბოლოს ყველა სატესტო მონაცემი
+წაიშალა რეალური `DELETE`-endpoint-ებით.
+
+**ხელახლა დადასტურებული, უკვე ცნობილი FK-parity ხარვეზი:**
+`DELETE /api/compliance/required-readings/{id}` მარცხდება
+`ORA-02292`-ით (child record `read_statuses`-ში), თუ ის reading
+უკვე მონიშნულია წაკითხულად — Favorites slice-ში ნაპოვნი იგივე
+კატეგორიის pre-existing ხარვეზია (არ არსებობს ცალკე delete API
+`read_statuses`-სთვის). გასუფთავდა ერთი მიზნობრივი `sqlplus DELETE`
+primary key-ით, ისევე როგორც მაშინ.
+
 ### 3d — მესამე-მხარის ბიბლიოთეკების ჩანაცვლება
 
 | ბიბლიოთეკა | დღევანდელი ვერსია | სტატუსი |

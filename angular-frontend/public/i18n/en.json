@@ -173,5 +173,24 @@
       "remove": "Remove"
     },
     "news_toggle": "Favorites only"
+  },
+  "readings": {
+    "page": {
+      "heading": "Mandatory reading",
+      "filter_all": "All",
+      "filter_unread": "Unread",
+      "filter_read": "Read",
+      "empty": "No items found.",
+      "load_error": "Could not load the reading list.",
+      "due_label": "Due: {{date}}",
+      "item_fallback_title": "Item #{{id}}",
+      "status_read": "Read",
+      "status_overdue": "Overdue",
+      "status_unread": "Unread",
+      "action_mark_read": "I've read and understood",
+      "quiz_gate_message": "\"{{title}}\" requires passing its quiz to confirm reading -- this isn't available yet.",
+      "mark_error": "Could not update the status.",
+      "dismiss": "Dismiss"
+    }
   }
 }

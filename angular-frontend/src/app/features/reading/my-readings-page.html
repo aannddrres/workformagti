@@ -1,0 +1,104 @@
+<div class="mx-auto w-full max-w-[900px] px-4 pb-8 pt-4 md:px-6 md:pt-6">
+  <h2 class="mb-6 text-4xl font-semibold uppercase tracking-wider text-gray-800 dark:text-zinc-100">{{ 'readings.page.heading' | translate }}</h2>
+
+  <div class="mb-6 flex gap-6 border-b border-gray-200 dark:border-zinc-800">
+    <button
+      (click)="setFilter('all')"
+      class="border-b-2 px-1 pb-3 text-sm font-medium transition-colors"
+      [class]="filter() === 'all' ? 'border-[#EE1D23] font-semibold text-[#EE1D23]' : 'border-transparent text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200'"
+    >
+      {{ 'readings.page.filter_all' | translate }}
+    </button>
+    <button
+      (click)="setFilter('unread')"
+      class="border-b-2 px-1 pb-3 text-sm font-medium transition-colors"
+      [class]="filter() === 'unread' ? 'border-[#EE1D23] font-semibold text-[#EE1D23]' : 'border-transparent text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200'"
+    >
+      {{ 'readings.page.filter_unread' | translate }}
+    </button>
+    <button
+      (click)="setFilter('read')"
+      class="border-b-2 px-1 pb-3 text-sm font-medium transition-colors"
+      [class]="filter() === 'read' ? 'border-[#EE1D23] font-semibold text-[#EE1D23]' : 'border-transparent text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200'"
+    >
+      {{ 'readings.page.filter_read' | translate }}
+    </button>
+  </div>
+
+  @if (quizGateItem(); as gateItem) {
+    <div class="mb-6 flex items-start justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+      <div class="flex items-start gap-3">
+        <i class="fa-solid fa-triangle-exclamation mt-0.5" aria-hidden="true"></i>
+        <span>{{ 'readings.page.quiz_gate_message' | translate: { title: titleFor(gateItem) } }}</span>
+      </div>
+      <button (click)="dismissQuizGate()" [attr.aria-label]="'readings.page.dismiss' | translate" class="shrink-0 text-amber-500 hover:text-amber-700 dark:text-amber-400">
+        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+      </button>
+    </div>
+  }
+
+  @if (markError()) {
+    <div class="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-400">
+      {{ 'readings.page.mark_error' | translate }}
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="flex flex-col gap-3">
+      @for (i of [1, 2, 3]; track i) {
+        <div class="h-[76px] animate-pulse rounded-xl border border-gray-100 bg-white dark:border-zinc-800 dark:bg-zinc-900"></div>
+      }
+    </div>
+  } @else if (errorMessage()) {
+    <p class="py-8 text-center text-sm text-red-500">{{ errorMessage() }}</p>
+  } @else if (filteredReadings().length === 0) {
+    <p class="py-8 text-center text-sm text-gray-500 dark:text-zinc-400">{{ 'readings.page.empty' | translate }}</p>
+  } @else {
+    <div class="flex flex-col gap-3">
+      @for (item of filteredReadings(); track item.reading.id) {
+        <div
+          (click)="view(item)"
+          (keydown.enter)="view(item)"
+          tabindex="0"
+          role="button"
+          class="group flex items-center justify-between gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-gray-200 hover:bg-gray-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800/60"
+        >
+          <div class="flex min-w-0 flex-1 items-center gap-4">
+            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-50 text-[#EE1D23] dark:bg-red-950/30">
+              <i class="fa-solid" [class]="iconFor(item)" aria-hidden="true"></i>
+            </div>
+            <div class="min-w-0">
+              <h4 class="truncate font-bold text-gray-800 dark:text-zinc-100" [title]="titleFor(item)">{{ titleFor(item) }}</h4>
+              <p class="mt-1 text-xs text-gray-500 dark:text-zinc-400">{{ 'readings.page.due_label' | translate: { date: dateLabel(item) } }}</p>
+            </div>
+          </div>
+          <div class="flex shrink-0 items-center gap-3">
+            @if (item.status === 'read') {
+              <span class="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700 dark:bg-green-950/40 dark:text-green-400">{{ 'readings.page.status_read' | translate }}</span>
+            } @else if (isOverdue(item)) {
+              <span class="rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-[#EE1D23] dark:bg-red-950/40">{{ 'readings.page.status_overdue' | translate }}</span>
+            } @else {
+              <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-600 dark:bg-zinc-800 dark:text-zinc-300">{{ 'readings.page.status_unread' | translate }}</span>
+            }
+
+            @if (item.status !== 'read') {
+              <button
+                (click)="markRead(item, $event)"
+                [disabled]="markingId() === item.reading.id"
+                class="rounded-full border border-[#EE1D23] px-4 py-1 text-xs font-bold text-[#EE1D23] transition-colors hover:bg-red-50 disabled:opacity-60 dark:hover:bg-red-950/20"
+              >
+                @if (markingId() === item.reading.id) {
+                  <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+                } @else {
+                  {{ 'readings.page.action_mark_read' | translate }}
+                }
+              </button>
+            }
+
+            <app-favorite-star [itemType]="item.reading.item_type" [itemId]="item.reading.item_id" />
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

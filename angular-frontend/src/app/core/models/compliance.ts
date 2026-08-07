@@ -25,3 +25,16 @@ export interface MyProgress {
   pending: number;
   percentage: number;
 }
+
+/** Mirrors web.ReadStatusResponse -- the mark-read POST response body. */
+export interface ReadStatus {
+  id: number;
+  user_id: number;
+  required_reading_id: number;
+  status: string;
+  read_at: string | null;
+}
+
+export type MarkReadResult =
+  | { ok: true; quizRequired: false; status: ReadStatus }
+  | { ok: false; quizRequired: boolean };

@@ -173,5 +173,24 @@
       "remove": "წაშლა"
     },
     "news_toggle": "მხოლოდ რჩეულები"
+  },
+  "readings": {
+    "page": {
+      "heading": "სავალდებულოდ გასაცნობი",
+      "filter_all": "ყველა",
+      "filter_unread": "წასაკითხი",
+      "filter_read": "წაკითხული",
+      "empty": "სია ცარიელია.",
+      "load_error": "მასალების ჩატვირთვა ვერ მოხერხდა.",
+      "due_label": "ვადა: {{date}}",
+      "item_fallback_title": "მასალა #{{id}}",
+      "status_read": "წაკითხულია",
+      "status_overdue": "ვადაგადაცილებული",
+      "status_unread": "წასაკითხი",
+      "action_mark_read": "წავიკითხე და გავიგე",
+      "quiz_gate_message": "„{{title}}“ დასადასტურებლად საჭიროა ქვიზის ჩაბარება — ეს ფუნქცია ჯერ არ არის ხელმისაწვდომი.",
+      "mark_error": "სტატუსის განახლება ვერ მოხერხდა.",
+      "dismiss": "დახურვა"
+    }
   }
 }

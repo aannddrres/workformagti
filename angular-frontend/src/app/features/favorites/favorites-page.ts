@@ -3,18 +3,9 @@ import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { FavoritesService } from '../../core/services/favorites.service';
 import { Favorite } from '../../core/models/favorite';
+import { detailRouteFor, iconForContentType } from '../../shared/content-type-visuals';
 
 const GROUP_ORDER = ['article', 'news', 'video'] as const;
-const GROUP_ICON: Record<string, string> = {
-  article: 'fa-book-open',
-  news: 'fa-bullhorn',
-  video: 'fa-video'
-};
-const DETAIL_ROUTE: Record<string, string> = {
-  article: '/article',
-  news: '/news',
-  video: '/videos'
-};
 
 /**
  * Port of page-favorites (base-layout.html:1238-1247) + the profile
@@ -61,7 +52,7 @@ export class FavoritesPage {
   }
 
   iconFor(itemType: string): string {
-    return GROUP_ICON[itemType] || 'fa-file';
+    return iconForContentType(itemType);
   }
 
   groupLabel(itemType: string): string {
@@ -69,9 +60,9 @@ export class FavoritesPage {
   }
 
   open(favorite: Favorite): void {
-    const base = DETAIL_ROUTE[favorite.item_type];
-    if (base) {
-      this.router.navigate([base, favorite.item_id]);
+    const route = detailRouteFor(favorite.item_type, favorite.item_id);
+    if (route) {
+      this.router.navigate(route);
     }
   }
 
