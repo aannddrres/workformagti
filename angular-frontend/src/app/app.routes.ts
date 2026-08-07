@@ -3,6 +3,7 @@ import { AppShell } from './shell/app-shell';
 import { PlaceholderPage } from './shell/placeholder-page';
 import { Login } from './features/login/login';
 import { KnowledgeBasePage } from './features/knowledge-base/knowledge-base-page';
+import { DashboardPage } from './features/dashboard/dashboard-page';
 import { CategoryViewPage } from './features/category-view/category-view-page';
 import { ArticleDetailPage } from './features/article-detail/article-detail-page';
 import { authGuard } from './core/auth/auth.guard';
@@ -21,7 +22,7 @@ export const routes: Routes = [
     canActivate: [authGuard],
     children: [
       // 11 main pages (page-dashboard .. page-admin in base-layout.html)
-      { path: '', component: PlaceholderPage, data: { title: 'nav.sidebar.home' } },
+      { path: '', component: DashboardPage, data: { title: 'nav.sidebar.home' } },
       {
         path: 'manager',
         component: PlaceholderPage,

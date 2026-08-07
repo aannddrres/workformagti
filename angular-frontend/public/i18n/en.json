@@ -92,5 +92,32 @@
       "not_found": "Article not found",
       "version_label": "Version {{version}}"
     }
+  },
+  "dashboard": {
+    "banner_heading": "Welcome to the Magti Portal",
+    "banner_subtitle": "Knowledge base, mandatory reading, and news, all in one place.",
+    "progress": {
+      "all_clear": "All required material has been reviewed",
+      "pending_label": "{{count}} remaining",
+      "load_error": "Could not load your progress"
+    },
+    "mandatory_reading": {
+      "heading": "Must read",
+      "unread_count": "{{count}} unread",
+      "overdue_count": "{{count}} overdue",
+      "empty_heading": "All required reading is done",
+      "empty_body": "You have no new mandatory material to read right now.",
+      "load_error": "Could not load mandatory reading"
+    },
+    "news_preview": {
+      "heading": "Latest news",
+      "empty": "No news found.",
+      "load_error": "Could not load news"
+    },
+    "recently_viewed": {
+      "heading": "Recently viewed",
+      "empty": "No recently viewed articles found",
+      "load_error": "Could not load recently viewed articles"
+    }
   }
 }

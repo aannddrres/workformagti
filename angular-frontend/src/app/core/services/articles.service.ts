@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Article, ArticleSummary } from '../models/article';
+import { Article, ArticleSummary, RecentlyViewedItem } from '../models/article';
 
 @Injectable({ providedIn: 'root' })
 export class ArticlesService {
@@ -37,5 +37,11 @@ export class ArticlesService {
    *  "log the view, don't block on it" behavior. */
   logView(id: number): void {
     this.http.post<void>(`/api/articles/${id}/view`, {}).subscribe({ error: () => void 0 });
+  }
+
+  /** GET /api/me/recently-viewed -- server-backed, cross-device (distinct
+   *  from the KB page's separate localStorage-only "recently viewed" strip). */
+  recentlyViewed(): Observable<RecentlyViewedItem[]> {
+    return this.http.get<RecentlyViewedItem[]>('/api/me/recently-viewed');
   }
 }

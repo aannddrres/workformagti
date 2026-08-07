@@ -125,6 +125,7 @@ public class NewsController {
 
     /** Port of create_news (routers/news.py:105-138). */
     @PostMapping("/api/news")
+    @Transactional
     public ResponseEntity<?> createNews(@Valid @RequestBody NewsRequest request, @AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
         if (denial != null) {
@@ -173,6 +174,7 @@ public class NewsController {
 
     /** Port of delete_news (routers/news.py:186-213). */
     @DeleteMapping("/api/news/{id}")
+    @Transactional
     public ResponseEntity<?> deleteNews(@PathVariable Long id, @AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
         if (denial != null) {

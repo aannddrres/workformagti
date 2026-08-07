@@ -1,0 +1,15 @@
+<svg width="72" height="72" viewBox="0 0 72 72" class="-rotate-90">
+  <circle cx="36" cy="36" [attr.r]="radius" fill="none" stroke-width="6" class="stroke-slate-100 dark:stroke-zinc-800" />
+  <circle
+    cx="36"
+    cy="36"
+    [attr.r]="radius"
+    fill="none"
+    stroke-width="6"
+    stroke-linecap="round"
+    [attr.stroke]="color()"
+    [attr.stroke-dasharray]="circumference"
+    [attr.stroke-dashoffset]="offset()"
+    style="transition: stroke-dashoffset 0.6s ease, stroke 0.3s ease;"
+  />
+</svg>

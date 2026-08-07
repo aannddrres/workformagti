@@ -16,6 +16,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -110,6 +111,7 @@ public class VideoController {
     }
 
     @PostMapping("/api/videos")
+    @Transactional
     public ResponseEntity<?> createVideo(
             @Valid @RequestBody VideoInstructionRequest request, @AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
@@ -128,6 +130,7 @@ public class VideoController {
     }
 
     @PutMapping("/api/videos/{id}")
+    @Transactional
     public ResponseEntity<?> updateVideo(
             @PathVariable Long id, @Valid @RequestBody VideoInstructionRequest request,
             @AuthenticationPrincipal User user) {
@@ -150,6 +153,7 @@ public class VideoController {
     }
 
     @DeleteMapping("/api/videos/{id}")
+    @Transactional
     public ResponseEntity<?> deleteVideo(@PathVariable Long id, @AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
         if (denial != null) {

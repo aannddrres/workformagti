@@ -16,6 +16,13 @@ export interface ArticleSummary {
   is_draft: boolean;
 }
 
+/** Mirrors web.RecentlyViewedItemResponse. */
+export interface RecentlyViewedItem {
+  article_id: number;
+  title: string;
+  viewed_at: string;
+}
+
 /** Mirrors web.ArticleResponse -- the full/detail shape (has content, no category_name). */
 export interface Article {
   id: number;

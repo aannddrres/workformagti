@@ -63,3 +63,13 @@ export function isRecentlyPublished(article: { publishedAt: string | null; creat
   const reference = article.publishedAt || article.createdAt;
   return Date.now() - new Date(reference).getTime() < NEW_BADGE_WINDOW_MS;
 }
+
+/** Shared by the KB bento grid and the dashboard's category grid -- both
+ *  need per-category article counts from the same kind of bounded sample. */
+export function buildCategoryCounts(cards: { categoryName: string }[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const card of cards) {
+    counts.set(card.categoryName, (counts.get(card.categoryName) ?? 0) + 1);
+  }
+  return counts;
+}
