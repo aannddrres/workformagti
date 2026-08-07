@@ -222,5 +222,43 @@
       "total_label": "სულ: {{count}}",
       "group_empty": "თანამშრომლები არ მოიძებნა."
     }
+  },
+  "stats": {
+    "admin_page": {
+      "heading": "მთავარი პანელი",
+      "refresh": "განახლება",
+      "load_error": "მონაცემების ჩატვირთვა ვერ მოხერხდა.",
+      "loading": "იტვირთება…",
+      "kpi_users": "მომხმარებლები",
+      "kpi_articles": "პუბლიკაციები",
+      "kpi_readings": "სავალდებულო კითხვა",
+      "kpi_videos": "ვიდეო",
+      "activity_heading": "სისტემური აქტივობა (ბოლო 7 დღე)",
+      "activity_empty": "აქტივობა არ არის",
+      "reading_stats_heading": "წაკითხვის სტატისტიკა",
+      "top5_heading": "ტოპ 5 ყველაზე წაკითხვადი საკითხი",
+      "top5_no_data": "მონაცემები არ არის",
+      "chart_read_label": "წაკითხული ({{value}}%)",
+      "chart_unread_label": "წაუკითხავი ({{value}}%)",
+      "popular_searches_heading": "პოპულარული ძიებები (ტოპ 10)",
+      "column_search_count": "მოძიებები",
+      "failed_searches_heading": "საძიებო ხარვეზები (ტოპ 10)",
+      "column_failed_attempts": "უშედეგო ცდები",
+      "column_term": "საძიებო სიტყვა",
+      "no_data": "მონაცემები არ არის",
+      "progress_heading": "სავალდებულო კითხვის პროგრესი",
+      "progress_subtitle": "მომხმარებლები • სამიზნე: 100% Compliance",
+      "progress_incomplete_only": "მხოლოდ არასრული",
+      "progress_dept_all": "ყველა დეპარტამენტი",
+      "progress_sort_perf_desc": "დალაგება: შესრულების კლებადობით",
+      "progress_sort_perf_asc": "დალაგება: შესრულების ზრდადობით",
+      "progress_sort_name": "დალაგება: სახელის მიხედვით",
+      "progress_col_user": "მომხმარებელი",
+      "progress_col_department": "დეპარტამენტი",
+      "progress_col_read": "წაკითხული",
+      "progress_col_total": "სულ",
+      "progress_col_progress": "პროგრესი",
+      "progress_no_data": "მონაცემები არ არის"
+    }
   }
 }

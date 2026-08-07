@@ -222,5 +222,43 @@
       "total_label": "Total: {{count}}",
       "group_empty": "No employees found."
     }
+  },
+  "stats": {
+    "admin_page": {
+      "heading": "Main Dashboard",
+      "refresh": "Refresh",
+      "load_error": "Could not load the data.",
+      "loading": "Loading…",
+      "kpi_users": "Users",
+      "kpi_articles": "Publications",
+      "kpi_readings": "Mandatory reading",
+      "kpi_videos": "Video",
+      "activity_heading": "System activity (last 7 days)",
+      "activity_empty": "No activity",
+      "reading_stats_heading": "Reading statistics",
+      "top5_heading": "Top 5 most-read topics",
+      "top5_no_data": "No data",
+      "chart_read_label": "Read ({{value}}%)",
+      "chart_unread_label": "Unread ({{value}}%)",
+      "popular_searches_heading": "Popular searches (top 10)",
+      "column_search_count": "Searches",
+      "failed_searches_heading": "Search failures (top 10)",
+      "column_failed_attempts": "Unsuccessful attempts",
+      "column_term": "Search term",
+      "no_data": "No data",
+      "progress_heading": "Mandatory reading progress",
+      "progress_subtitle": "Users • Target: 100% Compliance",
+      "progress_incomplete_only": "Incomplete only",
+      "progress_dept_all": "All departments",
+      "progress_sort_perf_desc": "Sort: performance (high to low)",
+      "progress_sort_perf_asc": "Sort: performance (low to high)",
+      "progress_sort_name": "Sort: by name",
+      "progress_col_user": "User",
+      "progress_col_department": "Department",
+      "progress_col_read": "Read",
+      "progress_col_total": "Total",
+      "progress_col_progress": "Progress",
+      "progress_no_data": "No data"
+    }
   }
 }

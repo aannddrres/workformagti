@@ -1,0 +1,216 @@
+<div class="mx-auto w-full max-w-[1440px] px-4 pb-8 pt-4 md:px-6 md:pt-6">
+  <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+    <h2 class="text-4xl font-semibold uppercase tracking-wider text-gray-800 dark:text-zinc-100">{{ 'stats.admin_page.heading' | translate }}</h2>
+    <button
+      (click)="refresh()"
+      class="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400"
+    >
+      <i class="fa-solid fa-rotate-right" aria-hidden="true"></i> {{ 'stats.admin_page.refresh' | translate }}
+    </button>
+  </div>
+
+  <!-- KPI cards -->
+  <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    @if (kpiLoading()) {
+      @for (i of [1, 2, 3, 4]; track i) {
+        <div class="h-24 animate-pulse rounded-2xl border border-gray-100 bg-white dark:border-zinc-800 dark:bg-zinc-900/60"></div>
+      }
+    } @else if (kpiError()) {
+      <div class="col-span-full rounded-2xl border border-gray-100 bg-white p-6 text-center text-sm text-gray-500 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-400">
+        <i class="fa-solid fa-triangle-exclamation mr-1.5 text-[#EE1D23]" aria-hidden="true"></i>{{ 'stats.admin_page.load_error' | translate }}
+      </div>
+    } @else if (kpi(); as data) {
+      <a routerLink="/admin/users" class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition hover:bg-gray-50 dark:border-zinc-800 dark:bg-zinc-900/60 dark:hover:bg-zinc-800/80">
+        <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500"><i class="fa-solid fa-users mr-1.5" aria-hidden="true"></i>{{ 'stats.admin_page.kpi_users' | translate }}</p>
+        <p class="mt-3 text-4xl font-semibold tabular-nums text-gray-800 dark:text-zinc-100">{{ data.users }}</p>
+      </a>
+      <a routerLink="/admin/content" class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition hover:bg-gray-50 dark:border-zinc-800 dark:bg-zinc-900/60 dark:hover:bg-zinc-800/80">
+        <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500"><i class="fa-solid fa-file-lines mr-1.5" aria-hidden="true"></i>{{ 'stats.admin_page.kpi_articles' | translate }}</p>
+        <p class="mt-3 text-4xl font-semibold tabular-nums text-gray-800 dark:text-zinc-100">{{ data.articles }}</p>
+      </a>
+      <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60">
+        <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500"><i class="fa-solid fa-clipboard-check mr-1.5" aria-hidden="true"></i>{{ 'stats.admin_page.kpi_readings' | translate }}</p>
+        <p class="mt-3 text-4xl font-semibold tabular-nums text-gray-800 dark:text-zinc-100">{{ data.required_readings }}</p>
+      </div>
+      <a routerLink="/videos" class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition hover:bg-gray-50 dark:border-zinc-800 dark:bg-zinc-900/60 dark:hover:bg-zinc-800/80">
+        <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500"><i class="fa-solid fa-video mr-1.5" aria-hidden="true"></i>{{ 'stats.admin_page.kpi_videos' | translate }}</p>
+        <p class="mt-3 text-4xl font-semibold tabular-nums text-gray-800 dark:text-zinc-100">{{ data.videos }}</p>
+      </a>
+    }
+  </div>
+
+  <!-- Activity chart -->
+  <div class="mb-6 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60">
+    <h3 class="mb-3 text-lg font-semibold text-gray-800 dark:text-zinc-100">{{ 'stats.admin_page.activity_heading' | translate }}</h3>
+    @if (activityLoading()) {
+      <div class="h-64 animate-pulse rounded-xl bg-gray-50 dark:bg-zinc-800/60"></div>
+    } @else if (activityError()) {
+      <p class="py-10 text-center text-sm text-gray-500 dark:text-zinc-400"><i class="fa-solid fa-triangle-exclamation mr-1.5 text-[#EE1D23]" aria-hidden="true"></i>{{ 'stats.admin_page.load_error' | translate }}</p>
+    } @else if (activityPoints().length === 0) {
+      <p class="py-10 text-center text-sm text-gray-400 dark:text-zinc-600">{{ 'stats.admin_page.activity_empty' | translate }}</p>
+    } @else {
+      <div class="h-64">
+        <canvas #activityCanvas></canvas>
+      </div>
+    }
+  </div>
+
+  <!-- Compliance donut + Top-5 bar -->
+  <div class="mb-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
+    <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60">
+      <h3 class="mb-3 text-lg font-semibold text-gray-800 dark:text-zinc-100">{{ 'stats.admin_page.reading_stats_heading' | translate }}</h3>
+      @if (complianceLoading()) {
+        <div class="h-64 animate-pulse rounded-xl bg-gray-50 dark:bg-zinc-800/60"></div>
+      } @else if (complianceError()) {
+        <p class="py-10 text-center text-sm text-gray-500 dark:text-zinc-400"><i class="fa-solid fa-triangle-exclamation mr-1.5 text-[#EE1D23]" aria-hidden="true"></i>{{ 'stats.admin_page.load_error' | translate }}</p>
+      } @else {
+        <div class="h-64">
+          <canvas #complianceCanvas></canvas>
+        </div>
+      }
+    </div>
+    <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60">
+      <h3 class="mb-3 text-lg font-semibold text-gray-800 dark:text-zinc-100">{{ 'stats.admin_page.top5_heading' | translate }}</h3>
+      @if (complianceLoading()) {
+        <div class="h-64 animate-pulse rounded-xl bg-gray-50 dark:bg-zinc-800/60"></div>
+      } @else if (complianceError()) {
+        <p class="py-10 text-center text-sm text-gray-500 dark:text-zinc-400"><i class="fa-solid fa-triangle-exclamation mr-1.5 text-[#EE1D23]" aria-hidden="true"></i>{{ 'stats.admin_page.load_error' | translate }}</p>
+      } @else if (compliance()?.top_articles?.length === 0) {
+        <p class="py-10 text-center text-sm text-gray-400 dark:text-zinc-600">{{ 'stats.admin_page.top5_no_data' | translate }}</p>
+      } @else {
+        <div class="h-64">
+          <canvas #top5Canvas></canvas>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Popular / failed searches -->
+  <div class="mb-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
+    <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60">
+      <h3 class="mb-3 text-lg font-semibold text-gray-800 dark:text-zinc-100">{{ 'stats.admin_page.popular_searches_heading' | translate }}</h3>
+      @if (popularLoading()) {
+        <div class="h-40 animate-pulse rounded-xl bg-gray-50 dark:bg-zinc-800/60"></div>
+      } @else if (popularError()) {
+        <p class="py-6 text-center text-sm text-gray-500 dark:text-zinc-400"><i class="fa-solid fa-triangle-exclamation mr-1.5 text-[#EE1D23]" aria-hidden="true"></i>{{ 'stats.admin_page.load_error' | translate }}</p>
+      } @else if (popularSearches().length === 0) {
+        <p class="py-6 text-center text-sm text-gray-400 dark:text-zinc-600">{{ 'stats.admin_page.no_data' | translate }}</p>
+      } @else {
+        <table class="w-full text-left">
+          <thead>
+            <tr class="border-b border-gray-100 text-xs font-semibold uppercase text-gray-400 dark:border-zinc-700 dark:text-zinc-500">
+              <th class="pb-2 pr-3">{{ 'stats.admin_page.column_term' | translate }}</th>
+              <th class="pb-2 text-right">{{ 'stats.admin_page.column_search_count' | translate }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of popularSearches(); track row.search_term) {
+              <tr class="border-b border-gray-50 dark:border-zinc-800">
+                <td class="py-2 pr-3 text-sm text-gray-800 dark:text-zinc-200">{{ row.search_term }}</td>
+                <td class="py-2 text-right text-sm font-semibold tabular-nums text-gray-600 dark:text-zinc-300">{{ row.count }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+    <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60">
+      <h3 class="mb-3 text-lg font-semibold text-gray-800 dark:text-zinc-100">{{ 'stats.admin_page.failed_searches_heading' | translate }}</h3>
+      @if (failedLoading()) {
+        <div class="h-40 animate-pulse rounded-xl bg-gray-50 dark:bg-zinc-800/60"></div>
+      } @else if (failedError()) {
+        <p class="py-6 text-center text-sm text-gray-500 dark:text-zinc-400"><i class="fa-solid fa-triangle-exclamation mr-1.5 text-[#EE1D23]" aria-hidden="true"></i>{{ 'stats.admin_page.load_error' | translate }}</p>
+      } @else if (failedSearches().length === 0) {
+        <p class="py-6 text-center text-sm text-gray-400 dark:text-zinc-600">{{ 'stats.admin_page.no_data' | translate }}</p>
+      } @else {
+        <table class="w-full text-left">
+          <thead>
+            <tr class="border-b border-gray-100 text-xs font-semibold uppercase text-gray-400 dark:border-zinc-700 dark:text-zinc-500">
+              <th class="pb-2 pr-3">{{ 'stats.admin_page.column_term' | translate }}</th>
+              <th class="pb-2 text-right">{{ 'stats.admin_page.column_failed_attempts' | translate }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of failedSearches(); track row.search_term) {
+              <tr class="border-b border-gray-50 dark:border-zinc-800">
+                <td class="py-2 pr-3 text-sm text-gray-800 dark:text-zinc-200">{{ row.search_term }}</td>
+                <td class="py-2 text-right text-sm font-semibold tabular-nums text-[#EE1D23] dark:text-red-400">{{ row.count }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </div>
+
+  <!-- User progress (system_admin only) -->
+  @if (isSystemAdmin()) {
+    <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60">
+      <div class="mb-1 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 class="text-lg font-semibold text-gray-800 dark:text-zinc-100">{{ 'stats.admin_page.progress_heading' | translate }}</h3>
+          <p class="text-xs text-gray-400 dark:text-zinc-500">{{ 'stats.admin_page.progress_subtitle' | translate }}</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <select
+            (change)="onProgressDeptChange($event)"
+            class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+          >
+            <option value="">{{ 'stats.admin_page.progress_dept_all' | translate }}</option>
+            @for (dept of progressDepartments(); track dept) {
+              <option [value]="dept">{{ dept }}</option>
+            }
+          </select>
+          <select
+            (change)="onProgressSortChange($event)"
+            class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+          >
+            <option value="perf_desc">{{ 'stats.admin_page.progress_sort_perf_desc' | translate }}</option>
+            <option value="perf_asc">{{ 'stats.admin_page.progress_sort_perf_asc' | translate }}</option>
+            <option value="name">{{ 'stats.admin_page.progress_sort_name' | translate }}</option>
+          </select>
+          <button
+            (click)="toggleIncompleteOnly()"
+            class="rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors"
+            [class]="progressIncompleteOnly() ? 'border-[#B91C1C] bg-red-50 text-[#B91C1C] dark:border-red-800 dark:bg-red-950/40 dark:text-red-400' : 'border-gray-200 bg-white text-gray-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300'"
+          >
+            {{ 'stats.admin_page.progress_incomplete_only' | translate }}
+          </button>
+        </div>
+      </div>
+
+      @if (progressLoading()) {
+        <div class="mt-4 h-40 animate-pulse rounded-xl bg-gray-50 dark:bg-zinc-800/60"></div>
+      } @else if (progressError()) {
+        <p class="py-6 text-center text-sm text-gray-500 dark:text-zinc-400"><i class="fa-solid fa-triangle-exclamation mr-1.5 text-[#EE1D23]" aria-hidden="true"></i>{{ 'stats.admin_page.load_error' | translate }}</p>
+      } @else if (filteredProgress().length === 0) {
+        <p class="py-6 text-center text-sm text-gray-400 dark:text-zinc-600">{{ 'stats.admin_page.progress_no_data' | translate }}</p>
+      } @else {
+        <div class="mt-4 overflow-x-auto">
+          <table class="w-full text-left">
+            <thead>
+              <tr class="border-b border-gray-100 text-xs font-semibold uppercase text-gray-400 dark:border-zinc-700 dark:text-zinc-500">
+                <th class="pb-2 pr-3">{{ 'stats.admin_page.progress_col_user' | translate }}</th>
+                <th class="pb-2 pr-3">{{ 'stats.admin_page.progress_col_department' | translate }}</th>
+                <th class="pb-2 pr-3 text-right">{{ 'stats.admin_page.progress_col_read' | translate }}</th>
+                <th class="pb-2 pr-3 text-right">{{ 'stats.admin_page.progress_col_total' | translate }}</th>
+                <th class="pb-2 text-right">{{ 'stats.admin_page.progress_col_progress' | translate }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of filteredProgress(); track item.user_id) {
+                <tr class="border-b border-gray-50 dark:border-zinc-800">
+                  <td class="py-2 pr-3 text-sm text-gray-800 dark:text-zinc-200">{{ item.user_name }}</td>
+                  <td class="max-w-[200px] truncate py-2 pr-3 text-xs text-gray-500 dark:text-zinc-400">{{ item.department || '—' }}</td>
+                  <td class="py-2 pr-3 text-right text-sm tabular-nums text-gray-600 dark:text-zinc-300">{{ item.read_count }}</td>
+                  <td class="py-2 pr-3 text-right text-sm tabular-nums text-gray-600 dark:text-zinc-300">{{ item.required_count }}</td>
+                  <td class="py-2 text-right text-sm font-semibold tabular-nums" [class]="pctColorClass(item.percentage)">{{ item.percentage }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  }
+</div>

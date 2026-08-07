@@ -13,6 +13,7 @@ import { VideoDetailPage } from './features/videos/video-detail-page';
 import { FavoritesPage } from './features/favorites/favorites-page';
 import { MyReadingsPage } from './features/reading/my-readings-page';
 import { TeamStatsPage } from './features/team-stats/team-stats-page';
+import { AdminStatsPage } from './features/admin-stats/admin-stats-page';
 import { authGuard } from './core/auth/auth.guard';
 import { roleGuard } from './core/auth/role.guard';
 
@@ -73,7 +74,7 @@ export const routes: Routes = [
         canActivate: [roleGuard(ADMIN_OR_CONTENT_ADMIN)],
         children: [
           { path: '', pathMatch: 'full', redirectTo: 'main' },
-          { path: 'main', component: PlaceholderPage, data: { title: 'nav.sidebar.admin_stats' } },
+          { path: 'main', component: AdminStatsPage, data: { title: 'nav.sidebar.admin_stats' } },
           { path: 'content', component: PlaceholderPage, data: { title: 'nav.sidebar.admin_content' } },
           { path: 'categories', component: PlaceholderPage, data: { title: 'nav.sidebar.admin_categories' } },
           {

@@ -3,11 +3,9 @@ package ge.magti.portal.web;
 import ge.magti.portal.compliance.ComplianceCalculator;
 import ge.magti.portal.compliance.ComplianceQueryService;
 import ge.magti.portal.domain.Article;
-import ge.magti.portal.domain.ArticleTargetDepartment;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.repository.ArticleRepository;
-import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
 import ge.magti.portal.repository.ArticleViewLogRepository;
 import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.ReadStatusRepository;
@@ -71,7 +69,6 @@ public class StatsController {
     private final RequiredReadingRepository requiredReadingRepository;
     private final ReadStatusRepository readStatusRepository;
     private final ArticleRepository articleRepository;
-    private final ArticleTargetDepartmentRepository articleTargetDepartmentRepository;
     private final VideoInstructionRepository videoInstructionRepository;
     private final AuditLogRepository auditLogRepository;
     private final ArticleViewLogRepository articleViewLogRepository;
@@ -83,7 +80,6 @@ public class StatsController {
             RequiredReadingRepository requiredReadingRepository,
             ReadStatusRepository readStatusRepository,
             ArticleRepository articleRepository,
-            ArticleTargetDepartmentRepository articleTargetDepartmentRepository,
             VideoInstructionRepository videoInstructionRepository,
             AuditLogRepository auditLogRepository,
             ArticleViewLogRepository articleViewLogRepository) {
@@ -93,7 +89,6 @@ public class StatsController {
         this.requiredReadingRepository = requiredReadingRepository;
         this.readStatusRepository = readStatusRepository;
         this.articleRepository = articleRepository;
-        this.articleTargetDepartmentRepository = articleTargetDepartmentRepository;
         this.videoInstructionRepository = videoInstructionRepository;
         this.auditLogRepository = auditLogRepository;
         this.articleViewLogRepository = articleViewLogRepository;
@@ -148,22 +143,24 @@ public class StatsController {
 
         List<Object[]> topRows = requiredReadingRepository.topReadArticleIds(
                 ComplianceCalculator.MANAGEMENT_ROLES, PageRequest.of(0, 5));
-        List<Long> topIds = topRows.stream().map(row -> ((Number) row[0]).longValue()).toList();
+        List<Long> topIds = new ArrayList<>();
+        Map<Long, Long> readCountsByArticleId = new LinkedHashMap<>();
+        for (Object[] row : topRows) {
+            Long articleId = ((Number) row[0]).longValue();
+            topIds.add(articleId);
+            readCountsByArticleId.put(articleId, ((Number) row[1]).longValue());
+        }
 
         Map<Long, Article> articlesById = new LinkedHashMap<>();
         for (Article a : articleRepository.findAllById(topIds)) {
             articlesById.put(a.getId(), a);
         }
-        Map<Long, List<String>> deptsByArticle = new LinkedHashMap<>();
-        for (ArticleTargetDepartment atd : articleTargetDepartmentRepository.findByArticleIdIn(topIds)) {
-            deptsByArticle.computeIfAbsent(atd.getArticleId(), k -> new ArrayList<>()).add(atd.getDepartment());
-        }
 
-        List<ArticleResponse> topArticles = new ArrayList<>();
+        List<TopArticleResponse> topArticles = new ArrayList<>();
         for (Long id : topIds) {
             Article a = articlesById.get(id);
             if (a != null) {
-                topArticles.add(ArticleResponse.from(a, deptsByArticle.getOrDefault(id, List.of())));
+                topArticles.add(new TopArticleResponse(a.getId(), a.getTitle(), readCountsByArticleId.get(id)));
             }
         }
 

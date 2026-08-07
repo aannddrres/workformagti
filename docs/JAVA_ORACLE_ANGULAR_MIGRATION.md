@@ -2172,6 +2172,92 @@ endpoint-ით (204/200), არა პირდაპირი SQL DELETE-ი�
 **ცნობილი, განზრახ გამოტოვებული:** ადმინის KPI/chart/table დაფა
 (Slice 5-ის მესამე, ბოლო ნაწილი) ჯერ არ დაწყებულა.
 
+**Slice 5 — Compliance/Stats, ნაწილი 3: ადმინის სტატისტიკის დაფა —
+✅ დასრულებულია, 2026-08-07.**
+
+`page-admin`-ის "მთავარი პანელი" (`/admin/main`) — base-layout.html:1488-1687-ის
++ app-core.js-ის `initCharts()`-ის + frontend_api.js-ის 4 fetch-helper-ის
+სრული გადაწერა, არა line-translation. Backend-ში (StatsController,
+SearchController) ყველა საჭირო 6 endpoint უკვე მზად იყო — ეს იყო
+სუფთა Angular-slice, Java-ცვლილება მხოლოდ ქვემოთ აღწერილი ერთი
+bug-fix იყო.
+
+**აღმოჩენილი და გასწორებული ბაგი (მომხმარებლის დადასტურებით):**
+"ტოპ 5 ყველაზე წაკითხვადი სტატია" ბარ-გრაფიკს Python-ორიგინალშივე
+არ ჰქონდა რეალური წაკითხვების რაოდენობა საჩვენებლად (`ArticleResponse`-ს
+არასდროს ჰქონია `read_count` ველი) — frontend ხელოვნურად კლებად
+რიცხვებს (95, 80, 65...) აჩვენებდა რეალურის მაგივრად. თავად ხუთეულის
+შერჩევა (რომელი სტატიაა ყველაზე პოპულარული) სწორი და რეალური იყო —
+მხოლოდ საჩვენებელი რიცხვი იყო გამოგონილი. აღმოჩნდა, რომ backend-ს
+რეალური რაოდენობა უკვე ჰქონდა გამოთვლილი
+(`RequiredReadingRepository.topReadArticleIds`-ის query-ს already
+აბრუნებდა `read_count`-საც, უბრალოდ არასდროს გაეგზავნა frontend-ში).
+მომხმარებელმა აირჩია "გავასწოროთ" (რეკომენდებულის): დაემატა ახალი
+`TopArticleResponse(id, title, readCount)` record,
+`ComplianceStatsResponse.topArticles`-ის ტიპი შეიცვალა
+`List<ArticleResponse>`-დან `List<TopArticleResponse>`-ზე (მხოლოდ
+Angular-ს მოიხმარს ეს endpoint, golden-master-ის კონტრაქტს არ ეხება),
+`getComplianceStatistics`-ში უკვე არსებული `topRows`-ის meore
+სვეტი გამოყენებულ იქნა პირდაპირ — ახალი DB-query არ დასჭირდა.
+ცოცხლად გადამოწმდა Oracle-ზე: 1 სატესტო სტატია + required_reading
+(`All`) + mark-read 1 ოპერატორისთვის → `top_articles: [{id, title,
+read_count: 1}]` (რეალური `1`, არა fake `95`), დონატ-გრაფიკი (50%/50%)
+და user-progress ცხრილი (100%/0%) ორივე შეესაბამებოდა ამავე მონაცემს.
+
+**აშენდა:** `core/models/stats.ts`-ს დაემატა `KpiCounts`,
+`ActivityPoint`, `TopArticle`, `ComplianceStats`, `PopularSearch`,
+`UserProgressItem`, `BreakdownItem`; `StatsService`-ს — `kpi()`,
+`activity()`, `compliance()`, `popularSearches()`, `failedSearches()`,
+`userProgress()`, `breakdown()`. ახალი `AdminStatsPage` კომპონენტი
+(`features/admin-stats/`): 4 KPI-ბარათი (მომხმარებლები/პუბლიკაციები/
+სავალდებულო-კითხვები/ვიდეო — ბოლო 3-დან Users და Content
+routerLink-ით მიბმულია `/admin/users`-სა და `/admin/content`-ზე,
+Videos — `/videos`-ზე; Required Readings ბარათი უბრალო static
+რიცხვია), აქტივობის line-chart (7 დღე), წაკითხვის donut + ტოპ-5
+horizontal-bar chart, პოპულარული/წარუმატებელი ძებნების ორი ცხრილი,
+და — მხოლოდ `system_admin`-ისთვის (endpoint თავად ასეც არის
+gated) — სავალდებულო-კითხვის პროგრესის ცხრილი დეპარტამენტის
+ფილტრით, დალაგებით (perf desc/asc/სახელით) და "მხოლოდ არასრული"
+toggle-ით. გრაფიკებისთვის დაემატა `chart.js` (`chart.js/auto`) —
+პირველი charting-ბიბლიოთეკა ამ Angular-workspace-ში.
+
+**განზრახ არ პორტირებულია:**
+- KPI-ბარათების hardcoded (მონაცემებზე არდამოკიდებული) trend-ისრები
+  და fake-max-ზე დაფუძნებული progress-ბარი (`fetchKPIs`,
+  frontend_api.js:1674-1717) — არასდროს ასახავდნენ რეალურ არაფერს;
+  ნაჩვენები რომ ყოფილიყო, შეცდომაში შემყვანი იქნებოდა, არა ნამდვილი
+  port.
+- "მოძველებული კონტენტის" (Stale Content Alert) პანელი და საგანგებო
+  შეტყობინების ფორმა, რომლებიც Python-ში ვიზუალურად ამავე გვერდზეა —
+  ეს Content და Messaging დომენებს ეკუთვნის, არა Stats-ს; გადავადებულია
+  იმ დომენების საკუთარ admin-tooling slice-ებამდე.
+- თარიღის დიაპაზონის picker — ორიგინალშიც არ არსებობს (activity
+  hardcoded 7-დღიან window-ზეა).
+
+**ცოცხლი გადამოწმება:** ორივე dev-server (Java+Oracle, Angular)
+გაეშვა. `admin@magti.ge` (system_admin) და `content@magti.ge`
+(content_admin) — ორივესთვის ცოცხლად დადასტურდა ყველა 6 endpoint-ის
+პასუხი და UI-რენდერი; `content_admin`-ისთვის კონკრეტულად
+დადასტურდა, რომ `user-progress` endpoint საერთოდ არც კი გამოიძახება
+(loadAll-ის `if (isSystemAdmin())` გუარდი), და პროგრესის სექცია UI-ში
+სულაც არ ჩნდება. Department-ფილტრი, sort-select და "მხოლოდ არასრული"
+toggle ცოცხლად შემოწმდა real DOM-manipulation-ით (ფილტრმა 2
+მომხმარებლიდან 1-ზე შეამცირა, toggle-ის აქტიური/არააქტიური CSS
+კლასი სწორად გადადიოდა). ტოპ-5 გრაფიკის bug-fix-ი ცალკე,
+end-to-end, ცოცხლად დადასტურდა ზემოთაღწერილი 1-სტატიის test-data-ით.
+ყველა სატესტო მონაცემი წაიშალა რეალური endpoint-ებით ბოლოს
+(იგივე `read_statuses` FK-ხარვეზი ისევ გამოჩნდა required_reading-ის
+წაშლისას — `sqlplus`-ით გასუფთავდა, როგორც ადრეც).
+
+**გვერდითი აღმოჩენა (out-of-scope, ცალკე task-ად მონიშნული):**
+`DELETE /api/articles/{id}` 500-ს აბრუნებს, თუ იმ სტატიას აქვს
+`article_read_receipts` row (ნებისმიერი required_reading-ის
+mark-read-იდან) — `ORA-00001` unique-constraint collision
+`delete from articles`-ზე. Articles-დომენი უკვე დახურულია
+(golden-master-ით გადამოწმებული), ამიტომ ეს ამ slice-ის ფარგლებს
+სცდება — მონიშნულია background task-ად შემდგომი გამოძიებისთვის,
+არ გასწორებულა ახლა.
+
 ### 3d — მესამე-მხარის ბიბლიოთეკების ჩანაცვლება
 
 | ბიბლიოთეკა | დღევანდელი ვერსია | სტატუსი |

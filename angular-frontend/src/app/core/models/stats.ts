@@ -1,3 +1,53 @@
+/** Mirrors web.KpiResponse. */
+export interface KpiCounts {
+  users: number;
+  articles: number;
+  required_readings: number;
+  videos: number;
+}
+
+/** Mirrors web.ActivityPointResponse -- one bucket of the activity trend line. */
+export interface ActivityPoint {
+  date: string;
+  count: number;
+}
+
+/** Mirrors web.TopArticleResponse. read_count is real (see TopArticleResponse's javadoc -- Python's original chart used synthetic descending placeholders here instead). */
+export interface TopArticle {
+  id: number;
+  title: string;
+  read_count: number;
+}
+
+/** Mirrors web.ComplianceStatsResponse. */
+export interface ComplianceStats {
+  read_percentage: number;
+  unread_percentage: number;
+  top_articles: TopArticle[];
+}
+
+/** Mirrors web.PopularSearchResponse -- used for both popular-searches and failed-searches. */
+export interface PopularSearch {
+  search_term: string;
+  count: number;
+}
+
+/** Mirrors web.UserProgressItemResponse. percentage is a pre-formatted "NN%" string, matching Python's f-string. */
+export interface UserProgressItem {
+  user_id: number;
+  user_name: string;
+  department: string | null;
+  read_count: number;
+  required_count: number;
+  percentage: string;
+}
+
+/** Mirrors web.BreakdownItemResponse. */
+export interface BreakdownItem {
+  label: string;
+  count: number;
+}
+
 /** Mirrors stats.DashboardInsights -- the Insights Ribbon's 3 tiles. */
 export interface DashboardInsights {
   global_compliance: number;
