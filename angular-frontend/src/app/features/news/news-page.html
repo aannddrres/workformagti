@@ -1,0 +1,111 @@
+<div class="mx-auto w-full max-w-[1440px] px-4 pb-8 pt-4 md:px-6 md:pt-6">
+  <h2 class="mb-6 text-4xl font-semibold uppercase tracking-wider text-gray-800 dark:text-zinc-100">{{ 'news.page.heading' | translate }}</h2>
+
+  <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+    <div class="relative w-full md:w-[40%]">
+      <i class="fa-solid fa-magnifying-glass pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+      <input
+        type="search"
+        [placeholder]="'news.page.search_placeholder' | translate"
+        [value]="searchQuery()"
+        (input)="onSearchInput($any($event.target).value)"
+        class="w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm text-gray-800 placeholder-gray-400 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200"
+      />
+    </div>
+    <div class="flex flex-wrap items-center gap-3">
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-sliders text-gray-400"></i>
+        <select
+          (change)="onDeptFilterChange($any($event.target).value)"
+          class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-600 shadow-sm focus:border-[#B91C1C] focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400"
+        >
+          <option value="">{{ 'news.page.dept_all' | translate }}</option>
+          <option value="All">{{ 'news.page.dept_general' | translate }}</option>
+          <option value="ტექნიკური">{{ 'news.page.dept_tech' | translate }}</option>
+          <option value="საინფო">{{ 'news.page.dept_info' | translate }}</option>
+          <option value="ოფისი">{{ 'news.page.dept_office' | translate }}</option>
+        </select>
+      </div>
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-arrow-down-a-z text-gray-400"></i>
+        <select
+          (change)="onSortChange($any($event.target).value)"
+          class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-600 shadow-sm focus:border-[#B91C1C] focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400"
+        >
+          <option value="newest">{{ 'news.page.sort_newest' | translate }}</option>
+          <option value="oldest">{{ 'news.page.sort_oldest' | translate }}</option>
+          <option value="alphabetical">{{ 'news.page.sort_alphabetical' | translate }}</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="mb-6 flex flex-col gap-4">
+      @for (i of [1, 2, 3]; track i) {
+        <div class="h-[76px] animate-pulse rounded-xl border border-gray-100 bg-white dark:border-zinc-800 dark:bg-zinc-900"></div>
+      }
+    </div>
+  } @else if (errorMessage()) {
+    <p class="py-8 text-center text-sm text-red-500">{{ errorMessage() }}</p>
+  } @else if (filteredItems().length === 0) {
+    <p class="py-8 text-center text-sm text-gray-500 dark:text-zinc-400">{{ 'news.page.empty' | translate }}</p>
+  } @else {
+    <div class="mb-6 flex flex-col gap-4">
+      @for (item of filteredItems(); track item.id) {
+        <div
+          (click)="open(item.id)"
+          (keydown.enter)="open(item.id)"
+          tabindex="0"
+          role="button"
+          class="group flex cursor-pointer items-center justify-between rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-gray-200 hover:bg-gray-50 hover:-translate-y-px hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800/60"
+        >
+          <div class="mr-4 flex min-w-0 flex-1 items-center gap-4">
+            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-50 text-[#EE1D23] transition-transform group-hover:scale-105 dark:bg-red-950/30">
+              <i aria-hidden="true" class="fa-solid fa-bullhorn"></i>
+            </div>
+            <div class="min-w-0 flex-1">
+              <h4 class="truncate font-bold text-gray-800 dark:text-zinc-100" [title]="item.title">{{ item.title }}</h4>
+              <div class="mt-1 flex flex-wrap items-center gap-2">
+                <span class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium" [class]="badgeFor(item).colorClass">{{ badgeFor(item).label }}</span>
+                <span class="text-[12px] text-gray-400 dark:text-zinc-500"><i aria-hidden="true" class="fa-regular fa-clock mr-1"></i>{{ dateLabel(item) }}</span>
+                @if (isMyDepartment(item)) {
+                  <span class="ml-2 inline-flex items-center rounded-md border border-[#EE1D23]/20 bg-[#EE1D23]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#EE1D23]">
+                    {{ 'news.page.my_department' | translate }}
+                  </span>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    @if (hasMore()) {
+      <div class="mb-6 flex justify-center">
+        <button
+          (click)="loadMore()"
+          [disabled]="loadingMore()"
+          class="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+        >
+          @if (loadingMore()) {
+            <i class="fa-solid fa-spinner fa-spin mr-1.5"></i>{{ 'news.page.load_more_loading' | translate }}
+          } @else if (loadMoreError()) {
+            {{ 'news.page.load_more_error' | translate }}
+          } @else {
+            {{ 'news.page.load_more' | translate }} <i class="fa-solid fa-chevron-down ml-1"></i>
+          }
+        </button>
+      </div>
+    }
+  }
+
+  <div class="mb-10 flex justify-end">
+    <button
+      (click)="refresh()"
+      class="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+    >
+      <i class="fa-solid fa-rotate-right mr-1.5"></i> {{ 'news.page.refresh' | translate }}
+    </button>
+  </div>
+</div>

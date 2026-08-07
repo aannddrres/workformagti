@@ -119,5 +119,42 @@
       "empty": "ბოლოს ნანახი სტატიები არ მოიძებნა",
       "load_error": "ბოლოს ნანახის ჩატვირთვა ვერ მოხერხდა"
     }
+  },
+  "news": {
+    "page": {
+      "heading": "სიახლეები",
+      "search_placeholder": "ძიება სათაურით ან შინაარსით ...",
+      "dept_all": "ყველა დეპარტამენტი",
+      "dept_general": "საერთო",
+      "dept_tech": "ტექნიკური",
+      "dept_info": "საინფო",
+      "dept_office": "ოფისი",
+      "sort_newest": "უახლესი ჯერ",
+      "sort_oldest": "უძველესი ჯერ",
+      "sort_alphabetical": "ანბანით (ა-ჰ)",
+      "my_department": "შენი დეპარტამენტი",
+      "empty": "სიახლეები არ მოიძებნა.",
+      "load_error": "მონაცემების ჩატვირთვა ვერ მოხერხდა.",
+      "load_more": "მეტის ნახვა",
+      "load_more_loading": "იტვირთება...",
+      "load_more_error": "შეცდომა ჩატვირთვისას",
+      "refresh": "განახლება"
+    },
+    "detail_page": {
+      "not_found": "სიახლე ვერ მოიძებნა",
+      "attachment_download": "თანდართული ფაილი"
+    }
+  },
+  "videos": {
+    "page": {
+      "heading": "ვიდეო ინსტრუქციები",
+      "search_placeholder": "ძიება...",
+      "empty": "ვიდეოები არ მოიძებნა.",
+      "load_error": "მონაცემების ჩატვირთვა ვერ მოხერხდა.",
+      "views_label": "ნახვები: {{count}}"
+    },
+    "detail_page": {
+      "not_found": "ვიდეო ვერ მოიძებნა"
+    }
   }
 }

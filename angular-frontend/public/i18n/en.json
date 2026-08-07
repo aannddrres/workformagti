@@ -119,5 +119,42 @@
       "empty": "No recently viewed articles found",
       "load_error": "Could not load recently viewed articles"
     }
+  },
+  "news": {
+    "page": {
+      "heading": "News",
+      "search_placeholder": "Search by title or content ...",
+      "dept_all": "All departments",
+      "dept_general": "General",
+      "dept_tech": "Technical",
+      "dept_info": "Informational",
+      "dept_office": "Office",
+      "sort_newest": "Newest first",
+      "sort_oldest": "Oldest first",
+      "sort_alphabetical": "Alphabetical (A-Z)",
+      "my_department": "Your department",
+      "empty": "No news found.",
+      "load_error": "Could not load data.",
+      "load_more": "Load more",
+      "load_more_loading": "Loading...",
+      "load_more_error": "Error loading",
+      "refresh": "Refresh"
+    },
+    "detail_page": {
+      "not_found": "News item not found",
+      "attachment_download": "Attached file"
+    }
+  },
+  "videos": {
+    "page": {
+      "heading": "Video Instructions",
+      "search_placeholder": "Search...",
+      "empty": "No videos found.",
+      "load_error": "Could not load data.",
+      "views_label": "Views: {{count}}"
+    },
+    "detail_page": {
+      "not_found": "Video not found"
+    }
   }
 }

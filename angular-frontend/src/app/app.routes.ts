@@ -6,6 +6,10 @@ import { KnowledgeBasePage } from './features/knowledge-base/knowledge-base-page
 import { DashboardPage } from './features/dashboard/dashboard-page';
 import { CategoryViewPage } from './features/category-view/category-view-page';
 import { ArticleDetailPage } from './features/article-detail/article-detail-page';
+import { NewsPage } from './features/news/news-page';
+import { NewsDetailPage } from './features/news/news-detail-page';
+import { VideosPage } from './features/videos/videos-page';
+import { VideoDetailPage } from './features/videos/video-detail-page';
 import { authGuard } from './core/auth/auth.guard';
 import { roleGuard } from './core/auth/role.guard';
 
@@ -36,13 +40,15 @@ export const routes: Routes = [
         data: { title: 'nav.sidebar.mandatory_reading' },
         canActivate: [roleGuard(undefined, MANAGEMENT_ROLES)]
       },
-      { path: 'videos', component: PlaceholderPage, data: { title: 'nav.sidebar.video_instructions' } },
-      { path: 'news', component: PlaceholderPage, data: { title: 'nav.sidebar.news' } },
+      { path: 'videos', component: VideosPage, data: { title: 'nav.sidebar.video_instructions' } },
+      { path: 'news', component: NewsPage, data: { title: 'nav.sidebar.news' } },
       { path: 'favorites', component: PlaceholderPage, data: { title: 'nav.sidebar.favorites' } },
 
       // page-article-view / page-category-view deep-link detail routes
       { path: 'article/:id', component: ArticleDetailPage, data: { title: 'nav.sidebar.section_kb' } },
       { path: 'category/:slug', component: CategoryViewPage, data: { title: 'nav.sidebar.section_kb' } },
+      { path: 'news/:id', component: NewsDetailPage, data: { title: 'nav.sidebar.news' } },
+      { path: 'videos/:id', component: VideoDetailPage, data: { title: 'nav.sidebar.video_instructions' } },
 
       // page-profile's 5 tabs -- modeled as real child routes (bookmarkable),
       // unlike the current app's client-side-only tab switching.
