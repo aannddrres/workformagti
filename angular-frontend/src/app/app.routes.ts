@@ -12,6 +12,7 @@ import { VideosPage } from './features/videos/videos-page';
 import { VideoDetailPage } from './features/videos/video-detail-page';
 import { FavoritesPage } from './features/favorites/favorites-page';
 import { MyReadingsPage } from './features/reading/my-readings-page';
+import { TeamStatsPage } from './features/team-stats/team-stats-page';
 import { authGuard } from './core/auth/auth.guard';
 import { roleGuard } from './core/auth/role.guard';
 
@@ -31,7 +32,7 @@ export const routes: Routes = [
       { path: '', component: DashboardPage, data: { title: 'nav.sidebar.home' } },
       {
         path: 'manager',
-        component: PlaceholderPage,
+        component: TeamStatsPage,
         data: { title: 'nav.sidebar.team_stats' },
         canActivate: [roleGuard(MANAGER_ROLES)]
       },

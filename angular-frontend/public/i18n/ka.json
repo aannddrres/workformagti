@@ -192,5 +192,35 @@
       "mark_error": "სტატუსის განახლება ვერ მოხერხდა.",
       "dismiss": "დახურვა"
     }
+  },
+  "manager": {
+    "page": {
+      "heading": "გუნდის სტატისტიკა",
+      "subtitle": "დეპარტამენტებისა და ჯგუფების წაკითხვის შესრულება",
+      "sort_by_compliance": "დალაგება: შესრულების მიხედვით",
+      "sort_by_name": "დალაგება: სახელის მიხედვით",
+      "refresh": "განახლება",
+      "load_error": "მონაცემების ჩატვირთვა ვერ მოხერხდა.",
+      "loading": "იტვირთება…",
+      "ribbon_compliance": "გლობალური შესრულება",
+      "ribbon_compliance_hint": "{{count}} თანამშრომელი",
+      "ribbon_critical": "კრიტიკული ოპერატორები",
+      "ribbon_critical_hint": "< 30% შესრულება",
+      "ribbon_output": "სულ წაკითხული",
+      "ribbon_output_hint": "მთლიანი მოცულობა",
+      "groups_count": "{{count}} ჯგუფი",
+      "no_members": "თანამშრომლები არ არის მიბმული",
+      "dept_meta": "{{groups}} ჯგუფი · {{members}} თანამშრომელი",
+      "critical_count": "{{count}} კრიტ.",
+      "critical_badge": "{{count}} კრიტ.",
+      "critical_modal_title": "კრიტიკული ოპერატორები",
+      "critical_empty": "კრიტიკული ოპერატორები არ მოიძებნა.",
+      "col_name": "სახელი",
+      "col_department": "დეპარტამენტი",
+      "col_overdue": "გამოტოვ.",
+      "col_completion": "შესრულება",
+      "total_label": "სულ: {{count}}",
+      "group_empty": "თანამშრომლები არ მოიძებნა."
+    }
   }
 }

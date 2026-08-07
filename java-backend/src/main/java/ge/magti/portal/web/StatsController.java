@@ -258,10 +258,23 @@ public class StatsController {
         return ResponseEntity.ok(dashboard);
     }
 
-    /** Port of get_critical_operators (routers/stats.py:691-744). */
+    /**
+     * Port of get_critical_operators (routers/stats.py:691-744).
+     *
+     * <p>Deliberate fix vs. the Python original: that endpoint (and
+     * get_group_users below) gated on {@code get_current_admin_user}
+     * (content_admin/system_admin only), while the dashboard they're drilled
+     * into from -- {@link #getDepartmentStats} -- gates on
+     * {@code get_current_manager_user} (manager/system_admin). A plain
+     * manager could see the Executive Department Dashboard but got a 403
+     * clicking either of its own interactive drill-downs (critical-operators
+     * ribbon tile, any group row). Confirmed present in Python too, not a
+     * Java-port regression; fixed here since the dashboard's whole audience
+     * is managers.
+     */
     @GetMapping("/api/admin/critical-operators")
     public ResponseEntity<?> getCriticalOperators(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireManagerOrContentAdmin(user);
         if (denial != null) {
             return denial;
         }
@@ -270,12 +283,12 @@ public class StatsController {
         return ResponseEntity.ok(new CriticalOperatorsResponse(operators, operators.size(), TbilisiTime.now()));
     }
 
-    /** Port of get_group_users (routers/stats.py:747-815). */
+    /** Port of get_group_users (routers/stats.py:747-815). Same manager-access fix as {@link #getCriticalOperators}. */
     @GetMapping("/api/admin/departments/{department}/groups/{groupName}/users")
     public ResponseEntity<?> getGroupUsers(
             @PathVariable String department, @PathVariable("groupName") String groupName,
             @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireManagerOrContentAdmin(user);
         if (denial != null) {
             return denial;
         }
@@ -423,6 +436,19 @@ public class StatsController {
             return authFailure;
         }
         if (user.getRole() != Role.MANAGER && user.getRole() != Role.SYSTEM_ADMIN) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("detail", "Not enough permissions to perform this action"));
+        }
+        return null;
+    }
+
+    /** Union of {@link #requireManagerOrAdmin} and {@link #requireContentAdmin} -- see {@link #getCriticalOperators}'s javadoc. */
+    private static ResponseEntity<Map<String, String>> requireManagerOrContentAdmin(User user) {
+        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
+        if (authFailure != null) {
+            return authFailure;
+        }
+        if (user.getRole() != Role.MANAGER && !user.getRole().isContentAdmin()) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("detail", "Not enough permissions to perform this action"));
         }

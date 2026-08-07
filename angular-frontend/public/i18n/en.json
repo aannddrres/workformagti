@@ -192,5 +192,35 @@
       "mark_error": "Could not update the status.",
       "dismiss": "Dismiss"
     }
+  },
+  "manager": {
+    "page": {
+      "heading": "Team statistics",
+      "subtitle": "Reading completion across departments and groups",
+      "sort_by_compliance": "Sort: by performance",
+      "sort_by_name": "Sort: by name",
+      "refresh": "Refresh",
+      "load_error": "Could not load the data.",
+      "loading": "Loading…",
+      "ribbon_compliance": "Global performance",
+      "ribbon_compliance_hint": "{{count}} employees",
+      "ribbon_critical": "Critical operators",
+      "ribbon_critical_hint": "< 30% completion",
+      "ribbon_output": "Total read",
+      "ribbon_output_hint": "Total volume",
+      "groups_count": "{{count}} groups",
+      "no_members": "No employees assigned",
+      "dept_meta": "{{groups}} groups · {{members}} employees",
+      "critical_count": "{{count}} critical",
+      "critical_badge": "{{count}} crit.",
+      "critical_modal_title": "Critical operators",
+      "critical_empty": "No critical operators found.",
+      "col_name": "Name",
+      "col_department": "Department",
+      "col_overdue": "Overdue",
+      "col_completion": "Completion",
+      "total_label": "Total: {{count}}",
+      "group_empty": "No employees found."
+    }
   }
 }

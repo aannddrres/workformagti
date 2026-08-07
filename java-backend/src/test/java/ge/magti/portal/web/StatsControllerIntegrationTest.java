@@ -354,6 +354,27 @@ class StatsControllerIntegrationTest {
     }
 
     @Test
+    void managerCanDrillIntoCriticalOperatorsAndGroupUsersFromTheirOwnDashboard() throws Exception {
+        // Regression for the manager-access fix in StatsController: both drill-downs
+        // used to 403 a plain manager even though the dashboard they're launched
+        // from (department-stats) has always allowed managers. Operator alone must
+        // still be denied -- this isn't a blanket permitAll.
+        User manager = createUser("stats-mgr-drilldown@magti.ge", Role.MANAGER, "All");
+        User operator = createUser("stats-op-drilldown@magti.ge", Role.OPERATOR, "All");
+
+        mockMvc.perform(authed(get("/api/admin/critical-operators"), tokenFor(manager)))
+                .andExpect(status().isOk());
+        mockMvc.perform(authed(
+                        get("/api/admin/departments/{department}/groups/{groupName}/users",
+                                "საინფორმაციო", "ჯგუფი ტესტ99"),
+                        tokenFor(manager)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(authed(get("/api/admin/critical-operators"), tokenFor(operator)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void activityTrendDayBucketReturnsRequestedNumberOfDaysWithCounts() throws Exception {
         User admin = createUser("stats-act-admin@magti.ge", Role.CONTENT_ADMIN, "All");
         createAuditLog(admin.getId(), TbilisiTime.now(), AuditCategory.SYSTEM);
