@@ -49,6 +49,16 @@ import java.util.Optional;
  * doesn't exist yet. If the category being deleted IS that fallback
  * category, the reassignment step is skipped (a category can't be
  * reassigned onto itself).
+ *
+ * <p><b>Bug fix, found during a full-suite test run (2026-08-12):</b> the
+ * fallback lookup used {@code findByName} (single-result semantics), which
+ * throws if two categories ever share the "ზოგადი" name -- a real
+ * possibility since {@code categories.name} has no unique constraint, in
+ * either app. This would 500 on ANY category delete, not just deleting the
+ * fallback itself. Python's {@code .filter(name==...).first()}
+ * (routers/categories.py:127) degrades gracefully instead, silently using
+ * whichever row it finds first -- {@code findFirstByNameOrderByIdAsc} now
+ * matches that.
  */
 @RestController
 public class CategoryController {
@@ -125,7 +135,7 @@ public class CategoryController {
         }
         Category category = found.get();
 
-        Category fallback = categoryRepository.findByName(FALLBACK_NAME).orElseGet(() -> {
+        Category fallback = categoryRepository.findFirstByNameOrderByIdAsc(FALLBACK_NAME).orElseGet(() -> {
             Category created = new Category();
             created.setName(FALLBACK_NAME);
             created.setSlug("general");

@@ -184,7 +184,7 @@ class CategoryControllerIntegrationTest {
         mockMvc.perform(authed(delete("/api/categories/" + source.getId()), tokenFor(admin)))
                 .andExpect(status().isNoContent());
 
-        Category fallback = categoryRepository.findByName("ზოგადი").orElseThrow();
+        Category fallback = categoryRepository.findFirstByNameOrderByIdAsc("ზოგადი").orElseThrow();
         Article reloaded = articleRepository.findById(article.getId()).orElseThrow();
         assertEquals(fallback.getId(), reloaded.getCategoryId());
 
@@ -192,10 +192,22 @@ class CategoryControllerIntegrationTest {
         assertTrue(!reloadedSource.isActive());
     }
 
+    /**
+     * Bug found running the full suite (2026-08-12): this dev Oracle schema
+     * already has a real "ზოგადი" category left over from earlier manual
+     * browser verification of the Categories admin UI -- categories.name
+     * has no unique constraint (see CategoryController's class doc), so
+     * blindly creating a second row with that name here made the
+     * controller's fallback lookup throw IncorrectResultSizeDataAccessException
+     * on ANY delete, not just this test's own. Find-or-create instead,
+     * exactly mirroring what the controller itself now does (also fixed),
+     * so this test works whether or not a fallback already exists.
+     */
     @Test
     void deletingTheFallbackCategoryItselfSkipsReassignment() throws Exception {
         User admin = createUser("ca6@magti.ge", Role.CONTENT_ADMIN);
-        Category fallback = createCategory("ზოგადი");
+        Category fallback = categoryRepository.findFirstByNameOrderByIdAsc("ზოგადი")
+                .orElseGet(() -> createCategory("ზოგადი"));
         Article article = createArticle("ზოგად კატეგორიაზე მიბმული სტატია", fallback.getId());
 
         mockMvc.perform(authed(delete("/api/categories/" + fallback.getId()), tokenFor(admin)))

@@ -128,19 +128,32 @@ class AuditChainServiceTest {
     }
 
     @Test
-    void chainHealthReportsOkForACleanWindow() {
+    void chainHealthReportsOkWithNoTampering() {
         User admin = newTestUser("chain.health.clean.test");
-        newAuditRow(admin.getId(), "LOGIN", "user");
-        newAuditRow(admin.getId(), "UPDATE", "article");
-        newAuditRow(admin.getId(), "DELETE", "news");
+        AuditLog row1 = newAuditRow(admin.getId(), "LOGIN", "user");
+        AuditLog row2 = newAuditRow(admin.getId(), "UPDATE", "article");
+        AuditLog row3 = newAuditRow(admin.getId(), "DELETE", "news");
 
+        // chainHealth(N) checks the last N rows of the WHOLE audit_logs
+        // table (a real, ever-growing chain -- see AuditChainService's
+        // windowSql), not just rows this test created. This dev Oracle
+        // schema accumulates real audit rows from manual verification
+        // across the whole migration, so asserting an exact global
+        // checked() count is environment-dependent -- that was this
+        // test's actual bug (confirmed: fails "expected 3 but was 10"
+        // once the table has 10+ real rows, passes on a freshly migrated
+        // empty schema). Assert instead on what this test can actually
+        // control: nothing in the window is flagged bad, including its
+        // own 3 fresh rows specifically.
         var health = auditChainService.chainHealth(10);
 
         assertEquals("ok", health.status());
-        assertEquals(3, health.checked());
         assertEquals(0, health.hashMismatches());
         assertEquals(0, health.linkBreaks());
         assertTrue(health.badIds().isEmpty());
+        assertFalse(health.badIds().contains(row1.getId()));
+        assertFalse(health.badIds().contains(row2.getId()));
+        assertFalse(health.badIds().contains(row3.getId()));
     }
 
     @Test

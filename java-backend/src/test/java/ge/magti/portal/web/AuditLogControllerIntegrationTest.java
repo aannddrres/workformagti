@@ -184,13 +184,24 @@ class AuditLogControllerIntegrationTest {
 
     @Test
     void managerIsScopedToTheirExactDepartmentNotThePrefix() throws Exception {
-        User group01Actor = createUser("audit.group01actor@magti.ge", Role.OPERATOR, "ტექნიკური — ჯგუფი 01", Set.of());
-        User group02Actor = createUser("audit.group02actor@magti.ge", Role.OPERATOR, "ტექნიკური — ჯგუფი 02", Set.of());
+        // Unique-per-run department strings, not the fixed "ტექნიკური —
+        // ჯგუფი 01/02" literal: this dev Oracle schema is shared and
+        // accumulates real audit rows for those exact real department
+        // names from months of manual verification, which inflated
+        // X-Total-Count beyond this test's own 1 expected row (confirmed
+        // root cause, not a code bug). A unique suffix makes the exact-
+        // match assertion below independent of whatever else is in the
+        // table.
+        String uniqueSuffix = "-audittest-" + System.nanoTime();
+        String group01Dept = "ტექნიკური — ჯგუფი 01" + uniqueSuffix;
+        String group02Dept = "ტექნიკური — ჯგუფი 02" + uniqueSuffix;
+        User group01Actor = createUser("audit.group01actor@magti.ge", Role.OPERATOR, group01Dept, Set.of());
+        User group02Actor = createUser("audit.group02actor@magti.ge", Role.OPERATOR, group02Dept, Set.of());
         writeAuditRow(group01Actor.getId(), "LOGIN", "user", group01Actor.getId(), null);
         writeAuditRow(group02Actor.getId(), "LOGIN", "user", group02Actor.getId(), null);
 
         User group01Manager = createUser("audit.group01manager@magti.ge", Role.MANAGER,
-                "ტექნიკური — ჯგუფი 01", Set.of(Permission.SYSTEM_AUDIT));
+                group01Dept, Set.of(Permission.SYSTEM_AUDIT));
 
         String body = mockMvc.perform(get("/api/audit-logs")
                         .header("Authorization", "Bearer " + tokenFor(group01Manager)))
