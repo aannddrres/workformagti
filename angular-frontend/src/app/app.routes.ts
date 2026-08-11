@@ -18,6 +18,7 @@ import { AdminAuditPage } from './features/admin-audit/admin-audit-page';
 import { AdminUsersPage } from './features/admin-users/admin-users-page';
 import { AdminRolesPage } from './features/admin-roles/admin-roles-page';
 import { AdminContentPage } from './features/admin-content/admin-content-page';
+import { AdminCategoriesPage } from './features/admin-categories/admin-categories-page';
 import { authGuard } from './core/auth/auth.guard';
 import { roleGuard } from './core/auth/role.guard';
 
@@ -80,7 +81,7 @@ export const routes: Routes = [
           { path: '', pathMatch: 'full', redirectTo: 'main' },
           { path: 'main', component: AdminStatsPage, data: { title: 'nav.sidebar.admin_stats' } },
           { path: 'content', component: AdminContentPage, data: { title: 'nav.sidebar.admin_content' } },
-          { path: 'categories', component: PlaceholderPage, data: { title: 'nav.sidebar.admin_categories' } },
+          { path: 'categories', component: AdminCategoriesPage, data: { title: 'nav.sidebar.admin_categories' } },
           {
             path: 'users',
             component: AdminUsersPage,

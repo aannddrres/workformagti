@@ -1,0 +1,191 @@
+<div class="mx-auto w-full max-w-[1440px] px-4 pb-8 pt-4 md:px-6 md:pt-6">
+  <div class="mb-5 flex items-center justify-between gap-3">
+    <h2 class="text-3xl font-semibold uppercase tracking-wider text-gray-800 dark:text-zinc-100">{{ 'categories.heading' | translate }}</h2>
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        (click)="refresh()"
+        class="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+      >
+        <i class="fa-solid fa-rotate mr-1.5" aria-hidden="true"></i>{{ 'categories.refresh' | translate }}
+      </button>
+      <button
+        type="button"
+        (click)="openCreateForm()"
+        class="rounded-xl bg-[#B91C1C] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-700"
+      >
+        <i class="fa-solid fa-plus mr-1.5" aria-hidden="true"></i>{{ 'categories.new' | translate }}
+      </button>
+    </div>
+  </div>
+
+  @if (formOpen()) {
+    <form
+      (submit)="submit($event)"
+      class="mb-6 grid grid-cols-1 gap-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60 md:grid-cols-2 md:items-end lg:grid-cols-3"
+    >
+      <div>
+        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'categories.field_name' | translate }}</label>
+        <input
+          type="text"
+          required
+          [value]="name()"
+          (input)="onNameInput($event)"
+          class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+        />
+      </div>
+      <div>
+        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'categories.field_slug' | translate }}</label>
+        <input
+          type="text"
+          [value]="slug()"
+          (input)="onSlugInput($event)"
+          placeholder="{{ 'categories.slug_placeholder' | translate }}"
+          class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+        />
+      </div>
+      <div>
+        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'categories.field_icon' | translate }}</label>
+        <div class="flex items-center gap-2">
+          <input
+            type="text"
+            [value]="icon()"
+            (input)="onIconInput($event)"
+            placeholder="{{ 'categories.icon_placeholder' | translate }}"
+            class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+          />
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-lg dark:bg-zinc-800">
+            <i [class]="iconPreviewClass()" class="text-gray-500 dark:text-zinc-400" aria-hidden="true"></i>
+          </span>
+        </div>
+      </div>
+      <div>
+        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'categories.field_color' | translate }}</label>
+        <select
+          (change)="onPastelColorChange($event)"
+          class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+        >
+          @for (opt of pastelColorOptions; track opt.value) {
+            <option [value]="opt.value" [attr.selected]="opt.value === pastelColor() ? '' : null">{{ opt.labelKey | translate }}</option>
+          }
+        </select>
+      </div>
+      <div>
+        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'categories.field_parent' | translate }}</label>
+        <select
+          (change)="onParentChange($event)"
+          class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+        >
+          <option value="" [attr.selected]="parentId() === null ? '' : null">{{ 'categories.no_parent' | translate }}</option>
+          @for (p of parentOptions(); track p.id) {
+            <option [value]="p.id" [attr.selected]="p.id === parentId() ? '' : null">{{ p.name }}</option>
+          }
+        </select>
+      </div>
+      <div class="flex items-end justify-end gap-2 lg:col-span-2">
+        <button
+          type="button"
+          (click)="closeForm()"
+          class="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+        >{{ 'content.cancel' | translate }}</button>
+        <button
+          type="submit"
+          [disabled]="saving()"
+          class="rounded-xl bg-[#B91C1C] px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >{{ saving() ? ('content.saving' | translate) : ('content.save' | translate) }}</button>
+      </div>
+      @if (saveError(); as msg) {
+        <div class="text-sm text-red-600 dark:text-red-400 lg:col-span-3">{{ msg }}</div>
+      }
+    </form>
+  }
+
+  @if (loading()) {
+    <div class="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60">
+      @for (i of [1, 2, 3, 4]; track i) {
+        <div class="animate-pulse border-b border-gray-100 px-5 py-4 last:border-0 dark:border-zinc-800">
+          <div class="h-4 w-1/3 rounded bg-gray-200/60 dark:bg-zinc-800/60"></div>
+        </div>
+      }
+    </div>
+  } @else if (error()) {
+    <div class="rounded-2xl border border-gray-100 bg-white p-6 text-center text-sm text-red-500 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-red-400">{{ 'categories.load_error' | translate }}</div>
+  } @else {
+    <div class="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60">
+      <table class="w-full text-left text-sm">
+        <thead>
+          <tr class="border-b border-gray-200 bg-gray-50 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+            <th class="px-5 py-3">{{ 'categories.col_name' | translate }}</th>
+            <th class="px-5 py-3">ID</th>
+            <th class="px-5 py-3">{{ 'categories.col_parent' | translate }}</th>
+            <th class="px-5 py-3 text-center">{{ 'categories.col_action' | translate }}</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 dark:divide-zinc-800">
+          @if (!topLevelCategories().length && !orphanCategories().length) {
+            <tr><td colspan="4" class="px-5 py-6 text-center text-gray-400 dark:text-zinc-500">{{ 'categories.none_found' | translate }}</td></tr>
+          }
+          @for (parent of topLevelCategories(); track parent.id) {
+            <tr class="hover:bg-gray-50 dark:hover:bg-zinc-800/60">
+              <td class="px-5 py-3">
+                <button
+                  type="button"
+                  (click)="toggleExpand(parent.id)"
+                  [disabled]="!childCount(parent.id)"
+                  [class.opacity-30]="!childCount(parent.id)"
+                  [class.cursor-default]="!childCount(parent.id)"
+                  class="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                  [attr.aria-label]="'categories.expand' | translate"
+                >
+                  <i [class]="chevronClass(parent.id)" aria-hidden="true"></i>
+                </button>
+                <span class="font-semibold text-gray-800 dark:text-zinc-100">{{ parent.name }}</span>
+                @if (childCount(parent.id)) {
+                  <span class="ml-2 inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-600 dark:bg-blue-950/40 dark:text-blue-300">{{ 'categories.child_count' | translate: { count: childCount(parent.id) } }}</span>
+                }
+              </td>
+              <td class="px-5 py-3 text-gray-500 dark:text-zinc-400">#{{ parent.id }}</td>
+              <td class="px-5 py-3 text-gray-400 dark:text-zinc-600">—</td>
+              <td class="px-5 py-3 text-center">
+                <button type="button" (click)="openEditForm(parent)" class="rounded-lg border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">{{ 'categories.edit' | translate }}</button>
+                <button type="button" (click)="deleteCategory(parent)" class="ml-1 rounded-lg border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 dark:border-red-900/60 dark:text-red-400 dark:hover:bg-red-950/40">{{ 'categories.delete' | translate }}</button>
+              </td>
+            </tr>
+            @if (isExpanded(parent.id)) {
+              @for (child of childrenOf(parent.id); track child.id) {
+                <tr class="bg-gray-50/40 dark:bg-zinc-900/40 hover:bg-gray-50 dark:hover:bg-zinc-800/60">
+                  <td class="px-5 py-2 pl-12">
+                    <span class="mr-2 text-gray-300 dark:text-zinc-600">└─</span>
+                    <span class="text-gray-800 dark:text-zinc-200">{{ child.name }}</span>
+                    <span class="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-zinc-800 dark:text-zinc-400">{{ 'categories.subcategory' | translate }}</span>
+                  </td>
+                  <td class="px-5 py-2 text-gray-500 dark:text-zinc-400">#{{ child.id }}</td>
+                  <td class="px-5 py-2 text-gray-500 dark:text-zinc-400">{{ parent.name }}</td>
+                  <td class="px-5 py-2 text-center">
+                    <button type="button" (click)="openEditForm(child)" class="rounded-lg border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">{{ 'categories.edit' | translate }}</button>
+                    <button type="button" (click)="deleteCategory(child)" class="ml-1 rounded-lg border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 dark:border-red-900/60 dark:text-red-400 dark:hover:bg-red-950/40">{{ 'categories.delete' | translate }}</button>
+                  </td>
+                </tr>
+              }
+            }
+          }
+          @for (orphan of orphanCategories(); track orphan.id) {
+            <tr class="hover:bg-gray-50 dark:hover:bg-zinc-800/60">
+              <td class="px-5 py-3">
+                <span class="mr-2 text-amber-500">⚠</span>
+                <span class="font-medium text-gray-800 dark:text-zinc-100">{{ orphan.name }}</span>
+                <span class="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">{{ 'categories.orphan' | translate }}</span>
+              </td>
+              <td class="px-5 py-3 text-gray-500 dark:text-zinc-400">#{{ orphan.id }}</td>
+              <td class="px-5 py-3 text-gray-500 dark:text-zinc-400">{{ 'categories.orphan_parent' | translate: { id: orphan.parent_id } }}</td>
+              <td class="px-5 py-3 text-center">
+                <button type="button" (click)="openEditForm(orphan)" class="rounded-lg border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">{{ 'categories.edit' | translate }}</button>
+                <button type="button" (click)="deleteCategory(orphan)" class="ml-1 rounded-lg border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 dark:border-red-900/60 dark:text-red-400 dark:hover:bg-red-950/40">{{ 'categories.delete' | translate }}</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
