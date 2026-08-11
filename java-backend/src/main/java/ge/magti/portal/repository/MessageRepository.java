@@ -19,4 +19,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 
     /** Mirrors mark_message_read/delete_message's ownership-scoped lookup (routers/messaging.py:261-264, 295-298). */
     Optional<Message> findByIdAndUserId(Long id, Long userId);
+
+    /** Mirrors notifications-summary's unread-envelope-badge count (routers/platform.py:188-191). */
+    long countByUserIdAndReadFalse(Long userId);
 }

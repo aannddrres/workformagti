@@ -10,6 +10,7 @@ import ge.magti.portal.domain.ReadStatus;
 import ge.magti.portal.domain.RequiredReading;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
+import ge.magti.portal.domain.UserNote;
 import ge.magti.portal.repository.ArticleHistoryRepository;
 import ge.magti.portal.repository.ArticleReadReceiptRepository;
 import ge.magti.portal.repository.ArticleRepository;
@@ -449,6 +450,34 @@ class ArticleControllerIntegrationTest {
         // this test constructed, without ever re-querying, regardless of
         // the flush above. findByArticleId always issues a real SELECT.
         assertTrue(articleHistoryRepository.findByArticleId(article.getId()).isEmpty());
+    }
+
+    /**
+     * Bug found during the PM migration-gap audit (2026-08-11): V24 created
+     * {@code fk_user_notes_article} without ON DELETE CASCADE (unlike its
+     * siblings above), so deleting an article with an existing personal
+     * note 500'd on ORA-02292. Fixed by V30. This is the regression test.
+     */
+    @Test
+    void deletingAnArticleCascadesUserNotes() throws Exception {
+        User admin = createUser("aa15@magti.ge", Role.CONTENT_ADMIN, "All");
+        User operator = createUser("op15@magti.ge", Role.OPERATOR, "ტექნიკური");
+        Category cat = createCategory("კატ-13");
+        Article article = createArticle("პირადი შენიშვნის სტატია", cat.getId(), "published", false,
+                List.of("All"), null);
+
+        UserNote note = new UserNote();
+        note.setUserId(operator.getId());
+        note.setArticleId(article.getId());
+        note.setContent("ჩემი შენიშვნა");
+        userNoteRepository.saveAndFlush(note);
+
+        mockMvc.perform(authed(delete("/api/articles/" + article.getId()), tokenFor(admin)))
+                .andExpect(status().isNoContent());
+        articleRepository.flush();
+
+        assertTrue(articleRepository.findById(article.getId()).isEmpty());
+        assertTrue(userNoteRepository.findByUserIdAndArticleId(operator.getId(), article.getId()).isEmpty());
     }
 
     // ── archive / unarchive / bulk-archive ───────────────────────────

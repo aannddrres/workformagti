@@ -1,0 +1,223 @@
+package ge.magti.portal.web;
+
+import ge.magti.portal.domain.News;
+import ge.magti.portal.domain.Permission;
+import ge.magti.portal.domain.ReadStatus;
+import ge.magti.portal.domain.RequiredReading;
+import ge.magti.portal.domain.Role;
+import ge.magti.portal.domain.Tag;
+import ge.magti.portal.domain.User;
+import ge.magti.portal.domain.Message;
+import ge.magti.portal.repository.MessageRepository;
+import ge.magti.portal.repository.NewsRepository;
+import ge.magti.portal.repository.ReadStatusRepository;
+import ge.magti.portal.repository.RequiredReadingRepository;
+import ge.magti.portal.repository.TagRepository;
+import ge.magti.portal.repository.UserRepository;
+import ge.magti.portal.security.JwtService;
+import ge.magti.portal.util.TbilisiTime;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.OffsetDateTime;
+import java.util.Map;
+
+import static org.hamcrest.Matchers.hasSize;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+/**
+ * Real Oracle, real HTTP -- same infrastructure as
+ * {@link FavoriteControllerIntegrationTest}. Covers the two endpoints found
+ * missing (and undocumented) during the 2026-08-11 PM migration-gap audit.
+ */
+@SpringBootTest
+@AutoConfigureMockMvc
+@Transactional
+class PlatformControllerIntegrationTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+    @Autowired
+    private UserRepository userRepository;
+    @Autowired
+    private TagRepository tagRepository;
+    @Autowired
+    private RequiredReadingRepository requiredReadingRepository;
+    @Autowired
+    private ReadStatusRepository readStatusRepository;
+    @Autowired
+    private NewsRepository newsRepository;
+    @Autowired
+    private MessageRepository messageRepository;
+    @Autowired
+    private JwtService jwtService;
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    private User createUser(String email, Role role, String department) {
+        User user = new User();
+        user.setEmail(email);
+        user.setName("ტესტ მომხმარებელი");
+        user.setRole(role);
+        user.setDepartment(department);
+        user.setActive(true);
+        user.setHashedPassword(passwordEncoder.encode("unused"));
+        user.setPermissions(Permission.defaultsFor(role).stream()
+                .map(Permission::value)
+                .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new)));
+        return userRepository.saveAndFlush(user);
+    }
+
+    private String tokenFor(User user) {
+        return jwtService.createAccessToken(Map.of("sub", user.getEmail(), "role", user.getRole().value()));
+    }
+
+    private static MockHttpServletRequestBuilder authed(MockHttpServletRequestBuilder builder, String token) {
+        return builder.header("Authorization", "Bearer " + token);
+    }
+
+    private Tag createTag(String name) {
+        Tag tag = new Tag();
+        tag.setName(name);
+        tag.setCreatedAt(TbilisiTime.now());
+        return tagRepository.saveAndFlush(tag);
+    }
+
+    private RequiredReading createReading(String targetDepartment, OffsetDateTime dueDate) {
+        RequiredReading reading = new RequiredReading();
+        reading.setItemType("article");
+        reading.setItemId(999999999L);
+        reading.setTargetDepartment(targetDepartment);
+        reading.setDueDate(dueDate);
+        reading.setPriority("normal");
+        return requiredReadingRepository.saveAndFlush(reading);
+    }
+
+    private News createNews(String title, String targetDepartment) {
+        News news = new News();
+        news.setTitle(title);
+        news.setContent("შინაარსი");
+        news.setTargetDepartment(targetDepartment);
+        news.setCreatedAt(TbilisiTime.now());
+        return newsRepository.saveAndFlush(news);
+    }
+
+    @Test
+    void tagsRequiresAuthentication() throws Exception {
+        mockMvc.perform(get("/api/tags"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void tagsAreListedAlphabetically() throws Exception {
+        // The dev Oracle schema is shared across test runs, so other tags
+        // may already exist -- this asserts relative order among two
+        // uniquely-prefixed tags, not absolute list position.
+        User operator = createUser("plat-op1@magti.ge", Role.OPERATOR, "All");
+        String prefix = "zzz-platform-test-" + System.nanoTime() + "-";
+        createTag(prefix + "second");
+        createTag(prefix + "first");
+
+        String body = mockMvc.perform(authed(get("/api/tags"), tokenFor(operator)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        java.util.List<String> matchingNamesInOrder = new java.util.ArrayList<>();
+        for (JsonNode node : objectMapper.readTree(body)) {
+            String name = node.get("name").asText();
+            if (name.startsWith(prefix)) {
+                matchingNamesInOrder.add(name);
+            }
+        }
+        org.junit.jupiter.api.Assertions.assertEquals(
+                java.util.List.of(prefix + "first", prefix + "second"), matchingNamesInOrder);
+    }
+
+    @Test
+    void notificationsSummaryRequiresAuthentication() throws Exception {
+        mockMvc.perform(get("/api/notifications/summary"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void notificationsSummaryFlagsOverdueUnreadReadingsAndSkipsAlreadyReadOnes() throws Exception {
+        User operator = createUser("plat-op2@magti.ge", Role.OPERATOR, "ტექნიკური");
+        RequiredReading overdue = createReading("ტექნიკური", TbilisiTime.now().minusDays(1));
+        RequiredReading alreadyRead = createReading("ტექნიკური", TbilisiTime.now().minusDays(1));
+        ReadStatus stat = new ReadStatus();
+        stat.setUserId(operator.getId());
+        stat.setRequiredReadingId(alreadyRead.getId());
+        stat.setStatus("read");
+        stat.setReadAt(TbilisiTime.now());
+        readStatusRepository.saveAndFlush(stat);
+
+        mockMvc.perform(authed(get("/api/notifications/summary"), tokenFor(operator)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread_readings[?(@.id == " + overdue.getId() + ")].is_overdue").value(true))
+                .andExpect(jsonPath("$.unread_readings[?(@.id == " + alreadyRead.getId() + ")]").isEmpty());
+    }
+
+    @Test
+    void notificationsSummaryScopesRecentNewsByExactDepartmentMatchNotPrefix() throws Exception {
+        // Prefix-group department ("ტექნიკური — ჯგუფი 03") deliberately does NOT
+        // match a target of the bare prefix ("ტექნიკური") here -- this endpoint
+        // mirrors platform.py's plain exact .in_([department, "All"]) filter,
+        // unlike DepartmentMatcher's prefix-aware matching used elsewhere.
+        User operator = createUser("plat-op3@magti.ge", Role.OPERATOR, "ტექნიკური — ჯგუფი 03");
+        News matching = createNews("ზუსტი დეპარტამენტის სიახლე", "ტექნიკური — ჯგუფი 03");
+        News allDept = createNews("ყველასთვის სიახლე", "All");
+        News prefixOnly = createNews("მხოლოდ პრეფიქსის სიახლე", "ტექნიკური");
+        News otherDept = createNews("სხვა დეპარტამენტის სიახლე", "ოფისი");
+
+        mockMvc.perform(authed(get("/api/notifications/summary"), tokenFor(operator)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recent_news[?(@.id == " + matching.getId() + ")]").exists())
+                .andExpect(jsonPath("$.recent_news[?(@.id == " + allDept.getId() + ")]").exists())
+                .andExpect(jsonPath("$.recent_news[?(@.id == " + prefixOnly.getId() + ")]").doesNotExist())
+                .andExpect(jsonPath("$.recent_news[?(@.id == " + otherDept.getId() + ")]").doesNotExist());
+    }
+
+    @Test
+    void notificationsSummaryCountsUnreadMessages() throws Exception {
+        User operator = createUser("plat-op4@magti.ge", Role.OPERATOR, "All");
+        Message unread = new Message();
+        unread.setUserId(operator.getId());
+        unread.setContent("წაუკითხავი შეტყობინება");
+        unread.setRead(false);
+        unread.setCreatedAt(TbilisiTime.now());
+        messageRepository.saveAndFlush(unread);
+
+        Message read = new Message();
+        read.setUserId(operator.getId());
+        read.setContent("წაკითხული შეტყობინება");
+        read.setRead(true);
+        read.setCreatedAt(TbilisiTime.now());
+        messageRepository.saveAndFlush(read);
+
+        mockMvc.perform(authed(get("/api/notifications/summary"), tokenFor(operator)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread_messages_count").value(1));
+    }
+
+    @Test
+    void managementRoleGetsNoReadingsInSummary() throws Exception {
+        User admin = createUser("plat-admin1@magti.ge", Role.SYSTEM_ADMIN, "All");
+        createReading("All", TbilisiTime.now().minusDays(1));
+
+        mockMvc.perform(authed(get("/api/notifications/summary"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread_readings", hasSize(0)));
+    }
+}
