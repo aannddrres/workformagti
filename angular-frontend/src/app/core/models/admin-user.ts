@@ -43,3 +43,11 @@ export interface UserAdminUpdateRequest {
   position: string | null;
   team_id?: number | null;
 }
+
+/** Mirrors web.BulkRoleReassignResponse -- POST /api/admin/roles/bulk-reassign. */
+export interface BulkRoleReassignResponse {
+  new_role: string;
+  changed: number;
+  skipped: number;
+  requested: number;
+}

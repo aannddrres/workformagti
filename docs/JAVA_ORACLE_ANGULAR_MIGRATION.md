@@ -2397,6 +2397,63 @@ endpoint-ებით (permissions/status დაბრუნდა თავდ�
 ახალი ტესტ-მომხმარებელი დეაქტივირდა — ამ დომენს hard-delete საერთოდ არ
 აქვს, არც Python-ში). `npm run build` (production) სუფთაა.
 
+**Slice 8 — როლების მართვა (`/admin/roles`) — ✅ დასრულებულია, 2026-08-11.**
+
+მომხმარებელმა აირჩია, არჩევანის ფორმით, ეს იყოს შემდეგი slice (Roles/
+Content-ის წყვილიდან). Port-ი `#admin-roles`-ის (base-layout.html:2194-
+2252) და `renderRoleConsole`/`renderRoleConsoleCards`/
+`renderRoleConsoleMembers`/`toggleRoleMember`/`toggleAllRoleMembers`/
+`bulkReassignRole`-ის (static/frontend_api.js:1836-1992). Backend
+(`POST /api/admin/roles/bulk-reassign`) უკვე მზად იყო Users-slice-ის
+წინაც (UserController-ის ნაწილი) — სუფთა Angular slice.
+
+**რეფაქტორინგი Users-slice-ის ხარჯზე:** Python თავად იზიარებს ერთსა
+და იმავე `openUserEditModal`/`submitUserEditForm`-ს RBAC-ცხრილსა და
+როლების კონსოლს შორის — იგივე გავიმეორეთ Angular-ში: წინა slice-ის
+`AdminUsersPage`-ის ჩაშენებული რედაქტირების მოდალი გამოვყავით ცალკე,
+გაზიარებულ `UserEditModal` კომპონენტად (`features/admin-users/
+user-edit-modal.{ts,html}`), რომელსაც ახლა ორივე გვერდი იძახებს —
+არ დუბლირებულა 150+ ხაზი. `ROLES`/`DEPARTMENTS` მასივებიც გავიტანეთ
+`shared/user-roles.ts`-ში იმავე მიზეზით.
+
+**აშენდა:** როლის ბარათების ბადრტი (4 ბარათი, live-დათვლილი
+რაოდენობებით, დაჭერაზე აქტიურდება), წევრების ცხრილი არჩეული
+როლისთვის (checkbox + "ყველას მონიშვნა" + მონიშნულთა რაოდენობა),
+სამიზნე-როლის dropdown (ავტომატურად გვერდს უვლის ამჟამად ნანახ როლს —
+არასდროს "თავისივე თავზე" გადაყვანა) + "გადაყვანა" ღილაკი
+(`POST /api/admin/roles/bulk-reassign`), და იგივე გაზიარებული
+`UserEditModal` თითოეული წევრის ცალკე რედაქტირებისთვის.
+
+**შეგნებული გადახრა:** Python-ის bulk-move-ის წინ `showConfirm`
+custom-styled მოდალს ეს Angular-workspace ჯერ არ ფლობს ეკვივალენტს —
+გამოყენებულია native `window.confirm()` იმავე ფუნქციური მიზნით
+(აშკარა დადასტურების ნაბიჯი მასობრივი როლის ცვლილების წინ) —
+სულ სხვა ვიზუალით, მაგრამ იმავე გარანტიით. ცალკე confirm-მოდალის
+აშენება ერთი call-site-სთვის არ ღირდა.
+
+**ცოცხლად გადამოწმდა Oracle+Java-ზე** (`admin@magti.ge`): 4 ბარათმა
+სწორად აჩვენა რეალური რაოდენობები (1/1/1/7), დაწკაპუნებამ სწორად
+გადართო აქტიური როლი და წევრების ცხრილი, სამიზნე-select ავტომატურად
+აირჩია "მენეჯერი" (არა "ოპერატორი", რომელიც ამჟამად ნანახი როლია).
+რეალურმა bulk-reassign-მა (1 სატესტო მომხმარებელი → მენეჯერი) დააბრუნა
+**200 OK** რეალური `role: "manager"`, `permissions: ["reports.export",
+"system.audit"]` (ახალი როლის ნაგულისხმევებზე გადაანულებული, ზუსტად
+სერვერის ლოგიკის მიხედვით) — დადასტურდა პირდაპირი `GET /api/users`
+ხელახალი წამოღებით, არა მხოლოდ UI-ის დათვალიერებით; ბარათების
+რაოდენობებიც სწორად განახლდა (მენეჯერი 1→2, ოპერატორი 7→6).
+"ყველას მონიშვნა" checkbox-მა სწორად მონიშნა/მოხსნა ყველა 7
+ხილული წევრი. გაზიარებული `UserEditModal` სწორად გაიხსნა როლების
+გვერდიდანაც, სწორი როლით (`operator`) — რაც კიდევ ერთხელ ადასტურებს
+Users-slice-ის `[attr.selected]`-ფიქსს ამ ახალ caller-ზეც.
+`content@magti.ge`-სთვის route სწორად გადამისამართდა `/`-ზე
+(ADMIN_ONLY guard). ყველა სატესტო მუტაცია დაბრუნდა (bulk-reassign
+უკან, operator-ზე, რეალური endpoint-ით). `npm run build` (production)
+სუფთაა.
+
+**ეს ხურავს Users-დომენის ორივე ადმინ-ეკრანს** (Users management +
+Roles console). Frontend domain build order-ის დარჩენილი ნაწილი:
+Content management (`/admin/content`) — ბექენდი მზადაა, არ აშენებულა.
+
 ### 3d — მესამე-მხარის ბიბლიოთეკების ჩანაცვლება
 
 | ბიბლიოთეკა | დღევანდელი ვერსია | სტატუსი |

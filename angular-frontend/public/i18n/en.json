@@ -366,5 +366,19 @@
     "perm_compliance_assign": "Assign mandatory reading",
     "perm_reports_export": "Export reports",
     "perm_inherited": "(from role)"
+  },
+  "roles": {
+    "heading": "Role Management",
+    "refresh": "Refresh",
+    "intro": "Click a role card to see its members. Select one or more and bulk-move them to another role, or click the pencil to edit a single person. Changing a role resets permissions to that role's defaults.",
+    "load_error": "Could not load the data.",
+    "member_count": "{{count}} user(s)",
+    "select_all": "Select all",
+    "selected_count": "{{count}} selected",
+    "move_to": "Move to role:",
+    "move": "Move",
+    "no_members": "No users in this role.",
+    "no_selection": "No users selected",
+    "confirm_message": "This will change the selected users' role. Continue?"
   }
 }

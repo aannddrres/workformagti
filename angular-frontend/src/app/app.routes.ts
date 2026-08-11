@@ -16,6 +16,7 @@ import { TeamStatsPage } from './features/team-stats/team-stats-page';
 import { AdminStatsPage } from './features/admin-stats/admin-stats-page';
 import { AdminAuditPage } from './features/admin-audit/admin-audit-page';
 import { AdminUsersPage } from './features/admin-users/admin-users-page';
+import { AdminRolesPage } from './features/admin-roles/admin-roles-page';
 import { authGuard } from './core/auth/auth.guard';
 import { roleGuard } from './core/auth/role.guard';
 
@@ -87,7 +88,7 @@ export const routes: Routes = [
           },
           {
             path: 'roles',
-            component: PlaceholderPage,
+            component: AdminRolesPage,
             data: { title: 'nav.sidebar.admin_roles' },
             canActivate: [roleGuard(ADMIN_ONLY)]
           },
