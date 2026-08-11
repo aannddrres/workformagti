@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "skills": {
+    "angular-developer": {
+      "source": "angular/angular",
+      "sourceType": "github",
+      "skillPath": "skills/dev-skills/angular-developer/SKILL.md",
+      "computedHash": "390535a21ca293acbef16e588cfd77f954b0f0eae23d45477b47b0b0ce00eb47"
+    },
+    "db": {
+      "source": "oracle/skills",
+      "sourceType": "github",
+      "skillPath": "db/SKILL.md",
+      "computedHash": "e6261282c9c97dcac4c2744edf90191b320f25be968cf6c465baab6aaa32e9a4"
+    },
+    "debugging-wizard": {
+      "source": "jeffallan/claude-skills",
+      "sourceType": "github",
+      "skillPath": "skills/debugging-wizard/SKILL.md",
+      "computedHash": "7c578adb7a39ff6c4018f87055e4191e965c5e440119116914efd86318646a69"
+    },
+    "java-architect": {
+      "source": "jeffallan/claude-skills",
+      "sourceType": "github",
+      "skillPath": "skills/java-architect/SKILL.md",
+      "computedHash": "7f202287a1ad819b41a9235b8bb570eed217a431e4e60d7196fd9330d52001c2"
+    },
+    "test-master": {
+      "source": "jeffallan/claude-skills",
+      "sourceType": "github",
+      "skillPath": "skills/test-master/SKILL.md",
+      "computedHash": "4ebd69e573e2a5596703340810e734505f102a76062cf836303758addea17cbd"
+    }
+  }
+}
