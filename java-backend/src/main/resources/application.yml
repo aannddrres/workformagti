@@ -25,6 +25,14 @@ spring:
     open-in-view: false
   flyway:
     locations: classpath:db/migration
+  # Spring's own defaults (1MB per file, 10MB per request) are BELOW
+  # config.py's MAX_UPLOAD_SIZE_BYTES (10MB) -- without this, a 10MB upload
+  # that UploadController's own size check would accept never reaches it,
+  # rejected earlier by Spring with a generic 500 instead of Python's 413.
+  servlet:
+    multipart:
+      max-file-size: 11MB
+      max-request-size: 11MB
 
 server:
   port: 8080

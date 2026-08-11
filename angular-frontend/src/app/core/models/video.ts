@@ -10,3 +10,12 @@ export interface VideoInstruction {
   views_count: number;
   is_archived: boolean;
 }
+
+/** Mirrors web.VideoInstructionRequest -- shared create/update body. */
+export interface VideoInstructionRequest {
+  title: string;
+  video_url: string;
+  category: string | null;
+  target_department: string;
+  tags: string | null;
+}

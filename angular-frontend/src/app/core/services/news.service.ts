@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { News, NewsSummary } from '../models/news';
+import { News, NewsRequest, NewsSummary } from '../models/news';
 
 @Injectable({ providedIn: 'root' })
 export class NewsService {
@@ -12,7 +12,25 @@ export class NewsService {
     return this.http.get<NewsSummary[]>('/api/news', { params });
   }
 
+  /** Admin content-management table: mirrors fetchAndRenderAdminNews's
+   *  fetch-everything (no client pagination on this table in Python either). */
+  listAdmin(): Observable<NewsSummary[]> {
+    return this.list({ limit: 1000 });
+  }
+
   get(id: number): Observable<News> {
     return this.http.get<News>(`/api/news/${id}`);
+  }
+
+  create(request: NewsRequest): Observable<News> {
+    return this.http.post<News>('/api/news', request);
+  }
+
+  update(id: number, request: NewsRequest): Observable<News> {
+    return this.http.put<News>(`/api/news/${id}`, request);
+  }
+
+  remove(id: number): Observable<void> {
+    return this.http.delete<void>(`/api/news/${id}`);
   }
 }

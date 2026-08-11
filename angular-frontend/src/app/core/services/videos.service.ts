@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { VideoInstruction } from '../models/video';
+import { VideoInstruction, VideoInstructionRequest } from '../models/video';
 
 @Injectable({ providedIn: 'root' })
 export class VideosService {
@@ -13,6 +13,18 @@ export class VideosService {
    *  single-shot fetch (no skip/limit exists on this endpoint). */
   list(): Observable<VideoInstruction[]> {
     return this.http.get<VideoInstruction[]>('/api/videos');
+  }
+
+  create(request: VideoInstructionRequest): Observable<VideoInstruction> {
+    return this.http.post<VideoInstruction>('/api/videos', request);
+  }
+
+  update(id: number, request: VideoInstructionRequest): Observable<VideoInstruction> {
+    return this.http.put<VideoInstruction>(`/api/videos/${id}`, request);
+  }
+
+  remove(id: number): Observable<void> {
+    return this.http.delete<void>(`/api/videos/${id}`);
   }
 
   /** Fire-and-forget view-tracking, matching viewVideo's "log the view,

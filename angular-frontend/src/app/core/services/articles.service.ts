@@ -1,20 +1,69 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Article, ArticleSummary, RecentlyViewedItem } from '../models/article';
+import {
+  Article,
+  ArticleBulkArchiveResponse,
+  ArticleRequest,
+  ArticleSummary,
+  RecentlyViewedItem
+} from '../models/article';
 
 @Injectable({ providedIn: 'root' })
 export class ArticlesService {
   private readonly http = inject(HttpClient);
 
-  list(options: { skip?: number; limit?: number; categoryId?: number } = {}): Observable<ArticleSummary[]> {
+  list(
+    options: { skip?: number; limit?: number; categoryId?: number; q?: string; status?: string } = {}
+  ): Observable<ArticleSummary[]> {
     let params = new HttpParams()
       .set('skip', options.skip ?? 0)
       .set('limit', options.limit ?? 20);
     if (options.categoryId != null) {
       params = params.set('category_id', options.categoryId);
     }
+    if (options.q) {
+      params = params.set('q', options.q);
+    }
+    if (options.status) {
+      params = params.set('status', options.status);
+    }
     return this.http.get<ArticleSummary[]>('/api/articles', { params });
+  }
+
+  /** Admin content-management table: mirrors fetchAndRenderAdminContent's
+   *  fetch-everything-then-paginate-client-side approach (no server-side
+   *  pagination on this endpoint). */
+  listAdmin(options: { q?: string; categoryId?: number; status?: string } = {}): Observable<ArticleSummary[]> {
+    return this.list({ limit: 1000, ...options });
+  }
+
+  create(request: ArticleRequest): Observable<Article> {
+    return this.http.post<Article>('/api/articles', request);
+  }
+
+  update(id: number, request: ArticleRequest): Observable<Article> {
+    return this.http.put<Article>(`/api/articles/${id}`, request);
+  }
+
+  autosave(id: number, partial: Partial<ArticleRequest>): Observable<Article> {
+    return this.http.patch<Article>(`/api/articles/${id}/autosave`, partial);
+  }
+
+  remove(id: number): Observable<void> {
+    return this.http.delete<void>(`/api/articles/${id}`);
+  }
+
+  archive(id: number): Observable<Article> {
+    return this.http.post<Article>(`/api/articles/${id}/archive`, {});
+  }
+
+  unarchive(id: number): Observable<Article> {
+    return this.http.post<Article>(`/api/articles/${id}/unarchive`, {});
+  }
+
+  bulkArchive(ids: number[], archive: boolean): Observable<ArticleBulkArchiveResponse> {
+    return this.http.post<ArticleBulkArchiveResponse>('/api/articles/bulk-archive', { ids, archive });
   }
 
   get(id: number): Observable<Article> {

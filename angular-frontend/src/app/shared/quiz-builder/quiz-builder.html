@@ -1,0 +1,69 @@
+<div class="flex flex-col gap-4">
+  @for (question of questions(); track $index; let qi = $index) {
+    <div class="rounded-lg border border-gray-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
+      <div class="flex items-start gap-2">
+        <textarea
+          rows="2"
+          class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+          [placeholder]="'content.quiz.question_placeholder' | translate"
+          [value]="question.question_text"
+          (input)="updateQuestionText(qi, $any($event.target).value)"
+        ></textarea>
+        <button
+          type="button"
+          class="mt-1 text-gray-400 hover:text-[#E30613]"
+          [attr.aria-label]="'content.quiz.remove_question' | translate"
+          (click)="removeQuestion(qi)"
+        >
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="mt-2 space-y-1.5">
+        @for (answer of question.answers; track $index; let ai = $index) {
+          <div class="flex items-center gap-2">
+            <input
+              type="radio"
+              [name]="'quiz-correct-' + qi"
+              class="h-4 w-4 accent-[#B91C1C]"
+              [title]="'content.quiz.correct_answer' | translate"
+              [checked]="answer.is_correct"
+              (change)="setCorrectAnswer(qi, ai)"
+            />
+            <input
+              type="text"
+              class="flex-1 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+              [placeholder]="'content.quiz.answer_placeholder' | translate"
+              [value]="answer.answer_text"
+              (input)="updateAnswerText(qi, ai, $any($event.target).value)"
+            />
+            <button
+              type="button"
+              class="text-gray-300 hover:text-[#E30613]"
+              [attr.aria-label]="'content.quiz.remove_answer' | translate"
+              (click)="removeAnswer(qi, ai)"
+            >
+              <i class="fa-solid fa-xmark text-xs"></i>
+            </button>
+          </div>
+        }
+      </div>
+
+      <button
+        type="button"
+        class="mt-2 text-xs font-semibold text-gray-500 hover:text-[#B91C1C]"
+        (click)="addAnswer(qi)"
+      >
+        <i class="fa-solid fa-plus mr-1"></i>{{ 'content.quiz.add_answer' | translate }}
+      </button>
+    </div>
+  }
+
+  <button
+    type="button"
+    class="self-start rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm transition hover:border-[#B91C1C] hover:text-[#B91C1C] dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200"
+    (click)="addQuestion()"
+  >
+    <i class="fa-solid fa-plus mr-1"></i>{{ 'content.quiz.add_question' | translate }}
+  </button>
+</div>

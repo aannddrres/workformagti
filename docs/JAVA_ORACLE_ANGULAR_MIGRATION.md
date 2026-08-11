@@ -2454,6 +2454,120 @@ Users-slice-ის `[attr.selected]`-ფიქსს ამ ახალ caller-
 Roles console). Frontend domain build order-ის დარჩენილი ნაწილი:
 Content management (`/admin/content`) — ბექენდი მზადაა, არ აშენებულა.
 
+**Slice 9 — კონტენტის მართვა (`/admin/content`) — ✅ დასრულებულია, 2026-08-11.**
+
+ინიციატივის ყველაზე დიდი Angular slice — Articles/News/Videos-ის
+სრული admin CRUD, Quill rich-text რედაქტორით, კვიზის ბილდერით,
+ფაილის ატვირთვით და "სავალდებულოდ გასაცნობის" სინქით. Port-ი
+`#admin-content`-ის (base-layout.html:1758-2089) და მისი 4
+ქვე-ტაბიდან 3-ის (Articles/News/Videos — "ხარვეზების რეპორტების"
+ტაბი შეგნებულად გამოტოვებულია, იხ. ქვემოთ).
+
+**წინასწარი გადაწყვეტილებები, მომხმარებელთან შეთანხმებული:**
+1. **"ხარვეზების რეპორტების" ტაბი გამოტოვებულია სრულად.** `POST
+   /api/articles/{id}/feedback` და `GET /api/admin/feedback` ორივე
+   მუდმივად აბრუნებს **410 Gone**-ს — არა მხოლოდ ცოცხალ Python
+   აპლიკაციაში, არამედ ამ Java ბექენდშიც (endpoint საერთოდ არ
+   აშენებულა, deliberately). ტაბი ცოცხალ აპშიც უფუნქციოა ყოველთვის
+   ყოფილა.
+2. **სრული პარიტეტი რედაქტორის დახვეწილობებში** — Markdown-შორთქათები
+   (`#`/`##`/`>`), "/" სწრაფი მენიუ და ცოცხალი Desktop/Mobile
+   გადახედვა ყველა აშენდა (მომხმარებლის არჩევანი, არ დაზოგილა).
+3. **"ისტორია"/ვერსიების დათვალიერება შეგნებულად გადავადებულია** —
+   ცალკე, დამოუკიდებელი feature (diff-ები, restore), ბექენდი უკვე
+   მზადაა (Slice-ი Articles-დომენში), მაგრამ UI არ აშენებულა ამ
+   slice-ში ცალკე მომხმარებლის დადასტურებით.
+
+**ნაპოვნი ბექენდის ხარვეზი (არა ბაგი — უბრალოდ არასდროს აშენებულა):**
+Java ბექენდს **საერთოდ არ ჰქონდა ფაილის ატვირთვის endpoint** — არც
+`POST /api/upload`, არც `/uploads/**` static serving. Python-ის
+`routers/platform.py:200-266`-ის ზუსტი პორტი აშენდა ამ slice-ის
+ფარგლებში:
+- **`web/UploadController.java`** — იგივე MIME allowlist (PDF/PNG/
+  JPEG/GIF/WEBP/TXT/DOC/DOCX/XLS/XLSX/MP4), იგივე 10MB ჭერი, UUID
+  ფაილის სახელი, content-admin-only წვდომა, AuditLog ჩანაწერი
+  (`action=UPLOAD`).
+- **`config/WebConfig.java`** — `/uploads/**` resource handler,
+  Python-ის `app.mount("/uploads", StaticFiles(...))`-ის ეკვივალენტი.
+- **`application.yml`**-ში `spring.servlet.multipart.max-file-size:
+  11MB` (Spring-ის ნაგულისხმევი 1MB-ზე დაბალია, ვიდრე Python-ის 10MB
+  ჭერი — საჭირო იყო აწევა, თორემ საკუთარი 10MB-შემოწმებამდე ვერც
+  მიაღწევდა მოთხოვნა).
+- **`UploadControllerIntegrationTest`** (5 ტესტი, ცოცხალ Oracle-ზე):
+  ავტორიზაცია, permission-გეითი, წარმატებული ატვირთვა+უკან
+  გაცემა+AuditLog, დაუშვებელი MIME ტიპი, ზედმეტად დიდი ფაილი.
+
+**აშენდა (Angular):**
+- **`shared/rich-text-editor/`** — Quill 1.3.7 (ზუსტად იგივე
+  ვერსია, რასაც Python CDN-იდან ტვირთავს), snow თემა, იგივე toolbar
+  კონფიგი. `setHtml()`/`getHtml()` imperative API — **არა**
+  reactive `[value]` binding, რადგან ეს ბოლოსი კურსორის პოზიციას
+  „იჩხუბებდა" ყოველ სიმბოლოზე (Quill თავად რჩება „ჭეშმარიტების
+  წყაროდ", ისევე როგორც Python-ის ორიგინალში). დამატებით: markdown
+  შორთქათები, "/" სწრაფი მენიუ, drag-drop + paste სურათის ატვირთვა,
+  და base64 data-URI HTML-paste-ის სანიტიზაცია `DOMPurify`-თი
+  (ახალი dependency — Python-ის ეკვივალენტური დაცვა იმ იშვიათი
+  შემთხვევისთვის, როცა გარე საიტიდან კოპირებული HTML-ი embedded
+  სურათებს შეიცავს).
+- **`shared/quiz-builder/`** — კითხვა/პასუხების ბილდერი
+  (`GET`/`PUT /api/articles/{id}/quiz/admin`), radio-ჯგუფი „ერთი
+  სწორი პასუხი"-სთვის თითო კითხვაზე.
+- **`core/services/upload.service.ts`**, **`required-reading.service.ts`**
+  (`sync()` მეთოდი — ზუსტი პორტი Python-ის `syncMandatoryFor`-ისა:
+  discover-existing → create/update/delete PUT/POST/DELETE-ის
+  მიხედვით).
+- **`features/admin-content/`** — `AdminContentPage` (ჩარჩო + Articles
+  ცხრილი ფილტრებით/გვერდვდილობით/bulk-archive-ით), `ArticleEditDrawer`
+  (სრული ფორმა + ცოცხალი გადახედვა), `NewsAdminTable`+`NewsEditDrawer`,
+  `VideosAdminTable`+`VideoEditDrawer`.
+
+**ცოცხალი ტესტირებისას ნაპოვნი და გასწორებული 3 საკითხი:**
+1. **რეალური ბაგი (ჩემი, ამ slice-ის):** `ArticleEditDrawer`-ს
+   ჰქონდა ცალკე `charCount` სიგნალი, რომელიც განახლდებოდა მხოლოდ
+   `contentChange` event-ზე — მაგრამ `setHtml()` **განზრახ** არ
+   უშვებს ამ event-ს (რომ feedback loop არ შეიქმნას რედაქტირების
+   რეჟიმის გახსნისას). შედეგად: არსებული სტატიის რედაქტირებისას
+   სიმბოლოების მთვლელი აჩვენებდა "(0 სიმბოლო)"-ს სანამ მომხმარებელი
+   რამეს არ აკრეფდა. გასწორდა შაბლონის პირდაპირი მიბმით
+   `richTextEditor().charCount()`-ზე (თავად რედაქტორის საკუთარ
+   სიგნალზე) — ცალკე ასლი საერთოდ ამოვშალე.
+2. **Dev-tooling ხარვეზი (არა ახალი, გაცხადებული ამ slice-ის დროს):**
+   `.claude/launch.json` `angular-frontend`-ს უშვებდა Windows 8.3
+   short-path-ით (`MAGTIB~1`), რაც Vite dev-server-ის საკუთარ
+   `fs.allow` სიაში short-path-ის ფორმას წერდა, ხოლო რეალურ
+   request-ებს OS ავტომატურად long-path-ად აქცევდა — არასტაბილურ
+   403-ებს იწვევდა ნებისმიერ `public/`-დან სერვირებულ ფაილზე
+   (მათ შორის `i18n/*.json`-ზეც, რამაც მთელი UI თარგმანების გარეშე
+   დატოვა). გასწორდა `dev-serve.cmd`-ში long-path-ის hardcode-ით.
+3. **Dev proxy ხარვეზი:** `proxy.conf.json` მხოლოდ `/api`-ს
+   ამისამართებდა Java ბექენდზე — `/uploads/**` არ იყო შეტანილი,
+   ამიტომ ატვირთული ფაილები წარმატებით შენახულებოდა სერვერზე,
+   მაგრამ 404 ბრუნდებოდა dev-server-ში ბმულზე დაჭერისას (production-ში
+   პრობლემა არ იქნებოდა, ორივე ერთი origin-იდან რომ ისერვირება).
+   გასწორდა `/uploads`-ის დამატებით.
+
+**ცოცხლად გადამოწმდა Oracle+Java-ზე** (`admin@magti.ge`,
+`content@magti.ge`, `info@magti.ge`): Article-ის სრული ციკლი
+(შექმნა → H2 heading markdown-შორთქათით → "/" სწრაფი მენიუთი მეორე
+heading → კვიზის კითხვა 2 პასუხით (ერთი სწორი) → "სავალდებულოდ
+გასაცნობი" ვადით → შენახვა → ცოცხალი Oracle-ში ყველა ველი სწორად
+დადასტურდა API-დან); რედაქტირება (prefill სწორია — content, category,
+department checkbox, quiz, due-date); დაარქივება/ამოღება (ერთეული
++ bulk); წაშლა (404 დადასტურებული). News: შექმნა (`is_draft=false`
+ნაგულისხმევად, ზუსტად Python-ის ცოცხალი ქცევის მიხედვით), რედაქტირება
+prefill, წაშლა. Videos: შექმნა, რედაქტირება prefill, წაშლა. ფაილის
+ატვირთვა: რეალური ფაილი → `/api/upload` → UUID URL → უკან სერვირება
+`200 OK`-ით (`/uploads` პროქსი-ფიქსის შემდეგ). RBAC: `content_admin`-ს
+წვდომა აქვს (Users/Roles-ისგან განსხვავებით, რომლებიც `ADMIN_ONLY`),
+`operator` სწორად გადამისამართდა `/`-ზე. `npm run build` (production)
+სუფთაა (მხოლოდ bundle-ზომის warning — Quill-ის დამატებით ბიუჯეტიც
+აწეულია 500kB→700kB/1MB→1.5MB `angular.json`-ში, გამართლებულია
+ახალი დამოკიდებულებით).
+
+**ეს ხურავს მთელ Content management დომენს.** ეს იყო ბოლო
+დარჩენილი Angular slice migration-ის build order-ში — Phase 3c
+(ყველა UI slice) დასრულებულია.
+
 ### 3d — მესამე-მხარის ბიბლიოთეკების ჩანაცვლება
 
 | ბიბლიოთეკა | დღევანდელი ვერსია | სტატუსი |

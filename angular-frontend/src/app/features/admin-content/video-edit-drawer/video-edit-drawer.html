@@ -1,0 +1,103 @@
+<div class="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" (click)="close()"></div>
+
+<div class="fixed inset-y-0 right-0 z-50 w-full max-w-xl bg-white dark:bg-zinc-900 shadow-2xl flex flex-col">
+  <div class="flex items-center justify-between border-b border-gray-200 dark:border-zinc-800 px-6 py-4">
+    <h3 class="text-xl font-bold text-gray-800 dark:text-zinc-100">
+      {{ (isEditing ? 'content.videos.edit_title' : 'content.videos.new_title') | translate }}
+    </h3>
+    <button type="button" (click)="close()" class="text-gray-500 hover:text-gray-700 dark:text-zinc-400">
+      <i class="fa-solid fa-xmark text-xl"></i>
+    </button>
+  </div>
+
+  <div class="flex-1 overflow-y-auto p-6">
+    <form (submit)="submit($event)" class="space-y-5">
+      <div>
+        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'content.videos.field_title' | translate }}</label>
+        <input
+          type="text"
+          required
+          [value]="title()"
+          (input)="title.set($any($event.target).value)"
+          class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+        />
+      </div>
+
+      <div>
+        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'content.videos.field_url' | translate }}</label>
+        <div class="flex gap-2">
+          <input
+            type="text"
+            required
+            [value]="videoUrl()"
+            (input)="videoUrl.set($any($event.target).value)"
+            placeholder="https://example.com/video.mp4"
+            class="flex-1 w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+          />
+          <input #fileInput type="file" accept="video/mp4" class="hidden" (change)="onFileInputChange($event)" />
+          <button type="button" (click)="fileInput.click()" [disabled]="uploading()"
+            class="shrink-0 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm hover:bg-gray-50 flex items-center gap-2 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200">
+            <i class="fa-solid fa-upload"></i> {{ (uploading() ? 'content.articles.uploading' : 'content.articles.upload') | translate }}
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+        <div>
+          <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'content.videos.field_category' | translate }}</label>
+          <select
+            required
+            (change)="category.set($any($event.target).value)"
+            class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+          >
+            <option value="" disabled [attr.selected]="category() === '' ? '' : null">{{ 'content.videos.select_category' | translate }}</option>
+            @for (c of categories(); track c.id) {
+              <option [value]="c.name" [attr.selected]="c.name === category() ? '' : null">{{ c.name }}</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'content.news.field_department' | translate }}</label>
+          <select
+            (change)="targetDepartment.set($any($event.target).value)"
+            class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+          >
+            @for (d of departments; track d) {
+              <option [value]="d" [attr.selected]="d === targetDepartment() ? '' : null">
+                {{ d === 'All' ? ('content.all_departments' | translate) : d }}
+              </option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/60 p-4">
+        <input type="checkbox" [checked]="isMandatory()" (change)="isMandatory.set($any($event.target).checked)" class="h-4 w-4 accent-[#B91C1C]" />
+        <label class="text-sm font-medium text-gray-800 dark:text-zinc-200">{{ 'content.articles.field_mandatory' | translate }}</label>
+        @if (isMandatory()) {
+          <div class="ml-4 flex flex-1 items-center gap-3 border-l border-gray-300 dark:border-zinc-700 pl-4">
+            <label class="text-sm font-medium text-gray-600 dark:text-zinc-400">{{ 'content.articles.field_due_date' | translate }}</label>
+            <input
+              type="date"
+              [value]="dueDate()"
+              (input)="dueDate.set($any($event.target).value)"
+              class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+            />
+          </div>
+        }
+      </div>
+
+      <div class="flex justify-end gap-3 pt-2 items-center">
+        @if (saveError()) {
+          <span class="text-xs text-red-600 mr-auto">{{ saveError() }}</span>
+        }
+        <button type="button" (click)="close()" class="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-sm font-medium text-gray-600 shadow-sm hover:bg-gray-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200">
+          {{ 'content.cancel' | translate }}
+        </button>
+        <button type="submit" [disabled]="saving()" class="rounded-xl bg-[#B91C1C] px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-60">
+          {{ (saving() ? 'content.saving' : 'content.save') | translate }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

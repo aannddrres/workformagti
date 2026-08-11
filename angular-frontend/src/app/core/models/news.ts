@@ -30,3 +30,17 @@ export interface News {
   version: number;
   is_archived: boolean;
 }
+
+/** Mirrors web.NewsRequest -- shared create/update body. `is_draft`/
+ *  `expires_at` are omitted on purpose: the real admin form has no controls
+ *  for either, and NewsController#updateNews ignores both on update anyway
+ *  (existing row value wins) -- create leaves them null too, which
+ *  NewsRequest.isDraftOrDefaultForCreate() resolves to "published". */
+export interface NewsRequest {
+  title: string;
+  content: string;
+  target_department: string;
+  attachment_url: string | null;
+  visible_to_tech_info: boolean;
+  visible_to_service_center: boolean;
+}

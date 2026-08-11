@@ -23,6 +23,33 @@ export interface RecentlyViewedItem {
   viewed_at: string;
 }
 
+/** Mirrors web.ArticleRequest -- shared create/update body. */
+export interface ArticleRequest {
+  title: string;
+  content: string;
+  category_id: number;
+  tags: string | null;
+  target_departments: string[];
+  status: string;
+  youtube_id?: string | null;
+  published_at: string | null;
+  attachment_url: string | null;
+  last_verified_at?: string | null;
+  audience_profile: string;
+  visible_to_tech_info: boolean;
+  visible_to_service_center: boolean;
+  is_draft: boolean;
+  quiz_enabled: boolean;
+  notify_operators?: boolean;
+}
+
+/** Mirrors web.ArticleBulkArchiveResponse. */
+export interface ArticleBulkArchiveResponse {
+  updated: number;
+  status: string;
+  skipped_ids: number[];
+}
+
 /** Mirrors web.ArticleResponse -- the full/detail shape (has content, no category_name). */
 export interface Article {
   id: number;
