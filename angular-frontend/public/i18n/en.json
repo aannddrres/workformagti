@@ -26,7 +26,8 @@
     "topbar": {
       "user_menu_label": "User menu",
       "logout": "Log out",
-      "logout_confirm_message": "Are you sure you want to log out?"
+      "logout_confirm_message": "Are you sure you want to log out?",
+      "theme_toggle": "Toggle theme"
     }
   },
   "auth": {

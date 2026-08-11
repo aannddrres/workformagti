@@ -47,6 +47,20 @@
           {{ (translate.currentLang() === 'ka') ? 'EN' : 'KA' }}
         </button>
 
+        <button
+          type="button"
+          (click)="theme.toggle()"
+          [attr.aria-label]="'nav.topbar.theme_toggle' | translate"
+          [title]="'nav.topbar.theme_toggle' | translate"
+          class="flex h-7 w-7 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
+        >
+          @if (theme.isDark()) {
+            <i class="fa-solid fa-sun text-[15px]" aria-hidden="true"></i>
+          } @else {
+            <i class="fa-regular fa-moon text-[15px]" aria-hidden="true"></i>
+          }
+        </button>
+
         <span class="text-sm text-gray-600 dark:text-gray-300">{{ auth.currentUser()?.email }}</span>
 
         <button

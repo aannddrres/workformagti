@@ -26,7 +26,8 @@
     "topbar": {
       "user_menu_label": "მომხმარებლის მენიუ",
       "logout": "სისტემიდან გასვლა",
-      "logout_confirm_message": "ნამდვილად გსურთ სისტემიდან გასვლა?"
+      "logout_confirm_message": "ნამდვილად გსურთ სისტემიდან გასვლა?",
+      "theme_toggle": "თემის გადართვა"
     }
   },
   "auth": {

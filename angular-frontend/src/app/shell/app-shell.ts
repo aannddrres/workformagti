@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { AuthService } from '../core/auth/auth.service';
+import { ThemeService } from '../core/theme/theme.service';
 
 interface NavLink {
   labelKey: string;
@@ -25,6 +26,7 @@ interface NavSection {
 export class AppShell {
   protected readonly auth = inject(AuthService);
   protected readonly translate = inject(TranslateService);
+  protected readonly theme = inject(ThemeService);
   private readonly router = inject(Router);
 
   protected readonly sections: NavSection[] = [
