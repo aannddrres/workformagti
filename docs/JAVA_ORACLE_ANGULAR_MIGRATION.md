@@ -2258,6 +2258,75 @@ mark-read-იდან) — `ORA-00001` unique-constraint collision
 სცდება — მონიშნულია background task-ად შემდგომი გამოძიებისთვის,
 არ გასწორებულა ახლა.
 
+**Slice 6 — აუდიტის ლოგის ჟურნალი (`/admin/audit`) — ✅ დასრულებულია, 2026-08-11.**
+
+მომხმარებელმა აირჩია, არჩევანის ფორმით, ეს იყოს შემდეგი slice
+(Audit/Users/Roles/Content-ის ოთხეულიდან — ბექენდი ოთხივესთვის უკვე
+მზად იყო). Port-ი `#admin-audit`-ის (base-layout.html:2345-2387) და
+მისი render-ფენის (`audit-dashboard.js` — `AuditDashboard`) და
+დეტალების drawer-ის (`#audit-detail-panel`) — სრული re-write signal-ებზე,
+არა line-translation. Backend (AuditLogController) მთლიანად მზად იყო
+ადრეული Phase 1a/1e-დან — ეს იყო სუფთა Angular-slice.
+
+**აშენდა:** `core/models/audit.ts` (AuditLogEntry/Filter/ChainHealth/
+VerifyResult), `core/services/audit.service.ts` (list/verify/chainHealth/
+exportCsv), `shared/audit-format.ts` (tokenized-search parser
+`actor:x category:x action:x`, category-badge სტილები, details-diff
+parser, coarse User-Agent sniff — ყველა pure-function პორტი
+`audit-dashboard.js`-იდან, HTML-სტრიქონების მაგივრად სტრუქტურირებული
+მონაცემი Angular template-ისთვის). ახალი `AdminAuditPage` კომპონენტი
+(`features/admin-audit/`): თარიღის presets (დღეს/7/30) + ორი native
+date-input, ტოკენიზებული ძებნა, კატეგორია-dropdown, ცხრილი (დრო/ვინ/
+კატეგორია-ბადჯი/ქმედება/ობიექტი/მთლიანობა-ხატულა), გვერდვება, slide-over
+დეტალების drawer (actor/ობიექტი/IP/მოწყობილობა + changed-ველების
+diff ან raw JSON + row_hash/prev_hash + „ჯაჭვის შემოწმება" ღილაკი),
+chain-health pill mount-ზე + tamper-ბანერი, და მუშა CSV-ექსპორტი
+(`blob` + programmatic anchor download).
+
+**3 შეგნებული გადახრა ორიგინალისგან:**
+1. **ორი native `<input type="date">`**, ერთი flatpickr range-picker-ის
+   მაგივრად — ახალი JS-დამოკიდებულების გარეშე ერთი ველისთვის (chart.js
+   წინა slice-ში ნამდვილი საჭიროებით იყო გამართლებული, თარიღის
+   დიაპაზონი კი უბრალოდ ორი native ველია).
+2. **`actionMap`/`typeMap`, რომლებსაც `audit-dashboard.js` `typeof
+   actionMap !== 'undefined'`-დაცვით იძახებს, არსად არ არის განსაზღვრული
+   მთელ `static/js`-ში** — ცოცხალი Python UI-იც უბრალოდ აჩვენებს ნედლ
+   `action`/`item_type` კოდებს (LOGIN, CREATE_USER, article...). Angular-
+   ვერსია ამავე ნედლ კოდებს აჩვენებს — არ გამოგონილა ახალი თარგმანის
+   ცხრილი, რომელიც ორიგინალშიც არ არსებობს.
+3. **Manager-როლის dept-scoped, view-only რეჟიმი ამ გვერდზე
+   (`audit-dashboard.js`-ის `isManager()` შტოები: დამალული export/
+   chain-health, scope-შენიშვნა) ცოცხალ Python UI-ში საერთოდ არ
+   მიიღწევა** — მთელი „ადმინისტრირება" sidebar-სექცია
+   `data-required-role="admin,content_admin"`-ითაა დაცული მშობელ
+   `<div>`-ზე, რაც ყველა შვილს მალავს manager-ისთვის, მიუხედავად
+   ცალკეული ელემენტების re-show ლოგიკისა. Angular route-იც იმავე
+   კარიბჭითაა დაცული (`ADMIN_OR_CONTENT_ADMIN` `/admin`-ის მშობელ
+   route-ზე) — manager ვერ აღწევს აქამდე არც აქ, ამიტომ ეს შტოები არ
+   პორტირებულა (მკვდარი კოდის კვალის ნაცვლად, რეალურ, მისაწვდომ
+   ქცევას მივყევით).
+
+**გვერდითი გასწორება (dead control, არა ცალკე გადაწყვეტილების
+საკითხი):** `#btn-export-audit-csv`-ს Python-ში **არსად არ ჰქონდა
+click-listener** — მთელ `static/js`-ში ძებნამ ვერაფერი იპოვა. Backend-ის
+`GET /api/audit-logs/export` კი სრულად მზად და მუშა იყო. ღილაკს, რომლის
+ლეიბლიც („ექსპორტი", CSV-ხატულა) ცალსახად აცხადებდა თავის დანიშნულებას,
+Angular-ში რეალური ფუნქციონალი მიეცა.
+
+**ცოცხლად გადამოწმდა Oracle+Java-ზე** (`admin@magti.ge` და
+`content@magti.ge`, ორივესთვის სრული პარიტეტი): 48+ რეალური ლოგის
+ჩატვირთვა, chain-health pill „ჯაჭვი გამართულია"-ს რეალურ checked-
+რიცხვთან, კატეგორია-dropdown → ტოკენის ჩაწერა ძებნის ველში → 200 OK
+`category=USER` პარამეტრით, `actor:ადმინ` ტოკენიზებული ძებნა → 43
+ემთხვევა ქართული substring-ით, drawer-ის გახსნა + ავტომატური verify
+→ „ჯაჭვი დამოწმებულია" რეალურ row_hash/prev_hash-ზე, ცარიელი შედეგის
+მდგომარეობა („ლოგები არ მოიძებნა"), CSV-ექსპორტი → რეალური UTF-8
+ქართული სათაურები + მონაცემები (`text/csv`, 200 OK), და
+`VIEW_AUDIT_LOG`/`EXPORT_AUDIT_LOG` meta-audit ჩანაწერების საკუთარ
+თავზე წერა ყოველ ნახვაზე/ექსპორტზე — ზუსტად Python-ის იდენტურად.
+`npm run build` (production) სუფთაა (მხოლოდ არსებული bundle-ზომის
+warning, ახალი შეცდომა არცერთი).
+
 ### 3d — მესამე-მხარის ბიბლიოთეკების ჩანაცვლება
 
 | ბიბლიოთეკა | დღევანდელი ვერსია | სტატუსი |

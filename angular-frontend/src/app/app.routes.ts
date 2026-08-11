@@ -14,6 +14,7 @@ import { FavoritesPage } from './features/favorites/favorites-page';
 import { MyReadingsPage } from './features/reading/my-readings-page';
 import { TeamStatsPage } from './features/team-stats/team-stats-page';
 import { AdminStatsPage } from './features/admin-stats/admin-stats-page';
+import { AdminAuditPage } from './features/admin-audit/admin-audit-page';
 import { authGuard } from './core/auth/auth.guard';
 import { roleGuard } from './core/auth/role.guard';
 
@@ -89,7 +90,7 @@ export const routes: Routes = [
             data: { title: 'nav.sidebar.admin_roles' },
             canActivate: [roleGuard(ADMIN_ONLY)]
           },
-          { path: 'audit', component: PlaceholderPage, data: { title: 'nav.sidebar.admin_logs' } }
+          { path: 'audit', component: AdminAuditPage, data: { title: 'nav.sidebar.admin_logs' } }
         ]
       }
     ]

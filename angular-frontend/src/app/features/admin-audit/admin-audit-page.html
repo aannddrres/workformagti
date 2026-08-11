@@ -1,0 +1,317 @@
+<div class="mx-auto w-full max-w-[1440px] px-4 pb-8 pt-4 md:px-6 md:pt-6">
+  <div class="mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div>
+      <h2 class="text-3xl font-semibold uppercase tracking-wider text-gray-800 dark:text-zinc-100">{{ 'audit.heading' | translate }}</h2>
+      <p class="text-xs text-gray-500 dark:text-zinc-500">{{ 'audit.subtitle' | translate }}</p>
+
+      @if (chainHealthLoading()) {
+        <span class="mt-1.5 inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-bold text-gray-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-500">
+          <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>{{ 'audit.chain_loading' | translate }}
+        </span>
+      } @else if (chainHealthError()) {
+        <span class="mt-1.5 inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-bold text-gray-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
+          <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>{{ 'audit.chain_error' | translate }}
+        </span>
+      } @else if (chainHealth(); as health) {
+        @if (health.status === 'tampered') {
+          <span class="mt-1.5 inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-bold text-red-700 dark:border-red-800/60 dark:bg-red-950/40 dark:text-red-300">
+            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>{{ 'audit.chain_tampered' | translate }}
+          </span>
+        } @else if (health.checked === 0) {
+          <span class="mt-1.5 inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-bold text-gray-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
+            <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>{{ 'audit.chain_empty' | translate }}
+          </span>
+        } @else {
+          <span
+            class="mt-1.5 inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300"
+            [attr.title]="health.unchained_total > 0 ? ('audit.unchained_hint' | translate: { count: health.unchained_total }) : null"
+          >
+            <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>{{ 'audit.chain_ok' | translate: { count: health.checked } }}
+          </span>
+        }
+      }
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2.5">
+      <div class="flex items-center rounded-xl border border-gray-200/50 bg-gray-100 p-0.5 dark:border-zinc-700/50 dark:bg-zinc-800">
+        <button type="button" (click)="setDatePreset(0)" class="rounded-lg px-3 py-1.5 text-xs font-bold text-gray-600 transition-all hover:bg-white hover:shadow-sm dark:text-zinc-300 dark:hover:bg-zinc-700">{{ 'audit.preset_today' | translate }}</button>
+        <button type="button" (click)="setDatePreset(7)" class="rounded-lg px-3 py-1.5 text-xs font-bold text-gray-600 transition-all hover:bg-white hover:shadow-sm dark:text-zinc-300 dark:hover:bg-zinc-700">{{ 'audit.preset_7d' | translate }}</button>
+        <button type="button" (click)="setDatePreset(30)" class="rounded-lg px-3 py-1.5 text-xs font-bold text-gray-600 transition-all hover:bg-white hover:shadow-sm dark:text-zinc-300 dark:hover:bg-zinc-700">{{ 'audit.preset_30d' | translate }}</button>
+      </div>
+
+      <input
+        type="text"
+        [value]="searchText()"
+        (input)="onSearchInput($event)"
+        [attr.placeholder]="'audit.search_placeholder' | translate"
+        class="w-56 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm focus:border-red-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+      />
+
+      <input
+        type="date"
+        [value]="startDate() ?? ''"
+        (change)="onStartDateChange($event)"
+        [attr.aria-label]="'audit.start_date_label' | translate"
+        class="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-600 shadow-sm focus:border-red-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+      />
+      <input
+        type="date"
+        [value]="endDate() ?? ''"
+        (change)="onEndDateChange($event)"
+        [attr.aria-label]="'audit.end_date_label' | translate"
+        class="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-600 shadow-sm focus:border-red-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+      />
+
+      <select
+        (change)="onCategoryChange($event)"
+        class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm focus:border-red-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+      >
+        <option value="">{{ 'audit.category_all' | translate }}</option>
+        <option value="SECURITY">{{ 'audit.category_security' | translate }}</option>
+        <option value="CONTENT">{{ 'audit.category_content' | translate }}</option>
+        <option value="USER">{{ 'audit.category_user' | translate }}</option>
+        <option value="SYSTEM">{{ 'audit.category_system' | translate }}</option>
+      </select>
+
+      <button
+        type="button"
+        (click)="refresh()"
+        class="flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+      >
+        <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
+      </button>
+      <button
+        type="button"
+        (click)="exportCsv()"
+        [disabled]="exporting()"
+        class="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        <i class="fa-solid" [class.fa-file-csv]="!exporting()" [class.fa-spinner]="exporting()" [class.fa-spin]="exporting()" aria-hidden="true"></i>
+        {{ (exporting() ? 'audit.exporting' : 'audit.export') | translate }}
+      </button>
+    </div>
+  </div>
+
+  @if (chainHealth()?.status === 'tampered'; as tampered) {
+    <div class="mb-4 rounded-2xl border border-red-200 bg-red-50 px-5 py-3 dark:border-red-800/60 dark:bg-red-950/30">
+      <div class="flex flex-wrap items-center gap-2 text-sm font-semibold text-red-700 dark:text-red-300">
+        <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+        <span>{{ 'audit.tamper_banner_text' | translate: { checked: chainHealth()!.checked, mismatches: chainHealth()!.hash_mismatches, breaks: chainHealth()!.link_breaks } }}</span>
+      </div>
+      @if (chainHealth()!.bad_ids.length) {
+        <p class="mt-1 font-mono text-xs text-red-600 dark:text-red-400">ID: {{ chainHealth()!.bad_ids.join(', ') }}</p>
+      }
+      <p class="mt-1 text-xs text-red-500 dark:text-red-400">{{ 'audit.tamper_hint' | translate }}</p>
+    </div>
+  }
+
+  <div class="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60">
+    @if (loading()) {
+      <table class="w-full text-left text-sm">
+        <tbody>
+          @for (i of [1, 2, 3, 4, 5, 6]; track i) {
+            <tr class="animate-pulse">
+              <td class="px-5 py-4"><div class="h-4 rounded bg-gray-200/60 dark:bg-zinc-800"></div></td>
+              <td class="px-5 py-4"><div class="h-4 rounded bg-gray-200/60 dark:bg-zinc-800"></div></td>
+              <td class="px-5 py-4"><div class="h-4 rounded bg-gray-200/60 dark:bg-zinc-800"></div></td>
+              <td class="px-5 py-4"><div class="h-4 rounded bg-gray-200/60 dark:bg-zinc-800"></div></td>
+              <td class="px-5 py-4"><div class="h-4 rounded bg-gray-200/60 dark:bg-zinc-800"></div></td>
+              <td class="px-5 py-4"><div class="h-4 rounded bg-gray-200/60 dark:bg-zinc-800"></div></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    } @else if (error()) {
+      <div class="px-5 py-10 text-center text-sm text-red-500 dark:text-red-400">{{ 'audit.load_error' | translate }}</div>
+    } @else if (!rows().length) {
+      <div class="px-5 py-10 text-center text-sm text-gray-400 dark:text-zinc-500">{{ 'audit.no_data' | translate }}</div>
+    } @else {
+      <table class="w-full text-left text-sm">
+        <thead>
+          <tr class="border-b border-gray-200 bg-gray-50 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+            <th class="px-5 py-3">{{ 'audit.col_time' | translate }}</th>
+            <th class="px-5 py-3">{{ 'audit.col_who' | translate }}</th>
+            <th class="px-5 py-3">{{ 'audit.col_category' | translate }}</th>
+            <th class="px-5 py-3">{{ 'audit.col_action' | translate }}</th>
+            <th class="px-5 py-3">{{ 'audit.col_object' | translate }}</th>
+            <th class="w-14 px-5 py-3 text-center" [attr.title]="'audit.col_integrity' | translate"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 dark:divide-zinc-800">
+          @for (log of rows(); track log.id) {
+            <tr
+              (click)="openDetail(log)"
+              class="cursor-pointer transition-colors hover:bg-gray-50/80 dark:hover:bg-zinc-800/60"
+            >
+              <td class="whitespace-nowrap px-5 py-2.5 text-xs text-gray-500 dark:text-zinc-500">{{ formatTimestamp(log.timestamp) }}</td>
+              <td class="px-5 py-2.5 font-medium text-gray-800 dark:text-zinc-200">{{ log.admin_name || ('audit.unknown_user' | translate) }}</td>
+              <td class="px-5 py-2.5">
+                <span class="inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-[11px] font-bold" [class]="categoryBadge(log.category).badgeClass">
+                  <span class="h-1.5 w-1.5 rounded-full" [class]="categoryBadge(log.category).dotClass"></span>{{ categoryBadge(log.category).label }}
+                </span>
+              </td>
+              <td class="px-5 py-2.5"><span class="rounded-lg border border-gray-200/60 bg-gray-50 px-2 py-0.5 text-[11px] font-bold text-gray-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">{{ log.action }}</span></td>
+              <td class="px-5 py-2.5 text-gray-700 dark:text-zinc-300">{{ log.item_name ? (log.item_type + ': ' + log.item_name) : log.item_type }}</td>
+              <td class="px-5 py-2.5 text-center">
+                @if (log.row_hash) {
+                  <button
+                    type="button"
+                    (click)="$event.stopPropagation(); openDetail(log); verifyRow()"
+                    [attr.title]="'audit.integrity_verify_title' | translate"
+                    class="text-gray-400 transition-colors hover:text-emerald-600 dark:text-zinc-600 dark:hover:text-emerald-400"
+                  >
+                    <i class="fa-solid fa-link" aria-hidden="true"></i>
+                  </button>
+                } @else {
+                  <span class="text-gray-300 dark:text-zinc-700" [attr.title]="'audit.unchained_row_hint' | translate"><i class="fa-solid fa-minus" aria-hidden="true"></i></span>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+
+  @if (total()) {
+    <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-zinc-500">
+      <span>{{ 'audit.pagination_range' | translate: { from: pageFrom(), to: pageTo(), total: total() } }}</span>
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          [disabled]="offset() <= 0"
+          (click)="prevPage()"
+          class="rounded-lg border border-gray-200 px-3 py-1.5 font-semibold text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
+        >{{ 'audit.prev' | translate }}</button>
+        <button
+          type="button"
+          [disabled]="pageTo() >= total()"
+          (click)="nextPage()"
+          class="rounded-lg border border-gray-200 px-3 py-1.5 font-semibold text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
+        >{{ 'audit.next' | translate }}</button>
+      </div>
+    </div>
+  }
+</div>
+
+@if (selectedLog(); as log) {
+  <div class="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" (click)="closeDetail()"></div>
+  <div class="fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col bg-white shadow-2xl dark:bg-zinc-900">
+    <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-zinc-800">
+      <h3 class="text-xl font-bold text-gray-800 dark:text-zinc-100">{{ 'audit.detail_heading' | translate }}</h3>
+      <button type="button" (click)="closeDetail()" class="text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200">
+        <i class="fa-solid fa-xmark text-xl" aria-hidden="true"></i>
+      </button>
+    </div>
+    <div class="flex-1 space-y-5 overflow-y-auto p-6">
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-[11px] font-bold" [class]="categoryBadge(log.category).badgeClass">
+          <span class="h-1.5 w-1.5 rounded-full" [class]="categoryBadge(log.category).dotClass"></span>{{ categoryBadge(log.category).label }}
+        </span>
+        <span class="rounded-lg border border-gray-200/60 bg-gray-50 px-2 py-0.5 text-[11px] font-bold text-gray-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">{{ log.action }}</span>
+        <span class="text-xs text-gray-400 dark:text-zinc-500">{{ formatTimestamp(log.timestamp) }}</span>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 rounded-xl border border-gray-100 bg-gray-50/60 p-4 text-xs dark:border-zinc-800 dark:bg-zinc-800/40">
+        <div>
+          <span class="block text-gray-400 dark:text-zinc-500">{{ 'audit.detail_actor' | translate }}</span>
+          <span class="font-medium text-gray-800 dark:text-zinc-200">{{ log.admin_name || ('audit.unknown_user' | translate) }}</span>
+        </div>
+        <div>
+          <span class="block text-gray-400 dark:text-zinc-500">{{ 'audit.detail_object' | translate }}</span>
+          <span class="font-medium text-gray-800 dark:text-zinc-200">{{ log.item_name ? (log.item_type + ': ' + log.item_name) : log.item_type }} (#{{ log.item_id }})</span>
+        </div>
+        <div>
+          <span class="block text-gray-400 dark:text-zinc-500">{{ 'audit.detail_ip' | translate }}</span>
+          <span class="font-mono text-gray-800 dark:text-zinc-200">{{ log.ip_address || '—' }}</span>
+        </div>
+        <div>
+          <span class="block text-gray-400 dark:text-zinc-500">{{ 'audit.detail_device' | translate }}</span>
+          @if (userAgentView(log); as ua) {
+            <span class="font-medium text-gray-800 dark:text-zinc-200">{{ ua.browser }} · {{ ua.os }}</span>
+          } @else {
+            <span class="font-medium text-gray-800 dark:text-zinc-200">—</span>
+          }
+        </div>
+      </div>
+      @if (log.user_agent) {
+        <p class="break-all font-mono text-[11px] text-gray-400 dark:text-zinc-500">{{ log.user_agent }}</p>
+      }
+
+      <div>
+        <h4 class="mb-2 flex items-center gap-1.5 text-xs font-bold text-gray-800 dark:text-zinc-200">
+          <i class="fa-solid fa-square-poll-horizontal text-[#E30613]" aria-hidden="true"></i>{{ 'audit.detail_changes_heading' | translate }}
+        </h4>
+        <div class="rounded-xl border border-gray-200/60 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          @let details = detailsView(log);
+          @switch (details.kind) {
+            @case ('empty') {
+              <span class="text-gray-400 dark:text-zinc-500">{{ 'audit.detail_no_details' | translate }}</span>
+            }
+            @case ('changes') {
+              <div class="space-y-2 py-1 text-xs">
+                @for (change of details.changes; track change.key) {
+                  <div class="flex flex-wrap items-center gap-1.5 leading-relaxed">
+                    <span class="rounded bg-gray-100 px-1.5 py-0.5 font-bold text-gray-600 dark:bg-zinc-800 dark:text-zinc-400">{{ change.key }}:</span>
+                    <span class="rounded border border-red-100 bg-red-50 px-2 py-0.5 text-red-700 line-through dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-400">{{ change.oldValue }}</span>
+                    <span class="mx-0.5 text-gray-400 dark:text-zinc-600"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span>
+                    <span class="rounded border border-green-100 bg-green-50 px-2 py-0.5 font-bold text-green-700 dark:border-green-900/60 dark:bg-green-950/40 dark:text-green-400">{{ change.newValue }}</span>
+                  </div>
+                }
+              </div>
+            }
+            @case ('json') {
+              <pre class="max-h-48 overflow-x-auto rounded-xl border border-slate-200/50 bg-slate-100 p-2.5 font-mono text-[11px] leading-normal text-gray-700 dark:border-zinc-700/50 dark:bg-zinc-800 dark:text-zinc-300">{{ details.json }}</pre>
+            }
+            @case ('raw') {
+              <span class="font-mono text-gray-500 dark:text-zinc-400">{{ details.raw }}</span>
+            }
+          }
+        </div>
+      </div>
+
+      <div>
+        <h4 class="mb-2 flex items-center gap-1.5 text-xs font-bold text-gray-800 dark:text-zinc-200">
+          <i class="fa-solid fa-link text-[#E30613]" aria-hidden="true"></i>{{ 'audit.detail_integrity_heading' | translate }}
+        </h4>
+        <div class="space-y-2 rounded-xl border border-gray-200/60 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <div class="grid grid-cols-1 gap-1 break-all font-mono text-[11px] text-gray-500 dark:text-zinc-500">
+            <div><span class="text-gray-400 dark:text-zinc-600">row_hash:</span> {{ log.row_hash || '—' }}</div>
+            <div><span class="text-gray-400 dark:text-zinc-600">prev_hash:</span> {{ log.prev_hash || '—' }}</div>
+          </div>
+          @if (log.row_hash) {
+            @if (verifying()) {
+              <div class="text-xs text-gray-400 dark:text-zinc-500"><i class="fa-solid fa-spinner fa-spin mr-1" aria-hidden="true"></i>{{ 'audit.detail_verifying' | translate }}</div>
+            } @else if (verifyResult(); as result) {
+              @if (result.status === 'ok') {
+                <div class="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                  <i class="fa-solid fa-shield-halved" aria-hidden="true"></i><span>{{ 'audit.verify_ok' | translate }}</span>
+                </div>
+              } @else if (result.status === 'tampered') {
+                <div class="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 dark:border-red-800/60 dark:bg-red-950/40 dark:text-red-300">
+                  <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span>{{ 'audit.verify_tampered' | translate }}</span>
+                </div>
+              } @else {
+                <div class="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
+                  <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i><span>{{ 'audit.verify_error' | translate }}</span>
+                </div>
+              }
+            }
+            <button
+              type="button"
+              (click)="verifyRow()"
+              [disabled]="verifying()"
+              class="w-full rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              <i class="fa-solid fa-shield-halved mr-1" aria-hidden="true"></i>{{ 'audit.detail_verify_button' | translate }}
+            </button>
+          } @else {
+            <div class="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
+              <i class="fa-solid fa-minus" aria-hidden="true"></i><span>{{ 'audit.verify_unchained' | translate }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+}
