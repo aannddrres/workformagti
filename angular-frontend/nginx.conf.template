@@ -1,0 +1,32 @@
+# Rendered by the official nginx image's built-in envsubst-on-templates
+# entrypoint script (files under /etc/nginx/templates/*.template ->
+# /etc/nginx/conf.d/*.conf at container start) -- no custom entrypoint
+# needed. BACKEND_HOST defaults to a plausible in-cluster Kubernetes
+# Service DNS name; override it with a real one once IT confirms the
+# actual Service name (docs/QUESTIONS_FOR_IT.md #4).
+server {
+    listen 8080;
+    server_name _;
+    root /usr/share/nginx/html;
+
+    # Angular SPA: unknown paths fall back to index.html so client-side
+    # routing (Angular Router) handles them, matching how the dev server
+    # and Python's original server-rendered base-layout.html both avoid a
+    # hard 404 on a deep link/refresh.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location /api/ {
+        proxy_pass http://${BACKEND_HOST}:${BACKEND_PORT}/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /uploads/ {
+        proxy_pass http://${BACKEND_HOST}:${BACKEND_PORT}/uploads/;
+        proxy_set_header Host $host;
+    }
+}

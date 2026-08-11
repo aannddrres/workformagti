@@ -3008,6 +3008,68 @@ fixture/სატესტო მონაცემები გადატა�
 
 ---
 
+## AD ინტეგრაცია + Kubernetes — გარკვევა და პირველი მოსამზადებელი ნაბიჯები (2026-08-11)
+
+მომხმარებელმა თავად წამოწია ეს თემა PM-აუდიტის შემდეგ: აზუსტა, რომ დღეს
+არსებული `TEST_ACCOUNTS`/`_DEV_TEST_EMAILS` სრულად პირობითია, რეალურ
+მომხმარებლებთან კავშირის გარეშე — რეალური identity მოვა Active
+Directory-დან, და კონტეინერიზაცია უნდა იყოს **Kubernetes, არა Docker
+Compose**.
+
+**დადასტურებული ფაქტები** (სრული დეტალი: `auth-bypass-intentional-
+pending-ad`/`kubernetes-deployment-target` მემორი-ფაილები):
+- AD არის **on-premises**, არა Cloud/Entra ID.
+- როლებიდან მხოლოდ "ჯგუფის უფროსი" (MANAGER) მოდის AD-ჯგუფიდან;
+  დანარჩენი 3 (ოპერატორი/კონტენტ-ადმინი/სისტემური-ადმინი) რჩება ხელით
+  დანიშვნადი, ისევე როგორც დღეს.
+- დეპარტამენტი/ჯგუფი მოდის AD-ის OU-სტრუქტურიდან.
+- Kubernetes კლასტერი **უკვე არსებობს** Magti-ს საკუთარ სერვერებზე.
+
+**ახალი სტანდარტული პროცესი:** კითხვები, რომლებზეც მხოლოდ IT
+დეპარტამენტს შეუძლია პასუხის გაცემა, ახლა იწერება
+[`docs/QUESTIONS_FOR_IT.md`](QUESTIONS_FOR_IT.md)-ში — არა მეორდება
+ყოველ სესიაში. ეს ასევე ჩაიწერა `CLAUDE.md`-ის წესებში. ამჟამად იქ 4
+ღია კითხვაა: SSO პროტოკოლი (SAML/ADFS თუ LDAP+Kerberos), AD-ის
+OU-სტრუქტურა, არსებობს თუ არა უკვე CI/CD მილსადენი, და კლასტერის
+დეტალები (distribution/registry/ingress/secrets/Oracle-განთავსება).
+
+**რაც უკვე მოსამზადებელია, IT-ის პასუხის მოლოდინის გარეშე** (პროტოკოლ-
+და CI/CD-ტულ-აგნოსტიკური სამუშაო, რომელიც ნებისმიერ შემთხვევაში
+დასჭირდება):
+- `java-backend/Dockerfile` — multi-stage build (Maven builder + JRE
+  runtime, non-root user, `/api/health` healthcheck).
+- `java-backend/.env.example` — production-ისთვის საჭირო env-ცვლადების
+  დოკუმენტაცია, Python-ის `.env.example`-ის ანალოგიურად.
+- **`ProductionSafetyGuard`** (ახალი) — Python-ის `config.py:117-130`-ის
+  ზუსტი Java-ანალოგი: refuses to boot თუ `APP_ENV=production` და
+  `SECRET_KEY`/`COOKIE_SECURE` ჯერ კიდევ dev-ნაგულისხმევზეა. ეს
+  `application.yml`-ში `TODO`-დ იყო მონიშნული Phase 1d-დან მოყოლებული —
+  ახლა დაიხურა. ტესტირებულია (`ProductionSafetyGuardTest`, 4 სცენარი).
+- `angular-frontend/Dockerfile` + `nginx.conf.template` — multi-stage
+  build (npm builder + nginx runtime), SPA-fallback routing, `/api`
+  და `/uploads` პროქსირება backend-ისკენ (`BACKEND_HOST`/`BACKEND_PORT`
+  env-ცვლადებით — ნაგულისხმევი `portal-backend:8080`, შესაცვლელია
+  როცა IT დაადასტურებს რეალურ K8s Service-სახელს).
+- `environment.ts`/`environment.prod.ts` + `apiBaseUrlInterceptor` —
+  ახალი მექანიზმი, დღეს ორივე ცარიელი `apiBaseUrl`-ით (ანუ ქცევა არ
+  შეცვლილა — ყველა request კვლავ იმავე origin-ის mod ფარდობითია).
+  თუ საბოლოოდ Angular და Java API სხვადასხვა origin-ზე აღმოჩნდება
+  (ingress-ის დეტალებზეა დამოკიდებული, ჯერ არ ვიცით) — მხოლოდ
+  `environment.prod.ts`-ის ერთი მნიშვნელობის შეცვლა დასჭირდება, არა
+  ~15 service-ფაილის რედაქტირება.
+
+**⚠️ გადამოწმების ხარვეზი, გამჭვირვალედ ვაფიქსირებ:** ამ მანქანაზე
+**Docker საერთოდ არ არის დაყენებული** (`docker --version` → command
+not found). დავადასტურე, რომ ორივე Dockerfile-ის საფუძვლად არსებული
+build-ბრძანებები რეალურად მუშაობს (`mvn package`/`./mvnw package` და
+`npm run build` — ორივე გავუშვი ცალკე და წარმატებით დასრულდა, იგივე
+output path-ებით რასაც Dockerfile-ები იყენებენ), და `ProductionSafetyGuard`-ის
+დამატებამ Spring-კონტექსტის ჩატვირთვა არ დაარღვია (მთელი ტესტ-სუიტი
+კვლავ გადის). **მაგრამ თავად `docker build` ბრძანება ამ მანქანაზე ვერ
+გაეშვა და ვერ დადასტურდა.** ეს არ არის კრიტიკული (K8s CI/CD მილსადენიც
+ისედაც სხვაგან გაეშვება საბოლოოდ), მაგრამ პატიოსნად უნდა ითქვას — არ
+არის იგივე, რაც "დავრწმუნდი რომ მუშაობს".
+
 ## შემდეგი ნაბიჯი
 
 **6 გადაწყვეტილება უკვე მიღებულია:** ბაგი #2 (quiz-version), ბაგი #5
