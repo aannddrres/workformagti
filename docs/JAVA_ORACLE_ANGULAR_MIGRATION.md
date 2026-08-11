@@ -2327,6 +2327,76 @@ Angular-ში რეალური ფუნქციონალი მიე
 `npm run build` (production) სუფთაა (მხოლოდ არსებული bundle-ზომის
 warning, ახალი შეცდომა არცერთი).
 
+**Slice 7 — მომხმარებლების მართვა (`/admin/users`) — ✅ დასრულებულია, 2026-08-11.**
+
+მომხმარებელმა აირჩია, არჩევანის ფორმით, ეს იყოს შემდეგი slice (Users/
+Roles/Content-ის სამეულიდან — ბექენდი სამივესთვის უკვე მზად იყო).
+Port-ი `#admin-users`-ის (base-layout.html:2094-2186), მისი
+lazy-load-on-login მონაცემების ფუნქციების (`fetchAndRenderUsers`/
+`loadGroupLeaders`/`renderUsersAdminTable`, `static/frontend_api.js`) და
+edit-user მოდალის (base-layout.html:917-1040) — სრული re-write
+signal-ებზე. "როლების მართვა" (`/admin/roles`, bulk role reassignment)
+ცალკე Python sub-page და ცალკე მომავალი slice-ია — აქ არ აშენებულა.
+
+**რეალური, აქამდე დაუდასტურებელი ბაგი აღმოჩნდა და გასწორდა, მომხმარებლის
+ცხად თანხმობით:** edit-user მოდალის "დაწვრილებითი უფლებები" checkbox-ები
+Python-ში იყენებდნენ colon-სახელიან მნიშვნელობებს (`content:editor`,
+`reports:view_global`, `communication:broadcast`...), რომლებიც **არასდროს**
+ემთხვეოდა backend-ის რეალურ, დაშვებულ სიას (`routers/users.py:460-465`,
+წერტილიანი: `articles.edit`, `reports.export`...) — ნებისმიერი checkbox-ის
+მონიშვნა და შენახვა ყოველთვის 400-ით ("უცნობი უფლება(ები)") ბრუნდებოდა
+ცოცხალ Python აპში. აშენდა ახალი, რეალურად მომუშავე კატალოგი
+(`shared/permission-catalog.ts`, 9 წერტილიანი მნიშვნელობა,
+`Permission.java`-დან პორტირებული `DEFAULTS_BY_ROLE`-ითურთ) ძველი,
+გაუმართავი checkbox-მნიშვნელობების ნაცვლად.
+
+**აშენდა:** `core/models/admin-user.ts`, `core/services/admin-users.
+service.ts` (list/groupLeaders/create/update/updateStatus/
+updatePermissions), `shared/permission-catalog.ts`. ახალი `AdminUsersPage`
+კომპონენტი (`features/admin-users/`): ჯგუფის (team-lead) ფილტრი, ცხრილი
+(სახელი/ელფოსტა/დეპარტამენტი/პროგრესი/როლი/მოქმედება — "თქვენ" ლეიბლი
+საკუთარ row-ზე, აქტიური/გათიშული toggle + რედაქტირების ხატულა სხვებზე),
+inline "ახალი მომხმარებელი" პანელი, და centered modal მომხმარებლის
+რედაქტირებისთვის (როლი/დეპარტამენტი/პოზიცია + 9 რეალური
+uფლება-checkbox, "როლიდან"-ინდიკატორით disabled/checked მდგომარეობაზე,
+ზუსტად `updatePermissionsUI`-ის ლოგიკის მიხედვით ახალ, სწორ
+მნიშვნელობებზე).
+
+**მეორე, დამოუკიდებელი ბაგი აღმოჩნდა და გასწორდა ცოცხალი ტესტირებისას
+(არა კოდის კითხვით):** native `<select [value]="signal()">` + `@for`-ით
+დინამიურად აგებული `<option>`-ები — ცნობილი Angular timing-ხარვეზი,
+როცა `<select>`-ის `[value]` property-binding მოწმდება მანამ, სანამ მისი
+`<option>`-ები რეალურად აღმოჩნდება DOM-ში, ისე რომ browser-ი ჩუმად
+ირჩევს პირველ `<option>`-ს ნამდვილი მნიშვნელობის ნაცვლად. ცოცხლად
+დადასტურდა: მენეჯერის რედაქტირებისას როლის dropdown-ი აჩვენებდა
+"ოპერატორს", მიუხედავად იმისა, რომ permission-checkbox-ები სწორად
+ირჩევდნენ მენეჯერის ნაგულისხმევებს (რაც ამტკიცებდა, რომ `editRole()`
+signal-ი თავად სწორად ინახავდა "manager"-ს — მხოლოდ ვიზუალური
+dropdown-ი იყო არასწორი; შენახვაზეც signal-იდან იგზავნებოდა, არა
+DOM-დან, ასე რომ მონაცემი არასდროს ზიანდებოდა, მხოლოდ ჩვენება). გასწორდა
+ოთხივე დინამიურ select-ზე (create/edit × როლი/დეპარტამენტი)
+`[attr.selected]`-ის თითოეულ `<option>`-ზე დაყენებით `<select>`-ის
+`[value]`-ის ნაცვლად — Angular-ის დოკუმენტირებული, საიმედო გვერდის
+ავლა ამ ხარვეზისთვის.
+
+**ცოცხლად გადამოწმდა Oracle+Java-ზე** (`admin@magti.ge`): 9 რეალური
+მომხმარებელი ჩაიტვირთა ცხრილში, ჯგუფის ფილტრმა სწორად გადააფილტრა
+(`manager_id=4517`), edit-მოდალმა (ტესტ მენეჯერისთვის) სწორად აჩვენა
+"მენეჯერი" (bug-fix-ის შემდეგ) და მხოლოდ 2 ნაგულისხმევი uფლება
+(`system.audit`, `reports.export`) checked+disabled-ად — დამატებით
+მონიშნულმა `compliance.assign`-მა და submit-მა დააბრუნა **200 OK**
+`PUT /api/users/{id}/permissions`-ზე (არა ძველი 400) რეალური
+`permissions: ["system.audit","compliance.assign","reports.export"]`
+პასუხით — ეს ადასტურებს ბაგის ნამდვილ გამოსწორებას, არა მხოლოდ
+კოდის წაკითხვას. ახალი მომხმარებლის შექმნა (`POST /api/users`) →
+200 OK, რეალური row Oracle-ში. სტატუსის toggle ცოცხლად UI-დან
+გამოცდილია (`PUT .../status` → 200 OK). `content@magti.ge`-სთვის
+route-ი სწორად გადამისამართებს `/`-ზე (ADMIN_ONLY guard, ისევე
+როგორც Python-ში). ყველა სატესტო ჩანაწერი გასუფთავდა რეალური
+endpoint-ებით (permissions/status დაბრუნდა თავდაპირველ მნიშვნელობებზე;
+ახალი ტესტ-მომხმარებელი დეაქტივირდა — ამ დომენს hard-delete საერთოდ არ
+აქვს, არც Python-ში). `npm run build` (production) სუფთაა.
+
 ### 3d — მესამე-მხარის ბიბლიოთეკების ჩანაცვლება
 
 | ბიბლიოთეკა | დღევანდელი ვერსია | სტატუსი |

@@ -15,6 +15,7 @@ import { MyReadingsPage } from './features/reading/my-readings-page';
 import { TeamStatsPage } from './features/team-stats/team-stats-page';
 import { AdminStatsPage } from './features/admin-stats/admin-stats-page';
 import { AdminAuditPage } from './features/admin-audit/admin-audit-page';
+import { AdminUsersPage } from './features/admin-users/admin-users-page';
 import { authGuard } from './core/auth/auth.guard';
 import { roleGuard } from './core/auth/role.guard';
 
@@ -80,7 +81,7 @@ export const routes: Routes = [
           { path: 'categories', component: PlaceholderPage, data: { title: 'nav.sidebar.admin_categories' } },
           {
             path: 'users',
-            component: PlaceholderPage,
+            component: AdminUsersPage,
             data: { title: 'nav.sidebar.admin_users' },
             canActivate: [roleGuard(ADMIN_ONLY)]
           },
