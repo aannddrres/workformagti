@@ -410,6 +410,7 @@
       "col_date": "Date added",
       "col_action": "Action",
       "none_found": "No articles found",
+      "action_history": "History",
       "action_edit": "Edit",
       "action_archive": "Archive",
       "action_unarchive": "Unarchive",
@@ -483,6 +484,25 @@
       "confirm_delete": "Delete this video?",
       "load_failed": "Could not load the video.",
       "save_failed": "Could not save the video."
+    },
+    "history": {
+      "heading": "Revision history",
+      "close": "Close",
+      "back": "Back",
+      "loading": "Loading...",
+      "load_failed": "Could not load the history.",
+      "empty": "No history yet (this article hasn't been edited).",
+      "compare": "Compare",
+      "restore": "Restore",
+      "confirm_restore": "Restore this version of the article? The current content will be replaced.",
+      "restore_failed": "Restore failed.",
+      "editor_label": "Editor",
+      "view_text": "View text",
+      "compare_label": "Version {{base}} → version {{compare}}",
+      "added": "added",
+      "removed": "removed",
+      "diff_failed": "Could not load the comparison.",
+      "no_diff": "No changes found."
     }
   },
   "categories": {

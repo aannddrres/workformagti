@@ -23,10 +23,14 @@ const DEPARTMENT_ORDER: { key: 'info' | 'tech' | 'office'; name: string }[] = [
  * against signals, not a line translation.
  *
  * <p>Deliberately not ported: autosave-while-typing (Python's initAutosave/
- * performAutosave) and the "ისტორია"/"აუდიტი" version-history preview tab --
- * both are separate features from what this drawer needs to do (create/edit
- * a working article), and the history one has explicit user sign-off to
- * defer. The live preview keeps the Desktop/Mobile toggle only.
+ * performAutosave) and the reader-facing "ვერსიების ისტორია"/"აუდიტი"
+ * overlays from the article detail view -- both are separate features from
+ * what this drawer needs to do (create/edit a working article). The
+ * admin-only history+restore action (Python's "ისტორია" table-row item,
+ * once deferred out of this same slice) now lives one level up, in
+ * {@link ../admin-content-page.AdminContentPage}'s row menu -> {@link
+ * ../article-history-modal/article-history-modal.ArticleHistoryModal}, not
+ * inside this drawer. The live preview keeps the Desktop/Mobile toggle only.
  */
 @Component({
   selector: 'app-article-edit-drawer',

@@ -2621,6 +2621,68 @@ Tailwind კლასები ყველა ადმინ-გვერდ�
 ირთვება, მიუხედავად კლასების არსებობისა. წინა slice-ებშიც იგივე
 გაპია — ცალკე, დამოუკიდებელი task, არა ამ slice-ის scope.
 
+**Slice 11 — ვერსიების ისტორია/restore (`admin-content`-ის "ისტორია"
+მოქმედება) — ✅ დასრულებულია, 2026-08-11.**
+
+Slice 9-ში შეგნებულად გადავადებული ერთადერთი ნაწილი (§ ზემოთ,
+პუნქტი 3) — ბექენდი მაშინვე მზად იყო (4 endpoint,
+`ArticleController.java:680-849`), ეს იყო სუფთა Angular-only slice.
+Port-ი Python-ის admin-only "ისტორია" ცხრილის-მწკრივის მოქმედების
+(`frontend_api.js:615`) + `viewArticleHistory`/`quickLookDiff`/
+`restoreArticleVersion` (`app-core.js:3511-3651`) — **არა** იგივეა,
+რაც წამკითხველისთვის ხელმისაწვდომი "ვერსიების ისტორია" overlay
+სტატიის დეტალურ ხედში (`modal-history-*`, `GET .../versions`,
+წინამორბედთან შედარება, restore-ის გარეშე) — ეს ორივე ცალკე
+ფუნქციაა Python-შიც, და ორივე ცალკეა Angular-შიც.
+
+**აშენდა:**
+- **`core/models/article-history.ts`** — `ArticleHistoryItem`,
+  `ArticleDiff` (ორივე ზუსტად `web.ArticleHistoryItemResponse`/
+  `web.ArticleDiffResponse`-ის ველი-ველზე ასლი).
+- **`ArticlesService`-ს დაემატა** `history()`/`diff()`/
+  `restoreVersion()`.
+- **`features/admin-content/article-history-modal/`** — ერთი
+  კომპონენტი, რომელიც აერთიანებს Python-ის ორ ცალკე დაწყობილ
+  DOM-modal-ს (`#history-modal` + `#diff-modal`) ერთში, შიდა
+  diff-ხედით: ვერსიების სია ქრონოლოგიური რიგით (V1...Vn),
+  "ტექსტის ნახვა" გაშლადი raw-კონტენტი (Angular-ის ავტომატური
+  interpolation escaping ზუსტად იმეორებს Python-ის
+  `esc()`+`whitespace-pre-line` ქცევას), "შედარება" (quick-look diff
+  მიმდინარე კონტენტთან, `HtmlDiffer`-ის უკვე Tailwind-სტილიანი
+  `[innerHTML]`), "აღდგენა" (`window.confirm()`-ით, იგივე
+  დადგენილი გადახრა Python-ის custom `showConfirm`-საგან).
+- **Wiring**: `AdminContentPage`-ის row-menu-ს დაემატა "ისტორია"
+  პირველ ადგილას (Python-ის იგივე რიგი), აღდგენის შემდეგ
+  ავტომატურად იხურება მოდალი და ახლდება სტატიების ცხრილი.
+
+**ცოცხალი ტესტირებისას ნაპოვნი და გასწორებული 1 რეალური ბაგი:**
+`ArticleHistoryModal`-ის კონსტრუქტორი პირდაპირ კითხულობდა
+`this.articleId()`-ს (required signal input) constructor-ის სხეულში
+— Angular-ი (NG0950) ამას კრძალავს, რადგან signal input-ები
+constructor-ის დასრულებამდე ჯერ არ არის დაყენებული template-ის
+`ɵɵproperty`-ბაინდინგიდან. გასწორდა `effect()`-ით შეხვევით — ზუსტად
+იგივე დადგენილი პატერნი, რასაც `ArticleEditDrawer` უკვე იყენებდა
+ამავე slice-ების ჯაჭვში ადრე.
+
+**ცოცხლად გადამოწმდა Oracle+Java-ზე** (`content@magti.ge`): ტესტ-სტატია
+3 რეალური ვერსიით (title+content თითოეულ რედაქტირებაზე შეიცვალა) —
+"ისტორია" მოდალმა სწორად აჩვენა სამივე ვერსია (V1/V2/V3) სწორი
+ავტორით/თარიღით; "ტექსტის ნახვა" სწორად აჩვენა raw escaped HTML-ს;
+"შედარება" V1-ზე სწორად დააბრუნა "ვერსია 1 ➔ ვერსია 3", 1 დამატებული/
+1 წაშლილი, ვიზუალური diff `✎`-მარკერით; "აღდგენა" V1-ზე —
+API-დან პირდაპირ დადასტურდა: `title`/`content` ზუსტად V1-ის
+მნიშვნელობებზე დაბრუნდა, `version` 3→4 გაიზარდა, ახალი მე-4
+history-row დაარქივდა (Python-ის "archive current before restore"
+ქცევის ზუსტი ანალოგი); UI-ც სწორად დაიხურა და ცხრილი განახლდა ახალი
+სათაურით. კონსოლის შეცდომები არცერთ ეტაპზე. `npm run build`
+(production) სუფთაა (მხოლოდ იგივე უკვე გამართლებული bundle-ზომის
+warning).
+
+**ეს ხურავს Phase 3c-ის ორივე დარჩენილ გაპს** — Categories admin
+(Slice 10) და ეს — რომლებიც Content management slice-ის (Slice 9)
+დახურვისას იყო ჩამოთვლილი. Phase 3c-ს ამჟამად აღარ დარჩა ცნობილი
+UI-გაპი.
+
 ### 3d — მესამე-მხარის ბიბლიოთეკების ჩანაცვლება
 
 | ბიბლიოთეკა | დღევანდელი ვერსია | სტატუსი |

@@ -6,6 +6,7 @@ import { CategoriesService } from '../../core/services/categories.service';
 import { ArticleSummary } from '../../core/models/article';
 import { Category } from '../../core/models/category';
 import { ArticleEditDrawer } from './article-edit-drawer/article-edit-drawer';
+import { ArticleHistoryModal } from './article-history-modal/article-history-modal';
 import { NewsAdminTable } from './news-admin-table/news-admin-table';
 import { VideosAdminTable } from './videos-admin-table/videos-admin-table';
 
@@ -31,14 +32,15 @@ const STATUS_BADGE: Record<string, string> = {
  *
  * <p>Articles table: fetch-everything-then-paginate-client-side (mirrors
  * fetchAndRenderAdminContent's `limit=1000` + renderArticlePage), search +
- * category + status filters, per-row action menu (edit/archive-toggle/
- * delete -- "ისტორია" version-history action deliberately deferred, user
- * sign-off), select-all + bulk archive/unarchive.
+ * category + status filters, per-row action menu (history/edit/
+ * archive-toggle/delete), select-all + bulk archive/unarchive. The
+ * "ისტორია" action -- deferred out of the initial Content management slice
+ * with explicit user sign-off -- opens {@link ArticleHistoryModal}.
  */
 @Component({
   selector: 'app-admin-content-page',
   standalone: true,
-  imports: [TranslatePipe, DatePipe, ArticleEditDrawer, NewsAdminTable, VideosAdminTable],
+  imports: [TranslatePipe, DatePipe, ArticleEditDrawer, ArticleHistoryModal, NewsAdminTable, VideosAdminTable],
   templateUrl: './admin-content-page.html'
 })
 export class AdminContentPage {
@@ -103,6 +105,7 @@ export class AdminContentPage {
 
   protected readonly editingArticle = signal<ArticleSummary | { id: null } | null>(null);
   protected readonly openMenuFor = signal<number | null>(null);
+  protected readonly historyForArticleId = signal<number | null>(null);
 
   constructor() {
     this.loadArticles();
@@ -204,6 +207,20 @@ export class AdminContentPage {
     if (!window.confirm(message)) return;
     const request = shouldArchive ? this.articlesService.archive(article.id) : this.articlesService.unarchive(article.id);
     request.subscribe({ next: () => this.loadArticles(), error: () => {} });
+  }
+
+  protected openHistory(article: ArticleSummary): void {
+    this.openMenuFor.set(null);
+    this.historyForArticleId.set(article.id);
+  }
+
+  protected closeHistory(): void {
+    this.historyForArticleId.set(null);
+  }
+
+  protected onVersionRestored(): void {
+    this.historyForArticleId.set(null);
+    this.loadArticles();
   }
 
   protected deleteArticle(article: ArticleSummary): void {

@@ -118,6 +118,9 @@
                     </button>
                     @if (openMenuFor() === article.id) {
                       <div class="absolute right-0 top-full mt-1 origin-top-right w-48 rounded-xl border border-gray-100 bg-white dark:bg-zinc-800 dark:border-zinc-700 shadow-lg z-20 py-1">
+                        <button (click)="openHistory(article)" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors">
+                          <i class="fa-solid fa-clock-rotate-left text-gray-400 w-4"></i> {{ 'content.articles.action_history' | translate }}
+                        </button>
                         <button (click)="openEditArticle(article)" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors">
                           <i class="fa-solid fa-pen-to-square text-gray-400 w-4"></i> {{ 'content.articles.action_edit' | translate }}
                         </button>
@@ -175,4 +178,8 @@
 
 @if (editingArticle(); as article) {
   <app-article-edit-drawer [articleId]="article.id" (closed)="closeArticleDrawer()" (saved)="onArticleSaved()" />
+}
+
+@if (historyForArticleId(); as articleId) {
+  <app-article-history-modal [articleId]="articleId" (closed)="closeHistory()" (restored)="onVersionRestored()" />
 }

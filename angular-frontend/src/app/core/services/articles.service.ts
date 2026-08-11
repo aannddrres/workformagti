@@ -8,6 +8,7 @@ import {
   ArticleSummary,
   RecentlyViewedItem
 } from '../models/article';
+import { ArticleDiff, ArticleHistoryItem } from '../models/article-history';
 
 @Injectable({ providedIn: 'root' })
 export class ArticlesService {
@@ -92,5 +93,22 @@ export class ArticlesService {
    *  from the KB page's separate localStorage-only "recently viewed" strip). */
   recentlyViewed(): Observable<RecentlyViewedItem[]> {
     return this.http.get<RecentlyViewedItem[]>('/api/me/recently-viewed');
+  }
+
+  /** Admin-only raw revision list (routers/articles.py's get_article_history). */
+  history(id: number): Observable<ArticleHistoryItem[]> {
+    return this.http.get<ArticleHistoryItem[]>(`/api/articles/${id}/history`);
+  }
+
+  /** Quick-look diff of one historical snapshot against the CURRENT content
+   *  (no compare_history_id/compare_to_predecessor -- mirrors quickLookDiff's
+   *  always-vs-current behavior, not the richer predecessor-aware compare
+   *  used by the reader-facing "ვერსიების ისტორია" overlay). */
+  diff(id: number, historyId: number): Observable<ArticleDiff> {
+    return this.http.get<ArticleDiff>(`/api/articles/${id}/history/${historyId}/diff`);
+  }
+
+  restoreVersion(id: number, historyId: number): Observable<Article> {
+    return this.http.post<Article>(`/api/articles/${id}/history/${historyId}/restore`, {});
   }
 }
