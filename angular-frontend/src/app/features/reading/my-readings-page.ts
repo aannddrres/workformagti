@@ -6,6 +6,7 @@ import { MyReading } from '../../core/models/compliance';
 import { formatKaDate } from '../../shared/ka-date';
 import { detailRouteFor, iconForContentType } from '../../shared/content-type-visuals';
 import { FavoriteStar } from '../../shared/favorite-star/favorite-star';
+import { QuizTakerModal } from './quiz-taker-modal/quiz-taker-modal';
 
 type FilterMode = 'all' | 'unread' | 'read';
 
@@ -23,16 +24,16 @@ type FilterMode = 'all' | 'unread' | 'read';
  * here.
  *
  * Quiz-gated articles: POST mark-read returns 403 when the underlying
- * article has quiz_enabled and the user hasn't passed it yet. No quiz-taking
- * UI exists in Angular yet (deferred, tracked in the migration doc), so this
- * case surfaces an inline "not available yet" message instead of crashing or
- * silently failing -- there are zero required_readings rows in Oracle today,
- * so this path currently has no live impact.
+ * article has quiz_enabled and the user hasn't passed it yet. Opens
+ * {@link QuizTakerModal} in that case (port of app-core.js's
+ * openQuizModal(articleId, onSuccess) call site at app-core.js:1369-1374);
+ * a passed quiz re-issues the same mark-read call, same as the original's
+ * `onSuccess` callback.
  */
 @Component({
   selector: 'app-my-readings-page',
   standalone: true,
-  imports: [TranslatePipe, FavoriteStar],
+  imports: [TranslatePipe, FavoriteStar, QuizTakerModal],
   templateUrl: './my-readings-page.html'
 })
 export class MyReadingsPage {
@@ -46,6 +47,7 @@ export class MyReadingsPage {
   protected readonly filter = signal<FilterMode>('all');
   protected readonly markingId = signal<number | null>(null);
   protected readonly quizGateItem = signal<MyReading | null>(null);
+  protected readonly quizTakerItem = signal<MyReading | null>(null);
   protected readonly markError = signal(false);
 
   protected readonly filteredReadings = computed(() => {
@@ -105,12 +107,16 @@ export class MyReadingsPage {
 
   markRead(item: MyReading, event: Event): void {
     event.stopPropagation();
+    this.performMarkRead(item);
+  }
+
+  private performMarkRead(item: MyReading): void {
     this.markingId.set(item.reading.id);
     this.markError.set(false);
-    this.quizGateItem.set(null);
     this.complianceService.markRead(item.reading.id).subscribe((result) => {
       this.markingId.set(null);
       if (result.ok) {
+        this.quizGateItem.set(null);
         this.readings.set(
           this.readings().map((r) =>
             r.reading.id === item.reading.id
@@ -121,6 +127,7 @@ export class MyReadingsPage {
       } else if (result.quizRequired) {
         this.quizGateItem.set(item);
       } else {
+        this.quizGateItem.set(null);
         this.markError.set(true);
       }
     });
@@ -128,5 +135,18 @@ export class MyReadingsPage {
 
   dismissQuizGate(): void {
     this.quizGateItem.set(null);
+  }
+
+  startQuiz(item: MyReading): void {
+    this.quizTakerItem.set(item);
+  }
+
+  closeQuizTaker(): void {
+    this.quizTakerItem.set(null);
+  }
+
+  onQuizPassed(item: MyReading): void {
+    this.quizTakerItem.set(null);
+    this.performMarkRead(item);
   }
 }

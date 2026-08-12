@@ -209,9 +209,19 @@
       "status_overdue": "Overdue",
       "status_unread": "Unread",
       "action_mark_read": "I've read and understood",
-      "quiz_gate_message": "\"{{title}}\" requires passing its quiz to confirm reading -- this isn't available yet.",
+      "quiz_gate_message": "\"{{title}}\" requires passing its quiz to confirm reading.",
+      "start_quiz": "Start quiz",
       "mark_error": "Could not update the status.",
       "dismiss": "Dismiss"
+    },
+    "quiz": {
+      "heading": "Quiz",
+      "instructions": "Every question must be answered correctly to confirm reading.",
+      "close": "Close",
+      "load_failed": "Could not load the quiz",
+      "submit": "Finish",
+      "submit_failed": "Error checking the quiz",
+      "wrong_feedback": "You answered {{count}} question(s) incorrectly -- try again"
     }
   },
   "manager": {
