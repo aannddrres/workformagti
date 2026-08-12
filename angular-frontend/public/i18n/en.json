@@ -92,6 +92,26 @@
       "attachment_download": "Download file",
       "not_found": "Article not found",
       "version_label": "Version {{version}}"
+    },
+    "version_history": {
+      "button": "Version history",
+      "heading": "Change history",
+      "close": "Close",
+      "loading": "Loading...",
+      "load_failed": "Failed to load version history",
+      "empty": "No change history yet.",
+      "badge_current": "V{{version}} (current)",
+      "badge_original": "V{{version}} (original)",
+      "editor_label": "Editor",
+      "unknown_author": "Unknown",
+      "compare_select_label": "Compare to:",
+      "version_option": "Version {{version}}",
+      "compare_label": "Change: version {{base}} → version {{compare}}",
+      "compare_label_original": "Version {{version}} (original)",
+      "added": "added",
+      "removed": "removed",
+      "diff_failed": "Failed to load the comparison.",
+      "no_diff": "No changes found."
     }
   },
   "dashboard": {

@@ -1,0 +1,104 @@
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" (click)="close()"></div>
+  <div class="relative z-10 flex h-[80vh] w-[90vw] max-w-4xl flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-zinc-800 dark:bg-zinc-900">
+    <div class="mb-4 flex shrink-0 items-center justify-between border-b border-gray-100 pb-4 dark:border-zinc-800">
+      <h3 class="text-lg font-bold text-gray-900 dark:text-zinc-100">{{ 'articles.version_history.heading' | translate }}</h3>
+      <button
+        type="button"
+        (click)="close()"
+        [attr.aria-label]="'articles.version_history.close' | translate"
+        class="text-xl text-gray-400 hover:text-gray-700 dark:text-zinc-500 dark:hover:text-zinc-200"
+      >
+        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+      </button>
+    </div>
+
+    @if (loading()) {
+      <div class="flex-1 space-y-2 overflow-y-auto">
+        @for (i of [1, 2, 3]; track i) {
+          <div class="h-16 animate-pulse rounded-xl border border-gray-100 bg-gray-50 dark:border-zinc-800 dark:bg-zinc-800/40"></div>
+        }
+      </div>
+    } @else if (error()) {
+      <p class="text-sm text-red-500 dark:text-red-400">{{ 'articles.version_history.load_failed' | translate }}</p>
+    } @else if (!versions().length) {
+      <p class="text-sm text-gray-400 dark:text-zinc-500">{{ 'articles.version_history.empty' | translate }}</p>
+    } @else {
+      <div class="flex flex-1 flex-col gap-4 overflow-hidden md:flex-row">
+        <div class="max-h-40 w-full shrink-0 space-y-1.5 overflow-y-auto border-b border-gray-100 pb-3 dark:border-zinc-800 md:max-h-none md:w-64 md:border-b-0 md:border-r md:pb-0 md:pr-3">
+          @for (item of versions(); track item.history_id; let i = $index) {
+            <div (click)="selectVersion(item)" [class]="rowClass(item)">
+              <div class="flex items-center justify-between gap-2">
+                @switch (badgeKey(item, i)) {
+                  @case ('current') {
+                    <span class="rounded bg-green-100 px-2 py-0.5 text-[10px] font-bold text-green-700 dark:bg-green-950/40 dark:text-green-400">
+                      {{ 'articles.version_history.badge_current' | translate: { version: item.version } }}
+                    </span>
+                  }
+                  @case ('original') {
+                    <span class="rounded bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-950/40 dark:text-blue-400">
+                      {{ 'articles.version_history.badge_original' | translate: { version: item.version } }}
+                    </span>
+                  }
+                  @default {
+                    <span class="rounded bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-700 dark:bg-zinc-800 dark:text-zinc-300">
+                      V{{ item.version }}
+                    </span>
+                  }
+                }
+              </div>
+              <div class="text-[10px] font-medium text-gray-500 dark:text-zinc-400">
+                {{ 'articles.version_history.editor_label' | translate }}: {{ item.author_name || ('articles.version_history.unknown_author' | translate) }}
+              </div>
+              <div class="text-[9px] text-gray-400 dark:text-zinc-500">{{ item.updated_at | date: 'dd.MM.yyyy HH:mm' }}</div>
+            </div>
+          }
+        </div>
+
+        <div class="flex-1 overflow-y-auto">
+          @if (compareOptions().length > 0) {
+            <div class="mb-3 flex items-center gap-2 text-xs">
+              <label for="version-history-compare-select" class="font-semibold text-gray-600 dark:text-zinc-400">
+                {{ 'articles.version_history.compare_select_label' | translate }}
+              </label>
+              <select
+                id="version-history-compare-select"
+                class="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+                [value]="compareId() ?? predecessor()?.history_id ?? ''"
+                (change)="onCompareChange($any($event.target).value)"
+              >
+                @for (opt of compareOptions(); track opt.history_id) {
+                  <option [value]="opt.history_id">{{ 'articles.version_history.version_option' | translate: { version: opt.version } }}</option>
+                }
+              </select>
+            </div>
+          }
+
+          @if (diffLoading()) {
+            <p class="text-sm text-gray-400 dark:text-zinc-500">{{ 'articles.version_history.loading' | translate }}</p>
+          } @else if (diffError()) {
+            <p class="text-sm text-red-500 dark:text-red-400">{{ 'articles.version_history.diff_failed' | translate }}</p>
+          } @else if (diff(); as d) {
+            <div class="mb-3 flex flex-wrap items-center gap-3 text-xs font-semibold">
+              @if (d.base_version === d.compare_version) {
+                <span class="text-gray-500 dark:text-zinc-400">{{ 'articles.version_history.compare_label_original' | translate: { version: d.base_version } }}</span>
+              } @else {
+                <span class="text-gray-500 dark:text-zinc-400">{{ 'articles.version_history.compare_label' | translate: { base: d.base_version, compare: d.compare_version } }}</span>
+              }
+              <span class="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-0.5 text-green-700 dark:border-green-900/50 dark:bg-green-950/30 dark:text-green-400">
+                <i class="fa-solid fa-plus text-[10px]" aria-hidden="true"></i>{{ d.added }} {{ 'articles.version_history.added' | translate }}
+              </span>
+              <span class="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
+                <i class="fa-solid fa-minus text-[10px]" aria-hidden="true"></i>{{ d.removed }} {{ 'articles.version_history.removed' | translate }}
+              </span>
+            </div>
+            <div
+              class="text-sm leading-relaxed text-gray-700 dark:text-zinc-300"
+              [innerHTML]="d.html || ('articles.version_history.no_diff' | translate)"
+            ></div>
+          }
+        </div>
+      </div>
+    }
+  </div>
+</div>

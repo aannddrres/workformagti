@@ -7,11 +7,12 @@ import { ArticlesService } from '../../core/services/articles.service';
 import { Article } from '../../core/models/article';
 import { formatArticleContent } from '../../shared/format-article-content';
 import { formatKaDate } from '../../shared/ka-date';
+import { ArticleVersionHistoryOverlay } from './article-version-history-overlay/article-version-history-overlay';
 
 @Component({
   selector: 'app-article-detail-page',
   standalone: true,
-  imports: [TranslatePipe],
+  imports: [TranslatePipe, ArticleVersionHistoryOverlay],
   templateUrl: './article-detail-page.html'
 })
 export class ArticleDetailPage {
@@ -23,6 +24,7 @@ export class ArticleDetailPage {
   protected readonly loading = signal(true);
   protected readonly notFound = signal(false);
   protected readonly article = signal<Article | null>(null);
+  protected readonly showHistory = signal(false);
 
   protected readonly formattedContent = computed(() => formatArticleContent(this.article()?.content));
 
@@ -63,5 +65,9 @@ export class ArticleDetailPage {
 
   goBack(): void {
     this.location.back();
+  }
+
+  protected toggleHistory(): void {
+    this.showHistory.update((current) => !current);
   }
 }

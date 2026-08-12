@@ -92,6 +92,26 @@
       "attachment_download": "ფაილის ჩამოტვირთვა",
       "not_found": "სტატია ვერ მოიძებნა",
       "version_label": "ვერსია {{version}}"
+    },
+    "version_history": {
+      "button": "ვერსიების ისტორია",
+      "heading": "ცვლილებების ისტორია",
+      "close": "დახურვა",
+      "loading": "იტვირთება...",
+      "load_failed": "ვერსიების ისტორიის ჩატვირთვა ვერ მოხერხდა",
+      "empty": "ცვლილებების ისტორია ჯერ არ არსებობს.",
+      "badge_current": "V{{version}} (მიმდინარე)",
+      "badge_original": "V{{version}} (ორიგინალი)",
+      "editor_label": "რედაქტორი",
+      "unknown_author": "უცნობი",
+      "compare_select_label": "შედარება:",
+      "version_option": "ვერსია {{version}}",
+      "compare_label": "ცვლილება: ვერსია {{base}} ➔ ვერსია {{compare}}",
+      "compare_label_original": "ვერსია {{version}} (ორიგინალი)",
+      "added": "დამატებული",
+      "removed": "წაშლილი",
+      "diff_failed": "შედარება ვერ ჩაიტვირთა.",
+      "no_diff": "ცვლილებები არ მოიძებნა."
     }
   },
   "dashboard": {

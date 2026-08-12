@@ -2711,6 +2711,58 @@ toggle-ს — ეს ახალი Angular-ვერსიაც ასე �
 `dark:` კლასი ახლა რეალურად მუშაობს** მთელ აპში, არა მხოლოდ
 header-ში. `npm run build` სუფთაა.
 
+### Slice 12 — მკითხველისთვის ხელმისაწვდომი "ვერსიების ისტორია" overlay (2026-08-12)
+
+PM-აუდიტში (§ ზემოთ) Slice 11-ის დახურვისას ნათქვამი "Phase 3c-ს
+აღარ დარჩა ცნობილი UI-გაპი" არასრული აღმოჩნდა — Slice 9-ში
+შეგნებულად გადავადებული ორი ცალკე ფუნქციიდან (§ ზემოთ, პუნქტი 3)
+Slice 11-მა მხოლოდ ადმინის "ისტორია"/restore მოდალი ააშენა;
+**წამკითხველისთვის ხელმისაწვდომი ცალკე overlay (`GET .../versions`,
+წინამორბედთან შედარება, restore-ის გარეშე) დარჩენილი იყო**. ეს
+სესია მომხმარებელთან დათანხმებით (multiple-choice კითხვა: "ავაშენო
+ეს ახლა?" → "დიახ") დახურა ეს ერთადერთი დარჩენილი, IT-პასუხისგან
+დამოუკიდებელი engineering-ამოცანა.
+
+ბექენდი უკვე მზად იყო (`ArticleController.java:680-849`-ის
+`GET .../versions` და `GET .../history/{id}/diff` — ორივე
+`requireAuthenticated`, არა `requireContentAdmin`) — სუფთა
+Angular-only slice, ისევე როგორც Slice 11.
+
+**აშენდა:**
+- **`core/models/article-history.ts`**-ს დაემატა `ArticleVersionItem`
+  (`web.ArticleVersionItemResponse`-ის ველი-ველზე ასლი).
+- **`ArticlesService`**-ს დაემატა `versions(id)` და
+  `diffVersion(id, historyId, compareHistoryId?)` — ეს უკანასკნელი
+  ნაგულისხმევად `compare_to_predecessor=true`-ს აგზავნის (Python-ის
+  `loadModalHistoryDiff`-ის default ქცევის ანალოგი), განსხვავებით
+  `ArticleHistoryModal`-ის უკვე არსებული `diff()`-ისგან (ყოველთვის
+  მიმდინარესთან quick-look).
+- **`features/article-detail/article-version-history-overlay/`**
+  (ახალი კომპონენტი) — Python-ის `modal-history-*` DOM-ის პორტი
+  (`app-core.js:6507-6780`): მარცხნივ ვერსიების სია
+  (მიმდინარე/ორიგინალი/Vn ბეჯებით), მარჯვნივ "შედარება:" dropdown
+  (ნაგულისხმევად წინამორბედზეა დაყენებული) + დამატებული/წაშლილი
+  რაოდენობა + diff HTML. **restore ღილაკი განზრახ არ არსებობს**
+  (განსხვავებით ადმინის მოდალისგან) — ეს არის ის, რაც ამ ორ
+  ფუნქციას რეალურად განასხვავებს, არა მხოლოდ წვდომის დონე.
+- **`ArticleDetailPage`**-ს დაემატა "ვერსიების ისტორია" ღილაკი
+  (Python-ის `histBtn`, `app-core.js:3300-3306`-ის ანალოგიური
+  პოზიცია) ყველა როლისთვის, ვინც სტატიის კითხვის წვდომას ფლობს.
+
+**ცოცხლად გადამოწმდა Oracle+Java-ზე** (`content@magti.ge`,
+ტესტ-სტატია 2 რეალური ვერსიით): ვერსიების სია სწორად აჩვენა
+V2 (მიმდინარე)/V1 (ორიგინალი) ბეჯებით; პირველადი შერჩევისას
+ავტომატურად ჩაიტვირთა წინამორბედთან diff (`compare_to_predecessor=true`,
+1 დამატებული/1 წაშლილი); V1-ის (ორიგინალის, წინამორბედის გარეშე)
+არჩევამ სწორად აჩვენა self-compare **0 დამატებული/0 წაშლილი** +
+ცალკე "ვერსია 1 (ორიგინალი)" ლეიბლი (backend-ის `diffOrderedByVersion`-ის
+predecessor-fallback-ის ზუსტი ანარეკლი); compare-dropdown-იდან
+ხელით არჩევამ სწორად გამოიძახა `compare_history_id`-იანი URL და იგივე
+შედეგი დააბრუნა. მუქი თემა გადამოწმდა computed style-ით
+(`rgb(24, 24, 27)` მოდალის ფონზე, მწვანე badge dark-ვარიანტში) —
+სწორად მუშაობს. კონსოლის შეცდომები ახალ კომპონენტთან დაკავშირებით
+არცერთი. ტესტ-სტატია წაშლილია დემოს შემდეგ.
+
 ### 3d — მესამე-მხარის ბიბლიოთეკების ჩანაცვლება
 
 | ბიბლიოთეკა | დღევანდელი ვერსია | სტატუსი |
@@ -3105,7 +3157,10 @@ Phase 1c-მდე მდგომარეობას აღწერდა, �
   Videos, Categories, Users, Quiz, Compliance, Stats, Messaging,
   Exports, Audit, Search, Favorites), აუდიტის ჰეშ-ჯაჭვი, RBAC.
 - **Phase 2** — API parity-გადამოწმება golden-master-თან.
-- **Phase 3 (Angular frontend)** — ყველა ეკრანი/სლაისი, dark mode.
+- **Phase 3 (Angular frontend)** — ყველა ეკრანი/სლაისი, dark mode,
+  მკითხველისთვის ხელმისაწვდომი "ვერსიების ისტორია" overlay
+  (Slice 12, § ზემოთ — ეს იყო Phase 3c-ის ერთადერთი ნამდვილად
+  დარჩენილი, IT-პასუხისგან დამოუკიდებელი UI-გაპი).
 - **PM მიგრაციის-ხარვეზების აუდიტი (§ ზემოთ)** — 3 დაუფიქსირებელი
   bug/gap-იდან 3-ვე გასწორებულია (`GET /api/tags`,
   `GET /api/notifications/summary`, DELETE-article cascade bug).

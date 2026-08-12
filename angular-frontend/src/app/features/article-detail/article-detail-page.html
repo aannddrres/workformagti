@@ -1,12 +1,25 @@
 <div class="mx-auto w-full max-w-[920px] px-4 pb-8 pt-4 md:px-6 md:pt-6">
-  <div class="mb-6">
+  <div class="mb-6 flex items-center justify-between gap-3">
     <button
       (click)="goBack()"
-      class="mb-4 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 shadow-sm transition-all hover:bg-gray-50 hover:text-gray-900 active:scale-[0.98] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+      class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 shadow-sm transition-all hover:bg-gray-50 hover:text-gray-900 active:scale-[0.98] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
     >
       <i aria-hidden="true" class="fa-solid fa-arrow-left text-xs"></i> {{ 'articles.detail_page.back_button' | translate }}
     </button>
+    @if (article(); as a) {
+      <button
+        (click)="toggleHistory()"
+        class="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+      >
+        <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
+        <span>{{ 'articles.version_history.button' | translate }}</span>
+      </button>
+    }
   </div>
+
+  @if (showHistory() && article()) {
+    <app-article-version-history-overlay [articleId]="article()!.id" (closed)="toggleHistory()" />
+  }
 
   @if (loading()) {
     <div class="animate-pulse space-y-4 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8">

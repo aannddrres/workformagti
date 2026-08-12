@@ -17,3 +17,16 @@ export interface ArticleDiff {
   compare_version: number;
   version_id: number;
 }
+
+/** Mirrors web.ArticleVersionItemResponse (java-backend) field-for-field --
+ *  the GET .../versions shape used by the reader-facing "ვერსიების
+ *  ისტორია" overlay, distinct from ArticleHistoryItem's admin-only
+ *  GET .../history shape (no raw content here, and history_id can be
+ *  null-free since /versions self-heals missing rows server-side). */
+export interface ArticleVersionItem {
+  version: number;
+  title: string;
+  updated_at: string;
+  author_name: string | null;
+  history_id: number;
+}

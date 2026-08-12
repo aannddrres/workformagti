@@ -8,7 +8,7 @@ import {
   ArticleSummary,
   RecentlyViewedItem
 } from '../models/article';
-import { ArticleDiff, ArticleHistoryItem } from '../models/article-history';
+import { ArticleDiff, ArticleHistoryItem, ArticleVersionItem } from '../models/article-history';
 
 @Injectable({ providedIn: 'root' })
 export class ArticlesService {
@@ -110,5 +110,28 @@ export class ArticlesService {
 
   restoreVersion(id: number, historyId: number): Observable<Article> {
     return this.http.post<Article>(`/api/articles/${id}/history/${historyId}/restore`, {});
+  }
+
+  /** Any-authenticated-user version list for the reader-facing "ვერსიების
+   *  ისტორია" overlay (routers/articles.py's get_article_versions, GET
+   *  .../versions) -- self-heals a missing history row server-side, so
+   *  this always includes the current version even for legacy articles. */
+  versions(id: number): Observable<ArticleVersionItem[]> {
+    return this.http.get<ArticleVersionItem[]>(`/api/articles/${id}/versions`);
+  }
+
+  /** Predecessor-aware diff for the reader overlay -- unlike {@link diff}'s
+   *  always-vs-current quick-look, this defaults to comparing against the
+   *  immediate predecessor (compare_to_predecessor=true, matching
+   *  loadModalHistoryDiff's default) and lets the compare dropdown request
+   *  a specific other version instead. */
+  diffVersion(id: number, historyId: number, compareHistoryId?: number): Observable<ArticleDiff> {
+    let params = new HttpParams();
+    if (compareHistoryId != null) {
+      params = params.set('compare_history_id', compareHistoryId);
+    } else {
+      params = params.set('compare_to_predecessor', true);
+    }
+    return this.http.get<ArticleDiff>(`/api/articles/${id}/history/${historyId}/diff`, { params });
   }
 }
