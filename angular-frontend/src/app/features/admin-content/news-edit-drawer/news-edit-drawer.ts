@@ -46,6 +46,7 @@ export class NewsEditDrawer {
   protected readonly uploading = signal(false);
   protected readonly saving = signal(false);
   protected readonly saveError = signal<string | null>(null);
+  protected readonly dueDateError = signal(false);
 
   constructor() {
     effect(() => {
@@ -73,10 +74,12 @@ export class NewsEditDrawer {
     this.isMandatory.set(false);
     this.dueDate.set('');
     this.saveError.set(null);
+    this.dueDateError.set(false);
   }
 
   private loadForEdit(id: number): void {
     this.saveError.set(null);
+    this.dueDateError.set(false);
     this.newsService.get(id).subscribe({
       next: (news: News) => {
         this.title.set(news.title);
@@ -129,6 +132,12 @@ export class NewsEditDrawer {
 
   protected submit(event: Event): void {
     event.preventDefault();
+    if (this.isMandatory() && !this.dueDate()) {
+      this.dueDateError.set(true);
+      return;
+    }
+    this.dueDateError.set(false);
+
     const payload: NewsRequest = {
       title: this.title(),
       content: this.content(),

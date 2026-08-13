@@ -84,6 +84,7 @@ export class ArticleEditDrawer {
   protected readonly saving = signal(false);
   protected readonly saveError = signal<string | null>(null);
   protected readonly departmentError = signal(false);
+  protected readonly dueDateError = signal(false);
 
   constructor() {
     this.categoriesService.list().subscribe({ next: (data) => this.categories.set(data), error: () => {} });
@@ -120,6 +121,7 @@ export class ArticleEditDrawer {
     this.audienceProfile.set('all');
     this.saveError.set(null);
     this.departmentError.set(false);
+    this.dueDateError.set(false);
     queueMicrotask(() => {
       this.richTextEditor()?.clear();
       this.quizBuilder()?.setQuestions([]);
@@ -130,6 +132,7 @@ export class ArticleEditDrawer {
   private loadForEdit(id: number): void {
     this.saveError.set(null);
     this.departmentError.set(false);
+    this.dueDateError.set(false);
     this.articlesService.get(id).subscribe({
       next: (article) => {
         this.title.set(article.title);
@@ -253,6 +256,12 @@ export class ArticleEditDrawer {
       return;
     }
     this.departmentError.set(false);
+
+    if (this.isMandatory() && !this.dueDate()) {
+      this.dueDateError.set(true);
+      return;
+    }
+    this.dueDateError.set(false);
 
     let publishedAt: string | null = null;
     if (this.status() === 'scheduled' && this.scheduledAt()) {

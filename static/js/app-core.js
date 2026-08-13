@@ -1776,6 +1776,11 @@ async function submitArticleForm(event) {
         const targetDepartment = targetDepartments[0];
         const isMandatory = document.getElementById('article-mandatory').checked;
         const dueDate = document.getElementById('article-due-date').value;
+        if (isMandatory && !dueDate) {
+          showToast('სავალდებულო მასალას უნდა ჰქონდეს გაცნობის ვადა', '', { variant: 'error' });
+          releaseSubmitGuard();
+          return;
+        }
         const status = document.getElementById('article-status').value;
         const publishedAtVal = document.getElementById('article-published-at').value;
         const tags = document.getElementById('article-tags')?.value.trim() || '';
@@ -2224,6 +2229,11 @@ async function submitNewsForm(event) {
         const targetDepartment = document.getElementById('news-department').value;
         const isMandatory = document.getElementById('news-mandatory').checked;
         const dueDate = document.getElementById('news-due-date').value;
+        if (isMandatory && !dueDate) {
+          showToast('სავალდებულო მასალას უნდა ჰქონდეს გაცნობის ვადა', '', { variant: 'error' });
+          releaseSubmitGuard();
+          return;
+        }
         // [Fix G9] Optional centralised attachment per spec.
         const attachmentUrl = document.getElementById('news-attachment-url')?.value || null;
         // Block 5: role-based content visibility toggles.
@@ -2601,6 +2611,11 @@ async function submitVideoForm(event) {
         const targetDepartment = document.getElementById('video-department').value;
         const isMandatory = document.getElementById('video-mandatory').checked;
         const dueDate = document.getElementById('video-due-date').value;
+        if (isMandatory && !dueDate) {
+          showToast('სავალდებულო მასალას უნდა ჰქონდეს გაცნობის ვადა', '', { variant: 'error' });
+          releaseSubmitGuard();
+          return;
+        }
 
         const payload = { title, video_url: videoUrl, category, target_department: targetDepartment };
 

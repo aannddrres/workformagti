@@ -68,19 +68,24 @@
         </div>
       </div>
 
-      <div class="flex items-center gap-3 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/60 p-4">
-        <input type="checkbox" [checked]="isMandatory()" (change)="isMandatory.set($any($event.target).checked)" class="h-4 w-4 accent-[#B91C1C]" />
-        <label class="text-sm font-medium text-gray-800 dark:text-zinc-200">{{ 'content.articles.field_mandatory' | translate }}</label>
-        @if (isMandatory()) {
-          <div class="ml-4 flex flex-1 items-center gap-3 border-l border-gray-300 dark:border-zinc-700 pl-4">
-            <label class="text-sm font-medium text-gray-600 dark:text-zinc-400">{{ 'content.articles.field_due_date' | translate }}</label>
-            <input
-              type="date"
-              [value]="dueDate()"
-              (input)="dueDate.set($any($event.target).value)"
-              class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
-            />
-          </div>
+      <div class="flex flex-col gap-2 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/60 p-4">
+        <div class="flex items-center gap-3">
+          <input type="checkbox" [checked]="isMandatory()" (change)="isMandatory.set($any($event.target).checked)" class="h-4 w-4 accent-[#B91C1C]" />
+          <label class="text-sm font-medium text-gray-800 dark:text-zinc-200">{{ 'content.articles.field_mandatory' | translate }}</label>
+          @if (isMandatory()) {
+            <div class="ml-4 flex flex-1 items-center gap-3 border-l border-gray-300 dark:border-zinc-700 pl-4">
+              <label class="text-sm font-medium text-gray-600 dark:text-zinc-400">{{ 'content.articles.field_due_date' | translate }}</label>
+              <input
+                type="date"
+                [value]="dueDate()"
+                (input)="dueDate.set($any($event.target).value)"
+                class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+              />
+            </div>
+          }
+        </div>
+        @if (dueDateError()) {
+          <p class="text-xs text-red-600">{{ 'content.articles.mandatory_due_date_required' | translate }}</p>
         }
       </div>
 

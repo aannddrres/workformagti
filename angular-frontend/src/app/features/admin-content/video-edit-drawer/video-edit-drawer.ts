@@ -48,6 +48,7 @@ export class VideoEditDrawer {
   protected readonly uploading = signal(false);
   protected readonly saving = signal(false);
   protected readonly saveError = signal<string | null>(null);
+  protected readonly dueDateError = signal(false);
 
   constructor() {
     this.categoriesService.list().subscribe({ next: (data) => this.categories.set(data), error: () => {} });
@@ -74,10 +75,12 @@ export class VideoEditDrawer {
     this.isMandatory.set(false);
     this.dueDate.set('');
     this.saveError.set(null);
+    this.dueDateError.set(false);
   }
 
   private loadForEdit(id: number): void {
     this.saveError.set(null);
+    this.dueDateError.set(false);
     this.videosService.list().subscribe({
       next: (videos) => {
         const video = videos.find((v) => v.id === id);
@@ -129,6 +132,12 @@ export class VideoEditDrawer {
 
   protected submit(event: Event): void {
     event.preventDefault();
+    if (this.isMandatory() && !this.dueDate()) {
+      this.dueDateError.set(true);
+      return;
+    }
+    this.dueDateError.set(false);
+
     const payload: VideoInstructionRequest = {
       title: this.title(),
       video_url: this.videoUrl(),

@@ -375,4 +375,17 @@ class ComplianceControllerIntegrationTest {
         mockMvc.perform(authed(delete("/api/compliance/required-readings/999999999"), tokenFor(admin)))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    void deletingRequiredReadingWithExistingReadReceiptReturns409NotServerError() throws Exception {
+        User admin = createUser("comp-409-admin@magti.ge", Role.CONTENT_ADMIN, "All");
+        User operator = createUser("comp-409-op@magti.ge", Role.OPERATOR, "ოფისი");
+        Article article = createArticle("წაკითხული სავალდებულო მასალა", false);
+        RequiredReading reading = createReading("article", article.getId(), "ოფისი", TbilisiTime.now().plusDays(5));
+        markReadDirect(operator, reading);
+
+        mockMvc.perform(authed(delete("/api/compliance/required-readings/" + reading.getId()), tokenFor(admin)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").isNotEmpty());
+    }
 }

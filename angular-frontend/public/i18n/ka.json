@@ -461,6 +461,7 @@
       "field_scheduled_at": "გამოქვეყნების დრო",
       "field_mandatory": "სავალდებულოდ გასაცნობი",
       "field_due_date": "ვადა:",
+      "mandatory_due_date_required": "სავალდებულო მასალას უნდა ჰქონდეს გაცნობის ვადა",
       "field_quiz": "კვიზის დამატება",
       "audience_heading": "დამატებითი პარამეტრები / აუდიტორია",
       "department": "დეპარტამენტი",

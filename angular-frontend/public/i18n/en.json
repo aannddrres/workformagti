@@ -461,6 +461,7 @@
       "field_scheduled_at": "Publish time",
       "field_mandatory": "Mandatory reading",
       "field_due_date": "Due:",
+      "mandatory_due_date_required": "Mandatory items must have a due date.",
       "field_quiz": "Add quiz",
       "audience_heading": "Additional settings / audience",
       "department": "Department",

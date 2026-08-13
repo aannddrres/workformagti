@@ -11,6 +11,7 @@ import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import models
@@ -360,5 +361,12 @@ def delete_required_reading(
     """Remove a required-reading assignment (e.g. admin un-checks the mandatory box)."""
     rr = get_or_404(db, models.RequiredReading, reading_id, "სავალდებულო მასალა ვერ მოიძებნა")
     db.delete(rr)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="სავალდებულო მასალის წაშლა ვერ ხერხდება -- მომხმარებლებმა უკვე გაიცნეს იგი",
+        )
     return None
