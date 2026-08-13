@@ -11,7 +11,7 @@ import { RichTextEditor } from '../../../shared/rich-text-editor/rich-text-edito
 import { QuizBuilder } from '../../../shared/quiz-builder/quiz-builder';
 
 const DEPARTMENT_ORDER: { key: 'info' | 'tech' | 'office'; name: string }[] = [
-  { key: 'info', name: 'საინფო' },
+  { key: 'info', name: 'საინფორმაციო' },
   { key: 'tech', name: 'ტექნიკური' },
   { key: 'office', name: 'ოფისი' }
 ];
@@ -143,7 +143,7 @@ export class ArticleEditDrawer {
         this.status.set(article.status);
         this.scheduledAt.set(article.published_at ? toDatetimeLocal(article.published_at) : '');
         this.deptChecked.set({
-          info: article.target_departments.includes('საინფო'),
+          info: article.target_departments.includes('საინფორმაციო'),
           tech: article.target_departments.includes('ტექნიკური'),
           office: article.target_departments.includes('ოფისი')
         });
