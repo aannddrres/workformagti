@@ -175,13 +175,25 @@ class SearchControllerIntegrationTest {
      */
     @Test
     void articleSearchFindsGeorgianMidWordSubstringAndRanksTitleAboveContent() throws Exception {
+        // Scoped to a fresh category -- "კონფიგ" ("config") is a common enough
+        // substring to now also match some of the 112 real imported tech
+        // articles on this shared Oracle instance, same fix as
+        // categoryIdNarrowsArticleSearchToThatCategoryOnly below.
         User admin = createUser("search-admin1@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category category = createCategory("კონფიგ-კატეგორია");
         Article titleMatch = createArticle("ქსელის დაკონფიგურირება", "შინაარსი", null,
                 "published", false, List.of("All"), TbilisiTime.now());
+        titleMatch.setCategoryId(category.getId());
+        articleRepository.saveAndFlush(titleMatch);
+        searchReindexService.reindexArticle(titleMatch);
         Article contentMatch = createArticle("სხვა თემა", "დეტალები კონფიგურაციის შესახებ", null,
                 "published", false, List.of("All"), TbilisiTime.now());
+        contentMatch.setCategoryId(category.getId());
+        articleRepository.saveAndFlush(contentMatch);
+        searchReindexService.reindexArticle(contentMatch);
 
-        mockMvc.perform(authed(get("/api/search"), tokenFor(admin)).param("q", "კონფიგ"))
+        mockMvc.perform(authed(get("/api/search"), tokenFor(admin))
+                        .param("q", "კონფიგ").param("category_id", category.getId().toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)))
                 .andExpect(jsonPath("$[0].id").value(titleMatch.getId().intValue()))
@@ -229,14 +241,23 @@ class SearchControllerIntegrationTest {
 
     @Test
     void nonAdminNeverSeesADraftArticleInSearchButAdminDoes() throws Exception {
+        // Scoped to a fresh category -- "დამალული" ("hidden") is a common
+        // enough word to also match real imported content on this shared
+        // Oracle instance.
         User operator = createUser("search-op1@magti.ge", Role.OPERATOR, "All");
         User admin = createUser("search-admin3@magti.ge", Role.CONTENT_ADMIN, "All");
-        createArticle("დამალული დრაფტი", "შინაარსი", null, "draft", true, List.of("All"), null);
+        Category category = createCategory("დამალული-კატეგორია");
+        Article draft = createArticle("დამალული დრაფტი", "შინაარსი", null, "draft", true, List.of("All"), null);
+        draft.setCategoryId(category.getId());
+        articleRepository.saveAndFlush(draft);
+        searchReindexService.reindexArticle(draft);
 
-        mockMvc.perform(authed(get("/api/search"), tokenFor(operator)).param("q", "დამალული"))
+        mockMvc.perform(authed(get("/api/search"), tokenFor(operator))
+                        .param("q", "დამალული").param("category_id", category.getId().toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(0)));
-        mockMvc.perform(authed(get("/api/search"), tokenFor(admin)).param("q", "დამალული"))
+        mockMvc.perform(authed(get("/api/search"), tokenFor(admin))
+                        .param("q", "დამალული").param("category_id", category.getId().toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)));
     }
@@ -278,12 +299,17 @@ class SearchControllerIntegrationTest {
 
     @Test
     void globalSearchCombinesArticlesNewsAndVideosForTheSameQuery() throws Exception {
+        // /api/search/global has no category_id filter (it spans 3 content
+        // types), so isolation here comes from a unique term instead --
+        // "პორტალის" ("portal's") now also matches real imported articles
+        // on this shared Oracle instance.
         User operator = createUser("search-op3@magti.ge", Role.OPERATOR, "All");
-        createArticle("პორტალის სტატია", "x", null, "published", false, List.of("All"), TbilisiTime.now());
-        createNews("პორტალის სიახლე", "x", "All", false, null);
-        createVideo("პორტალის ვიდეო", "ზოგადი", "All", false);
+        String uniqueTerm = "პორტალისუნიკალური" + System.nanoTime();
+        createArticle(uniqueTerm + " სტატია", "x", null, "published", false, List.of("All"), TbilisiTime.now());
+        createNews(uniqueTerm + " სიახლე", "x", "All", false, null);
+        createVideo(uniqueTerm + " ვიდეო", "ზოგადი", "All", false);
 
-        mockMvc.perform(authed(get("/api/search/global"), tokenFor(operator)).param("q", "პორტალის"))
+        mockMvc.perform(authed(get("/api/search/global"), tokenFor(operator)).param("q", uniqueTerm))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.articles", hasSize(1)))
                 .andExpect(jsonPath("$.news", hasSize(1)))
@@ -329,10 +355,21 @@ class SearchControllerIntegrationTest {
 
     @Test
     void queriesShorterThanThreeCharactersAreNeverLogged() throws Exception {
+        // Scoped to a fresh category -- a bare 2-char query ("ab") falls back
+        // to scanning every article on this shared Oracle instance, and now
+        // collides with Latin substrings inside the 112 real imported
+        // articles (tech terms, URLs, etc). category_id filtering still
+        // applies after the scan (SearchQueryService.searchArticles), so
+        // narrowing to this test's own category isolates it correctly.
         User operator = createUser("search-op6@magti.ge", Role.OPERATOR, "All");
-        createArticle("ab თემა", "x", null, "published", false, List.of("All"), TbilisiTime.now());
+        Category category = createCategory("ab-კატეგორია");
+        Article article = createArticle("ab თემა", "x", null, "published", false, List.of("All"), TbilisiTime.now());
+        article.setCategoryId(category.getId());
+        articleRepository.saveAndFlush(article);
+        searchReindexService.reindexArticle(article);
 
-        mockMvc.perform(authed(get("/api/search"), tokenFor(operator)).param("q", "ab"))
+        mockMvc.perform(authed(get("/api/search"), tokenFor(operator))
+                        .param("q", "ab").param("category_id", category.getId().toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)));
 

@@ -359,7 +359,7 @@ class StatsControllerIntegrationTest {
         // used to 403 a plain manager even though the dashboard they're launched
         // from (department-stats) has always allowed managers. Operator alone must
         // still be denied -- this isn't a blanket permitAll.
-        User manager = createUser("stats-mgr-drilldown@magti.ge", Role.MANAGER, "All");
+        User manager = createUser("stats-mgr-drilldown@magti.ge", Role.MANAGER, "საინფორმაციო — ჯგუფი ტესტ99");
         User operator = createUser("stats-op-drilldown@magti.ge", Role.OPERATOR, "All");
 
         mockMvc.perform(authed(get("/api/admin/critical-operators"), tokenFor(manager)))
@@ -371,6 +371,55 @@ class StatsControllerIntegrationTest {
                 .andExpect(status().isOk());
 
         mockMvc.perform(authed(get("/api/admin/critical-operators"), tokenFor(operator)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void managerCriticalOperatorsAndGroupUsersAreScopedToTheirOwnDepartmentOnly() throws Exception {
+        // Regression for bug #312: both drill-downs used to be completely unscoped
+        // for managers -- confirmed live, a manager in one group received another
+        // group's (even another department's) named operator data. content_admin
+        // keeps the unscoped org-wide view; only managers get hard-pinned.
+        User manager = createUser("stats-mgr-scope@magti.ge", Role.MANAGER, "ტექნიკური — ჯგუფი 03");
+        User ownOp = createUser("stats-mgr-scope-own-op@magti.ge", Role.OPERATOR, "ტექნიკური — ჯგუფი 03");
+        User otherGroupOp = createUser("stats-mgr-scope-other-op@magti.ge", Role.OPERATOR, "ტექნიკური — ჯგუფი 01");
+        Article article = createArticle("სქოუპის სტატია");
+        createReading(article.getId(), "All"); // unread by anyone -> both operators are 0%, i.e. critical
+
+        String body = mockMvc.perform(authed(get("/api/admin/critical-operators"), tokenFor(manager)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        var operatorsNode = objectMapper.readTree(body).get("operators");
+        boolean containsOwnOp = false;
+        boolean containsOtherGroupOp = false;
+        for (var o : operatorsNode) {
+            long id = o.get("user_id").asLong();
+            if (id == ownOp.getId()) containsOwnOp = true;
+            if (id == otherGroupOp.getId()) containsOtherGroupOp = true;
+        }
+        org.junit.jupiter.api.Assertions.assertTrue(containsOwnOp);
+        org.junit.jupiter.api.Assertions.assertFalse(containsOtherGroupOp,
+                "a manager must never see another group's critical operators");
+
+        // Own group/department -> allowed.
+        mockMvc.perform(authed(
+                        get("/api/admin/departments/{department}/groups/{groupName}/users",
+                                "ტექნიკური", "ჯგუფი 03"),
+                        tokenFor(manager)))
+                .andExpect(status().isOk());
+
+        // Same department bucket, different group -> now rejected (used to succeed).
+        mockMvc.perform(authed(
+                        get("/api/admin/departments/{department}/groups/{groupName}/users",
+                                "ტექნიკური", "ჯგუფი 01"),
+                        tokenFor(manager)))
+                .andExpect(status().isForbidden());
+
+        // Different department bucket entirely -> also rejected.
+        mockMvc.perform(authed(
+                        get("/api/admin/departments/{department}/groups/{groupName}/users",
+                                "ოფისი", "ჯგუფი 01"),
+                        tokenFor(manager)))
                 .andExpect(status().isForbidden());
     }
 

@@ -3,7 +3,6 @@ package ge.magti.portal.web;
 import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.ExportJob;
 import ge.magti.portal.domain.Permission;
-import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.export.CsvExportBuilder;
 import ge.magti.portal.export.ExportJobWorker;
@@ -56,6 +55,17 @@ import java.util.UUID;
  * scopes all 3 readings-export formats to eligible users uniformly, closing
  * a gap where xlsx/pdf (unlike the CSV) never filtered out managers/admins/
  * inactive users from an admin-only personal-data export.
+ *
+ * <p><b>Bug #313 fix:</b> Python gated CSV/XLSX on system_admin-only while
+ * PDF used the broader {@code reports.export} permission (routers/exports.py
+ * :67,124,249 -- a pre-existing inconsistency, not a Java-port regression).
+ * Confirmed live (docs/TEST_PLAN_AND_RESULTS.md §2.1, asymmetry #2): a
+ * manager with {@code reports.export} was denied CSV/XLSX but allowed the
+ * exact same data as PDF. Reconciled onto the permission-based gate for all
+ * three -- managers already had full PDF access to this data, so this only
+ * closes the format gap rather than widening access to a new role tier
+ * (content_admin has no {@code reports.export} by default, see {@link
+ * Permission#defaultsFor}, so it stays excluded from all three either way).
  */
 @RestController
 public class ExportController {
@@ -80,7 +90,7 @@ public class ExportController {
     /** Port of export_readings (routers/exports.py:65-117). */
     @GetMapping("/api/export/readings")
     public ResponseEntity<?> exportReadingsCsv(@AuthenticationPrincipal User admin) {
-        ResponseEntity<Map<String, String>> denial = requireSystemAdmin(admin);
+        ResponseEntity<Map<String, String>> denial = requireReportsExport(admin);
         if (denial != null) {
             return denial;
         }
@@ -111,7 +121,7 @@ public class ExportController {
     /** Port of export_readings_xlsx (routers/exports.py:122-163). */
     @GetMapping("/api/export/readings.xlsx")
     public ResponseEntity<?> exportReadingsXlsx(@AuthenticationPrincipal User admin) {
-        ResponseEntity<Map<String, String>> denial = requireSystemAdmin(admin);
+        ResponseEntity<Map<String, String>> denial = requireReportsExport(admin);
         if (denial != null) {
             return denial;
         }
@@ -286,18 +296,6 @@ public class ExportController {
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("detail", "Could not validate credentials"));
-        }
-        return null;
-    }
-
-    private static ResponseEntity<Map<String, String>> requireSystemAdmin(User user) {
-        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
-        if (authFailure != null) {
-            return authFailure;
-        }
-        if (user.getRole() != Role.SYSTEM_ADMIN) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("detail", "Not enough permissions to perform this action"));
         }
         return null;
     }

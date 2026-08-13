@@ -177,7 +177,10 @@ class ArticleControllerIntegrationTest {
         othersDraft.setAuthorId(createUser("aa1-other@magti.ge", Role.CONTENT_ADMIN, "All").getId());
         articleRepository.saveAndFlush(othersDraft);
 
-        mockMvc.perform(authed(get("/api/articles"), tokenFor(admin)))
+        // Scoped to this test's own fresh category -- GET /api/articles is
+        // org-wide otherwise, and now collides with the 112 real imported
+        // articles (also targeting "All") on this shared Oracle instance.
+        mockMvc.perform(authed(get("/api/articles").param("category_id", String.valueOf(cat.getId())), tokenFor(admin)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(3))
                 .andExpect(jsonPath("$[*].title").value(org.hamcrest.Matchers.containsInAnyOrder(
@@ -197,7 +200,9 @@ class ArticleControllerIntegrationTest {
         createArticle("წარსული დაგეგმილი", cat.getId(), "scheduled", false, List.of("ტექნიკური"),
                 TbilisiTime.now().minusDays(1));
 
-        mockMvc.perform(authed(get("/api/articles"), tokenFor(operator)))
+        // Scoped to this test's own fresh category -- see the same fix in
+        // contentAdminSeesEverythingIncludingDraftsAndUnpublished above.
+        mockMvc.perform(authed(get("/api/articles").param("category_id", String.valueOf(cat.getId())), tokenFor(operator)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[*].title").value(
@@ -277,6 +282,59 @@ class ArticleControllerIntegrationTest {
                                 + ",\"target_departments\":[\"All\"]}"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.detail").value("Not enough permissions to perform this action"));
+    }
+
+    @Test
+    void revokedArticlesEditPermissionBlocksMutatingEndpointsAndPublishIsGatedSeparately() throws Exception {
+        // Regression for bug #314: articles.edit/articles.publish used to be
+        // stored per-user (settable via PUT /api/users/{id}/permissions) but
+        // never actually consulted -- revoking a content_admin's articles.edit
+        // did not block PUT /api/articles/{id}, confirmed live. Now enforced.
+        User admin = createUser("aa7b@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-6ბ");
+        Article existing = createArticle("არსებული სტატია", cat.getId(), "draft", true, List.of("All"), null);
+
+        // Same content_admin, articles.edit revoked (default set minus edit).
+        admin.setPermissions(new java.util.LinkedHashSet<>(admin.getPermissions()));
+        admin.getPermissions().remove(Permission.ARTICLES_EDIT.value());
+        userRepository.saveAndFlush(admin);
+
+        mockMvc.perform(authed(post("/api/articles"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"x\",\"content\":\"y\",\"category_id\":" + cat.getId()
+                                + ",\"target_departments\":[\"All\"]}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail").value("წვდომა უარყოფილია: არასაკმარისი უფლებები"));
+        mockMvc.perform(authed(put("/api/articles/" + existing.getId()), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"x\",\"content\":\"y\",\"category_id\":" + cat.getId()
+                                + ",\"target_departments\":[\"All\"]}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(patch("/api/articles/" + existing.getId() + "/autosave"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"x\"}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(delete("/api/articles/" + existing.getId()), tokenFor(admin)))
+                .andExpect(status().isForbidden());
+
+        // A second content_admin keeps articles.edit but has articles.publish
+        // revoked -- can still save as draft, but cannot set status=published.
+        User editorNoPublish = createUser("aa7c@magti.ge", Role.CONTENT_ADMIN, "All");
+        editorNoPublish.setPermissions(new java.util.LinkedHashSet<>(editorNoPublish.getPermissions()));
+        editorNoPublish.getPermissions().remove(Permission.ARTICLES_PUBLISH.value());
+        userRepository.saveAndFlush(editorNoPublish);
+
+        mockMvc.perform(authed(post("/api/articles"), tokenFor(editorNoPublish))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"დრაფტი\",\"content\":\"y\",\"category_id\":" + cat.getId()
+                                + ",\"target_departments\":[\"All\"],\"status\":\"draft\"}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(authed(post("/api/articles"), tokenFor(editorNoPublish))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"გამოქვეყნებადი\",\"content\":\"y\",\"category_id\":" + cat.getId()
+                                + ",\"target_departments\":[\"All\"],\"status\":\"published\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail").value("წვდომა უარყოფილია: არასაკმარისი უფლებები"));
     }
 
     @Test

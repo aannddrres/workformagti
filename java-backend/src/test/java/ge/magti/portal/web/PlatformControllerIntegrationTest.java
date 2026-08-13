@@ -170,11 +170,12 @@ class PlatformControllerIntegrationTest {
     }
 
     @Test
-    void notificationsSummaryScopesRecentNewsByExactDepartmentMatchNotPrefix() throws Exception {
-        // Prefix-group department ("ტექნიკური — ჯგუფი 03") deliberately does NOT
-        // match a target of the bare prefix ("ტექნიკური") here -- this endpoint
-        // mirrors platform.py's plain exact .in_([department, "All"]) filter,
-        // unlike DepartmentMatcher's prefix-aware matching used elsewhere.
+    void notificationsSummaryScopesRecentNewsByPrefixAwareDepartmentMatch() throws Exception {
+        // Bug #315 fix, confirmed live: a sub-group operator's recent_news
+        // used to miss news targeted at their parent department prefix,
+        // even though GET /api/news (NewsQueryService) and this same
+        // endpoint's own required-readings half both already used
+        // prefix-aware matching. Now consistent across all three.
         User operator = createUser("plat-op3@magti.ge", Role.OPERATOR, "ტექნიკური — ჯგუფი 03");
         News matching = createNews("ზუსტი დეპარტამენტის სიახლე", "ტექნიკური — ჯგუფი 03");
         News allDept = createNews("ყველასთვის სიახლე", "All");
@@ -185,7 +186,7 @@ class PlatformControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.recent_news[?(@.id == " + matching.getId() + ")]").exists())
                 .andExpect(jsonPath("$.recent_news[?(@.id == " + allDept.getId() + ")]").exists())
-                .andExpect(jsonPath("$.recent_news[?(@.id == " + prefixOnly.getId() + ")]").doesNotExist())
+                .andExpect(jsonPath("$.recent_news[?(@.id == " + prefixOnly.getId() + ")]").exists())
                 .andExpect(jsonPath("$.recent_news[?(@.id == " + otherDept.getId() + ")]").doesNotExist());
     }
 

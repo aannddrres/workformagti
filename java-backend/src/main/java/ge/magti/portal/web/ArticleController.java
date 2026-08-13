@@ -79,6 +79,18 @@ import java.util.stream.Collectors;
  * permission for archive/unarchive/bulk-archive (403, Georgian -- {@code
  * require_permission}).
  *
+ * <p><b>Bug #314 fix, user-confirmed 2026-08-13:</b> create/update/autosave/
+ * delete now also require {@code articles.edit} (and {@code
+ * articles.publish} specifically when the request would set {@code
+ * status=published}), on top of the role gate -- see {@link
+ * #requireArticlesEditPermission}'s javadoc for why. Deliberately NOT
+ * extended to {@code articles.view}: that would mean threading a permission
+ * check through {@code assertArticleVisible}, reused by every note/quiz/
+ * feedback child-route in this file (a much larger, harder-to-verify
+ * surface than the 4 mutating endpoints this fix actually targets) --
+ * left as a known, documented remaining gap rather than widened
+ * opportunistically.
+ *
  * <p><b>Known, deliberate gaps, same reasoning as Videos/Categories:</b> no
  * automatic ORM-listener audit row on create/update/delete/autosave (only
  * archive/unarchive/bulk-archive write one explicitly, matching exactly
@@ -209,6 +221,16 @@ public class ArticleController {
         if (denial != null) {
             return denial;
         }
+        denial = requireArticlesEditPermission(user);
+        if (denial != null) {
+            return denial;
+        }
+        if ("published".equals(request.status())) {
+            denial = requireArticlesPublishPermission(user);
+            if (denial != null) {
+                return denial;
+            }
+        }
 
         Article article = new Article();
         applySharedFields(article, request);
@@ -250,6 +272,16 @@ public class ArticleController {
         ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
         if (denial != null) {
             return denial;
+        }
+        denial = requireArticlesEditPermission(user);
+        if (denial != null) {
+            return denial;
+        }
+        if ("published".equals(request.status())) {
+            denial = requireArticlesPublishPermission(user);
+            if (denial != null) {
+                return denial;
+            }
         }
 
         Optional<Article> found = articleRepository.findById(id);
@@ -298,6 +330,16 @@ public class ArticleController {
         ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
         if (denial != null) {
             return denial;
+        }
+        denial = requireArticlesEditPermission(user);
+        if (denial != null) {
+            return denial;
+        }
+        if ("published".equals(body.get("status"))) {
+            denial = requireArticlesPublishPermission(user);
+            if (denial != null) {
+                return denial;
+            }
         }
 
         Optional<Article> found = articleRepository.findById(id);
@@ -371,6 +413,10 @@ public class ArticleController {
     @Transactional
     public ResponseEntity<?> deleteArticle(@PathVariable Long id, @AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        if (denial != null) {
+            return denial;
+        }
+        denial = requireArticlesEditPermission(user);
         if (denial != null) {
             return denial;
         }
@@ -1232,6 +1278,42 @@ public class ArticleController {
             return authFailure;
         }
         if (!permissionChecker.hasPermission(user, Permission.ARTICLES_ARCHIVE)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
+        }
+        return null;
+    }
+
+    /**
+     * Bug #314 fix, user-confirmed 2026-08-13: {@code articles.edit}/
+     * {@code articles.publish} were defined, defaulted onto content_admin,
+     * and settable per-user via {@code PUT /api/users/{id}/permissions} --
+     * but no endpoint ever consulted them (confirmed present in Python too,
+     * routers/articles.py's CRUD depends only on {@code get_current_admin_user},
+     * never {@code require_permission}). Revoking a content_admin's
+     * articles.edit did nothing; the permission editor was lying. Now
+     * actually enforced on the 4 mutating endpoints, same {@link
+     * PermissionChecker} pattern as {@link #requireArticlesArchivePermission}.
+     */
+    private ResponseEntity<Map<String, String>> requireArticlesEditPermission(User user) {
+        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
+        if (authFailure != null) {
+            return authFailure;
+        }
+        if (!permissionChecker.hasPermission(user, Permission.ARTICLES_EDIT)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
+        }
+        return null;
+    }
+
+    /** Same bug #314 fix -- gates specifically flipping an article's status to "published". */
+    private ResponseEntity<Map<String, String>> requireArticlesPublishPermission(User user) {
+        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
+        if (authFailure != null) {
+            return authFailure;
+        }
+        if (!permissionChecker.hasPermission(user, Permission.ARTICLES_PUBLISH)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
         }

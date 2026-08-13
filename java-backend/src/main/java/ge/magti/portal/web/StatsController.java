@@ -15,12 +15,15 @@ import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.repository.VideoInstructionRepository;
 import ge.magti.portal.stats.ComplianceRecord;
 import ge.magti.portal.stats.CriticalOperator;
+import ge.magti.portal.stats.DepartmentBuckets;
 import ge.magti.portal.stats.DepartmentDashboard;
 import ge.magti.portal.stats.DepartmentStatsBuilder;
 import ge.magti.portal.stats.GroupMemberCompletion;
 import ge.magti.portal.stats.OperatorStatsBuilder;
 import ge.magti.portal.stats.TeamMemberCompletion;
 import ge.magti.portal.stats.TeamStatsBuilder;
+import ge.magti.portal.util.DepartmentGroup;
+import ge.magti.portal.util.DepartmentMatcher;
 import ge.magti.portal.util.TbilisiTime;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -40,6 +43,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Mirrors routers/stats.py -- all 12 statistics/dashboard endpoints. Reuses
@@ -268,6 +272,16 @@ public class StatsController {
      * ribbon tile, any group row). Confirmed present in Python too, not a
      * Java-port regression; fixed here since the dashboard's whole audience
      * is managers.
+     *
+     * <p><b>Bug #312 fix:</b> that manager-access fix opened this endpoint up
+     * without ever scoping the query, so any manager got the exact same
+     * org-wide, cross-department list as content_admin/system_admin --
+     * confirmed live (docs/TEST_PLAN_AND_RESULTS.md §2.1, asymmetry #1): a
+     * manager in "ტექნიკური — ჯგუფი 03" saw an overdue operator from
+     * "ტექნიკური — ჯგუფი 01". Now hard-pinned to the calling manager's own
+     * {@code department} string, same exact-match pattern {@link
+     * #getTeamStats} already uses. content_admin/system_admin keep the
+     * unscoped org-wide view (that access was never in question).
      */
     @GetMapping("/api/admin/critical-operators")
     public ResponseEntity<?> getCriticalOperators(@AuthenticationPrincipal User user) {
@@ -275,12 +289,31 @@ public class StatsController {
         if (denial != null) {
             return denial;
         }
-        List<ComplianceRecord> records = complianceQueryService.computeCompliance();
+        List<ComplianceRecord> records;
+        if (user.getRole() == Role.MANAGER) {
+            List<Long> ids = userRepository.findByActiveTrueAndDepartment(user.getDepartment()).stream()
+                    .map(User::getId)
+                    .toList();
+            records = complianceQueryService.computeCompliance(ids, null);
+        } else {
+            records = complianceQueryService.computeCompliance();
+        }
         List<CriticalOperator> operators = OperatorStatsBuilder.buildCriticalOperators(records);
         return ResponseEntity.ok(new CriticalOperatorsResponse(operators, operators.size(), TbilisiTime.now()));
     }
 
-    /** Port of get_group_users (routers/stats.py:747-815). Same manager-access fix as {@link #getCriticalOperators}. */
+    /**
+     * Port of get_group_users (routers/stats.py:747-815). Same manager-access
+     * fix as {@link #getCriticalOperators}.
+     *
+     * <p><b>Bug #312 fix:</b> {@code department}/{@code groupName} were
+     * caller-controlled path params with no check against the requester's
+     * own department -- confirmed live: a manager in "ტექნიკური"
+     * successfully pulled "ოფისი — ჯგუფი 01"'s user list. A manager is now
+     * rejected with 403 unless the requested (department, groupName) pair
+     * resolves to their own department string; content_admin/system_admin
+     * are unaffected.
+     */
     @GetMapping("/api/admin/departments/{department}/groups/{groupName}/users")
     public ResponseEntity<?> getGroupUsers(
             @PathVariable String department, @PathVariable("groupName") String groupName,
@@ -288,6 +321,14 @@ public class StatsController {
         ResponseEntity<Map<String, String>> denial = requireManagerOrContentAdmin(user);
         if (denial != null) {
             return denial;
+        }
+        if (user.getRole() == Role.MANAGER) {
+            DepartmentGroup ownGroup = DepartmentMatcher.splitGroup(user.getDepartment());
+            String ownBucket = DepartmentBuckets.match(ownGroup.prefix());
+            if (!Objects.equals(department, ownBucket) || !Objects.equals(groupName, ownGroup.groupLabel())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("detail", "Not enough permissions to perform this action"));
+            }
         }
         List<User> candidates = userRepository.findByActiveTrue().stream()
                 .filter(ComplianceCalculator::isEligible)

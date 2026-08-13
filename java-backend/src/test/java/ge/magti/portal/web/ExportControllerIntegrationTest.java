@@ -180,7 +180,12 @@ class ExportControllerIntegrationTest {
     }
 
     @Test
-    void csvExportRequiresSystemAdminAndScopesToEligibleUsersWithFormulaSanitized() throws Exception {
+    void csvExportRequiresReportsExportPermissionAndScopesToEligibleUsersWithFormulaSanitized() throws Exception {
+        // Bug #313 fix: CSV/XLSX used to be system_admin-only while PDF (the
+        // exact same data) used the broader reports.export permission -- a
+        // manager could get PDF but was denied CSV/XLSX. Reconciled onto
+        // reports.export for all three, so manager is now allowed here too;
+        // operator (no reports.export by default) is the denial case instead.
         User admin = createUser("exp-admin1@magti.ge", Role.SYSTEM_ADMIN, "All");
         User manager = createUser("exp-mgr1@magti.ge", Role.MANAGER, "All");
         User operator = createUser("exp-op1@magti.ge", Role.OPERATOR, "სავალდებულო განყოფილება " + System.nanoTime());
@@ -192,8 +197,10 @@ class ExportControllerIntegrationTest {
         markRead(operator, reading);
         markRead(manager, reading);
 
-        mockMvc.perform(authed(get("/api/export/readings"), tokenFor(manager)))
+        mockMvc.perform(authed(get("/api/export/readings"), tokenFor(operator)))
                 .andExpect(status().isForbidden());
+        mockMvc.perform(authed(get("/api/export/readings"), tokenFor(manager)))
+                .andExpect(status().isOk());
 
         String csv = mockMvc.perform(authed(get("/api/export/readings"), tokenFor(admin)))
                 .andExpect(status().isOk())
