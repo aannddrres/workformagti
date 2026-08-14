@@ -23,6 +23,8 @@ export interface BroadcastRequest {
   target_role?: string | null;
 }
 
+/** {@code recipients} is how many Message rows were actually created (2026-08-14 fix). */
 export interface BroadcastResult {
   status: string;
+  recipients: number;
 }

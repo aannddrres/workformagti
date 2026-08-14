@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.OffsetDateTime;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +50,17 @@ import java.util.stream.Collectors;
  * <p>{@code sender_name}/{@code recipient_name} (models.py's relationship
  * {@code @property}s) are resolved here via a small batch lookup rather than
  * per-row, avoiding an N+1 query for a list endpoint.
+ *
+ * <p><b>Broadcast now persists real {@link Message} rows</b> (2026-08-14
+ * fix). The original Python {@code post_broadcast} never did either --
+ * it only published an ephemeral SSE event plus an audit-log row, so a
+ * recipient saw it live only if connected at that exact instant, and
+ * never at all afterward. Dropping SSE (see above) made that gap total:
+ * broadcasts had zero observable effect on any user. Recipients are now
+ * resolved the same way {@link ge.magti.portal.article.EligibleOperatorsService}
+ * resolves article audiences -- exact-match department (or all active
+ * users for "All"), optionally narrowed by role -- excluding the sending
+ * admin.
  */
 @RestController
 public class MessagingController {
@@ -154,25 +166,52 @@ public class MessagingController {
     }
 
     /**
-     * Port of post_broadcast (routers/messaging.py:307-333). The live SSE
-     * publish ({@code _safe_publish}) is not ported -- see this class's
-     * javadoc; the audit-log write (the durable, meaningful side effect)
-     * still happens.
+     * Port of post_broadcast (routers/messaging.py:307-333), extended to
+     * actually deliver: see this class's javadoc for why (the original's
+     * SSE-only delivery was already lost the instant a recipient wasn't
+     * connected; dropping SSE entirely made it total). The live SSE
+     * publish ({@code _safe_publish}) itself is still not ported.
      */
     @PostMapping("/api/broadcast")
+    @Transactional
     public ResponseEntity<?> postBroadcast(@RequestBody BroadcastRequest request, @AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
         if (denial != null) {
             return denial;
         }
+
+        List<User> candidates = "All".equals(request.targetDepartmentOrDefault())
+                ? userRepository.findByActiveTrue()
+                : userRepository.findByActiveTrueAndDepartment(request.targetDepartmentOrDefault());
+
+        String targetRole = request.targetRoleOrDefault();
+        Role roleFilter = "All".equals(targetRole) ? null : Role.fromValue(targetRole);
+
+        List<User> recipients = candidates.stream()
+                .filter(u -> !u.getId().equals(user.getId()))
+                .filter(u -> roleFilter == null || u.getRole() == roleFilter)
+                .toList();
+
+        OffsetDateTime now = TbilisiTime.now();
+        List<Message> messages = recipients.stream().map(recipient -> {
+            Message message = new Message();
+            message.setUserId(recipient.getId());
+            message.setSenderId(user.getId());
+            message.setContent(request.message());
+            message.setCreatedAt(now);
+            return message;
+        }).toList();
+        messageRepository.saveAll(messages);
+
         AuditLog audit = new AuditLog();
         audit.setAdminId(user.getId());
         audit.setAction("BROADCAST");
         audit.setItemType("system");
         audit.setItemId(0L);
-        audit.setTimestamp(TbilisiTime.now());
+        audit.setTimestamp(now);
         auditLogRepository.save(audit);
-        return ResponseEntity.ok(Map.of("status", "success"));
+
+        return ResponseEntity.ok(new BroadcastResponse("success", recipients.size()));
     }
 
     private List<MessageResponse> toResponses(List<Message> messages) {

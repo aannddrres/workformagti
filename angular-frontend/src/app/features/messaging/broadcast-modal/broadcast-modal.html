@@ -14,11 +14,6 @@
     </div>
 
     <div class="flex-1 overflow-y-auto px-6 py-5">
-      <div class="mb-4 flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
-        <i class="fa-solid fa-triangle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
-        <span>{{ 'messaging.broadcast.warning' | translate }}</span>
-      </div>
-
       <div class="mb-4 grid grid-cols-2 gap-3">
         <div>
           <label class="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-zinc-300">{{ 'messaging.broadcast.department_label' | translate }}</label>
@@ -57,7 +52,9 @@
       ></textarea>
 
       @if (sendSuccess()) {
-        <p class="mt-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400">{{ 'messaging.broadcast.success' | translate }}</p>
+        <p class="mt-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+          {{ 'messaging.broadcast.success' | translate: { count: sentRecipients() } }}
+        </p>
       } @else if (sendError()) {
         <p class="mt-2 text-sm text-red-500">{{ sendError() }}</p>
       }

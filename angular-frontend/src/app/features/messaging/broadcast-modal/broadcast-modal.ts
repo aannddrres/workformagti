@@ -4,12 +4,12 @@ import { MessagingService } from '../../../core/services/messaging.service';
 import { DEPARTMENTS, ROLES } from '../../../shared/user-roles';
 
 /**
- * Content-admin broadcast form. POST /api/broadcast currently only writes an
- * AuditLog row -- the live SSE publish it used to trigger was deliberately
- * not ported (see MessagingController's javadoc), so no Message row is ever
- * created and no recipient can see this in their inbox today. Built anyway
- * per the endpoint's own existence, but the warning banner below is load-
- * bearing, not decorative -- remove it only once real delivery exists.
+ * Content-admin broadcast form. POST /api/broadcast persists a real Message
+ * row per matching recipient (2026-08-14 fix) -- department/role filters
+ * scope who receives it, "All" (the default) reaches every active user
+ * except the sender. The live SSE publish the original had is still not
+ * ported (see MessagingController's javadoc); recipients see it on their
+ * next inbox load, not instantly.
  */
 @Component({
   selector: 'app-broadcast-modal',
@@ -32,6 +32,7 @@ export class BroadcastModal {
   protected readonly sending = signal(false);
   protected readonly sendError = signal<string | null>(null);
   protected readonly sendSuccess = signal(false);
+  protected readonly sentRecipients = signal(0);
 
   protected roleLabelKey(role: string): string {
     return `users.role_${role}`;
@@ -52,9 +53,10 @@ export class BroadcastModal {
         target_role: this.targetRole() === 'All' ? null : this.targetRole()
       })
       .subscribe({
-        next: () => {
+        next: (result) => {
           this.sending.set(false);
           this.sendSuccess.set(true);
+          this.sentRecipients.set(result.recipients);
           this.message.set('');
         },
         error: (err) => {

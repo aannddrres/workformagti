@@ -253,4 +253,75 @@ class MessagingControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("success"));
     }
+
+    /** Covers the 2026-08-14 fix -- broadcast now persists real Message rows
+     *  instead of only writing an audit-log entry. */
+    @Test
+    void broadcastToAllCreatesMessagesButNotForTheSender() throws Exception {
+        User admin = createUser("msg-broadcast-admin1@magti.ge", Role.CONTENT_ADMIN, "All");
+        User recipient = createUser("msg-broadcast-recip1@magti.ge", Role.OPERATOR, "All");
+
+        mockMvc.perform(authed(post("/api/broadcast"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"message\":\"საერთო განცხადება\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("success"))
+                .andExpect(jsonPath("$.recipients").value(org.hamcrest.Matchers.greaterThanOrEqualTo(1)));
+
+        boolean recipientGotMessage = messageRepository.findByUserIdOrderByCreatedAtDesc(recipient.getId()).stream()
+                .anyMatch(m -> "საერთო განცხადება".equals(m.getContent()) && admin.getId().equals(m.getSenderId()));
+        assertTrue(recipientGotMessage, "recipient should have a persisted broadcast message");
+
+        boolean senderGotOwnBroadcast = messageRepository.findByUserIdOrderByCreatedAtDesc(admin.getId()).stream()
+                .anyMatch(m -> "საერთო განცხადება".equals(m.getContent()));
+        assertFalse(senderGotOwnBroadcast, "the broadcasting admin should not receive their own broadcast");
+    }
+
+    @Test
+    void broadcastScopedByDepartmentOnlyReachesThatDepartment() throws Exception {
+        String uniqueDept = "ტესტ-დეპარტამენტი-" + System.nanoTime();
+        String otherDept = "სხვა-დეპარტამენტი-" + System.nanoTime();
+        User admin = createUser("msg-broadcast-admin2@magti.ge", Role.SYSTEM_ADMIN, "All");
+        User inDept = createUser("msg-broadcast-in2@magti.ge", Role.OPERATOR, uniqueDept);
+        User outOfDept = createUser("msg-broadcast-out2@magti.ge", Role.OPERATOR, otherDept);
+
+        String body = objectMapper.writeValueAsString(Map.of(
+                "message", "დეპარტამენტული განცხადება",
+                "target_department", uniqueDept));
+
+        mockMvc.perform(authed(post("/api/broadcast"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recipients").value(1));
+
+        assertTrue(messageRepository.findByUserIdOrderByCreatedAtDesc(inDept.getId()).stream()
+                .anyMatch(m -> "დეპარტამენტული განცხადება".equals(m.getContent())));
+        assertTrue(messageRepository.findByUserIdOrderByCreatedAtDesc(outOfDept.getId()).stream()
+                .noneMatch(m -> "დეპარტამენტული განცხადება".equals(m.getContent())));
+    }
+
+    @Test
+    void broadcastScopedByRoleFurtherNarrowsRecipients() throws Exception {
+        String uniqueDept = "როლური-დეპარტამენტი-" + System.nanoTime();
+        User admin = createUser("msg-broadcast-admin3@magti.ge", Role.SYSTEM_ADMIN, "All");
+        User operator = createUser("msg-broadcast-op3@magti.ge", Role.OPERATOR, uniqueDept);
+        User manager = createUser("msg-broadcast-mgr3@magti.ge", Role.MANAGER, uniqueDept);
+
+        String body = objectMapper.writeValueAsString(Map.of(
+                "message", "მხოლოდ ოპერატორებისთვის",
+                "target_department", uniqueDept,
+                "target_role", "operator"));
+
+        mockMvc.perform(authed(post("/api/broadcast"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recipients").value(1));
+
+        assertTrue(messageRepository.findByUserIdOrderByCreatedAtDesc(operator.getId()).stream()
+                .anyMatch(m -> "მხოლოდ ოპერატორებისთვის".equals(m.getContent())));
+        assertTrue(messageRepository.findByUserIdOrderByCreatedAtDesc(manager.getId()).stream()
+                .noneMatch(m -> "მხოლოდ ოპერატორებისთვის".equals(m.getContent())));
+    }
 }
