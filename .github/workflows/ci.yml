@@ -52,9 +52,20 @@ jobs:
       - name: Run DB-free tests
         run: mvn -B test -DexcludedGroups=oracle
 
+  # ADVISORY, NOT GATING, until it has gone green at least once. On its first
+  # run the Oracle service container sat in "Initialize containers" for ~30
+  # minutes without ever reporting healthy, and with no timeout it would have
+  # burned runner time up to the 6-hour job limit. Hence timeout-minutes and
+  # continue-on-error: a job nobody has seen pass must not be able to block a
+  # merge or hang the queue. Flip continue-on-error off (and say so in the PR)
+  # once a run completes green; if it cannot be made to work, delete this job
+  # and keep the integration suite on the dev Oracle instead of leaving a
+  # permanently red check that teaches everyone to ignore CI.
   java-integration:
-    name: Java integration tests (Oracle)
+    name: Java integration tests (Oracle, advisory)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
     defaults:
       run:
         working-directory: java-backend
