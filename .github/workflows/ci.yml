@@ -103,8 +103,35 @@ jobs:
           cache: maven
 
       - name: Run Oracle-backed tests
-        run: mvn -B test -Dgroups=oracle
+        run: mvn -B -e test -Dgroups=oracle
         env:
           ORACLE_DB_URL: jdbc:oracle:thin:@localhost:1521/FREEPDB1
           ORACLE_DB_USER: magti_app
           ORACLE_DB_PASSWORD: ci_only_app_pw
+
+      # Surefire truncates the console summary at ~1.5k chars, which cuts the
+      # message off before the "Caused by" -- so a failing run says only
+      # "Failed to load ApplicationContext" with no reason anywhere in the log.
+      # The real stack traces are in target/surefire-reports/*.txt, which
+      # nothing was collecting. Echo the root causes into the log (fastest to
+      # read) and upload the full set (for anything the grep misses).
+      - name: Surefire root causes
+        if: always()
+        run: |
+          shopt -s nullglob
+          reports=(target/surefire-reports/*.txt)
+          if [ ${#reports[@]} -eq 0 ]; then echo "no surefire reports"; exit 0; fi
+          echo "===== distinct root causes ====="
+          grep -h -E "^Caused by|^[A-Za-z.]+(Exception|Error):" "${reports[@]}" \
+            | sort -u | head -40
+          echo "===== head of first report ====="
+          head -60 "${reports[0]}"
+
+      - name: Upload surefire reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports-oracle
+          path: java-backend/target/surefire-reports/
+          retention-days: 7
+          if-no-files-found: warn
