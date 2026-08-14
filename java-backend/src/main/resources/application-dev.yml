@@ -1,0 +1,35 @@
+# Local development profile -- activate EXPLICITLY, it is never on by default:
+#   ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
+#   java -jar app.jar --spring.profiles.active=dev
+#
+# Exists because audit OPUS5 SEC-01 flipped application.yml's shipped
+# defaults to the safe side (app-env=production, dev login off, placeholder
+# DB password). The insecure-but-convenient local setup is still fully
+# supported -- it just has to be asked for by name now, instead of being what
+# you get when an env var is missing. The individual env vars (APP_ENV,
+# ALLOW_DEV_LOGIN, ORACLE_DB_PASSWORD) still work and still win over this
+# file; this profile only saves setting all three by hand.
+#
+# The Maven test run activates this profile (src/test/resources/
+# application.properties) because the integration tests log in as
+# content@magti.ge with any password.
+spring:
+  datasource:
+    # The password of the dev-only Oracle 19c on localhost:1521 that this
+    # project has used since the migration started. NOT a production
+    # credential and not usable as one: ProductionSafetyGuard rejects this
+    # exact literal when app-env=production, which is the whole point of
+    # having it here instead of as application.yml's default (audit PR-05 --
+    # it was previously the shipped default for every deployment).
+    password: ${ORACLE_DB_PASSWORD:MagtiAppDev2026Pw}
+
+portal:
+  app-env: ${APP_ENV:development}
+  security:
+    # Password-less login for admin@/content@/manager@/nino@/tech@/info@magti.ge
+    # and any test_operator_* address -- deliberate, pending the real Active
+    # Directory integration (see the auth-bypass-intentional-pending-ad
+    # decision and docs/QUESTIONS_FOR_IT.md's AD section). ProductionSafetyGuard
+    # logs a WARN at every startup where this is live, and refuses to boot if
+    # it is ever combined with app-env=production.
+    allow-dev-login: ${ALLOW_DEV_LOGIN:true}

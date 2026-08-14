@@ -22,6 +22,13 @@ import java.util.stream.Collectors;
  * known test emails is deliberate, not a bug, kept until real Active
  * Directory integration replaces this whole login step.
  *
+ * <p>What changed after audit OPUS5 SEC-01: the bypass is no longer implied
+ * by "app-env happens not to say production". It now needs an explicit
+ * {@code portal.security.allow-dev-login=true} on top of a non-production
+ * app-env ({@link PortalProperties#isDevLoginEnabled()}), and app-env itself
+ * defaults to production. A deployment that forgets every env var gets the
+ * bypass OFF instead of ON.
+ *
  * <p>Deliberately NOT the same thing as {@code qa_accounts.py}'s {@code
  * TEST_ACCOUNTS}: those are ordinary seeded users with a real password
  * ("Test1234!") checked the normal bcrypt way -- pure seed data for
@@ -73,7 +80,7 @@ public class AuthenticationService {
 
     public Optional<User> authenticate(String email, String password) {
         String lowerEmail = email.toLowerCase();
-        boolean isTestAccount = !properties.isProduction()
+        boolean isTestAccount = properties.isDevLoginEnabled()
                 && (lowerEmail.startsWith("test_operator_") || DEV_TEST_EMAILS.contains(lowerEmail));
 
         User user = userRepository.findByEmailIgnoreCase(lowerEmail)

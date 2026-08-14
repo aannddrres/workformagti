@@ -25,12 +25,15 @@ COPY --from=builder --chown=appuser:appgroup /build/target/portal-backend-*.jar 
 
 USER appuser
 
-# All values below are dev-only defaults baked into application.yml itself
-# (see PortalProperties/application.yml) -- a real deployment overrides
-# every one of these via env vars, exactly like the root Dockerfile's
-# Python app does for APP_ENV/SECRET_KEY/POSTGRES_PASSWORD. ProductionSafetyGuard
-# refuses to boot if APP_ENV=production is set without also overriding
-# SECRET_KEY/COOKIE_SECURE.
+# APP_ENV is set here, not left to the deployment manifest (audit OPUS5
+# SEC-01): the image itself must be safe before any manifest is written. With
+# APP_ENV=production the password-less dev login is off unconditionally, and
+# ProductionSafetyGuard refuses to boot unless SECRET_KEY, COOKIE_SECURE and
+# ORACLE_DB_PASSWORD are all overridden with real values -- so a
+# half-configured deployment crash-loops loudly instead of coming up with the
+# admin bypass open. Same fail-safe posture as the root docker-compose.yml,
+# which falls back to APP_ENV=production when .env is missing.
+ENV APP_ENV=production
 ENV JAVA_TOOL_OPTIONS="-XX:+UseContainerSupport"
 EXPOSE 8080
 

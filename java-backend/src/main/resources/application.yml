@@ -4,15 +4,16 @@ spring:
   datasource:
     url: ${ORACLE_DB_URL:jdbc:oracle:thin:@localhost:1521/orclpdb1}
     username: ${ORACLE_DB_USER:magti_app}
-    # Same "insecure-but-workable local default" convention as
-    # portal.security.jwt.secret below -- unlike POSTGRES_PASSWORD (which has
-    # NO default and lives in a gitignored .env, per CLAUDE.md), this points
-    # at a dev-only Oracle instance on localhost that isn't network-exposed
-    # and holds no real data yet, so the same low-friction default is used
-    # here rather than requiring an env var the non-technical project owner
-    # would have to set by hand. Override with ORACLE_DB_PASSWORD before any
-    # real deployment.
-    password: ${ORACLE_DB_PASSWORD:MagtiAppDev2026Pw}
+    # Local-only placeholder, NOT a password. This used to default to
+    # "MagtiAppDev2026Pw" -- shaped exactly like a real corporate credential
+    # (org + env + year), which invites someone to set the real Oracle
+    # account to it, and it is in this repo's git history forever
+    # (audit OPUS5 PR-05). The low-friction local default is kept, but it now
+    # looks unmistakably like a placeholder, and ProductionSafetyGuard
+    # refuses to boot on it (or on a blank one) when APP_ENV=production.
+    # Set ORACLE_DB_PASSWORD for any real deployment, and for a local Oracle
+    # whose account uses a different password.
+    password: ${ORACLE_DB_PASSWORD:CHANGE_ME_LOCAL_ONLY}
     driver-class-name: oracle.jdbc.OracleDriver
     # Spring Boot's default (10) queued up requests for a free connection
     # under concurrent load -- a k6 run at 600 concurrent users (2026-08-14,
@@ -48,21 +49,40 @@ spring:
 server:
   port: 8080
 
-# Mirrors config.py's Settings class -- same env var names, same
-# insecure-but-workable local defaults, so a real deployment overrides them
-# the same way the Python app expects. See portal.security.jwt.secret's
-# comment for the production footgun this default is meant to avoid.
+# Mirrors config.py's Settings class -- same env var names, so a real
+# deployment overrides them the same way the Python app expects.
+#
+# The defaults here are SAFE ones, not convenient ones (audit OPUS5 SEC-01):
+# a deployment that forgets an env var must fail closed. For local
+# development activate the dev profile, which flips all of them back in one
+# step:  ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
+# (see application-dev.yml).
 portal:
-  app-env: ${APP_ENV:development}
+  # NOT ${APP_ENV:development}. Everything insecure in this app is gated on
+  # "is this production" -- so an unset/misspelled APP_ENV must mean
+  # production, not "open the dev bypass". See PortalProperties.appEnv.
+  app-env: ${APP_ENV:production}
   # Mirrors config.py's UPLOAD_DIR (default "uploads", relative to wherever
   # the process starts) -- the Exports domain writes generated xlsx/pdf
   # files under <uploads-dir>/exports.
   uploads-dir: ${UPLOAD_DIR:uploads}
   security:
+    # Opt-in for AuthenticationService's password-less bypass of the known
+    # dev/test emails (admin@/content@/manager@magti.ge, test_operator_*).
+    # Off by default AND ignored unless app-env is non-production, so the
+    # bypass needs two deliberate settings, not one forgotten one.
+    # ProductionSafetyGuard refuses to boot if it is true with
+    # app-env=production.
+    allow-dev-login: ${ALLOW_DEV_LOGIN:false}
     jwt:
-      # NEVER ship this default to production -- config.py's startup guard
-      # (config.py:121-124) refuses to boot if this exact string is still
-      # set with APP_ENV=production; no Java equivalent exists yet (todo).
+      # NEVER ship this default to production. ProductionSafetyGuard is the
+      # Java equivalent of config.py's startup guard (config.py:121-124) --
+      # it refuses to boot when app-env=production and this value is missing,
+      # is this dev literal, is under 48 characters, contains a placeholder
+      # marker ("change-me", "example", ...) or has fewer than 10 distinct
+      # characters. It also checks cookie.secure, allow-dev-login and the
+      # Oracle password. It does NOT verify that the value is genuinely
+      # random, nor anything about TLS termination in front of the app.
       secret: ${SECRET_KEY:super-secret-temporary-key-for-local-development}
       algorithm: ${JWT_ALGORITHM:HS256}
       access-token-expire-minutes: ${ACCESS_TOKEN_EXPIRE_MINUTES:60}

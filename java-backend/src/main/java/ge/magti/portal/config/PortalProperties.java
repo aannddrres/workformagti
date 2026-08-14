@@ -13,7 +13,15 @@ import org.springframework.context.annotation.Configuration;
 @ConfigurationProperties(prefix = "portal")
 public class PortalProperties {
 
-	private String appEnv = "development";
+	/**
+	 * Defaults to "production" deliberately (audit OPUS5 SEC-01): every
+	 * insecure convenience in this app is gated on {@link #isProduction()},
+	 * so a deployment that forgets APP_ENV must fail SAFE, not open. Local
+	 * development asks for the insecure mode explicitly -- APP_ENV=development
+	 * (plus ALLOW_DEV_LOGIN=true for the password-less bypass), or simply
+	 * {@code --spring.profiles.active=dev} (application-dev.yml).
+	 */
+	private String appEnv = "production";
 
 	private String uploadsDir = "uploads";
 
@@ -40,6 +48,20 @@ public class PortalProperties {
 		return "production".equalsIgnoreCase(appEnv);
 	}
 
+	/**
+	 * Whether {@code AuthenticationService}'s password-less bypass for the
+	 * known dev/test emails is live. Deliberately needs BOTH halves: a
+	 * non-production app-env AND an explicit
+	 * {@code portal.security.allow-dev-login=true}. Before OPUS5 SEC-01 the
+	 * only gate was {@code !isProduction()}, so one forgotten env var was
+	 * enough to hand out SYSTEM_ADMIN tokens for any password.
+	 * {@link ProductionSafetyGuard} refuses to boot if the flag is set with
+	 * {@code portal.app-env=production}, and WARNs loudly when it is live.
+	 */
+	public boolean isDevLoginEnabled() {
+		return !isProduction() && security.isAllowDevLogin();
+	}
+
 	public Security getSecurity() {
 		return security;
 	}
@@ -49,6 +71,20 @@ public class PortalProperties {
 		private final Jwt jwt = new Jwt();
 		@NestedConfigurationProperty
 		private final Cookie cookie = new Cookie();
+
+		/**
+		 * Opt-in for the password-less dev login (ALLOW_DEV_LOGIN). Off by
+		 * default so the insecure mode is the one that has to be asked for.
+		 */
+		private boolean allowDevLogin = false;
+
+		public boolean isAllowDevLogin() {
+			return allowDevLogin;
+		}
+
+		public void setAllowDevLogin(boolean allowDevLogin) {
+			this.allowDevLogin = allowDevLogin;
+		}
 
 		public Jwt getJwt() {
 			return jwt;

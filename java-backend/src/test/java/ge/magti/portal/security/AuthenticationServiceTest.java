@@ -31,6 +31,11 @@ class AuthenticationServiceTest {
         userRepository = mock(UserRepository.class);
         passwordEncoder = mock(PasswordEncoder.class);
         properties = new PortalProperties();
+        // The bypass tests below need the dev configuration EXPLICITLY since
+        // audit OPUS5 SEC-01: a fresh PortalProperties is now production with
+        // the bypass off (proven by DefaultSecurityPostureTest).
+        properties.setAppEnv("development");
+        properties.getSecurity().setAllowDevLogin(true);
         service = new AuthenticationService(userRepository, passwordEncoder, properties);
 
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -62,6 +67,22 @@ class AuthenticationServiceTest {
     @Test
     void productionModeDisablesJitProvisioningAndBypass() {
         properties.setAppEnv("production");
+        when(userRepository.findByEmailIgnoreCase("admin@magti.ge")).thenReturn(Optional.empty());
+
+        Optional<User> result = service.authenticate("admin@magti.ge", "any-password");
+
+        assertTrue(result.isEmpty());
+        verify(userRepository, never()).save(any());
+    }
+
+    /**
+     * The second half of the SEC-01 fix: even in a development app-env, the
+     * bypass stays shut unless ALLOW_DEV_LOGIN was asked for explicitly.
+     * Before the fix "not production" was the whole gate.
+     */
+    @Test
+    void developmentEnvWithoutTheOptInFlagStillDisablesTheBypass() {
+        properties.getSecurity().setAllowDevLogin(false);
         when(userRepository.findByEmailIgnoreCase("admin@magti.ge")).thenReturn(Optional.empty());
 
         Optional<User> result = service.authenticate("admin@magti.ge", "any-password");
