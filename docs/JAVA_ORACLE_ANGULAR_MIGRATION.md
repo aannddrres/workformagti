@@ -4370,3 +4370,35 @@ production hardware-ზე იგივე re-run საჭირო იქნ�
 scroll-ის გარკვეულ პოზიციაზე). გამოსწორდა ბანერის DOM-ში
 sticky toolbar-ის **წინ** გადატანით (ნაცვლად მის შემდეგ) — ბანერი
 ახლა ნორმალურ flow-შია toolbar-ის სტიკვამდე, აღარ ეჯახება მას.
+
+### #4 — `ExportControllerIntegrationTest` cross-test-leakage ჩავარდნა — გასწორებულია (2026-08-14)
+
+ადრე (#3-ის ვერიფიკაციისას) ცნობილი, დაუკავშირებელი ტესტ-ჩავარდნა
+საბოლოოდ გასწორდა — ორი ცალკეული, ერთმანეთისგან დამოუკიდებელი
+პრობლემა აღმოჩნდა, არა ერთი:
+
+1. **`createUser()` ტესტ-helper-ი ბრმად აკეთებდა `INSERT`-ს.**
+   Fix-ნაწილი (`exp-op2@magti.ge` და ა.შ.) ზიარ dev Oracle-ში უკვე
+   არსებობდა ძველი სესიიდან. გასწორდა find-or-update პატერნით
+   (`userRepository.findByEmail(email).orElseGet(User::new)`) —
+   იგივე პრინციპი, რაც ადრეც ორჯერ გამოყენებულია ამ მიგრაციაში
+   (Category/Audit domain-ები).
+2. **ნამდვილი ძირეული მიზეზი, ამ სესიამდე არასწორად დიაგნოსტირებული:**
+   `ExportQueryService.eligibleReadingRows()` სისტემურ დონეზეა
+   (ყველა eligible მომხმარებლის ყველა read-status, არა მხოლოდ ამ
+   კონკრეტული ტესტის მიერ შექმნილი reading). ტესტი კი ვარაუდობდა,
+   რომ XLSX-ის მე-2 row (index 1) აუცილებლად მისი ახალშექმნილი
+   ოპერატორის იქნებოდა — მაგრამ ზიარ dev Oracle-ს აქვს ნამდვილი,
+   დაგროვილი გამოყენების მონაცემები (k6 load-test-ის, Playwright-ის,
+   role-agent pilot-ების ანგარიშები), რომლებიც row-ების თანმიმდევრობას
+   არ იცავენ ტესტის ვარაუდისამებრ.
+
+**გამოსწორება:** ტესტმა (`xlsxExportBuildsAndDownloadsThenTheJobRowAndFileAreGone`)
+აღარ ვარაუდობს პოზიციას — ეძებს საკუთარ ოპერატორის row-ს **ყველა**
+დაბრუნებულ row-ს შორის (`operator.getName()`-ის მატჩი). იგივე
+"unique markers, არა clean-state ვარაუდი" პრინციპი, რაც Category/Audit
+cross-test-leakage ფიქსებში.
+
+**ვერიფიცირებულია:** `ExportControllerIntegrationTest` იზოლირებულად
+(7/7) და სრული Java ტესტ-სუიტი რეალურ Oracle-ის წინააღმდეგ —
+0 ჩავარდნა, 0 რეგრესია.

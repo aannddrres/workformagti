@@ -123,7 +123,11 @@ class ExportControllerIntegrationTest {
     }
 
     private User createUser(String email, Role role, String department) {
-        User user = new User();
+        // find-or-update rather than blind insert: this suite's fixed emails
+        // (exp-op2@magti.ge etc.) can already exist as leftover rows from an
+        // earlier dev/session run against the shared Oracle instance -- same
+        // cross-test-leakage class already fixed in the Category/Audit suites.
+        User user = userRepository.findByEmail(email).orElseGet(User::new);
         user.setEmail(email);
         user.setName("ტესტ მომხმარებელი " + email);
         user.setRole(role);
@@ -234,8 +238,23 @@ class ExportControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsByteArray();
         try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(xlsxBytes))) {
-            assertEquals("თანამშრომელი", wb.getSheetAt(0).getRow(0).getCell(0).getStringCellValue());
-            assertEquals(operator.getName(), wb.getSheetAt(0).getRow(1).getCell(0).getStringCellValue());
+            var sheet = wb.getSheetAt(0);
+            assertEquals("თანამშრომელი", sheet.getRow(0).getCell(0).getStringCellValue());
+            // eligibleReadingRows() is system-wide, not scoped to this test's
+            // reading -- the shared dev Oracle instance has real accumulated
+            // usage data, so this test's row can land anywhere, not just row
+            // 1. Search for it instead of assuming position (same
+            // cross-test-leakage class already fixed in Category/Audit).
+            boolean foundOperatorRow = false;
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                var row = sheet.getRow(i);
+                if (row != null && row.getCell(0) != null
+                        && operator.getName().equals(row.getCell(0).getStringCellValue())) {
+                    foundOperatorRow = true;
+                    break;
+                }
+            }
+            assertTrue(foundOperatorRow, "exported xlsx must contain this test's operator row");
         }
 
         assertFalse(exportJobRepository.findById(jobId).isPresent(), "download must delete the job row");
