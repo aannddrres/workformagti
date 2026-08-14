@@ -1,5 +1,6 @@
-import { Component, inject } from '@angular/core';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Component, inject, signal } from '@angular/core';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { filter } from 'rxjs';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { AuthService } from '../core/auth/auth.service';
 import { ThemeService } from '../core/theme/theme.service';
@@ -28,6 +29,8 @@ export class AppShell {
   protected readonly translate = inject(TranslateService);
   protected readonly theme = inject(ThemeService);
   private readonly router = inject(Router);
+
+  protected readonly mobileMenuOpen = signal(false);
 
   protected readonly sections: NavSection[] = [
     {
@@ -65,6 +68,18 @@ export class AppShell {
       ]
     }
   ];
+
+  constructor() {
+    this.router.events.pipe(filter((e) => e instanceof NavigationEnd)).subscribe(() => this.mobileMenuOpen.set(false));
+  }
+
+  toggleMobileMenu(): void {
+    this.mobileMenuOpen.update((open) => !open);
+  }
+
+  closeMobileMenu(): void {
+    this.mobileMenuOpen.set(false);
+  }
 
   canSee(link: NavLink): boolean {
     const role = this.auth.currentUser()?.role;

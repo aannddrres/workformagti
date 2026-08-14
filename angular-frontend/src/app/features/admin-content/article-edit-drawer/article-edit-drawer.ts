@@ -51,7 +51,7 @@ export class ArticleEditDrawer {
   readonly saved = output<void>();
 
   protected readonly richTextEditor = viewChild.required(RichTextEditor);
-  protected readonly quizBuilder = viewChild.required(QuizBuilder);
+  protected readonly quizBuilder = viewChild(QuizBuilder);
 
   protected readonly categories = signal<Category[]>([]);
   protected readonly departmentOrder = DEPARTMENT_ORDER;
@@ -308,7 +308,7 @@ export class ArticleEditDrawer {
     }
 
     if (this.quizEnabled()) {
-      const questions = this.quizBuilder().getQuestions();
+      const questions = this.quizBuilder()!.getQuestions();
       if (questions.length > 0) {
         this.quizAdminService.update(article.id, questions).subscribe({
           next: () => this.finishSave(),
