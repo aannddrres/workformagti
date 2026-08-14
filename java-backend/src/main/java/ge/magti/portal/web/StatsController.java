@@ -247,7 +247,20 @@ public class StatsController {
         return ResponseEntity.ok(new TeamStatsResponse(dept, members));
     }
 
-    /** Port of get_department_stats (routers/stats.py:675-688). */
+    /**
+     * Port of get_department_stats (routers/stats.py:675-688).
+     *
+     * <p><b>SEC-03 fix:</b> this was the one endpoint in the file with no
+     * MANAGER branch at all, so a manager received the names, positions,
+     * individual percentages and {@code is_critical} flags of every
+     * department's staff -- while getting a 403 from {@link #getGroupUsers}
+     * for those very same groups. Option (a) of the audit's two, chosen by
+     * the user 2026-08-14: the dashboard stays org-wide for managers (that is
+     * its purpose -- see {@link #getCriticalOperators}'s javadoc on its
+     * audience), but the per-person rows are stripped for them, leaving the
+     * aggregates. See {@link DepartmentStatsBuilder#withoutMembers} for why
+     * this redacts the response rather than scoping the query.
+     */
     @GetMapping("/api/manager/department-stats")
     public ResponseEntity<?> getDepartmentStats(@AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireManagerOrAdmin(user);
@@ -256,6 +269,9 @@ public class StatsController {
         }
         List<ComplianceRecord> records = complianceQueryService.computeCompliance();
         DepartmentDashboard dashboard = DepartmentStatsBuilder.build(records, TbilisiTime.now());
+        if (user.getRole() == Role.MANAGER) {
+            dashboard = DepartmentStatsBuilder.withoutMembers(dashboard);
+        }
         return ResponseEntity.ok(dashboard);
     }
 
