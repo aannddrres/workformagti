@@ -1,5 +1,6 @@
 package ge.magti.portal.web;
 
+import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.ArticleTargetDepartment;
 import ge.magti.portal.domain.Category;
@@ -38,6 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * infrastructure as the other Content-domain integration tests this
  * session.
  */
+@RequiresOracle
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional

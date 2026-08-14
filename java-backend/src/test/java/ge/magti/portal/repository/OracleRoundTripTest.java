@@ -1,5 +1,6 @@
 package ge.magti.portal.repository;
 
+import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.ArticleTargetDepartment;
 import ge.magti.portal.domain.ArticleTargetDepartmentId;
@@ -30,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <p>{@code @Transactional} rolls every test back afterward so the dev
  * database doesn't accumulate test rows.
  */
+@RequiresOracle
 @SpringBootTest
 @Transactional
 class OracleRoundTripTest {

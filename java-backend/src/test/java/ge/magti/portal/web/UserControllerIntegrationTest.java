@@ -2,6 +2,7 @@ package ge.magti.portal.web;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.ReadStatus;
@@ -46,6 +47,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * /api/users/{user_id}/nudge} deferred, see {@link UserController}'s
  * javadoc).
  */
+@RequiresOracle
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional

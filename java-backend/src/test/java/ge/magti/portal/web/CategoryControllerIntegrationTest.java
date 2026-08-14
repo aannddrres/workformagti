@@ -1,5 +1,6 @@
 package ge.magti.portal.web;
 
+import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.Category;
 import ge.magti.portal.domain.Permission;
@@ -36,6 +37,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * @Transactional} rolls back every user/category/article row this test
  * creates.
  */
+@RequiresOracle
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional

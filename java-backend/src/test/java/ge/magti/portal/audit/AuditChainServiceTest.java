@@ -1,5 +1,6 @@
 package ge.magti.portal.audit;
 
+import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.repository.AuditLogRepository;
@@ -28,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <p>{@code @Transactional} rolls every test back afterward, same
  * convention as {@link ge.magti.portal.repository.OracleRoundTripTest}.
  */
+@RequiresOracle
 @SpringBootTest
 @Transactional
 class AuditChainServiceTest {

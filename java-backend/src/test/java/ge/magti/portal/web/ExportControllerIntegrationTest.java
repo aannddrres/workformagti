@@ -2,6 +2,7 @@ package ge.magti.portal.web;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.config.PortalProperties;
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.AuditLog;
@@ -69,6 +70,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * different connection than this test's uncommitted, soon-to-be-rolled-back
  * transaction and could never see the just-created ExportJob row.
  */
+@RequiresOracle
 @SpringBootTest
 @AutoConfigureMockMvc
 @Import(ExportControllerIntegrationTest.SyncAsyncConfig.class)

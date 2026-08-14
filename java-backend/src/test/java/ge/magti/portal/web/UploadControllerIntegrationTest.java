@@ -1,6 +1,7 @@
 package ge.magti.portal.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.config.PortalProperties;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
@@ -41,6 +42,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * {@link #cleanupUploadedFiles()}, same pattern as {@link
  * ExportControllerIntegrationTest}'s exports-dir cleanup.
  */
+@RequiresOracle
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional

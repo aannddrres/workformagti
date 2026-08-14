@@ -1,5 +1,6 @@
 package ge.magti.portal.web;
 
+import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
@@ -44,6 +45,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p>{@code @Transactional} rolls back every user/video/tag row this test
  * creates.
  */
+@RequiresOracle
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional

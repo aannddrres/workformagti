@@ -1,5 +1,6 @@
 package ge.magti.portal.web;
 
+import ge.magti.portal.RequiresOracle;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -28,6 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * distinct IPs, the rate-limit test would consume attempts other tests
  * need, and test order would silently start mattering.
  */
+@RequiresOracle
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional

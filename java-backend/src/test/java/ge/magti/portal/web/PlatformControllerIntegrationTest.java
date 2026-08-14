@@ -1,5 +1,6 @@
 package ge.magti.portal.web;
 
+import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.News;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.ReadStatus;
@@ -40,6 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * {@link FavoriteControllerIntegrationTest}. Covers the two endpoints found
  * missing (and undocumented) during the 2026-08-11 PM migration-gap audit.
  */
+@RequiresOracle
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional

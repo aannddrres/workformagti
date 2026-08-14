@@ -1,6 +1,7 @@
 package ge.magti.portal.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.News;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
@@ -43,6 +44,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * regressions for the two confirmed live bugs fixed in this slice (see
  * {@link NewsRequest}'s javadoc).
  */
+@RequiresOracle
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
