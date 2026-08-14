@@ -1,0 +1,119 @@
+<div class="mx-auto w-full max-w-[900px] px-4 pb-8 pt-4 md:px-6 md:pt-6">
+  <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+    <h2 class="text-4xl font-semibold uppercase tracking-wider text-gray-800 dark:text-zinc-100">{{ 'messaging.inbox.heading' | translate }}</h2>
+    <div class="flex items-center gap-2">
+      @if (canCompose()) {
+        <button
+          type="button"
+          (click)="openCompose()"
+          class="rounded-lg bg-[#B91C1C] px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-red-800"
+        >
+          <i class="fa-solid fa-pen mr-1.5" aria-hidden="true"></i>{{ 'messaging.inbox.compose' | translate }}
+        </button>
+      }
+      @if (canBroadcast()) {
+        <button
+          type="button"
+          (click)="openBroadcast()"
+          class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          <i class="fa-solid fa-bullhorn mr-1.5" aria-hidden="true"></i>{{ 'messaging.inbox.broadcast' | translate }}
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (canCompose()) {
+    <div class="mb-6 flex gap-6 border-b border-gray-200 dark:border-zinc-800">
+      <button
+        (click)="setTab('inbox')"
+        class="border-b-2 px-1 pb-3 text-sm font-medium transition-colors"
+        [class]="tab() === 'inbox' ? 'border-[#EE1D23] font-semibold text-[#EE1D23]' : 'border-transparent text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200'"
+      >
+        {{ 'messaging.inbox.tab_inbox' | translate }}
+      </button>
+      <button
+        (click)="setTab('sent')"
+        class="border-b-2 px-1 pb-3 text-sm font-medium transition-colors"
+        [class]="tab() === 'sent' ? 'border-[#EE1D23] font-semibold text-[#EE1D23]' : 'border-transparent text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200'"
+      >
+        {{ 'messaging.inbox.tab_sent' | translate }}
+      </button>
+    </div>
+  }
+
+  @if (composeOpen()) {
+    <app-compose-message-modal (closed)="closeCompose()" (sent)="onMessageSent()" />
+  }
+  @if (broadcastOpen()) {
+    <app-broadcast-modal (closed)="closeBroadcast()" />
+  }
+
+  @if (loading()) {
+    <div class="flex flex-col gap-3">
+      @for (i of [1, 2, 3]; track i) {
+        <div class="h-[76px] animate-pulse rounded-xl border border-gray-100 bg-white dark:border-zinc-800 dark:bg-zinc-900"></div>
+      }
+    </div>
+  } @else if (errorMessage()) {
+    <p class="py-8 text-center text-sm text-red-500">{{ errorMessage() }}</p>
+  } @else if (tab() === 'inbox') {
+    @if (inboxItems().length === 0) {
+      <p class="py-8 text-center text-sm text-gray-500 dark:text-zinc-400">{{ 'messaging.inbox.empty_inbox' | translate }}</p>
+    } @else {
+      <div class="flex flex-col gap-3">
+        @for (item of inboxItems(); track item.id) {
+          <div
+            (click)="openInboxItem(item)"
+            (keydown.enter)="openInboxItem(item)"
+            tabindex="0"
+            role="button"
+            class="flex items-start justify-between gap-4 rounded-xl border p-4 shadow-sm transition-colors"
+            [class]="item.is_read ? 'border-gray-100 bg-white dark:border-zinc-800 dark:bg-zinc-900' : 'border-[#EE1D23]/30 bg-red-50/50 dark:border-red-900/50 dark:bg-red-950/10'"
+          >
+            <div class="min-w-0 flex-1">
+              <div class="mb-1 flex items-center gap-2">
+                <h4 class="font-bold text-gray-800 dark:text-zinc-100">{{ senderLabel(item) }}</h4>
+                @if (!item.is_read) {
+                  <span class="rounded-full bg-[#EE1D23] px-2 py-0.5 text-[10px] font-bold uppercase text-white">{{ 'messaging.inbox.unread_badge' | translate }}</span>
+                }
+              </div>
+              <p class="whitespace-pre-wrap break-words text-sm text-gray-600 dark:text-zinc-300">{{ item.content }}</p>
+              <p class="mt-2 text-xs text-gray-400 dark:text-zinc-500">{{ dateLabel(item) }}</p>
+            </div>
+            <button
+              type="button"
+              (click)="deleteMessage(item, $event)"
+              [disabled]="deletingId() === item.id"
+              [attr.aria-label]="'messaging.inbox.delete' | translate"
+              class="shrink-0 text-gray-300 transition-colors hover:text-[#EE1D23] disabled:opacity-50 dark:text-zinc-600 dark:hover:text-red-400"
+            >
+              <i class="fa-solid fa-trash" aria-hidden="true"></i>
+            </button>
+          </div>
+        }
+      </div>
+    }
+  } @else {
+    @if (sentItems().length === 0) {
+      <p class="py-8 text-center text-sm text-gray-500 dark:text-zinc-400">{{ 'messaging.inbox.empty_sent' | translate }}</p>
+    } @else {
+      <div class="flex flex-col gap-3">
+        @for (item of sentItems(); track item.id) {
+          <div class="rounded-xl border border-gray-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <div class="mb-1 flex items-center justify-between gap-2">
+              <h4 class="font-bold text-gray-800 dark:text-zinc-100">{{ recipientLabel(item) }}</h4>
+              @if (item.is_read) {
+                <span class="rounded-full bg-green-100 px-2.5 py-0.5 text-[10px] font-bold uppercase text-green-700 dark:bg-green-950/40 dark:text-green-400">{{ 'messaging.inbox.read_badge' | translate }}</span>
+              } @else {
+                <span class="rounded-full bg-gray-100 px-2.5 py-0.5 text-[10px] font-bold uppercase text-gray-500 dark:bg-zinc-800 dark:text-zinc-400">{{ 'messaging.inbox.unread_badge' | translate }}</span>
+              }
+            </div>
+            <p class="whitespace-pre-wrap break-words text-sm text-gray-600 dark:text-zinc-300">{{ item.content }}</p>
+            <p class="mt-2 text-xs text-gray-400 dark:text-zinc-500">{{ dateLabel(item) }}</p>
+          </div>
+        }
+      </div>
+    }
+  }
+</div>

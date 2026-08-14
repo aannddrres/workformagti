@@ -1,0 +1,88 @@
+<div class="fixed inset-0 z-[110] flex items-center justify-center p-4">
+  <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" (click)="close()"></div>
+  <div class="relative z-10 flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-zinc-900">
+    <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-zinc-800">
+      <h3 class="text-lg font-bold text-gray-800 dark:text-zinc-100">{{ 'messaging.broadcast.heading' | translate }}</h3>
+      <button
+        type="button"
+        (click)="close()"
+        [attr.aria-label]="'messaging.broadcast.cancel' | translate"
+        class="text-xl text-gray-400 hover:text-gray-700 dark:text-zinc-500 dark:hover:text-zinc-200"
+      >
+        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+      </button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto px-6 py-5">
+      <div class="mb-4 flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+        <i class="fa-solid fa-triangle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+        <span>{{ 'messaging.broadcast.warning' | translate }}</span>
+      </div>
+
+      <div class="mb-4 grid grid-cols-2 gap-3">
+        <div>
+          <label class="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-zinc-300">{{ 'messaging.broadcast.department_label' | translate }}</label>
+          <select
+            [value]="targetDepartment()"
+            (change)="targetDepartment.set($any($event.target).value)"
+            class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+          >
+            @for (d of departments; track d) {
+              <option [value]="d">{{ d === 'All' ? ('messaging.broadcast.all_option' | translate) : d }}</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label class="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-zinc-300">{{ 'messaging.broadcast.role_label' | translate }}</label>
+          <select
+            [value]="targetRole()"
+            (change)="targetRole.set($any($event.target).value)"
+            class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+          >
+            <option value="All">{{ 'messaging.broadcast.all_option' | translate }}</option>
+            @for (r of roles; track r) {
+              <option [value]="r">{{ roleLabelKey(r) | translate }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <label class="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-zinc-300">{{ 'messaging.broadcast.message_label' | translate }}</label>
+      <textarea
+        rows="4"
+        [value]="message()"
+        (input)="message.set($any($event.target).value)"
+        [placeholder]="'messaging.broadcast.message_placeholder' | translate"
+        class="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+      ></textarea>
+
+      @if (sendSuccess()) {
+        <p class="mt-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400">{{ 'messaging.broadcast.success' | translate }}</p>
+      } @else if (sendError()) {
+        <p class="mt-2 text-sm text-red-500">{{ sendError() }}</p>
+      }
+    </div>
+
+    <div class="flex justify-end gap-3 border-t border-gray-100 px-6 py-4 dark:border-zinc-800">
+      <button
+        type="button"
+        (click)="close()"
+        class="rounded-lg px-4 py-2 text-sm font-semibold text-gray-500 hover:bg-gray-50 dark:text-zinc-400 dark:hover:bg-zinc-800"
+      >
+        {{ 'messaging.broadcast.cancel' | translate }}
+      </button>
+      <button
+        type="button"
+        (click)="submit()"
+        [disabled]="sending() || !message().trim()"
+        class="rounded-lg bg-[#B91C1C] px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        @if (sending()) {
+          <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+        } @else {
+          {{ 'messaging.broadcast.send' | translate }}
+        }
+      </button>
+    </div>
+  </div>
+</div>

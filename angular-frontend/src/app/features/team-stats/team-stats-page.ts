@@ -1,10 +1,15 @@
 import { Component, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { Observable } from 'rxjs';
 import { StatsService } from '../../core/services/stats.service';
+import { ExportService } from '../../core/services/export.service';
 import { CriticalOperator, DepartmentDashboard, DepartmentGroupStats, DepartmentStats, GroupMemberCompletion } from '../../core/models/stats';
+import { ExportJobResponse } from '../../core/models/export';
 
 type SortMode = 'name' | 'compliance';
 type Tier = { bar: string; text: string };
+type ExportKind = 'xlsx' | 'pdf' | 'team_stats_pdf';
 
 /**
  * Port of page-manager + dept-dashboard.js (479 lines) -- the Executive
@@ -41,6 +46,7 @@ type Tier = { bar: string; text: string };
 })
 export class TeamStatsPage {
   private readonly statsService = inject(StatsService);
+  private readonly exportService = inject(ExportService);
   private readonly translate = inject(TranslateService);
 
   protected readonly dashboard = signal<DepartmentDashboard | null>(null);
@@ -59,6 +65,11 @@ export class TeamStatsPage {
   protected readonly groupLoading = signal(false);
   protected readonly groupError = signal(false);
   protected readonly groupUsers = signal<GroupMemberCompletion[]>([]);
+
+  protected readonly exportingCsv = signal(false);
+  protected readonly csvError = signal<string | null>(null);
+  protected readonly asyncExport = signal<{ kind: ExportKind; status: 'processing' | 'completed' } | null>(null);
+  protected readonly asyncExportError = signal<string | null>(null);
 
   constructor() {
     this.load();
@@ -167,5 +178,98 @@ export class TeamStatsPage {
 
   closeGroupModal(): void {
     this.groupModalOpen.set(false);
+  }
+
+  exportCsv(): void {
+    this.exportingCsv.set(true);
+    this.csvError.set(null);
+    this.exportService.exportReadingsCsv().subscribe({
+      next: (blob) => {
+        this.exportingCsv.set(false);
+        this.downloadBlob(blob, 'readings_export.csv');
+      },
+      error: (err: HttpErrorResponse) => {
+        this.exportingCsv.set(false);
+        this.handleCsvError(err);
+      }
+    });
+  }
+
+  exportXlsx(): void {
+    this.runAsyncExport('xlsx', () => this.exportService.submitReadingsXlsx(), 'readings_export.xlsx');
+  }
+
+  exportPdf(): void {
+    this.runAsyncExport('pdf', () => this.exportService.submitReadingsPdf(), 'readings_export.pdf');
+  }
+
+  exportTeamStatsPdf(): void {
+    this.runAsyncExport('team_stats_pdf', () => this.exportService.submitTeamStatsPdf(), 'team_stats.pdf');
+  }
+
+  private runAsyncExport(kind: ExportKind, submit: () => Observable<ExportJobResponse>, filename: string): void {
+    this.asyncExportError.set(null);
+    this.asyncExport.set({ kind, status: 'processing' });
+    submit().subscribe({
+      next: (job) => {
+        this.exportService.pollUntilDone(job.job_id).subscribe({
+          next: (status) => {
+            if (status.status === 'failed') {
+              this.asyncExport.set(null);
+              this.asyncExportError.set(this.translate.instant('manager.page.export_failed'));
+              return;
+            }
+            this.asyncExport.set({ kind, status: status.status === 'completed' ? 'completed' : 'processing' });
+            if (status.status === 'completed') {
+              this.exportService.download(job.job_id).subscribe({
+                next: (blob) => {
+                  this.downloadBlob(blob, filename);
+                  this.asyncExport.set(null);
+                },
+                error: () => {
+                  this.asyncExport.set(null);
+                  this.asyncExportError.set(this.translate.instant('manager.page.export_error'));
+                }
+              });
+            }
+          },
+          error: () => {
+            this.asyncExport.set(null);
+            this.asyncExportError.set(this.translate.instant('manager.page.export_error'));
+          }
+        });
+      },
+      error: (err: HttpErrorResponse) => {
+        this.asyncExport.set(null);
+        this.asyncExportError.set(
+          err.status === 413 ? (err.error?.detail ?? this.translate.instant('manager.page.export_error')) : this.translate.instant('manager.page.export_error')
+        );
+      }
+    });
+  }
+
+  /** CSV uses responseType:'blob', so 413 error bodies also arrive as a Blob, not parsed JSON -- the JSON-endpoint 413 path above doesn't apply here. */
+  private handleCsvError(err: HttpErrorResponse): void {
+    if (err.status === 413 && err.error instanceof Blob) {
+      err.error.text().then((text) => {
+        try {
+          const parsed = JSON.parse(text);
+          this.csvError.set(parsed.detail ?? this.translate.instant('manager.page.export_error'));
+        } catch {
+          this.csvError.set(this.translate.instant('manager.page.export_error'));
+        }
+      });
+      return;
+    }
+    this.csvError.set(this.translate.instant('manager.page.export_error'));
+  }
+
+  private downloadBlob(blob: Blob, filename: string): void {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 }

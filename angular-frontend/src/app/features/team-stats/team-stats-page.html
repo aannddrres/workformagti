@@ -123,6 +123,81 @@
     </div>
   }
 
+  <div class="mt-8 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60">
+    <h3 class="mb-1 text-lg font-semibold text-gray-800 dark:text-zinc-100">{{ 'manager.page.export_heading' | translate }}</h3>
+    <p class="mb-4 text-xs text-gray-400 dark:text-zinc-500">{{ 'manager.page.export_subtitle' | translate }}</p>
+
+    <div class="flex flex-wrap gap-3">
+      <button
+        type="button"
+        (click)="exportCsv()"
+        [disabled]="exportingCsv() || asyncExport() !== null"
+        class="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+      >
+        @if (exportingCsv()) {
+          <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+        } @else {
+          <i class="fa-solid fa-file-csv" aria-hidden="true"></i>
+        }
+        {{ 'manager.page.export_csv' | translate }}
+      </button>
+
+      <button
+        type="button"
+        (click)="exportXlsx()"
+        [disabled]="exportingCsv() || asyncExport() !== null"
+        class="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+      >
+        @if (asyncExport()?.kind === 'xlsx') {
+          <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+        } @else {
+          <i class="fa-solid fa-file-excel" aria-hidden="true"></i>
+        }
+        {{ 'manager.page.export_xlsx' | translate }}
+      </button>
+
+      <button
+        type="button"
+        (click)="exportPdf()"
+        [disabled]="exportingCsv() || asyncExport() !== null"
+        class="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+      >
+        @if (asyncExport()?.kind === 'pdf') {
+          <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+        } @else {
+          <i class="fa-solid fa-file-pdf" aria-hidden="true"></i>
+        }
+        {{ 'manager.page.export_pdf' | translate }}
+      </button>
+
+      <button
+        type="button"
+        (click)="exportTeamStatsPdf()"
+        [disabled]="exportingCsv() || asyncExport() !== null"
+        class="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+      >
+        @if (asyncExport()?.kind === 'team_stats_pdf') {
+          <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+        } @else {
+          <i class="fa-solid fa-chart-pie" aria-hidden="true"></i>
+        }
+        {{ 'manager.page.export_team_stats_pdf' | translate }}
+      </button>
+    </div>
+
+    @if (asyncExport()) {
+      <p class="mt-3 text-xs text-gray-400 dark:text-zinc-500">
+        <i class="fa-solid fa-circle-notch fa-spin mr-1" aria-hidden="true"></i>{{ 'manager.page.export_processing' | translate }}
+      </p>
+    }
+    @if (csvError()) {
+      <p class="mt-3 text-sm text-red-500">{{ csvError() }}</p>
+    }
+    @if (asyncExportError()) {
+      <p class="mt-3 text-sm text-red-500">{{ asyncExportError() }}</p>
+    }
+  </div>
+
   @if (criticalModalOpen()) {
     <div
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"

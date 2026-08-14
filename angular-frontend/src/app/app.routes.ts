@@ -19,6 +19,7 @@ import { AdminUsersPage } from './features/admin-users/admin-users-page';
 import { AdminRolesPage } from './features/admin-roles/admin-roles-page';
 import { AdminContentPage } from './features/admin-content/admin-content-page';
 import { AdminCategoriesPage } from './features/admin-categories/admin-categories-page';
+import { MessagingPage } from './features/messaging/messaging-page';
 import { authGuard } from './core/auth/auth.guard';
 import { roleGuard } from './core/auth/role.guard';
 
@@ -66,7 +67,7 @@ export const routes: Routes = [
         children: [
           { path: '', component: PlaceholderPage, data: { title: 'users.profile.tab_profile' } },
           { path: 'favorites', component: FavoritesPage, data: { title: 'users.profile.tab_favorites' } },
-          { path: 'messages', component: PlaceholderPage, data: { title: 'users.profile.tab_messages' } },
+          { path: 'messages', component: MessagingPage, data: { title: 'users.profile.tab_messages' } },
           { path: 'settings', component: PlaceholderPage, data: { title: 'users.profile.tab_settings' } },
           { path: 'search-history', component: PlaceholderPage, data: { title: 'search.history_tab.heading' } }
         ]

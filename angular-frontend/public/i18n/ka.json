@@ -27,7 +27,8 @@
       "user_menu_label": "მომხმარებლის მენიუ",
       "logout": "სისტემიდან გასვლა",
       "logout_confirm_message": "ნამდვილად გსურთ სისტემიდან გასვლა?",
-      "theme_toggle": "თემის გადართვა"
+      "theme_toggle": "თემის გადართვა",
+      "menu_toggle": "მენიუს გახსნა/დახურვა"
     }
   },
   "auth": {
@@ -251,7 +252,16 @@
       "col_overdue": "გამოტოვ.",
       "col_completion": "შესრულება",
       "total_label": "სულ: {{count}}",
-      "group_empty": "თანამშრომლები არ მოიძებნა."
+      "group_empty": "თანამშრომლები არ მოიძებნა.",
+      "export_heading": "რეპორტები",
+      "export_subtitle": "წაკითხვების სტატუსისა და გუნდის სტატისტიკის გატანა ფაილად.",
+      "export_csv": "CSV",
+      "export_xlsx": "Excel (XLSX)",
+      "export_pdf": "PDF (წაკითხვები)",
+      "export_team_stats_pdf": "PDF (გუნდის სტატისტიკა)",
+      "export_processing": "მუშავდება…",
+      "export_failed": "ექსპორტის მომზადება ვერ მოხერხდა.",
+      "export_error": "ექსპორტი ვერ მოხერხდა."
     }
   },
   "stats": {
@@ -573,5 +583,47 @@
     "color_service": "ზურმუხტისფერი (Service/Emerald)",
     "color_loyalty": "ვარდისფერი (Loyalty/Pink)",
     "color_technical": "ნარინჯისფერი (Tech/Orange)"
+  },
+  "messaging": {
+    "inbox": {
+      "heading": "შეტყობინებები",
+      "tab_inbox": "შემოსული",
+      "tab_sent": "გაგზავნილი",
+      "compose": "ახალი შეტყობინება",
+      "broadcast": "მასობრივი შეტყობინება",
+      "empty_inbox": "შეტყობინებები არ არის.",
+      "empty_sent": "გაგზავნილი შეტყობინებები არ არის.",
+      "load_error": "შეტყობინებების ჩატვირთვა ვერ მოხერხდა.",
+      "unread_badge": "წაუკითხავი",
+      "read_badge": "წაკითხულია",
+      "delete": "წაშლა",
+      "unknown_user": "წაშლილი მომხმარებელი"
+    },
+    "compose": {
+      "heading": "ახალი შეტყობინება",
+      "recipient_label": "მიმღები",
+      "recipient_search_placeholder": "ძიება სახელით ან დეპარტამენტით...",
+      "change": "შეცვლა",
+      "content_label": "ტექსტი",
+      "content_placeholder": "დაწერეთ შეტყობინება...",
+      "send": "გაგზავნა",
+      "cancel": "გაუქმება",
+      "load_error": "მიმღებების სიის ჩატვირთვა ვერ მოხერხდა.",
+      "send_error": "შეტყობინების გაგზავნა ვერ მოხერხდა.",
+      "no_recipients": "მიმღები ვერ მოიძებნა."
+    },
+    "broadcast": {
+      "heading": "მასობრივი შეტყობინება",
+      "warning": "ეს ფუნქცია ჯერჯერობით მხოლოდ აუდიტის ჟურნალშია ფიქსირდება — მიმღებები მას საკუთარ ინბოქსში ამ ეტაპზე ვერ ნახავენ, რადგან რეალურ დროში მიწოდება ჯერ არ არის დანერგილი.",
+      "department_label": "დეპარტამენტი",
+      "role_label": "როლი",
+      "all_option": "ყველა",
+      "message_label": "ტექსტი",
+      "message_placeholder": "დაწერეთ განცხადება...",
+      "send": "გაგზავნა",
+      "cancel": "გაუქმება",
+      "success": "აუდიტის ჟურნალში ჩაიწერა.",
+      "send_error": "გაგზავნა ვერ მოხერხდა."
+    }
   }
 }

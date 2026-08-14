@@ -27,7 +27,8 @@
       "user_menu_label": "User menu",
       "logout": "Log out",
       "logout_confirm_message": "Are you sure you want to log out?",
-      "theme_toggle": "Toggle theme"
+      "theme_toggle": "Toggle theme",
+      "menu_toggle": "Toggle menu"
     }
   },
   "auth": {
@@ -251,7 +252,16 @@
       "col_overdue": "Overdue",
       "col_completion": "Completion",
       "total_label": "Total: {{count}}",
-      "group_empty": "No employees found."
+      "group_empty": "No employees found.",
+      "export_heading": "Reports",
+      "export_subtitle": "Export reading compliance and team statistics as a file.",
+      "export_csv": "CSV",
+      "export_xlsx": "Excel (XLSX)",
+      "export_pdf": "PDF (readings)",
+      "export_team_stats_pdf": "PDF (team stats)",
+      "export_processing": "Processing…",
+      "export_failed": "Could not prepare the export.",
+      "export_error": "Export failed."
     }
   },
   "stats": {
@@ -573,5 +583,47 @@
     "color_service": "Emerald (Service)",
     "color_loyalty": "Pink (Loyalty)",
     "color_technical": "Orange (Technical)"
+  },
+  "messaging": {
+    "inbox": {
+      "heading": "Messages",
+      "tab_inbox": "Inbox",
+      "tab_sent": "Sent",
+      "compose": "New message",
+      "broadcast": "Broadcast",
+      "empty_inbox": "No messages.",
+      "empty_sent": "No sent messages.",
+      "load_error": "Could not load messages.",
+      "unread_badge": "Unread",
+      "read_badge": "Read",
+      "delete": "Delete",
+      "unknown_user": "Deleted user"
+    },
+    "compose": {
+      "heading": "New message",
+      "recipient_label": "Recipient",
+      "recipient_search_placeholder": "Search by name or department...",
+      "change": "Change",
+      "content_label": "Message",
+      "content_placeholder": "Write a message...",
+      "send": "Send",
+      "cancel": "Cancel",
+      "load_error": "Could not load the recipient list.",
+      "send_error": "Could not send the message.",
+      "no_recipients": "No recipients found."
+    },
+    "broadcast": {
+      "heading": "Broadcast message",
+      "warning": "This currently only records an audit-log entry -- recipients cannot see it in their inbox yet, since real-time delivery isn't implemented.",
+      "department_label": "Department",
+      "role_label": "Role",
+      "all_option": "All",
+      "message_label": "Message",
+      "message_placeholder": "Write an announcement...",
+      "send": "Send",
+      "cancel": "Cancel",
+      "success": "Recorded in the audit log.",
+      "send_error": "Could not send."
+    }
   }
 }
