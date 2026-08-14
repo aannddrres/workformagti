@@ -106,6 +106,7 @@ export class AdminContentPage {
   protected readonly editingArticle = signal<ArticleSummary | { id: null } | null>(null);
   protected readonly openMenuFor = signal<number | null>(null);
   protected readonly historyForArticleId = signal<number | null>(null);
+  protected readonly actionError = signal<string | null>(null);
 
   constructor() {
     this.loadArticles();
@@ -205,8 +206,12 @@ export class AdminContentPage {
       ? this.translate.instant('content.articles.confirm_archive_one')
       : this.translate.instant('content.articles.confirm_unarchive_one');
     if (!window.confirm(message)) return;
+    this.actionError.set(null);
     const request = shouldArchive ? this.articlesService.archive(article.id) : this.articlesService.unarchive(article.id);
-    request.subscribe({ next: () => this.loadArticles(), error: () => {} });
+    request.subscribe({
+      next: () => this.loadArticles(),
+      error: (err) => this.actionError.set(err?.error?.detail ?? this.translate.instant('content.articles.archive_failed'))
+    });
   }
 
   protected openHistory(article: ArticleSummary): void {
@@ -226,7 +231,11 @@ export class AdminContentPage {
   protected deleteArticle(article: ArticleSummary): void {
     this.openMenuFor.set(null);
     if (!window.confirm(this.translate.instant('content.articles.confirm_delete'))) return;
-    this.articlesService.remove(article.id).subscribe({ next: () => this.loadArticles(), error: () => {} });
+    this.actionError.set(null);
+    this.articlesService.remove(article.id).subscribe({
+      next: () => this.loadArticles(),
+      error: (err) => this.actionError.set(err?.error?.detail ?? this.translate.instant('content.articles.delete_failed'))
+    });
   }
 
   protected bulkArchive(archive: boolean): void {
@@ -237,6 +246,14 @@ export class AdminContentPage {
       { count: ids.length }
     );
     if (!window.confirm(message)) return;
-    this.articlesService.bulkArchive(ids, archive).subscribe({ next: () => this.loadArticles(), error: () => {} });
+    this.actionError.set(null);
+    this.articlesService.bulkArchive(ids, archive).subscribe({
+      next: () => this.loadArticles(),
+      error: (err) => this.actionError.set(err?.error?.detail ?? this.translate.instant('content.articles.bulk_archive_failed'))
+    });
+  }
+
+  protected dismissActionError(): void {
+    this.actionError.set(null);
   }
 }

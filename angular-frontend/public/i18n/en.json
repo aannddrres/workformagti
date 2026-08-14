@@ -478,7 +478,10 @@
       "confirm_bulk_unarchive": "Unarchive {{count}} article(s)?",
       "load_failed": "Could not load the article.",
       "save_failed": "Could not save the article.",
-      "upload_failed": "Could not upload the file."
+      "upload_failed": "Could not upload the file.",
+      "delete_failed": "Could not delete the article.",
+      "archive_failed": "Could not complete the action.",
+      "bulk_archive_failed": "Could not complete the bulk action."
     },
     "quiz": {
       "add_question": "Add question",
@@ -537,7 +540,8 @@
       "removed": "removed",
       "diff_failed": "Could not load the comparison.",
       "no_diff": "No changes found."
-    }
+    },
+    "dismiss": "Dismiss"
   },
   "categories": {
     "heading": "Category Management",
