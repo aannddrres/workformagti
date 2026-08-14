@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ge.magti.portal.config.PortalProperties;
 import ge.magti.portal.domain.Article;
+import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.ExportJob;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.ReadStatus;
@@ -18,6 +19,8 @@ import ge.magti.portal.repository.RequiredReadingRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.JwtService;
 import ge.magti.portal.util.TbilisiTime;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
@@ -43,7 +46,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
@@ -90,6 +95,8 @@ class ExportControllerIntegrationTest {
     private PasswordEncoder passwordEncoder;
     @Autowired
     private PortalProperties portalProperties;
+    @PersistenceContext
+    private EntityManager entityManager;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -240,8 +247,9 @@ class ExportControllerIntegrationTest {
         try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(xlsxBytes))) {
             var sheet = wb.getSheetAt(0);
             assertEquals("თანამშრომელი", sheet.getRow(0).getCell(0).getStringCellValue());
-            // eligibleReadingRows() is system-wide, not scoped to this test's
-            // reading -- the shared dev Oracle instance has real accumulated
+            // eligibleReadingRows(admin) is system-wide for an unscoped role
+            // (SEC-02 pins only MANAGER), so it is not scoped to this test's
+            // reading either -- the shared dev Oracle instance has real accumulated
             // usage data, so this test's row can land anywhere, not just row
             // 1. Search for it instead of assuming position (same
             // cross-test-leakage class already fixed in Category/Audit).
@@ -294,11 +302,88 @@ class ExportControllerIntegrationTest {
 
     @Test
     void teamStatsPdfAggregatesByDepartmentAndIsDownloadable() throws Exception {
-        User manager = createUser("exp-mgr3@magti.ge", Role.MANAGER, "All");
+        // SEC-02: the caller here used to be a MANAGER whose own department was
+        // "All", which only aggregated across departments because the query was
+        // org-wide for everyone. Now that a manager is pinned to their own
+        // department, cross-department aggregation is by definition the
+        // unscoped roles' view -- so this asserts it as system_admin, which is
+        // also the "admin behaviour unchanged" half of the SEC-02 acceptance.
+        User admin = createUser("exp-admin4@magti.ge", Role.SYSTEM_ADMIN, "All");
         User operator = createUser("exp-op5@magti.ge", Role.OPERATOR, "სტატისტიკის განყოფილება " + System.nanoTime());
         Article article = createArticle("სტატისტიკის სტატია " + System.nanoTime());
         RequiredReading reading = createReading(article.getId(), operator.getDepartment());
         markRead(operator, reading);
+
+        String body = mockMvc.perform(authed(get("/api/export/team-stats.pdf"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String jobId = objectMapper.readTree(body).get("job_id").asText();
+
+        byte[] pdfBytes = mockMvc.perform(authed(get("/api/export/download/" + jobId), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsByteArray();
+        try (PDDocument document = Loader.loadPDF(pdfBytes)) {
+            String text = new PDFTextStripper().getText(document);
+            assertTrue(text.contains("გუნდის სტატისტიკა"));
+            assertTrue(text.contains(operator.getDepartment()));
+        }
+    }
+
+    /**
+     * SEC-02 regression guard. Before the fix,
+     * {@code ExportQueryService.eligibleReadingRows()} took no caller at all
+     * and every export was org-wide, so this assertion on {@code otherDept}'s
+     * operator failed for the manager (their row was present) while passing
+     * for the admin.
+     */
+    @Test
+    void managerReadingsExportIsPinnedToTheirOwnDepartment() throws Exception {
+        String ownDept = "ექსპორტის განყოფილება " + System.nanoTime();
+        String otherDept = "სხვისი განყოფილება " + System.nanoTime();
+
+        User manager = createUser("exp-scope-mgr@magti.ge", Role.MANAGER, ownDept);
+        User ownOperator = createUser("exp-scope-own@magti.ge", Role.OPERATOR, ownDept);
+        User otherOperator = createUser("exp-scope-other@magti.ge", Role.OPERATOR, otherDept);
+        User admin = createUser("exp-scope-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
+
+        Article article = createArticle("სკოუპის სტატია " + System.nanoTime());
+        markRead(ownOperator, createReading(article.getId(), ownDept));
+        markRead(otherOperator, createReading(article.getId(), otherDept));
+
+        Set<String> managerIds = csvUserIds(mockMvc.perform(authed(get("/api/export/readings"), tokenFor(manager)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString());
+        assertTrue(managerIds.contains(String.valueOf(ownOperator.getId())),
+                "manager must still see their own department's operator");
+        assertFalse(managerIds.contains(String.valueOf(otherOperator.getId())),
+                "SEC-02: manager's export must not carry another department's operator");
+
+        // content_admin/system_admin behaviour is unchanged: still org-wide.
+        Set<String> adminIds = csvUserIds(mockMvc.perform(authed(get("/api/export/readings"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString());
+        assertTrue(adminIds.contains(String.valueOf(ownOperator.getId())));
+        assertTrue(adminIds.contains(String.valueOf(otherOperator.getId())),
+                "system_admin must keep the unscoped org-wide export");
+    }
+
+    /**
+     * SEC-02, second query method: {@code departmentComplianceTotals()} was
+     * org-wide too, so a manager's team-stats PDF was a company-wide league
+     * table of every department's compliance percentage.
+     */
+    @Test
+    void managerTeamStatsPdfCoversOnlyTheirOwnDepartment() throws Exception {
+        String ownDept = "სტატის განყოფილება " + System.nanoTime();
+        String otherDept = "უცხო განყოფილება " + System.nanoTime();
+
+        User manager = createUser("exp-scope-mgr2@magti.ge", Role.MANAGER, ownDept);
+        User ownOperator = createUser("exp-scope-own2@magti.ge", Role.OPERATOR, ownDept);
+        User otherOperator = createUser("exp-scope-other2@magti.ge", Role.OPERATOR, otherDept);
+
+        Article article = createArticle("სტატის სტატია " + System.nanoTime());
+        markRead(ownOperator, createReading(article.getId(), ownDept));
+        markRead(otherOperator, createReading(article.getId(), otherDept));
 
         String body = mockMvc.perform(authed(get("/api/export/team-stats.pdf"), tokenFor(manager)))
                 .andExpect(status().isOk())
@@ -310,9 +395,55 @@ class ExportControllerIntegrationTest {
                 .andReturn().getResponse().getContentAsByteArray();
         try (PDDocument document = Loader.loadPDF(pdfBytes)) {
             String text = new PDFTextStripper().getText(document);
-            assertTrue(text.contains("გუნდის სტატისტიკა"));
-            assertTrue(text.contains(operator.getDepartment()));
+            assertTrue(text.contains(ownDept), "manager's own department row must still be present");
+            assertFalse(text.contains(otherDept),
+                    "SEC-02: manager's team-stats PDF must not carry another department's totals");
         }
+    }
+
+    /**
+     * SEC-02: the export audit row records the effective scope, so the trail
+     * can distinguish a team-scoped download from an org-wide one. Same
+     * {@code scope_department} key AuditLogController.writeMetaAudit uses.
+     */
+    @Test
+    void exportAuditRowRecordsTheEffectiveScope() throws Exception {
+        String ownDept = "აუდიტის განყოფილება " + System.nanoTime();
+        User manager = createUser("exp-scope-mgr3@magti.ge", Role.MANAGER, ownDept);
+        User admin = createUser("exp-scope-admin2@magti.ge", Role.SYSTEM_ADMIN, "All");
+
+        mockMvc.perform(authed(get("/api/export/readings"), tokenFor(manager))).andExpect(status().isOk());
+        mockMvc.perform(authed(get("/api/export/readings"), tokenFor(admin))).andExpect(status().isOk());
+
+        assertEquals(ownDept, latestExportScope(manager.getId()),
+                "a manager's export must be audited as scoped to their department");
+        assertEquals(ExportController.SCOPE_ALL, latestExportScope(admin.getId()),
+                "an unscoped role's export must be audited as org-wide");
+    }
+
+    /** First CSV field of every data row = User ID (see the exportReadingsCsv header). */
+    private static Set<String> csvUserIds(String csv) {
+        Set<String> ids = new LinkedHashSet<>();
+        String[] lines = csv.split("\r\n");
+        for (int i = 1; i < lines.length; i++) {
+            if (lines[i].isBlank()) {
+                continue;
+            }
+            ids.add(lines[i].split(",")[0].replace("\"", "").strip());
+        }
+        return ids;
+    }
+
+    private String latestExportScope(Long adminId) throws Exception {
+        List<AuditLog> rows = entityManager.createQuery(
+                        "select a from AuditLog a where a.adminId = :adminId and a.action = 'EXPORT' "
+                                + "order by a.id desc", AuditLog.class)
+                .setParameter("adminId", adminId)
+                .setMaxResults(1)
+                .getResultList();
+        assertFalse(rows.isEmpty(), "the export must have written an audit row");
+        JsonNode details = objectMapper.readTree(rows.get(0).getDetails());
+        return details.path("scope_department").asText(null);
     }
 
     @Test
