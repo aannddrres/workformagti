@@ -52,19 +52,16 @@ jobs:
       - name: Run DB-free tests
         run: mvn -B test -DexcludedGroups=oracle
 
-  # ADVISORY, NOT GATING, until it has gone green at least once. Flip
-  # continue-on-error off once a run completes green; if it cannot be made to
-  # work, delete this job rather than leave a permanently red check, which is
-  # how teams learn to ignore CI. timeout-minutes is a backstop so a container
-  # that never reports healthy fails instead of holding a runner to the
-  # 6-hour job limit -- not something that has actually happened: the two runs
-  # so far took 3m18s and 2m17s end to end, and the container reached
-  # "DATABASE IS READY TO USE!" both times.
+  # Gating. Proven green on commit 905e8db: 221 tests, 0 failures, 0 errors,
+  # in a 2m52s job (Flyway applies all 30 migrations into a fresh XE 21c, so
+  # this also exercises the migrations themselves on every push). Was
+  # advisory only until a run had actually passed; it has, so the training
+  # wheels are off. timeout-minutes stays as a backstop against a container
+  # that never reports healthy holding a runner to the 6-hour job limit.
   java-integration:
-    name: Java integration tests (Oracle, advisory)
+    name: Java integration tests (Oracle)
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    continue-on-error: true
     defaults:
       run:
         working-directory: java-backend
