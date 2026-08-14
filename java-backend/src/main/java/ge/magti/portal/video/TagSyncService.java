@@ -34,6 +34,11 @@ public class TagSyncService {
     @Transactional
     public void sync(String itemType, Long itemId, String tagsCsv) {
         tagMappingRepository.deleteByItemTypeAndItemId(itemType, itemId);
+        // Hibernate's default flush ordering runs INSERTs before DELETEs
+        // regardless of call order, so without this flush, re-adding a tag
+        // this item already had violates uq_tag_mapping_item -- the old row
+        // hasn't hit the DB yet when the new one's INSERT runs.
+        tagMappingRepository.flush();
 
         if (tagsCsv == null || tagsCsv.isBlank()) {
             return;

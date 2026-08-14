@@ -187,6 +187,38 @@ class VideoControllerIntegrationTest {
     }
 
     @Test
+    void updatingAVideoAndKeepingOneOfItsExistingTagsDoesNotViolateTheUniqueTagMappingConstraint() throws Exception {
+        // Regression test for a real 500: TagSyncService.sync() deletes the
+        // item's existing tag_mappings then re-inserts the current tag set in
+        // the same transaction. Hibernate's default flush ordering runs
+        // INSERTs before DELETEs, so re-adding a tag the item already had
+        // (very common on an edit that only tweaks the tag list) used to hit
+        // uq_tag_mapping_item's UNIQUE(tag_id, item_type, item_id) constraint
+        // before the fix flushed the delete first.
+        User admin = createUser("va8@magti.ge", Role.CONTENT_ADMIN, "Content Creation");
+
+        String createBody = mockMvc.perform(authed(post("/api/videos"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"ვიდეო\",\"video_url\":\"https://youtu.be/dQw4w9WgXcQ\","
+                                + "\"tags\":\"ინტერნეტი, პაროლი\"}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        long id = new com.fasterxml.jackson.databind.ObjectMapper().readTree(createBody).get("id").asLong();
+
+        mockMvc.perform(authed(put("/api/videos/" + id), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"ვიდეო\",\"video_url\":\"https://youtu.be/dQw4w9WgXcQ\","
+                                + "\"tags\":\"ინტერნეტი, ვიდეო\"}"))
+                .andExpect(status().isOk());
+
+        List<String> remainingTagItemTypes = tagMappingRepository.findAll().stream()
+                .filter(m -> "video".equals(m.getItemType()) && m.getItemId().equals(id))
+                .map(m -> m.getItemType())
+                .toList();
+        assertEquals(2, remainingTagItemTypes.size());
+    }
+
+    @Test
     void contentAdminUpdatesAVideo() throws Exception {
         User admin = createUser("va7@magti.ge", Role.CONTENT_ADMIN, "Content Creation");
         VideoInstruction video = createVideo("ძველი სათაური", "All", false);
