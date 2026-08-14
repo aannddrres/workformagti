@@ -14,6 +14,17 @@ spring:
     # real deployment.
     password: ${ORACLE_DB_PASSWORD:MagtiAppDev2026Pw}
     driver-class-name: oracle.jdbc.OracleDriver
+    # Spring Boot's default (10) queued up requests for a free connection
+    # under concurrent load -- a k6 run at 600 concurrent users (2026-08-14,
+    # see docs/JAVA_ORACLE_ANGULAR_MIGRATION.md "Test 4") showed 0% request
+    # failures but p95/p99 latency in the seconds. Oracle's own processes
+    # limit (640 on the dev instance; check `v$parameter` before raising
+    # further on a shared/production instance) is nowhere near the
+    # constraint here, so this trades a little more DB-side connection
+    # overhead for much shorter queueing under the ~600-user target load.
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:30}
+      minimum-idle: ${DB_POOL_MIN_IDLE:10}
   jpa:
     # Schema shape is owned by Flyway (db/migration/*.sql), not Hibernate --
     # validate only checks the entities match what Flyway already created,
