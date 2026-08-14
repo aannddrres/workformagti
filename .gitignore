@@ -25,3 +25,7 @@ static/css/_tw_scratch.css
 # One-time raw scrape used for the initial news-content seed (182MB) — the
 # actual data lives in the DB now, not read from this file at runtime.
 src/data/news/news_data.json
+
+# Real JWTs from fetch_tokens.sh -- never commit live tokens even for a
+# dev-only test instance.
+scripts/load/tokens.json
