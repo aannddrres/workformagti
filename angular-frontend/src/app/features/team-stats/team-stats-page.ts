@@ -121,7 +121,7 @@ export class TeamStatsPage {
       return { bar: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400' };
     }
     if (pct < 30) {
-      return { bar: 'bg-[#EE1D23]', text: 'text-[#EE1D23] dark:text-red-400' };
+      return { bar: 'bg-brand', text: 'text-brand dark:text-red-400' };
     }
     return { bar: 'bg-amber-400', text: 'text-amber-600 dark:text-amber-400' };
   }
@@ -135,7 +135,7 @@ export class TeamStatsPage {
   memberBarClass(pct: number): string {
     if (pct >= 100) return 'bg-emerald-500';
     if (pct > 50) return 'bg-amber-400';
-    return 'bg-[#EE1D23]';
+    return 'bg-brand';
   }
 
   openCriticalModal(): void {

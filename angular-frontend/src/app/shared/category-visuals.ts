@@ -48,7 +48,7 @@ export function getCategoryCardStyles(categoryName: string | null | undefined): 
   if (name.includes('ბილინგ') || name.includes('გადახდ')) return { borderHover: 'hover:border-teal-200', borderAccent: 'border-l-4 border-l-teal-500', iconBg: 'bg-teal-50 text-teal-600', textAccent: 'group-hover:text-teal-700' };
   if (name.includes('ლოიალობ') || name.includes('ქულებ')) return { borderHover: 'hover:border-pink-200', borderAccent: 'border-l-4 border-l-pink-500', iconBg: 'bg-pink-50 text-pink-600', textAccent: 'group-hover:text-pink-700' };
   if (name.includes('მობილურ') || name.includes('სიმ')) return { borderHover: 'hover:border-cyan-200', borderAccent: 'border-l-4 border-l-cyan-500', iconBg: 'bg-cyan-50 text-cyan-600', textAccent: 'group-hover:text-cyan-700' };
-  return { borderHover: 'hover:border-[#E30613]/40', borderAccent: '', iconBg: 'bg-gray-50 text-gray-500', textAccent: 'group-hover:text-black' };
+  return { borderHover: 'hover:border-brand/40', borderAccent: '', iconBg: 'bg-gray-50 text-gray-500', textAccent: 'group-hover:text-black' };
 }
 
 /** Standardized "new" badge window -- the original app used two different

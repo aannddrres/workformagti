@@ -11,7 +11,7 @@
   <h2 class="text-3xl font-semibold uppercase tracking-wider text-gray-800 dark:text-zinc-100">{{ 'content.heading' | translate }}</h2>
   <div class="flex items-start gap-3">
     @if (activeTab() === 'articles') {
-      <button (click)="openCreateArticle()" class="rounded-xl bg-[#B91C1C] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700">
+      <button (click)="openCreateArticle()" class="rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700">
         + {{ 'content.articles.new' | translate }}
       </button>
       <button (click)="bulkArchive(true)" class="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200">
@@ -44,13 +44,13 @@
         [value]="searchQuery()"
         (input)="searchQuery.set($any($event.target).value); onFilterChange()"
         [placeholder]="'content.articles.search_placeholder' | translate"
-        class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+        class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
       />
     </div>
     <div class="w-48">
       <select
         (change)="categoryFilter.set($any($event.target).value ? +$any($event.target).value : null); onFilterChange()"
-        class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+        class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
       >
         <option value="">{{ 'content.articles.all_categories' | translate }}</option>
         @for (c of categories(); track c.id) {
@@ -61,7 +61,7 @@
     <div class="w-48">
       <select
         (change)="statusFilter.set($any($event.target).value); onFilterChange()"
-        class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+        class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
       >
         <option value="" [attr.selected]="statusFilter() === '' ? '' : null">{{ 'content.articles.all_statuses' | translate }}</option>
         <option value="published" [attr.selected]="statusFilter() === 'published' ? '' : null">{{ 'content.status.published' | translate }}</option>
@@ -85,7 +85,7 @@
                 type="checkbox"
                 [checked]="allOnPageSelected()"
                 (change)="toggleSelectAllOnPage($any($event.target).checked)"
-                class="h-4 w-4 accent-[#E30613] align-middle"
+                class="h-4 w-4 accent-brand align-middle"
               />
               <span>{{ 'content.articles.col_action' | translate }}</span>
             </span>
@@ -119,7 +119,7 @@
                     type="checkbox"
                     [checked]="selection().has(article.id)"
                     (change)="toggleSelected(article.id, $any($event.target).checked)"
-                    class="h-4 w-4 accent-[#E30613]"
+                    class="h-4 w-4 accent-brand"
                   />
                   <div class="relative inline-block text-left">
                     <button (click)="toggleMenu(article.id)" class="text-gray-400 hover:text-gray-600 focus:outline-none p-1">

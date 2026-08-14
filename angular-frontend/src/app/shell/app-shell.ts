@@ -4,6 +4,7 @@ import { filter } from 'rxjs';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { AuthService } from '../core/auth/auth.service';
 import { ThemeService } from '../core/theme/theme.service';
+import { Logo } from '../shared/logo/logo';
 
 interface NavLink {
   labelKey: string;
@@ -21,7 +22,7 @@ interface NavSection {
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, TranslatePipe],
+  imports: [Logo, RouterOutlet, RouterLink, RouterLinkActive, TranslatePipe],
   templateUrl: './app-shell.html'
 })
 export class AppShell {

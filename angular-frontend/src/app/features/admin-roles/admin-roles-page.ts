@@ -111,13 +111,13 @@ export class AdminRolesPage {
 
   cardClass(role: string): string {
     return role === this.activeRole()
-      ? 'flex items-center gap-3 rounded-2xl border p-4 text-left shadow-sm transition-colors border-[#B91C1C] bg-red-50 ring-1 ring-[#B91C1C] dark:bg-red-950/20'
+      ? 'flex items-center gap-3 rounded-2xl border p-4 text-left shadow-sm transition-colors border-brand bg-red-50 ring-1 ring-brand dark:bg-red-950/20'
       : 'flex items-center gap-3 rounded-2xl border p-4 text-left shadow-sm transition-colors border-gray-200 bg-white hover:bg-gray-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800';
   }
 
   cardIconClass(role: string): string {
     return role === this.activeRole()
-      ? 'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#B91C1C] text-white'
+      ? 'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-white'
       : 'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-500 dark:bg-zinc-800 dark:text-zinc-400';
   }
 

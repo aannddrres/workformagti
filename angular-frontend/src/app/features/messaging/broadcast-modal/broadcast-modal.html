@@ -72,7 +72,7 @@
         type="button"
         (click)="submit()"
         [disabled]="sending() || !message().trim()"
-        class="rounded-lg bg-[#B91C1C] px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
+        class="rounded-lg bg-brand px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
       >
         @if (sending()) {
           <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>

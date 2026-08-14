@@ -34,7 +34,7 @@
                     [name]="'quiz-q-' + question.id"
                     [checked]="isSelected(question.id, answer.id)"
                     (change)="selectAnswer(question.id, answer.id)"
-                    class="h-4 w-4 accent-[#B91C1C]"
+                    class="h-4 w-4 accent-brand"
                   />
                   {{ answer.answer_text }}
                 </label>
@@ -45,18 +45,18 @@
       </div>
 
       @if (feedback() === 'wrong') {
-        <p class="mt-4 text-sm font-semibold text-[#E30613]">
+        <p class="mt-4 text-sm font-semibold text-brand">
           {{ 'readings.quiz.wrong_feedback' | translate: { count: wrongQuestionIds().size } }}
         </p>
       } @else if (feedback() === 'error') {
-        <p class="mt-4 text-sm font-semibold text-[#E30613]">{{ 'readings.quiz.submit_failed' | translate }}</p>
+        <p class="mt-4 text-sm font-semibold text-brand">{{ 'readings.quiz.submit_failed' | translate }}</p>
       }
 
       <button
         type="button"
         (click)="submit()"
         [disabled]="submitting() || selectedAnswers().size < q.questions.length"
-        class="mt-6 w-full rounded-xl bg-[#E30613] py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-red-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+        class="mt-6 w-full rounded-xl bg-brand py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-red-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
       >
         @if (submitting()) {
           <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>

@@ -131,13 +131,13 @@ export class AdminContentPage {
 
   protected tabClass(tab: ContentTab): string {
     return this.activeTab() === tab
-      ? 'border-b-2 border-[#B91C1C] px-4 pb-3 text-sm font-semibold text-[#B91C1C]'
+      ? 'border-b-2 border-brand px-4 pb-3 text-sm font-semibold text-brand'
       : 'border-b-2 border-transparent px-4 pb-3 text-sm font-medium text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-100';
   }
 
   protected pageButtonClass(page: number): string {
     return page === this.currentPage()
-      ? 'rounded-lg px-3 py-1.5 text-sm font-medium bg-[#B91C1C] text-white shadow-sm'
+      ? 'rounded-lg px-3 py-1.5 text-sm font-medium bg-brand text-white shadow-sm'
       : 'rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800';
   }
 

@@ -2,4 +2,80 @@
 @tailwind components;
 @tailwind utilities;
 
-/* You can add global styles to this file, and also import other style files */
+/* ---------------------------------------------------------------------------
+ * Design tokens — the single source of truth for the portal's brand.
+ *
+ * WHY THIS FILE EXISTS
+ * Before this, every brand colour was a hard-coded hex inside a Tailwind
+ * arbitrary-value class (`text-[#B91C1C]`), spread over 29 component files.
+ * With no shared definition, three different "brand reds" drifted into the
+ * codebase and were used interchangeably — twice inside the same file, on the
+ * same visual concept (quiz-builder.html:7 vs :14):
+ *
+ *     #B91C1C  135 uses / 29 files
+ *     #EE1D23   37 uses /  7 files
+ *     #E30613   26 uses / 15 files
+ *
+ * They are now one token. Changing the brand colour is a one-line edit here
+ * instead of a 29-file sweep, and a fourth red cannot quietly appear.
+ *
+ * ⚠️ THE CURRENT VALUE IS PROVISIONAL — IT IS NOT MAGTI'S BRAND RED.
+ * #B91C1C is simply Tailwind's stock `red-700`. It was adopted by default and
+ * then aliased to the name `magti` in tailwind.config.js, which made a
+ * framework default look like a brand decision. It is kept here only so this
+ * refactor changes structure without changing how the app looks today.
+ *
+ * TO SET THE REAL BRAND COLOUR: replace the two --brand-* values below with
+ * the official Magti values (from the brand book, not sampled from a
+ * screenshot) and delete this warning. Nothing else needs to change.
+ *
+ * Format is space-separated sRGB channels, not `#rrggbb`, so Tailwind's
+ * opacity modifiers keep working (`bg-brand/10`, `dark:bg-brand/20`).
+ * ------------------------------------------------------------------------- */
+:root {
+  /* Brand accent: primary actions, focus rings, active nav, selected tabs. */
+  --brand-600: 185 28 28; /* PROVISIONAL — Tailwind red-700, see above */
+  --brand-700: 155 23 23; /* hover/pressed, ~10% darker */
+
+  /* Georgian first: the UI is ka-first (<html lang="ka">) and no webfont is
+   * self-hosted yet, so Georgian glyphs fall back to whatever the OS ships —
+   * which differs across Windows, macOS and Android. This stack at least
+   * prefers a real Georgian face where one exists instead of leaving the
+   * choice to the browser default.
+   *
+   * NEXT STEP: self-host a licensed Georgian family (BPG, Noto Sans Georgian
+   * or Firo) as woff2 and prepend it here — add the @font-face blocks below.
+   * That is the single highest-impact visual change available to this app. */
+  --font-sans:
+    "Noto Sans Georgian", "BPG Arial", Sylfaen,
+    system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+/* Brand tokens do not currently change between themes — the accent is legible
+ * on both surfaces. Declared explicitly anyway so a future dark-mode-specific
+ * brand tint has an obvious home rather than being patched inline. */
+.dark {
+  --brand-600: 185 28 28;
+  --brand-700: 155 23 23;
+}
+
+/* SELF-HOSTED GEORGIAN FONT GOES HERE.
+ * Drop the woff2 files in public/fonts/ and uncomment, then prepend the family
+ * name to --font-sans above. Self-hosted rather than a CDN on purpose: this is
+ * an internal call-centre portal whose network may not allow outbound
+ * requests — the same reason the Font Awesome CDN link in index.html is a
+ * liability (every icon becomes an empty box if cdnjs is unreachable).
+ *
+ * @font-face {
+ *   font-family: "Magti Sans";
+ *   src: url("/fonts/magti-sans-400.woff2") format("woff2");
+ *   font-weight: 400;
+ *   font-display: swap;
+ * }
+ */
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+  }
+}

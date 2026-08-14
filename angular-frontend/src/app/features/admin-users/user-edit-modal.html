@@ -21,7 +21,7 @@
         <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'users.field_role' | translate }}</label>
         <select
           (change)="onEditRoleChange($event)"
-          class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+          class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
         >
           @for (role of roles; track role) {
             <option [value]="role" [attr.selected]="role === editRole() ? '' : null">{{ 'users.role_' + role | translate }}</option>
@@ -32,7 +32,7 @@
         <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'users.field_department' | translate }}</label>
         <select
           (change)="editDepartment.set($any($event.target).value)"
-          class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+          class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
         >
           @for (dept of departments; track dept) {
             <option [value]="dept" [attr.selected]="dept === editDepartment() ? '' : null">{{ dept === 'All' ? ('users.dept_all' | translate) : dept }}</option>
@@ -45,7 +45,7 @@
           type="text"
           [value]="editPosition()"
           (input)="editPosition.set($any($event.target).value)"
-          class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+          class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
         />
       </div>
 
@@ -60,7 +60,7 @@
                   <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer dark:text-zinc-300" [class.opacity-70]="option.disabled">
                     <input
                       type="checkbox"
-                      class="h-4 w-4 rounded border-gray-300 accent-[#B91C1C]"
+                      class="h-4 w-4 rounded border-gray-300 accent-brand"
                       [checked]="option.checked"
                       [disabled]="option.disabled"
                       (change)="togglePermission(option.value, $any($event.target).checked)"
@@ -88,7 +88,7 @@
         <button
           type="submit"
           [disabled]="saving()"
-          class="rounded-xl bg-[#B91C1C] px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+          class="rounded-xl bg-brand px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
         >{{ 'users.save' | translate }}</button>
       </div>
     </form>

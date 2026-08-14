@@ -5,6 +5,7 @@ import Chart from 'chart.js/auto';
 import { AuthService } from '../../core/auth/auth.service';
 import { StatsService } from '../../core/services/stats.service';
 import { ActivityPoint, ComplianceStats, KpiCounts, PopularSearch, TopArticle, UserProgressItem } from '../../core/models/stats';
+import { brandRgb } from '../../core/brand';
 
 type ProgressSort = 'perf_desc' | 'perf_asc' | 'name';
 
@@ -238,8 +239,8 @@ export class AdminStatsPage {
         datasets: [{
           label: this.translate.instant('stats.admin_page.activity_heading'),
           data: points.map((p) => p.count),
-          borderColor: '#B91C1C',
-          backgroundColor: 'rgba(185, 28, 28, 0.12)',
+          borderColor: brandRgb(),
+          backgroundColor: brandRgb(0.12),
           tension: 0.3,
           fill: true,
           pointRadius: 2
@@ -290,7 +291,7 @@ export class AdminStatsPage {
         labels: articles.map((a) => a.title),
         datasets: [{
           data: articles.map((a) => a.read_count),
-          backgroundColor: '#B91C1C',
+          backgroundColor: brandRgb(),
           borderRadius: 4
         }]
       },

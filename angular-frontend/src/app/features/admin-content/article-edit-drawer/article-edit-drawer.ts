@@ -189,7 +189,7 @@ export class ArticleEditDrawer {
 
   protected dropzoneClass(): string {
     const base = 'rounded-xl border-2 border-dashed p-3 transition-colors';
-    return this.dropzoneActive() ? `${base} border-[#B91C1C] bg-red-50 dark:bg-red-950/20` : `${base} border-gray-200 dark:border-zinc-700`;
+    return this.dropzoneActive() ? `${base} border-brand bg-red-50 dark:bg-red-950/20` : `${base} border-gray-200 dark:border-zinc-700`;
   }
 
   protected previewFrameClass(): string {
