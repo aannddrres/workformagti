@@ -52,15 +52,14 @@ jobs:
       - name: Run DB-free tests
         run: mvn -B test -DexcludedGroups=oracle
 
-  # ADVISORY, NOT GATING, until it has gone green at least once. On its first
-  # run the Oracle service container sat in "Initialize containers" for ~30
-  # minutes without ever reporting healthy, and with no timeout it would have
-  # burned runner time up to the 6-hour job limit. Hence timeout-minutes and
-  # continue-on-error: a job nobody has seen pass must not be able to block a
-  # merge or hang the queue. Flip continue-on-error off (and say so in the PR)
-  # once a run completes green; if it cannot be made to work, delete this job
-  # and keep the integration suite on the dev Oracle instead of leaving a
-  # permanently red check that teaches everyone to ignore CI.
+  # ADVISORY, NOT GATING, until it has gone green at least once. Flip
+  # continue-on-error off once a run completes green; if it cannot be made to
+  # work, delete this job rather than leave a permanently red check, which is
+  # how teams learn to ignore CI. timeout-minutes is a backstop so a container
+  # that never reports healthy fails instead of holding a runner to the
+  # 6-hour job limit -- not something that has actually happened: the two runs
+  # so far took 3m18s and 2m17s end to end, and the container reached
+  # "DATABASE IS READY TO USE!" both times.
   java-integration:
     name: Java integration tests (Oracle, advisory)
     runs-on: ubuntu-latest
@@ -71,13 +70,19 @@ jobs:
         working-directory: java-backend
     services:
       oracle:
-        # Oracle Free 23ai rather than the 19c used in dev/prod -- there is no
-        # publicly pullable 19c image. The schema is portable between them:
-        # all 30 migrations are plain DDL plus V28's trigger, which
-        # deliberately uses STANDARD_HASH (no grant needed, unlike
-        # DBMS_CRYPTO) and DBMS_LOB. Flyway creates the whole schema on
-        # context startup, so no seeding step is needed here.
-        image: gvenzl/oracle-free:23-slim-faststart
+        # Oracle XE 21c, NOT Free 23ai. There is no publicly pullable 19c
+        # image, so the version has to be chosen deliberately -- and 23ai is
+        # the wrong choice here, proved by running it: every test errored with
+        #   Schema validation: wrong column type encountered in column
+        #   [is_draft] in table [articles]; found [number (Types#NUMERIC)],
+        #   but expecting [boolean (Types#BOOLEAN)]
+        # Oracle 23ai added a native BOOLEAN type, so Hibernate picks a
+        # dialect that maps Java boolean -> BOOLEAN, while all 15 of this
+        # schema's flag columns are NUMBER(1) (V4:24, V5:13, ...) as 19c
+        # requires. With ddl-auto=validate that is a hard startup failure.
+        # 21c has no native BOOLEAN, so it agrees with 19c on exactly the
+        # thing production depends on.
+        image: gvenzl/oracle-xe:21-slim-faststart
         env:
           # Throwaway credentials for an ephemeral container that exists for
           # the length of one job and holds only test data. Not a secret, and
@@ -105,7 +110,7 @@ jobs:
       - name: Run Oracle-backed tests
         run: mvn -B -e test -Dgroups=oracle
         env:
-          ORACLE_DB_URL: jdbc:oracle:thin:@localhost:1521/FREEPDB1
+          ORACLE_DB_URL: jdbc:oracle:thin:@localhost:1521/XEPDB1
           ORACLE_DB_USER: magti_app
           ORACLE_DB_PASSWORD: ci_only_app_pw
 
