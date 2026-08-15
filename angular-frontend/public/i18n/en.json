@@ -201,6 +201,10 @@
       "heading": "Recently viewed",
       "empty": "No recently viewed articles found",
       "load_error": "Could not load recently viewed articles"
+    },
+    "priority": {
+      "heading": "Needs your attention",
+      "aria": "Your outstanding mandatory readings"
     }
   },
   "news": {

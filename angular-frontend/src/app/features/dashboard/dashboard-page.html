@@ -1,30 +1,70 @@
 <div class="mx-auto w-full max-w-[1440px] px-4 pb-10 pt-4 md:px-6 md:pt-6">
-  <div class="mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-brand to-brand-700 px-6 py-8 text-white">
-    <h2 class="text-2xl font-bold tracking-tight">{{ 'dashboard.banner_heading' | translate }}</h2>
-    <p class="mt-1 text-sm text-white/80">{{ 'dashboard.banner_subtitle' | translate }}</p>
-  </div>
+  <!--
+    Order of this page is the point.
 
-  @if (!isManagement()) {
-    <div class="mb-6 inline-flex items-center gap-4 rounded-2xl border border-gray-150 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-      @if (progress() === null && !progressError()) {
-        <div class="h-[72px] w-[72px] animate-pulse rounded-full bg-gray-100 dark:bg-zinc-800"></div>
-      } @else if (progressError()) {
-        <p class="text-sm text-red-500">{{ 'dashboard.progress.load_error' | translate }}</p>
-      } @else if (progress()!.total_mandatory === 0) {
-        <div class="flex items-center gap-3">
-          <i class="fa-solid fa-circle-check text-2xl text-emerald-500"></i>
-          <p class="text-sm font-semibold text-gray-700 dark:text-zinc-300">{{ 'dashboard.progress.all_clear' | translate }}</p>
+    It used to open with a full-width decorative gradient banner carrying a
+    generic greeting, then a small progress chip, then a five-column category
+    grid, and only then the operator's outstanding mandatory readings. So for
+    an operator with an overdue obligation, the single most urgent thing on
+    the page sat roughly two scrolls below a decoration that never changes.
+
+    Now the obligation leads when there is one, and the banner is what fills
+    the space when there is nothing to do — the decoration is the reward, not
+    the greeting.
+  -->
+
+  @if (awaitingProgress()) {
+    <!-- Holds the leading slot until we know whether anything is outstanding,
+         so the page cannot render the banner and then swap it for the alarm. -->
+    <div class="mb-6 h-[132px] animate-pulse rounded-2xl bg-gray-100 dark:bg-zinc-800"></div>
+  } @else if (needsAttention()) {
+    <section class="mb-6" [attr.aria-label]="'dashboard.priority.aria' | translate">
+      <div class="mb-3 flex items-center gap-2">
+        <i class="fa-solid fa-triangle-exclamation text-brand" aria-hidden="true"></i>
+        <h2 class="text-sm font-bold uppercase tracking-wide text-gray-700 dark:text-zinc-300">
+          {{ 'dashboard.priority.heading' | translate }}
+        </h2>
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 lg:grid-cols-[auto_1fr]">
+        <!-- Progress sits with the obligation it measures, not off on its own. -->
+        <div
+          class="flex items-center gap-4 rounded-2xl border border-gray-150 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
+        >
+          <app-progress-ring [percentage]="progress()!.percentage" />
+          <div>
+            <p class="text-3xl font-bold tabular-nums text-gray-800 dark:text-zinc-100">{{ progress()!.percentage }}%</p>
+            <p class="text-xs text-gray-500 dark:text-zinc-400">
+              {{ 'dashboard.progress.pending_label' | translate: { count: progress()!.pending } }}
+            </p>
+          </div>
         </div>
-      } @else {
-        <app-progress-ring [percentage]="progress()!.percentage" />
-        <div>
-          <p class="text-2xl font-bold tabular-nums text-gray-800 dark:text-zinc-100">{{ progress()!.percentage }}%</p>
-          <p class="text-xs text-gray-500 dark:text-zinc-400">
-            {{ 'dashboard.progress.pending_label' | translate: { count: progress()!.pending } }}
-          </p>
-        </div>
-      }
+
+        <app-mandatory-reading-widget />
+      </div>
+    </section>
+  } @else {
+    <div class="mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-brand to-brand-700 px-6 py-8 text-white">
+      <h2 class="text-2xl font-bold tracking-tight">{{ 'dashboard.banner_heading' | translate }}</h2>
+      <p class="mt-1 text-sm text-white/80">{{ 'dashboard.banner_subtitle' | translate }}</p>
     </div>
+
+    <!-- Still say the obligations are clear; silence reads as "not loaded". -->
+    @if (!isManagement() && progress() !== null && progress()!.total_mandatory > 0) {
+      <div
+        class="mb-6 inline-flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/20"
+      >
+        <i class="fa-solid fa-circle-check text-xl text-emerald-500" aria-hidden="true"></i>
+        <p class="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+          {{ 'dashboard.progress.all_clear' | translate }}
+        </p>
+      </div>
+    }
+  }
+
+  <!-- The progress request failing is not the same as having nothing to do. -->
+  @if (progressError()) {
+    <p class="mb-6 text-sm text-red-500">{{ 'dashboard.progress.load_error' | translate }}</p>
   }
 
   <div class="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5">
@@ -37,13 +77,8 @@
     }
   </div>
 
-  <div class="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
-    @if (!isManagement()) {
-      <app-mandatory-reading-widget />
-    }
-    <div [class.lg:col-span-2]="isManagement()">
-      <app-news-preview />
-    </div>
+  <div class="mb-8">
+    <app-news-preview />
   </div>
 
   <app-recently-viewed-strip />

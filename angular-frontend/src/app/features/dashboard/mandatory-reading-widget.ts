@@ -4,6 +4,7 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ComplianceService } from '../../core/services/compliance.service';
 import { MyReading } from '../../core/models/compliance';
 import { formatKaDate } from '../../shared/ka-date';
+import { detailRouteFor } from '../../shared/content-type-visuals';
 
 /**
  * Port of fetchNotificationsCount's two dashboard-facing widgets
@@ -48,7 +49,17 @@ export class MandatoryReadingWidget {
     return reading.reading.due_date ? formatKaDate(reading.reading.due_date) : '';
   }
 
+  /**
+   * Routes to the item itself, for all three types.
+   *
+   * This used to send anything that was not an article to the /news LIST —
+   * so a required news item or video landed the operator on a page that was
+   * not the thing they were asked to read, and a video went to news outright.
+   * Now that confirmation lives at the end of the material
+   * (app-reading-confirm), landing on a list also means there is no way to
+   * confirm from there. Uses the same detailRouteFor every other caller uses.
+   */
   itemLink(reading: MyReading): string[] {
-    return reading.reading.item_type === 'article' ? ['/article', String(reading.reading.item_id)] : ['/news'];
+    return detailRouteFor(reading.reading.item_type, reading.reading.item_id) ?? ['/reading'];
   }
 }
