@@ -6,6 +6,7 @@ import { UsersService } from '../../core/services/users.service';
 import { FavoritesService } from '../../core/services/favorites.service';
 import { NewsSummary } from '../../core/models/news';
 import { getDepartmentBadge } from '../../shared/department-badge';
+import { departmentMatches } from '../../shared/department-matcher';
 import { formatKaDate } from '../../shared/ka-date';
 import { FavoriteStar } from '../../shared/favorite-star/favorite-star';
 
@@ -55,7 +56,11 @@ export class NewsPage {
     const dept = this.deptFilter();
     const favOnly = this.favoritesOnly();
     const items = this.allItems().filter((item) => {
-      if (dept && item.target_department !== dept) {
+      // FE-07: this was `item.target_department !== dept`, exact equality
+      // against option values -- so choosing "ტექნიკური" hid every item
+      // assigned to "ტექნიკური — ჯგუფი 03", i.e. exactly the operators the
+      // filter exists for. departmentMatches mirrors the backend's own rule.
+      if (dept && !departmentMatches(item.target_department, dept)) {
         return false;
       }
       if (favOnly && !this.favoritesService.isFavorited('news', item.id)) {

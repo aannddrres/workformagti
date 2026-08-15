@@ -367,6 +367,35 @@ class ComplianceControllerIntegrationTest {
         assertTrue(adminInbox.isEmpty(), "the admin who created the reading must not notify themselves");
     }
 
+    /**
+     * BL-05: the notifier was the ONE place that did not apply
+     * ComplianceCalculator::isEligible. Management roles are excluded from
+     * required reading everywhere else -- getMyReadings returns an empty
+     * list for them -- yet they were messaged about every new obligation, so
+     * a manager got an inbox item telling them to read something that never
+     * appears in their list and that they are not measured on.
+     */
+    @Test
+    void managementRolesAreNotNotifiedAboutReadingsTheyWillNeverSee() throws Exception {
+        User admin = createUser("bl05-admin@magti.ge", Role.CONTENT_ADMIN, "All");
+        User manager = createUser("bl05-manager@magti.ge", Role.MANAGER, "ოფისი");
+        User otherContentAdmin = createUser("bl05-ca@magti.ge", Role.CONTENT_ADMIN, "ოფისი");
+        User operator = createUser("bl05-op@magti.ge", Role.OPERATOR, "ოფისი");
+        Article article = createArticle("მხოლოდ ოპერატორებისთვის", false);
+
+        mockMvc.perform(authed(post("/api/compliance/required-readings"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requiredReadingJson("article", article.getId(), "ოფისი", "2030-09-01T00:00:00+04:00")))
+                .andExpect(status().isOk());
+
+        assertEquals(1, messageRepository.findByUserId(operator.getId()).size(),
+                "the eligible operator must still be notified");
+        assertTrue(messageRepository.findByUserId(manager.getId()).isEmpty(),
+                "a manager is excluded from required reading everywhere else -- notifying them is a message with no matching task");
+        assertTrue(messageRepository.findByUserId(otherContentAdmin.getId()).isEmpty(),
+                "same for content admins, who are also a management role here");
+    }
+
     @Test
     void markReadAndUpdateDeleteMissingReadingAre404() throws Exception {
         User admin = createUser("comp-404-admin@magti.ge", Role.CONTENT_ADMIN, "All");

@@ -62,6 +62,17 @@ public class RequiredReadingNotifier {
             if (u.getId().equals(creatorId)) {
                 continue;
             }
+            // BL-05: this was the ONE place in the codebase that did not
+            // apply ComplianceCalculator::isEligible. Management roles are
+            // excluded from required reading everywhere else -- most
+            // directly at ComplianceController.getMyReadings, which returns
+            // an empty list for them -- but they were still messaged about
+            // every new obligation. A manager got an inbox item telling them
+            // to read something that does not appear in their reading list
+            // and that they are not measured on, with no way to clear it.
+            if (!ComplianceCalculator.isEligible(u)) {
+                continue;
+            }
             if ("All".equals(target) || DepartmentMatcher.matches(u.getDepartment(), List.of(target))) {
                 targets.add(u);
             }
