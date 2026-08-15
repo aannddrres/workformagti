@@ -4,6 +4,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Binds the {@code portal.*} keys in application.yml. Mirrors config.py's
  * {@code Settings} class one-for-one so the two configs stay legible
@@ -75,12 +78,33 @@ public class PortalProperties {
 		 */
 		private boolean allowDevLogin = false;
 
+		/**
+		 * Addresses or CIDR ranges whose {@code X-Forwarded-For} header may be
+		 * believed — the reverse proxy(ies) in front of this app, nothing else.
+		 *
+		 * Empty by default, and empty means the header is ignored entirely
+		 * (see {@link ge.magti.portal.security.ClientIpResolver}). That is the
+		 * safe direction: a deployment that forgets to set this loses IP
+		 * granularity in rate limiting and the audit log, while one that
+		 * trusts blindly would let anyone able to reach the app directly forge
+		 * both.
+		 */
+		private List<String> trustedProxies = new ArrayList<>();
+
 		public boolean isAllowDevLogin() {
 			return allowDevLogin;
 		}
 
 		public void setAllowDevLogin(boolean allowDevLogin) {
 			this.allowDevLogin = allowDevLogin;
+		}
+
+		public List<String> getTrustedProxies() {
+			return trustedProxies;
+		}
+
+		public void setTrustedProxies(List<String> trustedProxies) {
+			this.trustedProxies = trustedProxies == null ? new ArrayList<>() : trustedProxies;
 		}
 
 		@NestedConfigurationProperty

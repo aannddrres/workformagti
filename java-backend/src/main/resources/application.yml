@@ -64,6 +64,17 @@ portal:
     # Password-less dev login. OFF unless asked for by name; ProductionSafetyGuard
     # refuses to boot if this is true while app-env is production.
     allow-dev-login: ${ALLOW_DEV_LOGIN:false}
+    # Reverse proxies whose X-Forwarded-For may be believed, comma-separated
+    # (single address or CIDR). EMPTY BY DEFAULT, and empty means the header
+    # is ignored entirely -- see ClientIpResolver.
+    #
+    # Behind this project's nginx, leaving it empty makes every user share
+    # one rate-limit bucket and one audit-log IP (SEC-04/PR-04). Setting it
+    # to something too wide is worse: anyone inside that range can then forge
+    # both. Set it to the proxy, not the pod network.
+    #   TRUSTED_PROXIES=10.42.0.7          # a single nginx pod
+    #   TRUSTED_PROXIES=10.42.0.0/24       # the ingress subnet, if stable
+    trusted-proxies: ${TRUSTED_PROXIES:}
     jwt:
       # NEVER ship this default to production. ProductionSafetyGuard enforces
       # that at startup: with app-env=production it rejects a secret that is

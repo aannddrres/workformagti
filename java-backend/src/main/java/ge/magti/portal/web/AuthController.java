@@ -5,6 +5,7 @@ import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.security.AuthenticationService;
+import ge.magti.portal.security.ClientIpResolver;
 import ge.magti.portal.security.JwtService;
 import ge.magti.portal.security.LoginRateLimiter;
 import ge.magti.portal.util.TbilisiTime;
@@ -38,18 +39,21 @@ public class AuthController {
     private final AuditLogRepository auditLogRepository;
     private final PortalProperties properties;
     private final LoginRateLimiter rateLimiter;
+    private final ClientIpResolver clientIpResolver;
 
     public AuthController(
             AuthenticationService authenticationService,
             JwtService jwtService,
             AuditLogRepository auditLogRepository,
             PortalProperties properties,
-            LoginRateLimiter rateLimiter) {
+            LoginRateLimiter rateLimiter,
+            ClientIpResolver clientIpResolver) {
         this.authenticationService = authenticationService;
         this.jwtService = jwtService;
         this.auditLogRepository = auditLogRepository;
         this.properties = properties;
         this.rateLimiter = rateLimiter;
+        this.clientIpResolver = clientIpResolver;
     }
 
     @PostMapping("/api/auth/login")
@@ -57,8 +61,11 @@ public class AuthController {
             @Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
         // Mirrors routers/auth.py:28's @limiter.limit("10/minute") --
         // checked before any DB work, same as the Python decorator runs
-        // before the handler body.
-        if (!rateLimiter.tryAcquire(httpRequest.getRemoteAddr())) {
+        // before the handler body. SEC-04/PR-04: the key is the resolved
+        // client address, not the socket peer (which was the proxy for
+        // every user), and now includes the account being tried.
+        String clientIp = clientIpResolver.resolve(httpRequest);
+        if (!rateLimiter.tryAcquire(request.email(), clientIp)) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body(Map.of("detail", "ძალიან ბევრი მცდელობა. სცადეთ მოგვიანებით."));
         }
@@ -77,8 +84,8 @@ public class AuthController {
                 failedLogin.setItemType("user");
                 failedLogin.setItemId(existing.getId());
                 failedLogin.setTimestamp(TbilisiTime.now());
-                failedLogin.setDetails("IP: " + httpRequest.getRemoteAddr());
-                failedLogin.setIpAddress(httpRequest.getRemoteAddr());
+                failedLogin.setDetails("IP: " + clientIp);
+                failedLogin.setIpAddress(clientIp);
                 failedLogin.setUserAgent(truncatedUserAgent(httpRequest));
                 auditLogRepository.save(failedLogin);
             });
@@ -95,7 +102,7 @@ public class AuthController {
             successfulLogin.setItemType("user");
             successfulLogin.setItemId(user.getId());
             successfulLogin.setTimestamp(TbilisiTime.now());
-            successfulLogin.setIpAddress(httpRequest.getRemoteAddr());
+            successfulLogin.setIpAddress(clientIp);
             successfulLogin.setUserAgent(truncatedUserAgent(httpRequest));
             auditLogRepository.save(successfulLogin);
         }
