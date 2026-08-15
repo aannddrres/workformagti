@@ -22,12 +22,23 @@ import java.util.Optional;
  * articles.attachment_url} and every inline {@code <img src>} already in the
  * database keeps resolving.
  *
- * <p>Access is unchanged too: this path was public before (SecurityConfig
- * permits every request and the resource handler ran outside the filter
- * chain's authorization anyway) and stays public, so that an attachment in an
- * article renders the same way it does today. Whether attachments <i>should</i>
- * require a token is a separate question from where the bytes live, and
- * quietly answering it here would have been an undeclared behaviour change.
+ * <p>Access is unchanged too: this path was public before and stays public,
+ * so an attachment in an article renders the same way it does today. The
+ * reason it was public is {@code SecurityConfig}'s
+ * {@code anyRequest().permitAll()} -- not, as an earlier version of this
+ * comment claimed, anything about resource handlers bypassing the filter
+ * chain. They do not: static resource handlers are served through
+ * {@code DispatcherServlet}, which sits behind the Spring Security filters
+ * exactly like a controller. The old arrangement and this one are subject to
+ * the same filter chain, which is why swapping them changes nothing about
+ * access.
+ *
+ * <p>Whether attachments <i>should</i> require a token is a separate question
+ * from where the bytes live -- quietly answering it here would have been an
+ * undeclared behaviour change. It is recorded as question 9 in
+ * docs/QUESTIONS_FOR_IT.md, with the real trade-off (inline
+ * {@code <img src="/uploads/...">} in article bodies stops working without
+ * token-aware loading on the frontend).
  */
 @RestController
 public class UploadedFileController {
