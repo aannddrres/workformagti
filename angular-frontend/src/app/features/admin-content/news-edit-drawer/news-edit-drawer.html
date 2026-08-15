@@ -71,6 +71,11 @@
       <div class="flex flex-col gap-2 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/60 p-4">
         <div class="flex items-center gap-3">
           <input type="checkbox" [checked]="isMandatory()" (change)="isMandatory.set($any($event.target).checked)" class="h-4 w-4 accent-brand" />
+                @if (mandatoryUnknown()) {
+                  <span class="ml-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                    {{ 'content.articles.mandatory_unknown' | translate }}
+                  </span>
+                }
           <label class="text-sm font-medium text-gray-800 dark:text-zinc-200">{{ 'content.articles.field_mandatory' | translate }}</label>
           @if (isMandatory()) {
             <div class="ml-4 flex flex-1 items-center gap-3 border-l border-gray-300 dark:border-zinc-700 pl-4">

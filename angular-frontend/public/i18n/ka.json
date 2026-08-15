@@ -93,7 +93,10 @@
     "perm_videos_archive": "ვიდეოების დაარქივება",
     "perm_compliance_assign": "სავალდებულო კითხვის დანიშვნა",
     "perm_reports_export": "რეპორტების ექსპორტი",
-    "perm_inherited": "(როლიდან)"
+    "perm_inherited": "(როლიდან)",
+    "admin_page": {
+      "status_error": "სტატუსის შეცვლა ვერ მოხერხდა"
+    }
   },
   "search": {
     "history_tab": {
@@ -247,6 +250,9 @@
   "shared": {
     "favorite_star": {
       "aria_label": "რჩეულებში დამატება"
+    },
+    "toast": {
+      "dismiss": "დახურვა"
     }
   },
   "favorites": {
@@ -516,7 +522,9 @@
       "upload_failed": "ფაილის ატვირთვა ვერ მოხერხდა.",
       "delete_failed": "სტატია ვერ წაიშალა.",
       "archive_failed": "ვერ განხორციელდა.",
-      "bulk_archive_failed": "მასობრივი მოქმედება ვერ განხორციელდა."
+      "bulk_archive_failed": "მასობრივი მოქმედება ვერ განხორციელდა.",
+      "mandatory_load_error": "ვერ დადგინდა, სავალდებულოა თუ არა ეს სტატია",
+      "mandatory_unknown": "უცნობია — არ შეინახო შემოწმების გარეშე"
     },
     "quiz": {
       "add_question": "კითხვის დამატება",
@@ -540,7 +548,8 @@
       "field_attachment": "მიმაგრებული ფაილი (PDF, Word, სურათი)",
       "confirm_delete": "ნამდვილად გსურთ ამ სიახლის წაშლა?",
       "load_failed": "სიახლის ჩატვირთვა ვერ მოხერხდა.",
-      "save_failed": "სიახლე ვერ შეინახა."
+      "save_failed": "სიახლე ვერ შეინახა.",
+      "delete_error": "სიახლის წაშლა ვერ მოხერხდა"
     },
     "videos": {
       "new": "ვიდეო",
@@ -555,7 +564,8 @@
       "select_category": "აირჩიეთ კატეგორია",
       "confirm_delete": "ნამდვილად გსურთ ამ ვიდეოს წაშლა?",
       "load_failed": "ვიდეოს ჩატვირთვა ვერ მოხერხდა.",
-      "save_failed": "ვიდეო ვერ შეინახა."
+      "save_failed": "ვიდეო ვერ შეინახა.",
+      "delete_error": "ვიდეოს წაშლა ვერ მოხერხდა"
     },
     "history": {
       "heading": "ცვლილებების ისტორია",

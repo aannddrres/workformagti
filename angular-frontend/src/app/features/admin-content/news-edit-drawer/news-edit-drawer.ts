@@ -5,6 +5,7 @@ import { UploadService } from '../../../core/services/upload.service';
 import { RequiredReadingService } from '../../../core/services/required-reading.service';
 import { News, NewsRequest } from '../../../core/models/news';
 import { DEPARTMENTS } from '../../../shared/user-roles';
+import { ToastService } from '../../../core/notifications/toast.service';
 
 /**
  * Port of the news slide-out drawer -- base-layout.html:1912-2013
@@ -22,6 +23,9 @@ import { DEPARTMENTS } from '../../../shared/user-roles';
   templateUrl: './news-edit-drawer.html'
 })
 export class NewsEditDrawer {
+  private readonly toast = inject(ToastService);
+  /** True when the mandatory-reading flag could not be read; the unchecked box is not a fact. */
+  protected readonly mandatoryUnknown = signal(false);
   private readonly newsService = inject(NewsService);
   private readonly uploadService = inject(UploadService);
   private readonly requiredReadingService = inject(RequiredReadingService);
@@ -90,12 +94,19 @@ export class NewsEditDrawer {
         this.visibleTechInfo.set(news.visible_to_tech_info);
         this.visibleServiceCenter.set(news.visible_to_service_center);
 
+        // Same trap as the article drawer: a silent failure here renders the
+        // checkbox UNCHECKED, which the editor cannot tell from "not mandatory",
+        // so saving would clear a real compliance obligation.
         this.requiredReadingService.byItem('news', id).subscribe({
           next: (rr) => {
             this.isMandatory.set(!!rr);
             this.dueDate.set(rr?.due_date ? rr.due_date.slice(0, 10) : '');
+            this.mandatoryUnknown.set(false);
           },
-          error: () => {}
+          error: () => {
+            this.mandatoryUnknown.set(true);
+            this.toast.error(this.translate.instant('content.articles.mandatory_load_error'));
+          }
         });
       },
       error: () => this.saveError.set(this.translate.instant('content.news.load_failed'))

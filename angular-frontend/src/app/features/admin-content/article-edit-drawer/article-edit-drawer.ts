@@ -9,6 +9,7 @@ import { Article, ArticleRequest } from '../../../core/models/article';
 import { Category } from '../../../core/models/category';
 import { RichTextEditor } from '../../../shared/rich-text-editor/rich-text-editor';
 import { QuizBuilder } from '../../../shared/quiz-builder/quiz-builder';
+import { ToastService } from '../../../core/notifications/toast.service';
 
 const DEPARTMENT_ORDER: { key: 'info' | 'tech' | 'office'; name: string }[] = [
   { key: 'info', name: 'საინფორმაციო' },
@@ -39,6 +40,9 @@ const DEPARTMENT_ORDER: { key: 'info' | 'tech' | 'office'; name: string }[] = [
   templateUrl: './article-edit-drawer.html'
 })
 export class ArticleEditDrawer {
+  private readonly toast = inject(ToastService);
+  /** True when the mandatory-reading flag could not be read; the UI must not present the unchecked box as fact. */
+  protected readonly mandatoryUnknown = signal(false);
   private readonly articlesService = inject(ArticlesService);
   private readonly categoriesService = inject(CategoriesService);
   private readonly quizAdminService = inject(QuizAdminService);
@@ -158,12 +162,21 @@ export class ArticleEditDrawer {
           this.previewHtml.set(article.content);
         });
 
+        // If this lookup fails silently the checkbox renders UNCHECKED, which
+        // is indistinguishable from "not a mandatory reading" -- so saving the
+        // article would clear a real compliance obligation that the editor
+        // never knowingly touched. Surfaced, and the flag is left untouched
+        // rather than defaulted to false.
         this.requiredReadingService.byItem('article', id).subscribe({
           next: (rr) => {
             this.isMandatory.set(!!rr);
             this.dueDate.set(rr?.due_date ? rr.due_date.slice(0, 10) : '');
+            this.mandatoryUnknown.set(false);
           },
-          error: () => {}
+          error: () => {
+            this.mandatoryUnknown.set(true);
+            this.toast.error(this.translate.instant('content.articles.mandatory_load_error'));
+          }
         });
 
         if (article.quiz_enabled) {

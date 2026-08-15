@@ -1,10 +1,12 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { TranslatePipe } from '@ngx-translate/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { AdminUsersService } from '../../core/services/admin-users.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { AdminUser, GroupLeader } from '../../core/models/admin-user';
 import { DEPARTMENTS, ROLES } from '../../shared/user-roles';
 import { UserEditModal } from './user-edit-modal';
+import { ToastService } from '../../core/notifications/toast.service';
 
 /**
  * Port of #admin-users (base-layout.html:2094-2186) + its lazy-load-on-login
@@ -32,6 +34,8 @@ import { UserEditModal } from './user-edit-modal';
   templateUrl: './admin-users-page.html'
 })
 export class AdminUsersPage {
+  private readonly toast = inject(ToastService);
+  private readonly translate = inject(TranslateService);
   private readonly usersService = inject(AdminUsersService);
   private readonly authService = inject(AuthService);
 
@@ -106,11 +110,23 @@ export class AdminUsersPage {
     return required > 0 ? Math.round((read / required) * 100) : 0;
   }
 
+  /**
+   * Activating/deactivating is this app's only way to cut off access, and the
+   * failure was silent: the backend answers a refusal with a human-readable
+   * Georgian `detail` (e.g. refusing self-deactivation) which the UI threw
+   * away, leaving the admin to believe the change had taken effect.
+   *
+   * loadUsers() also runs on the error path, so the row snaps back to the
+   * server's truth instead of showing the state the admin intended.
+   */
   toggleStatus(user: AdminUser): void {
     const next = !user.is_active;
     this.usersService.updateStatus(user.id, next).subscribe({
       next: () => this.loadUsers(),
-      error: () => {}
+      error: (err: HttpErrorResponse) => {
+        this.toast.error(err.error?.detail ?? this.translate.instant('users.admin_page.status_error'));
+        this.loadUsers();
+      }
     });
   }
 

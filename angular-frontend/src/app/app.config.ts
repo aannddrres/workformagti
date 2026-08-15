@@ -7,6 +7,7 @@ import { provideTranslateHttpLoader } from '@ngx-translate/http-loader';
 import { routes } from './app.routes';
 import { authInterceptor } from './core/auth/auth.interceptor';
 import { apiBaseUrlInterceptor } from './core/http/api-base-url.interceptor';
+import { unauthorizedInterceptor } from './core/http/unauthorized.interceptor';
 
 // Georgian is the primary and only reviewed language today (see docs/i18n-catalog/).
 // fallbackLang stays 'ka' so an unreviewed/missing 'en' key falls back to the
@@ -15,7 +16,7 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
-    provideHttpClient(withInterceptors([apiBaseUrlInterceptor, authInterceptor])),
+    provideHttpClient(withInterceptors([apiBaseUrlInterceptor, authInterceptor, unauthorizedInterceptor])),
     provideTranslateService({ lang: 'ka', fallbackLang: 'ka' }),
     provideTranslateHttpLoader({ prefix: '/i18n/', suffix: '.json' })
   ]
