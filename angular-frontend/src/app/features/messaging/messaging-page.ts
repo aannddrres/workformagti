@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { AuthService } from '../../core/auth/auth.service';
 import { MessagingService } from '../../core/services/messaging.service';
@@ -6,6 +7,7 @@ import { MessageEntry } from '../../core/models/message';
 import { formatKaDateTime } from '../../shared/ka-date';
 import { ComposeMessageModal } from './compose-message-modal/compose-message-modal';
 import { BroadcastModal } from './broadcast-modal/broadcast-modal';
+import { ToastService } from '../../core/notifications/toast.service';
 
 type Tab = 'inbox' | 'sent';
 
@@ -30,6 +32,7 @@ const ADMIN_OR_CONTENT_ADMIN = ['admin', 'content_admin'];
   templateUrl: './messaging-page.html'
 })
 export class MessagingPage {
+  private readonly toast = inject(ToastService);
   private readonly auth = inject(AuthService);
   private readonly messagingService = inject(MessagingService);
   private readonly translate = inject(TranslateService);
@@ -116,15 +119,28 @@ export class MessagingPage {
     });
   }
 
+  /**
+   * Deleting a message is irreversible and was the one destructive action in
+   * the app with NO confirmation at all — every other delete path
+   * (categories, articles, news, videos) already asks first. It also failed
+   * silently: the row simply stayed put with the spinner cleared, which reads
+   * as "nothing happened" rather than "this did not work".
+   */
   deleteMessage(item: MessageEntry, event: Event): void {
     event.stopPropagation();
+    if (!window.confirm(this.translate.instant('shared.confirm_delete_message'))) {
+      return;
+    }
     this.deletingId.set(item.id);
     this.messagingService.remove(item.id).subscribe({
       next: () => {
         this.deletingId.set(null);
         this.inboxItems.set(this.inboxItems().filter((m) => m.id !== item.id));
       },
-      error: () => this.deletingId.set(null)
+      error: (err: HttpErrorResponse) => {
+        this.deletingId.set(null);
+        this.toast.error(err.error?.detail ?? this.translate.instant('shared.delete_failed'));
+      }
     });
   }
 

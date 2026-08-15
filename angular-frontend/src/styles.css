@@ -37,6 +37,21 @@
   --brand-600: 185 28 28; /* PROVISIONAL — Tailwind red-700, see above */
   --brand-700: 155 23 23; /* hover/pressed, ~10% darker */
 
+  /* Danger: destructive, irreversible actions only — delete, and nothing else.
+   *
+   * Separate from --brand even though both are red today, because they answer
+   * different questions. Brand says "this is Magti"; danger says "this cannot
+   * be undone". Before this they were literally the same utility: the delete
+   * controls in the news and video admin tables used hover:text-brand, so the
+   * button that destroys a record was painted in exactly the colour of the
+   * primary "create" button beside it.
+   *
+   * Keeping them apart also means a rebrand cannot accidentally recolour the
+   * warning system — if Magti's red turns out to be a different value, delete
+   * stays the red that means delete. */
+  --danger-600: 220 38 38; /* Tailwind red-600 — the conventional destructive red */
+  --danger-700: 185 28 28;
+
   /* Georgian first: the UI is ka-first (<html lang="ka">) and no webfont is
    * self-hosted yet, so Georgian glyphs fall back to whatever the OS ships —
    * which differs across Windows, macOS and Android. This stack at least
@@ -57,6 +72,9 @@
 .dark {
   --brand-600: 185 28 28;
   --brand-700: 155 23 23;
+  /* Lifted slightly on dark surfaces, where the light-mode red loses contrast. */
+  --danger-600: 248 113 113;
+  --danger-700: 220 38 38;
 }
 
 /* SELF-HOSTED GEORGIAN FONT GOES HERE.

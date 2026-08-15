@@ -20,6 +20,13 @@ module.exports = {
           DEFAULT: 'rgb(var(--brand-600) / <alpha-value>)',
           600: 'rgb(var(--brand-600) / <alpha-value>)',
           700: 'rgb(var(--brand-700) / <alpha-value>)'
+        },
+        // Destructive actions only. Separate from `brand` so a rebrand cannot
+        // recolour the warning system -- see the note in styles.css.
+        danger: {
+          DEFAULT: 'rgb(var(--danger-600) / <alpha-value>)',
+          600: 'rgb(var(--danger-600) / <alpha-value>)',
+          700: 'rgb(var(--danger-700) / <alpha-value>)'
         }
       },
       fontFamily: {

@@ -253,7 +253,9 @@
     },
     "toast": {
       "dismiss": "Dismiss"
-    }
+    },
+    "confirm_delete_message": "Delete this message? This cannot be undone.",
+    "delete_failed": "Delete failed"
   },
   "favorites": {
     "page": {

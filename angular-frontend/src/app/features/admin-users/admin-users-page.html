@@ -14,7 +14,7 @@
       <button
         type="button"
         (click)="openCreatePanel()"
-        class="rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700"
+        class="rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700"
       >
         <i class="fa-solid fa-user-plus mr-1.5" aria-hidden="true"></i>{{ 'users.new_user' | translate }}
       </button>
@@ -196,7 +196,7 @@
           <button
             type="submit"
             [disabled]="creating()"
-            class="rounded-xl bg-brand px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+            class="rounded-xl bg-brand px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
           >{{ 'users.save' | translate }}</button>
         </div>
       </form>
