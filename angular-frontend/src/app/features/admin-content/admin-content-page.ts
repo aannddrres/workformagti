@@ -60,6 +60,14 @@ export class AdminContentPage {
 
   protected readonly currentPage = signal(1);
   protected readonly selection = signal<Set<number>>(new Set());
+  /**
+   * Drives the bulk buttons' enabled state and their labels.
+   *
+   * bulkArchive() has always returned early on an empty selection, so the
+   * buttons looked live, did nothing when pressed, and said nothing about
+   * why — the user is left to guess that a selection was required.
+   */
+  protected readonly selectionCount = computed(() => this.selection().size);
 
   protected readonly filteredArticles = computed(() => {
     const q = this.searchQuery().trim().toLowerCase();
