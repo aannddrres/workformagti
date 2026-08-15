@@ -6,7 +6,6 @@ import { MyReading } from '../../core/models/compliance';
 import { formatKaDate } from '../../shared/ka-date';
 import { detailRouteFor, iconForContentType } from '../../shared/content-type-visuals';
 import { FavoriteStar } from '../../shared/favorite-star/favorite-star';
-import { QuizTakerModal } from './quiz-taker-modal/quiz-taker-modal';
 
 type FilterMode = 'all' | 'unread' | 'read';
 
@@ -33,7 +32,7 @@ type FilterMode = 'all' | 'unread' | 'read';
 @Component({
   selector: 'app-my-readings-page',
   standalone: true,
-  imports: [TranslatePipe, FavoriteStar, QuizTakerModal],
+  imports: [TranslatePipe, FavoriteStar],
   templateUrl: './my-readings-page.html'
 })
 export class MyReadingsPage {
@@ -45,10 +44,6 @@ export class MyReadingsPage {
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly filter = signal<FilterMode>('all');
-  protected readonly markingId = signal<number | null>(null);
-  protected readonly quizGateItem = signal<MyReading | null>(null);
-  protected readonly quizTakerItem = signal<MyReading | null>(null);
-  protected readonly markError = signal(false);
 
   protected readonly filteredReadings = computed(() => {
     const filter = this.filter();
@@ -105,48 +100,4 @@ export class MyReadingsPage {
     }
   }
 
-  markRead(item: MyReading, event: Event): void {
-    event.stopPropagation();
-    this.performMarkRead(item);
-  }
-
-  private performMarkRead(item: MyReading): void {
-    this.markingId.set(item.reading.id);
-    this.markError.set(false);
-    this.complianceService.markRead(item.reading.id).subscribe((result) => {
-      this.markingId.set(null);
-      if (result.ok) {
-        this.quizGateItem.set(null);
-        this.readings.set(
-          this.readings().map((r) =>
-            r.reading.id === item.reading.id
-              ? { ...r, status: 'read', read_at: result.status.read_at, is_overdue: false }
-              : r
-          )
-        );
-      } else if (result.quizRequired) {
-        this.quizGateItem.set(item);
-      } else {
-        this.quizGateItem.set(null);
-        this.markError.set(true);
-      }
-    });
-  }
-
-  dismissQuizGate(): void {
-    this.quizGateItem.set(null);
-  }
-
-  startQuiz(item: MyReading): void {
-    this.quizTakerItem.set(item);
-  }
-
-  closeQuizTaker(): void {
-    this.quizTakerItem.set(null);
-  }
-
-  onQuizPassed(item: MyReading): void {
-    this.quizTakerItem.set(null);
-    this.performMarkRead(item);
-  }
 }

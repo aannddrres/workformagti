@@ -274,7 +274,8 @@
       "quiz_gate_message": "\"{{title}}\" requires passing its quiz to confirm reading.",
       "start_quiz": "Start quiz",
       "mark_error": "Could not update the status.",
-      "dismiss": "Dismiss"
+      "dismiss": "Dismiss",
+      "action_open": "Open"
     },
     "quiz": {
       "heading": "Quiz",
@@ -284,6 +285,18 @@
       "submit": "Finish",
       "submit_failed": "Error checking the quiz",
       "wrong_feedback": "You answered {{count}} question(s) incorrectly -- try again"
+    },
+    "confirm": {
+      "heading": "Confirm you have read this",
+      "action": "I have read it",
+      "due": "Due: {{date}}",
+      "no_due": "No due date",
+      "overdue": "Overdue",
+      "done_heading": "Reading confirmed",
+      "done_at": "Confirmed: {{date}}",
+      "error": "Could not confirm. Please try again.",
+      "lookup_error": "Could not determine whether this item is required for you.",
+      "lookup_retry": "Try again"
     }
   },
   "manager": {

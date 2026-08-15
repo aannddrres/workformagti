@@ -8,6 +8,7 @@ import { News } from '../../core/models/news';
 import { formatArticleContent } from '../../shared/format-article-content';
 import { formatKaDate } from '../../shared/ka-date';
 import { getDepartmentBadge } from '../../shared/department-badge';
+import { ReadingConfirm } from '../reading/reading-confirm/reading-confirm';
 
 /**
  * Port of openNewsDetailModal (app-core.js:2108-2173) as a routed page
@@ -19,7 +20,7 @@ import { getDepartmentBadge } from '../../shared/department-badge';
 @Component({
   selector: 'app-news-detail-page',
   standalone: true,
-  imports: [TranslatePipe],
+  imports: [ReadingConfirm, TranslatePipe],
   templateUrl: './news-detail-page.html'
 })
 export class NewsDetailPage {

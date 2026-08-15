@@ -8,11 +8,12 @@ import { Article } from '../../core/models/article';
 import { formatArticleContent } from '../../shared/format-article-content';
 import { formatKaDate } from '../../shared/ka-date';
 import { ArticleVersionHistoryOverlay } from './article-version-history-overlay/article-version-history-overlay';
+import { ReadingConfirm } from '../reading/reading-confirm/reading-confirm';
 
 @Component({
   selector: 'app-article-detail-page',
   standalone: true,
-  imports: [TranslatePipe, ArticleVersionHistoryOverlay],
+  imports: [ReadingConfirm, TranslatePipe, ArticleVersionHistoryOverlay],
   templateUrl: './article-detail-page.html'
 })
 export class ArticleDetailPage {
