@@ -3,8 +3,19 @@
     <div>
       <h2 class="text-3xl font-semibold uppercase tracking-wider text-gray-800 dark:text-zinc-100">{{ 'audit.heading' | translate }}</h2>
       <p class="text-xs text-gray-500 dark:text-zinc-500">{{ 'audit.subtitle' | translate }}</p>
+      @if (isManager()) {
+        <!-- The list really is department-scoped server-side; say so, so the
+             manager does not read a short list as "nothing happened". -->
+        <p class="mt-1 inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-600 dark:bg-zinc-800 dark:text-zinc-300">
+          <i class="fa-solid fa-filter" aria-hidden="true"></i>{{ 'audit.manager_scope_note' | translate }}
+        </p>
+      }
 
-      @if (chainHealthLoading()) {
+      <!-- Chain health and export are requireSystemAuditNonManager on the
+           backend, so a manager is shown neither instead of three controls
+           that answer 403. -->
+      @if (!isManager()) {
+        @if (chainHealthLoading()) {
         <span class="mt-1.5 inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-bold text-gray-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-500">
           <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>{{ 'audit.chain_loading' | translate }}
         </span>
@@ -29,6 +40,7 @@
             <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>{{ 'audit.chain_ok' | translate: { count: health.checked } }}
           </span>
         }
+      }
       }
     </div>
 
@@ -80,6 +92,7 @@
       >
         <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
       </button>
+      @if (!isManager()) {
       <button
         type="button"
         (click)="exportCsv()"
@@ -89,6 +102,7 @@
         <i class="fa-solid" [class.fa-file-csv]="!exporting()" [class.fa-spinner]="exporting()" [class.fa-spin]="exporting()" aria-hidden="true"></i>
         {{ (exporting() ? 'audit.exporting' : 'audit.export') | translate }}
       </button>
+      }
     </div>
   </div>
 

@@ -1,6 +1,7 @@
-import { Component, inject, signal } from '@angular/core';
+import { computed, Component, inject, signal } from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
 import { AuditService } from '../../core/services/audit.service';
+import { AuthService } from '../../core/auth/auth.service';
 import { AuditChainHealth, AuditLogEntry, AuditVerifyResult } from '../../core/models/audit';
 import {
   categoryBadge,
@@ -61,6 +62,21 @@ function isoDate(d: Date): string {
   templateUrl: './admin-audit-page.html'
 })
 export class AdminAuditPage {
+  private readonly auth = inject(AuthService);
+
+  /**
+   * The backend serves MANAGER a department-scoped audit list
+   * (AuditLogController:205-207) but refuses them export, verify and
+   * chain-health outright — those use requireSystemAuditNonManager, bulk
+   * egress and integrity tooling rather than the scoped read view.
+   *
+   * The Python original had exactly these branches (audit-dashboard.js's
+   * isManager()); this port skipped them because /admin was role-gated and
+   * a manager could never reach the page. Now that the route is permission
+   * -driven they have a reachable caller again, so they are back: without
+   * them a manager would be handed three controls that answer only 403.
+   */
+  protected readonly isManager = computed(() => this.auth.currentUser()?.role === 'manager');
   private readonly auditService = inject(AuditService);
 
   protected readonly rows = signal<AuditLogEntry[]>([]);
@@ -115,6 +131,12 @@ export class AdminAuditPage {
   }
 
   private loadChainHealth(): void {
+    if (this.isManager()) {
+      // requireSystemAuditNonManager: a guaranteed 403. Skip the call rather
+      // than fire it and render the resulting error state.
+      this.chainHealthLoading.set(false);
+      return;
+    }
     this.chainHealthLoading.set(true);
     this.chainHealthError.set(false);
     this.auditService.chainHealth().subscribe({
