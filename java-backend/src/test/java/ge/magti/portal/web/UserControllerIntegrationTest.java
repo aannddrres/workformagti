@@ -27,6 +27,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -531,5 +532,66 @@ class UserControllerIntegrationTest {
                         .content("{\"permissions\":[\"articles.view\"]}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("articles.view")));
+    }
+
+    /**
+     * SEC-12: updateUserAdmin had NEITHER guard its siblings apply.
+     * bulkReassignRoles refuses to leave zero active system admins and drops
+     * the caller from its own target list; updateUserStatus refuses
+     * self-deactivation. Here an admin could demote the last SYSTEM_ADMIN --
+     * including themselves -- and lock the organisation out of every
+     * administrative screen with no way back through the product.
+     */
+    @Test
+    void theLastSystemAdminCannotBeDemotedThroughTheSingleUserEndpoint() throws Exception {
+        User admin = createUser("sec12-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
+
+        // Any OTHER admin still present makes the demotion safe, so the test
+        // has to establish that this really is the last one.
+        long otherActiveAdmins = userRepository.countByRoleAndActiveTrueAndIdNotIn(
+                Role.SYSTEM_ADMIN, List.of(admin.getId()));
+        org.junit.jupiter.api.Assumptions.assumeTrue(otherActiveAdmins == 0,
+                "shared dev Oracle already has other active admins; the last-admin path is not reachable here");
+
+        mockMvc.perform(authed(put("/api/users/" + admin.getId()), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role\":\"operator\",\"department\":\"All\",\"position\":\"x\"}"))
+                .andExpect(status().isBadRequest());
+
+        assertEquals(Role.SYSTEM_ADMIN, userRepository.findById(admin.getId()).orElseThrow().getRole());
+    }
+
+    /** The self-targeting half of SEC-12, which holds regardless of how many admins exist. */
+    @Test
+    void anAdminCannotDemoteThemselvesThroughTheSingleUserEndpoint() throws Exception {
+        User admin = createUser("sec12-self@magti.ge", Role.SYSTEM_ADMIN, "All");
+        createUser("sec12-spare@magti.ge", Role.SYSTEM_ADMIN, "All");
+
+        mockMvc.perform(authed(put("/api/users/" + admin.getId()), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role\":\"content_admin\",\"department\":\"All\",\"position\":\"x\"}"))
+                .andExpect(status().isBadRequest());
+
+        assertEquals(Role.SYSTEM_ADMIN, userRepository.findById(admin.getId()).orElseThrow().getRole());
+    }
+
+    /**
+     * SEC-12's quieter half: department and position were assigned with no
+     * null check, unlike phone/teamId below them, so an update omitting
+     * either silently blanked it. department drives every visibility and
+     * compliance query the user appears in.
+     */
+    @Test
+    void omittingDepartmentDoesNotBlankIt() throws Exception {
+        User admin = createUser("sec12-null-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
+        User target = createUser("sec12-null-target@magti.ge", Role.OPERATOR, "ტექნიკური");
+
+        mockMvc.perform(authed(put("/api/users/" + target.getId()), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role\":\"operator\"}"))
+                .andExpect(status().isOk());
+
+        assertEquals("ტექნიკური", userRepository.findById(target.getId()).orElseThrow().getDepartment(),
+                "a payload that does not mention department must not erase it");
     }
 }

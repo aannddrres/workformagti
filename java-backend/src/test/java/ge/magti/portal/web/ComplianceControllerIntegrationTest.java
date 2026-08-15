@@ -13,6 +13,7 @@ import ge.magti.portal.domain.User;
 import ge.magti.portal.domain.VideoInstruction;
 import ge.magti.portal.repository.ArticleReadReceiptRepository;
 import ge.magti.portal.repository.ArticleRepository;
+import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.MessageRepository;
 import ge.magti.portal.repository.QuizAttemptRepository;
 import ge.magti.portal.repository.ReadStatusRepository;
@@ -77,6 +78,8 @@ class ComplianceControllerIntegrationTest {
     private QuizAttemptRepository quizAttemptRepository;
     @Autowired
     private MessageRepository messageRepository;
+    @Autowired
+    private AuditLogRepository auditLogRepository;
     @Autowired
     private JwtService jwtService;
     @Autowired
@@ -471,5 +474,59 @@ class ComplianceControllerIntegrationTest {
         // drawer's "is this already mandatory?" check for no security gain.
         mockMvc.perform(authed(get("/api/compliance/required-readings/by-item/article/" + article.getId()), tokenFor(admin)))
                 .andExpect(status().isOk());
+    }
+
+    /**
+     * BL-04: read_statuses is keyed on required_reading_id (V22:11), not on
+     * the item, so re-pointing a reading at a different article used to
+     * carry every "read" status across. Assign new material that way and
+     * the dashboard reports 100% compliance the instant it is saved, for
+     * people who have never seen it.
+     */
+    @Test
+    void aRequiredReadingCannotBeRepointedAtADifferentItem() throws Exception {
+        User admin = createUser("bl04-admin@magti.ge", Role.CONTENT_ADMIN, "All");
+        User operator = createUser("bl04-op@magti.ge", Role.OPERATOR, "All");
+        Article original = createArticle("ძველი მასალა", false);
+        Article replacement = createArticle("სრულიად ახალი მასალა", false);
+        RequiredReading reading = createReading("article", original.getId(), "All", TbilisiTime.now().plusDays(5));
+        markReadDirect(operator, reading);
+
+        mockMvc.perform(authed(put("/api/compliance/required-readings/" + reading.getId()), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requiredReadingJson("article", replacement.getId(), "All", "2031-01-01T00:00:00+04:00")))
+                .andExpect(status().isConflict());
+
+        RequiredReading reloaded = requiredReadingRepository.findById(reading.getId()).orElseThrow();
+        assertEquals(original.getId(), reloaded.getItemId(),
+                "the rejected re-point must not have been flushed -- the method is @Transactional over a managed entity");
+
+        // The operator's status is still against the material they actually
+        // read, which is the whole point.
+        assertEquals("read",
+                readStatusRepository.findByUserIdAndRequiredReadingId(operator.getId(), reading.getId())
+                        .orElseThrow().getStatus());
+    }
+
+    /** Everything except the item itself is still editable, and now leaves an audit row. */
+    @Test
+    void changingOnlyTheDeadlineIsAllowedAndAudited() throws Exception {
+        User admin = createUser("bl04-audit@magti.ge", Role.CONTENT_ADMIN, "All");
+        Article article = createArticle("ვადის შესაცვლელი", false);
+        RequiredReading reading = createReading("article", article.getId(), "All", TbilisiTime.now().plusDays(2));
+
+        mockMvc.perform(authed(put("/api/compliance/required-readings/" + reading.getId()), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requiredReadingJson("article", article.getId(), "ოფისი", "2031-05-05T00:00:00+04:00")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.target_department").value("ოფისი"));
+
+        // The deadline decides who counts as overdue; before BL-04 this
+        // endpoint wrote no audit row at all, so moving it left no record.
+        assertTrue(auditLogRepository.findAll().stream()
+                        .anyMatch(a -> "UPDATE_REQUIRED_READING".equals(a.getAction())
+                                && reading.getId().equals(a.getItemId())
+                                && admin.getId().equals(a.getAdminId())),
+                "changing a deadline must be attributable");
     }
 }

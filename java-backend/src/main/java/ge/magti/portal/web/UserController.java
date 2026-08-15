@@ -184,6 +184,10 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", "მომხმარებლები ვერ მოიძებნა"));
         }
 
+        // Kept as a set-wide check rather than routed through
+        // refuseIfLastSystemAdmin: demoting several admins at once is only
+        // safe if an admin survives ALL of them, which a per-user check
+        // cannot see. Same rule, same message, different arithmetic.
         if (newRole != Role.SYSTEM_ADMIN) {
             List<Long> demotedAdminIds = users.stream()
                     .filter(u -> u.getRole() == Role.SYSTEM_ADMIN)
@@ -333,9 +337,34 @@ public class UserController {
         }
         User user = found.get();
 
+        // SEC-12: this endpoint had NEITHER guard that its two siblings
+        // apply. bulkReassignRoles refuses to leave zero active system
+        // admins (:186-199) and drops the caller from its own target list
+        // (:172-176); updateUserStatus refuses self-deactivation (:246-249).
+        // Here an admin could demote the last remaining SYSTEM_ADMIN --
+        // including themselves -- and lock the organisation out of every
+        // administrative screen with no way back through the product.
+        if (user.getId().equals(admin.getId()) && role != Role.SYSTEM_ADMIN) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("detail", "საკუთარი როლის შეცვლა ამ გზით შეუძლებელია"));
+        }
+        ResponseEntity<Map<String, String>> lastAdminFailure = refuseIfLastSystemAdmin(user, role);
+        if (lastAdminFailure != null) {
+            return lastAdminFailure;
+        }
+
         user.setRole(role);
-        user.setDepartment(request.department());
-        user.setPosition(request.position());
+        // Unlike phone/teamId below, department and position were assigned
+        // with no null check, so an update omitting either silently blanked
+        // it. department in particular drives every visibility and
+        // compliance query the user appears in, so a null there quietly
+        // removes them from their own department's obligations.
+        if (request.department() != null) {
+            user.setDepartment(request.department());
+        }
+        if (request.position() != null) {
+            user.setPosition(request.position());
+        }
         if (request.phone() != null) {
             user.setPhone(request.phone());
         }
@@ -526,6 +555,27 @@ public class UserController {
                     .body(Map.of("detail", "Could not validate credentials"));
         }
         return null;
+    }
+
+    /**
+     * SEC-12: the last-active-admin check, extracted so
+     * {@link #updateUserAdmin} and {@link #bulkReassignRoles} cannot drift
+     * apart again -- the bulk path had it, the single-user path did not, and
+     * the single-user path is the one an administrator actually clicks.
+     *
+     * @return a 400 response when this change would leave zero active system
+     * admins, or null when it is safe
+     */
+    private ResponseEntity<Map<String, String>> refuseIfLastSystemAdmin(User target, Role newRole) {
+        if (target.getRole() != Role.SYSTEM_ADMIN || newRole == Role.SYSTEM_ADMIN) {
+            return null;
+        }
+        long remaining = userRepository.countByRoleAndActiveTrueAndIdNotIn(Role.SYSTEM_ADMIN, List.of(target.getId()));
+        if (remaining > 0) {
+            return null;
+        }
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("detail", "ბოლო სისტემური ადმინისტრატორის როლის შეცვლა შეუძლებელია."));
     }
 
     private static ResponseEntity<Map<String, String>> requireSystemAdmin(User user) {
