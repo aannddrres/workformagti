@@ -160,6 +160,15 @@ class NewsControllerIntegrationTest {
 
         mockMvc.perform(authed(delete("/api/news/" + id), tokenFor(admin)))
                 .andExpect(status().isNoContent());
+        // Hibernate defers the entity-level DELETE FROM news to flush time,
+        // and auto-flush-before-query only fires when a query's own table
+        // overlaps what's dirty -- a query against news_history (a
+        // DIFFERENT table) won't trigger it. Oracle's ON DELETE CASCADE only
+        // runs once the DELETE statement actually reaches it, so without
+        // this the check below would still see the pre-delete rows. Same
+        // pattern as ArticleControllerIntegrationTest's
+        // deletingAnArticleCascadesHistoryAndTargetDepartments.
+        newsRepository.flush();
 
         mockMvc.perform(authed(get("/api/news/" + id), tokenFor(admin)))
                 .andExpect(status().isNotFound());

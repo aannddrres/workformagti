@@ -21,6 +21,8 @@ import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.repository.VideoInstructionRepository;
 import ge.magti.portal.security.JwtService;
 import ge.magti.portal.util.TbilisiTime;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -79,6 +81,8 @@ class ComplianceControllerIntegrationTest {
     private JwtService jwtService;
     @Autowired
     private PasswordEncoder passwordEncoder;
+    @PersistenceContext
+    private EntityManager entityManager;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -398,6 +402,20 @@ class ComplianceControllerIntegrationTest {
 
         mockMvc.perform(authed(delete("/api/articles/" + article.getId()), tokenFor(admin)))
                 .andExpect(status().isNoContent());
+        // In production, deleteArticle and markRead are two separate HTTP
+        // requests, each with its own fresh persistence context -- markRead's
+        // findById(readingId) genuinely re-queries Oracle and correctly sees
+        // the row gone. Here both run through MockMvc inside this one test's
+        // shared transaction/session, so without clearing it, findById would
+        // return the SAME `reading` instance this test loaded earlier via
+        // createReading -- Hibernate's L1 cache, checked before any query for
+        // a lookup by id -- and markRead would wrongly believe the reading
+        // still exists (it tried, and hit ORA-02291 inserting into
+        // read_statuses for a required_reading_id that no longer exists).
+        // flush()+clear() makes this MockMvc call see what a real second
+        // request would.
+        entityManager.flush();
+        entityManager.clear();
 
         mockMvc.perform(authed(post("/api/compliance/mark-read/" + reading.getId()), tokenFor(operator)))
                 .andExpect(status().isNotFound())

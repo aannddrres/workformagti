@@ -585,7 +585,15 @@ class ArticleControllerIntegrationTest {
                 .andExpect(status().isNoContent());
         articleRepository.flush();
 
-        assertTrue(requiredReadingRepository.findById(savedRequired.getId()).isEmpty(),
+        // Not findById(savedRequired.getId()) -- ContentDeletionService
+        // removes it via deleteAllInBatch, a bulk JPQL delete that (like any
+        // bulk operation) does not evict the already-loaded `savedRequired`
+        // instance from this session's L1 cache. findById would return that
+        // same stale, still-"present" object without ever re-querying,
+        // regardless of the flush above -- the same trap
+        // deletingAnArticleCascadesHistoryAndTargetDepartments documents for
+        // ArticleHistory. findByItemTypeAndItemId always issues a real SELECT.
+        assertTrue(requiredReadingRepository.findByItemTypeAndItemId("article", article.getId()).isEmpty(),
                 "the required_readings row must not survive the article it points at");
         assertTrue(readStatusRepository.findByUserIdAndRequiredReadingId(operator.getId(), savedRequired.getId()).isEmpty(),
                 "its read_statuses row must go with it");
