@@ -218,4 +218,80 @@ class CategoryControllerIntegrationTest {
         Article reloaded = articleRepository.findById(article.getId()).orElseThrow();
         assertEquals(fallback.getId(), reloaded.getCategoryId());
     }
+
+    /**
+     * BL-08: categories.name has no unique constraint (V2, a deliberate
+     * parity decision) and nothing checked for duplicates, so two categories
+     * called the same thing were indistinguishable in every dropdown in the
+     * product -- an editor picking one had no way to tell which.
+     */
+    @Test
+    void aDuplicateActiveCategoryNameIsRejected() throws Exception {
+        User admin = createUser("bl08a@magti.ge", Role.CONTENT_ADMIN);
+        String name = "უნიკალური კატეგორია " + System.nanoTime();
+        createCategory(name);
+
+        mockMvc.perform(authed(post("/api/categories"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"" + name + "\",\"slug\":\"dupe\","
+                                + "\"icon\":\"fa-flask\",\"pastel_color_class\":\"general\"}"))
+                .andExpect(status().isConflict());
+    }
+
+    /** Case is not a distinction a user can see in a dropdown, so it is not one here either. */
+    @Test
+    void aDuplicateDifferingOnlyInCaseIsAlsoRejected() throws Exception {
+        User admin = createUser("bl08b@magti.ge", Role.CONTENT_ADMIN);
+        String name = "Mixed Case Category " + System.nanoTime();
+        createCategory(name);
+
+        mockMvc.perform(authed(post("/api/categories"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"" + name.toUpperCase() + "\",\"slug\":\"dupe2\","
+                                + "\"icon\":\"fa-flask\",\"pastel_color_class\":\"general\"}"))
+                .andExpect(status().isConflict());
+    }
+
+    /** Renaming a category to the name it already has must not conflict with itself. */
+    @Test
+    void updatingACategoryWithoutChangingItsNameIsAllowed() throws Exception {
+        User admin = createUser("bl08c@magti.ge", Role.CONTENT_ADMIN);
+        String name = "თვითკონფლიქტი " + System.nanoTime();
+        Category existing = createCategory(name);
+
+        mockMvc.perform(authed(put("/api/categories/" + existing.getId()), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"" + name + "\",\"slug\":\"same\","
+                                + "\"icon\":\"fa-beaker\",\"pastel_color_class\":\"general\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.icon").value("fa-beaker"));
+    }
+
+    /**
+     * BL-07: the fallback lookup ignored is_active, so once "ზოგადი" had
+     * itself been deleted, every later deletion reassigned its articles INTO
+     * that inactive row -- and getCategories hides inactive categories, so
+     * the articles landed somewhere nobody can see or select.
+     */
+    @Test
+    void deletingACategoryAfterTheFallbackWasDeletedDoesNotHideItsArticles() throws Exception {
+        User admin = createUser("bl07@magti.ge", Role.CONTENT_ADMIN);
+
+        // Delete the fallback itself first, exactly as the finding describes.
+        Category fallback = categoryRepository.findFirstByNameAndActiveTrueOrderByIdAsc("ზოგადი")
+                .orElseGet(() -> createCategory("ზოგადი"));
+        mockMvc.perform(authed(delete("/api/categories/" + fallback.getId()), tokenFor(admin)))
+                .andExpect(status().isNoContent());
+
+        Category doomed = createCategory("წასაშლელი " + System.nanoTime());
+        Article article = createArticle("გადასატანი სტატია", doomed.getId());
+
+        mockMvc.perform(authed(delete("/api/categories/" + doomed.getId()), tokenFor(admin)))
+                .andExpect(status().isNoContent());
+
+        Long newCategoryId = articleRepository.findById(article.getId()).orElseThrow().getCategoryId();
+        Category landedIn = categoryRepository.findById(newCategoryId).orElseThrow();
+        assertTrue(landedIn.isActive(),
+                "the article must not be reassigned into a soft-deleted category that no dropdown shows");
+    }
 }
