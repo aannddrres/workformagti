@@ -484,6 +484,118 @@ class ArticleControllerIntegrationTest {
         assertEquals(List.of("ტექნიკური"), depts);
     }
 
+    /**
+     * BL-03, the core of it: autosave rewrote published articles with no
+     * version bump, so every read receipt and quiz pass recorded against the
+     * old text kept counting for the new one. Publishing must go through PUT,
+     * which archives and bumps.
+     */
+    @Test
+    void autosaveRefusesToRewriteAPublishedArticle() throws Exception {
+        User admin = createUser("aa18@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-16");
+        Article article = createArticle("გამოქვეყნებული", cat.getId(), "published", false, List.of("All"), null);
+        int versionBefore = article.getVersion();
+
+        mockMvc.perform(authed(patch("/api/articles/" + article.getId() + "/autosave"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"სრულიად ახალი ტექსტი, რომელიც არავის წაუკითხავს\"}"))
+                .andExpect(status().isConflict());
+
+        Article reloaded = articleRepository.findById(article.getId()).orElseThrow();
+        assertEquals("შინაარსი ტესტისთვის", reloaded.getContent(),
+                "the rejected autosave must not have been flushed -- the method is @Transactional over a managed entity");
+        assertEquals(versionBefore, reloaded.getVersion());
+    }
+
+    /**
+     * The same rewrite, reached by publishing in the same call. Rejected on
+     * the PROSPECTIVE state, not just the current one, or the guard would be
+     * one request wide.
+     */
+    @Test
+    void autosaveRefusesToPublishADraftItself() throws Exception {
+        User admin = createUser("aa19@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-17");
+        Article article = createArticle("დრაფტი", cat.getId(), "draft", true, List.of("All"), null);
+
+        mockMvc.perform(authed(patch("/api/articles/" + article.getId() + "/autosave"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"is_draft\":false,\"status\":\"published\"}"))
+                .andExpect(status().isConflict());
+
+        Article reloaded = articleRepository.findById(article.getId()).orElseThrow();
+        assertTrue(reloaded.isDraft(), "the draft must still be a draft");
+        assertEquals("draft", reloaded.getStatus());
+    }
+
+    /**
+     * A scheduled article whose time has not come is not readable yet, so
+     * nobody can have read it and autosave stays allowed. Pins that the guard
+     * is "could a reader have seen this", not a blunt "is it a draft".
+     */
+    @Test
+    void autosaveStillWorksOnAFutureScheduledArticle() throws Exception {
+        User admin = createUser("aa20@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-18");
+        Article article = createArticle("დაგეგმილი", cat.getId(), "scheduled", false,
+                List.of("All"), TbilisiTime.now().plusDays(3));
+
+        mockMvc.perform(authed(patch("/api/articles/" + article.getId() + "/autosave"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"შესწორებული სათაური\"}"))
+                .andExpect(status().isOk());
+
+        assertEquals("შესწორებული სათაური",
+                articleRepository.findById(article.getId()).orElseThrow().getTitle());
+    }
+
+    /** ...and once its time has passed it is readable, so it is locked like any published article. */
+    @Test
+    void autosaveRefusesAScheduledArticleWhoseTimeHasPassed() throws Exception {
+        User admin = createUser("aa21@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-19");
+        Article article = createArticle("გამოქვეყნებული განრიგით", cat.getId(), "scheduled", false,
+                List.of("All"), TbilisiTime.now().minusHours(2));
+
+        mockMvc.perform(authed(patch("/api/articles/" + article.getId() + "/autosave"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"გვიანი ცვლილება\"}"))
+                .andExpect(status().isConflict());
+    }
+
+    /**
+     * The consequence BL-03 is actually about, asserted end to end: an
+     * operator's read receipt must not silently survive a rewrite of the
+     * text they acknowledged. PUT bumps the version, so the receipt they
+     * hold stops matching the current one.
+     */
+    @Test
+    void rewritingAPublishedArticleThroughPutInvalidatesTheOldReadReceipt() throws Exception {
+        User admin = createUser("aa22@magti.ge", Role.CONTENT_ADMIN, "All");
+        User operator = createUser("op22@magti.ge", Role.OPERATOR, "All");
+        Category cat = createCategory("კატ-20");
+        long articleId = createArticleViaApi(tokenFor(admin), "წასაკითხი", "თავდაპირველი ტექსტი", cat.getId());
+
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/read-receipt"), tokenFor(operator)))
+                .andExpect(status().isOk());
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/read-receipt/me"), tokenFor(operator)))
+                .andExpect(jsonPath("$.has_read").value(true))
+                .andExpect(jsonPath("$.article_version").value(1));
+
+        mockMvc.perform(authed(put("/api/articles/" + articleId), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"წასაკითხი\",\"content\":\"სრულიად სხვა ტექსტი\",\"category_id\":"
+                                + cat.getId() + ",\"target_departments\":[\"All\"],\"status\":\"published\","
+                                + "\"is_draft\":false}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(2));
+
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/read-receipt/me"), tokenFor(operator)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.has_read").value(false));
+    }
+
     // ── delete ────────────────────────────────────────────────────────
 
     @Test

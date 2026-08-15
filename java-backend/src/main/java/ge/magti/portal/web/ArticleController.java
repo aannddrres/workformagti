@@ -326,6 +326,61 @@ public class ArticleController {
         return ResponseEntity.ok(ArticleResponse.from(saved, request.targetDepartments()));
     }
 
+    /**
+     * Partial save for work in progress. <b>Drafts only</b> -- see below.
+     *
+     * <h3>BL-03: why this endpoint may not touch a published article</h3>
+     *
+     * {@link #updateArticle} performs the full ritual: archive the current
+     * state, apply, {@code version + 1}, save, reindex, write a history row.
+     * Autosave applied the same fields -- title, content, status,
+     * published_at, target_departments, is_draft -- and then set only
+     * {@code updatedAt}. No version bump, no history row, and no guard
+     * restricting it to drafts, so it rewrote published articles exactly as
+     * readily as drafts.
+     *
+     * <p>The version number is not decoration; three things key on it, and
+     * all three were silently wrong:
+     * <ul>
+     *   <li>{@link ge.magti.portal.quiz.QuizGateChecker} looks up a passing
+     *       attempt at {@code article.getVersion()}. Rewrite the body via
+     *       autosave and everyone who passed the quiz on the OLD text still
+     *       satisfies the gate on the new one.
+     *   <li>{@code article_read_receipts} is unique on
+     *       {@code (article_id, article_version, operator_id)} (V19:17), so a
+     *       receipt written against the old text still reads as "this person
+     *       has read the current version".
+     *   <li>The {@code article_history} snapshot for version N holds the
+     *       pre-autosave text while the live article at version N holds the
+     *       post-autosave text -- a diff of "current vs version N" then shows
+     *       changes within one version number, which the version list has no
+     *       way to express.
+     * </ul>
+     *
+     * <p>The fix is a rule rather than a heuristic: autosave is a draft-only
+     * operation. Bumping the version on every autosave was the other
+     * candidate and is worse -- it would write a history row per keystroke
+     * batch and re-invalidate every read receipt repeatedly while an author
+     * is still typing. A draft has no readers (see
+     * {@link ge.magti.portal.article.ArticleQueryService}'s visibility rule:
+     * {@code isDraft = false} AND published/due-scheduled), so it has no
+     * receipts and no quiz passes to invalidate, which is exactly why
+     * autosave can stay cheap there.
+     *
+     * <p>Publishing therefore has to go through {@code PUT}, which archives
+     * and bumps. Rejected <i>before</i> any field is applied, deliberately:
+     * this method is {@code @Transactional} over a managed entity, so
+     * mutating first and returning an error response later would still flush
+     * the mutation at commit.
+     *
+     * <p><b>Known, accepted residue:</b> a draft that already has a history
+     * row for its current version can still drift from that snapshot as it
+     * is autosaved. That is the third bullet above, reduced from "published
+     * content diverges from what readers acknowledged" to "a draft's own
+     * snapshot lags its live text", visible only to its author. Fixing it
+     * would mean either version churn or rewriting history, both worse than
+     * the drift.
+     */
     @PatchMapping("/api/articles/{id}/autosave")
     @Transactional
     public ResponseEntity<?> autosaveArticle(
@@ -351,6 +406,16 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+
+        if (isReaderVisible(article.getStatus(), article.isDraft(), article.getPublishedAt())) {
+            return publishedArticleNotAutosavable();
+        }
+        if (isReaderVisible(
+                body.containsKey("status") ? (String) body.get("status") : article.getStatus(),
+                body.containsKey("is_draft") ? (Boolean) body.get("is_draft") : article.isDraft(),
+                prospectivePublishedAt(body, article))) {
+            return publishedArticleNotAutosavable();
+        }
 
         // exclude_unset semantics (routers/articles.py:401): only fields the
         // client actually sent in this partial payload are touched -- a
@@ -411,6 +476,36 @@ public class ArticleController {
         searchReindexService.reindexArticle(saved);
 
         return ResponseEntity.ok(ArticleAutosaveResponse.from(saved, resolveTargetDepartments(id)));
+    }
+
+    /**
+     * Whether an operator could read this article -- the same condition
+     * {@link ge.magti.portal.article.ArticleQueryService}'s list query
+     * applies, kept in step with it deliberately: "someone might have read
+     * this" is exactly what makes a silent rewrite dangerous (BL-03).
+     */
+    private static boolean isReaderVisible(String status, boolean isDraft, OffsetDateTime publishedAt) {
+        if (isDraft) {
+            return false;
+        }
+        if ("published".equals(status)) {
+            return true;
+        }
+        return "scheduled".equals(status) && publishedAt != null && !publishedAt.isAfter(TbilisiTime.now());
+    }
+
+    private static OffsetDateTime prospectivePublishedAt(Map<String, Object> body, Article article) {
+        if (!body.containsKey("published_at")) {
+            return article.getPublishedAt();
+        }
+        Object value = body.get("published_at");
+        return value == null ? null : OffsetDateTime.parse((String) value);
+    }
+
+    private static ResponseEntity<Map<String, String>> publishedArticleNotAutosavable() {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                "detail", "გამოქვეყნებული სტატიის ავტოშენახვა შეუძლებელია — გამოიყენეთ შენახვა, "
+                        + "რომ ვერსია განახლდეს და თანამშრომლებს ხელახლა წაკითხვა მოეთხოვოთ"));
     }
 
     @DeleteMapping("/api/articles/{id}")

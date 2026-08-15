@@ -47,6 +47,18 @@ export class ArticlesService {
     return this.http.put<Article>(`/api/articles/${id}`, request);
   }
 
+  /**
+   * DRAFTS ONLY. The backend returns 409 for an article an operator could
+   * already read -- published, or scheduled with its time passed (audit
+   * BL-03: autosave used to rewrite published text without bumping the
+   * version, so every read receipt and quiz pass against the old text kept
+   * counting for the new one).
+   *
+   * Nothing calls this today -- autosave-while-typing was deliberately not
+   * ported to the Angular drawer (see article-edit-drawer's javadoc). Kept
+   * because the endpoint exists; whoever wires it up must handle the 409 and
+   * route publishing through update() instead.
+   */
   autosave(id: number, partial: Partial<ArticleRequest>): Observable<Article> {
     return this.http.patch<Article>(`/api/articles/${id}/autosave`, partial);
   }
