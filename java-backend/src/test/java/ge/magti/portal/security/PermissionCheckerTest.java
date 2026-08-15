@@ -27,9 +27,9 @@ class PermissionCheckerTest {
     void nonAdminNeedsThePermissionExplicitlyGranted() {
         User operator = new User();
         operator.setRole(Role.OPERATOR);
-        operator.setPermissions(Set.of(Permission.ARTICLES_VIEW.value()));
+        operator.setPermissions(Set.of(Permission.ARTICLES_EDIT.value()));
 
-        assertTrue(checker.hasPermission(operator, Permission.ARTICLES_VIEW));
+        assertTrue(checker.hasPermission(operator, Permission.ARTICLES_EDIT));
         assertFalse(checker.hasPermission(operator, Permission.USERS_MANAGE));
     }
 }

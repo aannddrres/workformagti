@@ -157,7 +157,7 @@ public class UserController {
     @Transactional
     public ResponseEntity<?> bulkReassignRoles(
             @Valid @RequestBody BulkRoleReassignRequest request, @AuthenticationPrincipal User admin) {
-        ResponseEntity<Map<String, String>> denial = requireSystemAdmin(admin);
+        ResponseEntity<Map<String, String>> denial = requireUsersManage(admin);
         if (denial != null) {
             return denial;
         }
@@ -233,7 +233,7 @@ public class UserController {
     public ResponseEntity<?> updateUserStatus(
             @PathVariable("userId") Long userId, @Valid @RequestBody UserStatusUpdateRequest request,
             @AuthenticationPrincipal User admin) {
-        ResponseEntity<Map<String, String>> denial = requireSystemAdmin(admin);
+        ResponseEntity<Map<String, String>> denial = requireUsersManage(admin);
         if (denial != null) {
             return denial;
         }
@@ -265,7 +265,7 @@ public class UserController {
     /** Port of get_group_leaders (routers/users.py:235-251). */
     @GetMapping("/api/admin/group-leaders")
     public ResponseEntity<?> getGroupLeaders(@AuthenticationPrincipal User admin) {
-        ResponseEntity<Map<String, String>> denial = requireSystemAdmin(admin);
+        ResponseEntity<Map<String, String>> denial = requireUsersManage(admin);
         if (denial != null) {
             return denial;
         }
@@ -280,7 +280,7 @@ public class UserController {
     public ResponseEntity<?> listUsers(
             @RequestParam(value = "manager_id", required = false) Long managerId,
             @AuthenticationPrincipal User admin) {
-        ResponseEntity<Map<String, String>> denial = requireSystemAdmin(admin);
+        ResponseEntity<Map<String, String>> denial = requireUsersManage(admin);
         if (denial != null) {
             return denial;
         }
@@ -317,7 +317,7 @@ public class UserController {
     public ResponseEntity<?> updateUserAdmin(
             @PathVariable("userId") Long userId, @Valid @RequestBody UserAdminUpdateRequest request,
             @AuthenticationPrincipal User admin) {
-        ResponseEntity<Map<String, String>> denial = requireSystemAdmin(admin);
+        ResponseEntity<Map<String, String>> denial = requireUsersManage(admin);
         if (denial != null) {
             return denial;
         }
@@ -362,7 +362,7 @@ public class UserController {
     @PostMapping("/api/teams")
     @Transactional
     public ResponseEntity<?> createTeam(@Valid @RequestBody TeamRequest request, @AuthenticationPrincipal User admin) {
-        ResponseEntity<Map<String, String>> denial = requireSystemAdmin(admin);
+        ResponseEntity<Map<String, String>> denial = requireUsersManage(admin);
         if (denial != null) {
             return denial;
         }
@@ -381,7 +381,7 @@ public class UserController {
     @Transactional
     public ResponseEntity<?> createUserAdmin(
             @Valid @RequestBody UserCreateAdminRequest request, @AuthenticationPrincipal User admin) {
-        ResponseEntity<Map<String, String>> denial = requireSystemAdmin(admin);
+        ResponseEntity<Map<String, String>> denial = requireUsersManage(admin);
         if (denial != null) {
             return denial;
         }
@@ -435,7 +435,7 @@ public class UserController {
     public ResponseEntity<?> adminResetPassword(
             @PathVariable("userId") Long userId, @Valid @RequestBody AdminPasswordResetRequest request,
             @AuthenticationPrincipal User admin) {
-        ResponseEntity<Map<String, String>> denial = requireSystemAdmin(admin);
+        ResponseEntity<Map<String, String>> denial = requireUsersManage(admin);
         if (denial != null) {
             return denial;
         }
@@ -500,6 +500,20 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", "მომხმარებელი ვერ მოიძებნა"));
         }
         User user = found.get();
+
+        // SEC-06 follow-on: now that users.manage is actually enforced,
+        // revoking it from yourself locks you out of every user-administration
+        // screen -- including the one you would need to undo it. Recoverable
+        // only by another admin, and not at all if you are the last one. The
+        // switch is real for everyone else; it just cannot be used to saw off
+        // the branch you are sitting on.
+        if (user.getId().equals(admin.getId())
+                && !request.permissions().contains(Permission.USERS_MANAGE.value())) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                    "detail", "საკუთარი თავისთვის „users.manage" + "“-ის მოხსნა შეუძლებელია — "
+                            + "ამის შემდეგ მომხმარებლების მართვას ვეღარ შეძლებთ"));
+        }
+
         user.setPermissions(new LinkedHashSet<>(request.permissions()));
 
         AuditLog audit = new AuditLog();
@@ -523,6 +537,36 @@ public class UserController {
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("detail", "Could not validate credentials"));
+        }
+        return null;
+    }
+
+    /**
+     * SEC-06: {@code users.manage} was in the catalog, offered as a switch in
+     * the admin UI, validated and persisted by
+     * {@link #adminUpdatePermissions} -- and consulted nowhere. Every user
+     * administration endpoint gated on the ROLE alone, so revoking the
+     * permission changed nothing at all. The most visible security control an
+     * administrator has was decorative.
+     *
+     * <p>Role first, then permission: a non-admin is refused for the same
+     * reason as before, and an admin whose {@code users.manage} was
+     * deliberately revoked is now actually refused too.
+     *
+     * <p>Deliberately NOT applied to {@link #adminUpdatePermissions}. That
+     * endpoint is the recovery path: if it required the permission it grants,
+     * a database whose admins somehow lack {@code users.manage} could never
+     * be repaired through the API. It stays role-gated, and
+     * {@link #adminUpdatePermissions} refuses self-revocation instead.
+     */
+    private ResponseEntity<Map<String, String>> requireUsersManage(User user) {
+        ResponseEntity<Map<String, String>> roleFailure = requireSystemAdmin(user);
+        if (roleFailure != null) {
+            return roleFailure;
+        }
+        if (!permissionChecker.hasPermission(user, Permission.USERS_MANAGE)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
         }
         return null;
     }

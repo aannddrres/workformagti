@@ -477,7 +477,7 @@ class UserControllerIntegrationTest {
 
         mockMvc.perform(authed(put("/api/users/" + target.getId() + "/permissions"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"permissions\":[\"articles.view\",\"not.a.real.permission\"]}"))
+                        .content("{\"permissions\":[\"articles.edit\",\"not.a.real.permission\"]}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("not.a.real.permission")));
 
@@ -486,13 +486,103 @@ class UserControllerIntegrationTest {
         // validate against the full Permission enum instead.
         mockMvc.perform(authed(put("/api/users/" + target.getId() + "/permissions"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"permissions\":[\"articles.view\",\"videos.archive\"]}"))
+                        .content("{\"permissions\":[\"articles.edit\",\"videos.archive\"]}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.permissions", org.hamcrest.Matchers.containsInAnyOrder("articles.view", "videos.archive")));
+                .andExpect(jsonPath("$.permissions", org.hamcrest.Matchers.containsInAnyOrder("articles.edit", "videos.archive")));
 
         mockMvc.perform(authed(put("/api/users/999999999/permissions"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"permissions\":[]}"))
                 .andExpect(status().isNotFound());
+    }
+
+    /**
+     * SEC-06 acceptance for {@code users.manage}. Until now the switch was
+     * offered in the admin UI, validated and persisted -- and consulted
+     * nowhere, so revoking it changed nothing. The admin below keeps the
+     * SYSTEM_ADMIN role throughout; only the permission is taken away.
+     */
+    @Test
+    void anAdminWithoutUsersManageIsRefusedUserAdministration() throws Exception {
+        User admin = createUser("sec06-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
+        User target = createUser("sec06-target@magti.ge", Role.OPERATOR, "All");
+
+        // Sanity: with the permission (the role default) it works.
+        mockMvc.perform(authed(get("/api/users"), tokenFor(admin)))
+                .andExpect(status().isOk());
+
+        admin.setPermissions(Permission.defaultsFor(Role.SYSTEM_ADMIN).stream()
+                .filter(p -> p != Permission.USERS_MANAGE)
+                .map(Permission::value)
+                .collect(Collectors.toCollection(LinkedHashSet::new)));
+        userRepository.saveAndFlush(admin);
+
+        mockMvc.perform(authed(get("/api/users"), tokenFor(admin)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(put("/api/users/" + target.getId() + "/status"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"is_active\":false}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(post("/api/users/" + target.getId() + "/reset-password"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"new_password\":\"StrongPass1\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    /**
+     * The permissions endpoint itself stays role-gated on purpose: it is the
+     * recovery path. If it required the permission it grants, a database
+     * whose admins somehow lack users.manage could never be repaired through
+     * the API.
+     */
+    @Test
+    void thePermissionsEndpointItselfStaysReachableWithoutUsersManage() throws Exception {
+        User admin = createUser("sec06-recover@magti.ge", Role.SYSTEM_ADMIN, "All");
+        User target = createUser("sec06-recover-target@magti.ge", Role.OPERATOR, "All");
+        admin.setPermissions(new LinkedHashSet<>());
+        userRepository.saveAndFlush(admin);
+
+        mockMvc.perform(authed(put("/api/users/" + target.getId() + "/permissions"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"permissions\":[\"users.manage\"]}"))
+                .andExpect(status().isOk());
+    }
+
+    /**
+     * Now that the permission bites, revoking it from yourself would lock you
+     * out of every screen needed to undo it -- and out of the product's user
+     * administration entirely, if you are the last admin.
+     */
+    @Test
+    void anAdminCannotRevokeUsersManageFromThemselves() throws Exception {
+        User admin = createUser("sec06-self@magti.ge", Role.SYSTEM_ADMIN, "All");
+
+        mockMvc.perform(authed(put("/api/users/" + admin.getId() + "/permissions"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"permissions\":[\"system.audit\"]}"))
+                .andExpect(status().isConflict());
+
+        User reloaded = userRepository.findById(admin.getId()).orElseThrow();
+        assertTrue(reloaded.getPermissions().contains(Permission.USERS_MANAGE.value()),
+                "the revocation must not have been applied");
+
+        // ...but revoking anything else from yourself is still allowed.
+        mockMvc.perform(authed(put("/api/users/" + admin.getId() + "/permissions"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"permissions\":[\"users.manage\"]}"))
+                .andExpect(status().isOk());
+    }
+
+    /** articles.view was removed from the catalog by SEC-06, so it must now be rejected as unknown. */
+    @Test
+    void articlesViewIsNoLongerAnAcceptedPermission() throws Exception {
+        User admin = createUser("sec06-av@magti.ge", Role.SYSTEM_ADMIN, "All");
+        User target = createUser("sec06-av-target@magti.ge", Role.OPERATOR, "All");
+
+        mockMvc.perform(authed(put("/api/users/" + target.getId() + "/permissions"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"permissions\":[\"articles.view\"]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("articles.view")));
     }
 }

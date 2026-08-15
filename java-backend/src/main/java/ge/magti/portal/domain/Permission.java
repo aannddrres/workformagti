@@ -30,7 +30,27 @@ import java.util.Set;
  * they already have dotted equivalents below.)
  */
 public enum Permission {
-    ARTICLES_VIEW("articles.view"),
+    // ARTICLES_VIEW ("articles.view") was REMOVED here (audit SEC-06).
+    //
+    // It was in the catalog, rendered as a switch in the admin UI, validated
+    // and persisted -- and enforced nowhere. Unlike users.manage and
+    // compliance.assign, which were fixed by enforcing them, this one could
+    // not be: OPERATOR's default permission set is EMPTY (see
+    // DEFAULTS_BY_ROLE below), so making articles.view a real gate would
+    // have locked every operator out of the entire knowledge base -- the
+    // product's whole purpose. ArticleController's javadoc had already
+    // recorded the gap and the reason it was not closed.
+    //
+    // A switch that cannot safely be made to work is worse than no switch:
+    // it tells an administrator they have a control they do not have. Read
+    // access to articles is governed by target-department visibility
+    // (ArticleQueryService) and by role, which is where it belongs.
+    //
+    // Persisted rows may still carry the string "articles.view". That is
+    // harmless -- User.hasPermission compares against this enum's values, so
+    // a stale entry simply never matches anything. PUT
+    // /api/users/{id}/permissions will now reject it as unknown, which is
+    // correct: the frontend catalog no longer offers it.
     ARTICLES_EDIT("articles.edit"),
     ARTICLES_PUBLISH("articles.publish"),
     ARTICLES_ARCHIVE("articles.archive"),
@@ -44,10 +64,10 @@ public enum Permission {
             Role.OPERATOR, EnumSet.noneOf(Permission.class),
             Role.MANAGER, EnumSet.of(REPORTS_EXPORT, SYSTEM_AUDIT),
             Role.CONTENT_ADMIN, EnumSet.of(
-                    ARTICLES_VIEW, ARTICLES_EDIT, ARTICLES_PUBLISH, ARTICLES_ARCHIVE,
+                    ARTICLES_EDIT, ARTICLES_PUBLISH, ARTICLES_ARCHIVE,
                     VIDEOS_ARCHIVE, COMPLIANCE_ASSIGN, SYSTEM_AUDIT),
             Role.SYSTEM_ADMIN, EnumSet.of(
-                    ARTICLES_VIEW, ARTICLES_EDIT, ARTICLES_PUBLISH, ARTICLES_ARCHIVE,
+                    ARTICLES_EDIT, ARTICLES_PUBLISH, ARTICLES_ARCHIVE,
                     VIDEOS_ARCHIVE, USERS_MANAGE, COMPLIANCE_ASSIGN, REPORTS_EXPORT, SYSTEM_AUDIT));
 
     private final String value;

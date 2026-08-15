@@ -7,6 +7,7 @@ import ge.magti.portal.content.ItemDetail;
 import ge.magti.portal.content.ItemKey;
 import ge.magti.portal.content.ItemTitleResolver;
 import ge.magti.portal.domain.Article;
+import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.ReadStatus;
 import ge.magti.portal.domain.RequiredReading;
 import ge.magti.portal.domain.User;
@@ -15,6 +16,7 @@ import ge.magti.portal.repository.ArticleReadReceiptRepository;
 import ge.magti.portal.repository.ArticleRepository;
 import ge.magti.portal.repository.ReadStatusRepository;
 import ge.magti.portal.repository.RequiredReadingRepository;
+import ge.magti.portal.security.PermissionChecker;
 import ge.magti.portal.stats.ComplianceRecord;
 import ge.magti.portal.util.DepartmentMatcher;
 import ge.magti.portal.util.TbilisiTime;
@@ -75,6 +77,7 @@ public class ComplianceController {
     private final QuizGateChecker quizGateChecker;
     private final RequiredReadingNotifier requiredReadingNotifier;
     private final ItemTitleResolver itemTitleResolver;
+    private final PermissionChecker permissionChecker;
 
     public ComplianceController(
             ComplianceQueryService complianceQueryService,
@@ -84,7 +87,8 @@ public class ComplianceController {
             ArticleReadReceiptRepository articleReadReceiptRepository,
             QuizGateChecker quizGateChecker,
             RequiredReadingNotifier requiredReadingNotifier,
-            ItemTitleResolver itemTitleResolver) {
+            ItemTitleResolver itemTitleResolver,
+            PermissionChecker permissionChecker) {
         this.complianceQueryService = complianceQueryService;
         this.requiredReadingRepository = requiredReadingRepository;
         this.readStatusRepository = readStatusRepository;
@@ -93,6 +97,7 @@ public class ComplianceController {
         this.quizGateChecker = quizGateChecker;
         this.requiredReadingNotifier = requiredReadingNotifier;
         this.itemTitleResolver = itemTitleResolver;
+        this.permissionChecker = permissionChecker;
     }
 
     /** Port of get_my_readings (routers/compliance.py:30-113). */
@@ -221,7 +226,7 @@ public class ComplianceController {
     @Transactional
     public ResponseEntity<?> createRequiredReading(
             @Valid @RequestBody RequiredReadingRequest request, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireComplianceAssign(user);
         if (denial != null) {
             return denial;
         }
@@ -267,7 +272,7 @@ public class ComplianceController {
     public ResponseEntity<?> updateRequiredReading(
             @PathVariable("readingId") Long readingId, @Valid @RequestBody RequiredReadingRequest request,
             @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireComplianceAssign(user);
         if (denial != null) {
             return denial;
         }
@@ -289,7 +294,7 @@ public class ComplianceController {
     @DeleteMapping("/api/compliance/required-readings/{readingId}")
     public ResponseEntity<?> deleteRequiredReading(
             @PathVariable("readingId") Long readingId, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireComplianceAssign(user);
         if (denial != null) {
             return denial;
         }
@@ -327,6 +332,30 @@ public class ComplianceController {
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("detail", "Could not validate credentials"));
+        }
+        return null;
+    }
+
+    /**
+     * SEC-06: {@code compliance.assign} sat in the catalog as a switch the
+     * admin UI offered, validated and persisted -- and consulted nowhere.
+     * Assigning mandatory reading gated on the ROLE alone, so granting or
+     * revoking the permission changed nothing.
+     *
+     * <p>Applied to the three endpoints that CREATE, CHANGE or DELETE an
+     * obligation -- the ones the permission is named for. The read-only
+     * by-item lookup keeps the plain role gate: it assigns nothing, and
+     * making a content admin unable to see whether an article is already
+     * mandatory would break the edit drawer for no security gain.
+     */
+    private ResponseEntity<Map<String, String>> requireComplianceAssign(User user) {
+        ResponseEntity<Map<String, String>> roleFailure = requireContentAdmin(user);
+        if (roleFailure != null) {
+            return roleFailure;
+        }
+        if (!permissionChecker.hasPermission(user, Permission.COMPLIANCE_ASSIGN)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
         }
         return null;
     }

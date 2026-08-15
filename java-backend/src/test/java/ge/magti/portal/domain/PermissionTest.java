@@ -44,7 +44,11 @@ class PermissionTest {
     @Test
     void contentAdminDefaultsMatchSecurityPyPlusSystemAudit() {
         assertEquals(
-                Set.of(Permission.ARTICLES_VIEW, Permission.ARTICLES_EDIT, Permission.ARTICLES_PUBLISH,
+                // ARTICLES_VIEW removed from the catalog by SEC-06: it was
+                // never enforced and could not safely be, since OPERATOR
+                // holds no permissions at all and gating reads on it would
+                // have closed the knowledge base to everyone who uses it.
+                Set.of(Permission.ARTICLES_EDIT, Permission.ARTICLES_PUBLISH,
                         Permission.ARTICLES_ARCHIVE, Permission.VIDEOS_ARCHIVE, Permission.COMPLIANCE_ASSIGN,
                         Permission.SYSTEM_AUDIT),
                 Permission.defaultsFor(Role.CONTENT_ADMIN));

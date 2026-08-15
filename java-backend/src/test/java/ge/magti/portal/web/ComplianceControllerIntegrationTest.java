@@ -436,4 +436,40 @@ class ComplianceControllerIntegrationTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").isNotEmpty());
     }
+
+    /**
+     * SEC-06 acceptance for {@code compliance.assign}: it was in the catalog
+     * and offered as a switch, but assigning mandatory reading gated on the
+     * ROLE alone, so revoking it changed nothing. The admin below keeps
+     * CONTENT_ADMIN throughout; only the permission is taken away.
+     */
+    @Test
+    void aContentAdminWithoutComplianceAssignCannotCreateChangeOrDeleteObligations() throws Exception {
+        User admin = createUser("sec06-comp@magti.ge", Role.CONTENT_ADMIN, "All");
+        Article article = createArticle("სავალდებულო მასალა", false);
+        RequiredReading existing = createReading("article", article.getId(), "All", TbilisiTime.now().plusDays(5));
+
+        admin.setPermissions(Permission.defaultsFor(Role.CONTENT_ADMIN).stream()
+                .filter(p -> p != Permission.COMPLIANCE_ASSIGN)
+                .map(Permission::value)
+                .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new)));
+        userRepository.saveAndFlush(admin);
+
+        mockMvc.perform(authed(post("/api/compliance/required-readings"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requiredReadingJson("article", article.getId(), "All", "2030-01-01T00:00:00+04:00")))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(put("/api/compliance/required-readings/" + existing.getId()), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requiredReadingJson("article", article.getId(), "All", "2030-01-01T00:00:00+04:00")))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(delete("/api/compliance/required-readings/" + existing.getId()), tokenFor(admin)))
+                .andExpect(status().isForbidden());
+
+        // The read-only by-item lookup deliberately keeps the plain role
+        // gate: it assigns nothing, and blocking it would break the edit
+        // drawer's "is this already mandatory?" check for no security gain.
+        mockMvc.perform(authed(get("/api/compliance/required-readings/by-item/article/" + article.getId()), tokenFor(admin)))
+                .andExpect(status().isOk());
+    }
 }
