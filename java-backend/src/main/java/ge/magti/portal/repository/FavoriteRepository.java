@@ -18,6 +18,15 @@ public interface FavoriteRepository extends JpaRepository<Favorite, Long> {
     Optional<Favorite> findByUserIdAndItemTypeAndItemId(Long userId, String itemType, Long itemId);
 
     /**
+     * BL-10: no delete path ever cleared favorites for a deleted item
+     * (favorites.item_id has no FK, V9:7). Derived delete, same shape as
+     * {@link TagMappingRepository#deleteByItemTypeAndItemId} -- nothing
+     * re-inserts a favorite for this item in the same transaction, so there
+     * is no flush-order trap to guard against with {@code @Modifying} here.
+     */
+    void deleteByItemTypeAndItemId(String itemType, Long itemId);
+
+    /**
      * Port of add_favorite's race guard (routers/favorites.py:64-80), but as
      * a single atomic statement instead of Python's plain check-then-insert
      * (which has no try/except around the insert -- a genuine, if rare,

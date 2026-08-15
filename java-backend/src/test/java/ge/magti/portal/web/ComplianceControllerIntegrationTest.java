@@ -378,6 +378,34 @@ class ComplianceControllerIntegrationTest {
                 .andExpect(status().isNotFound());
     }
 
+    /**
+     * BL-14: {@code markRead} only consulted the quiz gate {@code if
+     * (readingArticle != null)}, so an orphaned required reading (its
+     * article gone) let anyone mark it read unconditionally -- quiz or no
+     * quiz. The audit noted this "resolves itself once BL-02 is fixed": once
+     * {@code ContentDeletionService} deletes a required reading along with
+     * its article, {@code markRead}'s OWN lookup at {@code readingId} 404s
+     * before the null-article branch is ever reached. This proves that end
+     * to end through the real DELETE /api/articles endpoint, not just by
+     * reasoning about the code.
+     */
+    @Test
+    void markReadOnAReadingOrphanedByArticleDeletionIs404NotSilentSuccess() throws Exception {
+        User admin = createUser("bl14-admin@magti.ge", Role.CONTENT_ADMIN, "All");
+        User operator = createUser("bl14-op@magti.ge", Role.OPERATOR, "All");
+        Article article = createArticle("წასაშლელი სავალდებულო სტატია", true);
+        RequiredReading reading = createReading("article", article.getId(), "All", TbilisiTime.now().plusDays(3));
+
+        mockMvc.perform(authed(delete("/api/articles/" + article.getId()), tokenFor(admin)))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(authed(post("/api/compliance/mark-read/" + reading.getId()), tokenFor(operator)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("სავალდებულო მასალა ვერ მოიძებნა"));
+        assertTrue(readStatusRepository.findByUserIdAndRequiredReadingId(operator.getId(), reading.getId()).isEmpty(),
+                "no read_statuses row should be written for a reading that no longer exists");
+    }
+
     @Test
     void deletingRequiredReadingWithExistingReadReceiptReturns409NotServerError() throws Exception {
         User admin = createUser("comp-409-admin@magti.ge", Role.CONTENT_ADMIN, "All");

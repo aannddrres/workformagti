@@ -27,6 +27,7 @@ import java.util.Map;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -122,6 +123,15 @@ class NewsControllerIntegrationTest {
                 .andExpect(jsonPath("$.detail").value("Not enough permissions to perform this action"));
     }
 
+    /**
+     * Also the BL-01 regression: the PUT below writes a {@code news_history}
+     * row (every edit does, {@code archiveCurrentState}), and before V32 gave
+     * {@code fk_news_history_news} an {@code ON DELETE CASCADE}, the DELETE
+     * that follows it here would have thrown {@code ORA-02292} -> HTTP 500 --
+     * only an item that had never been edited could be deleted at all. The
+     * extra assertion after delete confirms the FK actually cascaded, not
+     * merely that the request returned 204 for some other reason.
+     */
     @Test
     void contentAdminCrudLifecycle() throws Exception {
         User admin = createUser("news-admin1@magti.ge", Role.CONTENT_ADMIN, "All");
@@ -145,12 +155,16 @@ class NewsControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("განახლებული სიახლე"))
                 .andExpect(jsonPath("$.version").value(2));
+        assertFalse(newsHistoryRepository.findByNewsIdOrderByUpdatedAtDesc(id).isEmpty(),
+                "the PUT above must have written a history row, or the delete below proves nothing about BL-01");
 
         mockMvc.perform(authed(delete("/api/news/" + id), tokenFor(admin)))
                 .andExpect(status().isNoContent());
 
         mockMvc.perform(authed(get("/api/news/" + id), tokenFor(admin)))
                 .andExpect(status().isNotFound());
+        assertTrue(newsHistoryRepository.findByNewsIdOrderByUpdatedAtDesc(id).isEmpty(),
+                "news_history rows must cascade-delete with the news item (BL-01)");
     }
 
     @Test

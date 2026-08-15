@@ -5,11 +5,14 @@ import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.ArticleHistory;
 import ge.magti.portal.domain.ArticleReadReceipt;
 import ge.magti.portal.domain.Category;
+import ge.magti.portal.domain.Favorite;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.QuizAttempt;
 import ge.magti.portal.domain.ReadStatus;
 import ge.magti.portal.domain.RequiredReading;
 import ge.magti.portal.domain.Role;
+import ge.magti.portal.domain.Tag;
+import ge.magti.portal.domain.TagMapping;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.domain.UserNote;
 import ge.magti.portal.repository.ArticleHistoryRepository;
@@ -19,9 +22,12 @@ import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
 import ge.magti.portal.repository.ArticleViewLogRepository;
 import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.CategoryRepository;
+import ge.magti.portal.repository.FavoriteRepository;
 import ge.magti.portal.repository.QuizAttemptRepository;
 import ge.magti.portal.repository.ReadStatusRepository;
 import ge.magti.portal.repository.RequiredReadingRepository;
+import ge.magti.portal.repository.TagMappingRepository;
+import ge.magti.portal.repository.TagRepository;
 import ge.magti.portal.repository.UserNoteRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.JwtService;
@@ -93,6 +99,12 @@ class ArticleControllerIntegrationTest {
     private ReadStatusRepository readStatusRepository;
     @Autowired
     private QuizAttemptRepository quizAttemptRepository;
+    @Autowired
+    private FavoriteRepository favoriteRepository;
+    @Autowired
+    private TagMappingRepository tagMappingRepository;
+    @Autowired
+    private TagRepository tagRepository;
     @Autowired
     private JwtService jwtService;
     @Autowired
@@ -538,6 +550,84 @@ class ArticleControllerIntegrationTest {
 
         assertTrue(articleRepository.findById(article.getId()).isEmpty());
         assertTrue(userNoteRepository.findByUserIdAndArticleId(operator.getId(), article.getId()).isEmpty());
+    }
+
+    /**
+     * BL-02: required_readings/read_statuses address the article
+     * polymorphically (item_type/item_id, no FK -- V6's own header says so),
+     * so Oracle's cascade cannot reach them. Before ContentDeletionService,
+     * these rows survived the delete as permanent ghosts -- an operator
+     * would see "Item #&lt;id&gt; / Content not available." in my-readings
+     * forever, and the compliance denominator kept counting it.
+     */
+    @Test
+    void deletingAnArticleRemovesItsRequiredReadingAndReadStatuses() throws Exception {
+        User admin = createUser("aa16@magti.ge", Role.CONTENT_ADMIN, "All");
+        User operator = createUser("op16@magti.ge", Role.OPERATOR, "All");
+        Category cat = createCategory("კატ-14");
+        Article article = createArticle("სავალდებულო წასაშლელი", cat.getId(), "published", false, List.of("All"), null);
+
+        RequiredReading required = new RequiredReading();
+        required.setItemType("article");
+        required.setItemId(article.getId());
+        required.setTargetDepartment("All");
+        required.setDueDate(TbilisiTime.now().plusDays(7));
+        RequiredReading savedRequired = requiredReadingRepository.saveAndFlush(required);
+
+        ReadStatus stat = new ReadStatus();
+        stat.setUserId(operator.getId());
+        stat.setRequiredReadingId(savedRequired.getId());
+        stat.setStatus("read");
+        stat.setReadAt(TbilisiTime.now());
+        readStatusRepository.saveAndFlush(stat);
+
+        mockMvc.perform(authed(delete("/api/articles/" + article.getId()), tokenFor(admin)))
+                .andExpect(status().isNoContent());
+        articleRepository.flush();
+
+        assertTrue(requiredReadingRepository.findById(savedRequired.getId()).isEmpty(),
+                "the required_readings row must not survive the article it points at");
+        assertTrue(readStatusRepository.findByUserIdAndRequiredReadingId(operator.getId(), savedRequired.getId()).isEmpty(),
+                "its read_statuses row must go with it");
+    }
+
+    /**
+     * BL-10: tags_mapping and favorites are the same shape of polymorphic
+     * reference as required_readings, cleared by the same
+     * ContentDeletionService call.
+     */
+    @Test
+    void deletingAnArticleRemovesOrphanedTagsAndFavorites() throws Exception {
+        User admin = createUser("aa17@magti.ge", Role.CONTENT_ADMIN, "All");
+        User operator = createUser("op17@magti.ge", Role.OPERATOR, "All");
+        Category cat = createCategory("კატ-15");
+        Article article = createArticle("ტეგებიანი წასაშლელი", cat.getId(), "published", false, List.of("All"), null);
+
+        Tag tag = tagRepository.findByName("რეგრესია").orElseGet(() -> {
+            Tag created = new Tag();
+            created.setName("რეგრესია");
+            return tagRepository.saveAndFlush(created);
+        });
+        TagMapping mapping = new TagMapping();
+        mapping.setTagId(tag.getId());
+        mapping.setItemType("article");
+        mapping.setItemId(article.getId());
+        tagMappingRepository.saveAndFlush(mapping);
+
+        Favorite favorite = new Favorite();
+        favorite.setUserId(operator.getId());
+        favorite.setItemType("article");
+        favorite.setItemId(article.getId());
+        favoriteRepository.saveAndFlush(favorite);
+
+        mockMvc.perform(authed(delete("/api/articles/" + article.getId()), tokenFor(admin)))
+                .andExpect(status().isNoContent());
+        articleRepository.flush();
+
+        assertTrue(tagMappingRepository.findById(mapping.getId()).isEmpty(),
+                "tags_mapping must not keep pointing at a deleted article");
+        assertTrue(favoriteRepository.findByUserIdAndItemTypeAndItemId(operator.getId(), "article", article.getId()).isEmpty(),
+                "a favourite of a deleted article must be removed, not left rendering a null title");
     }
 
     // ── archive / unarchive / bulk-archive ───────────────────────────
