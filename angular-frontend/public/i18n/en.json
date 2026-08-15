@@ -98,6 +98,24 @@
   "search": {
     "history_tab": {
       "heading": "Search History"
+    },
+    "palette": {
+      "open": "Search",
+      "placeholder": "Search…",
+      "shortcut": "Ctrl K",
+      "dialog_label": "Global search",
+      "input_placeholder": "Search articles, news or videos…",
+      "close": "Close",
+      "hint": "Start typing to search",
+      "too_short": "Enter at least {{count}} characters",
+      "no_results": "Nothing found for “{{query}}”",
+      "error": "Search failed",
+      "retry": "Try again",
+      "type_article": "Article",
+      "type_news": "News",
+      "type_video": "Video",
+      "legend_navigate": "↑↓ navigate",
+      "legend_open": "Enter to open"
     }
   },
   "shell": {

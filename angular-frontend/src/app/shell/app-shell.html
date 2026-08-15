@@ -58,6 +58,10 @@
       </div>
 
       <div class="flex items-center gap-3">
+        <!-- Search sits in the topbar on every page: an operator mid-call must
+             not have to navigate somewhere to start looking. -->
+        <app-global-search />
+
         <button
           type="button"
           (click)="toggleLanguage()"

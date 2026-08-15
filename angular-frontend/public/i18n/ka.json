@@ -98,6 +98,24 @@
   "search": {
     "history_tab": {
       "heading": "ძებნის ისტორია"
+    },
+    "palette": {
+      "open": "ძებნა",
+      "placeholder": "ძებნა…",
+      "shortcut": "Ctrl K",
+      "dialog_label": "გლობალური ძებნა",
+      "input_placeholder": "მოძებნე სტატია, სიახლე ან ვიდეო…",
+      "close": "დახურვა",
+      "hint": "დაიწყე კრეფა საძიებლად",
+      "too_short": "შეიყვანე მინიმუმ {{count}} სიმბოლო",
+      "no_results": "„{{query}}“-ზე ვერაფერი მოიძებნა",
+      "error": "ძებნა ვერ შესრულდა",
+      "retry": "თავიდან ცდა",
+      "type_article": "სტატია",
+      "type_news": "სიახლე",
+      "type_video": "ვიდეო",
+      "legend_navigate": "↑↓ ნავიგაცია",
+      "legend_open": "Enter გახსნა"
     }
   },
   "shell": {
