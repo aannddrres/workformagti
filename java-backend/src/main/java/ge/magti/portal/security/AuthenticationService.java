@@ -73,7 +73,12 @@ public class AuthenticationService {
 
     public Optional<User> authenticate(String email, String password) {
         String lowerEmail = email.toLowerCase();
+        // SEC-01: requires BOTH a non-production environment and the explicit
+        // allow-dev-login opt-in. !isProduction() alone was satisfied by any
+        // environment that was not exactly "production" -- including a
+        // deployment whose manifest simply omitted APP_ENV.
         boolean isTestAccount = !properties.isProduction()
+                && properties.getSecurity().isAllowDevLogin()
                 && (lowerEmail.startsWith("test_operator_") || DEV_TEST_EMAILS.contains(lowerEmail));
 
         User user = userRepository.findByEmailIgnoreCase(lowerEmail)

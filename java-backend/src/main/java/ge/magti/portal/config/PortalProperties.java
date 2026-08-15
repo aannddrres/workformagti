@@ -13,7 +13,19 @@ import org.springframework.context.annotation.Configuration;
 @ConfigurationProperties(prefix = "portal")
 public class PortalProperties {
 
-	private String appEnv = "development";
+	/**
+	 * Defaults to production so the INSECURE mode is the one that must be
+	 * asked for.
+	 *
+	 * It used to default to "development" here and in application.yml, while
+	 * the Dockerfile set no APP_ENV at all — so the shipping image booted with
+	 * the password-less dev login enabled, and a deployment manifest that
+	 * merely forgot the variable (or misspelled it, or wrote APP_ENV=prod)
+	 * handed a SYSTEM_ADMIN token to anyone who could reach the URL
+	 * (audit SEC-01, Critical). The Python side already fails safe this way;
+	 * this brings the Java image in line.
+	 */
+	private String appEnv = "production";
 
 	private String uploadsDir = "uploads";
 
@@ -45,6 +57,26 @@ public class PortalProperties {
 	}
 
 	public static class Security {
+		/**
+		 * Second, explicit switch for the password-less dev login.
+		 *
+		 * !isProduction() alone was too easy to satisfy by accident — any
+		 * environment that is not exactly "production" enabled it silently.
+		 * The bypass is deliberate for local development (see the
+		 * auth-bypass-intentional-pending-ad decision), but it now has to be
+		 * asked for by name, and ProductionSafetyGuard refuses to let it
+		 * coexist with a production environment.
+		 */
+		private boolean allowDevLogin = false;
+
+		public boolean isAllowDevLogin() {
+			return allowDevLogin;
+		}
+
+		public void setAllowDevLogin(boolean allowDevLogin) {
+			this.allowDevLogin = allowDevLogin;
+		}
+
 		@NestedConfigurationProperty
 		private final Jwt jwt = new Jwt();
 		@NestedConfigurationProperty

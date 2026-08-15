@@ -25,12 +25,19 @@ COPY --from=builder --chown=appuser:appgroup /build/target/portal-backend-*.jar 
 
 USER appuser
 
-# All values below are dev-only defaults baked into application.yml itself
-# (see PortalProperties/application.yml) -- a real deployment overrides
-# every one of these via env vars, exactly like the root Dockerfile's
-# Python app does for APP_ENV/SECRET_KEY/POSTGRES_PASSWORD. ProductionSafetyGuard
-# refuses to boot if APP_ENV=production is set without also overriding
-# SECRET_KEY/COOKIE_SECURE.
+# The image ships as production (SEC-01). This used to be absent entirely
+# while application.yml defaulted app-env to "development", so the shipping
+# image booted with the password-less dev login enabled and a Deployment
+# manifest that merely forgot APP_ENV was enough to expose it. Stated here so
+# the image is safe before any manifest is written; application.yml now
+# defaults the same way, and this makes it visible in `docker inspect`.
+#
+# Consequence, by design: this container will NOT start until SECRET_KEY,
+# ORACLE_DB_PASSWORD and COOKIE_SECURE=true are supplied. ProductionSafetyGuard
+# rejects blank/short/placeholder secrets, the shipped dev database passwords,
+# an insecure cookie, and any attempt to enable the dev login here. To run the
+# image for local experimentation, pass APP_ENV=development explicitly.
+ENV APP_ENV=production
 ENV JAVA_TOOL_OPTIONS="-XX:+UseContainerSupport"
 EXPOSE 8080
 
