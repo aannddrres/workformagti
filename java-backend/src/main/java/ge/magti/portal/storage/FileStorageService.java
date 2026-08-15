@@ -58,8 +58,23 @@ import java.util.regex.Pattern;
  * but the bytes now land in database backups, and the tablespace has to be
  * sized for them. That requirement is written down in
  * docs/QUESTIONS_FOR_IT.md as a prerequisite. If the answer from IT is
- * eventually "use the object store", only this class changes: nothing else
- * touches a {@link Path}.
+ * eventually "use the object store", this class is the only thing that has
+ * to learn to speak to it: it is the sole owner of where an upload lives.
+ *
+ * <p>Stated precisely, because the tempting shorthand ("nothing else touches
+ * a {@link Path}") is not true. Three other classes still name one, and all
+ * three are read-or-delete paths over leftovers rather than storage
+ * decisions: {@code ExportController} and {@code ExportJobCleanupScheduler}
+ * handle export files written before V31 moved exports into their own row,
+ * and {@code GeorgianPdfFont} probes for a system font it no longer needs
+ * (PR-02 bundles one). None would need to change for an object store, and
+ * all three go dead once no pre-V31 rows remain.
+ *
+ * <p>What IS true, and verified rather than assumed: after PR-03 nothing in
+ * this backend writes to a filesystem at all -- no {@code Files.write},
+ * {@code Files.createDirectories}, {@code transferTo}, {@code Files.copy} or
+ * {@code FileOutputStream} remains anywhere under {@code src/main/java}.
+ * Not even this class: {@link #store} writes a row.
  *
  * <h2>Legacy files</h2>
  *
@@ -140,8 +155,10 @@ public class FileStorageService {
 
     /**
      * Only for legacy disk files -- rows written through {@link #store} carry
-     * the server-detected type that passed {@code UploadController}'s MIME
-     * allowlist. A probe that fails degrades to {@code
+     * the type that passed {@code UploadController}'s MIME allowlist AND
+     * {@code FileTypeVerifier}'s magic-byte check (SEC-09). Client-declared
+     * but byte-verified, which is a weaker claim than "server-detected";
+     * making the stronger one without the check IS what SEC-09 was. A probe that fails degrades to {@code
      * application/octet-stream}, which downloads rather than renders; the
      * response also carries {@code X-Content-Type-Options: nosniff} so a
      * wrong guess cannot be re-interpreted by the browser.

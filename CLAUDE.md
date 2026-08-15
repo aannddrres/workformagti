@@ -44,8 +44,14 @@
 - `state.py` — shared app-level singletons (moved out of `main.py`)
 - `java-backend/src/main/java/ge/magti/portal/storage/` — `FileStorageService`
   (uploads live in Oracle as BLOBs, not on disk — audit PR-03) and
-  `FileTypeVerifier` (magic-byte check, SEC-09). This is the ONLY place that
-  touches `java.nio.file.Path`; a later move to S3/RWX changes one class
+  `FileTypeVerifier` (magic-byte check, SEC-09). Sole owner of where an
+  upload lives, so a later move to S3/RWX changes one class. Since PR-03
+  **nothing in the backend writes to a filesystem at all** (verified: no
+  `Files.write`/`createDirectories`/`transferTo`/`FileOutputStream` under
+  `src/main/java`). Three classes still *read or delete* paths —
+  `ExportController` and `ExportJobCleanupScheduler` for pre-V31 export
+  files, `GeorgianPdfFont` for a system font it no longer needs — all of
+  which go dead once no pre-V31 rows remain.
 - `java-backend/.../security/ClientIpResolver.java` — resolves the real caller
   behind a proxy for rate limiting and the audit log. **Needs
   `TRUSTED_PROXIES` set in production or `X-Forwarded-For` is ignored**
