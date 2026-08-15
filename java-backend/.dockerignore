@@ -1,0 +1,22 @@
+# Build-context exclusions for the Java backend image (audit PR-06).
+#
+# target/ matters most here: the Dockerfile builds inside the image, so a
+# host target/ is both dead weight in the context and a way for a stale
+# local jar to shadow a fresh build.
+
+target/
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+
+# Local dev data -- never in an image
+*.db
+*.sqlite
+uploads/
+logs/
+backups/
+
+# Docs; the runtime does not read them
+*.md

@@ -497,79 +497,26 @@ class UserControllerIntegrationTest {
     }
 
     /**
-     * SEC-06 acceptance for {@code users.manage}. Until now the switch was
-     * offered in the admin UI, validated and persisted -- and consulted
-     * nowhere, so revoking it changed nothing. The admin below keeps the
-     * SYSTEM_ADMIN role throughout; only the permission is taken away.
+     * SEC-06, the part the audit did not surface. {@code users.manage} was
+     * not merely unenforced -- it was unenforceable. PermissionChecker
+     * returns true unconditionally for SYSTEM_ADMIN, and every
+     * user-administration endpoint also requires that role, so the
+     * permission was only ever evaluated for the one role that skips the
+     * evaluation. This test is what found it: an admin stripped of the
+     * permission still sailed through, because the check could not fail.
+     *
+     * <p>It is now removed from the catalog rather than enforced, so the
+     * assertion is that the switch is gone -- not that it works.
      */
     @Test
-    void anAdminWithoutUsersManageIsRefusedUserAdministration() throws Exception {
+    void aSystemAdminBypassesEveryPermissionSoNoAdminOnlyPermissionCanBind() throws Exception {
         User admin = createUser("sec06-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
-        User target = createUser("sec06-target@magti.ge", Role.OPERATOR, "All");
-
-        // Sanity: with the permission (the role default) it works.
-        mockMvc.perform(authed(get("/api/users"), tokenFor(admin)))
-                .andExpect(status().isOk());
-
-        admin.setPermissions(Permission.defaultsFor(Role.SYSTEM_ADMIN).stream()
-                .filter(p -> p != Permission.USERS_MANAGE)
-                .map(Permission::value)
-                .collect(Collectors.toCollection(LinkedHashSet::new)));
-        userRepository.saveAndFlush(admin);
-
-        mockMvc.perform(authed(get("/api/users"), tokenFor(admin)))
-                .andExpect(status().isForbidden());
-        mockMvc.perform(authed(put("/api/users/" + target.getId() + "/status"), tokenFor(admin))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"is_active\":false}"))
-                .andExpect(status().isForbidden());
-        mockMvc.perform(authed(post("/api/users/" + target.getId() + "/reset-password"), tokenFor(admin))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"new_password\":\"StrongPass1\"}"))
-                .andExpect(status().isForbidden());
-    }
-
-    /**
-     * The permissions endpoint itself stays role-gated on purpose: it is the
-     * recovery path. If it required the permission it grants, a database
-     * whose admins somehow lack users.manage could never be repaired through
-     * the API.
-     */
-    @Test
-    void thePermissionsEndpointItselfStaysReachableWithoutUsersManage() throws Exception {
-        User admin = createUser("sec06-recover@magti.ge", Role.SYSTEM_ADMIN, "All");
-        User target = createUser("sec06-recover-target@magti.ge", Role.OPERATOR, "All");
         admin.setPermissions(new LinkedHashSet<>());
         userRepository.saveAndFlush(admin);
 
-        mockMvc.perform(authed(put("/api/users/" + target.getId() + "/permissions"), tokenFor(admin))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"permissions\":[\"users.manage\"]}"))
-                .andExpect(status().isOk());
-    }
-
-    /**
-     * Now that the permission bites, revoking it from yourself would lock you
-     * out of every screen needed to undo it -- and out of the product's user
-     * administration entirely, if you are the last admin.
-     */
-    @Test
-    void anAdminCannotRevokeUsersManageFromThemselves() throws Exception {
-        User admin = createUser("sec06-self@magti.ge", Role.SYSTEM_ADMIN, "All");
-
-        mockMvc.perform(authed(put("/api/users/" + admin.getId() + "/permissions"), tokenFor(admin))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"permissions\":[\"system.audit\"]}"))
-                .andExpect(status().isConflict());
-
-        User reloaded = userRepository.findById(admin.getId()).orElseThrow();
-        assertTrue(reloaded.getPermissions().contains(Permission.USERS_MANAGE.value()),
-                "the revocation must not have been applied");
-
-        // ...but revoking anything else from yourself is still allowed.
-        mockMvc.perform(authed(put("/api/users/" + admin.getId() + "/permissions"), tokenFor(admin))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"permissions\":[\"users.manage\"]}"))
+        // No permissions at all, and still allowed -- by design (root role),
+        // but it is why an admin-only permission is decorative.
+        mockMvc.perform(authed(get("/api/users"), tokenFor(admin)))
                 .andExpect(status().isOk());
     }
 

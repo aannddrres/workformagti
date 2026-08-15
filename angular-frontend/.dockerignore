@@ -1,0 +1,20 @@
+# Build-context exclusions for the frontend image (audit PR-06).
+#
+# node_modules is the important one. Dockerfile:11 runs `COPY . .` AFTER
+# `npm ci`, so without this a host node_modules (different platform, wrong
+# architecture, or simply stale) overwrote the one just installed inside the
+# image -- a build that succeeds locally and produces a broken image.
+
+node_modules/
+dist/
+.angular/
+
+.git
+.gitignore
+.env
+.env.*
+
+# Test/coverage output
+coverage/
+
+*.md

@@ -71,8 +71,9 @@ public class ProductionSafetyGuard {
 
 	@PostConstruct
 	void verify() {
+		logEffectiveSecurityConfig();
+
 		if (!properties.isProduction()) {
-			warnAboutDevLogin();
 			return;
 		}
 
@@ -137,12 +138,34 @@ public class ProductionSafetyGuard {
 	}
 
 	/**
-	 * The dev bypass used to be completely silent. Anyone looking at a running
-	 * instance had no way to tell whether password-less login was live short of
-	 * trying it, which is precisely how SEC-01 could have reached production
-	 * unnoticed.
+	 * One line, on every boot, in every environment (audit PR-08).
+	 *
+	 * <p>The dev bypass used to be completely silent: anyone looking at a
+	 * running instance had no way to tell whether password-less login was
+	 * live short of trying it, which is precisely how SEC-01 could have
+	 * reached production unnoticed. The first fix logged it -- but only in
+	 * the non-production branch, because the production path returned after
+	 * its checks. That left the one environment where the line matters most
+	 * as the one that never printed it.
+	 *
+	 * <p>Now it always prints, before any check can throw, so even a boot
+	 * that ProductionSafetyGuard aborts leaves a record of the configuration
+	 * that caused it. trusted-proxies is included because an empty value
+	 * silently changes what the login rate limiter and the audit log see
+	 * (SEC-04/PR-04) -- exactly the class of "quietly not what you think"
+	 * this line exists to expose.
 	 */
-	private void warnAboutDevLogin() {
+	private void logEffectiveSecurityConfig() {
+		int trustedProxyCount = properties.getSecurity().getTrustedProxies().size();
+		logger.info(
+				"Startup security config: app-env={}, dev-login={}, cookie-secure={}, cookie-samesite={}, "
+						+ "trusted-proxies={}",
+				properties.getAppEnv(),
+				properties.getSecurity().isAllowDevLogin() ? "ENABLED" : "disabled",
+				properties.getSecurity().getCookie().isSecure(),
+				properties.getSecurity().getCookie().getSameSite(),
+				trustedProxyCount == 0 ? "none (X-Forwarded-For ignored)" : trustedProxyCount + " configured");
+
 		if (properties.getSecurity().isAllowDevLogin()) {
 			logger.warn(
 					"SECURITY: password-less dev login is ENABLED (portal.app-env={}, "
@@ -150,10 +173,6 @@ public class ProductionSafetyGuard {
 							+ "seeded test accounts, including an admin. This must never be a "
 							+ "production or shared environment.",
 					properties.getAppEnv());
-		} else {
-			logger.info(
-					"Startup security config: app-env={}, dev-login=disabled, cookie-secure={}",
-					properties.getAppEnv(), properties.getSecurity().getCookie().isSecure());
 		}
 	}
 }

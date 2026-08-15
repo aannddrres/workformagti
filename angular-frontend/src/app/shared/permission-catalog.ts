@@ -1,5 +1,5 @@
 /**
- * The 8 real, working permission values, ported from Permission.java's
+ * The 7 real, working permission values, ported from Permission.java's
  * enum + DEFAULTS_BY_ROLE -- NOT the 9 colon-named checkbox values
  * (`content:editor`, `reports:view_global`, ...) the Python edit-user
  * modal actually renders. Confirmed live (routers/users.py:460-465 vs.
@@ -23,7 +23,10 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
   {
     heading: 'system',
     options: [
-      { value: 'users.manage', label: 'users_manage' },
+      // 'users.manage' removed with its backend counterpart (audit SEC-06):
+      // it was granted only to SYSTEM_ADMIN, and PermissionChecker bypasses
+      // every check for that role, so the switch could never affect a
+      // decision no matter what it was set to.
       { value: 'system.audit', label: 'system_audit' }
     ]
   },
@@ -61,7 +64,7 @@ const DEFAULTS_BY_ROLE: Record<string, string[]> = {
   ],
   admin: [
     'articles.edit', 'articles.publish', 'articles.archive',
-    'videos.archive', 'users.manage', 'compliance.assign', 'reports.export', 'system.audit'
+    'videos.archive', 'compliance.assign', 'reports.export', 'system.audit'
   ]
 };
 

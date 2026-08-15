@@ -55,7 +55,24 @@ public enum Permission {
     ARTICLES_PUBLISH("articles.publish"),
     ARTICLES_ARCHIVE("articles.archive"),
     VIDEOS_ARCHIVE("videos.archive"),
-    USERS_MANAGE("users.manage"),
+    // USERS_MANAGE ("users.manage") was REMOVED here too (audit SEC-06),
+    // for a reason the audit did not surface and that only appeared when a
+    // test tried to enforce it: PermissionChecker.hasPermission returns TRUE
+    // unconditionally for SYSTEM_ADMIN. Combined with the fact that every
+    // user-administration endpoint also requires the SYSTEM_ADMIN role,
+    // users.manage was only ever evaluated for the one role that bypasses
+    // the evaluation -- structurally incapable of affecting any decision,
+    // no matter what the admin UI's switch said.
+    //
+    // Enforcing it therefore needed one of two changes that are bigger than
+    // a bug fix, and both are the owner's call, not a 2am one:
+    //   (a) drop the SYSTEM_ADMIN bypass, making permissions bind for
+    //       admins too -- honest, but any admin row with an incomplete
+    //       permission set silently loses abilities on deploy; or
+    //   (b) let users.manage DELEGATE user administration to a non-admin,
+    //       which is a new capability, not a fix.
+    // Until one is chosen, the switch is not shipped. See the report and
+    // PermissionChecker's javadoc.
     COMPLIANCE_ASSIGN("compliance.assign"),
     REPORTS_EXPORT("reports.export"),
     SYSTEM_AUDIT("system.audit");
@@ -68,7 +85,7 @@ public enum Permission {
                     VIDEOS_ARCHIVE, COMPLIANCE_ASSIGN, SYSTEM_AUDIT),
             Role.SYSTEM_ADMIN, EnumSet.of(
                     ARTICLES_EDIT, ARTICLES_PUBLISH, ARTICLES_ARCHIVE,
-                    VIDEOS_ARCHIVE, USERS_MANAGE, COMPLIANCE_ASSIGN, REPORTS_EXPORT, SYSTEM_AUDIT));
+                    VIDEOS_ARCHIVE, COMPLIANCE_ASSIGN, REPORTS_EXPORT, SYSTEM_AUDIT));
 
     private final String value;
 
