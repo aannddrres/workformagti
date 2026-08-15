@@ -53,6 +53,7 @@ import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -225,8 +226,15 @@ class ExportControllerIntegrationTest {
         assertFalse(csv.contains(manager.getId() + ","), "manager (management role) must be excluded from the eligible export");
     }
 
+    /**
+     * BL-09 acceptance: the same job id must still download the second time.
+     * This test previously asserted the opposite -- {@code "download must
+     * delete the job row"} -- which is exactly the behaviour the audit
+     * flagged: a refresh, a retry or an interrupted transfer destroyed the
+     * export and then reported "not ready yet".
+     */
     @Test
-    void xlsxExportBuildsAndDownloadsThenTheJobRowAndFileAreGone() throws Exception {
+    void xlsxExportDownloadsTwiceAndKeepsItsJobRow() throws Exception {
         User admin = createUser("exp-admin2@magti.ge", Role.SYSTEM_ADMIN, "All");
         User operator = createUser("exp-op2@magti.ge", Role.OPERATOR, "ექსელის განყოფილება " + System.nanoTime());
         Article article = createArticle("ექსელის სტატია " + System.nanoTime());
@@ -267,9 +275,15 @@ class ExportControllerIntegrationTest {
             assertTrue(foundOperatorRow, "exported xlsx must contain this test's operator row");
         }
 
-        assertFalse(exportJobRepository.findById(jobId).isPresent(), "download must delete the job row");
+        byte[] secondDownload = mockMvc.perform(authed(get("/api/export/download/" + jobId), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsByteArray();
+        assertArrayEquals(xlsxBytes, secondDownload, "a second download of the same job id must return the same file");
+
+        assertTrue(exportJobRepository.findById(jobId).isPresent(), "download must not delete the job row");
         mockMvc.perform(authed(get("/api/export/status/" + jobId), tokenFor(admin)))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("completed"));
     }
 
     @Test
@@ -448,15 +462,22 @@ class ExportControllerIntegrationTest {
         return details.path("scope_department").asText(null);
     }
 
+    /**
+     * BL-09: download used to answer an unknown id with the same "not ready
+     * yet" 404 it used for a job that really was still building, so the
+     * message told the user to wait for something that would never arrive.
+     * An unknown id and a swept row are indistinguishable at this point and
+     * both mean "regenerate", so both are 410.
+     */
     @Test
-    void statusAndDownloadReturn404ForUnknownJob() throws Exception {
+    void unknownJobIsNotFoundOnStatusAndGoneOnDownload() throws Exception {
         User admin = createUser("exp-admin3@magti.ge", Role.SYSTEM_ADMIN, "All");
         mockMvc.perform(authed(get("/api/export/status/does-not-exist"), tokenFor(admin)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.detail").value("საექსპორტო დავალება ვერ მოიძებნა"));
         mockMvc.perform(authed(get("/api/export/download/does-not-exist"), tokenFor(admin)))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.detail").value("ექსპორტი ჯერ არ არის მზად"));
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.status").value("expired"));
     }
 
     @Test

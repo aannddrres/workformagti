@@ -226,9 +226,16 @@ export class TeamStatsPage {
                   this.downloadBlob(blob, filename);
                   this.asyncExport.set(null);
                 },
-                error: () => {
+                error: (err: HttpErrorResponse) => {
                   this.asyncExport.set(null);
-                  this.asyncExportError.set(this.translate.instant('manager.page.export_error'));
+                  // BL-09: the backend used to answer every download problem
+                  // with "not ready yet", so the only honest thing the UI
+                  // could say was a generic failure. 410 now means the file
+                  // is gone for good — telling the user to regenerate is the
+                  // difference between one more click and reloading forever.
+                  this.asyncExportError.set(
+                    this.translate.instant(err.status === 410 ? 'manager.page.export_expired' : 'manager.page.export_error')
+                  );
                 }
               });
             }

@@ -22,6 +22,17 @@ import java.util.List;
  * file deleted and its row dropped. User-approved fix, 2026-08-06 (raised
  * the moment this layer was reached, per this port's own "surface bugs
  * immediately" rule).
+ *
+ * <p><b>Now the only thing that deletes an export (audit BL-09).</b>
+ * {@code ExportController.downloadExport} used to delete the file and the row
+ * on the first successful read, which made every export single-use: a refresh
+ * or a retried download got "not ready yet" for something that no longer
+ * existed. Removing that leaves this sweep as the sole owner of expiry, which
+ * is what it was written for.
+ *
+ * <p>The file deletion below is for pre-V31 rows only -- exports built after
+ * that migration live in the {@code export_jobs} row itself and are removed
+ * with it (audit PR-03).
  */
 @Component
 public class ExportJobCleanupScheduler {

@@ -347,7 +347,8 @@
       "export_team_stats_pdf": "PDF (team stats)",
       "export_processing": "Processing…",
       "export_failed": "Could not prepare the export.",
-      "export_error": "Export failed."
+      "export_error": "Export failed.",
+      "export_expired": "This export has expired — please generate it again."
     }
   },
   "stats": {

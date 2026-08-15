@@ -223,7 +223,25 @@ public class ExportController {
         return ResponseEntity.ok(new ExportStatusResponse(jobId, job.get().getStatus()));
     }
 
-    /** Port of download_export (routers/exports.py:432-447). */
+    /**
+     * Port of download_export (routers/exports.py:432-447), with BL-09 fixed.
+     *
+     * <p>Python answered <b>every</b> non-success case with the same
+     * {@code 404 ექსპორტი ჯერ არ არის მზად} -- "not ready yet", a message that
+     * tells the user to wait. It was returned when the job was genuinely still
+     * building, when the id was unknown, when the file had already been
+     * deleted by the previous download, and when the request landed on a
+     * replica that never had the file. Only the first of those is worth
+     * waiting for; the rest never resolve, so the manager reloads until they
+     * give up. The four cases are now four responses, and the caller is told
+     * which one it got.
+     *
+     * <p>The download is also no longer one-shot. It used to call
+     * {@code cleanupExport} the moment the bytes were read, deleting the file
+     * and the row, so a browser retry, a refresh, an interrupted transfer or a
+     * second click destroyed the export. {@code ExportJobCleanupScheduler}
+     * already sweeps by TTL and is now the only thing that deletes.
+     */
     @GetMapping("/api/export/download/{jobId}")
     public ResponseEntity<?> downloadExport(@PathVariable("jobId") String jobId, @AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireReportsExport(user);
@@ -231,26 +249,63 @@ public class ExportController {
             return denial;
         }
         Optional<ExportJob> jobOpt = exportJobRepository.findById(jobId);
-        if (jobOpt.isEmpty() || !"completed".equals(jobOpt.get().getStatus()) || jobOpt.get().getPath() == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", "ექსპორტი ჯერ არ არის მზად"));
+        if (jobOpt.isEmpty()) {
+            // A swept row is indistinguishable from a bad id here; both mean
+            // "regenerate", which is what the expired message says.
+            return ResponseEntity.status(HttpStatus.GONE)
+                    .body(Map.of("detail", "ექსპორტის ვადა გავიდა — გთხოვთ, თავიდან შექმნათ", "status", "expired"));
         }
-        Path path = Path.of(jobOpt.get().getPath());
-        byte[] data;
-        try {
-            data = Files.readAllBytes(path);
-        } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", "ექსპორტი ჯერ არ არის მზად"));
+        ExportJob job = jobOpt.get();
+        if (job.getExpiresAt() < nowEpochSeconds()) {
+            return ResponseEntity.status(HttpStatus.GONE)
+                    .body(Map.of("detail", "ექსპორტის ვადა გავიდა — გთხოვთ, თავიდან შექმნათ", "status", "expired"));
         }
-        cleanupExport(jobId, path);
+        if ("failed".equals(job.getStatus())) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("detail", "ექსპორტის აგება ვერ მოხერხდა", "status", "failed"));
+        }
+        if (!"completed".equals(job.getStatus())) {
+            return ResponseEntity.status(HttpStatus.ACCEPTED)
+                    .body(Map.of("detail", "ექსპორტი ჯერ მუშავდება", "status", job.getStatus()));
+        }
 
-        String filename = path.getFileName().toString();
-        MediaType mediaType = filename.endsWith(".xlsx")
+        byte[] data = job.getContent();
+        String filename = job.getFilename();
+        if (data == null) {
+            // Pre-V31 row: the bytes are on whichever pod built them. Readable
+            // only if this is that pod, which is the whole PR-03 problem --
+            // best effort, then an honest "regenerate".
+            Optional<byte[]> legacy = readLegacyFile(job.getPath());
+            if (legacy.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.GONE)
+                        .body(Map.of("detail", "ექსპორტის ვადა გავიდა — გთხოვთ, თავიდან შექმნათ", "status", "expired"));
+            }
+            data = legacy.get();
+            filename = Path.of(job.getPath()).getFileName().toString();
+        }
+
+        MediaType mediaType = filename != null && filename.endsWith(".xlsx")
                 ? MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                 : MediaType.APPLICATION_PDF;
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
                 .contentType(mediaType)
                 .body(data);
+    }
+
+    private static Optional<byte[]> readLegacyFile(String path) {
+        if (path == null) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(Files.readAllBytes(Path.of(path)));
+        } catch (IOException | RuntimeException e) {
+            return Optional.empty();
+        }
+    }
+
+    private static double nowEpochSeconds() {
+        return System.currentTimeMillis() / 1000.0;
     }
 
     private List<List<Object>> readingRowsForSpreadsheet(List<ReadingExportRow> rows) {
@@ -278,15 +333,6 @@ public class ExportController {
         exportJobRepository.saveAndFlush(job);
         exportJobWorker.buildAndStore(jobId, title, headers, rows, exportType);
         return jobId;
-    }
-
-    private void cleanupExport(String jobId, Path path) {
-        try {
-            Files.deleteIfExists(path);
-        } catch (IOException ignored) {
-            // Best-effort, matches Python's _cleanup_export (routers/exports.py:406-412).
-        }
-        exportJobRepository.deleteById(jobId);
     }
 
     /**

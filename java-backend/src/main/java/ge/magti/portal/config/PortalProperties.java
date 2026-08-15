@@ -27,6 +27,12 @@ public class PortalProperties {
 	 */
 	private String appEnv = "production";
 
+	/**
+	 * Read-only legacy path since PR-03: new uploads go into Oracle
+	 * ({@code stored_files}), and {@code FileStorageService} consults this
+	 * directory only to keep attachments written before that change
+	 * resolvable. Nothing writes here any more.
+	 */
 	private String uploadsDir = "uploads";
 
 	@NestedConfigurationProperty

@@ -2,14 +2,13 @@ package ge.magti.portal.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ge.magti.portal.RequiresOracle;
-import ge.magti.portal.config.PortalProperties;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.repository.AuditLogRepository;
+import ge.magti.portal.repository.StoredFileRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.JwtService;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -20,27 +19,27 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * Real Oracle, real HTTP, real Spring Security filter chain -- covers
- * routers/platform.py's {@code POST /api/upload} port. Files this test
- * writes to the real uploads dir are tracked and removed in
- * {@link #cleanupUploadedFiles()}, same pattern as {@link
- * ExportControllerIntegrationTest}'s exports-dir cleanup.
+ * routers/platform.py's {@code POST /api/upload} port.
+ *
+ * <p>No file cleanup any more: since PR-03 the bytes go into {@code
+ * stored_files}, so {@code @Transactional} rolls them back with everything
+ * else. The old {@code cleanupUploadedFiles} hook existed because uploads
+ * escaped the test transaction onto the real disk -- which is the same
+ * property that made them survive nothing in production.
  */
 @RequiresOracle
 @SpringBootTest
@@ -59,18 +58,9 @@ class UploadControllerIntegrationTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
     @Autowired
-    private PortalProperties portalProperties;
+    private StoredFileRepository storedFileRepository;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final List<String> writtenFilenames = new ArrayList<>();
-
-    @AfterEach
-    void cleanupUploadedFiles() throws IOException {
-        Path dir = Path.of(portalProperties.getUploadsDir());
-        for (String filename : writtenFilenames) {
-            Files.deleteIfExists(dir.resolve(filename));
-        }
-    }
 
     private User createUser(String email, Role role) {
         User user = new User();
@@ -131,11 +121,17 @@ class UploadControllerIntegrationTest {
         String filename = json.get("filename").asText();
         assertTrue(url.equals("/uploads/" + filename));
         assertTrue(filename.endsWith(".png"));
-        writtenFilenames.add(filename);
 
-        // Served back over plain HTTP by WebConfig's /uploads/** resource handler.
-        mockMvc.perform(get(url))
-                .andExpect(status().isOk());
+        // PR-03: the bytes are in Oracle now, not on this container's disk,
+        // and UploadedFileController serves them back at the same URL. The
+        // round-trip is asserted byte-for-byte because "200 OK" alone would
+        // also pass if the BLOB came back empty.
+        byte[] served = mockMvc.perform(get(url))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "image/png"))
+                .andReturn().getResponse().getContentAsByteArray();
+        assertArrayEquals(new byte[]{(byte) 0x89, 'P', 'N', 'G'}, served);
+        assertTrue(storedFileRepository.findById(filename).isPresent(), "the upload must be a stored_files row");
 
         long auditCount = auditLogRepository.findAll().stream()
                 .filter(a -> a.getAdminId().equals(admin.getId()) && "UPLOAD".equals(a.getAction()))

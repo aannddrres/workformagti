@@ -1,9 +1,9 @@
 package ge.magti.portal.web;
 
-import ge.magti.portal.config.PortalProperties;
 import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.repository.AuditLogRepository;
+import ge.magti.portal.storage.FileStorageService;
 import ge.magti.portal.util.TbilisiTime;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,8 +14,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
@@ -35,6 +33,13 @@ import java.util.UUID;
  * runs, so the explicit {@link MultipartFile#getSize()} check here is a
  * belt-and-suspenders mirror of Python's manual streaming cap, not the only
  * guard.
+ *
+ * <p><b>Deliberate divergence from Python (audit PR-03):</b> the bytes go to
+ * {@link FileStorageService}, not to {@code portal.uploads-dir}. Python wrote
+ * to a local directory and mounted it with {@code StaticFiles}; carrying that
+ * over faithfully is what made every restart delete every attachment and made
+ * a second replica serve 404s. See that class's javadoc for the options
+ * considered.
  */
 @RestController
 public class UploadController {
@@ -56,11 +61,11 @@ public class UploadController {
             Map.entry("video/mp4", ".mp4")
     );
 
-    private final PortalProperties portalProperties;
+    private final FileStorageService fileStorageService;
     private final AuditLogRepository auditLogRepository;
 
-    public UploadController(PortalProperties portalProperties, AuditLogRepository auditLogRepository) {
-        this.portalProperties = portalProperties;
+    public UploadController(FileStorageService fileStorageService, AuditLogRepository auditLogRepository) {
+        this.fileStorageService = fileStorageService;
         this.auditLogRepository = auditLogRepository;
     }
 
@@ -92,10 +97,8 @@ public class UploadController {
         }
 
         String uniqueFilename = UUID.randomUUID() + ext;
-        Path dir = Path.of(portalProperties.getUploadsDir());
         try {
-            Files.createDirectories(dir);
-            file.transferTo(dir.resolve(uniqueFilename));
+            fileStorageService.store(uniqueFilename, contentType, file.getBytes(), user.getId());
         } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("detail", "ფაილის შენახვა ვერ მოხერხდა"));
