@@ -348,7 +348,8 @@
       "export_processing": "Processing…",
       "export_failed": "Could not prepare the export.",
       "export_error": "Export failed.",
-      "export_expired": "This export has expired — please generate it again."
+      "export_expired": "This export has expired — please generate it again.",
+      "export_timeout": "The export is taking too long. Please try again."
     }
   },
   "stats": {

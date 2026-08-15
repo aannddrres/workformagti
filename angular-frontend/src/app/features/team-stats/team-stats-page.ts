@@ -1,9 +1,10 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { Observable } from 'rxjs';
 import { StatsService } from '../../core/services/stats.service';
-import { ExportService } from '../../core/services/export.service';
+import { ExportPollTimeoutError, ExportService } from '../../core/services/export.service';
 import { CriticalOperator, DepartmentDashboard, DepartmentGroupStats, DepartmentStats, GroupMemberCompletion } from '../../core/models/stats';
 import { ExportJobResponse } from '../../core/models/export';
 
@@ -48,6 +49,7 @@ export class TeamStatsPage {
   private readonly statsService = inject(StatsService);
   private readonly exportService = inject(ExportService);
   private readonly translate = inject(TranslateService);
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly dashboard = signal<DepartmentDashboard | null>(null);
   protected readonly loading = signal(true);
@@ -210,9 +212,13 @@ export class TeamStatsPage {
   private runAsyncExport(kind: ExportKind, submit: () => Observable<ExportJobResponse>, filename: string): void {
     this.asyncExportError.set(null);
     this.asyncExport.set({ kind, status: 'processing' });
-    submit().subscribe({
+    submit().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (job) => {
-        this.exportService.pollUntilDone(job.job_id).subscribe({
+        // FE-03: without takeUntilDestroyed the interval kept running after
+        // the user navigated away -- every tick still firing a request and
+        // still writing to a destroyed component's signals. Nothing in this
+        // app unsubscribed from anything before the audit.
+        this.exportService.pollUntilDone(job.job_id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
           next: (status) => {
             if (status.status === 'failed') {
               this.asyncExport.set(null);
@@ -221,7 +227,7 @@ export class TeamStatsPage {
             }
             this.asyncExport.set({ kind, status: status.status === 'completed' ? 'completed' : 'processing' });
             if (status.status === 'completed') {
-              this.exportService.download(job.job_id).subscribe({
+              this.exportService.download(job.job_id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
                 next: (blob) => {
                   this.downloadBlob(blob, filename);
                   this.asyncExport.set(null);
@@ -240,9 +246,17 @@ export class TeamStatsPage {
               });
             }
           },
-          error: () => {
+          error: (err: unknown) => {
             this.asyncExport.set(null);
-            this.asyncExportError.set(this.translate.instant('manager.page.export_error'));
+            // A job that never leaves "processing" used to leave the spinner
+            // turning forever with no way to tell whether anything was still
+            // happening. It is a distinct outcome from "the request failed",
+            // and the only one where "try again" is the right advice.
+            this.asyncExportError.set(
+              this.translate.instant(
+                err instanceof ExportPollTimeoutError ? 'manager.page.export_timeout' : 'manager.page.export_error'
+              )
+            );
           }
         });
       },
