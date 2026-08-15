@@ -52,6 +52,42 @@ jobs:
       - name: Run DB-free tests
         run: mvn -B test -DexcludedGroups=oracle
 
+  # The Angular app is the other half of what actually ships, and CI never
+  # compiled it either (audit PR-01). It could not simply be added: `ng build`
+  # and `ng test` refuse to run below Node v22.22.3, and the dev container is
+  # pinned one patch under that (PR-10) — so these commands cannot be verified
+  # locally at all, and this job is the only place they run. That is the
+  # argument for the job, not against it.
+  #
+  # Node comes from angular-frontend/.nvmrc so the workflow, package.json's
+  # engines floor and the Dockerfile builder stage cannot drift apart.
+  #
+  # ng test is vitest-backed here (@angular/build:unit-test), not Karma, so no
+  # browser or display server is needed.
+  frontend:
+    name: Angular build and tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: angular-frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: angular-frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: angular-frontend/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npx ng build --configuration production
+
+      - name: Unit tests
+        run: npx ng test --watch=false
+
   # Gating. Proven green on commit 905e8db: 221 tests, 0 failures, 0 errors,
   # in a 2m52s job (Flyway applies all 30 migrations into a fresh XE 21c, so
   # this also exercises the migrations themselves on every push). Was

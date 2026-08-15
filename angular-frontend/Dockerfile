@@ -1,5 +1,5 @@
 # STAGE 1: Builder
-FROM node:22-alpine AS builder
+FROM node:22.22.3-alpine AS builder
 WORKDIR /build
 
 # Cache npm install in its own layer, invalidated only by package*.json
