@@ -38,7 +38,19 @@ USER appuser
 # an insecure cookie, and any attempt to enable the dev login here. To run the
 # image for local experimentation, pass APP_ENV=development explicitly.
 ENV APP_ENV=production
-ENV JAVA_TOOL_OPTIONS="-XX:+UseContainerSupport"
+# PR-11: -XX:+UseContainerSupport is on by default in JDK 21 and only makes
+# the JVM READ the cgroup limit; on its own it still sizes the heap at 1/4 of
+# it, so three quarters of whatever memory limit the Deployment sets goes
+# unused. MaxRAMPercentage is the setting that actually spends it.
+#
+# 75% leaves room for what lives outside the heap -- metaspace, thread
+# stacks, and the direct buffers PDFBox and POI use while building an export,
+# which is the one workload here that allocates in bulk.
+#
+# ExitOnOutOfMemoryError because a JVM that has OOMed is not reliably alive:
+# it is far better for Kubernetes to restart the pod than for it to keep
+# passing the /api/health check while failing real requests.
+ENV JAVA_TOOL_OPTIONS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError"
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \

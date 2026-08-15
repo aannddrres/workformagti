@@ -25,6 +25,18 @@ spring:
     hikari:
       maximum-pool-size: ${DB_POOL_MAX_SIZE:30}
       minimum-idle: ${DB_POOL_MIN_IDLE:10}
+      # PR-14: none of these were set, so a request that could not get a
+      # connection waited on Hikari's 30s default while holding a servlet
+      # thread -- under load that turns a slow database into an unresponsive
+      # application. 10s fails fast enough to shed load and surface as an
+      # error someone can see, rather than a hang.
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:10000}
+      validation-timeout: ${DB_VALIDATION_TIMEOUT_MS:5000}
+      # Logs a stack trace for any connection held longer than this. Not a
+      # limit -- it does not close the connection -- purely a way to find the
+      # code path responsible before the pool is exhausted. Off by default in
+      # Hikari, which means a leak is invisible until it is an outage.
+      leak-detection-threshold: ${DB_LEAK_DETECTION_MS:60000}
   jpa:
     # Schema shape is owned by Flyway (db/migration/*.sql), not Hibernate --
     # validate only checks the entities match what Flyway already created,
@@ -36,6 +48,18 @@ spring:
     open-in-view: false
   flyway:
     locations: classpath:db/migration
+    # BL-13, deliberately NOT changed. Without baseline-on-migrate, Flyway
+    # refuses to run against a schema that already contains objects but has
+    # no flyway_schema_history table, and fails the app at boot. That is the
+    # correct strict default and the audit agrees it should stay: enabling
+    # baseline-on-migrate would make Flyway silently SKIP migrations against
+    # a schema it does not recognise, which is a worse failure -- an app that
+    # starts against a half-built database.
+    #
+    # Recorded here because the boot error is not self-explanatory. If the
+    # real Oracle instance is not empty (a pre-created schema with a table or
+    # two from an earlier trial is enough), the fix is to empty it or to
+    # baseline it deliberately, not to relax this.
   # Spring's own defaults (1MB per file, 10MB per request) are BELOW
   # config.py's MAX_UPLOAD_SIZE_BYTES (10MB) -- without this, a 10MB upload
   # that UploadController's own size check would accept never reaches it,
