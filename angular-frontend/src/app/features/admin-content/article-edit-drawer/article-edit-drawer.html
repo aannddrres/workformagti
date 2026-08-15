@@ -47,6 +47,17 @@
                     <option [value]="c.id" [attr.selected]="c.id === categoryIdValue() ? '' : null">{{ c.name }}</option>
                   }
                 </select>
+                @if (categoriesFailed()) {
+                  <!-- Category is required. An empty dropdown with no
+                       explanation looks like "there are no categories", and
+                       blocks the save with no way to understand why. -->
+                  <p class="mt-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                    {{ 'content.articles.categories_load_error' | translate }}
+                    <button type="button" (click)="loadCategories()" class="ml-1 underline hover:no-underline">
+                      {{ 'common.retry' | translate }}
+                    </button>
+                  </p>
+                }
               </div>
               <div>
                 <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'content.articles.field_tags' | translate }}</label>
@@ -143,6 +154,15 @@
                 <input type="checkbox" [checked]="quizEnabled()" (change)="quizEnabled.set($any($event.target).checked)" class="h-4 w-4 accent-brand" />
                 <label class="text-sm font-medium text-gray-800 dark:text-zinc-200">{{ 'content.articles.field_quiz' | translate }}</label>
               </div>
+              @if (quizLoadFailed()) {
+                <!-- The builder below is empty because the fetch failed, not
+                     because the article has no questions. Saying so stops an
+                     admin from "re-adding" questions that already exist and
+                     replacing the real set. -->
+                <p class="text-xs font-semibold text-amber-600 dark:text-amber-400">
+                  {{ 'content.articles.quiz_load_error' | translate }}
+                </p>
+              }
               @if (quizEnabled()) {
                 <app-quiz-builder />
               }

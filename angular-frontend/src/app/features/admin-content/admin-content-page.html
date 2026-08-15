@@ -78,6 +78,14 @@
           <option [value]="c.id" [attr.selected]="c.id === categoryFilter() ? '' : null">{{ c.name }}</option>
         }
       </select>
+      @if (categoriesFailed()) {
+        <p class="mt-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+          {{ 'content.articles.categories_load_error' | translate }}
+          <button type="button" (click)="loadCategories()" class="ml-1 underline hover:no-underline">
+            {{ 'common.retry' | translate }}
+          </button>
+        </p>
+      }
     </div>
     <div class="w-48">
       <select

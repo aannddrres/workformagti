@@ -49,6 +49,7 @@ export class AdminUsersPage {
   protected readonly error = signal(false);
 
   protected readonly groupLeaders = signal<GroupLeader[]>([]);
+  protected readonly groupLeadersFailed = signal(false);
   protected readonly selectedManagerId = signal<number | null>(null);
 
   protected readonly showCreatePanel = signal(false);
@@ -83,10 +84,19 @@ export class AdminUsersPage {
     });
   }
 
-  private loadGroupLeaders(): void {
+  /**
+   * FE-04: a failed load left the group filter showing only "All groups",
+   * which reads as "this company has no group leaders" rather than "the
+   * request failed" -- and quietly removes the only way to narrow a
+   * ~600-row user list.
+   */
+  protected loadGroupLeaders(): void {
     this.usersService.groupLeaders().subscribe({
-      next: (data) => this.groupLeaders.set(data),
-      error: () => {}
+      next: (data) => {
+        this.groupLeaders.set(data);
+        this.groupLeadersFailed.set(false);
+      },
+      error: () => this.groupLeadersFailed.set(true)
     });
   }
 

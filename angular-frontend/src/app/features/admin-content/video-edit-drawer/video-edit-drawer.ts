@@ -53,9 +53,11 @@ export class VideoEditDrawer {
   protected readonly saving = signal(false);
   protected readonly saveError = signal<string | null>(null);
   protected readonly dueDateError = signal(false);
+  /** FE-04: an empty dropdown must not be indistinguishable from a failed load. */
+  protected readonly categoriesFailed = signal(false);
 
   constructor() {
-    this.categoriesService.list().subscribe({ next: (data) => this.categories.set(data), error: () => {} });
+    this.loadCategories();
 
     effect(() => {
       const id = this.videoId();
@@ -64,6 +66,17 @@ export class VideoEditDrawer {
       } else {
         this.loadForEdit(id);
       }
+    });
+  }
+
+  /** Retried from the template, so a transient failure costs one click, not a reopened drawer. */
+  protected loadCategories(): void {
+    this.categoriesService.list().subscribe({
+      next: (data) => {
+        this.categories.set(data);
+        this.categoriesFailed.set(false);
+      },
+      error: () => this.categoriesFailed.set(true)
     });
   }
 

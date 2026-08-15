@@ -115,10 +115,27 @@ export class AdminContentPage {
   protected readonly openMenuFor = signal<number | null>(null);
   protected readonly historyForArticleId = signal<number | null>(null);
   protected readonly actionError = signal<string | null>(null);
+  /**
+   * FE-04: this dropdown is a FILTER, so a failed load is less dangerous
+   * than in the drawer -- but silently showing only "All categories" makes
+   * the admin think the portal has none, and quietly removes their ability
+   * to narrow a long list.
+   */
+  protected readonly categoriesFailed = signal(false);
 
   constructor() {
     this.loadArticles();
-    this.categoriesService.list().subscribe({ next: (data) => this.categories.set(data), error: () => {} });
+    this.loadCategories();
+  }
+
+  protected loadCategories(): void {
+    this.categoriesService.list().subscribe({
+      next: (data) => {
+        this.categories.set(data);
+        this.categoriesFailed.set(false);
+      },
+      error: () => this.categoriesFailed.set(true)
+    });
   }
 
   private loadArticles(): void {

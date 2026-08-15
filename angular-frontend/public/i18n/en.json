@@ -47,6 +47,7 @@
   "users": {
     "heading": "User Management (RBAC)",
     "all_groups": "All groups",
+    "group_leaders_load_error": "Could not load groups — retry",
     "new_user": "New user",
     "load_error": "Could not load the data.",
     "no_data": "No users found",
@@ -529,7 +530,10 @@
       "archive_failed": "Could not complete the action.",
       "bulk_archive_failed": "Could not complete the bulk action.",
       "mandatory_load_error": "Could not determine whether this article is mandatory",
-      "mandatory_unknown": "Unknown — do not save without checking"
+      "mandatory_unknown": "Unknown — do not save without checking",
+      "categories_load_error": "Could not load categories.",
+      "quiz_load_error": "Could not load the quiz questions — the empty list below does not mean there are none.",
+      "quiz_save_error": "The article was saved, but its quiz questions were not."
     },
     "quiz": {
       "add_question": "Add question",
