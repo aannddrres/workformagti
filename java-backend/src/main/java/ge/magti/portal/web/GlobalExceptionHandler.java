@@ -3,6 +3,7 @@ package ge.magti.portal.web;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -27,7 +28,8 @@ import java.util.UUID;
  * find the exact request, which is the difference between "it broke" and a
  * diagnosis.
  *
- * <p><b>Deliberately narrow.</b> It handles {@link Exception} only. Every
+ * <p><b>Deliberately narrow.</b> Apart from the concurrent-edit case below,
+ * it handles {@link Exception} only. Every
  * controller in this codebase returns its own {@code ResponseEntity} for
  * expected failures -- 401/403/404/409/413 with their own Georgian
  * {@code detail} strings -- and those never pass through here. Spring's own
@@ -48,6 +50,29 @@ public class GlobalExceptionHandler {
      */
     static String newCorrelationId() {
         return UUID.randomUUID().toString().substring(0, 8);
+    }
+
+    /**
+     * BL-11. Two people saving the same article in the same instant is a
+     * normal thing for humans to do, not a server fault -- so it gets a 409
+     * and a sentence the editor can act on, rather than the generic 500
+     * below. Before {@code Article} carried an optimistic lock this surfaced
+     * as a unique-constraint violation on
+     * {@code ux_article_history_article_version}, i.e. an opaque 500 with
+     * the second editor's work silently gone.
+     *
+     * <p>No correlation id and no stack trace: nothing went wrong that an
+     * operator needs to investigate.
+     */
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<Map<String, String>> handleConcurrentEdit(
+            ObjectOptimisticLockingFailureException exception, HttpServletRequest request) {
+        logger.info("Concurrent edit rejected on {} {}: {}",
+                request.getMethod(), request.getRequestURI(), exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                "detail", "ამ ჩანაწერს სხვამ თქვენზე ადრე შეცვალა. "
+                        + "გთხოვთ, გადატვირთოთ გვერდი და ცვლილება თავიდან შეიტანოთ."));
     }
 
     @ExceptionHandler(Exception.class)

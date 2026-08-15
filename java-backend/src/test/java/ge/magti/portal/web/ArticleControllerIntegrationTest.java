@@ -32,6 +32,8 @@ import ge.magti.portal.repository.UserNoteRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.JwtService;
 import ge.magti.portal.util.TbilisiTime;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -47,6 +49,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -105,6 +108,8 @@ class ArticleControllerIntegrationTest {
     private TagMappingRepository tagMappingRepository;
     @Autowired
     private TagRepository tagRepository;
+    @PersistenceContext
+    private EntityManager entityManager;
     @Autowired
     private JwtService jwtService;
     @Autowired
@@ -1406,5 +1411,83 @@ class ArticleControllerIntegrationTest {
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].title").value("სტატია ა"))
                 .andExpect(jsonPath("$[1].title").value("სტატია ბ"));
+    }
+
+    /**
+     * BL-11 -- the audit's only SUSPECTED finding. It could not be executed
+     * there ("no Oracle available in this container"), so it was recorded as
+     * a read of the code plus the constraint rather than an observed
+     * failure. CONFIRMED here, against a real database.
+     *
+     * <p>The race: article_history is UNIQUE on (article_id, version_id)
+     * (V18:15), and both updateArticle and restoreArticleVersion compute the
+     * next version as {@code getVersion() + 1} from a row read earlier in
+     * the same request. Two admins saving at the same instant both compute
+     * N+1; the second violates the constraint. Before the optimistic lock
+     * that was a bare 500 with the second editor's work gone and nothing
+     * explaining why.
+     *
+     * <p>Simulated deterministically rather than with threads: a detached
+     * copy IS a stale read, which is the only thing the race actually
+     * depends on. Real concurrency would add flakiness without adding proof.
+     */
+    @Test
+    void aStaleArticleWriteIsRejectedInsteadOfCollidingOnTheHistoryConstraint() throws Exception {
+        User admin = createUser("bl11@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-21");
+        long articleId = createArticleViaApi(tokenFor(admin), "ორი რედაქტორი", "საწყისი ტექსტი", cat.getId());
+
+        // Editor A and editor B both open the article: two reads of the same
+        // row, at the same version.
+        entityManager.flush();
+        entityManager.clear();
+        Article editorBsCopy = articleRepository.findById(articleId).orElseThrow();
+        entityManager.detach(editorBsCopy);
+
+        // Editor A saves first, through the real endpoint.
+        mockMvc.perform(authed(put("/api/articles/" + articleId), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"ორი რედაქტორი\",\"content\":\"A-ს ვერსია\",\"category_id\":"
+                                + cat.getId() + ",\"target_departments\":[\"All\"],\"status\":\"published\","
+                                + "\"is_draft\":false}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(2));
+        entityManager.flush();
+        entityManager.clear();
+
+        // Editor B now saves their stale copy. Without @Version this
+        // succeeded and then blew up inserting a second history row at
+        // version 2; with it, the UPDATE itself is refused.
+        editorBsCopy.setContent("B-ს ვერსია");
+        editorBsCopy.setVersion(editorBsCopy.getVersion() + 1);
+        assertThrows(org.springframework.orm.ObjectOptimisticLockingFailureException.class,
+                () -> {
+                    articleRepository.save(editorBsCopy);
+                    entityManager.flush();
+                });
+
+        // A's edit is intact -- the point of refusing B is that nobody's
+        // work disappears silently.
+        entityManager.clear();
+        assertEquals("A-ს ვერსია", articleRepository.findById(articleId).orElseThrow().getContent());
+    }
+
+    /** The business version must keep behaving exactly as before -- the lock is a separate column for that reason. */
+    @Test
+    void theOptimisticLockDoesNotDisturbTheBusinessVersionSequence() throws Exception {
+        User admin = createUser("bl11b@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-22");
+        long articleId = createArticleViaApi(tokenFor(admin), "ვერსიების თანმიმდევრობა", "v1", cat.getId());
+
+        for (int expectedVersion = 2; expectedVersion <= 4; expectedVersion++) {
+            mockMvc.perform(authed(put("/api/articles/" + articleId), tokenFor(admin))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"title\":\"ვერსიების თანმიმდევრობა\",\"content\":\"v" + expectedVersion
+                                    + "\",\"category_id\":" + cat.getId()
+                                    + ",\"target_departments\":[\"All\"],\"status\":\"published\","
+                                    + "\"is_draft\":false}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.version").value(expectedVersion));
+        }
     }
 }

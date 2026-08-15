@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import jakarta.persistence.Transient;
 
 import java.time.OffsetDateTime;
@@ -96,6 +97,25 @@ public class Article {
      */
     @Column(name = "version")
     private int version = 1;
+
+    /**
+     * Optimistic lock (audit BL-11). Deliberately NOT {@link #version}:
+     * that one is the business version -- what read receipts and the quiz
+     * gate key on, what the history list shows, what a restore rewinds.
+     * Tying concurrency control to a number the application increments and
+     * displays on purpose would make every version bump look like a
+     * conflict.
+     *
+     * <p>Managed entirely by Hibernate; nothing in application code should
+     * read or set it. Its job is to make the second of two simultaneous
+     * saves fail cleanly at the UPDATE, instead of both computing the same
+     * {@code version + 1} and colliding on
+     * {@code ux_article_history_article_version} afterwards -- which
+     * surfaced as an opaque 500 with the edit lost.
+     */
+    @Version
+    @Column(name = "lock_version", nullable = false)
+    private int lockVersion;
 
     @Column(name = "author_id")
     private Long authorId;
