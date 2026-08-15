@@ -42,6 +42,17 @@
 - `db_helpers.py` — shared `get_or_404`, `log_audit`, `resolve_item_title(s_bulk)`
   used across routers to avoid duplicated fetch-or-404 / audit-log boilerplate
 - `state.py` — shared app-level singletons (moved out of `main.py`)
+- `java-backend/src/main/java/ge/magti/portal/storage/` — `FileStorageService`
+  (uploads live in Oracle as BLOBs, not on disk — audit PR-03) and
+  `FileTypeVerifier` (magic-byte check, SEC-09). This is the ONLY place that
+  touches `java.nio.file.Path`; a later move to S3/RWX changes one class
+- `java-backend/.../security/ClientIpResolver.java` — resolves the real caller
+  behind a proxy for rate limiting and the audit log. **Needs
+  `TRUSTED_PROXIES` set in production or `X-Forwarded-For` is ignored**
+  (deliberately safe default — see QUESTIONS_FOR_IT.md §7)
+- `java-backend/.../web/GlobalExceptionHandler.java` — the only
+  unhandled-exception handler; pairs a client-visible correlation id with the
+  stack trace in the log
 - `qa_accounts.py` — QA/dev seed test-account list (`TEST_ACCOUNTS`,
   `TEST_ACCOUNT_PASSWORD`), imported by `security.py`'s JIT provisioning and
   `scripts/seed_portal.py`
@@ -74,7 +85,15 @@
 - Bilingual: Georgian + English
 - Dark/light theme support required
 - Mobile-first
-- Migrations must stay idempotent (workers race on CREATE TABLE otherwise)
+- Migrations: the idempotency rule applies to the **Python** `migrate.py` only
+  (its workers race on `CREATE TABLE`). Flyway migrations in
+  `java-backend/src/main/resources/db/migration/` do **not** need to be
+  individually idempotent and should not carry `IF NOT EXISTS`-style guards:
+  Flyway takes an exclusive lock on `flyway_schema_history` before applying
+  anything, so simultaneous instances serialise — one applies, the other sees
+  the recorded version and skips. Plain `CREATE TABLE` / `ALTER TABLE` is
+  correct there. (Verified in audit 2, BL-13; the highest migration is
+  currently `V33`.)
 - Never commit secrets — `SECRET_KEY`/`POSTGRES_PASSWORD`/`APP_ENV` are already externalized to `${VAR}` substitution in `docker-compose.yml` (not hardcoded); they come from a local, gitignored `.env` (see `.env.example`). No `.env` currently exists in this repo — one must be created (with a real `SECRET_KEY` and `APP_ENV=production`) before any real deployment. `docker-compose.yml` now falls back to `APP_ENV=production` if `.env` is missing/incomplete, so an absent `.env` fails safe rather than silently reopening the dev-bypass.
 - `magti_portal.db` (~183 MB) is local dev data — do not commit or delete
 - Worktree/branch hygiene: when work in a `.claude/worktrees/*` checkout is finished (merged or abandoned), remove the worktree (`git worktree remove`) and its `claude/*` branch (`git branch -D`) in that same session — don't leave it for later. Before deleting an unmerged one, check `git diff`/`git log` against `main` for anything not yet captured. (8 stale worktrees / 16 branches / 1.2GB accumulated silently over ~3 weeks before a full cleanup on 2026-07-11 — see `docs/PRODUCTION_HANDOVER.md` for the one real deliverable that was almost lost in the pile.)
