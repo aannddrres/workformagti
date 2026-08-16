@@ -290,7 +290,7 @@ class ComplianceControllerIntegrationTest {
         assertTrue(readStatusRepository.findByUserIdAndRequiredReadingId(operator.getId(), reading.getId())
                 .filter(s -> "read".equals(s.getStatus())).isPresent());
         assertTrue(articleReadReceiptRepository
-                .findByArticleIdAndArticleVersionAndOperatorId(article.getId(), 1, operator.getId())
+                .findByArticleIdSnapshotAndArticleVersionAndOperatorId(article.getId(), 1, operator.getId())
                 .isPresent(), "mark-read of an article must also write the versioned read receipt");
     }
 

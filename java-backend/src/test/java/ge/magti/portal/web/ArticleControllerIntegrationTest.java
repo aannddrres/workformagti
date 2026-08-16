@@ -4,6 +4,7 @@ import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.ArticleHistory;
 import ge.magti.portal.domain.ArticleReadReceipt;
+import ge.magti.portal.domain.ArticleViewLog;
 import ge.magti.portal.domain.Category;
 import ge.magti.portal.domain.Favorite;
 import ge.magti.portal.domain.Permission;
@@ -51,6 +52,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -1368,7 +1370,45 @@ class ArticleControllerIntegrationTest {
         mockMvc.perform(authed(post("/api/articles/" + articleId + "/view"), tokenFor(unrelatedOperator)))
                 .andExpect(status().isOk());
 
-        assertEquals(1, articleViewLogRepository.findByArticleIdOrderByViewedAtDesc(articleId).size());
+        assertEquals(1, articleViewLogRepository.findByArticleIdSnapshotOrderByViewedAtDesc(articleId).size());
+    }
+
+    /**
+     * BL-12. Both tables use ON DELETE SET NULL for article_id so that a
+     * receipt outlives the article it is about -- but every read path
+     * filtered on that same column, so deleting the article left the rows
+     * retained and simultaneously unfindable. article_id_snapshot carries
+     * the id with no foreign key, so it survives the delete.
+     *
+     * <p>Asserts both halves at once: article_id IS nulled (the FK still
+     * tells you the article is gone, which is information worth keeping)
+     * while the row is still addressable by the article it belonged to.
+     */
+    @Test
+    void aDeletedArticlesReadReceiptsAndViewLogsStayFindable() throws Exception {
+        User admin = createUser("aa90@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-88");
+        long articleId = createArticleViaApi(tokenFor(admin), "წასაშლელი სტატია", "შინაარსი", cat.getId());
+        User operator = createUser("aa91@magti.ge", Role.OPERATOR, "All");
+
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/read-receipt"), tokenFor(operator)))
+                .andExpect(status().isOk());
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/view"), tokenFor(operator)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(authed(delete("/api/articles/" + articleId), tokenFor(admin)))
+                .andExpect(status().isOk());
+        articleReadReceiptRepository.flush();
+
+        List<ArticleViewLog> views = articleViewLogRepository.findByArticleIdSnapshotOrderByViewedAtDesc(articleId);
+        assertEquals(1, views.size(), "the view log must still be reachable by the deleted article's id");
+        assertNull(views.get(0).getArticleId(), "the FK is still nulled -- that is how you know it is gone");
+        assertEquals("წასაშლელი სტატია", views.get(0).getArticleTitleSnapshot());
+
+        assertTrue(articleReadReceiptRepository
+                        .findByArticleIdSnapshotAndArticleVersionAndOperatorId(articleId, 1, operator.getId())
+                        .isPresent(),
+                "the read receipt must still be reachable by the deleted article's id");
     }
 
     @Test

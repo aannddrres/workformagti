@@ -1033,7 +1033,7 @@ public class ArticleController {
                 .map(RequiredReading::getDueDate).orElse(null);
         int targetVersion = version != null ? version : article.getVersion();
         List<User> eligibleUsers = eligibleOperatorsService.forArticle(article, resolveTargetDepartments(id));
-        List<ArticleReadReceipt> receipts = articleReadReceiptRepository.findByArticleIdAndArticleVersion(id, targetVersion);
+        List<ArticleReadReceipt> receipts = articleReadReceiptRepository.findByArticleIdSnapshotAndArticleVersion(id, targetVersion);
         Map<Long, ArticleReadReceipt> receiptByOperator = receipts.stream()
                 .filter(r -> r.getOperatorId() != null)
                 .collect(Collectors.toMap(ArticleReadReceipt::getOperatorId, r -> r, (a, b) -> a));
@@ -1088,7 +1088,7 @@ public class ArticleController {
         articleReadReceiptRepository.upsert(id, article.getTitle(), article.getVersion(), user.getId(),
                 user.getName(), user.getEmail(), user.getDepartment(), readAt);
         ArticleReadReceipt receipt = articleReadReceiptRepository
-                .findByArticleIdAndArticleVersionAndOperatorId(id, article.getVersion(), user.getId())
+                .findByArticleIdSnapshotAndArticleVersionAndOperatorId(id, article.getVersion(), user.getId())
                 .orElseThrow();
 
         // Compliance bridge (routers/articles.py:1207-1233): prefix-aware,
@@ -1137,7 +1137,7 @@ public class ArticleController {
         }
 
         Optional<ArticleReadReceipt> receipt = articleReadReceiptRepository
-                .findByArticleIdAndArticleVersionAndOperatorId(id, article.getVersion(), user.getId());
+                .findByArticleIdSnapshotAndArticleVersionAndOperatorId(id, article.getVersion(), user.getId());
         if (receipt.isPresent()) {
             return ResponseEntity.ok(new MyReadReceiptStatusResponse(
                     true, receipt.get().getReadAt(), receipt.get().getArticleVersion(), article.getVersion()));
@@ -1163,6 +1163,9 @@ public class ArticleController {
 
         ArticleViewLog log = new ArticleViewLog();
         log.setArticleId(article.getId());
+        // BL-12: same value, but this one has no FK and therefore survives
+        // the article's deletion, which is what the read paths filter on.
+        log.setArticleIdSnapshot(article.getId());
         log.setArticleTitleSnapshot(article.getTitle());
         log.setArticleVersion(article.getVersion());
         log.setOperatorId(user.getId());
@@ -1192,8 +1195,8 @@ public class ArticleController {
         Article article = found.get();
 
         List<ArticleViewLog> all = version != null
-                ? articleViewLogRepository.findByArticleIdAndArticleVersionOrderByViewedAtDesc(id, version)
-                : articleViewLogRepository.findByArticleIdOrderByViewedAtDesc(id);
+                ? articleViewLogRepository.findByArticleIdSnapshotAndArticleVersionOrderByViewedAtDesc(id, version)
+                : articleViewLogRepository.findByArticleIdSnapshotOrderByViewedAtDesc(id);
 
         long totalViews = all.size();
         long uniqueViewers = all.stream().map(ArticleViewLog::getOperatorId).filter(Objects::nonNull).distinct().count();

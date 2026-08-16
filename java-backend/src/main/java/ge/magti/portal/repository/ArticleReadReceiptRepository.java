@@ -12,10 +12,16 @@ import java.util.Optional;
 
 public interface ArticleReadReceiptRepository extends JpaRepository<ArticleReadReceipt, Long> {
 
-    Optional<ArticleReadReceipt> findByArticleIdAndArticleVersionAndOperatorId(
-            Long articleId, int articleVersion, Long operatorId);
+    /**
+     * BL-12: filters on {@code article_id_snapshot}, not the foreign key.
+     * Identical results while the article exists; the difference is that a
+     * receipt for a deleted article stays findable instead of being
+     * retained and unreachable.
+     */
+    Optional<ArticleReadReceipt> findByArticleIdSnapshotAndArticleVersionAndOperatorId(
+            Long articleIdSnapshot, int articleVersion, Long operatorId);
 
-    List<ArticleReadReceipt> findByArticleIdAndArticleVersion(Long articleId, int articleVersion);
+    List<ArticleReadReceipt> findByArticleIdSnapshotAndArticleVersion(Long articleIdSnapshot, int articleVersion);
 
     /**
      * Port of _upsert_read_receipt's race-safety guarantee
@@ -40,11 +46,11 @@ public interface ArticleReadReceiptRepository extends JpaRepository<ArticleReadR
                 t.operator_email_snapshot = :operatorEmailSnapshot,
                 t.operator_department_snapshot = :operatorDepartmentSnapshot
             WHEN NOT MATCHED THEN INSERT (
-                article_id, article_title_snapshot, article_version, operator_id,
+                article_id, article_id_snapshot, article_title_snapshot, article_version, operator_id,
                 operator_name_snapshot, operator_email_snapshot, operator_department_snapshot, read_at
             )
             VALUES (
-                :articleId, :articleTitleSnapshot, :articleVersion, :operatorId,
+                :articleId, :articleId, :articleTitleSnapshot, :articleVersion, :operatorId,
                 :operatorNameSnapshot, :operatorEmailSnapshot, :operatorDepartmentSnapshot, :readAt
             )
             """, nativeQuery = true)
