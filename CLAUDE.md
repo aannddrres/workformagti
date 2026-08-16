@@ -59,6 +59,18 @@
 - `java-backend/.../web/GlobalExceptionHandler.java` — the only
   unhandled-exception handler; pairs a client-visible correlation id with the
   stack trace in the log
+- `java-backend/.../security/ManagerScope.java` — the single rule for "which
+  users may a manager see" (prefix-aware, so a parent-department manager sees
+  their subtree and a sub-group manager only their own group). Read it before
+  adding any new manager-scoped query; five sites used to answer this
+  question independently with exact string equality (SEC-13)
+- `java-backend/.../security/JwtAuthenticationFilter.java` — authorization is
+  re-read from the DB on **every** request, so a role change or deactivation
+  takes effect immediately. Also compares the token's `tv` claim against
+  `users.token_version`: logout, a password change and an admin password
+  reset each increment it, which revokes tokens already issued (SEC-14).
+  This is *log out everywhere*, not per-session — deliberate, see
+  `V34__user_token_version.sql`
 - `qa_accounts.py` — QA/dev seed test-account list (`TEST_ACCOUNTS`,
   `TEST_ACCOUNT_PASSWORD`), imported by `security.py`'s JIT provisioning and
   `scripts/seed_portal.py`
@@ -99,7 +111,7 @@
   anything, so simultaneous instances serialise — one applies, the other sees
   the recorded version and skips. Plain `CREATE TABLE` / `ALTER TABLE` is
   correct there. (Verified in audit 2, BL-13; the highest migration is
-  currently `V33`.)
+  currently `V34`.)
 - Never commit secrets — `SECRET_KEY`/`POSTGRES_PASSWORD`/`APP_ENV` are already externalized to `${VAR}` substitution in `docker-compose.yml` (not hardcoded); they come from a local, gitignored `.env` (see `.env.example`). No `.env` currently exists in this repo — one must be created (with a real `SECRET_KEY` and `APP_ENV=production`) before any real deployment. `docker-compose.yml` now falls back to `APP_ENV=production` if `.env` is missing/incomplete, so an absent `.env` fails safe rather than silently reopening the dev-bypass.
 - `magti_portal.db` (~183 MB) is local dev data — do not commit or delete
 - Worktree/branch hygiene: when work in a `.claude/worktrees/*` checkout is finished (merged or abandoned), remove the worktree (`git worktree remove`) and its `claude/*` branch (`git branch -D`) in that same session — don't leave it for later. Before deleting an unmerged one, check `git diff`/`git log` against `main` for anything not yet captured. (8 stale worktrees / 16 branches / 1.2GB accumulated silently over ~3 weeks before a full cleanup on 2026-07-11 — see `docs/PRODUCTION_HANDOVER.md` for the one real deliverable that was almost lost in the pile.)

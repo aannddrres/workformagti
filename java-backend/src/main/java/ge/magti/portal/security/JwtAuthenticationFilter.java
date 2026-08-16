@@ -31,6 +31,12 @@ import java.util.stream.Stream;
  * takes effect on the very next request rather than waiting for the token
  * to expire.
  *
+ * <p>SEC-14 extends that same principle to the token's own validity: the
+ * {@code tv} claim is compared against {@code users.token_version}, so a
+ * logout revokes a token that is still correctly signed and not yet
+ * expired. Before this, logout cleared the cookie and nothing else -- a
+ * copied bearer token outlived it by up to an hour.
+ *
  * <p>Deliberately NOT ported here: issuing tokens (login/SSO), JIT
  * provisioning of test accounts, and the {@code TEST_EMAILS} bypass --
  * those are login-endpoint concerns (routers/auth.py), a separate,
@@ -61,6 +67,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
             Optional<User> user = userRepository.findByEmail(claims.get().getSubject());
             if (user.isEmpty()) {
+                continue;
+            }
+            if (JwtService.tokenVersionOf(claims.get()) != user.get().getTokenVersion()) {
+                // SEC-14: this token was minted before the user logged out (or
+                // before an admin cut their sessions), so it is dead even
+                // though its signature and expiry are both still good. Treated
+                // like any other invalid candidate -- fall through to the next
+                // one, and end up unauthenticated if there is none.
                 continue;
             }
             if (!user.get().isActive()) {

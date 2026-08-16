@@ -139,6 +139,12 @@ public class UserController {
         }
 
         user.setHashedPassword(passwordEncoder.encode(request.newPassword()));
+        // SEC-14. Changing a password because you think someone else has it
+        // is worthless if their token keeps working for the rest of its
+        // hour. Ends every session including this one -- the response says
+        // so, since the alternative (reissuing a token here) would mean a
+        // new contract on an endpoint the Angular app does not yet call.
+        user.invalidateIssuedTokens();
         userRepository.save(user);
 
         AuditLog audit = new AuditLog();
@@ -149,7 +155,8 @@ public class UserController {
         audit.setTimestamp(TbilisiTime.now());
         auditLogRepository.save(audit);
 
-        return ResponseEntity.ok(Map.of("detail", "პაროლი წარმატებით შეიცვალა."));
+        return ResponseEntity.ok(Map.of(
+                "detail", "პაროლი წარმატებით შეიცვალა. ყველა სესია დასრულდა — გთხოვთ, თავიდან შეხვიდეთ."));
     }
 
     /** Port of bulk_reassign_roles (routers/users.py:101-184). */
@@ -478,6 +485,11 @@ public class UserController {
         }
         User user = found.get();
         user.setHashedPassword(passwordEncoder.encode(request.newPassword()));
+        // SEC-14. An admin resetting someone else's password is usually a
+        // response to a suspected compromise, so cutting the existing
+        // sessions is the point of it. The admin is not the target here, so
+        // this costs nobody their own session.
+        user.invalidateIssuedTokens();
         userRepository.save(user);
 
         AuditLog audit = new AuditLog();

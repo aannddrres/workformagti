@@ -4,6 +4,7 @@ import ge.magti.portal.config.PortalProperties;
 import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.repository.AuditLogRepository;
+import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.AuthenticationService;
 import ge.magti.portal.security.ClientIpResolver;
 import ge.magti.portal.security.JwtService;
@@ -16,6 +17,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -40,6 +43,7 @@ public class AuthController {
     private final PortalProperties properties;
     private final LoginRateLimiter rateLimiter;
     private final ClientIpResolver clientIpResolver;
+    private final UserRepository userRepository;
 
     public AuthController(
             AuthenticationService authenticationService,
@@ -47,13 +51,15 @@ public class AuthController {
             AuditLogRepository auditLogRepository,
             PortalProperties properties,
             LoginRateLimiter rateLimiter,
-            ClientIpResolver clientIpResolver) {
+            ClientIpResolver clientIpResolver,
+            UserRepository userRepository) {
         this.authenticationService = authenticationService;
         this.jwtService = jwtService;
         this.auditLogRepository = auditLogRepository;
         this.properties = properties;
         this.rateLimiter = rateLimiter;
         this.clientIpResolver = clientIpResolver;
+        this.userRepository = userRepository;
     }
 
     @PostMapping("/api/auth/login")
@@ -107,16 +113,40 @@ public class AuthController {
             auditLogRepository.save(successfulLogin);
         }
 
-        String accessToken = jwtService.createAccessToken(
-                Map.of("sub", user.getEmail(), "role", user.getRole().value()));
+        String accessToken = jwtService.createAccessTokenFor(user);
 
         httpResponse.addHeader(HttpHeaders.SET_COOKIE, accessTokenCookie(accessToken).toString());
 
         return ResponseEntity.ok(new TokenResponse(accessToken, "bearer"));
     }
 
+    /**
+     * SEC-14. Clearing the cookie was all this used to do, which meant it
+     * revoked nothing: the token itself stayed valid for the rest of its
+     * 60 minutes, so a copy held anywhere else -- a shared workstation's
+     * storage, a proxy log, a pasted Authorization header -- kept working
+     * after the user believed they were out.
+     *
+     * <p>Now it also bumps {@code users.token_version}, which
+     * {@link ge.magti.portal.security.JwtAuthenticationFilter} checks on
+     * every request. That is deliberately "log out everywhere": for the
+     * shared-workstation case the finding is actually about, ending only
+     * the current session would leave the token on the shared machine
+     * alive, which is the bug rather than the fix.
+     *
+     * <p>Still succeeds for an unauthenticated caller. Logging out when
+     * you are already out is not an error, and returning 401 here would
+     * turn "my token expired while the tab was open" into a dead-end for
+     * the frontend's own logout path.
+     */
     @PostMapping("/api/auth/logout")
-    public ResponseEntity<Map<String, String>> logout(HttpServletResponse httpResponse) {
+    @Transactional
+    public ResponseEntity<Map<String, String>> logout(
+            @AuthenticationPrincipal User user, HttpServletResponse httpResponse) {
+        if (user != null) {
+            user.invalidateIssuedTokens();
+            userRepository.save(user);
+        }
         ResponseCookie cleared = ResponseCookie.from("access_token", "")
                 .httpOnly(true)
                 .path("/")

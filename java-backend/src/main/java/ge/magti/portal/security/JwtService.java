@@ -40,9 +40,40 @@ public class JwtService {
 		this.signingKey = Keys.hmacShaKeyFor(jwtConfig.getSecret().getBytes(StandardCharsets.UTF_8));
 	}
 
+	/**
+	 * SEC-14. The claim carrying {@link ge.magti.portal.domain.User#getTokenVersion()}
+	 * at minting time. Two characters because it is on every request of every
+	 * user; short claim names are the one place JWT size actually matters.
+	 */
+	public static final String TOKEN_VERSION_CLAIM = "tv";
+
 	/** Mirrors create_access_token(data={"sub": email, "role": role}). */
 	public String createAccessToken(Map<String, Object> claims) {
 		return createAccessToken(claims, Duration.ofMinutes(jwtConfig.getAccessTokenExpireMinutes()));
+	}
+
+	/**
+	 * The token minted at login: subject, role, and the user's current token
+	 * version. Centralised here rather than assembled at each call site
+	 * because a token minted without the {@code tv} claim reads as version 0
+	 * and would quietly survive a logout -- the exact bug this claim exists
+	 * to close.
+	 */
+	public String createAccessTokenFor(ge.magti.portal.domain.User user) {
+		return createAccessToken(Map.of(
+				"sub", user.getEmail(),
+				"role", user.getRole().value(),
+				TOKEN_VERSION_CLAIM, user.getTokenVersion()));
+	}
+
+	/**
+	 * The token version a token asserts. A token minted before SEC-14 carries
+	 * no such claim; it reads as 0, which is every existing row's value, so
+	 * deploying this does not log anybody out.
+	 */
+	public static long tokenVersionOf(Claims claims) {
+		Object raw = claims.get(TOKEN_VERSION_CLAIM);
+		return raw instanceof Number number ? number.longValue() : 0L;
 	}
 
 	public String createAccessToken(Map<String, Object> claims, Duration expiresIn) {
