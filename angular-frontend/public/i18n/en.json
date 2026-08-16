@@ -95,6 +95,7 @@
     "perm_compliance_assign": "Assign mandatory reading",
     "perm_reports_export": "Export reports",
     "perm_inherited": "(from role)",
+    "perm_admin_bypass_note": "A system administrator holds every permission by definition — the switches below cannot restrict them. Change the role to restrict access.",
     "admin_page": {
       "status_error": "Could not change status"
     }

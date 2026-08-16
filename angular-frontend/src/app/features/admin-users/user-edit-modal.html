@@ -51,6 +51,17 @@
 
       <div>
         <label class="mb-2 block text-sm font-semibold text-gray-700 dark:text-zinc-300">{{ 'users.permissions_heading' | translate }}</label>
+        @if (bypassesPermissionChecks()) {
+          <!-- Said once, above the list, rather than repeated on every row:
+               a system admin bypasses the permission check entirely, so none
+               of these switches can restrict them. The old per-row "(from
+               role)" implied the role's defaults were doing the work, which
+               would mean changing those defaults changed the outcome. It
+               does not. -->
+          <p class="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300">
+            {{ 'users.perm_admin_bypass_note' | translate }}
+          </p>
+        }
         <div class="space-y-4 rounded-xl border border-gray-200 bg-gray-50/50 p-5 dark:border-zinc-700 dark:bg-zinc-800/50">
           @for (group of editPermissionGroups(); track group.heading; let isFirst = $first) {
             <div class="space-y-2" [class.border-t]="!isFirst" [class.pt-3]="!isFirst" [class.border-gray-200]="!isFirst" [class.dark:border-zinc-700]="!isFirst">
@@ -67,7 +78,7 @@
                     />
                     <span>
                       {{ 'users.perm_' + option.label | translate }}
-                      @if (option.disabled) {
+                      @if (option.lockReason === 'role-default') {
                         <span class="ml-1 text-xs font-normal text-gray-400 dark:text-zinc-500">{{ 'users.perm_inherited' | translate }}</span>
                       }
                     </span>
