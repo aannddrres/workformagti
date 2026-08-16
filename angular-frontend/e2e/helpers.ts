@@ -18,12 +18,32 @@ function authHeaders(token: string) {
   return { Authorization: `Bearer ${token}` };
 }
 
+/**
+ * A category to hang article fixtures off, creating one if the schema is
+ * empty.
+ *
+ * This used to assert that the database already had one, which was true of
+ * the hand-maintained dev instance these specs were written against and is
+ * false of a container that Flyway just migrated: no migration seeds a
+ * category. Requiring pre-existing data is what kept these specs from ever
+ * running in CI.
+ */
 export async function firstCategoryId(request: APIRequestContext, token: string): Promise<number> {
   const res = await request.get('/api/categories', { headers: authHeaders(token) });
-  expect(res.ok()).toBeTruthy();
+  expect(res.ok(), `GET /api/categories failed: ${res.status()}`).toBeTruthy();
   const categories = await res.json();
-  expect(categories.length, 'expected at least one existing category in the test DB').toBeGreaterThan(0);
-  return categories[0].id;
+  if (categories.length > 0) {
+    return categories[0].id;
+  }
+
+  // Only the fields CategoryRequest actually declares (name, parent_id,
+  // slug, icon, pastel_color_class); name is the sole @NotBlank.
+  const created = await request.post('/api/categories', {
+    headers: authHeaders(token),
+    data: { name: `E2E ბაზისური კატეგორია ${runId()}`, parent_id: null }
+  });
+  expect(created.ok(), `could not create a seed category: ${created.status()} ${await created.text()}`).toBeTruthy();
+  return (await created.json()).id as number;
 }
 
 export interface CreateArticleOptions {

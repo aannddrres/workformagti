@@ -9,11 +9,16 @@
 
 <!-- Was: `sticky ... z-10` classes PLUS an inline style repeating position,
      z-index and a bare `top: 120px`, with the surface hard-coded to #F5F5F5 /
-     #121212 outside the token system. Same computed result, declared once —
-     the offset is kept verbatim because it is tuned to the topbar height and
-     this change is not the place to re-tune it. -->
+     #121212 outside the token system. That cleanup kept the 120px verbatim on
+     the grounds that it was "tuned to the topbar height" and re-tuning was
+     out of scope. Measured since: the topbar is 61px, and this bar scrolls
+     inside `main`, not the viewport — so `top` is relative to that scroll
+     container and any non-zero value pushes the bar DOWN over the content
+     below it. At rest it sat at y=181 while the search-and-filter row started
+     at y=216, hiding the top 41px of the search field. top-0 is the offset
+     this element always wanted. -->
 <div
-  class="sticky top-[120px] z-10 mb-5 flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-4 shadow-sm dark:border-zinc-800/60 dark:bg-zinc-950"
+  class="sticky top-0 z-10 mb-5 flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-4 shadow-sm dark:border-zinc-800/60 dark:bg-zinc-950"
 >
   <h2 class="text-2xl font-semibold uppercase tracking-wider text-gray-800 dark:text-zinc-100 md:text-3xl">{{ 'content.heading' | translate }}</h2>
   <div class="flex items-start gap-3">

@@ -6,8 +6,13 @@
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-    crossorigin="anonymous" />
+  <!-- Font Awesome is bundled, not fetched. It used to load from
+       cdnjs.cloudflare.com, which is a live internet dependency for an
+       internal portal that runs on an on-prem cluster against an on-prem
+       Oracle. Measured with the CDN unreachable: every icon resolved to
+       content:"none", width:0 -- the sidebar, every row action and every
+       toolbar button rendered as nothing. The stylesheet is in
+       angular.json's styles array now, so it ships with the app. -->
 </head>
 <body>
   <app-root></app-root>

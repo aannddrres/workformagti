@@ -42,22 +42,34 @@
   </aside>
 
   <!-- Main column -->
-  <div class="flex flex-1 flex-col">
+  <!-- min-w-0 is load-bearing, not tidying. A flex item defaults to
+       min-width:auto, so this column refuses to shrink below its content's
+       min-content width and the whole page then scrolls sideways instead of
+       the wide part scrolling inside its own container. Measured on
+       /admin/audit at 360px: 778px document width with it removed, 360px
+       with it. Every page inherits this column. -->
+  <div class="flex min-w-0 flex-1 flex-col">
     <!-- Topbar -->
-    <header class="flex items-center justify-between border-b border-gray-100 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-800">
-      <div class="flex items-center gap-3">
+    <!-- min-w-0 on both groups, and the portal name hidden on a phone: this
+         row is the reason EVERY page scrolled sideways at 360px. Nothing here
+         could shrink, so the header measured 595px against a 360px viewport
+         (778px on /admin/audit) and the whole page inherited that width. The
+         audit's mobile pass looked at the feature templates, which are fine —
+         the overflow was in the shell sitting above all of them. -->
+    <header class="flex items-center justify-between gap-2 border-b border-gray-100 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-800">
+      <div class="flex min-w-0 items-center gap-3">
         <button
           type="button"
           (click)="toggleMobileMenu()"
           [attr.aria-label]="'nav.topbar.menu_toggle' | translate"
-          class="flex h-7 w-7 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5 md:hidden"
+          class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5 md:hidden"
         >
           <i class="fa-solid fa-bars text-[15px]" aria-hidden="true"></i>
         </button>
-        <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">{{ 'nav.shell.page_title' | translate }}</span>
+        <span class="hidden truncate text-sm font-semibold text-gray-700 dark:text-gray-200 sm:inline">{{ 'nav.shell.page_title' | translate }}</span>
       </div>
 
-      <div class="flex items-center gap-3">
+      <div class="flex min-w-0 items-center gap-2 sm:gap-3">
         <!-- Search sits in the topbar on every page: an operator mid-call must
              not have to navigate somewhere to start looking. -->
         <app-global-search />
@@ -84,16 +96,22 @@
           }
         </button>
 
-        <span class="text-sm text-gray-600 dark:text-gray-300">{{ auth.currentUser()?.email }}</span>
+        <!-- The single widest item in the row (178px for a long address) and
+             the least useful on a phone: you know who you are logged in as. -->
+        <span class="hidden max-w-[200px] truncate text-sm text-gray-600 dark:text-gray-300 lg:inline">{{ auth.currentUser()?.email }}</span>
 
         <button
           type="button"
           (click)="logout()"
           [attr.aria-label]="'nav.topbar.logout' | translate"
           [title]="'nav.topbar.logout' | translate"
-          class="rounded-lg px-2.5 py-1 text-xs font-semibold text-gray-500 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
+          class="shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold text-gray-500 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
         >
-          {{ 'nav.topbar.logout' | translate }}
+          <!-- The word on desktop, the door icon on a phone: the control has
+               to survive the narrow layout, and it is the one you cannot
+               afford to lose on a shared workstation. -->
+          <span class="hidden sm:inline">{{ 'nav.topbar.logout' | translate }}</span>
+          <i class="fa-solid fa-right-from-bracket text-[15px] sm:hidden" aria-hidden="true"></i>
         </button>
       </div>
     </header>
