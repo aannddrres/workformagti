@@ -33,8 +33,10 @@ class ManagerScopeTest {
     private static final User BARE_PARENT = user("პარენტ ოპერატორი", Role.OPERATOR, "ტექნიკური");
     private static final User OTHER_DEPT = user("ოფისის ოპერატორი", Role.OPERATOR, "ოფისი — ჯგუფი 01");
     private static final User NO_DEPT = user("უდეპარტამენტო", Role.OPERATOR, null);
+    private static final User ALL_DEPT = user("ოლ ოპერატორი", Role.OPERATOR, "All");
 
-    private static final List<User> ACTIVE = List.of(GROUP_01, GROUP_03, BARE_PARENT, OTHER_DEPT, NO_DEPT);
+    private static final List<User> ACTIVE =
+            List.of(GROUP_01, GROUP_03, BARE_PARENT, OTHER_DEPT, NO_DEPT, ALL_DEPT);
 
     private static List<String> namesVisibleTo(User manager) {
         return ManagerScope.visibleActiveUsers(ACTIVE, manager).stream().map(User::getName).toList();
@@ -75,13 +77,18 @@ class ManagerScopeTest {
     }
 
     /**
-     * "All" is a wildcard when a piece of content targets it. On a user row
-     * it means unassigned, and passing it through to DepartmentMatcher as a
-     * target would silently promote that manager to an org-wide reader.
+     * "All" is a wildcard when a piece of content targets it. Handing a
+     * caller's own department to DepartmentMatcher as a target would
+     * therefore promote this manager to an org-wide reader of everyone's
+     * compliance data -- SEC-02/SEC-03 through a data value. Matched by
+     * equality instead, which is what the exact-match code it replaces did,
+     * so this manager sees the other "All" users and nobody else.
      */
     @Test
-    void managerStoredAsAllIsNotPromotedToOrgWide() {
-        assertTrue(namesVisibleTo(user("ოლ მენეჯერი", Role.MANAGER, "All")).isEmpty());
+    void managerStoredAsAllSeesOnlyOtherAllUsersNotEveryone() {
+        List<String> visible = namesVisibleTo(user("ოლ მენეჯერი", Role.MANAGER, "All"));
+
+        assertEquals(List.of("ოლ ოპერატორი"), visible);
     }
 
     /** Whitespace and dash spelling are normalised, as everywhere else. */

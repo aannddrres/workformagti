@@ -191,10 +191,13 @@ class UserControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"current_password\":\"CurrentPass1\",\"new_password\":\"NewPass1\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.detail").value("პაროლი წარმატებით შეიცვალა."));
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("წარმატებით შეიცვალა")));
 
         User reloaded = userRepository.findById(operator.getId()).orElseThrow();
         assertTrue(passwordEncoder.matches("NewPass1", reloaded.getHashedPassword()));
+        // SEC-14: the change also ends every session the old password could
+        // have been used from, which is the point of changing it.
+        assertEquals(1L, reloaded.getTokenVersion());
     }
 
     // ── bulk role reassignment ──────────────────────────────────────────

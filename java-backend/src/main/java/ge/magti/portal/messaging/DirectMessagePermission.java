@@ -46,8 +46,14 @@ public final class DirectMessagePermission {
         // whose department nobody filled in could message the entire company.
         // users.department is nullable (V3__create_users.sql:13), so that is a
         // reachable state, not a theoretical one. Unassigned now means "can
-        // reach nobody", the same fail-closed reading ManagerScope uses.
-        if (senderDepartment == null || senderDepartment.isBlank() || "All".equals(senderDepartment.strip())) {
+        // reach nobody".
+        //
+        // Only null/blank. A department stored literally as "All" is left
+        // alone: that is a value somebody chose, not a value nobody filled
+        // in, and a manager and an operator both in "All" are in the same
+        // department by plain equality. Refusing that would break a real
+        // case to fix an imaginary one.
+        if (senderDepartment == null || senderDepartment.isBlank()) {
             return false;
         }
         return DepartmentMatcher.matches(recipientDepartment, List.of(senderDepartment));

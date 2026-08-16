@@ -64,11 +64,14 @@ class DirectMessagePermissionTest {
     }
 
     /**
-     * ...and neither can one literally stored as "All", which on a user row
-     * means unassigned, not "every department".
+     * A department stored literally as "All" is NOT the same case: it is a
+     * value someone chose rather than one nobody filled in, and it is a
+     * wildcard target everywhere else in this codebase. Pinned because the
+     * fix above briefly lumped the two together and broke this.
      */
     @Test
-    void managerStoredAsAllCanMessageNobody() {
-        assertFalse(DirectMessagePermission.canSend(Role.MANAGER, "All", "გაყიდვები"));
+    void managerStoredAsAllKeepsItsExistingReach() {
+        assertTrue(DirectMessagePermission.canSend(Role.MANAGER, "All", "All"));
+        assertTrue(DirectMessagePermission.canSend(Role.MANAGER, "All", "გაყიდვები"));
     }
 }

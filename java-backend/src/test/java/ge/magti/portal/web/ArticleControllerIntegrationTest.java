@@ -1397,7 +1397,7 @@ class ArticleControllerIntegrationTest {
                 .andExpect(status().isOk());
 
         mockMvc.perform(authed(delete("/api/articles/" + articleId), tokenFor(admin)))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
         articleReadReceiptRepository.flush();
 
         List<ArticleViewLog> views = articleViewLogRepository.findByArticleIdSnapshotOrderByViewedAtDesc(articleId);

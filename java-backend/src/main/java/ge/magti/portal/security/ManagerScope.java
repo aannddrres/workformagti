@@ -54,22 +54,29 @@ import java.util.List;
  *       {@link #visibleActiveUsers} keeps that, explicitly.
  *   <li><b>The literal string {@code "All"}.</b>
  *       {@code DepartmentMatcher.matches} treats an {@code "All"} <i>target</i>
- *       as a wildcard, because that is what it means on the content side:
- *       an article targeted at "All" is for everyone. It does <b>not</b>
- *       mean the same thing on a user row, where it reads as "unassigned".
- *       Passing a caller's own department straight through as a target would
- *       silently turn an unassigned manager into an org-wide reader. Refused
- *       here.
+ *       as a wildcard, because that is what it means on the content side: an
+ *       article targeted at "All" is for everyone. Passing a caller's own
+ *       department through as a target would therefore promote a manager
+ *       stored as "All" to an org-wide reader of everyone's personal
+ *       compliance data -- SEC-02 and SEC-03 arriving through a data value
+ *       instead of through missing code. Matched by plain equality instead,
+ *       which is also what the exact-match implementations did before this
+ *       class existed, so nobody's reach changes.
  * </ol>
  *
- * <p>The second case is not hypothetical:
- * {@link ge.magti.portal.messaging.DirectMessagePermission#canSend} maps a
- * null sender department to {@code "All"} and therefore lets an unassigned
- * manager message the entire company. Fixed there as well, since it is the
- * same mistake and one line, but recorded here because this class exists to
- * stop it being made a third time.
+ * <p>Note the deliberate difference from
+ * {@link ge.magti.portal.messaging.DirectMessagePermission#canSend}, which
+ * keeps "All" as a wildcard. Messaging is about who you may talk to and has
+ * treated "All" that way since it was written; this class is about whose
+ * personal data you may read, where an ambiguous value must not mean
+ * "everyone's". The null case is fail-closed in both -- that one was a real
+ * fail-open in messaging, where a null sender department was mapped to the
+ * "All" wildcard and let an unassigned manager message the whole company.
  */
 public final class ManagerScope {
+
+    /** The department string {@link DepartmentMatcher} treats as a wildcard. */
+    private static final String WILDCARD = "All";
 
     private ManagerScope() {
     }
@@ -92,7 +99,7 @@ public final class ManagerScope {
      */
     public static List<User> visibleActiveUsers(List<User> activeUsers, User manager) {
         String department = manager == null ? null : manager.getDepartment();
-        if (department == null || department.isBlank() || "All".equals(department.strip())) {
+        if (department == null || department.isBlank()) {
             return List.of();
         }
         // DepartmentMatcher normalises the candidate side but compares the
@@ -100,9 +107,24 @@ public final class ManagerScope {
         // -- the same silent empty screen SEC-13 is about, arriving by a
         // different route. Normalised here, on the one value that comes
         // from a free-text admin form.
-        List<String> target = List.of(DepartmentMatcher.normalize(department));
+        String target = DepartmentMatcher.normalize(department);
+
+        if (WILDCARD.equals(target)) {
+            // Plain equality, deliberately NOT DepartmentMatcher: it would
+            // read this as the wildcard and hand the caller the whole
+            // company, which is SEC-02/SEC-03 arriving through a data value
+            // instead of through missing code. Equality is also exactly what
+            // the exact-match implementations did before SEC-13, so a manager
+            // stored as "All" keeps the reach they already had -- neither
+            // widened to everyone nor narrowed to nobody.
+            return activeUsers.stream()
+                    .filter(candidate -> WILDCARD.equals(candidate.getDepartment()))
+                    .toList();
+        }
+
+        List<String> targets = List.of(target);
         return activeUsers.stream()
-                .filter(candidate -> DepartmentMatcher.matches(candidate.getDepartment(), target))
+                .filter(candidate -> DepartmentMatcher.matches(candidate.getDepartment(), targets))
                 .toList();
     }
 }
