@@ -14,7 +14,9 @@
     </div>
 
     <div class="flex-1 overflow-y-auto px-6 py-5">
-      <div class="mb-4 grid grid-cols-2 gap-3">
+      <!-- FE-09: two selects side by side left ~140px each at 320px, which
+           truncates a Georgian department label. Stacked below sm. -->
+      <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label class="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-zinc-300">{{ 'messaging.broadcast.department_label' | translate }}</label>
           <select

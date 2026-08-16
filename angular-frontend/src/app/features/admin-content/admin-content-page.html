@@ -15,7 +15,7 @@
 <div
   class="sticky top-[120px] z-10 mb-5 flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-4 shadow-sm dark:border-zinc-800/60 dark:bg-zinc-950"
 >
-  <h2 class="text-3xl font-semibold uppercase tracking-wider text-gray-800 dark:text-zinc-100">{{ 'content.heading' | translate }}</h2>
+  <h2 class="text-2xl font-semibold uppercase tracking-wider text-gray-800 dark:text-zinc-100 md:text-3xl">{{ 'content.heading' | translate }}</h2>
   <div class="flex items-start gap-3">
     @if (activeTab() === 'articles') {
       <button (click)="openCreateArticle()" class="rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700">
@@ -151,7 +151,7 @@
                     class="h-4 w-4 accent-brand"
                   />
                   <div class="relative inline-block text-left">
-                    <button (click)="toggleMenu(article.id)" class="text-gray-400 hover:text-gray-600 focus:outline-none p-1">
+                    <button (click)="toggleMenu(article.id)" class="text-gray-400 hover:text-gray-600 focus:outline-none p-1 dark:hover:text-gray-200">
                       <i class="fa-solid fa-ellipsis-vertical text-lg"></i>
                     </button>
                     @if (openMenuFor() === article.id) {

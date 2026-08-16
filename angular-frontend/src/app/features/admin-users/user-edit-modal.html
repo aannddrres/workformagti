@@ -71,7 +71,7 @@
                   <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer dark:text-zinc-300" [class.opacity-70]="option.disabled">
                     <input
                       type="checkbox"
-                      class="h-4 w-4 rounded border-gray-300 accent-brand"
+                      class="h-4 w-4 rounded border-gray-300 accent-brand dark:border-zinc-600"
                       [checked]="option.checked"
                       [disabled]="option.disabled"
                       (change)="togglePermission(option.value, $any($event.target).checked)"

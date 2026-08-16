@@ -1,6 +1,6 @@
 <div class="mx-auto w-full max-w-[1440px] px-4 pb-8 pt-4 md:px-6 md:pt-6">
   <div class="mb-5 flex items-center justify-between gap-3">
-    <h2 class="text-3xl font-semibold uppercase tracking-wider text-gray-800 dark:text-zinc-100">{{ 'roles.heading' | translate }}</h2>
+    <h2 class="text-2xl font-semibold uppercase tracking-wider text-gray-800 dark:text-zinc-100 md:text-3xl">{{ 'roles.heading' | translate }}</h2>
     <button
       type="button"
       (click)="refresh()"
@@ -42,7 +42,7 @@
               type="checkbox"
               [checked]="allSelectableSelected()"
               (change)="toggleAll($any($event.target).checked)"
-              class="h-4 w-4 rounded border-gray-300 accent-brand"
+              class="h-4 w-4 rounded border-gray-300 accent-brand dark:border-zinc-600"
             />
             {{ 'roles.select_all' | translate }}
           </label>
@@ -98,7 +98,7 @@
                         type="checkbox"
                         [checked]="selection().has(member.id)"
                         (change)="toggleMember(member.id, $any($event.target).checked)"
-                        class="h-4 w-4 rounded border-gray-300 accent-brand"
+                        class="h-4 w-4 rounded border-gray-300 accent-brand dark:border-zinc-600"
                       />
                     }
                   </td>
