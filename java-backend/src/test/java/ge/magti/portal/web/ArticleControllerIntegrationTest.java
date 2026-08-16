@@ -1398,7 +1398,12 @@ class ArticleControllerIntegrationTest {
 
         mockMvc.perform(authed(delete("/api/articles/" + articleId), tokenFor(admin)))
                 .andExpect(status().isNoContent());
-        articleReadReceiptRepository.flush();
+        // ON DELETE SET NULL happens in the database, so the loaded entities
+        // in this transaction's persistence context still hold the old
+        // article_id. flush + clear forces the assertions below to read what
+        // Oracle actually stored rather than what Hibernate remembers.
+        entityManager.flush();
+        entityManager.clear();
 
         List<ArticleViewLog> views = articleViewLogRepository.findByArticleIdSnapshotOrderByViewedAtDesc(articleId);
         assertEquals(1, views.size(), "the view log must still be reachable by the deleted article's id");
