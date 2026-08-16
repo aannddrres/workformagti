@@ -41,15 +41,22 @@ test('article drawer: what the form is set to is what gets saved', async ({ page
   await drawer.locator('.ql-editor').fill(body);
   await expect(frame.getByText(body)).toBeVisible();
 
-  const categorySelect = drawer.locator('select').first();
+  // Quill's toolbar contributes its own <select>s (ql-header, ql-color, ...)
+  // and they come FIRST in the DOM, because the editor sits above the rest
+  // of the form. Counting selects from zero therefore addressed the editor,
+  // not the form -- so the form's own selects are named by what they are not.
+  const formSelects = drawer.locator('select:not([class*="ql-"])');
+  const categorySelect = formSelects.first();
   await categorySelect.selectOption({ label: category.name });
 
+  // Same trap for text inputs: Quill's link tooltip has one. The tags field
+  // has a placeholder, so it can be addressed directly.
   const tags = `e2e,${id}`;
-  await drawer.locator('input[type="text"]').nth(1).fill(tags);
+  await drawer.getByPlaceholder('ტეგები მძიმით გამოყოფილი').fill(tags);
 
   // --- scheduled publishing --------------------------------------------
   // The datetime field does not exist until the status says it should.
-  const statusSelect = drawer.locator('select').nth(1);
+  const statusSelect = formSelects.nth(1);
   const scheduledAt = drawer.locator('input[type="datetime-local"]');
   await expect(scheduledAt).toHaveCount(0);
   await statusSelect.selectOption('scheduled');
