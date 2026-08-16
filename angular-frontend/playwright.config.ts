@@ -14,6 +14,11 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './e2e',
+  // Logs the shared personas in once for the whole run. Without it every
+  // spec that needs admin@magti.ge spends one of that account's ten logins
+  // per minute (LoginRateLimiter.java:70) and the suite starts failing on
+  // 429s as it grows -- which would look like broken tests.
+  globalSetup: './e2e/global-setup.ts',
   fullyParallel: false,
   workers: 1,
   retries: 0,

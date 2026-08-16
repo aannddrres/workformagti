@@ -48,3 +48,6 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# Playwright global-setup token cache (per-run JWTs, never committed)
+/e2e/.auth
