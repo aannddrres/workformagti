@@ -11,7 +11,7 @@
     [class.flex]="mobileMenuOpen()"
   >
     <div class="mb-6 flex items-center gap-2 px-2">
-      <span class="text-lg font-bold tracking-wide text-[#B91C1C]">MAGTI</span>
+      <app-logo />
     </div>
 
     <nav class="flex flex-1 flex-col gap-6 overflow-y-auto">
@@ -26,7 +26,7 @@
                 @if (canSee(link)) {
                   <a
                     [routerLink]="link.path"
-                    routerLinkActive="border-l-2 border-[#B91C1C] bg-[#B91C1C]/[0.06] font-semibold text-gray-900 dark:bg-[#B91C1C]/20 dark:text-gray-100"
+                    routerLinkActive="border-l-2 border-brand bg-brand/[0.06] font-semibold text-gray-900 dark:bg-brand/20 dark:text-gray-100"
                     [routerLinkActiveOptions]="{ exact: link.path === '/' }"
                     class="rounded-lg px-3 py-2 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-900/[0.04] hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-100"
                   >
@@ -58,6 +58,10 @@
       </div>
 
       <div class="flex items-center gap-3">
+        <!-- Search sits in the topbar on every page: an operator mid-call must
+             not have to navigate somewhere to start looking. -->
+        <app-global-search />
+
         <button
           type="button"
           (click)="toggleLanguage()"

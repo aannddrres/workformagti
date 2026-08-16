@@ -21,6 +21,7 @@ import { AdminContentPage } from './features/admin-content/admin-content-page';
 import { AdminCategoriesPage } from './features/admin-categories/admin-categories-page';
 import { MessagingPage } from './features/messaging/messaging-page';
 import { authGuard } from './core/auth/auth.guard';
+import { auditLogGuard } from './core/auth/permission.guard';
 import { roleGuard } from './core/auth/role.guard';
 
 const MANAGER_ROLES = ['admin', 'manager'];
@@ -75,6 +76,21 @@ export const routes: Routes = [
 
       // page-admin's 6 real sub-panels (a 7th, "migrated", is dead code in
       // app-router.js -- no admin-migrated panel exists in base-layout.html).
+      // Deliberately OUTSIDE the role-gated /admin block below.
+      //
+      // The backend grants MANAGER `system.audit` (Permission.java:45) and
+      // serves them a department-scoped audit view
+      // (AuditLogController:205-207), and ships `can_view_audit_log` so the UI
+      // can honour it (UserController.java:92) -- but roleGuard(admin,
+      // content_admin) on the parent bounced managers before any of that ran,
+      // so the scoping code had no reachable caller in production (audit
+      // FE-06). Matched before 'admin' so /admin/audit resolves here.
+      {
+        path: 'admin/audit',
+        component: AdminAuditPage,
+        canActivate: [auditLogGuard],
+        data: { title: 'nav.sidebar.admin_logs' }
+      },
       {
         path: 'admin',
         canActivate: [roleGuard(ADMIN_OR_CONTENT_ADMIN)],
@@ -94,8 +110,7 @@ export const routes: Routes = [
             component: AdminRolesPage,
             data: { title: 'nav.sidebar.admin_roles' },
             canActivate: [roleGuard(ADMIN_ONLY)]
-          },
-          { path: 'audit', component: AdminAuditPage, data: { title: 'nav.sidebar.admin_logs' } }
+          }
         ]
       }
     ]

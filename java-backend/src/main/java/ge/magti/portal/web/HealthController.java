@@ -1,5 +1,7 @@
 package ge.magti.portal.web;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -18,9 +20,19 @@ import java.util.Map;
  * <p>The database check is real now (Phase 1b gave this a live Oracle
  * DataSource) -- runs the same bare {@code SELECT 1} liveness probe as
  * the Python original, not a guess.
+ *
+ * <p><b>PR-09:</b> this endpoint is unauthenticated, and the failure branch
+ * used to return {@code "error: " + e.getMessage()} straight to the caller.
+ * An Oracle connection failure's message carries the JDBC URL -- host, port
+ * and service name -- so an outage handed anyone who could reach the URL a
+ * map of the internal database. The detail now goes to the log, where the
+ * people diagnosing the outage are already looking, and the response says
+ * only that the check failed.
  */
 @RestController
 public class HealthController {
+
+	private static final Logger logger = LoggerFactory.getLogger(HealthController.class);
 
 	private final DataSource dataSource;
 
@@ -39,7 +51,9 @@ public class HealthController {
 			statement.execute("SELECT 1 FROM dual");
 			body.put("database", "ok");
 		} catch (Exception e) {
-			body.put("database", "error: " + e.getMessage());
+			// Full detail (including the JDBC URL) to the log, not the wire.
+			logger.error("Health check: database probe failed", e);
+			body.put("database", "error");
 			body.put("status", "degraded");
 		}
 

@@ -10,7 +10,21 @@ interface PermissionOptionState {
   label: string;
   checked: boolean;
   disabled: boolean;
+  lockReason: PermissionLockReason;
 }
+
+/**
+ * Why a locked switch is locked. The two are not the same reason, and the
+ * UI used to give the first one for both.
+ *
+ * - `role-default`: the role grants it out of the box. Changing the role's
+ *   defaults would change this, and the permission IS consulted at runtime.
+ * - `admin-bypass`: PermissionChecker.hasPermission returns true for
+ *   SYSTEM_ADMIN before it looks at anything, so the stored set is not read
+ *   at all. Nothing that can be typed into this modal will restrict a system
+ *   admin -- see audit SEC-06.
+ */
+type PermissionLockReason = 'none' | 'role-default' | 'admin-bypass';
 
 interface PermissionGroupState {
   heading: string;
@@ -51,17 +65,29 @@ export class UserEditModal {
   protected readonly saving = signal(false);
   protected readonly saveError = signal<string | null>(null);
 
+  /**
+   * True when the user being edited holds every permission unconditionally,
+   * regardless of what is stored. See PermissionLockReason.
+   */
+  protected readonly bypassesPermissionChecks = computed(() => this.editRole() === 'admin');
+
   protected readonly editPermissionGroups = computed<PermissionGroupState[]>(() => {
     const role = this.editRole();
     const userPerms = this.editPermissions();
     const defaults = new Set(defaultPermissionsForRole(role));
+    const bypass = this.bypassesPermissionChecks();
     return PERMISSION_GROUPS.map((group) => ({
       heading: group.heading,
       options: group.options.map((option) => ({
         value: option.value,
         label: option.label,
-        disabled: defaults.has(option.value),
-        checked: defaults.has(option.value) || userPerms.has(option.value)
+        disabled: bypass || defaults.has(option.value),
+        checked: bypass || defaults.has(option.value) || userPerms.has(option.value),
+        // A system admin's switches are locked for a different reason than a
+        // content admin's, and saying "from role" for both was the
+        // inaccuracy: for an admin the permission is never consulted, so
+        // changing the role's defaults would not change the outcome.
+        lockReason: bypass ? 'admin-bypass' : defaults.has(option.value) ? 'role-default' : 'none'
       }))
     }));
   });

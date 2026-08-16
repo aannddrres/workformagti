@@ -23,8 +23,8 @@ Output: docs/api-contract/golden_master_v1.json
 import json
 import os
 import sys
-from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from dataclasses import dataclass
+from typing import Any, Optional
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, _PROJECT_ROOT)
@@ -55,7 +55,11 @@ database.get_db = _get_db
 os.environ["RUN_INIT"] = "1"
 
 import models  # noqa: E402
-import security  # noqa: E402
+# Imported for its side effects, not for a name: it must load AFTER the
+# database.get_db patch above, and its module-level CryptContext(schemes=
+# ["bcrypt"]) surfaces a passlib/bcrypt version mismatch here rather than
+# midway through a capture run (see CLAUDE.md on the bcrypt==4.0.1 pin).
+import security  # noqa: E402,F401
 
 models.Base.metadata.create_all(bind=_engine)
 

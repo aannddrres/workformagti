@@ -4,11 +4,12 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { TranslatePipe } from '@ngx-translate/core';
 import { AuthService } from '../../core/auth/auth.service';
+import { Logo } from '../../shared/logo/logo';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [ReactiveFormsModule, TranslatePipe],
+  imports: [Logo, ReactiveFormsModule, TranslatePipe],
   templateUrl: './login.html'
 })
 export class Login {

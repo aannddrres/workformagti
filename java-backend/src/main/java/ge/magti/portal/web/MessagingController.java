@@ -180,12 +180,24 @@ public class MessagingController {
             return denial;
         }
 
+        // SEC-15. Parsed BEFORE the candidate query, not after it as this
+        // method used to do: an unknown role is a bad request, and a bad
+        // request should not first load every active user in the company.
+        // The three equivalent calls in UserController (:164-169, :324-329,
+        // :392-397) already return this exact 400; this was the one that
+        // didn't, so a stale client posting target_role "user" got an opaque
+        // 500 and a stack trace that reads like a server fault.
+        String targetRole = request.targetRoleOrDefault();
+        Role roleFilter;
+        try {
+            roleFilter = "All".equals(targetRole) ? null : Role.fromValue(targetRole);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("detail", "უცნობი როლი"));
+        }
+
         List<User> candidates = "All".equals(request.targetDepartmentOrDefault())
                 ? userRepository.findByActiveTrue()
                 : userRepository.findByActiveTrueAndDepartment(request.targetDepartmentOrDefault());
-
-        String targetRole = request.targetRoleOrDefault();
-        Role roleFilter = "All".equals(targetRole) ? null : Role.fromValue(targetRole);
 
         List<User> recipients = candidates.stream()
                 .filter(u -> !u.getId().equals(user.getId()))

@@ -1,6 +1,7 @@
 package ge.magti.portal.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.Permission;
@@ -45,6 +46,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * chain rather than assumed to work. {@code @Transactional} rolls back the
  * JIT-provisioned users and the audit rows their logins create.
  */
+@RequiresOracle
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
@@ -210,6 +212,59 @@ class AuditLogControllerIntegrationTest {
                 .andExpect(jsonPath("$[0].admin_id").value(group01Actor.getId()))
                 .andReturn().getResponse().getContentAsString();
         assertFalse(body.contains("\"admin_id\":" + group02Actor.getId()));
+    }
+
+    /**
+     * SEC-13, the other half of the rule. The manager above is stored as a
+     * sub-group and must stay pinned to it. This one is stored as the bare
+     * parent, and used to see nothing at all -- the department pin was an
+     * exact string match, so "ტექნიკური" matched no row belonging to
+     * "ტექნიკური — ჯგუფი NN".
+     */
+    @Test
+    void parentDepartmentManagerSeesTheirSubGroupsRatherThanNothing() throws Exception {
+        String uniqueSuffix = "-parentaudit-" + System.nanoTime();
+        String parentDept = "ტექნიკური" + uniqueSuffix;
+        String childDept = parentDept + " — ჯგუფი 07";
+        String foreignDept = "ოფისი" + uniqueSuffix;
+
+        User childActor = createUser("audit.childactor@magti.ge", Role.OPERATOR, childDept, Set.of());
+        User foreignActor = createUser("audit.foreignactor@magti.ge", Role.OPERATOR, foreignDept, Set.of());
+        writeAuditRow(childActor.getId(), "LOGIN", "user", childActor.getId(), null);
+        writeAuditRow(foreignActor.getId(), "LOGIN", "user", foreignActor.getId(), null);
+
+        User parentManager = createUser("audit.parentmanager@magti.ge", Role.MANAGER,
+                parentDept, Set.of(Permission.SYSTEM_AUDIT));
+
+        String body = mockMvc.perform(get("/api/audit-logs")
+                        .header("Authorization", "Bearer " + tokenFor(parentManager)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "1"))
+                .andExpect(jsonPath("$[0].admin_id").value(childActor.getId()))
+                .andReturn().getResponse().getContentAsString();
+        assertFalse(body.contains("\"admin_id\":" + foreignActor.getId()),
+                "the widening must reach the subtree and stop there");
+    }
+
+    /**
+     * A manager whose department was never filled in used to return null
+     * from the scope helper -- and null is how that helper says
+     * "unrestricted". So the account with the least-defined scope got the
+     * widest view of the audit trail. Nullable column, reachable state.
+     */
+    @Test
+    void managerWithNoDepartmentSeesNoAuditRowsRatherThanAllOfThem() throws Exception {
+        User actor = createUser("audit.someactor@magti.ge", Role.OPERATOR,
+                "ტექნიკური — ჯგუფი 09-nodept-" + System.nanoTime(), Set.of());
+        writeAuditRow(actor.getId(), "LOGIN", "user", actor.getId(), null);
+
+        User unassignedManager = createUser("audit.nodeptmanager@magti.ge", Role.MANAGER,
+                null, Set.of(Permission.SYSTEM_AUDIT));
+
+        mockMvc.perform(get("/api/audit-logs")
+                        .header("Authorization", "Bearer " + tokenFor(unassignedManager)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "0"));
     }
 
     @Test

@@ -1,8 +1,10 @@
 import { Component, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { VideosService } from '../../../core/services/videos.service';
 import { VideoInstruction } from '../../../core/models/video';
 import { VideoEditDrawer } from '../video-edit-drawer/video-edit-drawer';
+import { ToastService } from '../../../core/notifications/toast.service';
 
 /**
  * Port of #admin-videos-table-container (base-layout.html:1872-1889) +
@@ -18,6 +20,7 @@ import { VideoEditDrawer } from '../video-edit-drawer/video-edit-drawer';
   templateUrl: './videos-admin-table.html'
 })
 export class VideosAdminTable {
+  private readonly toast = inject(ToastService);
   private readonly videosService = inject(VideosService);
   private readonly translate = inject(TranslateService);
 
@@ -63,6 +66,14 @@ export class VideosAdminTable {
 
   protected remove(item: VideoInstruction): void {
     if (!window.confirm(this.translate.instant('content.videos.confirm_delete'))) return;
-    this.videosService.remove(item.id).subscribe({ next: () => this.load(), error: () => {} });
+    // Delete failures were swallowed entirely. Note the backend 500s on
+    // deleting any video that was ever edited (audit BL-01: the history FK
+    // has no ON DELETE CASCADE), so this failure is the normal case today,
+    // not an edge one — the row simply stayed on screen with no explanation.
+    this.videosService.remove(item.id).subscribe({
+      next: () => this.load(),
+      error: (err: HttpErrorResponse) =>
+        this.toast.error(err.error?.detail ?? this.translate.instant('content.videos.delete_error'))
+    });
   }
 }

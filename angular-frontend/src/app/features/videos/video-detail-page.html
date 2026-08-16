@@ -35,5 +35,8 @@
         <i class="fa-solid fa-eye mr-1"></i>{{ 'videos.page.views_label' | translate: { count: v.views_count } }}
       </span>
     </div>
+
+    <!-- Compliance confirmation lives with the material, not on a list row. -->
+    <app-reading-confirm itemType="video" [itemId]="v.id" />
   }
 </div>

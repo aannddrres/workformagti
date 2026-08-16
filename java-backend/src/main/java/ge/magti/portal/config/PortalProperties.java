@@ -4,6 +4,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Binds the {@code portal.*} keys in application.yml. Mirrors config.py's
  * {@code Settings} class one-for-one so the two configs stay legible
@@ -13,8 +16,26 @@ import org.springframework.context.annotation.Configuration;
 @ConfigurationProperties(prefix = "portal")
 public class PortalProperties {
 
-	private String appEnv = "development";
+	/**
+	 * Defaults to production so the INSECURE mode is the one that must be
+	 * asked for.
+	 *
+	 * It used to default to "development" here and in application.yml, while
+	 * the Dockerfile set no APP_ENV at all — so the shipping image booted with
+	 * the password-less dev login enabled, and a deployment manifest that
+	 * merely forgot the variable (or misspelled it, or wrote APP_ENV=prod)
+	 * handed a SYSTEM_ADMIN token to anyone who could reach the URL
+	 * (audit SEC-01, Critical). The Python side already fails safe this way;
+	 * this brings the Java image in line.
+	 */
+	private String appEnv = "production";
 
+	/**
+	 * Read-only legacy path since PR-03: new uploads go into Oracle
+	 * ({@code stored_files}), and {@code FileStorageService} consults this
+	 * directory only to keep attachments written before that change
+	 * resolvable. Nothing writes here any more.
+	 */
 	private String uploadsDir = "uploads";
 
 	@NestedConfigurationProperty
@@ -45,6 +66,47 @@ public class PortalProperties {
 	}
 
 	public static class Security {
+		/**
+		 * Second, explicit switch for the password-less dev login.
+		 *
+		 * !isProduction() alone was too easy to satisfy by accident — any
+		 * environment that is not exactly "production" enabled it silently.
+		 * The bypass is deliberate for local development (see the
+		 * auth-bypass-intentional-pending-ad decision), but it now has to be
+		 * asked for by name, and ProductionSafetyGuard refuses to let it
+		 * coexist with a production environment.
+		 */
+		private boolean allowDevLogin = false;
+
+		/**
+		 * Addresses or CIDR ranges whose {@code X-Forwarded-For} header may be
+		 * believed — the reverse proxy(ies) in front of this app, nothing else.
+		 *
+		 * Empty by default, and empty means the header is ignored entirely
+		 * (see {@link ge.magti.portal.security.ClientIpResolver}). That is the
+		 * safe direction: a deployment that forgets to set this loses IP
+		 * granularity in rate limiting and the audit log, while one that
+		 * trusts blindly would let anyone able to reach the app directly forge
+		 * both.
+		 */
+		private List<String> trustedProxies = new ArrayList<>();
+
+		public boolean isAllowDevLogin() {
+			return allowDevLogin;
+		}
+
+		public void setAllowDevLogin(boolean allowDevLogin) {
+			this.allowDevLogin = allowDevLogin;
+		}
+
+		public List<String> getTrustedProxies() {
+			return trustedProxies;
+		}
+
+		public void setTrustedProxies(List<String> trustedProxies) {
+			this.trustedProxies = trustedProxies == null ? new ArrayList<>() : trustedProxies;
+		}
+
 		@NestedConfigurationProperty
 		private final Jwt jwt = new Jwt();
 		@NestedConfigurationProperty

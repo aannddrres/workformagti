@@ -60,6 +60,14 @@ export class AdminContentPage {
 
   protected readonly currentPage = signal(1);
   protected readonly selection = signal<Set<number>>(new Set());
+  /**
+   * Drives the bulk buttons' enabled state and their labels.
+   *
+   * bulkArchive() has always returned early on an empty selection, so the
+   * buttons looked live, did nothing when pressed, and said nothing about
+   * why — the user is left to guess that a selection was required.
+   */
+  protected readonly selectionCount = computed(() => this.selection().size);
 
   protected readonly filteredArticles = computed(() => {
     const q = this.searchQuery().trim().toLowerCase();
@@ -107,10 +115,27 @@ export class AdminContentPage {
   protected readonly openMenuFor = signal<number | null>(null);
   protected readonly historyForArticleId = signal<number | null>(null);
   protected readonly actionError = signal<string | null>(null);
+  /**
+   * FE-04: this dropdown is a FILTER, so a failed load is less dangerous
+   * than in the drawer -- but silently showing only "All categories" makes
+   * the admin think the portal has none, and quietly removes their ability
+   * to narrow a long list.
+   */
+  protected readonly categoriesFailed = signal(false);
 
   constructor() {
     this.loadArticles();
-    this.categoriesService.list().subscribe({ next: (data) => this.categories.set(data), error: () => {} });
+    this.loadCategories();
+  }
+
+  protected loadCategories(): void {
+    this.categoriesService.list().subscribe({
+      next: (data) => {
+        this.categories.set(data);
+        this.categoriesFailed.set(false);
+      },
+      error: () => this.categoriesFailed.set(true)
+    });
   }
 
   private loadArticles(): void {
@@ -131,13 +156,13 @@ export class AdminContentPage {
 
   protected tabClass(tab: ContentTab): string {
     return this.activeTab() === tab
-      ? 'border-b-2 border-[#B91C1C] px-4 pb-3 text-sm font-semibold text-[#B91C1C]'
+      ? 'border-b-2 border-brand px-4 pb-3 text-sm font-semibold text-brand'
       : 'border-b-2 border-transparent px-4 pb-3 text-sm font-medium text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-100';
   }
 
   protected pageButtonClass(page: number): string {
     return page === this.currentPage()
-      ? 'rounded-lg px-3 py-1.5 text-sm font-medium bg-[#B91C1C] text-white shadow-sm'
+      ? 'rounded-lg px-3 py-1.5 text-sm font-medium bg-brand text-white shadow-sm'
       : 'rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800';
   }
 

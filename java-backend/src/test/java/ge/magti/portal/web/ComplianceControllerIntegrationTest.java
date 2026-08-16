@@ -1,6 +1,7 @@
 package ge.magti.portal.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.Message;
 import ge.magti.portal.domain.Permission;
@@ -12,6 +13,7 @@ import ge.magti.portal.domain.User;
 import ge.magti.portal.domain.VideoInstruction;
 import ge.magti.portal.repository.ArticleReadReceiptRepository;
 import ge.magti.portal.repository.ArticleRepository;
+import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.MessageRepository;
 import ge.magti.portal.repository.QuizAttemptRepository;
 import ge.magti.portal.repository.ReadStatusRepository;
@@ -20,6 +22,8 @@ import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.repository.VideoInstructionRepository;
 import ge.magti.portal.security.JwtService;
 import ge.magti.portal.util.TbilisiTime;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -50,6 +54,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * mark-read, cross-department 403, overdue-status derivation, the
  * read-receipt bridge, and the required-reading notification fan-out.
  */
+@RequiresOracle
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
@@ -74,9 +79,13 @@ class ComplianceControllerIntegrationTest {
     @Autowired
     private MessageRepository messageRepository;
     @Autowired
+    private AuditLogRepository auditLogRepository;
+    @Autowired
     private JwtService jwtService;
     @Autowired
     private PasswordEncoder passwordEncoder;
+    @PersistenceContext
+    private EntityManager entityManager;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -281,7 +290,7 @@ class ComplianceControllerIntegrationTest {
         assertTrue(readStatusRepository.findByUserIdAndRequiredReadingId(operator.getId(), reading.getId())
                 .filter(s -> "read".equals(s.getStatus())).isPresent());
         assertTrue(articleReadReceiptRepository
-                .findByArticleIdAndArticleVersionAndOperatorId(article.getId(), 1, operator.getId())
+                .findByArticleIdSnapshotAndArticleVersionAndOperatorId(article.getId(), 1, operator.getId())
                 .isPresent(), "mark-read of an article must also write the versioned read receipt");
     }
 
@@ -358,6 +367,35 @@ class ComplianceControllerIntegrationTest {
         assertTrue(adminInbox.isEmpty(), "the admin who created the reading must not notify themselves");
     }
 
+    /**
+     * BL-05: the notifier was the ONE place that did not apply
+     * ComplianceCalculator::isEligible. Management roles are excluded from
+     * required reading everywhere else -- getMyReadings returns an empty
+     * list for them -- yet they were messaged about every new obligation, so
+     * a manager got an inbox item telling them to read something that never
+     * appears in their list and that they are not measured on.
+     */
+    @Test
+    void managementRolesAreNotNotifiedAboutReadingsTheyWillNeverSee() throws Exception {
+        User admin = createUser("bl05-admin@magti.ge", Role.CONTENT_ADMIN, "All");
+        User manager = createUser("bl05-manager@magti.ge", Role.MANAGER, "ოფისი");
+        User otherContentAdmin = createUser("bl05-ca@magti.ge", Role.CONTENT_ADMIN, "ოფისი");
+        User operator = createUser("bl05-op@magti.ge", Role.OPERATOR, "ოფისი");
+        Article article = createArticle("მხოლოდ ოპერატორებისთვის", false);
+
+        mockMvc.perform(authed(post("/api/compliance/required-readings"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requiredReadingJson("article", article.getId(), "ოფისი", "2030-09-01T00:00:00+04:00")))
+                .andExpect(status().isOk());
+
+        assertEquals(1, messageRepository.findByUserId(operator.getId()).size(),
+                "the eligible operator must still be notified");
+        assertTrue(messageRepository.findByUserId(manager.getId()).isEmpty(),
+                "a manager is excluded from required reading everywhere else -- notifying them is a message with no matching task");
+        assertTrue(messageRepository.findByUserId(otherContentAdmin.getId()).isEmpty(),
+                "same for content admins, who are also a management role here");
+    }
+
     @Test
     void markReadAndUpdateDeleteMissingReadingAre404() throws Exception {
         User admin = createUser("comp-404-admin@magti.ge", Role.CONTENT_ADMIN, "All");
@@ -376,6 +414,48 @@ class ComplianceControllerIntegrationTest {
                 .andExpect(status().isNotFound());
     }
 
+    /**
+     * BL-14: {@code markRead} only consulted the quiz gate {@code if
+     * (readingArticle != null)}, so an orphaned required reading (its
+     * article gone) let anyone mark it read unconditionally -- quiz or no
+     * quiz. The audit noted this "resolves itself once BL-02 is fixed": once
+     * {@code ContentDeletionService} deletes a required reading along with
+     * its article, {@code markRead}'s OWN lookup at {@code readingId} 404s
+     * before the null-article branch is ever reached. This proves that end
+     * to end through the real DELETE /api/articles endpoint, not just by
+     * reasoning about the code.
+     */
+    @Test
+    void markReadOnAReadingOrphanedByArticleDeletionIs404NotSilentSuccess() throws Exception {
+        User admin = createUser("bl14-admin@magti.ge", Role.CONTENT_ADMIN, "All");
+        User operator = createUser("bl14-op@magti.ge", Role.OPERATOR, "All");
+        Article article = createArticle("წასაშლელი სავალდებულო სტატია", true);
+        RequiredReading reading = createReading("article", article.getId(), "All", TbilisiTime.now().plusDays(3));
+
+        mockMvc.perform(authed(delete("/api/articles/" + article.getId()), tokenFor(admin)))
+                .andExpect(status().isNoContent());
+        // In production, deleteArticle and markRead are two separate HTTP
+        // requests, each with its own fresh persistence context -- markRead's
+        // findById(readingId) genuinely re-queries Oracle and correctly sees
+        // the row gone. Here both run through MockMvc inside this one test's
+        // shared transaction/session, so without clearing it, findById would
+        // return the SAME `reading` instance this test loaded earlier via
+        // createReading -- Hibernate's L1 cache, checked before any query for
+        // a lookup by id -- and markRead would wrongly believe the reading
+        // still exists (it tried, and hit ORA-02291 inserting into
+        // read_statuses for a required_reading_id that no longer exists).
+        // flush()+clear() makes this MockMvc call see what a real second
+        // request would.
+        entityManager.flush();
+        entityManager.clear();
+
+        mockMvc.perform(authed(post("/api/compliance/mark-read/" + reading.getId()), tokenFor(operator)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("სავალდებულო მასალა ვერ მოიძებნა"));
+        assertTrue(readStatusRepository.findByUserIdAndRequiredReadingId(operator.getId(), reading.getId()).isEmpty(),
+                "no read_statuses row should be written for a reading that no longer exists");
+    }
+
     @Test
     void deletingRequiredReadingWithExistingReadReceiptReturns409NotServerError() throws Exception {
         User admin = createUser("comp-409-admin@magti.ge", Role.CONTENT_ADMIN, "All");
@@ -387,5 +467,95 @@ class ComplianceControllerIntegrationTest {
         mockMvc.perform(authed(delete("/api/compliance/required-readings/" + reading.getId()), tokenFor(admin)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").isNotEmpty());
+    }
+
+    /**
+     * SEC-06 acceptance for {@code compliance.assign}: it was in the catalog
+     * and offered as a switch, but assigning mandatory reading gated on the
+     * ROLE alone, so revoking it changed nothing. The admin below keeps
+     * CONTENT_ADMIN throughout; only the permission is taken away.
+     */
+    @Test
+    void aContentAdminWithoutComplianceAssignCannotCreateChangeOrDeleteObligations() throws Exception {
+        User admin = createUser("sec06-comp@magti.ge", Role.CONTENT_ADMIN, "All");
+        Article article = createArticle("სავალდებულო მასალა", false);
+        RequiredReading existing = createReading("article", article.getId(), "All", TbilisiTime.now().plusDays(5));
+
+        admin.setPermissions(Permission.defaultsFor(Role.CONTENT_ADMIN).stream()
+                .filter(p -> p != Permission.COMPLIANCE_ASSIGN)
+                .map(Permission::value)
+                .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new)));
+        userRepository.saveAndFlush(admin);
+
+        mockMvc.perform(authed(post("/api/compliance/required-readings"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requiredReadingJson("article", article.getId(), "All", "2030-01-01T00:00:00+04:00")))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(put("/api/compliance/required-readings/" + existing.getId()), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requiredReadingJson("article", article.getId(), "All", "2030-01-01T00:00:00+04:00")))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(delete("/api/compliance/required-readings/" + existing.getId()), tokenFor(admin)))
+                .andExpect(status().isForbidden());
+
+        // The read-only by-item lookup deliberately keeps the plain role
+        // gate: it assigns nothing, and blocking it would break the edit
+        // drawer's "is this already mandatory?" check for no security gain.
+        mockMvc.perform(authed(get("/api/compliance/required-readings/by-item/article/" + article.getId()), tokenFor(admin)))
+                .andExpect(status().isOk());
+    }
+
+    /**
+     * BL-04: read_statuses is keyed on required_reading_id (V22:11), not on
+     * the item, so re-pointing a reading at a different article used to
+     * carry every "read" status across. Assign new material that way and
+     * the dashboard reports 100% compliance the instant it is saved, for
+     * people who have never seen it.
+     */
+    @Test
+    void aRequiredReadingCannotBeRepointedAtADifferentItem() throws Exception {
+        User admin = createUser("bl04-admin@magti.ge", Role.CONTENT_ADMIN, "All");
+        User operator = createUser("bl04-op@magti.ge", Role.OPERATOR, "All");
+        Article original = createArticle("ძველი მასალა", false);
+        Article replacement = createArticle("სრულიად ახალი მასალა", false);
+        RequiredReading reading = createReading("article", original.getId(), "All", TbilisiTime.now().plusDays(5));
+        markReadDirect(operator, reading);
+
+        mockMvc.perform(authed(put("/api/compliance/required-readings/" + reading.getId()), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requiredReadingJson("article", replacement.getId(), "All", "2031-01-01T00:00:00+04:00")))
+                .andExpect(status().isConflict());
+
+        RequiredReading reloaded = requiredReadingRepository.findById(reading.getId()).orElseThrow();
+        assertEquals(original.getId(), reloaded.getItemId(),
+                "the rejected re-point must not have been flushed -- the method is @Transactional over a managed entity");
+
+        // The operator's status is still against the material they actually
+        // read, which is the whole point.
+        assertEquals("read",
+                readStatusRepository.findByUserIdAndRequiredReadingId(operator.getId(), reading.getId())
+                        .orElseThrow().getStatus());
+    }
+
+    /** Everything except the item itself is still editable, and now leaves an audit row. */
+    @Test
+    void changingOnlyTheDeadlineIsAllowedAndAudited() throws Exception {
+        User admin = createUser("bl04-audit@magti.ge", Role.CONTENT_ADMIN, "All");
+        Article article = createArticle("ვადის შესაცვლელი", false);
+        RequiredReading reading = createReading("article", article.getId(), "All", TbilisiTime.now().plusDays(2));
+
+        mockMvc.perform(authed(put("/api/compliance/required-readings/" + reading.getId()), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requiredReadingJson("article", article.getId(), "ოფისი", "2031-05-05T00:00:00+04:00")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.target_department").value("ოფისი"));
+
+        // The deadline decides who counts as overdue; before BL-04 this
+        // endpoint wrote no audit row at all, so moving it left no record.
+        assertTrue(auditLogRepository.findAll().stream()
+                        .anyMatch(a -> "UPDATE_REQUIRED_READING".equals(a.getAction())
+                                && reading.getId().equals(a.getItemId())
+                                && admin.getId().equals(a.getAdminId())),
+                "changing a deadline must be attributable");
     }
 }

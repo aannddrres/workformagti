@@ -1,6 +1,7 @@
 package ge.magti.portal.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.AuditCategory;
 import ge.magti.portal.domain.AuditLog;
@@ -32,6 +33,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.OffsetDateTime;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -43,6 +46,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * focuses on the DB-query wiring and RBAC gates rather than re-proving the
  * pure aggregation logic.
  */
+@RequiresOracle
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
@@ -82,6 +86,13 @@ class StatsControllerIntegrationTest {
         user.setPermissions(Permission.defaultsFor(role).stream()
                 .map(Permission::value)
                 .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new)));
+        return userRepository.saveAndFlush(user);
+    }
+
+    /** {@link #createUser} with a caller-chosen display name -- needed wherever a test asserts on names. */
+    private User namedUser(String email, Role role, String department, String name) {
+        User user = createUser(email, role, department);
+        user.setName(name);
         return userRepository.saveAndFlush(user);
     }
 
@@ -308,6 +319,49 @@ class StatsControllerIntegrationTest {
                 .andExpect(jsonPath("$.insights.total_members").isNumber())
                 .andExpect(jsonPath("$.departments[?(@.name == 'ტექნიკური')].is_empty").value(org.hamcrest.Matchers.hasItem(false)))
                 .andExpect(jsonPath("$.generated_at").exists());
+    }
+
+    /**
+     * SEC-03 regression guard, option (a). Before the fix the manager's body
+     * carried a {@code members} array per group for every department, so the
+     * "no named rows anywhere" assertion failed on their own AND the other
+     * department's operator; the aggregate assertions passed either way.
+     */
+    @Test
+    void departmentStatsHidesNamedMembersFromManagersButNotFromAdmins() throws Exception {
+        User manager = createUser("stats-sec03-mgr@magti.ge", Role.MANAGER, "ტექნიკური — ჯგუფი 01");
+        User admin = createUser("stats-sec03-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
+        // createUser gives everyone the same name, which would make the
+        // "is this operator named in the body" assertions below vacuous.
+        User ownOp = namedUser("stats-sec03-own@magti.ge", Role.OPERATOR, "ტექნიკური — ჯგუფი 01",
+                "სეკ03 თავისი " + System.nanoTime());
+        User otherOp = namedUser("stats-sec03-other@magti.ge", Role.OPERATOR, "ოფისი — ჯგუფი 01",
+                "სეკ03 სხვისი " + System.nanoTime());
+        Article article = createArticle("SEC-03 სტატია " + System.nanoTime());
+        RequiredReading reading = createReading(article.getId(), "All");
+        markReadDirect(ownOp, reading);
+        markReadDirect(otherOp, reading);
+
+        String managerBody = mockMvc.perform(authed(get("/api/manager/department-stats"), tokenFor(manager)))
+                .andExpect(status().isOk())
+                // Aggregates survive -- this must stay a usable dashboard.
+                .andExpect(jsonPath("$.insights.total_members").isNumber())
+                .andExpect(jsonPath("$.departments[?(@.name == 'ტექნიკური')].member_count")
+                        .value(org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.greaterThan(0))))
+                // ...and every per-person list is empty, in every department.
+                .andExpect(jsonPath("$..members[*]").isEmpty())
+                .andReturn().getResponse().getContentAsString();
+        assertFalse(managerBody.contains(otherOp.getName()),
+                "SEC-03: another department's operator must not be named in a manager's dashboard");
+        assertFalse(managerBody.contains(ownOp.getName()),
+                "the redaction is unconditional -- not even the manager's own department is named here");
+
+        // system_admin is unchanged: still the full named tree.
+        String adminBody = mockMvc.perform(authed(get("/api/manager/department-stats"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertTrue(adminBody.contains(ownOp.getName()) && adminBody.contains(otherOp.getName()),
+                "system_admin must keep the full per-person dashboard");
     }
 
     @Test

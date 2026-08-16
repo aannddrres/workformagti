@@ -1,6 +1,7 @@
 package ge.magti.portal.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
@@ -33,6 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * durable Messaging endpoints (the SSE stream is deliberately not built,
  * see {@link MessagingController}'s javadoc).
  */
+@RequiresOracle
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
@@ -323,5 +325,48 @@ class MessagingControllerIntegrationTest {
                 .anyMatch(m -> "მხოლოდ ოპერატორებისთვის".equals(m.getContent())));
         assertTrue(messageRepository.findByUserIdOrderByCreatedAtDesc(manager.getId()).stream()
                 .noneMatch(m -> "მხოლოდ ოპერატორებისთვის".equals(m.getContent())));
+    }
+
+    /**
+     * SEC-15. {@code Role.fromValue} throws for an unknown wire value, and
+     * this was the one of four call sites in the backend that didn't catch
+     * it -- so a stale client posting the enum constant name ("system_admin")
+     * instead of the wire value ("admin") got a 500. That is a real mistake
+     * to make: {@code Role}'s own javadoc records the trap.
+     */
+    @Test
+    void broadcastRejectsAnUnknownRoleWithFourHundredNotFiveHundred() throws Exception {
+        User admin = createUser("msg-broadcast-admin4@magti.ge", Role.SYSTEM_ADMIN, "All");
+
+        String body = objectMapper.writeValueAsString(Map.of(
+                "message", "არასწორი როლი",
+                "target_role", "system_admin"));
+
+        mockMvc.perform(authed(post("/api/broadcast"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("უცნობი როლი"));
+    }
+
+    /** ...and nothing is delivered when the request is rejected. */
+    @Test
+    void aRejectedBroadcastDeliversNothing() throws Exception {
+        String uniqueDept = "უარყოფილი-დეპარტამენტი-" + System.nanoTime();
+        User admin = createUser("msg-broadcast-admin5@magti.ge", Role.SYSTEM_ADMIN, "All");
+        User operator = createUser("msg-broadcast-op5@magti.ge", Role.OPERATOR, uniqueDept);
+
+        String body = objectMapper.writeValueAsString(Map.of(
+                "message", "არ უნდა მივიდეს",
+                "target_department", uniqueDept,
+                "target_role", "не-роль"));
+
+        mockMvc.perform(authed(post("/api/broadcast"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest());
+
+        assertTrue(messageRepository.findByUserIdOrderByCreatedAtDesc(operator.getId()).stream()
+                .noneMatch(m -> "არ უნდა მივიდეს".equals(m.getContent())));
     }
 }

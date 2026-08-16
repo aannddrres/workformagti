@@ -96,6 +96,26 @@ public class CategoryController {
             return denial;
         }
 
+        // BL-08: categories.name has no unique constraint (V2, a deliberate
+        // parity decision with Python) and nothing checked for duplicates,
+        // so two categories called "ტექნიკური" were indistinguishable in
+        // every dropdown in the product -- an editor picking one had no way
+        // to know which.
+        //
+        // Decision, recorded because the audit says this question has now
+        // been raised twice: an application-level check, NOT a unique
+        // constraint. A constraint would need a cleanup migration to merge
+        // or rename whatever duplicates already exist in the live database,
+        // which is a data decision nobody can make from here; and it would
+        // have to reckon with soft-deleted rows, which SHOULD be allowed to
+        // share a name with a live one. The check below is scoped to active
+        // categories for exactly that reason. Revisit if IT confirms the
+        // production data is clean.
+        ResponseEntity<Map<String, String>> duplicate = rejectDuplicateName(request.name(), null);
+        if (duplicate != null) {
+            return duplicate;
+        }
+
         Category category = new Category();
         applyRequest(category, request);
         Category saved = categoryRepository.save(category);
@@ -116,6 +136,10 @@ public class CategoryController {
             return notFound();
         }
         Category category = found.get();
+        ResponseEntity<Map<String, String>> duplicate = rejectDuplicateName(request.name(), id);
+        if (duplicate != null) {
+            return duplicate;
+        }
         applyRequest(category, request);
         Category saved = categoryRepository.save(category);
         return ResponseEntity.ok(CategoryResponse.from(saved));
@@ -135,7 +159,10 @@ public class CategoryController {
         }
         Category category = found.get();
 
-        Category fallback = categoryRepository.findFirstByNameOrderByIdAsc(FALLBACK_NAME).orElseGet(() -> {
+        // BL-07: active-only. The old lookup would happily return the
+        // fallback category AFTER it had itself been deleted, sending every
+        // later deletion's articles into a category getCategories hides.
+        Category fallback = categoryRepository.findFirstByNameAndActiveTrueOrderByIdAsc(FALLBACK_NAME).orElseGet(() -> {
             Category created = new Category();
             created.setName(FALLBACK_NAME);
             created.setSlug("general");
@@ -152,6 +179,26 @@ public class CategoryController {
         category.setActive(false);
         categoryRepository.save(category);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * BL-08. Scoped to ACTIVE categories: a soft-deleted row should be
+     * allowed to keep a name a live one now uses, or deleting and recreating
+     * a category would be impossible.
+     *
+     * @param excludeId the category being updated, so renaming it to its own
+     *                  current name is not a conflict with itself
+     */
+    private ResponseEntity<Map<String, String>> rejectDuplicateName(String name, Long excludeId) {
+        if (name == null || name.isBlank()) {
+            return null;
+        }
+        Optional<Category> existing = categoryRepository.findFirstByNameIgnoreCaseAndActiveTrue(name.strip());
+        if (existing.isEmpty() || existing.get().getId().equals(excludeId)) {
+            return null;
+        }
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("detail", "ამ სახელით კატეგორია უკვე არსებობს: " + name.strip()));
     }
 
     private static void applyRequest(Category category, CategoryRequest request) {

@@ -197,4 +197,113 @@ class JwtAuthenticationFilterTest {
         assertTrue(authorityStrings.contains("ROLE_SYSTEM_ADMIN"));
         assertTrue(authorityStrings.contains("users.manage"));
     }
+
+    /**
+     * SEC-14. The token below is correctly signed and nowhere near expiry --
+     * the only thing wrong with it is that the user has logged out since it
+     * was minted. That was previously enough to keep full access for the
+     * rest of the hour.
+     */
+    @Test
+    void aTokenMintedBeforeLogoutNoLongerAuthenticates() throws Exception {
+        User user = activeUser("loggedout@magti.ge", Role.OPERATOR);
+        String token = jwtService.createAccessTokenFor(user);
+        user.invalidateIssuedTokens();
+        when(userRepository.findByEmail("loggedout@magti.ge")).thenReturn(Optional.of(user));
+
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        FilterChain chain = mock(FilterChain.class);
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
+
+        filter.doFilter(request, response, chain);
+
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+        verify(chain).doFilter(request, response);
+    }
+
+    /** ...while a token minted after it is fine. */
+    @Test
+    void aTokenMintedAfterLogoutStillAuthenticates() throws Exception {
+        User user = activeUser("relogin@magti.ge", Role.OPERATOR);
+        user.invalidateIssuedTokens();
+        String token = jwtService.createAccessTokenFor(user);
+        when(userRepository.findByEmail("relogin@magti.ge")).thenReturn(Optional.of(user));
+
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        FilterChain chain = mock(FilterChain.class);
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
+
+        filter.doFilter(request, response, chain);
+
+        assertEquals(user, SecurityContextHolder.getContext().getAuthentication().getPrincipal());
+    }
+
+    /**
+     * The deployment must not log the whole company out. A token issued
+     * before this feature existed carries no "tv" claim at all, and every
+     * existing row migrates to token_version 0 -- so it keeps working until
+     * it expires on its own.
+     */
+    @Test
+    void aTokenPredatingTheVersionClaimIsStillAccepted() throws Exception {
+        String legacyToken = jwtService.createAccessToken(Map.of("sub", "legacy@magti.ge"));
+        User user = activeUser("legacy@magti.ge", Role.OPERATOR);
+        when(userRepository.findByEmail("legacy@magti.ge")).thenReturn(Optional.of(user));
+
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        FilterChain chain = mock(FilterChain.class);
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + legacyToken);
+
+        filter.doFilter(request, response, chain);
+
+        assertEquals(user, SecurityContextHolder.getContext().getAuthentication().getPrincipal());
+    }
+
+    /**
+     * ...but only until that user logs out once. After the first bump, a
+     * claimless legacy token reads as version 0 against a row at 1 and is
+     * rejected like any other stale token -- so the compatibility window
+     * closes by itself rather than staying open forever.
+     */
+    @Test
+    void aLegacyTokenStopsWorkingOnceTheUserHasLoggedOutOnce() throws Exception {
+        String legacyToken = jwtService.createAccessToken(Map.of("sub", "legacy2@magti.ge"));
+        User user = activeUser("legacy2@magti.ge", Role.OPERATOR);
+        user.invalidateIssuedTokens();
+        when(userRepository.findByEmail("legacy2@magti.ge")).thenReturn(Optional.of(user));
+
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        FilterChain chain = mock(FilterChain.class);
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + legacyToken);
+
+        filter.doFilter(request, response, chain);
+
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    /**
+     * A stale cookie must not resurrect a session either -- the cookie is
+     * the second candidate the filter tries, so it needs its own proof.
+     */
+    @Test
+    void aStaleCookieTokenIsRejectedToo() throws Exception {
+        User user = activeUser("staleCookie@magti.ge", Role.OPERATOR);
+        String token = jwtService.createAccessTokenFor(user);
+        user.invalidateIssuedTokens();
+        when(userRepository.findByEmail("staleCookie@magti.ge")).thenReturn(Optional.of(user));
+
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        FilterChain chain = mock(FilterChain.class);
+        when(request.getHeader("Authorization")).thenReturn(null);
+        when(request.getCookies()).thenReturn(new Cookie[]{new Cookie("access_token", token)});
+
+        filter.doFilter(request, response, chain);
+
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+    }
 }

@@ -1,5 +1,5 @@
 <div class="mx-auto w-full max-w-[1440px] px-4 pb-8 pt-4 md:px-6 md:pt-6">
-  <h2 class="mb-6 text-4xl font-semibold uppercase tracking-wider text-gray-800 dark:text-zinc-100">{{ 'news.page.heading' | translate }}</h2>
+  <h2 class="mb-6 text-2xl font-semibold uppercase tracking-wider text-gray-800 dark:text-zinc-100 md:text-4xl">{{ 'news.page.heading' | translate }}</h2>
 
   <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
     <div class="relative w-full md:w-[40%]">
@@ -9,7 +9,7 @@
         [placeholder]="'news.page.search_placeholder' | translate"
         [value]="searchQuery()"
         (input)="onSearchInput($any($event.target).value)"
-        class="w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm text-gray-800 placeholder-gray-400 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200"
+        class="w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm text-gray-800 placeholder-gray-400 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200"
       />
     </div>
     <div class="flex flex-wrap items-center gap-3">
@@ -17,12 +17,12 @@
         <i class="fa-solid fa-sliders text-gray-400"></i>
         <select
           (change)="onDeptFilterChange($any($event.target).value)"
-          class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-600 shadow-sm focus:border-[#B91C1C] focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400"
+          class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-600 shadow-sm focus:border-brand focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400"
         >
           <option value="">{{ 'news.page.dept_all' | translate }}</option>
           <option value="All">{{ 'news.page.dept_general' | translate }}</option>
           <option value="ტექნიკური">{{ 'news.page.dept_tech' | translate }}</option>
-          <option value="საინფო">{{ 'news.page.dept_info' | translate }}</option>
+          <option value="საინფორმაციო">{{ 'news.page.dept_info' | translate }}</option>
           <option value="ოფისი">{{ 'news.page.dept_office' | translate }}</option>
         </select>
       </div>
@@ -30,7 +30,7 @@
         <i class="fa-solid fa-arrow-down-a-z text-gray-400"></i>
         <select
           (change)="onSortChange($any($event.target).value)"
-          class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-600 shadow-sm focus:border-[#B91C1C] focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400"
+          class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-600 shadow-sm focus:border-brand focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400"
         >
           <option value="newest">{{ 'news.page.sort_newest' | translate }}</option>
           <option value="oldest">{{ 'news.page.sort_oldest' | translate }}</option>
@@ -74,7 +74,7 @@
           class="group flex cursor-pointer items-center justify-between rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-gray-200 hover:bg-gray-50 hover:-translate-y-px hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800/60"
         >
           <div class="mr-4 flex min-w-0 flex-1 items-center gap-4">
-            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-50 text-[#EE1D23] transition-transform group-hover:scale-105 dark:bg-red-950/30">
+            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-50 text-brand transition-transform group-hover:scale-105 dark:bg-red-950/30">
               <i aria-hidden="true" class="fa-solid fa-bullhorn"></i>
             </div>
             <div class="min-w-0 flex-1">
@@ -83,7 +83,7 @@
                 <span class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium" [class]="badgeFor(item).colorClass">{{ badgeFor(item).label }}</span>
                 <span class="text-[12px] text-gray-400 dark:text-zinc-500"><i aria-hidden="true" class="fa-regular fa-clock mr-1"></i>{{ dateLabel(item) }}</span>
                 @if (isMyDepartment(item)) {
-                  <span class="ml-2 inline-flex items-center rounded-md border border-[#EE1D23]/20 bg-[#EE1D23]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#EE1D23]">
+                  <span class="ml-2 inline-flex items-center rounded-md border border-brand/20 bg-brand/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand">
                     {{ 'news.page.my_department' | translate }}
                   </span>
                 }

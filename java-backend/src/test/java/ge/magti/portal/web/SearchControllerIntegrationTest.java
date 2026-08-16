@@ -1,6 +1,7 @@
 package ge.magti.portal.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.ArticleTargetDepartment;
 import ge.magti.portal.domain.Category;
@@ -53,6 +54,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * endpoints do) except where a test's own point is proving those write
  * endpoints keep the index in sync themselves.
  */
+@RequiresOracle
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional

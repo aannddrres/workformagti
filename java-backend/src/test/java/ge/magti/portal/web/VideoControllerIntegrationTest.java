@@ -1,10 +1,13 @@
 package ge.magti.portal.web;
 
+import ge.magti.portal.RequiresOracle;
+import ge.magti.portal.domain.Favorite;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.domain.VideoInstruction;
 import ge.magti.portal.repository.AuditLogRepository;
+import ge.magti.portal.repository.FavoriteRepository;
 import ge.magti.portal.repository.TagMappingRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.repository.VideoInstructionRepository;
@@ -44,6 +47,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p>{@code @Transactional} rolls back every user/video/tag row this test
  * creates.
  */
+@RequiresOracle
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
@@ -57,6 +61,8 @@ class VideoControllerIntegrationTest {
     private VideoInstructionRepository videoRepository;
     @Autowired
     private TagMappingRepository tagMappingRepository;
+    @Autowired
+    private FavoriteRepository favoriteRepository;
     @Autowired
     private AuditLogRepository auditLogRepository;
     @Autowired
@@ -240,6 +246,40 @@ class VideoControllerIntegrationTest {
                 .andExpect(status().isNoContent());
 
         assertTrue(videoRepository.findById(video.getId()).isEmpty());
+    }
+
+    /**
+     * BL-10: deleting a video never cleared its tags_mapping or favorites
+     * rows -- both address the item by (item_type, item_id) with no FK, so
+     * Oracle's cascade cannot reach either. Confirmed via ContentDeletionService.
+     */
+    @Test
+    void deletingAVideoRemovesOrphanedTagsAndFavorites() throws Exception {
+        User admin = createUser("va10@magti.ge", Role.CONTENT_ADMIN, "Content Creation");
+        User operator = createUser("va10-op@magti.ge", Role.OPERATOR, "Content Creation");
+
+        String createBody = mockMvc.perform(authed(post("/api/videos"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"წასაშლელი ვიდეო\",\"video_url\":\"https://youtu.be/dQw4w9WgXcQ\","
+                                + "\"tags\":\"წასაშლელი\"}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        long id = new com.fasterxml.jackson.databind.ObjectMapper().readTree(createBody).get("id").asLong();
+
+        Favorite favorite = new Favorite();
+        favorite.setUserId(operator.getId());
+        favorite.setItemType("video");
+        favorite.setItemId(id);
+        favoriteRepository.saveAndFlush(favorite);
+
+        mockMvc.perform(authed(delete("/api/videos/" + id), tokenFor(admin)))
+                .andExpect(status().isNoContent());
+
+        assertTrue(tagMappingRepository.findAll().stream()
+                        .noneMatch(m -> "video".equals(m.getItemType()) && m.getItemId().equals(id)),
+                "tags_mapping must not keep pointing at a deleted video");
+        assertTrue(favoriteRepository.findByUserIdAndItemTypeAndItemId(operator.getId(), "video", id).isEmpty(),
+                "a favourite of a deleted video must be removed");
     }
 
     @Test

@@ -31,6 +31,12 @@ class AuthenticationServiceTest {
         userRepository = mock(UserRepository.class);
         passwordEncoder = mock(PasswordEncoder.class);
         properties = new PortalProperties();
+        // Defaults are now production with the bypass off (SEC-01), so the
+        // dev-login cases below have to ask for the insecure posture by name.
+        // devDefaultsAreSafeWithNoConfigurationAtAll asserts the untouched
+        // defaults instead.
+        properties.setAppEnv("development");
+        properties.getSecurity().setAllowDevLogin(true);
         service = new AuthenticationService(userRepository, passwordEncoder, properties);
 
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -57,6 +63,37 @@ class AuthenticationServiceTest {
 
         assertTrue(result.isPresent());
         assertEquals(Role.OPERATOR, result.get().getRole());
+    }
+
+    /**
+     * The acceptance criterion for SEC-01: a PortalProperties nobody has
+     * configured must not accept a password-less login. Before the fix this
+     * object defaulted to appEnv="development" and the bypass was live.
+     */
+    @Test
+    void devLoginIsOffWithNoConfigurationAtAll() {
+        PortalProperties untouched = new PortalProperties();
+        AuthenticationService freshService =
+                new AuthenticationService(userRepository, passwordEncoder, untouched);
+        when(userRepository.findByEmailIgnoreCase("admin@magti.ge")).thenReturn(Optional.empty());
+
+        assertTrue(untouched.isProduction(), "default app-env must be production");
+        assertTrue(freshService.authenticate("admin@magti.ge", "any-password").isEmpty());
+        verify(userRepository, never()).save(any());
+    }
+
+    /**
+     * A non-production environment is no longer sufficient on its own: the
+     * bypass also needs allow-dev-login, so a deployment that merely omits
+     * APP_ENV cannot hand out admin tokens.
+     */
+    @Test
+    void devEnvironmentAloneDoesNotEnableTheBypass() {
+        properties.getSecurity().setAllowDevLogin(false);
+        when(userRepository.findByEmailIgnoreCase("admin@magti.ge")).thenReturn(Optional.empty());
+
+        assertTrue(service.authenticate("admin@magti.ge", "any-password").isEmpty());
+        verify(userRepository, never()).save(any());
     }
 
     @Test

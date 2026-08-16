@@ -17,12 +17,12 @@
       <label class="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-zinc-300">{{ 'messaging.compose.recipient_label' | translate }}</label>
 
       @if (selectedRecipient(); as r) {
-        <div class="mb-4 flex items-center justify-between rounded-lg border border-[#B91C1C]/30 bg-red-50 px-3 py-2 text-sm dark:border-red-900/50 dark:bg-red-950/20">
+        <div class="mb-4 flex items-center justify-between rounded-lg border border-brand/30 bg-red-50 px-3 py-2 text-sm dark:border-red-900/50 dark:bg-red-950/20">
           <div class="min-w-0">
             <p class="truncate font-semibold text-gray-800 dark:text-zinc-100">{{ r.name }}</p>
             <p class="truncate text-xs text-gray-500 dark:text-zinc-400">{{ r.sublabel }}</p>
           </div>
-          <button type="button" (click)="clearRecipient()" class="shrink-0 text-xs font-semibold text-[#B91C1C] hover:underline dark:text-red-400">
+          <button type="button" (click)="clearRecipient()" class="shrink-0 text-xs font-semibold text-brand hover:underline dark:text-red-400">
             {{ 'messaging.compose.change' | translate }}
           </button>
         </div>
@@ -87,7 +87,7 @@
         type="button"
         (click)="submit()"
         [disabled]="sending() || !selectedRecipient() || !content().trim()"
-        class="rounded-lg bg-[#B91C1C] px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
+        class="rounded-lg bg-brand px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
       >
         @if (sending()) {
           <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>

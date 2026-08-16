@@ -10,9 +10,15 @@ import java.util.List;
 
 public interface ArticleViewLogRepository extends JpaRepository<ArticleViewLog, Long> {
 
-    List<ArticleViewLog> findByArticleIdOrderByViewedAtDesc(Long articleId);
+    /**
+     * BL-12: filters on {@code article_id_snapshot}, which survives the
+     * article's deletion, rather than on the {@code ON DELETE SET NULL}
+     * foreign key that does not.
+     */
+    List<ArticleViewLog> findByArticleIdSnapshotOrderByViewedAtDesc(Long articleIdSnapshot);
 
-    List<ArticleViewLog> findByArticleIdAndArticleVersionOrderByViewedAtDesc(Long articleId, int articleVersion);
+    List<ArticleViewLog> findByArticleIdSnapshotAndArticleVersionOrderByViewedAtDesc(
+            Long articleIdSnapshot, int articleVersion);
 
     /** Mirrors get_my_recently_viewed's LIMIT 30 raw-row cap (routers/articles.py:1379) before de-duplication. */
     List<ArticleViewLog> findTop30ByOperatorIdOrderByViewedAtDesc(Long operatorId);

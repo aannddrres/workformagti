@@ -1,0 +1,21 @@
+-- BL-11 (the audit's only SUSPECTED finding, now confirmed -- see
+-- ArticleControllerIntegrationTest.aStaleArticleWriteIsRejectedInsteadOfCollidingOnTheHistoryConstraint).
+--
+-- article_history is UNIQUE on (article_id, version_id) (V18:15). Both
+-- updateArticle and restoreArticleVersion compute the next version as
+-- article.getVersion() + 1 from a row read earlier in the same request, and
+-- Article carried no JPA @Version column. Two content admins saving the same
+-- article in the same instant therefore both computed N+1: the first
+-- succeeded, the second violated the unique constraint and -- with no global
+-- exception handler at the time -- returned a bare HTTP 500 with the edit
+-- lost and nothing explaining why.
+--
+-- A separate column from articles.version on purpose: that one is the
+-- BUSINESS version (what read receipts and the quiz gate key on, what the
+-- version-history list shows). Reusing it as the optimistic lock would tie
+-- concurrency control to a number the application deliberately increments,
+-- restores and displays.
+--
+-- DEFAULT 0 NOT NULL so existing rows are valid immediately; Hibernate
+-- treats 0 as a legitimate starting version and increments from there.
+ALTER TABLE articles ADD (lock_version NUMBER DEFAULT 0 NOT NULL);

@@ -7,6 +7,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { VideosService } from '../../core/services/videos.service';
 import { VideoInstruction } from '../../core/models/video';
 import { toYoutubeEmbedUrl } from '../../shared/youtube';
+import { ReadingConfirm } from '../reading/reading-confirm/reading-confirm';
 
 /**
  * Port of the video detail modal (#video-detail-modal, app-core.js:3804-3907)
@@ -22,7 +23,7 @@ import { toYoutubeEmbedUrl } from '../../shared/youtube';
 @Component({
   selector: 'app-video-detail-page',
   standalone: true,
-  imports: [TranslatePipe],
+  imports: [ReadingConfirm, TranslatePipe],
   templateUrl: './video-detail-page.html'
 })
 export class VideoDetailPage {

@@ -64,6 +64,59 @@ class DepartmentStatsBuilderTest {
         assertEquals(0, office.memberCount());
     }
 
+    /**
+     * SEC-03 option (a): the manager's dashboard keeps every aggregate and
+     * loses every named row. Asserts both halves -- dropping the numbers too
+     * would be just as wrong as keeping the names.
+     */
+    @Test
+    void withoutMembersStripsThePerPersonRowsAndKeepsEveryAggregate() {
+        List<ComplianceRecord> records = List.of(
+                record(1L, "ტექნიკური — ჯგუფი 01", 10, 10, 100),
+                record(2L, "ტექნიკური — ჯგუფი 01", 10, 2, 20),
+                record(3L, "ოფისი — ჯგუფი 01", 4, 4, 100));
+        DepartmentDashboard full = DepartmentStatsBuilder.build(records, OffsetDateTime.now());
+
+        DepartmentDashboard redacted = DepartmentStatsBuilder.withoutMembers(full);
+
+        assertTrue(redacted.departments().stream()
+                        .flatMap(d -> d.groups().stream())
+                        .allMatch(g -> g.members().isEmpty()),
+                "SEC-03: no group may carry per-person rows for a manager");
+
+        // Everything except `members` is byte-for-byte what the admin sees.
+        assertEquals(full.insights(), redacted.insights());
+        assertEquals(full.generatedAt(), redacted.generatedAt());
+        assertEquals(full.departments().size(), redacted.departments().size());
+        for (int i = 0; i < full.departments().size(); i++) {
+            DepartmentStats before = full.departments().get(i);
+            DepartmentStats after = redacted.departments().get(i);
+            assertEquals(before.name(), after.name());
+            assertEquals(before.memberCount(), after.memberCount());
+            assertEquals(before.groupCount(), after.groupCount());
+            assertEquals(before.compliance(), after.compliance());
+            assertEquals(before.outputVolume(), after.outputVolume());
+            assertEquals(before.criticalCount(), after.criticalCount());
+            assertEquals(before.empty(), after.empty());
+            for (int g = 0; g < before.groups().size(); g++) {
+                assertEquals(before.groups().get(g).withMembers(List.of()), after.groups().get(g));
+            }
+        }
+
+        // A non-zero member_count beside an empty members list is the
+        // redaction marker the javadoc promises -- not an empty group.
+        DepartmentStats technical = redacted.departments().stream()
+                .filter(d -> "ტექნიკური".equals(d.name())).findFirst().orElseThrow();
+        assertEquals(2, technical.groups().get(0).memberCount());
+        assertTrue(technical.groups().get(0).members().isEmpty());
+        assertEquals(1, technical.criticalCount());
+
+        // The source dashboard must not be mutated -- the admin path shares it.
+        assertEquals(2, full.departments().stream()
+                .filter(d -> "ტექნიკური".equals(d.name())).findFirst().orElseThrow()
+                .groups().get(0).members().size());
+    }
+
     @Test
     void averageRoundsHalfToEvenNotHalfUp() {
         // (25 + 50) / 2 = 37.5 exactly -- Python's round(37.5) == 38.

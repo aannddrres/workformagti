@@ -43,6 +43,18 @@ public class ArticleReadReceipt {
     @Column(name = "article_id")
     private Long articleId;
 
+    /**
+     * BL-12. {@link #articleId} is a foreign key with {@code ON DELETE SET
+     * NULL}, so deleting the article erased the only thing the read paths
+     * filter on -- the row survived and became unreachable. This copy has no
+     * foreign key, so nothing nulls it, and it is what the queries use.
+     * Keeping both is the point: {@code articleId} still answers "does that
+     * article still exist", which is a different question from "which
+     * article was this".
+     */
+    @Column(name = "article_id_snapshot")
+    private Long articleIdSnapshot;
+
     @Column(name = "article_title_snapshot", nullable = false, length = 500)
     private String articleTitleSnapshot;
 
@@ -78,6 +90,14 @@ public class ArticleReadReceipt {
 
     public void setArticleId(Long articleId) {
         this.articleId = articleId;
+    }
+
+    public Long getArticleIdSnapshot() {
+        return articleIdSnapshot;
+    }
+
+    public void setArticleIdSnapshot(Long articleIdSnapshot) {
+        this.articleIdSnapshot = articleIdSnapshot;
     }
 
     public String getArticleTitleSnapshot() {

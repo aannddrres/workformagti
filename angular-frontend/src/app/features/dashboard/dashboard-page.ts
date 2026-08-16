@@ -53,6 +53,27 @@ export class DashboardPage {
   protected readonly progress = signal<MyProgress | null>(null);
   protected readonly progressError = signal(false);
 
+  /**
+   * Drives which half of the page leads: the operator's outstanding
+   * obligations, or the decorative banner. Management roles have no readings
+   * by design, so they always get the banner.
+   */
+  protected readonly needsAttention = computed(
+    () => !this.isManagement() && (this.progress()?.pending ?? 0) > 0
+  );
+
+  /**
+   * True while an operator's progress is still unknown.
+   *
+   * Without this the page would render the banner first and then swap it for
+   * the alarm block a moment later, every single load — the layout jumping
+   * under the reader exactly where the most urgent content goes. Holding the
+   * slot until the answer arrives costs one skeleton and avoids the flip.
+   */
+  protected readonly awaitingProgress = computed(
+    () => !this.isManagement() && this.progress() === null && !this.progressError()
+  );
+
   constructor() {
     this.categoriesService.list().subscribe((categories) => this.categories.set(categories));
     this.articlesService

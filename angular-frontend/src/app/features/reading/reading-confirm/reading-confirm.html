@@ -1,0 +1,89 @@
+@if (lookupFailed()) {
+  <!-- Cannot tell whether this item is owed. Say so and offer a way back,
+       rather than rendering nothing and stranding the operator. -->
+  <section class="mt-8 rounded-2xl border border-amber-200 bg-amber-50/60 p-5 dark:border-amber-900/50 dark:bg-amber-950/20">
+    <p class="text-sm font-medium text-amber-800 dark:text-amber-300" role="alert">
+      {{ 'readings.confirm.lookup_error' | translate }}
+    </p>
+    <button
+      type="button"
+      (click)="load()"
+      class="mt-3 rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-950/40"
+    >
+      {{ 'readings.confirm.lookup_retry' | translate }}
+    </button>
+  </section>
+}
+
+@if (reading(); as item) {
+  <section
+    class="mt-8 rounded-2xl border p-5"
+    [class]="
+      isRead()
+        ? 'border-emerald-200 bg-emerald-50/60 dark:border-emerald-900/50 dark:bg-emerald-950/20'
+        : isOverdue()
+          ? 'border-brand/30 bg-brand/[0.06] dark:border-brand/40 dark:bg-brand/10'
+          : 'border-gray-200 bg-gray-50 dark:border-zinc-800 dark:bg-zinc-900'
+    "
+  >
+    @if (isRead()) {
+      <div class="flex items-center gap-3">
+        <i class="fa-solid fa-circle-check text-xl text-emerald-500" aria-hidden="true"></i>
+        <div>
+          <p class="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+            {{ 'readings.confirm.done_heading' | translate }}
+          </p>
+          @if (item.read_at) {
+            <p class="text-xs text-emerald-700/80 dark:text-emerald-400/80">
+              {{ 'readings.confirm.done_at' | translate: { date: item.read_at } }}
+            </p>
+          }
+        </div>
+      </div>
+    } @else {
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div class="min-w-0">
+          <p class="text-sm font-semibold text-gray-800 dark:text-zinc-100">
+            {{ 'readings.confirm.heading' | translate }}
+          </p>
+          <p class="mt-0.5 text-xs" [class]="isOverdue() ? 'font-semibold text-brand' : 'text-gray-500 dark:text-zinc-400'">
+            @if (isOverdue()) {
+              {{ 'readings.confirm.overdue' | translate }}
+            } @else if (item.reading.due_date) {
+              {{ 'readings.confirm.due' | translate: { date: item.reading.due_date } }}
+            } @else {
+              {{ 'readings.confirm.no_due' | translate }}
+            }
+          </p>
+        </div>
+
+        <button
+          type="button"
+          (click)="confirm()"
+          [disabled]="marking()"
+          class="shrink-0 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          @if (marking()) {
+            <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+          } @else {
+            {{ 'readings.confirm.action' | translate }}
+          }
+        </button>
+      </div>
+
+      @if (failed()) {
+        <p class="mt-3 text-sm text-red-600 dark:text-red-400" role="alert">
+          {{ 'readings.confirm.error' | translate }}
+        </p>
+      }
+    }
+  </section>
+
+  @if (quizOpen()) {
+    <app-quiz-taker-modal
+      [articleId]="item.reading.item_id"
+      (closed)="closeQuiz()"
+      (passed)="onQuizPassed()"
+    />
+  }
+}

@@ -1,9 +1,10 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { Observable } from 'rxjs';
 import { StatsService } from '../../core/services/stats.service';
-import { ExportService } from '../../core/services/export.service';
+import { ExportPollTimeoutError, ExportService } from '../../core/services/export.service';
 import { CriticalOperator, DepartmentDashboard, DepartmentGroupStats, DepartmentStats, GroupMemberCompletion } from '../../core/models/stats';
 import { ExportJobResponse } from '../../core/models/export';
 
@@ -48,6 +49,7 @@ export class TeamStatsPage {
   private readonly statsService = inject(StatsService);
   private readonly exportService = inject(ExportService);
   private readonly translate = inject(TranslateService);
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly dashboard = signal<DepartmentDashboard | null>(null);
   protected readonly loading = signal(true);
@@ -121,7 +123,7 @@ export class TeamStatsPage {
       return { bar: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400' };
     }
     if (pct < 30) {
-      return { bar: 'bg-[#EE1D23]', text: 'text-[#EE1D23] dark:text-red-400' };
+      return { bar: 'bg-brand', text: 'text-brand dark:text-red-400' };
     }
     return { bar: 'bg-amber-400', text: 'text-amber-600 dark:text-amber-400' };
   }
@@ -135,7 +137,7 @@ export class TeamStatsPage {
   memberBarClass(pct: number): string {
     if (pct >= 100) return 'bg-emerald-500';
     if (pct > 50) return 'bg-amber-400';
-    return 'bg-[#EE1D23]';
+    return 'bg-brand';
   }
 
   openCriticalModal(): void {
@@ -210,9 +212,13 @@ export class TeamStatsPage {
   private runAsyncExport(kind: ExportKind, submit: () => Observable<ExportJobResponse>, filename: string): void {
     this.asyncExportError.set(null);
     this.asyncExport.set({ kind, status: 'processing' });
-    submit().subscribe({
+    submit().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (job) => {
-        this.exportService.pollUntilDone(job.job_id).subscribe({
+        // FE-03: without takeUntilDestroyed the interval kept running after
+        // the user navigated away -- every tick still firing a request and
+        // still writing to a destroyed component's signals. Nothing in this
+        // app unsubscribed from anything before the audit.
+        this.exportService.pollUntilDone(job.job_id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
           next: (status) => {
             if (status.status === 'failed') {
               this.asyncExport.set(null);
@@ -221,21 +227,36 @@ export class TeamStatsPage {
             }
             this.asyncExport.set({ kind, status: status.status === 'completed' ? 'completed' : 'processing' });
             if (status.status === 'completed') {
-              this.exportService.download(job.job_id).subscribe({
+              this.exportService.download(job.job_id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
                 next: (blob) => {
                   this.downloadBlob(blob, filename);
                   this.asyncExport.set(null);
                 },
-                error: () => {
+                error: (err: HttpErrorResponse) => {
                   this.asyncExport.set(null);
-                  this.asyncExportError.set(this.translate.instant('manager.page.export_error'));
+                  // BL-09: the backend used to answer every download problem
+                  // with "not ready yet", so the only honest thing the UI
+                  // could say was a generic failure. 410 now means the file
+                  // is gone for good — telling the user to regenerate is the
+                  // difference between one more click and reloading forever.
+                  this.asyncExportError.set(
+                    this.translate.instant(err.status === 410 ? 'manager.page.export_expired' : 'manager.page.export_error')
+                  );
                 }
               });
             }
           },
-          error: () => {
+          error: (err: unknown) => {
             this.asyncExport.set(null);
-            this.asyncExportError.set(this.translate.instant('manager.page.export_error'));
+            // A job that never leaves "processing" used to leave the spinner
+            // turning forever with no way to tell whether anything was still
+            // happening. It is a distinct outcome from "the request failed",
+            // and the only one where "try again" is the right advice.
+            this.asyncExportError.set(
+              this.translate.instant(
+                err instanceof ExportPollTimeoutError ? 'manager.page.export_timeout' : 'manager.page.export_error'
+              )
+            );
           }
         });
       },

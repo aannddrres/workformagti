@@ -2,6 +2,7 @@ package ge.magti.portal.repository;
 
 import ge.magti.portal.domain.ReadStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -11,6 +12,20 @@ import java.util.Optional;
 public interface ReadStatusRepository extends JpaRepository<ReadStatus, Long> {
 
     Optional<ReadStatus> findByUserIdAndRequiredReadingId(Long userId, Long requiredReadingId);
+
+    /**
+     * BL-02: the half of the deletion order that must run first --
+     * {@code read_statuses.required_reading_id} FKs to {@code
+     * required_readings}, so these rows have to be gone before the readings
+     * themselves are deleted. {@code @Modifying} bulk JPQL rather than a
+     * derived delete for the same reason as {@link
+     * SearchTrigramRepository#deleteByEntityTypeAndEntityId}: the delete must
+     * hit Oracle before the subsequent required_readings delete runs in the
+     * same transaction, not queue for flush time.
+     */
+    @Modifying
+    @Query("DELETE FROM ReadStatus rs WHERE rs.requiredReadingId IN :requiredReadingIds")
+    void deleteByRequiredReadingIdIn(@Param("requiredReadingIds") List<Long> requiredReadingIds);
 
     /**
      * Mirrors export_readings/export_readings_xlsx/export_readings_pdf's

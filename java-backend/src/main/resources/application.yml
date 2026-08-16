@@ -12,7 +12,7 @@ spring:
     # here rather than requiring an env var the non-technical project owner
     # would have to set by hand. Override with ORACLE_DB_PASSWORD before any
     # real deployment.
-    password: ${ORACLE_DB_PASSWORD:MagtiAppDev2026Pw}
+    password: ${ORACLE_DB_PASSWORD:CHANGE_ME_LOCAL_DEV_ONLY}
     driver-class-name: oracle.jdbc.OracleDriver
     # Spring Boot's default (10) queued up requests for a free connection
     # under concurrent load -- a k6 run at 600 concurrent users (2026-08-14,
@@ -25,6 +25,18 @@ spring:
     hikari:
       maximum-pool-size: ${DB_POOL_MAX_SIZE:30}
       minimum-idle: ${DB_POOL_MIN_IDLE:10}
+      # PR-14: none of these were set, so a request that could not get a
+      # connection waited on Hikari's 30s default while holding a servlet
+      # thread -- under load that turns a slow database into an unresponsive
+      # application. 10s fails fast enough to shed load and surface as an
+      # error someone can see, rather than a hang.
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:10000}
+      validation-timeout: ${DB_VALIDATION_TIMEOUT_MS:5000}
+      # Logs a stack trace for any connection held longer than this. Not a
+      # limit -- it does not close the connection -- purely a way to find the
+      # code path responsible before the pool is exhausted. Off by default in
+      # Hikari, which means a leak is invisible until it is an outage.
+      leak-detection-threshold: ${DB_LEAK_DETECTION_MS:60000}
   jpa:
     # Schema shape is owned by Flyway (db/migration/*.sql), not Hibernate --
     # validate only checks the entities match what Flyway already created,
@@ -36,6 +48,18 @@ spring:
     open-in-view: false
   flyway:
     locations: classpath:db/migration
+    # BL-13, deliberately NOT changed. Without baseline-on-migrate, Flyway
+    # refuses to run against a schema that already contains objects but has
+    # no flyway_schema_history table, and fails the app at boot. That is the
+    # correct strict default and the audit agrees it should stay: enabling
+    # baseline-on-migrate would make Flyway silently SKIP migrations against
+    # a schema it does not recognise, which is a worse failure -- an app that
+    # starts against a half-built database.
+    #
+    # Recorded here because the boot error is not self-explanatory. If the
+    # real Oracle instance is not empty (a pre-created schema with a table or
+    # two from an earlier trial is enough), the fix is to empty it or to
+    # baseline it deliberately, not to relax this.
   # Spring's own defaults (1MB per file, 10MB per request) are BELOW
   # config.py's MAX_UPLOAD_SIZE_BYTES (10MB) -- without this, a 10MB upload
   # that UploadController's own size check would accept never reaches it,
@@ -53,16 +77,35 @@ server:
 # the same way the Python app expects. See portal.security.jwt.secret's
 # comment for the production footgun this default is meant to avoid.
 portal:
-  app-env: ${APP_ENV:development}
+  # Defaults to production so a missing APP_ENV fails SAFE (SEC-01).
+  # Local development sets APP_ENV=development explicitly.
+  app-env: ${APP_ENV:production}
   # Mirrors config.py's UPLOAD_DIR (default "uploads", relative to wherever
   # the process starts) -- the Exports domain writes generated xlsx/pdf
   # files under <uploads-dir>/exports.
   uploads-dir: ${UPLOAD_DIR:uploads}
   security:
+    # Password-less dev login. OFF unless asked for by name; ProductionSafetyGuard
+    # refuses to boot if this is true while app-env is production.
+    allow-dev-login: ${ALLOW_DEV_LOGIN:false}
+    # Reverse proxies whose X-Forwarded-For may be believed, comma-separated
+    # (single address or CIDR). EMPTY BY DEFAULT, and empty means the header
+    # is ignored entirely -- see ClientIpResolver.
+    #
+    # Behind this project's nginx, leaving it empty makes every user share
+    # one rate-limit bucket and one audit-log IP (SEC-04/PR-04). Setting it
+    # to something too wide is worse: anyone inside that range can then forge
+    # both. Set it to the proxy, not the pod network.
+    #   TRUSTED_PROXIES=10.42.0.7          # a single nginx pod
+    #   TRUSTED_PROXIES=10.42.0.0/24       # the ingress subnet, if stable
+    trusted-proxies: ${TRUSTED_PROXIES:}
     jwt:
-      # NEVER ship this default to production -- config.py's startup guard
-      # (config.py:121-124) refuses to boot if this exact string is still
-      # set with APP_ENV=production; no Java equivalent exists yet (todo).
+      # NEVER ship this default to production. ProductionSafetyGuard enforces
+      # that at startup: with app-env=production it rejects a secret that is
+      # blank, under 48 characters, matches a known placeholder marker
+      # (change-me, super-secret-temporary-key, ...) or has fewer than 12
+      # distinct characters. It does NOT judge how the value was generated --
+      # a long, varied but publicly known string would still pass.
       secret: ${SECRET_KEY:super-secret-temporary-key-for-local-development}
       algorithm: ${JWT_ALGORITHM:HS256}
       access-token-expire-minutes: ${ACCESS_TOKEN_EXPIRE_MINUTES:60}

@@ -20,4 +20,19 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
      * IncorrectResultSizeDataAccessException in that case instead.
      */
     Optional<Category> findFirstByNameOrderByIdAsc(String name);
+
+    /**
+     * BL-07: deleteCategory's fallback lookup used
+     * {@link #findFirstByNameOrderByIdAsc}, which ignores {@code is_active}.
+     * Once the fallback category was itself deleted (soft-deleted --
+     * {@code active = false}), every later deletion happily reassigned its
+     * articles INTO that inactive row, and getCategories filters inactive
+     * categories out -- so the articles landed in a category no one can see
+     * or select. Active-only, so a soft-deleted fallback is treated as
+     * absent and a fresh one is created.
+     */
+    Optional<Category> findFirstByNameAndActiveTrueOrderByIdAsc(String name);
+
+    /** BL-08: duplicate-name guard for create/update. Case-insensitive, since two categories differing only in case are indistinguishable to a user reading a dropdown. */
+    Optional<Category> findFirstByNameIgnoreCaseAndActiveTrue(String name);
 }

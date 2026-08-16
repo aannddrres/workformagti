@@ -1,5 +1,6 @@
 package ge.magti.portal.web;
 
+import ge.magti.portal.content.ContentDeletionService;
 import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.User;
@@ -63,18 +64,21 @@ public class VideoController {
     private final PermissionChecker permissionChecker;
     private final TagSyncService tagSyncService;
     private final SearchReindexService searchReindexService;
+    private final ContentDeletionService contentDeletionService;
 
     public VideoController(
             VideoInstructionRepository videoRepository,
             AuditLogRepository auditLogRepository,
             PermissionChecker permissionChecker,
             TagSyncService tagSyncService,
-            SearchReindexService searchReindexService) {
+            SearchReindexService searchReindexService,
+            ContentDeletionService contentDeletionService) {
         this.videoRepository = videoRepository;
         this.auditLogRepository = auditLogRepository;
         this.permissionChecker = permissionChecker;
         this.tagSyncService = tagSyncService;
         this.searchReindexService = searchReindexService;
+        this.contentDeletionService = contentDeletionService;
     }
 
     @GetMapping("/api/videos")
@@ -164,6 +168,10 @@ public class VideoController {
         if (found.isEmpty()) {
             return notFound();
         }
+        // BL-10: tags_mapping/favorites have no FK to videos either -- the
+        // required_readings half of this is a no-op for "video" today
+        // (nothing points one there), see ContentDeletionService's javadoc.
+        contentDeletionService.deletePolymorphicReferences("video", id);
         videoRepository.delete(found.get());
         searchReindexService.remove(SearchReindexService.VIDEO, id);
         return ResponseEntity.noContent().build();

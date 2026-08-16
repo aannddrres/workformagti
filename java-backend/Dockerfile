@@ -25,13 +25,32 @@ COPY --from=builder --chown=appuser:appgroup /build/target/portal-backend-*.jar 
 
 USER appuser
 
-# All values below are dev-only defaults baked into application.yml itself
-# (see PortalProperties/application.yml) -- a real deployment overrides
-# every one of these via env vars, exactly like the root Dockerfile's
-# Python app does for APP_ENV/SECRET_KEY/POSTGRES_PASSWORD. ProductionSafetyGuard
-# refuses to boot if APP_ENV=production is set without also overriding
-# SECRET_KEY/COOKIE_SECURE.
-ENV JAVA_TOOL_OPTIONS="-XX:+UseContainerSupport"
+# The image ships as production (SEC-01). This used to be absent entirely
+# while application.yml defaulted app-env to "development", so the shipping
+# image booted with the password-less dev login enabled and a Deployment
+# manifest that merely forgot APP_ENV was enough to expose it. Stated here so
+# the image is safe before any manifest is written; application.yml now
+# defaults the same way, and this makes it visible in `docker inspect`.
+#
+# Consequence, by design: this container will NOT start until SECRET_KEY,
+# ORACLE_DB_PASSWORD and COOKIE_SECURE=true are supplied. ProductionSafetyGuard
+# rejects blank/short/placeholder secrets, the shipped dev database passwords,
+# an insecure cookie, and any attempt to enable the dev login here. To run the
+# image for local experimentation, pass APP_ENV=development explicitly.
+ENV APP_ENV=production
+# PR-11: -XX:+UseContainerSupport is on by default in JDK 21 and only makes
+# the JVM READ the cgroup limit; on its own it still sizes the heap at 1/4 of
+# it, so three quarters of whatever memory limit the Deployment sets goes
+# unused. MaxRAMPercentage is the setting that actually spends it.
+#
+# 75% leaves room for what lives outside the heap -- metaspace, thread
+# stacks, and the direct buffers PDFBox and POI use while building an export,
+# which is the one workload here that allocates in bulk.
+#
+# ExitOnOutOfMemoryError because a JVM that has OOMed is not reliably alive:
+# it is far better for Kubernetes to restart the pod than for it to keep
+# passing the /api/health check while failing real requests.
+ENV JAVA_TOOL_OPTIONS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError"
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \

@@ -70,6 +70,21 @@ public class User {
     @Column(name = "is_active")
     private boolean active = true;
 
+    /**
+     * SEC-14. Every access token is minted carrying this value as its
+     * {@code tv} claim, and {@link ge.magti.portal.security.JwtAuthenticationFilter}
+     * refuses a token whose claim no longer matches. Incrementing it is what
+     * makes logout mean something: without it, clearing the cookie left the
+     * token itself valid for its remaining 60 minutes.
+     *
+     * <p>Not a JPA {@code @Version}: this is application state that is
+     * incremented deliberately, not an optimistic lock. See
+     * {@code V33__article_optimistic_lock.sql} for the same distinction
+     * drawn on Article.
+     */
+    @Column(name = "token_version", nullable = false)
+    private long tokenVersion = 0L;
+
     @Column(name = "last_active")
     private OffsetDateTime lastActive;
 
@@ -163,6 +178,19 @@ public class User {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public long getTokenVersion() {
+        return tokenVersion;
+    }
+
+    public void setTokenVersion(long tokenVersion) {
+        this.tokenVersion = tokenVersion;
+    }
+
+    /** Invalidates every access token already issued to this user (SEC-14). */
+    public void invalidateIssuedTokens() {
+        this.tokenVersion++;
     }
 
     public OffsetDateTime getLastActive() {

@@ -1,0 +1,34 @@
+-- SEC-14: logout could not invalidate a token that was already out there.
+--
+-- POST /api/auth/logout only cleared the httpOnly cookie. The bearer token
+-- itself stayed valid for its full 60 minutes, so anyone holding a copy --
+-- a shared workstation's browser storage, a proxy log, a copied
+-- Authorization header -- kept full access after the user believed they had
+-- logged out. There was no jti, no deny-list, and nothing on the user row
+-- that a token could be checked against.
+--
+-- This column is that thing. Every token carries the value it was minted
+-- with as a "tv" claim; JwtAuthenticationFilter compares the claim to the
+-- row and refuses a token that does not match. Logout increments it, which
+-- makes every token minted before that instant unusable on the next
+-- request.
+--
+-- Chosen over the alternative the audit also named -- a jti plus a
+-- short-lived deny-list -- for two reasons. It needs no new table, no
+-- cleanup job, and no Redis (whose availability is still an open question
+-- for this deployment, see docs/QUESTIONS_FOR_IT.md §8). And it costs zero
+-- extra queries: the filter already loads the user row on every request to
+-- re-derive authorisation, so the comparison is free.
+--
+-- The trade-off, stated rather than discovered later: this is
+-- "log out everywhere", not "log out this session". Bumping the version
+-- ends every session that user has open on any device. For a call centre
+-- where the threat SEC-14 describes IS the shared floor workstation, that
+-- is the behaviour worth having; a per-session logout would leave the token
+-- on the shared machine valid, which is the whole finding.
+--
+-- DEFAULT 0 NOT NULL so existing rows are valid immediately, and a token
+-- minted before this migration -- which carries no "tv" claim at all -- is
+-- read as version 0 and keeps working until it expires. No one is logged
+-- out by the deployment itself.
+ALTER TABLE users ADD (token_version NUMBER DEFAULT 0 NOT NULL);

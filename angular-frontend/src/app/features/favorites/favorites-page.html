@@ -1,5 +1,5 @@
 <div class="mx-auto w-full max-w-[900px] px-4 pb-8 pt-4 md:px-6 md:pt-6">
-  <h2 class="mb-6 text-4xl font-semibold uppercase tracking-wider text-gray-800 dark:text-zinc-100">{{ 'favorites.page.heading' | translate }}</h2>
+  <h2 class="mb-6 text-2xl font-semibold uppercase tracking-wider text-gray-800 dark:text-zinc-100 md:text-4xl">{{ 'favorites.page.heading' | translate }}</h2>
 
   @if (loading()) {
     <div class="space-y-3">
@@ -26,7 +26,7 @@
                 class="group flex cursor-pointer items-center justify-between rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-gray-200 hover:bg-gray-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800/60"
               >
                 <div class="flex min-w-0 flex-1 items-center gap-3">
-                  <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-50 text-[#EE1D23] dark:bg-red-950/30">
+                  <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-50 text-brand dark:bg-red-950/30">
                     <i class="fa-solid" [class]="iconFor(favorite.item_type)" aria-hidden="true"></i>
                   </div>
                   <span class="truncate font-medium text-gray-800 dark:text-zinc-100">{{ favorite.item_title }}</span>
@@ -35,7 +35,7 @@
                   type="button"
                   (click)="remove(favorite, $event)"
                   [attr.aria-label]="'favorites.page.remove' | translate"
-                  class="ml-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-red-50 hover:text-[#B91C1C] focus:outline-none focus:ring-2 focus:ring-[#B91C1C] dark:text-zinc-500 dark:hover:bg-red-950/30"
+                  class="ml-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-red-50 hover:text-danger focus:outline-none focus:ring-2 focus:ring-danger dark:text-zinc-500 dark:hover:bg-red-950/30"
                 >
                   <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                 </button>

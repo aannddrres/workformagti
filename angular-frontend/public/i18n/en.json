@@ -47,6 +47,7 @@
   "users": {
     "heading": "User Management (RBAC)",
     "all_groups": "All groups",
+    "group_leaders_load_error": "Could not load groups — retry",
     "new_user": "New user",
     "load_error": "Could not load the data.",
     "no_data": "No users found",
@@ -93,11 +94,33 @@
     "perm_videos_archive": "Archive videos",
     "perm_compliance_assign": "Assign mandatory reading",
     "perm_reports_export": "Export reports",
-    "perm_inherited": "(from role)"
+    "perm_inherited": "(from role)",
+    "perm_admin_bypass_note": "A system administrator holds every permission by definition — the switches below cannot restrict them. Change the role to restrict access.",
+    "admin_page": {
+      "status_error": "Could not change status"
+    }
   },
   "search": {
     "history_tab": {
       "heading": "Search History"
+    },
+    "palette": {
+      "open": "Search",
+      "placeholder": "Search…",
+      "shortcut": "Ctrl K",
+      "dialog_label": "Global search",
+      "input_placeholder": "Search articles, news or videos…",
+      "close": "Close",
+      "hint": "Start typing to search",
+      "too_short": "Enter at least {{count}} characters",
+      "no_results": "Nothing found for “{{query}}”",
+      "error": "Search failed",
+      "retry": "Try again",
+      "type_article": "Article",
+      "type_news": "News",
+      "type_video": "Video",
+      "legend_navigate": "↑↓ navigate",
+      "legend_open": "Enter to open"
     }
   },
   "shell": {
@@ -183,6 +206,10 @@
       "heading": "Recently viewed",
       "empty": "No recently viewed articles found",
       "load_error": "Could not load recently viewed articles"
+    },
+    "priority": {
+      "heading": "Needs your attention",
+      "aria": "Your outstanding mandatory readings"
     }
   },
   "news": {
@@ -225,7 +252,12 @@
   "shared": {
     "favorite_star": {
       "aria_label": "Add to favorites"
-    }
+    },
+    "toast": {
+      "dismiss": "Dismiss"
+    },
+    "confirm_delete_message": "Delete this message? This cannot be undone.",
+    "delete_failed": "Delete failed"
   },
   "favorites": {
     "page": {
@@ -256,7 +288,8 @@
       "quiz_gate_message": "\"{{title}}\" requires passing its quiz to confirm reading.",
       "start_quiz": "Start quiz",
       "mark_error": "Could not update the status.",
-      "dismiss": "Dismiss"
+      "dismiss": "Dismiss",
+      "action_open": "Open"
     },
     "quiz": {
       "heading": "Quiz",
@@ -266,6 +299,18 @@
       "submit": "Finish",
       "submit_failed": "Error checking the quiz",
       "wrong_feedback": "You answered {{count}} question(s) incorrectly -- try again"
+    },
+    "confirm": {
+      "heading": "Confirm you have read this",
+      "action": "I have read it",
+      "due": "Due: {{date}}",
+      "no_due": "No due date",
+      "overdue": "Overdue",
+      "done_heading": "Reading confirmed",
+      "done_at": "Confirmed: {{date}}",
+      "error": "Could not confirm. Please try again.",
+      "lookup_error": "Could not determine whether this item is required for you.",
+      "lookup_retry": "Try again"
     }
   },
   "manager": {
@@ -304,7 +349,9 @@
       "export_team_stats_pdf": "PDF (team stats)",
       "export_processing": "Processing…",
       "export_failed": "Could not prepare the export.",
-      "export_error": "Export failed."
+      "export_error": "Export failed.",
+      "export_expired": "This export has expired — please generate it again.",
+      "export_timeout": "The export is taking too long. Please try again."
     }
   },
   "stats": {
@@ -398,7 +445,8 @@
     "verify_ok": "Chain verified",
     "verify_tampered": "Integrity violation detected!",
     "verify_unchained": "Pre-migration record — verification unavailable",
-    "verify_error": "Verification failed"
+    "verify_error": "Verification failed",
+    "manager_scope_note": "Your department only"
   },
   "roles": {
     "heading": "Role Management",
@@ -481,7 +529,12 @@
       "upload_failed": "Could not upload the file.",
       "delete_failed": "Could not delete the article.",
       "archive_failed": "Could not complete the action.",
-      "bulk_archive_failed": "Could not complete the bulk action."
+      "bulk_archive_failed": "Could not complete the bulk action.",
+      "mandatory_load_error": "Could not determine whether this article is mandatory",
+      "mandatory_unknown": "Unknown — do not save without checking",
+      "categories_load_error": "Could not load categories.",
+      "quiz_load_error": "Could not load the quiz questions — the empty list below does not mean there are none.",
+      "quiz_save_error": "The article was saved, but its quiz questions were not."
     },
     "quiz": {
       "add_question": "Add question",
@@ -505,7 +558,8 @@
       "field_attachment": "Attached file (PDF, Word, image)",
       "confirm_delete": "Delete this news item?",
       "load_failed": "Could not load the news item.",
-      "save_failed": "Could not save the news item."
+      "save_failed": "Could not save the news item.",
+      "delete_error": "Could not delete the news item"
     },
     "videos": {
       "new": "Video",
@@ -520,7 +574,8 @@
       "select_category": "Select a category",
       "confirm_delete": "Delete this video?",
       "load_failed": "Could not load the video.",
-      "save_failed": "Could not save the video."
+      "save_failed": "Could not save the video.",
+      "delete_error": "Could not delete the video"
     },
     "history": {
       "heading": "Revision history",

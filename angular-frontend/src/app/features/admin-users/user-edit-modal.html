@@ -21,7 +21,7 @@
         <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'users.field_role' | translate }}</label>
         <select
           (change)="onEditRoleChange($event)"
-          class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+          class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
         >
           @for (role of roles; track role) {
             <option [value]="role" [attr.selected]="role === editRole() ? '' : null">{{ 'users.role_' + role | translate }}</option>
@@ -32,7 +32,7 @@
         <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'users.field_department' | translate }}</label>
         <select
           (change)="editDepartment.set($any($event.target).value)"
-          class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+          class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
         >
           @for (dept of departments; track dept) {
             <option [value]="dept" [attr.selected]="dept === editDepartment() ? '' : null">{{ dept === 'All' ? ('users.dept_all' | translate) : dept }}</option>
@@ -45,12 +45,23 @@
           type="text"
           [value]="editPosition()"
           (input)="editPosition.set($any($event.target).value)"
-          class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+          class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
         />
       </div>
 
       <div>
         <label class="mb-2 block text-sm font-semibold text-gray-700 dark:text-zinc-300">{{ 'users.permissions_heading' | translate }}</label>
+        @if (bypassesPermissionChecks()) {
+          <!-- Said once, above the list, rather than repeated on every row:
+               a system admin bypasses the permission check entirely, so none
+               of these switches can restrict them. The old per-row "(from
+               role)" implied the role's defaults were doing the work, which
+               would mean changing those defaults changed the outcome. It
+               does not. -->
+          <p class="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300">
+            {{ 'users.perm_admin_bypass_note' | translate }}
+          </p>
+        }
         <div class="space-y-4 rounded-xl border border-gray-200 bg-gray-50/50 p-5 dark:border-zinc-700 dark:bg-zinc-800/50">
           @for (group of editPermissionGroups(); track group.heading; let isFirst = $first) {
             <div class="space-y-2" [class.border-t]="!isFirst" [class.pt-3]="!isFirst" [class.border-gray-200]="!isFirst" [class.dark:border-zinc-700]="!isFirst">
@@ -60,14 +71,14 @@
                   <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer dark:text-zinc-300" [class.opacity-70]="option.disabled">
                     <input
                       type="checkbox"
-                      class="h-4 w-4 rounded border-gray-300 accent-[#B91C1C]"
+                      class="h-4 w-4 rounded border-gray-300 accent-brand dark:border-zinc-600"
                       [checked]="option.checked"
                       [disabled]="option.disabled"
                       (change)="togglePermission(option.value, $any($event.target).checked)"
                     />
                     <span>
                       {{ 'users.perm_' + option.label | translate }}
-                      @if (option.disabled) {
+                      @if (option.lockReason === 'role-default') {
                         <span class="ml-1 text-xs font-normal text-gray-400 dark:text-zinc-500">{{ 'users.perm_inherited' | translate }}</span>
                       }
                     </span>
@@ -88,7 +99,7 @@
         <button
           type="submit"
           [disabled]="saving()"
-          class="rounded-xl bg-[#B91C1C] px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+          class="rounded-xl bg-brand px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
         >{{ 'users.save' | translate }}</button>
       </div>
     </form>

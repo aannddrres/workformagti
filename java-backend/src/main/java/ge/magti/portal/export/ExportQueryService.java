@@ -7,6 +7,8 @@ import ge.magti.portal.domain.User;
 import ge.magti.portal.repository.ReadStatusRepository;
 import ge.magti.portal.repository.RequiredReadingRepository;
 import ge.magti.portal.repository.UserRepository;
+import ge.magti.portal.security.ManagerScope;
+import ge.magti.portal.stats.ComplianceRecord;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -28,6 +30,19 @@ import java.util.stream.Collectors;
  * but the xlsx/pdf exports never did -- a live gap where the same personal
  * data got less protection depending on file format. This service is the
  * single query path for all 3 formats now, so that gap can't reopen.
+ *
+ * <p><b>SEC-02 fix (audit OPUS5-1):</b> both query methods used to be
+ * org-wide with no caller argument at all, while {@code reports.export} is a
+ * {@link Role#MANAGER} default ({@link ge.magti.portal.domain.Permission
+ * #defaultsFor}) -- so any group manager could download the name, department
+ * and per-item compliance status of every employee in the company. Both now
+ * take the caller and route through {@link #scopedCompliance}, applying the
+ * same rule bug #312 already established in
+ * {@code StatsController.getCriticalOperators}: unscoped for
+ * SYSTEM_ADMIN/CONTENT_ADMIN, hard-pinned to the caller's own department
+ * string for MANAGER. The caller argument is mandatory rather than an
+ * overload precisely so no unscoped call path can be reintroduced by
+ * accident.
  */
 @Service
 public class ExportQueryService {
@@ -47,14 +62,71 @@ public class ExportQueryService {
     }
 
     /**
-     * Every ReadStatus row for an eligible (active, non-management) user,
-     * flattened with its User/RequiredReading fields. Throws {@link
-     * ExportTooLargeException} past {@link ExportSizeGuard#MAX_ROWS} --
-     * mirrors Python calling {@code _guard_export_size} synchronously in
-     * the request handler, before any background job is enqueued.
+     * True when this caller's exports must be pinned to their own department
+     * (MANAGER), false when they are unrestricted (SYSTEM_ADMIN,
+     * CONTENT_ADMIN) -- the same rule bug #312 established in
+     * {@code StatsController.getCriticalOperators}.
+     *
+     * <p>Deliberately separate from {@link #scopeDepartmentFor} rather than
+     * inferred from it being null: a manager whose {@code department} is null
+     * is still department-scoped, and collapsing the two would make that case
+     * fall through to the org-wide branch -- i.e. re-open SEC-02 for exactly
+     * the accounts whose scope is least well defined.
      */
-    public List<ReadingExportRow> eligibleReadingRows() {
-        List<Long> eligibleUserIds = complianceQueryService.computeCompliance().stream()
+    public static boolean isDepartmentScoped(User caller) {
+        return ManagerScope.isDepartmentScoped(caller);
+    }
+
+    /**
+     * The caller's effective export scope: their own department string when
+     * {@link #isDepartmentScoped}, otherwise null meaning unrestricted --
+     * the same shape and wording as {@code AuditLogController.scopeDepartment},
+     * so the two department-scope decisions in the codebase stay readable as
+     * one rule. Public because {@code ExportController} records this exact
+     * value as the export audit row's {@code scope_department}. Null here is
+     * only meaningful alongside {@link #isDepartmentScoped}.
+     */
+    public static String scopeDepartmentFor(User caller) {
+        return isDepartmentScoped(caller) ? caller.getDepartment() : null;
+    }
+
+    /**
+     * Compliance records the caller is allowed to export. Resolves the
+     * caller's visible users through {@link ManagerScope} and passes them as
+     * {@code computeCompliance(ids, null)} -- the same two lines
+     * {@code StatsController.getCriticalOperators} runs, so a future reader
+     * checking whether exports match Stats can diff them rather than
+     * re-derive the equivalence.
+     *
+     * <p>An earlier version of this comment said the SEC-13 under-inclusion
+     * was left in place here on purpose, "because fixing it would widen
+     * access, which is not this fix's job". That was the right call for the
+     * SEC-02 commit and the wrong state to leave the code in: it meant a
+     * parent-department manager exported an empty file. SEC-13 is now fixed
+     * at the rule instead of at each call site, and this reads the rule.
+     * A manager with a null, blank or "All" department still resolves to
+     * zero users -- fail closed, and now explicitly rather than by accident.
+     */
+    private List<ComplianceRecord> scopedCompliance(User caller) {
+        if (!isDepartmentScoped(caller)) {
+            return complianceQueryService.computeCompliance();
+        }
+        List<Long> ids = ManagerScope.visibleActiveUsers(userRepository.findByActiveTrue(), caller).stream()
+                .map(User::getId)
+                .toList();
+        return complianceQueryService.computeCompliance(ids, null);
+    }
+
+    /**
+     * Every ReadStatus row for an eligible (active, non-management) user
+     * within {@code caller}'s permitted scope, flattened with its
+     * User/RequiredReading fields. Throws {@link ExportTooLargeException}
+     * past {@link ExportSizeGuard#MAX_ROWS} -- mirrors Python calling
+     * {@code _guard_export_size} synchronously in the request handler,
+     * before any background job is enqueued.
+     */
+    public List<ReadingExportRow> eligibleReadingRows(User caller) {
+        List<Long> eligibleUserIds = scopedCompliance(caller).stream()
                 .map(record -> record.user().getId())
                 .toList();
         if (eligibleUserIds.isEmpty()) {
@@ -89,11 +161,13 @@ public class ExportQueryService {
      * Mirrors export_team_stats_pdf's department aggregation
      * (routers/exports.py:305-309): {@code department -> {totalRequired,
      * totalRead}}, alphabetically sorted (Python's {@code sorted(by_dept
-     * .items())}) so the caller doesn't have to.
+     * .items())}) so the caller doesn't have to. Scoped to {@code caller}
+     * per SEC-02, so a manager's team-stats PDF is a one-row table for their
+     * own department rather than a company-wide league table.
      */
-    public SortedMap<String, int[]> departmentComplianceTotals() {
+    public SortedMap<String, int[]> departmentComplianceTotals(User caller) {
         SortedMap<String, int[]> byDept = new TreeMap<>();
-        for (var record : complianceQueryService.computeCompliance()) {
+        for (var record : scopedCompliance(caller)) {
             String department = record.user().getDepartment();
             String key = (department == null || department.isBlank()) ? "—" : department;
             int[] bucket = byDept.computeIfAbsent(key, k -> new int[2]);

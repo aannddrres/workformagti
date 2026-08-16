@@ -3,6 +3,7 @@ package ge.magti.portal.domain;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 
 /**
@@ -47,8 +48,24 @@ public class ExportJob {
     @Column(name = "status", nullable = false, length = 20)
     private String status = "processing";
 
+    /**
+     * <b>Legacy since V31 (audit PR-03/BL-09).</b> A pod-local absolute path,
+     * which is exactly the problem: the row lived in shared Oracle while the
+     * file lived on whichever container happened to build it. New jobs leave
+     * this NULL and write {@link #content}/{@link #filename} instead; it is
+     * still read as a fallback for rows created before the migration, and
+     * {@code ExportJobCleanupScheduler} still deletes the files they point at.
+     */
     @Column(name = "path", length = 1000)
     private String path;
+
+    @Lob
+    @Column(name = "content")
+    private byte[] content;
+
+    /** Download filename, e.g. {@code export_<uuid>.xlsx}. Carries the extension the response's media type is chosen from. */
+    @Column(name = "filename", length = 200)
+    private String filename;
 
     @Column(name = "expires_at", nullable = false)
     private double expiresAt;
@@ -75,6 +92,22 @@ public class ExportJob {
 
     public void setPath(String path) {
         this.path = path;
+    }
+
+    public byte[] getContent() {
+        return content;
+    }
+
+    public void setContent(byte[] content) {
+        this.content = content;
+    }
+
+    public String getFilename() {
+        return filename;
+    }
+
+    public void setFilename(String filename) {
+        this.filename = filename;
     }
 
     public double getExpiresAt() {

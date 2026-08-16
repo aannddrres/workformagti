@@ -2,6 +2,7 @@ package ge.magti.portal.web;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.ReadStatus;
@@ -26,6 +27,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -46,6 +48,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * /api/users/{user_id}/nudge} deferred, see {@link UserController}'s
  * javadoc).
  */
+@RequiresOracle
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
@@ -188,10 +191,13 @@ class UserControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"current_password\":\"CurrentPass1\",\"new_password\":\"NewPass1\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.detail").value("პაროლი წარმატებით შეიცვალა."));
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("წარმატებით შეიცვალა")));
 
         User reloaded = userRepository.findById(operator.getId()).orElseThrow();
         assertTrue(passwordEncoder.matches("NewPass1", reloaded.getHashedPassword()));
+        // SEC-14: the change also ends every session the old password could
+        // have been used from, which is the point of changing it.
+        assertEquals(1L, reloaded.getTokenVersion());
     }
 
     // ── bulk role reassignment ──────────────────────────────────────────
@@ -475,7 +481,7 @@ class UserControllerIntegrationTest {
 
         mockMvc.perform(authed(put("/api/users/" + target.getId() + "/permissions"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"permissions\":[\"articles.view\",\"not.a.real.permission\"]}"))
+                        .content("{\"permissions\":[\"articles.edit\",\"not.a.real.permission\"]}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("not.a.real.permission")));
 
@@ -484,13 +490,111 @@ class UserControllerIntegrationTest {
         // validate against the full Permission enum instead.
         mockMvc.perform(authed(put("/api/users/" + target.getId() + "/permissions"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"permissions\":[\"articles.view\",\"videos.archive\"]}"))
+                        .content("{\"permissions\":[\"articles.edit\",\"videos.archive\"]}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.permissions", org.hamcrest.Matchers.containsInAnyOrder("articles.view", "videos.archive")));
+                .andExpect(jsonPath("$.permissions", org.hamcrest.Matchers.containsInAnyOrder("articles.edit", "videos.archive")));
 
         mockMvc.perform(authed(put("/api/users/999999999/permissions"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"permissions\":[]}"))
                 .andExpect(status().isNotFound());
+    }
+
+    /**
+     * SEC-06, the part the audit did not surface. {@code users.manage} was
+     * not merely unenforced -- it was unenforceable. PermissionChecker
+     * returns true unconditionally for SYSTEM_ADMIN, and every
+     * user-administration endpoint also requires that role, so the
+     * permission was only ever evaluated for the one role that skips the
+     * evaluation. This test is what found it: an admin stripped of the
+     * permission still sailed through, because the check could not fail.
+     *
+     * <p>It is now removed from the catalog rather than enforced, so the
+     * assertion is that the switch is gone -- not that it works.
+     */
+    @Test
+    void aSystemAdminBypassesEveryPermissionSoNoAdminOnlyPermissionCanBind() throws Exception {
+        User admin = createUser("sec06-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
+        admin.setPermissions(new LinkedHashSet<>());
+        userRepository.saveAndFlush(admin);
+
+        // No permissions at all, and still allowed -- by design (root role),
+        // but it is why an admin-only permission is decorative.
+        mockMvc.perform(authed(get("/api/users"), tokenFor(admin)))
+                .andExpect(status().isOk());
+    }
+
+    /** articles.view was removed from the catalog by SEC-06, so it must now be rejected as unknown. */
+    @Test
+    void articlesViewIsNoLongerAnAcceptedPermission() throws Exception {
+        User admin = createUser("sec06-av@magti.ge", Role.SYSTEM_ADMIN, "All");
+        User target = createUser("sec06-av-target@magti.ge", Role.OPERATOR, "All");
+
+        mockMvc.perform(authed(put("/api/users/" + target.getId() + "/permissions"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"permissions\":[\"articles.view\"]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("articles.view")));
+    }
+
+    /**
+     * SEC-12: updateUserAdmin had NEITHER guard its siblings apply.
+     * bulkReassignRoles refuses to leave zero active system admins and drops
+     * the caller from its own target list; updateUserStatus refuses
+     * self-deactivation. Here an admin could demote the last SYSTEM_ADMIN --
+     * including themselves -- and lock the organisation out of every
+     * administrative screen with no way back through the product.
+     */
+    @Test
+    void theLastSystemAdminCannotBeDemotedThroughTheSingleUserEndpoint() throws Exception {
+        User admin = createUser("sec12-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
+
+        // Any OTHER admin still present makes the demotion safe, so the test
+        // has to establish that this really is the last one.
+        long otherActiveAdmins = userRepository.countByRoleAndActiveTrueAndIdNotIn(
+                Role.SYSTEM_ADMIN, List.of(admin.getId()));
+        org.junit.jupiter.api.Assumptions.assumeTrue(otherActiveAdmins == 0,
+                "shared dev Oracle already has other active admins; the last-admin path is not reachable here");
+
+        mockMvc.perform(authed(put("/api/users/" + admin.getId()), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role\":\"operator\",\"department\":\"All\",\"position\":\"x\"}"))
+                .andExpect(status().isBadRequest());
+
+        assertEquals(Role.SYSTEM_ADMIN, userRepository.findById(admin.getId()).orElseThrow().getRole());
+    }
+
+    /** The self-targeting half of SEC-12, which holds regardless of how many admins exist. */
+    @Test
+    void anAdminCannotDemoteThemselvesThroughTheSingleUserEndpoint() throws Exception {
+        User admin = createUser("sec12-self@magti.ge", Role.SYSTEM_ADMIN, "All");
+        createUser("sec12-spare@magti.ge", Role.SYSTEM_ADMIN, "All");
+
+        mockMvc.perform(authed(put("/api/users/" + admin.getId()), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role\":\"content_admin\",\"department\":\"All\",\"position\":\"x\"}"))
+                .andExpect(status().isBadRequest());
+
+        assertEquals(Role.SYSTEM_ADMIN, userRepository.findById(admin.getId()).orElseThrow().getRole());
+    }
+
+    /**
+     * SEC-12's quieter half: department and position were assigned with no
+     * null check, unlike phone/teamId below them, so an update omitting
+     * either silently blanked it. department drives every visibility and
+     * compliance query the user appears in.
+     */
+    @Test
+    void omittingDepartmentDoesNotBlankIt() throws Exception {
+        User admin = createUser("sec12-null-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
+        User target = createUser("sec12-null-target@magti.ge", Role.OPERATOR, "ტექნიკური");
+
+        mockMvc.perform(authed(put("/api/users/" + target.getId()), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role\":\"operator\"}"))
+                .andExpect(status().isOk());
+
+        assertEquals("ტექნიკური", userRepository.findById(target.getId()).orElseThrow().getDepartment(),
+                "a payload that does not mention department must not erase it");
     }
 }

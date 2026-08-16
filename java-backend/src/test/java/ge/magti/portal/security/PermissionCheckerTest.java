@@ -20,16 +20,16 @@ class PermissionCheckerTest {
         admin.setRole(Role.SYSTEM_ADMIN);
         admin.setPermissions(Set.of());
 
-        assertTrue(checker.hasPermission(admin, Permission.USERS_MANAGE));
+        assertTrue(checker.hasPermission(admin, Permission.COMPLIANCE_ASSIGN));
     }
 
     @Test
     void nonAdminNeedsThePermissionExplicitlyGranted() {
         User operator = new User();
         operator.setRole(Role.OPERATOR);
-        operator.setPermissions(Set.of(Permission.ARTICLES_VIEW.value()));
+        operator.setPermissions(Set.of(Permission.ARTICLES_EDIT.value()));
 
-        assertTrue(checker.hasPermission(operator, Permission.ARTICLES_VIEW));
-        assertFalse(checker.hasPermission(operator, Permission.USERS_MANAGE));
+        assertTrue(checker.hasPermission(operator, Permission.ARTICLES_EDIT));
+        assertFalse(checker.hasPermission(operator, Permission.COMPLIANCE_ASSIGN));
     }
 }

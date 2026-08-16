@@ -51,6 +51,17 @@ export class AuthService {
     );
   }
 
+  /**
+   * Drops client-side session state without calling the backend.
+   *
+   * logout() posts to /api/auth/logout first, which is exactly wrong for the
+   * 401 path: the token the server just rejected is the one that request
+   * would carry, so it fails too and the user is left signed in locally.
+   */
+  clearSession(): void {
+    this.clearToken();
+  }
+
   getToken(): string | null {
     return localStorage.getItem(TOKEN_KEY);
   }

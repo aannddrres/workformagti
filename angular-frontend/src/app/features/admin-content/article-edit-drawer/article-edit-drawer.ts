@@ -9,6 +9,7 @@ import { Article, ArticleRequest } from '../../../core/models/article';
 import { Category } from '../../../core/models/category';
 import { RichTextEditor } from '../../../shared/rich-text-editor/rich-text-editor';
 import { QuizBuilder } from '../../../shared/quiz-builder/quiz-builder';
+import { ToastService } from '../../../core/notifications/toast.service';
 
 const DEPARTMENT_ORDER: { key: 'info' | 'tech' | 'office'; name: string }[] = [
   { key: 'info', name: 'საინფორმაციო' },
@@ -39,6 +40,9 @@ const DEPARTMENT_ORDER: { key: 'info' | 'tech' | 'office'; name: string }[] = [
   templateUrl: './article-edit-drawer.html'
 })
 export class ArticleEditDrawer {
+  private readonly toast = inject(ToastService);
+  /** True when the mandatory-reading flag could not be read; the UI must not present the unchecked box as fact. */
+  protected readonly mandatoryUnknown = signal(false);
   private readonly articlesService = inject(ArticlesService);
   private readonly categoriesService = inject(CategoriesService);
   private readonly quizAdminService = inject(QuizAdminService);
@@ -85,9 +89,17 @@ export class ArticleEditDrawer {
   protected readonly saveError = signal<string | null>(null);
   protected readonly departmentError = signal(false);
   protected readonly dueDateError = signal(false);
+  /**
+   * FE-04: an empty category dropdown used to be indistinguishable from a
+   * failed load. Category is a required field, so silently offering none
+   * blocks the save with no explanation of why.
+   */
+  protected readonly categoriesFailed = signal(false);
+  /** Same distinction for the quiz: "this article has no questions" vs "we could not fetch them". */
+  protected readonly quizLoadFailed = signal(false);
 
   constructor() {
-    this.categoriesService.list().subscribe({ next: (data) => this.categories.set(data), error: () => {} });
+    this.loadCategories();
 
     effect(() => {
       const id = this.articleId();
@@ -101,6 +113,17 @@ export class ArticleEditDrawer {
 
   protected get isEditing(): boolean {
     return this.articleId() != null;
+  }
+
+  /** Retried from the template, so a transient failure is one click to recover from rather than a reopened drawer. */
+  protected loadCategories(): void {
+    this.categoriesService.list().subscribe({
+      next: (data) => {
+        this.categories.set(data);
+        this.categoriesFailed.set(false);
+      },
+      error: () => this.categoriesFailed.set(true)
+    });
   }
 
   private resetForCreate(): void {
@@ -158,20 +181,41 @@ export class ArticleEditDrawer {
           this.previewHtml.set(article.content);
         });
 
+        // If this lookup fails silently the checkbox renders UNCHECKED, which
+        // is indistinguishable from "not a mandatory reading" -- so saving the
+        // article would clear a real compliance obligation that the editor
+        // never knowingly touched. Surfaced, and the flag is left untouched
+        // rather than defaulted to false.
         this.requiredReadingService.byItem('article', id).subscribe({
           next: (rr) => {
             this.isMandatory.set(!!rr);
             this.dueDate.set(rr?.due_date ? rr.due_date.slice(0, 10) : '');
+            this.mandatoryUnknown.set(false);
           },
-          error: () => {}
+          error: () => {
+            this.mandatoryUnknown.set(true);
+            this.toast.error(this.translate.instant('content.articles.mandatory_load_error'));
+          }
         });
 
         if (article.quiz_enabled) {
           this.quizAdminService.get(id).subscribe({
-            next: (view) => queueMicrotask(() => this.quizBuilder()?.setQuestions(view.questions)),
-            error: () => {}
+            next: (view) => {
+              this.quizLoadFailed.set(false);
+              queueMicrotask(() => this.quizBuilder()?.setQuestions(view.questions));
+            },
+            // An empty builder for an article that HAS a quiz reads as "no
+            // questions yet". An admin who then adds one replaces the real
+            // set -- afterSaved only skips the update when the builder is
+            // empty, so the moment they type anything the old questions are
+            // gone.
+            error: () => {
+              this.quizLoadFailed.set(true);
+              this.toast.error(this.translate.instant('content.articles.quiz_load_error'));
+            }
           });
         } else {
+          this.quizLoadFailed.set(false);
           queueMicrotask(() => this.quizBuilder()?.setQuestions([]));
         }
       },
@@ -189,7 +233,7 @@ export class ArticleEditDrawer {
 
   protected dropzoneClass(): string {
     const base = 'rounded-xl border-2 border-dashed p-3 transition-colors';
-    return this.dropzoneActive() ? `${base} border-[#B91C1C] bg-red-50 dark:bg-red-950/20` : `${base} border-gray-200 dark:border-zinc-700`;
+    return this.dropzoneActive() ? `${base} border-brand bg-red-50 dark:bg-red-950/20` : `${base} border-gray-200 dark:border-zinc-700`;
   }
 
   protected previewFrameClass(): string {
@@ -312,7 +356,14 @@ export class ArticleEditDrawer {
       if (questions.length > 0) {
         this.quizAdminService.update(article.id, questions).subscribe({
           next: () => this.finishSave(),
-          error: () => this.finishSave()
+          // The article really did save, so closing the drawer is right --
+          // but the quiz did not, and swallowing that told the admin their
+          // questions were live when they were not. The article's own
+          // read-gate depends on them.
+          error: () => {
+            this.toast.error(this.translate.instant('content.articles.quiz_save_error'));
+            this.finishSave();
+          }
         });
         return;
       }

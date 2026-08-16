@@ -1,9 +1,10 @@
 package ge.magti.portal.web;
 
-import ge.magti.portal.config.PortalProperties;
 import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.repository.AuditLogRepository;
+import ge.magti.portal.storage.FileStorageService;
+import ge.magti.portal.storage.FileTypeVerifier;
 import ge.magti.portal.util.TbilisiTime;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,8 +15,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
@@ -25,16 +24,34 @@ import java.util.UUID;
  * a single generic attachment endpoint reused by the Article/News/Video admin
  * forms (attachments, dropzone, drag-drop, pasted-image embeds).
  *
- * <p>Same two checks as Python, in the same order: MIME allowlist first (the
- * stored extension is derived from the server-detected {@code content_type},
- * never the client-supplied filename -- config.py's comment on {@code
+ * <p>Same checks as Python, in the same order: MIME allowlist first, then
+ * the size cap. The stored extension is derived from the content type, never
+ * from the client-supplied filename -- config.py's comment on {@code
  * ALLOWED_UPLOAD_TYPES} explains why: a spoofed filename could otherwise
- * smuggle .html/.svg/.php for stored-XSS or arbitrary execution), then the
- * size cap. Spring's {@code spring.servlet.multipart.max-file-size} (see
- * application.yml) already rejects anything over the cap before this method
- * runs, so the explicit {@link MultipartFile#getSize()} check here is a
+ * smuggle .html/.svg/.php for stored XSS or arbitrary execution. Spring's
+ * {@code spring.servlet.multipart.max-file-size} (see application.yml)
+ * already rejects anything over the cap before this method runs, so the
+ * explicit {@link MultipartFile#getSize()} check here is a
  * belt-and-suspenders mirror of Python's manual streaming cap, not the only
  * guard.
+ *
+ * <p><b>SEC-09.</b> This javadoc used to say the content type was
+ * "server-detected". It was not: {@code MultipartFile.getContentType()}
+ * returns the {@code Content-Type} header the CLIENT wrote in the multipart
+ * part, so the allowlist could be walked straight past by declaring
+ * {@code image/png} over any bytes at all. The claim has been corrected and
+ * the check it described now actually exists --
+ * {@link ge.magti.portal.storage.FileTypeVerifier} compares the bytes
+ * against the declared type's magic number. It is explicit about the formats
+ * it cannot verify (plain text has no signature; the legacy OLE2 Word/Excel
+ * formats share one), so "cannot tell" is never silently read as "fine".
+ *
+ * <p><b>Deliberate divergence from Python (audit PR-03):</b> the bytes go to
+ * {@link FileStorageService}, not to {@code portal.uploads-dir}. Python wrote
+ * to a local directory and mounted it with {@code StaticFiles}; carrying that
+ * over faithfully is what made every restart delete every attachment and made
+ * a second replica serve 404s. See that class's javadoc for the options
+ * considered.
  */
 @RestController
 public class UploadController {
@@ -56,11 +73,11 @@ public class UploadController {
             Map.entry("video/mp4", ".mp4")
     );
 
-    private final PortalProperties portalProperties;
+    private final FileStorageService fileStorageService;
     private final AuditLogRepository auditLogRepository;
 
-    public UploadController(PortalProperties portalProperties, AuditLogRepository auditLogRepository) {
-        this.portalProperties = portalProperties;
+    public UploadController(FileStorageService fileStorageService, AuditLogRepository auditLogRepository) {
+        this.fileStorageService = fileStorageService;
         this.auditLogRepository = auditLogRepository;
     }
 
@@ -92,10 +109,15 @@ public class UploadController {
         }
 
         String uniqueFilename = UUID.randomUUID() + ext;
-        Path dir = Path.of(portalProperties.getUploadsDir());
         try {
-            Files.createDirectories(dir);
-            file.transferTo(dir.resolve(uniqueFilename));
+            byte[] content = file.getBytes();
+            // SEC-09: the allowlist above only knows what the client SAID
+            // this is. Reject bytes that contradict it.
+            if (FileTypeVerifier.verify(contentType, content) == FileTypeVerifier.Result.MISMATCH) {
+                return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body(Map.of(
+                        "detail", "ფაილის შიგთავსი არ შეესაბამება მითითებულ ტიპს '" + contentType + "'"));
+            }
+            fileStorageService.store(uniqueFilename, contentType, content, user.getId());
         } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("detail", "ფაილის შენახვა ვერ მოხერხდა"));

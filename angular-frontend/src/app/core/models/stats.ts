@@ -75,6 +75,14 @@ export interface DepartmentGroupStats {
   compliance: number;
   output_volume: number;
   critical_count: number;
+  /**
+   * Always [] for a MANAGER caller -- the backend redacts the per-person rows
+   * for them and keeps every aggregate (SEC-03, DepartmentStatsBuilder
+   * .withoutMembers). Nothing renders this today, so a non-zero member_count
+   * beside an empty members[] is expected, not missing data; use the
+   * group-users drill-down (StatsService.groupUsers, itself department-scoped)
+   * if per-person rows are ever needed here.
+   */
   members: DepartmentMember[];
 }
 

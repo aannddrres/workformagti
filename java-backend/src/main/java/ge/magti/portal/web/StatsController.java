@@ -13,6 +13,7 @@ import ge.magti.portal.repository.RequiredReadingRepository;
 import ge.magti.portal.repository.SearchLogRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.repository.VideoInstructionRepository;
+import ge.magti.portal.security.ManagerScope;
 import ge.magti.portal.stats.ComplianceRecord;
 import ge.magti.portal.stats.CriticalOperator;
 import ge.magti.portal.stats.DepartmentBuckets;
@@ -202,7 +203,15 @@ public class StatsController {
         return ResponseEntity.ok(new AdminTeamStatsResponse(teamId, avg + "%", members));
     }
 
-    /** Port of get_team_stats (routers/stats.py:446-524). */
+    /**
+     * Port of get_team_stats (routers/stats.py:446-524).
+     *
+     * <p><b>SEC-13 fix:</b> the manager branch matched departments by string
+     * equality, so a manager stored as the bare parent ("ტექნიკური") whose
+     * operators are stored as "ტექნიკური — ჯგუფი 03" got an empty team
+     * screen rather than their team. Now uses {@link ManagerScope}, the same
+     * prefix-aware rule direct messaging and content visibility already use.
+     */
     @GetMapping("/api/manager/team-stats")
     public ResponseEntity<?> getTeamStats(
             @RequestParam(required = false) String department,
@@ -226,9 +235,11 @@ public class StatsController {
             }
         } else {
             // RBAC: a manager is hard-pinned to their own department, even if a
-            // different one is sent in the query string.
+            // different one is sent in the query string. Prefix-aware, so a
+            // parent-department manager sees their sub-groups and a sub-group
+            // manager still sees only their own group (SEC-13).
             dept = user.getDepartment();
-            candidates = userRepository.findByActiveTrueAndDepartment(dept);
+            candidates = ManagerScope.visibleActiveUsers(userRepository.findByActiveTrue(), user);
         }
 
         if (teamId != null) {
@@ -247,7 +258,20 @@ public class StatsController {
         return ResponseEntity.ok(new TeamStatsResponse(dept, members));
     }
 
-    /** Port of get_department_stats (routers/stats.py:675-688). */
+    /**
+     * Port of get_department_stats (routers/stats.py:675-688).
+     *
+     * <p><b>SEC-03 fix:</b> this was the one endpoint in the file with no
+     * MANAGER branch at all, so a manager received the names, positions,
+     * individual percentages and {@code is_critical} flags of every
+     * department's staff -- while getting a 403 from {@link #getGroupUsers}
+     * for those very same groups. Option (a) of the audit's two, chosen by
+     * the user 2026-08-14: the dashboard stays org-wide for managers (that is
+     * its purpose -- see {@link #getCriticalOperators}'s javadoc on its
+     * audience), but the per-person rows are stripped for them, leaving the
+     * aggregates. See {@link DepartmentStatsBuilder#withoutMembers} for why
+     * this redacts the response rather than scoping the query.
+     */
     @GetMapping("/api/manager/department-stats")
     public ResponseEntity<?> getDepartmentStats(@AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireManagerOrAdmin(user);
@@ -256,6 +280,9 @@ public class StatsController {
         }
         List<ComplianceRecord> records = complianceQueryService.computeCompliance();
         DepartmentDashboard dashboard = DepartmentStatsBuilder.build(records, TbilisiTime.now());
+        if (user.getRole() == Role.MANAGER) {
+            dashboard = DepartmentStatsBuilder.withoutMembers(dashboard);
+        }
         return ResponseEntity.ok(dashboard);
     }
 
@@ -279,9 +306,13 @@ public class StatsController {
      * confirmed live (docs/TEST_PLAN_AND_RESULTS.md §2.1, asymmetry #1): a
      * manager in "ტექნიკური — ჯგუფი 03" saw an overdue operator from
      * "ტექნიკური — ჯგუფი 01". Now hard-pinned to the calling manager's own
-     * {@code department} string, same exact-match pattern {@link
-     * #getTeamStats} already uses. content_admin/system_admin keep the
-     * unscoped org-wide view (that access was never in question).
+     * department via {@link ManagerScope}, the same rule {@link #getTeamStats}
+     * uses. content_admin/system_admin keep the unscoped org-wide view (that
+     * access was never in question).
+     *
+     * <p>The pin was originally an exact string match, which under-included a
+     * parent-department manager to zero rows -- audit SEC-13, fixed with the
+     * shared rule rather than at each of its five call sites.
      */
     @GetMapping("/api/admin/critical-operators")
     public ResponseEntity<?> getCriticalOperators(@AuthenticationPrincipal User user) {
@@ -291,7 +322,7 @@ public class StatsController {
         }
         List<ComplianceRecord> records;
         if (user.getRole() == Role.MANAGER) {
-            List<Long> ids = userRepository.findByActiveTrueAndDepartment(user.getDepartment()).stream()
+            List<Long> ids = ManagerScope.visibleActiveUsers(userRepository.findByActiveTrue(), user).stream()
                     .map(User::getId)
                     .toList();
             records = complianceQueryService.computeCompliance(ids, null);

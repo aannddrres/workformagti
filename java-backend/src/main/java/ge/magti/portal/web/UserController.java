@@ -139,6 +139,12 @@ public class UserController {
         }
 
         user.setHashedPassword(passwordEncoder.encode(request.newPassword()));
+        // SEC-14. Changing a password because you think someone else has it
+        // is worthless if their token keeps working for the rest of its
+        // hour. Ends every session including this one -- the response says
+        // so, since the alternative (reissuing a token here) would mean a
+        // new contract on an endpoint the Angular app does not yet call.
+        user.invalidateIssuedTokens();
         userRepository.save(user);
 
         AuditLog audit = new AuditLog();
@@ -149,7 +155,8 @@ public class UserController {
         audit.setTimestamp(TbilisiTime.now());
         auditLogRepository.save(audit);
 
-        return ResponseEntity.ok(Map.of("detail", "პაროლი წარმატებით შეიცვალა."));
+        return ResponseEntity.ok(Map.of(
+                "detail", "პაროლი წარმატებით შეიცვალა. ყველა სესია დასრულდა — გთხოვთ, თავიდან შეხვიდეთ."));
     }
 
     /** Port of bulk_reassign_roles (routers/users.py:101-184). */
@@ -184,6 +191,10 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", "მომხმარებლები ვერ მოიძებნა"));
         }
 
+        // Kept as a set-wide check rather than routed through
+        // refuseIfLastSystemAdmin: demoting several admins at once is only
+        // safe if an admin survives ALL of them, which a per-user check
+        // cannot see. Same rule, same message, different arithmetic.
         if (newRole != Role.SYSTEM_ADMIN) {
             List<Long> demotedAdminIds = users.stream()
                     .filter(u -> u.getRole() == Role.SYSTEM_ADMIN)
@@ -333,9 +344,34 @@ public class UserController {
         }
         User user = found.get();
 
+        // SEC-12: this endpoint had NEITHER guard that its two siblings
+        // apply. bulkReassignRoles refuses to leave zero active system
+        // admins (:186-199) and drops the caller from its own target list
+        // (:172-176); updateUserStatus refuses self-deactivation (:246-249).
+        // Here an admin could demote the last remaining SYSTEM_ADMIN --
+        // including themselves -- and lock the organisation out of every
+        // administrative screen with no way back through the product.
+        if (user.getId().equals(admin.getId()) && role != Role.SYSTEM_ADMIN) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("detail", "საკუთარი როლის შეცვლა ამ გზით შეუძლებელია"));
+        }
+        ResponseEntity<Map<String, String>> lastAdminFailure = refuseIfLastSystemAdmin(user, role);
+        if (lastAdminFailure != null) {
+            return lastAdminFailure;
+        }
+
         user.setRole(role);
-        user.setDepartment(request.department());
-        user.setPosition(request.position());
+        // Unlike phone/teamId below, department and position were assigned
+        // with no null check, so an update omitting either silently blanked
+        // it. department in particular drives every visibility and
+        // compliance query the user appears in, so a null there quietly
+        // removes them from their own department's obligations.
+        if (request.department() != null) {
+            user.setDepartment(request.department());
+        }
+        if (request.position() != null) {
+            user.setPosition(request.position());
+        }
         if (request.phone() != null) {
             user.setPhone(request.phone());
         }
@@ -449,6 +485,11 @@ public class UserController {
         }
         User user = found.get();
         user.setHashedPassword(passwordEncoder.encode(request.newPassword()));
+        // SEC-14. An admin resetting someone else's password is usually a
+        // response to a suspected compromise, so cutting the existing
+        // sessions is the point of it. The admin is not the target here, so
+        // this costs nobody their own session.
+        user.invalidateIssuedTokens();
         userRepository.save(user);
 
         AuditLog audit = new AuditLog();
@@ -500,6 +541,7 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", "მომხმარებელი ვერ მოიძებნა"));
         }
         User user = found.get();
+
         user.setPermissions(new LinkedHashSet<>(request.permissions()));
 
         AuditLog audit = new AuditLog();
@@ -525,6 +567,27 @@ public class UserController {
                     .body(Map.of("detail", "Could not validate credentials"));
         }
         return null;
+    }
+
+    /**
+     * SEC-12: the last-active-admin check, extracted so
+     * {@link #updateUserAdmin} and {@link #bulkReassignRoles} cannot drift
+     * apart again -- the bulk path had it, the single-user path did not, and
+     * the single-user path is the one an administrator actually clicks.
+     *
+     * @return a 400 response when this change would leave zero active system
+     * admins, or null when it is safe
+     */
+    private ResponseEntity<Map<String, String>> refuseIfLastSystemAdmin(User target, Role newRole) {
+        if (target.getRole() != Role.SYSTEM_ADMIN || newRole == Role.SYSTEM_ADMIN) {
+            return null;
+        }
+        long remaining = userRepository.countByRoleAndActiveTrueAndIdNotIn(Role.SYSTEM_ADMIN, List.of(target.getId()));
+        if (remaining > 0) {
+            return null;
+        }
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("detail", "ბოლო სისტემური ადმინისტრატორის როლის შეცვლა შეუძლებელია."));
     }
 
     private static ResponseEntity<Map<String, String>> requireSystemAdmin(User user) {

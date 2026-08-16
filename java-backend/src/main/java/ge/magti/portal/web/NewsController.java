@@ -1,5 +1,6 @@
 package ge.magti.portal.web;
 
+import ge.magti.portal.content.ContentDeletionService;
 import ge.magti.portal.domain.News;
 import ge.magti.portal.domain.NewsHistory;
 import ge.magti.portal.domain.User;
@@ -65,18 +66,21 @@ public class NewsController {
     private final UserRepository userRepository;
     private final NewsQueryService newsQueryService;
     private final SearchReindexService searchReindexService;
+    private final ContentDeletionService contentDeletionService;
 
     public NewsController(
             NewsRepository newsRepository,
             NewsHistoryRepository newsHistoryRepository,
             UserRepository userRepository,
             NewsQueryService newsQueryService,
-            SearchReindexService searchReindexService) {
+            SearchReindexService searchReindexService,
+            ContentDeletionService contentDeletionService) {
         this.newsRepository = newsRepository;
         this.newsHistoryRepository = newsHistoryRepository;
         this.userRepository = userRepository;
         this.newsQueryService = newsQueryService;
         this.searchReindexService = searchReindexService;
+        this.contentDeletionService = contentDeletionService;
     }
 
     /** Port of get_news_item (routers/news.py:23-44). */
@@ -184,6 +188,10 @@ public class NewsController {
         if (found.isEmpty()) {
             return notFound();
         }
+        // BL-02/BL-10: a news item can be a required-reading target exactly
+        // like an article (RequiredReadingRequest.itemType is a free
+        // string) -- same orphan risk, same cleanup.
+        contentDeletionService.deletePolymorphicReferences("news", id);
         newsRepository.delete(found.get());
         searchReindexService.remove(SearchReindexService.NEWS, id);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();

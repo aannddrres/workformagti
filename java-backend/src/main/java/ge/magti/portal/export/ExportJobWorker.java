@@ -1,16 +1,12 @@
 package ge.magti.portal.export;
 
 import ge.magti.portal.domain.ExportJob;
-import ge.magti.portal.config.PortalProperties;
 import ge.magti.portal.repository.ExportJobRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 
 /**
@@ -22,6 +18,16 @@ import java.util.List;
  * Spring's {@code @Async} -- see {@code PortalBackendApplication}'s {@code
  * @EnableAsync}. Must be called through the Spring proxy (i.e. injected as
  * a bean, not invoked as a same-class method) for {@code @Async} to apply.
+ *
+ * <p><b>Deliberate divergence from Python (audit PR-03/BL-09):</b> the built
+ * file goes into the {@code export_jobs} row itself, not into
+ * {@code <uploads-dir>/exports}. It used to be written to the container's own
+ * filesystem while the row it belongs to lived in shared Oracle, so a
+ * download load-balanced to any other replica read nothing and returned a
+ * misleading "not ready yet" 404. Bytes and status now move together, which
+ * also means they cannot get out of step. See
+ * {@code ge.magti.portal.storage.FileStorageService} for why the database and
+ * not a shared volume.
  */
 @Service
 public class ExportJobWorker {
@@ -34,11 +40,9 @@ public class ExportJobWorker {
     public static final long EXPORT_JOB_TTL_SECONDS = 3600;
 
     private final ExportJobRepository exportJobRepository;
-    private final PortalProperties portalProperties;
 
-    public ExportJobWorker(ExportJobRepository exportJobRepository, PortalProperties portalProperties) {
+    public ExportJobWorker(ExportJobRepository exportJobRepository) {
         this.exportJobRepository = exportJobRepository;
-        this.portalProperties = portalProperties;
     }
 
     @Async
@@ -48,18 +52,15 @@ public class ExportJobWorker {
                     ? XlsxExportBuilder.build(title, headers, rows)
                     : PdfExportBuilder.build(title, headers, rows);
 
-            Path dir = Path.of(portalProperties.getUploadsDir(), "exports");
-            Files.createDirectories(dir);
-            Path path = dir.resolve("export_" + jobId + "." + exportType);
-            Files.write(path, data);
-
             exportJobRepository.findById(jobId).ifPresent(job -> {
                 job.setStatus("completed");
-                job.setPath(path.toString());
+                job.setContent(data);
+                job.setFilename("export_" + jobId + "." + exportType);
+                job.setPath(null);
                 job.setExpiresAt(nowEpochSeconds() + EXPORT_JOB_TTL_SECONDS);
                 exportJobRepository.save(job);
             });
-        } catch (RuntimeException | IOException e) {
+        } catch (RuntimeException e) {
             log.warn("export worker failed (job {}): {}", jobId, e.getMessage());
             exportJobRepository.findById(jobId).ifPresent(job -> markFailed(job));
         }

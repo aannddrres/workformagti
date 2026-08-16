@@ -11,14 +11,21 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+/**
+ * Every test here used to open with
+ * {@code assumeTrue(GeorgianPdfFont.resolvePath().isPresent(), "no Georgian-capable TTF on this machine")},
+ * which meant the whole class silently skipped on any machine without a
+ * system DejaVu -- including the container the application actually ships
+ * in. That is exactly how PR-02 (every PDF export failing in production)
+ * stayed invisible: the tests that would have caught it opted out precisely
+ * where it was broken. The font is bundled now, so the assumptions are gone
+ * and these run everywhere.
+ */
 class PdfExportBuilderTest {
 
     @Test
     void singlePageRenderContainsTitleHeaderAndGeorgianDataText() throws IOException {
-        assumeTrue(GeorgianPdfFont.resolvePath().isPresent(), "no Georgian-capable TTF on this machine");
-
         byte[] pdf = PdfExportBuilder.build(
                 "სავალდებულოდ გასაცნობი სტატუსი",
                 List.of("თანამშრომელი", "სტატუსი"),
@@ -35,8 +42,6 @@ class PdfExportBuilderTest {
 
     @Test
     void manyRowsPaginateAndRepeatTheHeaderRow() throws IOException {
-        assumeTrue(GeorgianPdfFont.resolvePath().isPresent(), "no Georgian-capable TTF on this machine");
-
         List<List<Object>> rows = new ArrayList<>();
         for (int i = 0; i < 80; i++) {
             rows.add(List.of("მომხმარებელი " + i, "read"));
@@ -55,8 +60,6 @@ class PdfExportBuilderTest {
 
     @Test
     void longCellIsTruncatedRatherThanOverflowingIntoTheNextColumn() throws IOException {
-        assumeTrue(GeorgianPdfFont.resolvePath().isPresent(), "no Georgian-capable TTF on this machine");
-
         // Two columns of comparably long content: proportional column-width
         // weighting only gives each ~half the page, which (minus cell padding)
         // isn't enough for either full string -- unlike a single dominant

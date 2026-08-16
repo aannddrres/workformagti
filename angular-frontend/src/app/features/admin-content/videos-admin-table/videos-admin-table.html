@@ -1,5 +1,5 @@
 <div class="mb-4 flex justify-end">
-  <button (click)="openCreate()" class="rounded-xl bg-slate-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800">
+  <button (click)="openCreate()" class="rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700">
     + {{ 'content.videos.new' | translate }}
   </button>
 </div>
@@ -30,7 +30,7 @@
                 <button (click)="openEdit(item)" class="text-gray-400 hover:text-blue-500 transition-colors" [attr.aria-label]="'content.articles.action_edit' | translate">
                   <i class="fa-solid fa-pen-to-square"></i>
                 </button>
-                <button (click)="remove(item)" class="text-gray-400 hover:text-[#E30613] transition-colors" [attr.aria-label]="'content.articles.action_delete' | translate">
+                <button (click)="remove(item)" class="text-gray-400 hover:text-danger transition-colors" [attr.aria-label]="'content.articles.action_delete' | translate">
                   <i class="fa-solid fa-trash-can"></i>
                 </button>
               </div>

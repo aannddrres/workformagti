@@ -1,5 +1,7 @@
 package ge.magti.portal.web;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.ExportJob;
 import ge.magti.portal.domain.Permission;
@@ -13,6 +15,8 @@ import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.ExportJobRepository;
 import ge.magti.portal.security.PermissionChecker;
 import ge.magti.portal.util.TbilisiTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -30,6 +34,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -66,9 +71,26 @@ import java.util.UUID;
  * closes the format gap rather than widening access to a new role tier
  * (content_admin has no {@code reports.export} by default, see {@link
  * Permission#defaultsFor}, so it stays excluded from all three either way).
+ *
+ * <p><b>SEC-02 fix (audit OPUS5-1):</b> that bug-#313 reconciliation left
+ * {@code reports.export} -- a MANAGER default -- as the ONLY gate, over a
+ * data layer that had no caller argument at all, so every manager could
+ * download all ~600 employees' names, departments and compliance statuses.
+ * The permission gate is unchanged; the scoping bug #312 fixed in
+ * {@code StatsController} is now applied to the data instead: all four
+ * endpoints pass the caller into {@link ExportQueryService}, which pins a
+ * MANAGER to their own department and leaves SYSTEM_ADMIN/CONTENT_ADMIN
+ * unscoped. The effective scope is recorded on the audit row -- see
+ * {@link #writeAudit}.
  */
 @RestController
 public class ExportController {
+
+    /** Audit-row marker for an export that was not department-scoped (system_admin/content_admin). */
+    static final String SCOPE_ALL = "All";
+
+    private static final Logger logger = LoggerFactory.getLogger(ExportController.class);
+    private static final ObjectMapper AUDIT_DETAILS_MAPPER = new ObjectMapper();
 
     private final ExportQueryService exportQueryService;
     private final ExportJobRepository exportJobRepository;
@@ -94,11 +116,11 @@ public class ExportController {
         if (denial != null) {
             return denial;
         }
-        writeAudit(admin.getId(), "EXPORT", "readings");
+        writeAudit(admin, "EXPORT", "readings");
 
         List<ReadingExportRow> rows;
         try {
-            rows = exportQueryService.eligibleReadingRows();
+            rows = exportQueryService.eligibleReadingRows(admin);
         } catch (ExportTooLargeException e) {
             return tooLargeResponse(e);
         }
@@ -125,11 +147,11 @@ public class ExportController {
         if (denial != null) {
             return denial;
         }
-        writeAudit(admin.getId(), "EXPORT_XLSX", "readings");
+        writeAudit(admin, "EXPORT_XLSX", "readings");
 
         List<ReadingExportRow> rows;
         try {
-            rows = exportQueryService.eligibleReadingRows();
+            rows = exportQueryService.eligibleReadingRows(admin);
         } catch (ExportTooLargeException e) {
             return tooLargeResponse(e);
         }
@@ -149,11 +171,11 @@ public class ExportController {
         if (denial != null) {
             return denial;
         }
-        writeAudit(user.getId(), "EXPORT_PDF", "readings");
+        writeAudit(user, "EXPORT_PDF", "readings");
 
         List<ReadingExportRow> rows;
         try {
-            rows = exportQueryService.eligibleReadingRows();
+            rows = exportQueryService.eligibleReadingRows(user);
         } catch (ExportTooLargeException e) {
             return tooLargeResponse(e);
         }
@@ -172,9 +194,9 @@ public class ExportController {
         if (denial != null) {
             return denial;
         }
-        writeAudit(user.getId(), "EXPORT_PDF", "team_stats");
+        writeAudit(user, "EXPORT_PDF", "team_stats");
 
-        SortedMap<String, int[]> byDept = exportQueryService.departmentComplianceTotals();
+        SortedMap<String, int[]> byDept = exportQueryService.departmentComplianceTotals(user);
         List<String> headers = List.of("დეპარტამენტი", "სულ მიკუთვნებული", "წაკითხული", "%");
         List<List<Object>> tableRows = new ArrayList<>();
         for (Map.Entry<String, int[]> entry : byDept.entrySet()) {
@@ -201,7 +223,25 @@ public class ExportController {
         return ResponseEntity.ok(new ExportStatusResponse(jobId, job.get().getStatus()));
     }
 
-    /** Port of download_export (routers/exports.py:432-447). */
+    /**
+     * Port of download_export (routers/exports.py:432-447), with BL-09 fixed.
+     *
+     * <p>Python answered <b>every</b> non-success case with the same
+     * {@code 404 ექსპორტი ჯერ არ არის მზად} -- "not ready yet", a message that
+     * tells the user to wait. It was returned when the job was genuinely still
+     * building, when the id was unknown, when the file had already been
+     * deleted by the previous download, and when the request landed on a
+     * replica that never had the file. Only the first of those is worth
+     * waiting for; the rest never resolve, so the manager reloads until they
+     * give up. The four cases are now four responses, and the caller is told
+     * which one it got.
+     *
+     * <p>The download is also no longer one-shot. It used to call
+     * {@code cleanupExport} the moment the bytes were read, deleting the file
+     * and the row, so a browser retry, a refresh, an interrupted transfer or a
+     * second click destroyed the export. {@code ExportJobCleanupScheduler}
+     * already sweeps by TTL and is now the only thing that deletes.
+     */
     @GetMapping("/api/export/download/{jobId}")
     public ResponseEntity<?> downloadExport(@PathVariable("jobId") String jobId, @AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireReportsExport(user);
@@ -209,26 +249,63 @@ public class ExportController {
             return denial;
         }
         Optional<ExportJob> jobOpt = exportJobRepository.findById(jobId);
-        if (jobOpt.isEmpty() || !"completed".equals(jobOpt.get().getStatus()) || jobOpt.get().getPath() == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", "ექსპორტი ჯერ არ არის მზად"));
+        if (jobOpt.isEmpty()) {
+            // A swept row is indistinguishable from a bad id here; both mean
+            // "regenerate", which is what the expired message says.
+            return ResponseEntity.status(HttpStatus.GONE)
+                    .body(Map.of("detail", "ექსპორტის ვადა გავიდა — გთხოვთ, თავიდან შექმნათ", "status", "expired"));
         }
-        Path path = Path.of(jobOpt.get().getPath());
-        byte[] data;
-        try {
-            data = Files.readAllBytes(path);
-        } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", "ექსპორტი ჯერ არ არის მზად"));
+        ExportJob job = jobOpt.get();
+        if (job.getExpiresAt() < nowEpochSeconds()) {
+            return ResponseEntity.status(HttpStatus.GONE)
+                    .body(Map.of("detail", "ექსპორტის ვადა გავიდა — გთხოვთ, თავიდან შექმნათ", "status", "expired"));
         }
-        cleanupExport(jobId, path);
+        if ("failed".equals(job.getStatus())) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("detail", "ექსპორტის აგება ვერ მოხერხდა", "status", "failed"));
+        }
+        if (!"completed".equals(job.getStatus())) {
+            return ResponseEntity.status(HttpStatus.ACCEPTED)
+                    .body(Map.of("detail", "ექსპორტი ჯერ მუშავდება", "status", job.getStatus()));
+        }
 
-        String filename = path.getFileName().toString();
-        MediaType mediaType = filename.endsWith(".xlsx")
+        byte[] data = job.getContent();
+        String filename = job.getFilename();
+        if (data == null) {
+            // Pre-V31 row: the bytes are on whichever pod built them. Readable
+            // only if this is that pod, which is the whole PR-03 problem --
+            // best effort, then an honest "regenerate".
+            Optional<byte[]> legacy = readLegacyFile(job.getPath());
+            if (legacy.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.GONE)
+                        .body(Map.of("detail", "ექსპორტის ვადა გავიდა — გთხოვთ, თავიდან შექმნათ", "status", "expired"));
+            }
+            data = legacy.get();
+            filename = Path.of(job.getPath()).getFileName().toString();
+        }
+
+        MediaType mediaType = filename != null && filename.endsWith(".xlsx")
                 ? MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                 : MediaType.APPLICATION_PDF;
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
                 .contentType(mediaType)
                 .body(data);
+    }
+
+    private static Optional<byte[]> readLegacyFile(String path) {
+        if (path == null) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(Files.readAllBytes(Path.of(path)));
+        } catch (IOException | RuntimeException e) {
+            return Optional.empty();
+        }
+    }
+
+    private static double nowEpochSeconds() {
+        return System.currentTimeMillis() / 1000.0;
     }
 
     private List<List<Object>> readingRowsForSpreadsheet(List<ReadingExportRow> rows) {
@@ -258,23 +335,46 @@ public class ExportController {
         return jobId;
     }
 
-    private void cleanupExport(String jobId, Path path) {
-        try {
-            Files.deleteIfExists(path);
-        } catch (IOException ignored) {
-            // Best-effort, matches Python's _cleanup_export (routers/exports.py:406-412).
-        }
-        exportJobRepository.deleteById(jobId);
-    }
-
-    private void writeAudit(Long adminId, String action, String itemType) {
+    /**
+     * <b>SEC-02 fix:</b> the export audit row used to record only "someone
+     * exported readings", with nothing distinguishing a team-scoped download
+     * from an org-wide one -- so the audit trail could not answer whose
+     * personal data actually left the portal. {@code details} now carries the
+     * effective scope under the same {@code scope_department} key
+     * {@link AuditLogController} already writes, so both bulk-egress paths
+     * are greppable as one.
+     */
+    private void writeAudit(User actor, String action, String itemType) {
         AuditLog audit = new AuditLog();
-        audit.setAdminId(adminId);
+        audit.setAdminId(actor.getId());
         audit.setAction(action);
         audit.setItemType(itemType);
         audit.setItemId(0L);
         audit.setTimestamp(TbilisiTime.now());
+        audit.setDetails(scopeDetails(actor));
         auditLogRepository.save(audit);
+    }
+
+    /**
+     * {@code {"scope_department": "..."}} -- the literal department string for
+     * a manager, {@link #SCOPE_ALL} for the unscoped roles. Written through
+     * Jackson rather than string concatenation because {@code department} is
+     * free text out of the DB. A serialization failure must not block an
+     * export the caller is entitled to, so it degrades to a null
+     * {@code details} and a logged error, matching
+     * {@code AuditLogController.writeMetaAudit}'s best-effort contract.
+     */
+    private static String scopeDetails(User actor) {
+        LinkedHashMap<String, Object> details = new LinkedHashMap<>();
+        details.put("scope_department", ExportQueryService.isDepartmentScoped(actor)
+                ? ExportQueryService.scopeDepartmentFor(actor)
+                : SCOPE_ALL);
+        try {
+            return AUDIT_DETAILS_MAPPER.writeValueAsString(details);
+        } catch (JsonProcessingException e) {
+            logger.error("Failed to serialize export audit scope for adminId={}", actor.getId(), e);
+            return null;
+        }
     }
 
     private static String formatPercent(int read, int total) {

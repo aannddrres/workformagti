@@ -7,14 +7,18 @@ import ge.magti.portal.content.ItemDetail;
 import ge.magti.portal.content.ItemKey;
 import ge.magti.portal.content.ItemTitleResolver;
 import ge.magti.portal.domain.Article;
+import ge.magti.portal.domain.AuditLog;
+import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.ReadStatus;
 import ge.magti.portal.domain.RequiredReading;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.quiz.QuizGateChecker;
 import ge.magti.portal.repository.ArticleReadReceiptRepository;
+import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.ArticleRepository;
 import ge.magti.portal.repository.ReadStatusRepository;
 import ge.magti.portal.repository.RequiredReadingRepository;
+import ge.magti.portal.security.PermissionChecker;
 import ge.magti.portal.stats.ComplianceRecord;
 import ge.magti.portal.util.DepartmentMatcher;
 import ge.magti.portal.util.TbilisiTime;
@@ -75,6 +79,8 @@ public class ComplianceController {
     private final QuizGateChecker quizGateChecker;
     private final RequiredReadingNotifier requiredReadingNotifier;
     private final ItemTitleResolver itemTitleResolver;
+    private final PermissionChecker permissionChecker;
+    private final AuditLogRepository auditLogRepository;
 
     public ComplianceController(
             ComplianceQueryService complianceQueryService,
@@ -84,7 +90,9 @@ public class ComplianceController {
             ArticleReadReceiptRepository articleReadReceiptRepository,
             QuizGateChecker quizGateChecker,
             RequiredReadingNotifier requiredReadingNotifier,
-            ItemTitleResolver itemTitleResolver) {
+            ItemTitleResolver itemTitleResolver,
+            PermissionChecker permissionChecker,
+            AuditLogRepository auditLogRepository) {
         this.complianceQueryService = complianceQueryService;
         this.requiredReadingRepository = requiredReadingRepository;
         this.readStatusRepository = readStatusRepository;
@@ -93,6 +101,8 @@ public class ComplianceController {
         this.quizGateChecker = quizGateChecker;
         this.requiredReadingNotifier = requiredReadingNotifier;
         this.itemTitleResolver = itemTitleResolver;
+        this.permissionChecker = permissionChecker;
+        this.auditLogRepository = auditLogRepository;
     }
 
     /** Port of get_my_readings (routers/compliance.py:30-113). */
@@ -221,7 +231,7 @@ public class ComplianceController {
     @Transactional
     public ResponseEntity<?> createRequiredReading(
             @Valid @RequestBody RequiredReadingRequest request, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireComplianceAssign(user);
         if (denial != null) {
             return denial;
         }
@@ -264,10 +274,11 @@ public class ComplianceController {
 
     /** Port of update_required_reading (routers/compliance.py:338-351). */
     @PutMapping("/api/compliance/required-readings/{readingId}")
+    @Transactional
     public ResponseEntity<?> updateRequiredReading(
             @PathVariable("readingId") Long readingId, @Valid @RequestBody RequiredReadingRequest request,
             @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireComplianceAssign(user);
         if (denial != null) {
             return denial;
         }
@@ -276,12 +287,44 @@ public class ComplianceController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", READING_NOT_FOUND));
         }
         RequiredReading reading = found.get();
-        reading.setItemType(request.itemType());
-        reading.setItemId(request.itemId());
+
+        // BL-04: read_statuses is keyed on required_reading_id (V22:11), not
+        // on the item. So re-pointing an existing reading at a different
+        // article carried every "read" status across with it -- assign new
+        // material this way and the compliance dashboard shows it at 100%
+        // the instant it is saved, for people who have never seen it. That
+        // is the one number this product exists to report, wrong in the
+        // direction that hides the problem.
+        //
+        // Rejected rather than silently clearing the statuses: clearing is
+        // also a large, invisible mutation (it resets everyone's history for
+        // that obligation), and "this is a different obligation" is what the
+        // create endpoint is for. Deleting and re-creating makes the intent
+        // explicit and leaves both actions in the audit trail.
+        boolean repointed = !reading.getItemType().equals(request.itemType())
+                || !reading.getItemId().equals(request.itemId());
+        if (repointed) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                    "detail", "სავალდებულო მასალის სხვა ერთეულზე გადამისამართება შეუძლებელია — "
+                            + "წაკითხვის სტატუსები მასზეა მიბმული. წაშალეთ და შექმენით ახალი."));
+        }
+
         reading.setTargetDepartment(request.targetDepartmentOrDefault());
         reading.setDueDate(normalizeDueDate(request.dueDate()));
         reading.setPriority(request.priorityOrDefault());
         RequiredReading saved = requiredReadingRepository.save(reading);
+
+        // BL-04's other half: this endpoint wrote no audit row at all, so a
+        // changed deadline -- the thing that decides who counts as overdue --
+        // left no record of who moved it or when.
+        AuditLog audit = new AuditLog();
+        audit.setAdminId(user.getId());
+        audit.setAction("UPDATE_REQUIRED_READING");
+        audit.setItemType("required_reading");
+        audit.setItemId(saved.getId());
+        audit.setTimestamp(TbilisiTime.now());
+        auditLogRepository.save(audit);
+
         return ResponseEntity.ok(RequiredReadingResponse.from(saved));
     }
 
@@ -289,7 +332,7 @@ public class ComplianceController {
     @DeleteMapping("/api/compliance/required-readings/{readingId}")
     public ResponseEntity<?> deleteRequiredReading(
             @PathVariable("readingId") Long readingId, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireComplianceAssign(user);
         if (denial != null) {
             return denial;
         }
@@ -327,6 +370,30 @@ public class ComplianceController {
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("detail", "Could not validate credentials"));
+        }
+        return null;
+    }
+
+    /**
+     * SEC-06: {@code compliance.assign} sat in the catalog as a switch the
+     * admin UI offered, validated and persisted -- and consulted nowhere.
+     * Assigning mandatory reading gated on the ROLE alone, so granting or
+     * revoking the permission changed nothing.
+     *
+     * <p>Applied to the three endpoints that CREATE, CHANGE or DELETE an
+     * obligation -- the ones the permission is named for. The read-only
+     * by-item lookup keeps the plain role gate: it assigns nothing, and
+     * making a content admin unable to see whether an article is already
+     * mandatory would break the edit drawer for no security gain.
+     */
+    private ResponseEntity<Map<String, String>> requireComplianceAssign(User user) {
+        ResponseEntity<Map<String, String>> roleFailure = requireContentAdmin(user);
+        if (roleFailure != null) {
+            return roleFailure;
+        }
+        if (!permissionChecker.hasPermission(user, Permission.COMPLIANCE_ASSIGN)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
         }
         return null;
     }

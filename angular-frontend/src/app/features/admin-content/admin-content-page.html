@@ -7,18 +7,39 @@
   </div>
 }
 
-<div class="mb-5 flex flex-wrap items-start justify-between gap-3 sticky bg-[#F5F5F5] dark:bg-[#121212] z-10 shadow-sm p-4 rounded-2xl border border-gray-100 dark:border-zinc-800/60" style="position: sticky; top: 120px; z-index: 10;">
-  <h2 class="text-3xl font-semibold uppercase tracking-wider text-gray-800 dark:text-zinc-100">{{ 'content.heading' | translate }}</h2>
+<!-- Was: `sticky ... z-10` classes PLUS an inline style repeating position,
+     z-index and a bare `top: 120px`, with the surface hard-coded to #F5F5F5 /
+     #121212 outside the token system. Same computed result, declared once —
+     the offset is kept verbatim because it is tuned to the topbar height and
+     this change is not the place to re-tune it. -->
+<div
+  class="sticky top-[120px] z-10 mb-5 flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-4 shadow-sm dark:border-zinc-800/60 dark:bg-zinc-950"
+>
+  <h2 class="text-2xl font-semibold uppercase tracking-wider text-gray-800 dark:text-zinc-100 md:text-3xl">{{ 'content.heading' | translate }}</h2>
   <div class="flex items-start gap-3">
     @if (activeTab() === 'articles') {
-      <button (click)="openCreateArticle()" class="rounded-xl bg-[#B91C1C] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700">
+      <button (click)="openCreateArticle()" class="rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700">
         + {{ 'content.articles.new' | translate }}
       </button>
-      <button (click)="bulkArchive(true)" class="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200">
+      <button
+        (click)="bulkArchive(true)"
+        [disabled]="selectionCount() === 0"
+        class="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+      >
         {{ 'content.articles.archive_selected' | translate }}
+        @if (selectionCount() > 0) {
+          <span class="tabular-nums">({{ selectionCount() }})</span>
+        }
       </button>
-      <button (click)="bulkArchive(false)" class="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200">
+      <button
+        (click)="bulkArchive(false)"
+        [disabled]="selectionCount() === 0"
+        class="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+      >
         {{ 'content.articles.unarchive_selected' | translate }}
+        @if (selectionCount() > 0) {
+          <span class="tabular-nums">({{ selectionCount() }})</span>
+        }
       </button>
     }
   </div>
@@ -44,24 +65,32 @@
         [value]="searchQuery()"
         (input)="searchQuery.set($any($event.target).value); onFilterChange()"
         [placeholder]="'content.articles.search_placeholder' | translate"
-        class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+        class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
       />
     </div>
     <div class="w-48">
       <select
         (change)="categoryFilter.set($any($event.target).value ? +$any($event.target).value : null); onFilterChange()"
-        class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+        class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
       >
         <option value="">{{ 'content.articles.all_categories' | translate }}</option>
         @for (c of categories(); track c.id) {
           <option [value]="c.id" [attr.selected]="c.id === categoryFilter() ? '' : null">{{ c.name }}</option>
         }
       </select>
+      @if (categoriesFailed()) {
+        <p class="mt-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+          {{ 'content.articles.categories_load_error' | translate }}
+          <button type="button" (click)="loadCategories()" class="ml-1 underline hover:no-underline">
+            {{ 'common.retry' | translate }}
+          </button>
+        </p>
+      }
     </div>
     <div class="w-48">
       <select
         (change)="statusFilter.set($any($event.target).value); onFilterChange()"
-        class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 focus:border-[#B91C1C] focus:outline-none focus:ring-1 focus:ring-[#B91C1C] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+        class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
       >
         <option value="" [attr.selected]="statusFilter() === '' ? '' : null">{{ 'content.articles.all_statuses' | translate }}</option>
         <option value="published" [attr.selected]="statusFilter() === 'published' ? '' : null">{{ 'content.status.published' | translate }}</option>
@@ -85,7 +114,7 @@
                 type="checkbox"
                 [checked]="allOnPageSelected()"
                 (change)="toggleSelectAllOnPage($any($event.target).checked)"
-                class="h-4 w-4 accent-[#E30613] align-middle"
+                class="h-4 w-4 accent-brand align-middle"
               />
               <span>{{ 'content.articles.col_action' | translate }}</span>
             </span>
@@ -119,10 +148,10 @@
                     type="checkbox"
                     [checked]="selection().has(article.id)"
                     (change)="toggleSelected(article.id, $any($event.target).checked)"
-                    class="h-4 w-4 accent-[#E30613]"
+                    class="h-4 w-4 accent-brand"
                   />
                   <div class="relative inline-block text-left">
-                    <button (click)="toggleMenu(article.id)" class="text-gray-400 hover:text-gray-600 focus:outline-none p-1">
+                    <button (click)="toggleMenu(article.id)" class="text-gray-400 hover:text-gray-600 focus:outline-none p-1 dark:hover:text-gray-200">
                       <i class="fa-solid fa-ellipsis-vertical text-lg"></i>
                     </button>
                     @if (openMenuFor() === article.id) {

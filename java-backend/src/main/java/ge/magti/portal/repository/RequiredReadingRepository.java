@@ -16,6 +16,15 @@ public interface RequiredReadingRepository extends JpaRepository<RequiredReading
     /** Mirrors get_article_read_receipts' single-row lookup (routers/articles.py:1042-1045). */
     Optional<RequiredReading> findFirstByItemTypeAndItemId(String itemType, Long itemId);
 
+    /**
+     * BL-02: unlike {@link #findFirstByItemTypeAndItemId}, this returns every
+     * matching row -- V6 declares no uniqueness on (item_type, item_id), so
+     * more than one required-reading row (different due dates or target
+     * departments) can reference the same item. Deleting an item must remove
+     * all of them, not just the first.
+     */
+    List<RequiredReading> findByItemTypeAndItemId(String itemType, Long itemId);
+
     /** Mirrors create_article_read_receipt's compliance-bridge lookup (routers/articles.py:1210-1216) -- prefix-aware (caller passes [dept, deptPrefix, "All"]), unlike EligibleOperatorsService's exact-match rule. */
     List<RequiredReading> findByItemTypeAndItemIdAndTargetDepartmentIn(String itemType, Long itemId, List<String> targetDepartments);
 

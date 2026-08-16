@@ -26,6 +26,11 @@ import java.util.List;
  * parent-department manager ("გაყიდვები") can reach any of its sub-groups;
  * a sub-group manager ("გაყიდვები — ჯგუფი 2") cannot reach the bare parent
  * or a sibling sub-group -- only their own.
+ *
+ * <p>See {@link ge.magti.portal.security.ManagerScope} for the same rule
+ * applied to read scoping (audit SEC-13), and for why an unassigned
+ * manager's department must not be handed to {@code DepartmentMatcher} as a
+ * target -- a mistake this class itself made until then.
  */
 public final class DirectMessagePermission {
 
@@ -36,7 +41,21 @@ public final class DirectMessagePermission {
         if (senderRole != Role.MANAGER) {
             return true;
         }
-        return DepartmentMatcher.matches(
-                recipientDepartment, List.of(senderDepartment == null ? "All" : senderDepartment));
+        // A manager with no department used to be mapped to the target "All",
+        // which DepartmentMatcher treats as a wildcard -- so the one manager
+        // whose department nobody filled in could message the entire company.
+        // users.department is nullable (V3__create_users.sql:13), so that is a
+        // reachable state, not a theoretical one. Unassigned now means "can
+        // reach nobody".
+        //
+        // Only null/blank. A department stored literally as "All" is left
+        // alone: that is a value somebody chose, not a value nobody filled
+        // in, and a manager and an operator both in "All" are in the same
+        // department by plain equality. Refusing that would break a real
+        // case to fix an imaginary one.
+        if (senderDepartment == null || senderDepartment.isBlank()) {
+            return false;
+        }
+        return DepartmentMatcher.matches(recipientDepartment, List.of(senderDepartment));
     }
 }

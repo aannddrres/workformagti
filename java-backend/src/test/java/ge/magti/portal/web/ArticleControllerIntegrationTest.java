@@ -1,14 +1,19 @@
 package ge.magti.portal.web;
 
+import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.ArticleHistory;
 import ge.magti.portal.domain.ArticleReadReceipt;
+import ge.magti.portal.domain.ArticleViewLog;
 import ge.magti.portal.domain.Category;
+import ge.magti.portal.domain.Favorite;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.QuizAttempt;
 import ge.magti.portal.domain.ReadStatus;
 import ge.magti.portal.domain.RequiredReading;
 import ge.magti.portal.domain.Role;
+import ge.magti.portal.domain.Tag;
+import ge.magti.portal.domain.TagMapping;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.domain.UserNote;
 import ge.magti.portal.repository.ArticleHistoryRepository;
@@ -18,13 +23,18 @@ import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
 import ge.magti.portal.repository.ArticleViewLogRepository;
 import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.CategoryRepository;
+import ge.magti.portal.repository.FavoriteRepository;
 import ge.magti.portal.repository.QuizAttemptRepository;
 import ge.magti.portal.repository.ReadStatusRepository;
 import ge.magti.portal.repository.RequiredReadingRepository;
+import ge.magti.portal.repository.TagMappingRepository;
+import ge.magti.portal.repository.TagRepository;
 import ge.magti.portal.repository.UserNoteRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.JwtService;
 import ge.magti.portal.util.TbilisiTime;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -40,7 +50,9 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -60,6 +72,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * {@link QuizControllerIntegrationTest}), and read-receipts/views are
  * later slices with their own tests.
  */
+@RequiresOracle
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
@@ -91,6 +104,14 @@ class ArticleControllerIntegrationTest {
     private ReadStatusRepository readStatusRepository;
     @Autowired
     private QuizAttemptRepository quizAttemptRepository;
+    @Autowired
+    private FavoriteRepository favoriteRepository;
+    @Autowired
+    private TagMappingRepository tagMappingRepository;
+    @Autowired
+    private TagRepository tagRepository;
+    @PersistenceContext
+    private EntityManager entityManager;
     @Autowired
     private JwtService jwtService;
     @Autowired
@@ -470,6 +491,118 @@ class ArticleControllerIntegrationTest {
         assertEquals(List.of("ტექნიკური"), depts);
     }
 
+    /**
+     * BL-03, the core of it: autosave rewrote published articles with no
+     * version bump, so every read receipt and quiz pass recorded against the
+     * old text kept counting for the new one. Publishing must go through PUT,
+     * which archives and bumps.
+     */
+    @Test
+    void autosaveRefusesToRewriteAPublishedArticle() throws Exception {
+        User admin = createUser("aa18@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-16");
+        Article article = createArticle("გამოქვეყნებული", cat.getId(), "published", false, List.of("All"), null);
+        int versionBefore = article.getVersion();
+
+        mockMvc.perform(authed(patch("/api/articles/" + article.getId() + "/autosave"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"სრულიად ახალი ტექსტი, რომელიც არავის წაუკითხავს\"}"))
+                .andExpect(status().isConflict());
+
+        Article reloaded = articleRepository.findById(article.getId()).orElseThrow();
+        assertEquals("შინაარსი ტესტისთვის", reloaded.getContent(),
+                "the rejected autosave must not have been flushed -- the method is @Transactional over a managed entity");
+        assertEquals(versionBefore, reloaded.getVersion());
+    }
+
+    /**
+     * The same rewrite, reached by publishing in the same call. Rejected on
+     * the PROSPECTIVE state, not just the current one, or the guard would be
+     * one request wide.
+     */
+    @Test
+    void autosaveRefusesToPublishADraftItself() throws Exception {
+        User admin = createUser("aa19@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-17");
+        Article article = createArticle("დრაფტი", cat.getId(), "draft", true, List.of("All"), null);
+
+        mockMvc.perform(authed(patch("/api/articles/" + article.getId() + "/autosave"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"is_draft\":false,\"status\":\"published\"}"))
+                .andExpect(status().isConflict());
+
+        Article reloaded = articleRepository.findById(article.getId()).orElseThrow();
+        assertTrue(reloaded.isDraft(), "the draft must still be a draft");
+        assertEquals("draft", reloaded.getStatus());
+    }
+
+    /**
+     * A scheduled article whose time has not come is not readable yet, so
+     * nobody can have read it and autosave stays allowed. Pins that the guard
+     * is "could a reader have seen this", not a blunt "is it a draft".
+     */
+    @Test
+    void autosaveStillWorksOnAFutureScheduledArticle() throws Exception {
+        User admin = createUser("aa20@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-18");
+        Article article = createArticle("დაგეგმილი", cat.getId(), "scheduled", false,
+                List.of("All"), TbilisiTime.now().plusDays(3));
+
+        mockMvc.perform(authed(patch("/api/articles/" + article.getId() + "/autosave"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"შესწორებული სათაური\"}"))
+                .andExpect(status().isOk());
+
+        assertEquals("შესწორებული სათაური",
+                articleRepository.findById(article.getId()).orElseThrow().getTitle());
+    }
+
+    /** ...and once its time has passed it is readable, so it is locked like any published article. */
+    @Test
+    void autosaveRefusesAScheduledArticleWhoseTimeHasPassed() throws Exception {
+        User admin = createUser("aa21@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-19");
+        Article article = createArticle("გამოქვეყნებული განრიგით", cat.getId(), "scheduled", false,
+                List.of("All"), TbilisiTime.now().minusHours(2));
+
+        mockMvc.perform(authed(patch("/api/articles/" + article.getId() + "/autosave"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"გვიანი ცვლილება\"}"))
+                .andExpect(status().isConflict());
+    }
+
+    /**
+     * The consequence BL-03 is actually about, asserted end to end: an
+     * operator's read receipt must not silently survive a rewrite of the
+     * text they acknowledged. PUT bumps the version, so the receipt they
+     * hold stops matching the current one.
+     */
+    @Test
+    void rewritingAPublishedArticleThroughPutInvalidatesTheOldReadReceipt() throws Exception {
+        User admin = createUser("aa22@magti.ge", Role.CONTENT_ADMIN, "All");
+        User operator = createUser("op22@magti.ge", Role.OPERATOR, "All");
+        Category cat = createCategory("კატ-20");
+        long articleId = createArticleViaApi(tokenFor(admin), "წასაკითხი", "თავდაპირველი ტექსტი", cat.getId());
+
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/read-receipt"), tokenFor(operator)))
+                .andExpect(status().isOk());
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/read-receipt/me"), tokenFor(operator)))
+                .andExpect(jsonPath("$.has_read").value(true))
+                .andExpect(jsonPath("$.article_version").value(1));
+
+        mockMvc.perform(authed(put("/api/articles/" + articleId), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"წასაკითხი\",\"content\":\"სრულიად სხვა ტექსტი\",\"category_id\":"
+                                + cat.getId() + ",\"target_departments\":[\"All\"],\"status\":\"published\","
+                                + "\"is_draft\":false}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(2));
+
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/read-receipt/me"), tokenFor(operator)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.has_read").value(false));
+    }
+
     // ── delete ────────────────────────────────────────────────────────
 
     @Test
@@ -536,6 +669,92 @@ class ArticleControllerIntegrationTest {
 
         assertTrue(articleRepository.findById(article.getId()).isEmpty());
         assertTrue(userNoteRepository.findByUserIdAndArticleId(operator.getId(), article.getId()).isEmpty());
+    }
+
+    /**
+     * BL-02: required_readings/read_statuses address the article
+     * polymorphically (item_type/item_id, no FK -- V6's own header says so),
+     * so Oracle's cascade cannot reach them. Before ContentDeletionService,
+     * these rows survived the delete as permanent ghosts -- an operator
+     * would see "Item #&lt;id&gt; / Content not available." in my-readings
+     * forever, and the compliance denominator kept counting it.
+     */
+    @Test
+    void deletingAnArticleRemovesItsRequiredReadingAndReadStatuses() throws Exception {
+        User admin = createUser("aa16@magti.ge", Role.CONTENT_ADMIN, "All");
+        User operator = createUser("op16@magti.ge", Role.OPERATOR, "All");
+        Category cat = createCategory("კატ-14");
+        Article article = createArticle("სავალდებულო წასაშლელი", cat.getId(), "published", false, List.of("All"), null);
+
+        RequiredReading required = new RequiredReading();
+        required.setItemType("article");
+        required.setItemId(article.getId());
+        required.setTargetDepartment("All");
+        required.setDueDate(TbilisiTime.now().plusDays(7));
+        RequiredReading savedRequired = requiredReadingRepository.saveAndFlush(required);
+
+        ReadStatus stat = new ReadStatus();
+        stat.setUserId(operator.getId());
+        stat.setRequiredReadingId(savedRequired.getId());
+        stat.setStatus("read");
+        stat.setReadAt(TbilisiTime.now());
+        readStatusRepository.saveAndFlush(stat);
+
+        mockMvc.perform(authed(delete("/api/articles/" + article.getId()), tokenFor(admin)))
+                .andExpect(status().isNoContent());
+        articleRepository.flush();
+
+        // Not findById(savedRequired.getId()) -- ContentDeletionService
+        // removes it via deleteAllInBatch, a bulk JPQL delete that (like any
+        // bulk operation) does not evict the already-loaded `savedRequired`
+        // instance from this session's L1 cache. findById would return that
+        // same stale, still-"present" object without ever re-querying,
+        // regardless of the flush above -- the same trap
+        // deletingAnArticleCascadesHistoryAndTargetDepartments documents for
+        // ArticleHistory. findByItemTypeAndItemId always issues a real SELECT.
+        assertTrue(requiredReadingRepository.findByItemTypeAndItemId("article", article.getId()).isEmpty(),
+                "the required_readings row must not survive the article it points at");
+        assertTrue(readStatusRepository.findByUserIdAndRequiredReadingId(operator.getId(), savedRequired.getId()).isEmpty(),
+                "its read_statuses row must go with it");
+    }
+
+    /**
+     * BL-10: tags_mapping and favorites are the same shape of polymorphic
+     * reference as required_readings, cleared by the same
+     * ContentDeletionService call.
+     */
+    @Test
+    void deletingAnArticleRemovesOrphanedTagsAndFavorites() throws Exception {
+        User admin = createUser("aa17@magti.ge", Role.CONTENT_ADMIN, "All");
+        User operator = createUser("op17@magti.ge", Role.OPERATOR, "All");
+        Category cat = createCategory("კატ-15");
+        Article article = createArticle("ტეგებიანი წასაშლელი", cat.getId(), "published", false, List.of("All"), null);
+
+        Tag tag = tagRepository.findByName("რეგრესია").orElseGet(() -> {
+            Tag created = new Tag();
+            created.setName("რეგრესია");
+            return tagRepository.saveAndFlush(created);
+        });
+        TagMapping mapping = new TagMapping();
+        mapping.setTagId(tag.getId());
+        mapping.setItemType("article");
+        mapping.setItemId(article.getId());
+        tagMappingRepository.saveAndFlush(mapping);
+
+        Favorite favorite = new Favorite();
+        favorite.setUserId(operator.getId());
+        favorite.setItemType("article");
+        favorite.setItemId(article.getId());
+        favoriteRepository.saveAndFlush(favorite);
+
+        mockMvc.perform(authed(delete("/api/articles/" + article.getId()), tokenFor(admin)))
+                .andExpect(status().isNoContent());
+        articleRepository.flush();
+
+        assertTrue(tagMappingRepository.findById(mapping.getId()).isEmpty(),
+                "tags_mapping must not keep pointing at a deleted article");
+        assertTrue(favoriteRepository.findByUserIdAndItemTypeAndItemId(operator.getId(), "article", article.getId()).isEmpty(),
+                "a favourite of a deleted article must be removed, not left rendering a null title");
     }
 
     // ── archive / unarchive / bulk-archive ───────────────────────────
@@ -1151,7 +1370,50 @@ class ArticleControllerIntegrationTest {
         mockMvc.perform(authed(post("/api/articles/" + articleId + "/view"), tokenFor(unrelatedOperator)))
                 .andExpect(status().isOk());
 
-        assertEquals(1, articleViewLogRepository.findByArticleIdOrderByViewedAtDesc(articleId).size());
+        assertEquals(1, articleViewLogRepository.findByArticleIdSnapshotOrderByViewedAtDesc(articleId).size());
+    }
+
+    /**
+     * BL-12. Both tables use ON DELETE SET NULL for article_id so that a
+     * receipt outlives the article it is about -- but every read path
+     * filtered on that same column, so deleting the article left the rows
+     * retained and simultaneously unfindable. article_id_snapshot carries
+     * the id with no foreign key, so it survives the delete.
+     *
+     * <p>Asserts both halves at once: article_id IS nulled (the FK still
+     * tells you the article is gone, which is information worth keeping)
+     * while the row is still addressable by the article it belonged to.
+     */
+    @Test
+    void aDeletedArticlesReadReceiptsAndViewLogsStayFindable() throws Exception {
+        User admin = createUser("aa90@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-88");
+        long articleId = createArticleViaApi(tokenFor(admin), "წასაშლელი სტატია", "შინაარსი", cat.getId());
+        User operator = createUser("aa91@magti.ge", Role.OPERATOR, "All");
+
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/read-receipt"), tokenFor(operator)))
+                .andExpect(status().isOk());
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/view"), tokenFor(operator)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(authed(delete("/api/articles/" + articleId), tokenFor(admin)))
+                .andExpect(status().isNoContent());
+        // ON DELETE SET NULL happens in the database, so the loaded entities
+        // in this transaction's persistence context still hold the old
+        // article_id. flush + clear forces the assertions below to read what
+        // Oracle actually stored rather than what Hibernate remembers.
+        entityManager.flush();
+        entityManager.clear();
+
+        List<ArticleViewLog> views = articleViewLogRepository.findByArticleIdSnapshotOrderByViewedAtDesc(articleId);
+        assertEquals(1, views.size(), "the view log must still be reachable by the deleted article's id");
+        assertNull(views.get(0).getArticleId(), "the FK is still nulled -- that is how you know it is gone");
+        assertEquals("წასაშლელი სტატია", views.get(0).getArticleTitleSnapshot());
+
+        assertTrue(articleReadReceiptRepository
+                        .findByArticleIdSnapshotAndArticleVersionAndOperatorId(articleId, 1, operator.getId())
+                        .isPresent(),
+                "the read receipt must still be reachable by the deleted article's id");
     }
 
     @Test
@@ -1194,5 +1456,83 @@ class ArticleControllerIntegrationTest {
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].title").value("სტატია ა"))
                 .andExpect(jsonPath("$[1].title").value("სტატია ბ"));
+    }
+
+    /**
+     * BL-11 -- the audit's only SUSPECTED finding. It could not be executed
+     * there ("no Oracle available in this container"), so it was recorded as
+     * a read of the code plus the constraint rather than an observed
+     * failure. CONFIRMED here, against a real database.
+     *
+     * <p>The race: article_history is UNIQUE on (article_id, version_id)
+     * (V18:15), and both updateArticle and restoreArticleVersion compute the
+     * next version as {@code getVersion() + 1} from a row read earlier in
+     * the same request. Two admins saving at the same instant both compute
+     * N+1; the second violates the constraint. Before the optimistic lock
+     * that was a bare 500 with the second editor's work gone and nothing
+     * explaining why.
+     *
+     * <p>Simulated deterministically rather than with threads: a detached
+     * copy IS a stale read, which is the only thing the race actually
+     * depends on. Real concurrency would add flakiness without adding proof.
+     */
+    @Test
+    void aStaleArticleWriteIsRejectedInsteadOfCollidingOnTheHistoryConstraint() throws Exception {
+        User admin = createUser("bl11@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-21");
+        long articleId = createArticleViaApi(tokenFor(admin), "ორი რედაქტორი", "საწყისი ტექსტი", cat.getId());
+
+        // Editor A and editor B both open the article: two reads of the same
+        // row, at the same version.
+        entityManager.flush();
+        entityManager.clear();
+        Article editorBsCopy = articleRepository.findById(articleId).orElseThrow();
+        entityManager.detach(editorBsCopy);
+
+        // Editor A saves first, through the real endpoint.
+        mockMvc.perform(authed(put("/api/articles/" + articleId), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"ორი რედაქტორი\",\"content\":\"A-ს ვერსია\",\"category_id\":"
+                                + cat.getId() + ",\"target_departments\":[\"All\"],\"status\":\"published\","
+                                + "\"is_draft\":false}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(2));
+        entityManager.flush();
+        entityManager.clear();
+
+        // Editor B now saves their stale copy. Without @Version this
+        // succeeded and then blew up inserting a second history row at
+        // version 2; with it, the UPDATE itself is refused.
+        editorBsCopy.setContent("B-ს ვერსია");
+        editorBsCopy.setVersion(editorBsCopy.getVersion() + 1);
+        assertThrows(org.springframework.orm.ObjectOptimisticLockingFailureException.class,
+                () -> {
+                    articleRepository.save(editorBsCopy);
+                    entityManager.flush();
+                });
+
+        // A's edit is intact -- the point of refusing B is that nobody's
+        // work disappears silently.
+        entityManager.clear();
+        assertEquals("A-ს ვერსია", articleRepository.findById(articleId).orElseThrow().getContent());
+    }
+
+    /** The business version must keep behaving exactly as before -- the lock is a separate column for that reason. */
+    @Test
+    void theOptimisticLockDoesNotDisturbTheBusinessVersionSequence() throws Exception {
+        User admin = createUser("bl11b@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-22");
+        long articleId = createArticleViaApi(tokenFor(admin), "ვერსიების თანმიმდევრობა", "v1", cat.getId());
+
+        for (int expectedVersion = 2; expectedVersion <= 4; expectedVersion++) {
+            mockMvc.perform(authed(put("/api/articles/" + articleId), tokenFor(admin))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"title\":\"ვერსიების თანმიმდევრობა\",\"content\":\"v" + expectedVersion
+                                    + "\",\"category_id\":" + cat.getId()
+                                    + ",\"target_departments\":[\"All\"],\"status\":\"published\","
+                                    + "\"is_draft\":false}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.version").value(expectedVersion));
+        }
     }
 }

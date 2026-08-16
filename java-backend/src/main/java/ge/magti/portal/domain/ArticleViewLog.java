@@ -28,6 +28,16 @@ public class ArticleViewLog {
     @Column(name = "article_id")
     private Long articleId;
 
+    /**
+     * BL-12, the same reasoning as
+     * {@link ArticleReadReceipt#getArticleIdSnapshot()}: {@link #articleId}
+     * is nulled when the article is deleted, taking the row's only handle
+     * with it. This copy carries no foreign key and is what the queries
+     * filter on.
+     */
+    @Column(name = "article_id_snapshot")
+    private Long articleIdSnapshot;
+
     @Column(name = "article_title_snapshot", nullable = false, length = 500)
     private String articleTitleSnapshot;
 
@@ -63,6 +73,14 @@ public class ArticleViewLog {
 
     public void setArticleId(Long articleId) {
         this.articleId = articleId;
+    }
+
+    public Long getArticleIdSnapshot() {
+        return articleIdSnapshot;
+    }
+
+    public void setArticleIdSnapshot(Long articleIdSnapshot) {
+        this.articleIdSnapshot = articleIdSnapshot;
     }
 
     public String getArticleTitleSnapshot() {

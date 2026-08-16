@@ -4,12 +4,23 @@ import { filter } from 'rxjs';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { AuthService } from '../core/auth/auth.service';
 import { ThemeService } from '../core/theme/theme.service';
+import { Logo } from '../shared/logo/logo';
+import { GlobalSearch } from '../shared/global-search/global-search';
+import { UserProfileService } from '../core/auth/user-profile.service';
 
 interface NavLink {
   labelKey: string;
   path: string;
   allowRoles?: string[];
   denyRoles?: string[];
+  /**
+   * Show this link when the backend says the user holds the permission,
+   * regardless of role. Roles cannot express the audit trail's real rule —
+   * MANAGER holds `system.audit` and gets a department-scoped view — and a
+   * role list here would be a second, drifting copy of a decision the server
+   * already makes.
+   */
+  requiresAuditLog?: boolean;
 }
 
 interface NavSection {
@@ -21,10 +32,11 @@ interface NavSection {
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, TranslatePipe],
+  imports: [GlobalSearch, Logo, RouterOutlet, RouterLink, RouterLinkActive, TranslatePipe],
   templateUrl: './app-shell.html'
 })
 export class AppShell {
+  private readonly profiles = inject(UserProfileService);
   protected readonly auth = inject(AuthService);
   protected readonly translate = inject(TranslateService);
   protected readonly theme = inject(ThemeService);
@@ -64,13 +76,19 @@ export class AppShell {
         { labelKey: 'nav.sidebar.admin_categories', path: '/admin/categories', allowRoles: ['admin', 'content_admin'] },
         { labelKey: 'nav.sidebar.admin_users', path: '/admin/users', allowRoles: ['admin'] },
         { labelKey: 'nav.sidebar.admin_roles', path: '/admin/roles', allowRoles: ['admin'] },
-        { labelKey: 'nav.sidebar.admin_logs', path: '/admin/audit', allowRoles: ['admin', 'content_admin'] }
+        { labelKey: 'nav.sidebar.admin_logs', path: '/admin/audit', requiresAuditLog: true }
       ]
     }
   ];
 
   constructor() {
     this.router.events.pipe(filter((e) => e instanceof NavigationEnd)).subscribe(() => this.mobileMenuOpen.set(false));
+
+    // Warm the profile so the sidebar can decide about permission-driven links
+    // on first paint. Without it the audit entry would appear only once
+    // something else happened to fetch the profile — exactly the kind of
+    // order-dependent visibility that let FE-06 sit unnoticed.
+    this.profiles.ensureLoaded().subscribe();
   }
 
   toggleMobileMenu(): void {
@@ -90,6 +108,9 @@ export class AppShell {
       return false;
     }
     if (link.denyRoles && link.denyRoles.includes(role)) {
+      return false;
+    }
+    if (link.requiresAuditLog && !this.profiles.canViewAuditLog()) {
       return false;
     }
     return true;
