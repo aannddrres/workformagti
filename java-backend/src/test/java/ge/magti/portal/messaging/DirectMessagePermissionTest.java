@@ -50,4 +50,25 @@ class DirectMessagePermissionTest {
     void subGroupManagerCannotMessageSiblingSubGroup() {
         assertFalse(DirectMessagePermission.canSend(Role.MANAGER, "გაყიდვები — ჯგუფი 1", "გაყიდვები — ჯგუფი 2"));
     }
+
+    /**
+     * An unassigned manager used to be mapped to the target "All", which
+     * DepartmentMatcher reads as a wildcard -- so the one account whose
+     * scope was least defined could message the whole company.
+     * {@code users.department} is nullable, so this is reachable.
+     */
+    @Test
+    void managerWithNoDepartmentCanMessageNobody() {
+        assertFalse(DirectMessagePermission.canSend(Role.MANAGER, null, "გაყიდვები"));
+        assertFalse(DirectMessagePermission.canSend(Role.MANAGER, "   ", "გაყიდვები"));
+    }
+
+    /**
+     * ...and neither can one literally stored as "All", which on a user row
+     * means unassigned, not "every department".
+     */
+    @Test
+    void managerStoredAsAllCanMessageNobody() {
+        assertFalse(DirectMessagePermission.canSend(Role.MANAGER, "All", "გაყიდვები"));
+    }
 }

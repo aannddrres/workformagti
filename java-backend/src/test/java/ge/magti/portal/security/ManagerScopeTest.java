@@ -1,0 +1,102 @@
+package ge.magti.portal.security;
+
+import ge.magti.portal.domain.Role;
+import ge.magti.portal.domain.User;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * SEC-13. The finding was that five read paths matched a manager's
+ * department by string equality, so a manager stored as the bare parent saw
+ * an empty team. The fix widens access, which is the part worth pinning:
+ * these assert both that the intended widening happens AND that the
+ * asymmetry bug #312 relies on is untouched.
+ */
+class ManagerScopeTest {
+
+    private static User user(String name, Role role, String department) {
+        User u = new User();
+        u.setId((long) Math.abs(name.hashCode()));
+        u.setName(name);
+        u.setRole(role);
+        u.setDepartment(department);
+        return u;
+    }
+
+    private static final User GROUP_01 = user("ჯგუფი 01 ოპერატორი", Role.OPERATOR, "ტექნიკური — ჯგუფი 01");
+    private static final User GROUP_03 = user("ჯგუფი 03 ოპერატორი", Role.OPERATOR, "ტექნიკური — ჯგუფი 03");
+    private static final User BARE_PARENT = user("პარენტ ოპერატორი", Role.OPERATOR, "ტექნიკური");
+    private static final User OTHER_DEPT = user("ოფისის ოპერატორი", Role.OPERATOR, "ოფისი — ჯგუფი 01");
+    private static final User NO_DEPT = user("უდეპარტამენტო", Role.OPERATOR, null);
+
+    private static final List<User> ACTIVE = List.of(GROUP_01, GROUP_03, BARE_PARENT, OTHER_DEPT, NO_DEPT);
+
+    private static List<String> namesVisibleTo(User manager) {
+        return ManagerScope.visibleActiveUsers(ACTIVE, manager).stream().map(User::getName).toList();
+    }
+
+    /** The finding itself: this manager used to see nobody. */
+    @Test
+    void parentDepartmentManagerSeesTheWholeSubtree() {
+        List<String> visible = namesVisibleTo(user("პარენტ მენეჯერი", Role.MANAGER, "ტექნიკური"));
+
+        assertTrue(visible.contains("ჯგუფი 01 ოპერატორი"));
+        assertTrue(visible.contains("ჯგუფი 03 ოპერატორი"));
+        assertTrue(visible.contains("პარენტ ოპერატორი"), "the parent's own direct reports too");
+        assertFalse(visible.contains("ოფისის ოპერატორი"), "but not another department");
+    }
+
+    /**
+     * The other half, and the reason this could not just be "match on the
+     * prefix": bug #312 was a sub-group manager seeing a sibling group's
+     * overdue operator. That must stay fixed.
+     */
+    @Test
+    void subGroupManagerSeesOnlyTheirOwnGroup() {
+        List<String> visible = namesVisibleTo(user("ჯგუფის მენეჯერი", Role.MANAGER, "ტექნიკური — ჯგუფი 03"));
+
+        assertEquals(List.of("ჯგუფი 03 ოპერატორი"), visible);
+    }
+
+    /**
+     * An unassigned manager resolves to nobody. Under exact match this was
+     * accidentally true here and accidentally FALSE in the audit log, where
+     * a null department returned null and null meant unrestricted.
+     */
+    @Test
+    void managerWithNoDepartmentSeesNobody() {
+        assertTrue(namesVisibleTo(user("უსკოპო", Role.MANAGER, null)).isEmpty());
+        assertTrue(namesVisibleTo(user("ცარიელი", Role.MANAGER, "  ")).isEmpty());
+    }
+
+    /**
+     * "All" is a wildcard when a piece of content targets it. On a user row
+     * it means unassigned, and passing it through to DepartmentMatcher as a
+     * target would silently promote that manager to an org-wide reader.
+     */
+    @Test
+    void managerStoredAsAllIsNotPromotedToOrgWide() {
+        assertTrue(namesVisibleTo(user("ოლ მენეჯერი", Role.MANAGER, "All")).isEmpty());
+    }
+
+    /** Whitespace and dash spelling are normalised, as everywhere else. */
+    @Test
+    void matchingToleratesDashAndSpacingVariants() {
+        User manager = user("მენეჯერი", Role.MANAGER, "  ტექნიკური  ");
+
+        assertTrue(namesVisibleTo(manager).contains("ჯგუფი 03 ოპერატორი"));
+    }
+
+    @Test
+    void onlyManagersAreDepartmentScoped() {
+        assertTrue(ManagerScope.isDepartmentScoped(user("მ", Role.MANAGER, "ტექნიკური")));
+        assertFalse(ManagerScope.isDepartmentScoped(user("ა", Role.SYSTEM_ADMIN, "ტექნიკური")));
+        assertFalse(ManagerScope.isDepartmentScoped(user("კ", Role.CONTENT_ADMIN, "ტექნიკური")));
+        assertFalse(ManagerScope.isDepartmentScoped(null));
+    }
+}

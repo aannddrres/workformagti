@@ -6,6 +6,7 @@ import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.repository.AuditLogRepository;
+import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.PermissionChecker;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -40,8 +41,9 @@ class AuditLogControllerTest {
     private final AuditChainService auditChainService = mock(AuditChainService.class);
     private final AuditLogQueryService auditLogQueryService = mock(AuditLogQueryService.class);
     private final AuditLogRepository auditLogRepository = mock(AuditLogRepository.class);
-    private final AuditLogController controller =
-            new AuditLogController(auditChainService, auditLogQueryService, auditLogRepository, permissionChecker);
+    private final UserRepository userRepository = mock(UserRepository.class);
+    private final AuditLogController controller = new AuditLogController(
+            auditChainService, auditLogQueryService, auditLogRepository, permissionChecker, userRepository);
 
     private static User userWith(Role role, Set<String> permissions) {
         User user = new User();

@@ -37,6 +37,18 @@ import java.util.UUID;
  * existing status codes and bodies too, because widening this to catch them
  * would flatten a carefully-built set of error responses into one generic
  * message.
+ *
+ * <p><b>No {@code IllegalArgumentException} → 400 mapping, deliberately.</b>
+ * Audit SEC-15 suggested one. It would have fixed the symptom it was written
+ * about ({@code Role.fromValue} on a client-supplied string) and mislabelled
+ * everything else: {@code IllegalArgumentException} is what
+ * {@code Map.of(k, null)}, {@code Integer.parseInt} over a database value,
+ * and half the JDK throw when <i>server</i> state is wrong. Turning those
+ * into 400s would blame the caller for our own bugs, and — worse — silence
+ * them, since a 400 carries no correlation id and writes no stack trace. The
+ * one call site the audit named is fixed where it lives, in
+ * {@code MessagingController.postBroadcast}, next to the three in
+ * {@code UserController} that already did it that way.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {

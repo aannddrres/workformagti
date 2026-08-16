@@ -3,11 +3,11 @@ package ge.magti.portal.export;
 import ge.magti.portal.compliance.ComplianceQueryService;
 import ge.magti.portal.domain.ReadStatus;
 import ge.magti.portal.domain.RequiredReading;
-import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.repository.ReadStatusRepository;
 import ge.magti.portal.repository.RequiredReadingRepository;
 import ge.magti.portal.repository.UserRepository;
+import ge.magti.portal.security.ManagerScope;
 import ge.magti.portal.stats.ComplianceRecord;
 import org.springframework.stereotype.Service;
 
@@ -74,7 +74,7 @@ public class ExportQueryService {
      * the accounts whose scope is least well defined.
      */
     public static boolean isDepartmentScoped(User caller) {
-        return caller != null && caller.getRole() == Role.MANAGER;
+        return ManagerScope.isDepartmentScoped(caller);
     }
 
     /**
@@ -91,33 +91,27 @@ public class ExportQueryService {
     }
 
     /**
-     * Compliance records the caller is allowed to export. Copies
-     * {@code StatsController.getCriticalOperators}' branch line for line --
-     * including resolving ids via {@code findByActiveTrueAndDepartment} and
-     * passing them as {@code computeCompliance(ids, null)}, rather than the
-     * equivalent-and-shorter {@code computeCompliance(null, department)}
-     * (which reaches the same repository method,
-     * {@link ComplianceQueryService#computeCompliance(List, String)}'s
-     * {@code scopeDepartment} branch). The point is that the two
-     * department-scope decisions read identically, so a future reader
+     * Compliance records the caller is allowed to export. Resolves the
+     * caller's visible users through {@link ManagerScope} and passes them as
+     * {@code computeCompliance(ids, null)} -- the same two lines
+     * {@code StatsController.getCriticalOperators} runs, so a future reader
      * checking whether exports match Stats can diff them rather than
      * re-derive the equivalence.
      *
-     * <p>Both routes are exact string matches, so a manager with a
-     * null/blank department resolves to zero users -- fail closed, not fail
-     * open. Note this inherits the known SEC-13 limitation of the pattern it
-     * copies: a parent-department manager ("ტექნიკური") does not match their
-     * own sub-groups ("ტექნიკური — ჯგუფი 03"), because the match is exact
-     * rather than {@code DepartmentMatcher}-prefix-aware. That is a
-     * deliberately unchanged behaviour here -- fixing it would widen access,
-     * which is not this fix's job -- but it means such a manager exports an
-     * empty file rather than their team.
+     * <p>An earlier version of this comment said the SEC-13 under-inclusion
+     * was left in place here on purpose, "because fixing it would widen
+     * access, which is not this fix's job". That was the right call for the
+     * SEC-02 commit and the wrong state to leave the code in: it meant a
+     * parent-department manager exported an empty file. SEC-13 is now fixed
+     * at the rule instead of at each call site, and this reads the rule.
+     * A manager with a null, blank or "All" department still resolves to
+     * zero users -- fail closed, and now explicitly rather than by accident.
      */
     private List<ComplianceRecord> scopedCompliance(User caller) {
         if (!isDepartmentScoped(caller)) {
             return complianceQueryService.computeCompliance();
         }
-        List<Long> ids = userRepository.findByActiveTrueAndDepartment(caller.getDepartment()).stream()
+        List<Long> ids = ManagerScope.visibleActiveUsers(userRepository.findByActiveTrue(), caller).stream()
                 .map(User::getId)
                 .toList();
         return complianceQueryService.computeCompliance(ids, null);

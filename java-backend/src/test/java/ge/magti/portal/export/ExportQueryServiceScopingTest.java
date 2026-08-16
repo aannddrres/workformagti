@@ -63,8 +63,10 @@ class ExportQueryServiceScopingTest {
             List<Long> ids = invocation.getArgument(0);
             return orgWide.stream().filter(r -> ids.contains(r.user().getId())).toList();
         });
-        when(userRepository.findByActiveTrueAndDepartment(OWN_DEPT)).thenReturn(List.of(ownOperatorA, ownOperatorB));
-        when(userRepository.findByActiveTrueAndDepartment(OTHER_DEPT)).thenReturn(List.of(otherOperator));
+        // Scoping is applied in Java by ManagerScope, not by a per-department
+        // query, since the rule normalises the string before comparing
+        // (SEC-13). The repository hands over every active user.
+        when(userRepository.findByActiveTrue()).thenReturn(allOperators);
 
         // One read status per operator, all against the same required reading.
         when(readStatusRepository.findByUserIdIn(anyList())).thenAnswer(invocation -> {
@@ -122,10 +124,23 @@ class ExportQueryServiceScopingTest {
     @Test
     void managerWithNoDepartmentGetsAnEmptyExportRatherThanEverything() {
         User manager = managerOf(null);
-        when(userRepository.findByActiveTrueAndDepartment(isNull())).thenReturn(List.of());
 
         assertTrue(service.eligibleReadingRows(manager).isEmpty());
         assertTrue(service.departmentComplianceTotals(manager).isEmpty());
+    }
+
+    /**
+     * SEC-13. The comment on {@code scopedCompliance} used to say this
+     * manager exporting an empty file was a deliberately-unchanged
+     * limitation. It exports their subtree now, and — the half that matters
+     * — still not the neighbouring department.
+     */
+    @Test
+    void parentDepartmentManagerExportsTheirSubtreeNotAnEmptyFile() {
+        List<ReadingExportRow> rows = service.eligibleReadingRows(managerOf("ტექნიკური"));
+
+        assertEquals(List.of(1L, 2L), rows.stream().map(ReadingExportRow::userId).sorted().toList());
+        assertFalse(rows.stream().anyMatch(r -> otherOperator.getName().equals(r.userName())));
     }
 
     @Test

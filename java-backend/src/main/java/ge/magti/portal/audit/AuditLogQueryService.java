@@ -81,9 +81,14 @@ public class AuditLogQueryService {
     private record Where(String sql, List<Object> params) {
     }
 
-    /** Mirrors get_audit_logs (:178-246): scopeDepartment is the manager-only exact-match pin. */
-    public Page list(AuditLogFilter filter, String scopeDepartment, int limit, int offset) {
-        Where where = buildWhere(filter, scopeDepartment);
+    /**
+     * Mirrors get_audit_logs (:178-246). {@code scopeDepartments} is the
+     * manager-only department pin, resolved by the caller: {@code null}
+     * means unrestricted, an empty list means no rows (SEC-13 -- an
+     * unassigned manager used to fall through to unrestricted).
+     */
+    public Page list(AuditLogFilter filter, List<String> scopeDepartments, int limit, int offset) {
+        Where where = buildWhere(filter, scopeDepartments);
 
         long total = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) " + FROM_JOINS + where.sql(), Long.class, where.params().toArray());
@@ -128,7 +133,7 @@ public class AuditLogQueryService {
         jdbcTemplate.query(psc, handler);
     }
 
-    private Where buildWhere(AuditLogFilter filter, String scopeDepartment) {
+    private Where buildWhere(AuditLogFilter filter, List<String> scopeDepartments) {
         StringBuilder sql = new StringBuilder(" WHERE 1=1");
         List<Object> params = new ArrayList<>();
 
@@ -150,9 +155,20 @@ public class AuditLogQueryService {
             sql.append(" AND UPPER(u.name) LIKE UPPER(?)");
             params.add("%" + filter.userName() + "%");
         }
-        if (scopeDepartment != null) {
-            sql.append(" AND u.department = ?");
-            params.add(scopeDepartment);
+        if (scopeDepartments != null) {
+            if (scopeDepartments.isEmpty()) {
+                // A department-scoped caller who can see nobody sees nothing.
+                // Spelled out rather than left to an empty IN list, which is
+                // a syntax error in Oracle, not an empty result.
+                sql.append(" AND 1 = 0");
+            } else {
+                sql.append(" AND u.department IN (");
+                for (int i = 0; i < scopeDepartments.size(); i++) {
+                    sql.append(i == 0 ? "?" : ", ?");
+                    params.add(scopeDepartments.get(i));
+                }
+                sql.append(")");
+            }
         }
         if (filter.action() != null && !filter.action().isBlank()) {
             if ("LOGIN".equals(filter.action())) {

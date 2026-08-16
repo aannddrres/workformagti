@@ -10,6 +10,8 @@ import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.export.CsvExportBuilder;
 import ge.magti.portal.repository.AuditLogRepository;
+import ge.magti.portal.repository.UserRepository;
+import ge.magti.portal.security.ManagerScope;
 import ge.magti.portal.security.PermissionChecker;
 import ge.magti.portal.util.TbilisiTime;
 import jakarta.servlet.http.HttpServletResponse;
@@ -34,6 +36,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Mirrors routers/audit_logs.py in full: get_audit_logs (:178-246),
@@ -62,13 +65,16 @@ public class AuditLogController {
     private final AuditLogQueryService auditLogQueryService;
     private final AuditLogRepository auditLogRepository;
     private final PermissionChecker permissionChecker;
+    private final UserRepository userRepository;
 
     public AuditLogController(AuditChainService auditChainService, AuditLogQueryService auditLogQueryService,
-            AuditLogRepository auditLogRepository, PermissionChecker permissionChecker) {
+            AuditLogRepository auditLogRepository, PermissionChecker permissionChecker,
+            UserRepository userRepository) {
         this.auditChainService = auditChainService;
         this.auditLogQueryService = auditLogQueryService;
         this.auditLogRepository = auditLogRepository;
         this.permissionChecker = permissionChecker;
+        this.userRepository = userRepository;
     }
 
     @GetMapping("/api/audit-logs")
@@ -89,10 +95,10 @@ public class AuditLogController {
         }
 
         int clampedLimit = Math.max(1, Math.min(limit, 200));
-        String scopeDepartment = scopeDepartment(user);
+        List<String> scopeDepartments = scopeDepartments(user);
         AuditLogFilter filter = new AuditLogFilter(startDate, endDate, userId, userName, action, category, q);
 
-        AuditLogQueryService.Page page = auditLogQueryService.list(filter, scopeDepartment, clampedLimit, offset);
+        AuditLogQueryService.Page page = auditLogQueryService.list(filter, scopeDepartments, clampedLimit, offset);
 
         LinkedHashMap<String, Object> metaFilters = new LinkedHashMap<>();
         metaFilters.put("start_date", startDate);
@@ -105,7 +111,7 @@ public class AuditLogController {
         metaFilters.put("offset", offset);
         metaFilters.put("limit", clampedLimit);
         metaFilters.put("result_count", page.rows().size());
-        metaFilters.put("scope_department", scopeDepartment);
+        metaFilters.put("scope_department", scopeDepartments == null ? null : String.join(", ", scopeDepartments));
         writeMetaAudit(user, "VIEW_AUDIT_LOG", metaFilters);
 
         return ResponseEntity.ok()
@@ -201,9 +207,36 @@ public class AuditLogController {
         return ResponseEntity.ok(auditChainService.chainHealth(n));
     }
 
-    /** None = unrestricted (system_admin, content_admin). A manager is pinned to their own department string. */
-    private static String scopeDepartment(User user) {
-        return user.getRole() == Role.MANAGER ? user.getDepartment() : null;
+    /**
+     * The department strings a caller's audit-log view is pinned to.
+     * {@code null} = unrestricted (system_admin, content_admin); an empty
+     * list = pinned to nothing, i.e. no rows.
+     *
+     * <p>Was a single exact-match string, with two problems fixed together
+     * (audit SEC-13). It under-included a parent-department manager
+     * ("ტექნიკური") to zero rows while their operators sit in
+     * "ტექნიკური — ჯგუფი 03"; and a manager whose {@code department} was
+     * null returned null from here, which this method's own caller reads as
+     * <i>unrestricted</i> -- so the least well-defined account got the
+     * widest view. Both follow from {@link ManagerScope}: the visible users
+     * are resolved with the prefix-aware rule, their departments are what
+     * the query pins to, and an unassigned manager resolves to an empty
+     * list rather than to null.
+     *
+     * <p>Pins to the resolved departments rather than to the resolved user
+     * ids on purpose: the set is a handful of strings regardless of
+     * headcount, where an id list would grow with the team and run at
+     * Oracle's 1000-element {@code IN} limit.
+     */
+    private List<String> scopeDepartments(User user) {
+        if (!ManagerScope.isDepartmentScoped(user)) {
+            return null;
+        }
+        return ManagerScope.visibleActiveUsers(userRepository.findByActiveTrue(), user).stream()
+                .map(User::getDepartment)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
     }
 
     /**
