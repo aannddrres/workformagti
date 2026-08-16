@@ -226,11 +226,19 @@ jobs:
           ORACLE_DB_USER: magti_app
           ORACLE_DB_PASSWORD: ci_only_app_pw
           # The E2E personas (admin@magti.ge, content@magti.ge, info@magti.ge,
-          # test_operator_*) are JIT-provisioned by AuthenticationService, and
-          # only when the app is NOT in production mode. That is the SEC-01
-          # dev bypass, used here deliberately and only here: an ephemeral
-          # container, throwaway data, no network exposure.
+          # test_operator_*) are JIT-provisioned by AuthenticationService.
+          #
+          # That needs BOTH of these, not just APP_ENV. The first run of this
+          # job set only APP_ENV and five of six specs failed to log in --
+          # ProductionSafetyGuard logged "dev-login=disabled" and meant it.
+          # The second flag is the SEC-01 fix working exactly as designed: the
+          # password-less login used to ride along on one variable defaulting
+          # to "development", which is how it shipped enabled. It now has to
+          # be asked for twice, deliberately, and this job is the one place
+          # that asks -- an ephemeral container, throwaway data, no network
+          # exposure, torn down with the run.
           APP_ENV: development
+          ALLOW_DEV_LOGIN: "true"
           COOKIE_SECURE: "false"
         run: |
           nohup java -jar target/*.jar > "$GITHUB_WORKSPACE/backend.log" 2>&1 &
@@ -241,6 +249,23 @@ jobs:
             sleep 1
           done
           echo "backend did not become healthy"; tail -80 "$GITHUB_WORKSPACE/backend.log"; exit 1
+
+      # Fail here, on the thing that is actually wrong, rather than three
+      # steps later as five specs that cannot log in. The first run of this
+      # job spent its whole diagnosis budget on exactly that confusion.
+      - name: Verify a JIT persona can log in
+        run: |
+          code=$(curl -s -o /tmp/login.json -w '%{http_code}' \
+            -X POST http://localhost:8080/api/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"admin@magti.ge","password":"anything"}')
+          if [ "$code" != "200" ]; then
+            echo "JIT login returned $code, expected 200:"; cat /tmp/login.json; echo
+            echo "The E2E personas need APP_ENV=development AND ALLOW_DEV_LOGIN=true."
+            grep -o 'Startup security config:.*' "$GITHUB_WORKSPACE/backend.log" || true
+            exit 1
+          fi
+          echo "JIT login OK"
 
       - name: Install frontend dependencies
         working-directory: angular-frontend
