@@ -54,8 +54,18 @@ test.describe('admin content: news and videos', () => {
     const afterCreate = await request.get('/api/news?limit=200', { headers: auth });
     const created = (await afterCreate.json()).find((n: { title: string }) => n.title === title);
     expect(created, `the created news item is not in /api/news`).toBeTruthy();
-    expect(created.content, 'the content textarea did not reach the payload').toContain(bodyText);
     expect(created.target_department, 'the department select did not reach the payload').toBe('საინფორმაციო');
+
+    // The list is a SUMMARY and deliberately carries no content
+    // (NewsSummaryResponse.java:9-22, and models/news.ts says as much). The
+    // first version of this test asserted on the list's `content` and failed
+    // with "received value must not be null nor undefined" -- which is the
+    // test being wrong about the contract, not the contract being wrong.
+    const detail = await request.get(`/api/news/${created.id}`, { headers: auth });
+    expect(detail.ok(), `news detail failed: ${detail.status()}`).toBeTruthy();
+    expect((await detail.json()).content, 'the content textarea did not reach the payload').toContain(
+      bodyText
+    );
 
     const reading = await request.get(
       `/api/compliance/required-readings/by-item/news/${created.id}`,
