@@ -49,9 +49,12 @@ test('article history: expand, diff, and restore an older version', async ({ pag
   const modal = page.locator('app-article-history-modal');
   await expect(modal.getByText('ცვლილებების ისტორია')).toBeVisible();
 
-  // The recorded version is the state BEFORE the edit, so the entry carries
-  // the original title -- which is also how we know history captured the
-  // right side of the change.
+  // Two rows exist by now, and NOT for the reason it first looks like: a
+  // history row records the state AFTER each save, not before it
+  // (ArticleController.java:260-267 on create, :316-323 on update). So the
+  // create wrote a row holding the original title, and the update wrote a
+  // second one holding the revised title. The row this test wants is the
+  // first -- restoring it is what should undo the edit.
   const entry = modal.locator('div').filter({ hasText: originalTitle }).last();
   await expect(entry).toBeVisible();
 
