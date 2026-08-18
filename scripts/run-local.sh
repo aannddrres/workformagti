@@ -53,7 +53,14 @@ docker info >/dev/null 2>&1 || die "the Docker daemon is not running. Start Dock
 command -v java >/dev/null || die "java not found. JDK 21 is required."
 command -v node >/dev/null || die "node not found. See angular-frontend/.nvmrc for the version."
 
-JAVA_MAJOR="$(java -version 2>&1 | head -1 | sed -E 's/.*"([0-9]+).*/\1/')"
+# Matched on the version string itself rather than read off the first line.
+# `java -version` does not promise the version is line one: with
+# JAVA_TOOL_OPTIONS set -- which is how a corporate JDK is usually pointed at
+# an HTTPS proxy and a truststore -- the JVM prints "Picked up
+# JAVA_TOOL_OPTIONS: ..." above it, and a head -1 reads that instead. This
+# script died on exactly that the first time it was run for real.
+JAVA_MAJOR="$(java -version 2>&1 | grep -Eo 'version "[0-9]+' | head -1 | grep -Eo '[0-9]+')"
+[ -n "$JAVA_MAJOR" ] || die "could not read the Java version. Check: java -version"
 [ "$JAVA_MAJOR" -ge 21 ] || die "JDK 21 or newer is required, found $JAVA_MAJOR."
 
 NODE_WANT="$(cat "$REPO_ROOT/angular-frontend/.nvmrc")"
