@@ -295,12 +295,23 @@ jobs:
           E2E_BASE_URL: http://localhost:4200
         run: npx playwright test
 
-      # Which specs failed, and why, as the LAST thing in the log.
+      - name: Server logs on failure
+        if: failure()
+        run: |
+          # Deliberately short. The interesting part of a server log on a
+          # failed E2E run is its tail, and every line here pushes the
+          # spec summary below further from the end of the job log.
+          echo "===== backend ====="; tail -40 backend.log || true
+          echo "===== frontend ====="; tail -20 frontend.log || true
+
+      # Which specs failed, and why -- LAST, on purpose.
       #
-      # Playwright already prints this, but it lands above the two server-log
-      # dumps below, ~230 lines from the end -- so reading it back from the
-      # API means pulling the whole backend startup log with it every time.
-      # This is the same information, at the bottom, in a few lines.
+      # Playwright prints this itself, but above the server-log dumps, ~230
+      # lines from the end of the job. The Actions API caps how much of a log
+      # it returns from the tail, so on a run with real server output that
+      # block cannot be reached at all: three separate attempts to read it
+      # came back with nothing but Flyway migration lines. Putting the
+      # summary last is what makes a failed run diagnosable remotely.
       - name: Which specs failed
         if: failure()
         working-directory: angular-frontend
@@ -330,12 +341,6 @@ jobs:
             };
             for (const suite of report.suites ?? []) walk(suite);
           ' || true
-
-      - name: Server logs on failure
-        if: failure()
-        run: |
-          echo "===== backend ====="; tail -120 backend.log || true
-          echo "===== frontend ====="; tail -60 frontend.log || true
 
       - name: Upload Playwright report
         if: always()
