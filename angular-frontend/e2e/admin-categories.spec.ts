@@ -42,7 +42,14 @@ test('categories: create, nest, expand, edit, and the orphan a deleted parent le
   await form.locator('select').first().selectOption('mobile');
   await page.getByRole('button', { name: 'შენახვა' }).click();
 
-  const parentRow = page.locator('tr', { hasText: parentName });
+  // Not just "the row containing the parent's name": once the tree is
+  // expanded, a CHILD row shows its parent's name in the parent column
+  // (admin-categories-page.html:164), so that filter matches two rows and
+  // the delete below fails on a strict-mode violation. The subcategory
+  // badge is what tells them apart.
+  const parentRow = page.locator('tr').filter({ hasText: parentName }).filter({
+    hasNotText: 'ქვე-კატეგორია'
+  });
   await expect(parentRow).toHaveCount(1);
 
   const listing = async () => (await (await request.get('/api/categories', { headers: auth })).json());
@@ -103,7 +110,7 @@ test('categories: create, nest, expand, edit, and the orphan a deleted parent le
   await expect(page.locator('tr', { hasText: renamed })).toHaveCount(1);
 
   // --- the orphan row's own controls ------------------------------------
-  const orphanRenamed = `${renamed} ობოლი`;
+  const orphanRenamed = `${renamed} საბოლოო`;   // not 'ობოლი' -- that is the badge's own text
   await orphanRow.getByRole('button', { name: 'რედაქტ.' }).click();
   await form.locator('input[type="text"]').first().fill(orphanRenamed);
   await page.getByRole('button', { name: 'შენახვა' }).click();
