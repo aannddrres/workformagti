@@ -90,8 +90,14 @@ cleanup() {
   [ -n "$BACKEND_PID" ] && kill "$BACKEND_PID" 2>/dev/null || true
   wait 2>/dev/null || true
   echo
-  say "the Oracle container ($CONTAINER) is still running, so the next start is fast."
-  say "to remove it and its data:  docker rm -f $CONTAINER"
+  # Only claim the container is there if it actually is. The first real run of
+  # this script failed while CREATING it and still printed "still running, so
+  # the next start is fast", which is a confusing thing to read directly under
+  # the error that says it was never created.
+  if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$CONTAINER"; then
+    say "the Oracle container ($CONTAINER) is still running, so the next start is fast."
+    say "to remove it and its data:  docker rm -f $CONTAINER"
+  fi
 }
 trap cleanup EXIT INT TERM
 
