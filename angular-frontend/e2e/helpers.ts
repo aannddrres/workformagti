@@ -89,6 +89,26 @@ export interface CreateArticleOptions {
   targetDepartments: string[];
   quizEnabled?: boolean;
   status?: string;
+  content?: string;
+}
+
+function articleBody(opts: CreateArticleOptions) {
+  return {
+    title: opts.title,
+    content: opts.content ?? '<p>E2E fixture content.</p>',
+    category_id: opts.categoryId,
+    tags: null,
+    target_departments: opts.targetDepartments,
+    status: opts.status ?? 'published',
+    published_at: null,
+    attachment_url: null,
+    audience_profile: 'all',
+    visible_to_tech_info: true,
+    visible_to_service_center: false,
+    is_draft: false,
+    quiz_enabled: opts.quizEnabled ?? false,
+    notify_operators: false
+  };
 }
 
 export async function createArticle(
@@ -98,26 +118,26 @@ export async function createArticle(
 ): Promise<number> {
   const res = await request.post('/api/articles', {
     headers: authHeaders(token),
-    data: {
-      title: opts.title,
-      content: '<p>E2E fixture content.</p>',
-      category_id: opts.categoryId,
-      tags: null,
-      target_departments: opts.targetDepartments,
-      status: opts.status ?? 'published',
-      published_at: null,
-      attachment_url: null,
-      audience_profile: 'all',
-      visible_to_tech_info: true,
-      visible_to_service_center: false,
-      is_draft: false,
-      quiz_enabled: opts.quizEnabled ?? false,
-      notify_operators: false
-    }
+    data: articleBody(opts)
   });
   expect(res.ok(), `create article failed: ${res.status()} ${await res.text()}`).toBeTruthy();
   const article = await res.json();
   return article.id as number;
+}
+
+/** A full-body PUT, which is what produces an article_history row -- the
+ *  fixture the history modal needs and cannot be given any other way. */
+export async function updateArticle(
+  request: APIRequestContext,
+  token: string,
+  articleId: number,
+  opts: CreateArticleOptions
+): Promise<void> {
+  const res = await request.put(`/api/articles/${articleId}`, {
+    headers: authHeaders(token),
+    data: articleBody(opts)
+  });
+  expect(res.ok(), `update article failed: ${res.status()} ${await res.text()}`).toBeTruthy();
 }
 
 export async function deleteArticleApi(request: APIRequestContext, token: string, articleId: number): Promise<void> {
