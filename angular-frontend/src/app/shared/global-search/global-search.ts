@@ -1,4 +1,4 @@
-import { Component, DestroyRef, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -65,6 +65,27 @@ export class GlobalSearch {
   );
 
   constructor() {
+    /**
+     * Put the caret in the palette's input when it opens.
+     *
+     * This used to be a queueMicrotask inside openPalette(), and it never
+     * fired: the overlay is behind `@if (open())`, so the input element does
+     * not exist until Angular renders, and a microtask runs before that --
+     * `input()` was still undefined and focus() was called on nothing. The
+     * palette opened with the caret nowhere, so Ctrl+K followed by typing
+     * produced no text, which is the entire point of a command palette.
+     * Caught by the E2E spec, not by anything that reads.
+     *
+     * An effect is the right tool because `input()` is itself a signal: this
+     * runs once when open() flips, again when the viewChild resolves, and
+     * that second run is the one that lands.
+     */
+    effect(() => {
+      if (this.open()) {
+        this.input()?.nativeElement.focus();
+      }
+    });
+
     this.queries
       .pipe(
         debounceTime(250),
@@ -113,8 +134,8 @@ export class GlobalSearch {
 
   openPalette(): void {
     this.open.set(true);
-    // The input only exists once the overlay is rendered.
-    queueMicrotask(() => this.input()?.nativeElement.focus());
+    // Focus is handled by the effect in the constructor, not from here --
+    // see it for why doing it inline never worked.
   }
 
   close(): void {
