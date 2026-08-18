@@ -295,6 +295,42 @@ jobs:
           E2E_BASE_URL: http://localhost:4200
         run: npx playwright test
 
+      # Which specs failed, and why, as the LAST thing in the log.
+      #
+      # Playwright already prints this, but it lands above the two server-log
+      # dumps below, ~230 lines from the end -- so reading it back from the
+      # API means pulling the whole backend startup log with it every time.
+      # This is the same information, at the bottom, in a few lines.
+      - name: Which specs failed
+        if: failure()
+        working-directory: angular-frontend
+        run: |
+          node -e '
+            const fs = require("fs");
+            const f = "playwright-report/results.json";
+            if (!fs.existsSync(f)) { console.log("no results.json"); process.exit(0); }
+            const report = JSON.parse(fs.readFileSync(f, "utf8"));
+            const walk = (suite, trail = []) => {
+              const here = suite.title ? [...trail, suite.title] : trail;
+              for (const spec of suite.specs ?? []) {
+                if (spec.ok) continue;
+                console.log("FAILED  " + [...here, spec.title].join(" > "));
+                for (const test of spec.tests ?? []) {
+                  for (const result of test.results ?? []) {
+                    const message = (result.error?.message ?? "").split("\n").slice(0, 6);
+                    for (const line of message) console.log("        " + line);
+                    if (result.error?.location) {
+                      const l = result.error.location;
+                      console.log("        at " + l.file + ":" + l.line);
+                    }
+                  }
+                }
+              }
+              for (const child of suite.suites ?? []) walk(child, here);
+            };
+            for (const suite of report.suites ?? []) walk(suite);
+          ' || true
+
       - name: Server logs on failure
         if: failure()
         run: |

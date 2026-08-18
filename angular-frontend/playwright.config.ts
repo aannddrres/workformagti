@@ -23,7 +23,13 @@ export default defineConfig({
   workers: 1,
   retries: 0,
   timeout: 30_000,
-  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : [['list']],
+  // The json reporter is what the workflow's "Which specs failed" step reads:
+  // Playwright's own failure block lands ~230 lines above the end of the job
+  // log, under two server-log dumps, so pulling it back from the API means
+  // pulling the whole backend startup with it.
+  reporter: process.env.CI
+    ? [['list'], ['html', { open: 'never' }], ['json', { outputFile: 'playwright-report/results.json' }]]
+    : [['list']],
   use: {
     baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:4201',
     trace: 'retain-on-failure',
