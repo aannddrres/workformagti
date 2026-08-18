@@ -141,20 +141,40 @@ public class SearchController {
     }
 
     /**
-     * Mirrors both endpoints' identical logging condition (routers/search.py:110-120,
-     * 232-239, 249-255): only for a non-empty, 3+ character, normalized query
-     * term, and never for a {@code test_operator_} QA account.
+     * Records the query behind both search analytics panels on the admin stats
+     * page: popular searches ({@code has_results = true}) and failed searches
+     * ({@code has_results = false}).
+     *
+     * <p>A search that found NOTHING is written too, and that is the entire
+     * point of the second panel: what an operator looked for and could not find
+     * is the one signal that says which article the knowledge base is missing.
+     * This used to skip on {@code resultsFound <= 0} and then hardcode
+     * {@code setHasResults(true)}, so no row with {@code has_results = false}
+     * could ever exist and {@code SearchLogRepository.failedSearchTerms()} was
+     * structurally guaranteed to return an empty list. The panel rendered its
+     * "nothing here" empty state permanently -- which reads as good news, which
+     * is why it went unnoticed.
+     *
+     * <p>Only the length and QA-account guards are conditions on writing at
+     * all; the result count decides the FLAG, never whether there is a row.
+     *
+     * <p>Divergence from Python, deliberate: routers/search.py logged misses on
+     * {@code /api/search/global} (search.py:232-239, 249-255) but not on
+     * {@code /api/search} (search.py:113, which required {@code len(articles) >
+     * 0}). Both are a person failing to find something, so both are recorded
+     * here. The knowledge-base page's own search box is the one an operator
+     * uses most, and dropping its misses would leave the panel half-blind.
      */
     private void writeSearchLog(User user, String q, int resultsFound) {
         String normalized = q == null ? "" : q.strip().toLowerCase();
-        if (resultsFound <= 0 || normalized.length() < 3 || user.getEmail().startsWith("test_operator_")) {
+        if (normalized.length() < 3 || user.getEmail().startsWith("test_operator_")) {
             return;
         }
         SearchLog log = new SearchLog();
         log.setUserId(user.getId());
         log.setSearchTerm(normalized);
         log.setTimestamp(TbilisiTime.now());
-        log.setHasResults(true);
+        log.setHasResults(resultsFound > 0);
         log.setResultsFound(resultsFound);
         searchLogRepository.save(log);
     }
