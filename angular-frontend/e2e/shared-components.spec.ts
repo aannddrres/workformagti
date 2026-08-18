@@ -48,8 +48,13 @@ test.describe('shared components', () => {
     const hit = palette.getByRole('option', { name: new RegExp(title) });
     await expect(hit).toBeVisible();
 
-    // Clicking inside must not dismiss it; only the backdrop does.
-    await palette.click({ position: { x: 10, y: 60 } });
+    // Clicking inside must not dismiss it; only the backdrop does. The target
+    // is the palette's own magnifier -- decoration, inside the dialog, wired to
+    // nothing. Clicking by COORDINATE instead cost a run: (10, 60) is measured
+    // from the dialog's top-left, which by then is the first result row, so the
+    // click opened the article and closed the palette exactly as designed, and
+    // the assertion read that as the dialog failing to stay open.
+    await palette.locator('i.fa-magnifying-glass').click();
     await expect(palette).toBeVisible();
 
     // --- keyboard navigation ------------------------------------------------
