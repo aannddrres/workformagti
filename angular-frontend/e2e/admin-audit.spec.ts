@@ -56,6 +56,17 @@ test.describe('audit log', () => {
     await expect(archiveRows.first()).toBeVisible();
 
     // --- the pager ---------------------------------------------------------
+    // Narrowed to the fixture's own action first, and not for tidiness:
+    // READING the audit log writes an audit row of its own
+    // (AuditLogController.java:115, VIEW_AUDIT_LOG). The unfiltered list is
+    // therefore a moving target -- every page change pushes a fresh row onto
+    // the top of page 1 -- and the first version of this test failed on
+    // exactly that, comparing page 1's top row before and after and finding
+    // it two seconds newer. ARCHIVE rows are only written by the fixture, so
+    // this list holds still while the pager is exercised.
+    const search = page.getByPlaceholder('ძებნა… actor:admin category:SECURITY');
+    await search.fill('action:ARCHIVE');
+
     const firstPage = page.locator('tbody tr');
     await expect(firstPage).toHaveCount(PAGE_SIZE);
     const topRow = () => page.locator('tbody tr').first().innerText();
@@ -68,6 +79,8 @@ test.describe('audit log', () => {
 
     await page.getByRole('button', { name: 'წინა' }).click();
     await expect.poll(topRow).toBe(page1Top);
+
+    await search.fill('');
 
     // --- the category filter ----------------------------------------------
     // ARCHIVE on an article is CONTENT, so SECURITY must exclude every one of
@@ -105,10 +118,10 @@ test.describe('audit log', () => {
     // --- search ------------------------------------------------------------
     await startDate.fill('');
     await endDate.fill('');
-    await page.getByPlaceholder('ძებნა… actor:admin category:SECURITY').fill('category:SECURITY');
+    await search.fill('category:SECURITY');
     await expect(archiveRows).toHaveCount(0);
 
-    await page.getByPlaceholder('ძებნა… actor:admin category:SECURITY').fill('');
+    await search.fill('');
     await expect(archiveRows.first()).toBeVisible();
   });
 
