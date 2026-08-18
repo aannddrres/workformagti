@@ -67,8 +67,20 @@ test.describe('audit log', () => {
     const search = page.getByPlaceholder('ძებნა… actor:admin category:SECURITY');
     await search.fill('action:ARCHIVE');
 
+    // Wait for the FILTER to land before touching the pager, and wait on the
+    // rows rather than on a timer. Typing debounces 300ms and then calls
+    // reload(), which sets offset back to 0 (admin-audit-page.ts:154-157) --
+    // so a pager click issued before that debounce fires is undone by it, and
+    // "წინა" stays disabled for the rest of the test. That is exactly how the
+    // first version of this spec spent its whole 120s budget retrying a click
+    // on a button that could never become enabled.
+    //
+    // "every row is an ARCHIVE row" is the precise signal: the unfiltered list
+    // is a mix (VIEW_AUDIT_LOG, CREATE, LOGIN), so this count only reaches a
+    // full page once the filtered response has replaced it.
     const firstPage = page.locator('tbody tr');
     await expect(firstPage).toHaveCount(PAGE_SIZE);
+    await expect(archiveRows).toHaveCount(PAGE_SIZE);
 
     // The row's TIMESTAMP, not its whole rendering. Comparing the full row
     // text made this assertion depend on every cell staying byte-identical
@@ -79,12 +91,20 @@ test.describe('audit log', () => {
     const topStamp = () => page.locator('tbody tr').first().locator('td').first().innerText();
     const page1Top = await topStamp();
 
+    const previous = page.getByRole('button', { name: 'წინა' });
+    await expect(previous).toBeDisabled();
+
     await page.getByRole('button', { name: 'შემდეგი' }).click();
-    // A different page means different ROWS, not merely a different label on
-    // the pager -- so the assertion compares what is actually in the table.
+    // Enabled first: "წინა" is disabled at offset 0, so this is the pager's own
+    // statement that it left page 1. Asserting it here turns a page that never
+    // moved into a 5s failure instead of a 120s timeout spent clicking a button
+    // that is never going to accept the click.
+    await expect(previous).toBeEnabled();
+    // And a different page means different ROWS, not merely a different state
+    // on the pager -- so this compares what is actually in the table.
     await expect.poll(topStamp).not.toBe(page1Top);
 
-    await page.getByRole('button', { name: 'წინა' }).click();
+    await previous.click();
     await expect.poll(topStamp).toBe(page1Top);
 
     await search.fill('');
