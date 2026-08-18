@@ -328,7 +328,9 @@ jobs:
                 console.log("FAILED  " + [...here, spec.title].join(" > "));
                 for (const test of spec.tests ?? []) {
                   for (const result of test.results ?? []) {
-                    const message = (result.error?.message ?? "").split("\n").slice(0, 6);
+                    // 16, not 6: a truncated diff cost a whole run once --
+                    // the failing line was inside the part that got cut.
+                    const message = (result.error?.message ?? "").split("\n").slice(0, 16);
                     for (const line of message) console.log("        " + line);
                     if (result.error?.location) {
                       const l = result.error.location;

@@ -69,16 +69,23 @@ test.describe('audit log', () => {
 
     const firstPage = page.locator('tbody tr');
     await expect(firstPage).toHaveCount(PAGE_SIZE);
-    const topRow = () => page.locator('tbody tr').first().innerText();
-    const page1Top = await topRow();
+
+    // The row's TIMESTAMP, not its whole rendering. Comparing the full row
+    // text made this assertion depend on every cell staying byte-identical
+    // across a re-render, which is more than "the pager came back to the
+    // same entries" needs to mean -- and it failed on a cell other than the
+    // one that identifies the row. The timestamp is the identity that is
+    // actually visible.
+    const topStamp = () => page.locator('tbody tr').first().locator('td').first().innerText();
+    const page1Top = await topStamp();
 
     await page.getByRole('button', { name: 'შემდეგი' }).click();
     // A different page means different ROWS, not merely a different label on
     // the pager -- so the assertion compares what is actually in the table.
-    await expect.poll(topRow).not.toBe(page1Top);
+    await expect.poll(topStamp).not.toBe(page1Top);
 
     await page.getByRole('button', { name: 'წინა' }).click();
-    await expect.poll(topRow).toBe(page1Top);
+    await expect.poll(topStamp).toBe(page1Top);
 
     await search.fill('');
 
