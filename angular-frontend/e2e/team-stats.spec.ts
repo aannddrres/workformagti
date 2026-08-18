@@ -49,7 +49,10 @@ test('manager dashboard: sort, drill-downs and the four exports', async ({ page,
 
   await seedTokenIntoPage(page, token);
   await page.goto('/manager');
-  await expect(page.getByText('გუნდის სტატისტიკა')).toBeVisible();
+  // By ROLE, not by text: this page's name appears three times -- the sidebar
+  // link that navigates here, the heading, and the "PDF (გუნდის სტატისტიკა)"
+  // export button -- so a bare text match is a strict-mode violation.
+  await expect(page.getByRole('heading', { name: 'გუნდის სტატისტიკა' })).toBeVisible();
 
   // --- sort ---------------------------------------------------------------
   // The button's own label is the state: it names what pressing it will
