@@ -14,11 +14,22 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './e2e',
+  // Logs the shared personas in once for the whole run. Without it every
+  // spec that needs admin@magti.ge spends one of that account's ten logins
+  // per minute (LoginRateLimiter.java:70) and the suite starts failing on
+  // 429s as it grows -- which would look like broken tests.
+  globalSetup: './e2e/global-setup.ts',
   fullyParallel: false,
   workers: 1,
   retries: 0,
   timeout: 30_000,
-  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : [['list']],
+  // The json reporter is what the workflow's "Which specs failed" step reads:
+  // Playwright's own failure block lands ~230 lines above the end of the job
+  // log, under two server-log dumps, so pulling it back from the API means
+  // pulling the whole backend startup with it.
+  reporter: process.env.CI
+    ? [['list'], ['html', { open: 'never' }], ['json', { outputFile: 'playwright-report/results.json' }]]
+    : [['list']],
   use: {
     baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:4201',
     trace: 'retain-on-failure',
