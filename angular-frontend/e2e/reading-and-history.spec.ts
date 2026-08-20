@@ -166,8 +166,12 @@ test.describe('reading and version history', () => {
     const overlay = page.locator('app-article-version-history-overlay');
     await expect(overlay).toHaveCount(0);
 
+    // /versions, not /history. There are two version endpoints and the reader
+    // overlay uses the first (articles.service.ts:131); /history is the admin
+    // one. Waiting on the wrong one sat for 15s on a request that was never
+    // going to be made.
     const [listed] = await Promise.all([
-      page.waitForResponse((r) => /\/api\/articles\/\d+\/history$/.test(r.url())),
+      page.waitForResponse((r) => /\/api\/articles\/\d+\/versions$/.test(r.url())),
       page.getByRole('button', { name: 'ვერსიების ისტორია' }).click()
     ]);
     expect(listed.status(), 'opening the overlay must fetch the version list').toBe(200);
