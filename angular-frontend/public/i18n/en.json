@@ -1,4 +1,7 @@
 {
+  "common": {
+    "retry": "Try again"
+  },
   "nav": {
     "shell": {
       "page_title": "Magti — Internal Information Portal",

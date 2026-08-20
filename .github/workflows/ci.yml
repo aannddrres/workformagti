@@ -82,6 +82,13 @@ jobs:
       - name: Install
         run: npm ci
 
+      # Before the build, because it is the fastest step here and it catches a
+      # class of bug the build cannot see: ngx-translate renders a key it does
+      # not know as the key itself, so a missing entry ships as literal
+      # "common.retry" on a button and nothing anywhere fails.
+      - name: Translation keys
+        run: node scripts/check-i18n-keys.mjs
+
       - name: Build
         run: npx ng build --configuration production
 

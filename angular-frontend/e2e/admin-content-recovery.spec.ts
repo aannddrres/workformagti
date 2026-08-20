@@ -112,15 +112,21 @@ test.describe('content admin recovery paths', () => {
     // where a content admin would go to find out.
     await page.route('**/api/categories', (route) => route.abort());
     await page.goto('/admin/content');
-    await expect(page.getByText('კატეგორიების ჩატვირთვა ვერ მოხერხდა.')).toBeVisible();
+
+    // The retry button is scoped to the banner it belongs to. Its label is
+    // shared with two other retries in the app, and this is the first spec to
+    // read that label at all -- it was missing from both locale files, so the
+    // button rendered as the literal string "common.retry" until this run.
+    const banner = page.locator('p', { hasText: 'კატეგორიების ჩატვირთვა ვერ მოხერხდა.' });
+    await expect(banner).toBeVisible();
 
     await page.unroute('**/api/categories');
     const [reloaded] = await Promise.all([
       page.waitForResponse((r) => r.url().includes('/api/categories')),
-      page.getByRole('button', { name: 'თავიდან ცდა' }).click()
+      banner.getByRole('button', { name: 'თავიდან ცდა' }).click()
     ]);
     expect(reloaded.status()).toBe(200);
-    await expect(page.getByText('კატეგორიების ჩატვირთვა ვერ მოხერხდა.')).toHaveCount(0);
+    await expect(banner).toHaveCount(0);
 
     // And the recovered list is usable, not merely present.
     const categorySelect = page.locator('select').filter({ hasText: 'ყველა კატეგორია' });
@@ -164,10 +170,16 @@ test.describe('content admin recovery paths', () => {
     // last -- the same failure the roles screen's edit button could have.
     expect(versions.url()).toContain(`/api/articles/${articleId}/`);
 
-    await page.keyboard.press('Escape');
+    // Closed by its own close button, not by Escape: the modal has no key
+    // handler at all (article-history-modal.html has exactly two exits, the
+    // backdrop and this button), so Escape left the backdrop over the page and
+    // every later click landed on it.
+    const historyModal = page.locator('app-article-history-modal');
+    await expect(historyModal).toBeVisible();
+    await historyModal.getByRole('button', { name: 'დახურვა' }).click();
+    await expect(historyModal).toHaveCount(0);
 
     // --- edit --------------------------------------------------------------
-    await page.getByPlaceholder('ძიება სათაურით...').fill(title);
     await row.locator('button:has(.fa-ellipsis-vertical)').click();
     await page.getByRole('button', { name: 'რედაქტირება' }).click();
 
