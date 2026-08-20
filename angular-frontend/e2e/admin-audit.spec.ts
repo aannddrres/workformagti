@@ -73,19 +73,36 @@ test.describe('audit log', () => {
     // it two seconds newer. ARCHIVE rows are only written by the fixture, so
     // this list holds still while the pager is exercised.
     const search = page.getByPlaceholder('ძებნა… actor:admin category:SECURITY');
-    await search.fill('action:ARCHIVE');
 
-    // Wait for the FILTER to land before touching the pager, and wait on the
-    // rows rather than on a timer. Typing debounces 300ms and then calls
-    // reload(), which sets offset back to 0 (admin-audit-page.ts:154-157) --
-    // so a pager click issued before that debounce fires is undone by it, and
-    // "წინა" stays disabled for the rest of the test. That is exactly how the
-    // first version of this spec spent its whole 120s budget retrying a click
-    // on a button that could never become enabled.
+    // Wait for the filtered REQUEST, not for what the table looks like.
     //
-    // "every row is an ARCHIVE row" is the precise signal: the unfiltered list
-    // is a mix (VIEW_AUDIT_LOG, CREATE, LOGIN), so this count only reaches a
-    // full page once the filtered response has replaced it.
+    // Typing debounces 300ms and then calls reload(), which sets offset back
+    // to 0 (admin-audit-page.ts:154-157). "წინა" is bound to `offset() <= 0`
+    // and nothing else (admin-audit-page.html:196), so a debounce that fires
+    // after the pager has moved silently disables it again.
+    //
+    // The previous version guarded against this by waiting until every row on
+    // the page was an ARCHIVE row, on the reasoning that the unfiltered list
+    // is a mix. That is true on average and not always: the fixture's 52 rows
+    // are the newest ones, so if the VIEW_AUDIT_LOG row for this very page
+    // load has not landed yet, the UNFILTERED first page is also 50 ARCHIVE
+    // rows and the guard passes without the filter having been applied at all.
+    // The debounce then fired between "წინა" being asserted enabled and being
+    // clicked. Same commit passed one run and failed the next on exactly that.
+    //
+    // Waiting on the response removes the race rather than narrowing it: when
+    // it arrives, the debounce has fired, the request went out, and there is
+    // no second reload pending.
+    const [filtered] = await Promise.all([
+      page.waitForResponse(
+        (r) =>
+          r.url().includes('/api/audit-logs?') &&
+          decodeURIComponent(r.url()).includes('q=action:ARCHIVE')
+      ),
+      search.fill('action:ARCHIVE')
+    ]);
+    expect(filtered.status(), 'the filtered query must reach the server').toBe(200);
+
     const firstPage = page.locator('tbody tr');
     await expect(firstPage).toHaveCount(PAGE_SIZE);
     await expect(archiveRows).toHaveCount(PAGE_SIZE);
