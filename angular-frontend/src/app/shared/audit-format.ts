@@ -8,15 +8,70 @@ export interface AuditCategoryBadge {
 
 /** Port of audit-dashboard.js's window.auditCategoryStylesMap. */
 const CATEGORY_STYLES: Record<AuditCategoryName, AuditCategoryBadge> = {
-  SECURITY: { label: 'უსაფრთხოება (SECURITY)', badgeClass: 'bg-rose-50 text-rose-700 border-rose-200/60 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60', dotClass: 'bg-rose-500' },
-  USER: { label: 'მომხმარებელი (USER)', badgeClass: 'bg-blue-50 text-blue-700 border-blue-200/60 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60', dotClass: 'bg-blue-500' },
-  CONTENT: { label: 'კონტენტი (CONTENT)', badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60', dotClass: 'bg-emerald-500' },
-  SYSTEM: { label: 'სისტემა (SYSTEM)', badgeClass: 'bg-amber-50 text-amber-700 border-amber-200/60 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60', dotClass: 'bg-amber-500' }
+  SECURITY: { label: 'უსაფრთხოება', badgeClass: 'bg-rose-50 text-rose-700 border-rose-200/60 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60', dotClass: 'bg-rose-500' },
+  USER: { label: 'მომხმარებელი', badgeClass: 'bg-blue-50 text-blue-700 border-blue-200/60 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60', dotClass: 'bg-blue-500' },
+  CONTENT: { label: 'კონტენტი', badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60', dotClass: 'bg-emerald-500' },
+  SYSTEM: { label: 'სისტემა', badgeClass: 'bg-amber-50 text-amber-700 border-amber-200/60 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60', dotClass: 'bg-amber-500' }
 };
 const CATEGORY_FALLBACK: AuditCategoryBadge = { label: '—', badgeClass: 'bg-gray-50 text-gray-500 border-gray-200/60 dark:bg-gray-800/40 dark:text-gray-400 dark:border-gray-700/60', dotClass: 'bg-gray-400' };
 
 export function categoryBadge(category: string | null | undefined): AuditCategoryBadge {
   return (category && CATEGORY_STYLES[category as AuditCategoryName]) || CATEGORY_FALLBACK;
+}
+
+const ACTION_LABELS: Record<string, string> = {
+  LOGIN: 'სისტემაში შესვლა',
+  LOGIN_SSO: 'ერთიანი ავტორიზაციით შესვლა',
+  LOGIN_FAILED: 'შესვლის წარუმატებელი მცდელობა',
+  PASSWORD_CHANGE: 'პაროლის შეცვლა',
+  PASSWORD_RESET: 'პაროლის აღდგენა',
+  PASSWORD_RESET_REQUEST: 'პაროლის აღდგენის მოთხოვნა',
+  CREATE_USER: 'მომხმარებლის შექმნა',
+  UPDATE_PERMISSIONS: 'უფლებების შეცვლა',
+  VIEW_AUDIT_LOG: 'აუდიტის ნახვა',
+  EXPORT_AUDIT_LOG: 'აუდიტის ექსპორტი',
+  VIEW: 'მასალის ნახვა',
+  MARK_READ: 'წაკითხულად მონიშვნა',
+  SEND_MESSAGE: 'შეტყობინების გაგზავნა',
+  BROADCAST: 'საერთო შეტყობინების გაგზავნა',
+  ARCHIVE: 'დაარქივება',
+  UNARCHIVE: 'არქივიდან აღდგენა',
+  RESTORE: 'ვერსიის აღდგენა',
+  VERIFY: 'მთლიანობის შემოწმება',
+  UPDATE_REQUIRED_READING: 'სავალდებულო გაცნობის განახლება',
+  UPDATE_QUIZ: 'ქვიზის განახლება',
+  UPLOAD: 'ფაილის ატვირთვა',
+  EXPORT: 'ექსპორტი',
+  EXPORT_XLSX: 'Excel-ის ექსპორტი',
+  EXPORT_PDF: 'PDF-ის ექსპორტი'
+};
+
+const ITEM_TYPE_LABELS: Record<string, string> = {
+  article: 'სტატია',
+  news: 'სიახლე',
+  video: 'ვიდეო',
+  category: 'კატეგორია',
+  feedback: 'უკუკავშირი',
+  required_reading: 'სავალდებულო გაცნობა',
+  user: 'მომხმარებელი',
+  readings: 'გაცნობის ჩანაწერები',
+  file: 'ფაილი',
+  system: 'სისტემა',
+  audit_log: 'აუდიტის ჩანაწერი',
+  team_stats: 'გუნდის სტატისტიკა'
+};
+
+export function formatAuditAction(action: string | null | undefined): string {
+  if (!action) return '—';
+  if (action === 'UPDATE_STATUS_TO_TRUE') return 'მომხმარებლის გააქტიურება';
+  if (action === 'UPDATE_STATUS_TO_FALSE') return 'მომხმარებლის გაუქმება';
+  if (action.startsWith('BULK_ROLE_')) return 'როლის ჯგუფური შეცვლა';
+  return ACTION_LABELS[action] ?? action;
+}
+
+export function formatAuditItemType(itemType: string | null | undefined): string {
+  if (!itemType) return '—';
+  return ITEM_TYPE_LABELS[itemType.toLowerCase()] ?? itemType;
 }
 
 /**

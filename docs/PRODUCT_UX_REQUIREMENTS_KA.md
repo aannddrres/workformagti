@@ -1,7 +1,7 @@
 # Magti Portal — დადასტურებული Product/UX მოთხოვნები
 
 **სტატუსი:** მომხმარებლის მიერ დადასტურებული სამუშაო brief  
-**ბოლო განახლება:** 2026-08-20  
+**ბოლო განახლება:** 2026-08-21
 **ენა:** ქართული
 
 **UI/UX განვითარების გეგმა:** `docs/UI_UX_REDESIGN_PLAN_KA.md`
@@ -302,6 +302,3 @@ receipts/acknowledgments და compliance evidence; მათი შენა�
 2. acknowledgment/quiz ჩანაწერების სამართლებრივი ძალა და შენახვის ვადა.
 3. manager export-ის საწყისი უსაფრთხო column whitelist.
 4. audit/export retention-ის production policy.
-5. პასუხისმგებლობების შეთავსებისთვის საკმარისია თუ არა ერთი ძირითადი როლი და
-   დამატებითი permission-ები, თუ არსებობს კონკრეტული workflow, რომელსაც ორი
-   დამოუკიდებელი role identity სჭირდება.

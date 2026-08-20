@@ -1,11 +1,20 @@
 import { Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { TranslateService } from '@ngx-translate/core';
 import { RouterLink } from '@angular/router';
 import Chart from 'chart.js/auto';
 import { AuthService } from '../../core/auth/auth.service';
 import { StatsService } from '../../core/services/stats.service';
-import { ActivityPoint, ComplianceStats, KpiCounts, PopularSearch, TopArticle, UserProgressItem } from '../../core/models/stats';
+import { ActivityPoint, ComplianceStats, CriticalOperatorsResponse, KpiCounts, PopularSearch, TopArticle, UserProgressItem } from '../../core/models/stats';
 import { brandRgb } from '../../core/brand';
+import { CategoriesService } from '../../core/services/categories.service';
+import { ArticlesService } from '../../core/services/articles.service';
+import { AuditService } from '../../core/services/audit.service';
+import { Category } from '../../core/models/category';
+import { ArticleSummary } from '../../core/models/article';
+import { AuditChainHealth, AuditLogEntry } from '../../core/models/audit';
+import { formatKaDateTime } from '../../shared/ka-date';
+import { getCategoryIcon } from '../../shared/category-visuals';
+import { formatDepartmentLabel } from '../../shared/department-badge';
 
 type ProgressSort = 'perf_desc' | 'perf_asc' | 'name';
 
@@ -39,13 +48,17 @@ function parsePercentage(label: string): number {
 @Component({
   selector: 'app-admin-stats-page',
   standalone: true,
-  imports: [TranslatePipe, RouterLink],
+  imports: [RouterLink],
   templateUrl: './admin-stats-page.html'
 })
 export class AdminStatsPage {
+  protected readonly departmentLabel = formatDepartmentLabel;
   private readonly statsService = inject(StatsService);
   private readonly translate = inject(TranslateService);
   private readonly authService = inject(AuthService);
+  private readonly categoriesService = inject(CategoriesService);
+  private readonly articlesService = inject(ArticlesService);
+  private readonly auditService = inject(AuditService);
 
   protected readonly isSystemAdmin = computed(() => this.authService.currentUser()?.role === 'admin');
 
@@ -68,6 +81,28 @@ export class AdminStatsPage {
   protected readonly failedSearches = signal<PopularSearch[]>([]);
   protected readonly failedLoading = signal(true);
   protected readonly failedError = signal(false);
+  protected readonly critical = signal<CriticalOperatorsResponse | null>(null);
+  protected readonly criticalLoading = signal(false);
+  protected readonly categories = signal<Category[]>([]);
+  protected readonly articles = signal<ArticleSummary[]>([]);
+  protected readonly recentAudit = signal<AuditLogEntry[]>([]);
+  protected readonly auditChain = signal<AuditChainHealth | null>(null);
+  protected readonly lastUpdated = signal(new Date().toISOString());
+
+  protected readonly failedSearchTotal = computed(() =>
+    this.failedSearches().reduce((total, item) => total + item.count, 0)
+  );
+  protected readonly topCategories = computed(() =>
+    this.categories().filter((category) => category.is_active && category.parent_id === null).slice(0, 8)
+  );
+  protected readonly categoryCounts = computed(() => {
+    const counts = new Map<string, number>();
+    for (const article of this.articles()) {
+      const key = article.category_name ?? '';
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return counts;
+  });
 
   protected readonly progress = signal<UserProgressItem[]>([]);
   protected readonly progressLoading = signal(false);
@@ -152,9 +187,13 @@ export class AdminStatsPage {
     this.loadCompliance();
     this.loadPopularSearches();
     this.loadFailedSearches();
+    this.loadCategories();
+    this.loadAuditSummary();
     if (this.isSystemAdmin()) {
       this.loadProgress();
+      this.loadCriticalOperators();
     }
+    this.lastUpdated.set(new Date().toISOString());
   }
 
   private loadKpi(): void {
@@ -202,6 +241,27 @@ export class AdminStatsPage {
     });
   }
 
+  private loadCriticalOperators(): void {
+    this.criticalLoading.set(true);
+    this.statsService.criticalOperators().subscribe({
+      next: (data) => {
+        this.critical.set(data);
+        this.criticalLoading.set(false);
+      },
+      error: () => this.criticalLoading.set(false)
+    });
+  }
+
+  private loadCategories(): void {
+    this.categoriesService.listAdmin().subscribe({ next: (data) => this.categories.set(data) });
+    this.articlesService.list({ limit: 200 }).subscribe({ next: (data) => this.articles.set(data) });
+  }
+
+  private loadAuditSummary(): void {
+    this.auditService.chainHealth(100).subscribe({ next: (data) => this.auditChain.set(data) });
+    this.auditService.list({}, 6, 0).subscribe({ next: (data) => this.recentAudit.set(data.rows) });
+  }
+
   private loadProgress(): void {
     this.progressLoading.set(true);
     this.progressError.set(false);
@@ -228,6 +288,32 @@ export class AdminStatsPage {
     if (pct >= 100) return 'text-green-600 dark:text-green-400';
     if (pct > 50) return 'text-yellow-600 dark:text-yellow-400';
     return 'text-red-600 dark:text-red-400';
+  }
+
+  categoryIcon(category: Category): string {
+    return category.icon || getCategoryIcon(category.name, category.name);
+  }
+
+  categoryRoute(category: Category): string {
+    return `/category/${category.slug || category.id}`;
+  }
+
+  kaDateTime(value: string): string {
+    return formatKaDateTime(value);
+  }
+
+  actionLabel(action: string): string {
+    return ({
+      LOGIN: 'სისტემაში შესვლა',
+      LOGOUT: 'სისტემიდან გასვლა',
+      VIEW_AUDIT_LOG: 'აუდიტის ნახვა',
+      BROADCAST: 'Broadcast-ის გაგზავნა',
+      CREATE_USER: 'მომხმარებლის შექმნა',
+      UPDATE_USER: 'მომხმარებლის განახლება',
+      UPDATE_PERMISSIONS: 'უფლებების განახლება',
+      CREATE_ARTICLE: 'სტატიის შექმნა',
+      UPDATE_ARTICLE: 'სტატიის განახლება'
+    } as Record<string, string>)[action] ?? action.replaceAll('_', ' ').toLocaleLowerCase('ka');
   }
 
   private renderActivityChart(canvas: HTMLCanvasElement, points: ActivityPoint[]): void {

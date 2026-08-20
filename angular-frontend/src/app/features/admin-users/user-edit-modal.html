@@ -1,6 +1,6 @@
-<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-  <div class="absolute inset-0 bg-black/50" (click)="close()"></div>
-  <div class="relative z-10 max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-8 shadow-2xl dark:bg-zinc-900">
+<div class="fixed inset-0 z-50 flex justify-end">
+  <button type="button" class="absolute inset-0 bg-slate-950/45 backdrop-blur-[1px]" aria-label="დახურვა" (click)="close()"></button>
+  <aside class="relative z-10 h-full w-full max-w-2xl overflow-y-auto border-l border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 lg:p-8" aria-label="მომხმარებლის დეტალები">
     <button
       type="button"
       (click)="close()"
@@ -9,10 +9,26 @@
     >
       <i class="fa-solid fa-xmark" aria-hidden="true"></i>
     </button>
-    <header class="mb-5">
+    <header class="mb-6 border-b border-slate-100 pb-5 pr-10 dark:border-slate-800">
+      <p class="portal-eyebrow">მომხმარებლის დეტალები</p>
       <h3 class="text-2xl font-bold text-gray-800 dark:text-zinc-100">{{ 'users.edit_heading' | translate }}</h3>
-      <p class="text-xs text-gray-400 dark:text-zinc-500">{{ 'users.edit_subtitle' | translate }}</p>
+      <p class="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{{ user().name }}</p>
+      <p class="text-xs text-gray-400 dark:text-zinc-500">{{ user().email }}</p>
     </header>
+    <div class="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div class="surface-card-muted p-3">
+        <p class="text-[0.68rem] font-bold uppercase tracking-wide text-slate-400">სტატუსი</p>
+        <p class="mt-1 text-sm font-bold" [class.text-emerald-600]="user().is_active" [class.text-red-600]="!user().is_active">{{ user().is_active ? 'აქტიური' : 'გათიშული' }}</p>
+      </div>
+      <div class="surface-card-muted p-3">
+        <p class="text-[0.68rem] font-bold uppercase tracking-wide text-slate-400">ძირითადი როლი</p>
+        <p class="mt-1 text-sm font-bold text-slate-800 dark:text-slate-100">{{ 'users.role_' + editRole() | translate }}</p>
+      </div>
+      <div class="surface-card-muted p-3">
+        <p class="text-[0.68rem] font-bold uppercase tracking-wide text-slate-400">ეფექტური უფლებები</p>
+        <p class="mt-1 text-sm font-bold text-slate-800 dark:text-slate-100">{{ effectivePermissionCount() }}</p>
+      </div>
+    </div>
     <form (submit)="submitEdit($event)" class="space-y-4">
       @if (saveError(); as msg) {
         <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700 dark:border-red-800/60 dark:bg-red-950/40 dark:text-red-300">{{ msg }}</div>
@@ -103,5 +119,5 @@
         >{{ 'users.save' | translate }}</button>
       </div>
     </form>
-  </div>
+  </aside>
 </div>

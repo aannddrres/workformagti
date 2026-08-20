@@ -6,6 +6,8 @@ import { AuditChainHealth, AuditLogEntry, AuditVerifyResult } from '../../core/m
 import {
   categoryBadge,
   filterFromSearch,
+  formatAuditAction,
+  formatAuditItemType,
   parseAuditDetails,
   parseUserAgent,
   withCategoryToken
@@ -33,12 +35,9 @@ function isoDate(d: Date): string {
  *   consistent with this port's "no wrapper library unless the feature
  *   genuinely needs it" convention (chart.js was justified by real charting
  *   needs; a date range is two native inputs).
- * - `actionMap`/`typeMap`, referenced in audit-dashboard.js via a defensive
- *   `typeof actionMap !== 'undefined'` guard, are dead references in the
- *   live app -- neither is defined anywhere in static/js, so the Python UI
- *   already just shows the raw `action`/`item_type` codes. Ported as-is
- *   (raw codes), not invented new translation tables that don't exist
- *   upstream.
+ * - Technical action/item codes are preserved in the data and tooltip, but
+ *   rendered as stable Georgian labels. Audit is a frequent operational
+ *   screen and raw implementation codes are not useful primary copy.
  * - The manager role's dept-scoped, read-only view of this page
  *   (audit-dashboard.js's `isManager()` branches: hidden export/chain-health,
  *   a scope note) is unreachable through the Python UI today -- the whole
@@ -108,6 +107,8 @@ export class AdminAuditPage {
   }
 
   protected readonly categoryBadge = categoryBadge;
+  protected readonly actionLabel = formatAuditAction;
+  protected readonly itemTypeLabel = formatAuditItemType;
   protected readonly formatTimestamp = formatKaDateTime;
 
   load(): void {

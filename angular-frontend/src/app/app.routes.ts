@@ -1,6 +1,5 @@
 import { Routes } from '@angular/router';
 import { AppShell } from './shell/app-shell';
-import { PlaceholderPage } from './shell/placeholder-page';
 import { Login } from './features/login/login';
 import { KnowledgeBasePage } from './features/knowledge-base/knowledge-base-page';
 import { DashboardPage } from './features/dashboard/dashboard-page';
@@ -15,11 +14,10 @@ import { MyReadingsPage } from './features/reading/my-readings-page';
 import { TeamStatsPage } from './features/team-stats/team-stats-page';
 import { AdminStatsPage } from './features/admin-stats/admin-stats-page';
 import { AdminAuditPage } from './features/admin-audit/admin-audit-page';
-import { AdminUsersPage } from './features/admin-users/admin-users-page';
-import { AdminRolesPage } from './features/admin-roles/admin-roles-page';
 import { AdminContentPage } from './features/admin-content/admin-content-page';
 import { AdminCategoriesPage } from './features/admin-categories/admin-categories-page';
-import { MessagingPage } from './features/messaging/messaging-page';
+import { AdminAccessPage } from './features/admin-access/admin-access-page';
+import { AccountPage } from './features/account/account-page';
 import { authGuard } from './core/auth/auth.guard';
 import { auditLogGuard } from './core/auth/permission.guard';
 import { roleGuard } from './core/auth/role.guard';
@@ -66,11 +64,11 @@ export const routes: Routes = [
       {
         path: 'profile',
         children: [
-          { path: '', component: PlaceholderPage, data: { title: 'users.profile.tab_profile' } },
-          { path: 'favorites', component: FavoritesPage, data: { title: 'users.profile.tab_favorites' } },
-          { path: 'messages', component: MessagingPage, data: { title: 'users.profile.tab_messages' } },
-          { path: 'settings', component: PlaceholderPage, data: { title: 'users.profile.tab_settings' } },
-          { path: 'search-history', component: PlaceholderPage, data: { title: 'search.history_tab.heading' } }
+          { path: '', component: AccountPage, data: { title: 'users.profile.tab_profile' } },
+          { path: 'favorites', pathMatch: 'full', redirectTo: '/favorites' },
+          { path: 'messages', pathMatch: 'full', redirectTo: '' },
+          { path: 'settings', pathMatch: 'full', redirectTo: '' },
+          { path: 'search-history', pathMatch: 'full', redirectTo: '' }
         ]
       },
 
@@ -95,21 +93,26 @@ export const routes: Routes = [
         path: 'admin',
         canActivate: [roleGuard(ADMIN_OR_CONTENT_ADMIN)],
         children: [
-          { path: '', pathMatch: 'full', redirectTo: 'main' },
-          { path: 'main', component: AdminStatsPage, data: { title: 'nav.sidebar.admin_stats' } },
+          { path: '', pathMatch: 'full', redirectTo: 'overview' },
+          { path: 'overview', component: AdminStatsPage, data: { title: 'nav.sidebar.admin_stats' } },
+          { path: 'main', pathMatch: 'full', redirectTo: 'overview' },
           { path: 'content', component: AdminContentPage, data: { title: 'nav.sidebar.admin_content' } },
           { path: 'categories', component: AdminCategoriesPage, data: { title: 'nav.sidebar.admin_categories' } },
           {
-            path: 'users',
-            component: AdminUsersPage,
+            path: 'access',
+            component: AdminAccessPage,
             data: { title: 'nav.sidebar.admin_users' },
             canActivate: [roleGuard(ADMIN_ONLY)]
           },
           {
+            path: 'users',
+            pathMatch: 'full',
+            redirectTo: 'access'
+          },
+          {
             path: 'roles',
-            component: AdminRolesPage,
-            data: { title: 'nav.sidebar.admin_roles' },
-            canActivate: [roleGuard(ADMIN_ONLY)]
+            pathMatch: 'full',
+            redirectTo: 'access'
           }
         ]
       }

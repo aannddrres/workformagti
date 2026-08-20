@@ -1,123 +1,171 @@
-<div class="flex min-h-screen bg-gray-50 dark:bg-gray-900">
-  <!-- Mobile backdrop -->
+<div class="min-h-screen bg-[rgb(var(--canvas))] text-slate-900 dark:text-slate-100">
   @if (mobileMenuOpen()) {
-    <div class="fixed inset-0 z-30 bg-black/40 md:hidden" (click)="closeMobileMenu()"></div>
+    <button
+      type="button"
+      class="fixed inset-0 z-30 bg-slate-950/45 lg:hidden"
+      aria-label="მენიუს დახურვა"
+      (click)="closeMobileMenu()"
+    ></button>
   }
 
-  <!-- Sidebar -->
-  <aside
-    class="fixed inset-y-0 left-0 z-40 w-64 shrink-0 flex-col border-r border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-800 md:static md:flex"
-    [class.hidden]="!mobileMenuOpen()"
-    [class.flex]="mobileMenuOpen()"
-  >
-    <div class="mb-6 flex items-center gap-2 px-2">
-      <app-logo />
-    </div>
-
-    <nav class="flex flex-1 flex-col gap-6 overflow-y-auto">
-      @for (section of sections; track section.labelKey) {
-        @if (sectionVisible(section)) {
-          <div>
-            <p class="mb-2 px-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">
-              {{ section.labelKey | translate }}
-            </p>
-            <div class="flex flex-col gap-1">
-              @for (link of section.links; track link.path) {
-                @if (canSee(link)) {
-                  <a
-                    [routerLink]="link.path"
-                    routerLinkActive="border-l-2 border-brand bg-brand/[0.06] font-semibold text-gray-900 dark:bg-brand/20 dark:text-gray-100"
-                    [routerLinkActiveOptions]="{ exact: link.path === '/' }"
-                    class="rounded-lg px-3 py-2 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-900/[0.04] hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-100"
-                  >
-                    {{ link.labelKey | translate }}
-                  </a>
-                }
-              }
-            </div>
-          </div>
+  <div class="flex min-h-screen">
+    <aside
+      class="fixed inset-y-0 left-0 z-40 flex w-[264px] shrink-0 -translate-x-full flex-col border-r border-slate-200 bg-white transition-[width,transform] duration-200 dark:border-slate-800 dark:bg-slate-950 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0"
+      [class.translate-x-0]="mobileMenuOpen()"
+      [class.lg:w-[84px]]="sidebarCollapsed()"
+    >
+      <div class="flex h-[72px] items-center justify-between border-b border-slate-100 px-5 dark:border-slate-800">
+        <div [class.lg:hidden]="sidebarCollapsed()">
+          <app-logo />
+        </div>
+        @if (sidebarCollapsed()) {
+          <span class="hidden h-9 w-9 items-center justify-center rounded-lg bg-brand text-xs font-black tracking-wide text-white lg:flex">M</span>
         }
-      }
-    </nav>
-  </aside>
+        <button
+          type="button"
+          (click)="toggleSidebar()"
+          class="hidden h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-100 lg:flex"
+          [attr.aria-label]="sidebarCollapsed() ? 'მენიუს გაშლა' : 'მენიუს შეკუმშვა'"
+        >
+          <i class="fa-solid" [class.fa-angles-left]="!sidebarCollapsed()" [class.fa-angles-right]="sidebarCollapsed()" aria-hidden="true"></i>
+        </button>
+      </div>
 
-  <!-- Main column -->
-  <!-- min-w-0 is load-bearing, not tidying. A flex item defaults to
-       min-width:auto, so this column refuses to shrink below its content's
-       min-content width and the whole page then scrolls sideways instead of
-       the wide part scrolling inside its own container. Measured on
-       /admin/audit at 360px: 778px document width with it removed, 360px
-       with it. Every page inherits this column. -->
-  <div class="flex min-w-0 flex-1 flex-col">
-    <!-- Topbar -->
-    <!-- min-w-0 on both groups, and the portal name hidden on a phone: this
-         row is the reason EVERY page scrolled sideways at 360px. Nothing here
-         could shrink, so the header measured 595px against a 360px viewport
-         (778px on /admin/audit) and the whole page inherited that width. The
-         audit's mobile pass looked at the feature templates, which are fine —
-         the overflow was in the shell sitting above all of them. -->
-    <header class="flex items-center justify-between gap-2 border-b border-gray-100 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-800">
-      <div class="flex min-w-0 items-center gap-3">
+      <nav class="flex-1 space-y-6 overflow-y-auto px-3 py-5" aria-label="მთავარი ნავიგაცია">
+        @for (section of sections; track section.label) {
+          @if (sectionVisible(section)) {
+            <section>
+              <p
+                class="mb-2 px-3 text-[0.65rem] font-bold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500"
+                [class.lg:hidden]="sidebarCollapsed()"
+              >{{ section.label }}</p>
+              <div class="space-y-1">
+                @for (link of section.links; track link.path) {
+                  @if (canSee(link)) {
+                    <a
+                      [routerLink]="link.path"
+                      routerLinkActive="bg-brand/[0.08] text-brand before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-r before:bg-brand dark:bg-brand/15 dark:text-red-300"
+                      [routerLinkActiveOptions]="{ exact: link.path === '/' }"
+                      [title]="sidebarCollapsed() ? link.label : ''"
+                      class="relative flex min-h-10 items-center gap-3 rounded-lg px-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+                    >
+                      <span class="flex h-6 w-6 shrink-0 items-center justify-center text-[0.9rem]">
+                        <i class="fa-solid" [class]="link.icon" aria-hidden="true"></i>
+                      </span>
+                      <span class="truncate" [class.lg:hidden]="sidebarCollapsed()">{{ link.label }}</span>
+                    </a>
+                  }
+                }
+              </div>
+            </section>
+          }
+        }
+      </nav>
+
+      <div class="border-t border-slate-100 p-3 dark:border-slate-800">
+        <a
+          routerLink="/profile"
+          routerLinkActive="bg-slate-100 dark:bg-slate-800"
+          class="flex items-center gap-3 rounded-xl p-2.5 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+          [title]="sidebarCollapsed() ? 'პირადი კაბინეტი' : ''"
+        >
+          <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-xs font-bold text-white dark:bg-white dark:text-slate-900">{{ initials() }}</span>
+          <span class="min-w-0" [class.lg:hidden]="sidebarCollapsed()">
+            <span class="block truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{{ profiles.profile()?.name || auth.currentUser()?.email }}</span>
+            <span class="block truncate text-xs text-slate-500 dark:text-slate-400">{{ roleLabel() }}</span>
+          </span>
+        </a>
+      </div>
+    </aside>
+
+    <div class="flex min-w-0 flex-1 flex-col">
+      <header class="sticky top-0 z-30 flex h-[72px] items-center gap-3 border-b border-slate-200 bg-white/95 px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 lg:px-6">
         <button
           type="button"
           (click)="toggleMobileMenu()"
-          [attr.aria-label]="'nav.topbar.menu_toggle' | translate"
-          class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5 md:hidden"
-        >
-          <i class="fa-solid fa-bars text-[15px]" aria-hidden="true"></i>
-        </button>
-        <span class="hidden truncate text-sm font-semibold text-gray-700 dark:text-gray-200 sm:inline">{{ 'nav.shell.page_title' | translate }}</span>
-      </div>
+          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 lg:hidden"
+          aria-label="მენიუს გახსნა"
+        ><i class="fa-solid fa-bars" aria-hidden="true"></i></button>
 
-      <div class="flex min-w-0 items-center gap-2 sm:gap-3">
-        <!-- Search sits in the topbar on every page: an operator mid-call must
-             not have to navigate somewhere to start looking. -->
-        <app-global-search />
+        <div class="hidden min-w-0 shrink-0 xl:block">
+          <p class="truncate text-sm font-bold text-slate-800 dark:text-slate-100">{{ pageTitle() }}</p>
+          <p class="text-xs text-slate-400">ცოდნა და შესაბამისობა</p>
+        </div>
 
-        <button
-          type="button"
-          (click)="toggleLanguage()"
-          class="rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-semibold text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5"
-        >
-          {{ (translate.currentLang() === 'ka') ? 'EN' : 'KA' }}
-        </button>
+        <div class="mx-auto min-w-0 flex-1 lg:max-w-[760px]">
+          <app-global-search />
+        </div>
+
+        <div class="relative shrink-0">
+          <button
+            type="button"
+            (click)="toggleFontMenu()"
+            class="flex h-10 min-w-10 items-center justify-center rounded-lg px-2 text-sm font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+            [attr.aria-expanded]="fontMenuOpen()"
+            aria-label="შრიფტის ზომა"
+            title="შრიფტის ზომა"
+          >A<span class="ml-0.5 text-[0.65rem]">{{ fontScale.scale() * 100 | number:'1.0-0' }}%</span></button>
+          @if (fontMenuOpen()) {
+            <div class="absolute right-0 top-12 z-50 w-44 rounded-xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+              <p class="px-2 pb-2 pt-1 text-xs font-bold text-slate-500">შრიფტის ზომა</p>
+              @for (option of fontScale.options; track option.value) {
+                <button
+                  type="button"
+                  (click)="fontScale.set(option.value); closeMenus()"
+                  class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  {{ option.label }}
+                  @if (fontScale.scale() === option.value) {
+                    <i class="fa-solid fa-check text-brand" aria-hidden="true"></i>
+                  }
+                </button>
+              }
+            </div>
+          }
+        </div>
 
         <button
           type="button"
           (click)="theme.toggle()"
+          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
           [attr.aria-label]="'nav.topbar.theme_toggle' | translate"
           [title]="'nav.topbar.theme_toggle' | translate"
-          class="flex h-7 w-7 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
         >
-          @if (theme.isDark()) {
-            <i class="fa-solid fa-sun text-[15px]" aria-hidden="true"></i>
-          } @else {
-            <i class="fa-regular fa-moon text-[15px]" aria-hidden="true"></i>
+          <i class="fa-solid" [class.fa-sun]="theme.isDark()" [class.fa-moon]="!theme.isDark()" aria-hidden="true"></i>
+        </button>
+
+        <div class="relative shrink-0">
+          <button
+            type="button"
+            (click)="toggleAccountMenu()"
+            class="flex h-10 items-center gap-2 rounded-lg p-1.5 pr-2 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+            [attr.aria-expanded]="accountMenuOpen()"
+            aria-label="ანგარიშის მენიუ"
+          >
+            <span class="flex h-7 w-7 items-center justify-center rounded-md bg-slate-900 text-[0.65rem] font-bold text-white dark:bg-white dark:text-slate-900">{{ initials() }}</span>
+            <i class="fa-solid fa-chevron-down text-[0.65rem] text-slate-400" aria-hidden="true"></i>
+          </button>
+          @if (accountMenuOpen()) {
+            <div class="absolute right-0 top-12 z-50 w-72 rounded-xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+              <div class="border-b border-slate-100 px-3 py-3 dark:border-slate-800">
+                <p class="truncate text-sm font-bold text-slate-900 dark:text-slate-100">{{ profiles.profile()?.name || 'მომხმარებელი' }}</p>
+                <p class="truncate text-xs text-slate-500 dark:text-slate-400">{{ auth.currentUser()?.email }}</p>
+                <span class="mt-2 inline-flex rounded-full bg-slate-100 px-2 py-1 text-[0.7rem] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{{ roleLabel() }}</span>
+              </div>
+              <a routerLink="/profile" class="mt-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">
+                <i class="fa-solid fa-user-gear w-4 text-slate-400" aria-hidden="true"></i> პირადი კაბინეტი
+              </a>
+              <button type="button" (click)="logout()" class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-danger hover:bg-red-50 dark:hover:bg-red-950/30">
+                <i class="fa-solid fa-right-from-bracket w-4" aria-hidden="true"></i> სისტემიდან გასვლა
+              </button>
+            </div>
           }
-        </button>
+        </div>
+      </header>
 
-        <!-- The single widest item in the row (178px for a long address) and
-             the least useful on a phone: you know who you are logged in as. -->
-        <span class="hidden max-w-[200px] truncate text-sm text-gray-600 dark:text-gray-300 lg:inline">{{ auth.currentUser()?.email }}</span>
-
-        <button
-          type="button"
-          (click)="logout()"
-          [attr.aria-label]="'nav.topbar.logout' | translate"
-          [title]="'nav.topbar.logout' | translate"
-          class="shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold text-gray-500 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
-        >
-          <!-- The word on desktop, the door icon on a phone: the control has
-               to survive the narrow layout, and it is the one you cannot
-               afford to lose on a shared workstation. -->
-          <span class="hidden sm:inline">{{ 'nav.topbar.logout' | translate }}</span>
-          <i class="fa-solid fa-right-from-bracket text-[15px] sm:hidden" aria-hidden="true"></i>
-        </button>
-      </div>
-    </header>
-
-    <main class="flex-1 overflow-y-auto">
-      <router-outlet />
-    </main>
+      <main class="min-w-0 flex-1">
+        <router-outlet />
+      </main>
+    </div>
   </div>
 </div>

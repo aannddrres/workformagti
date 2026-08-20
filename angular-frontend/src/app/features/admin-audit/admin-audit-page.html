@@ -61,6 +61,7 @@
 
       <input
         type="date"
+        lang="ka-GE"
         [value]="startDate() ?? ''"
         (change)="onStartDateChange($event)"
         [attr.aria-label]="'audit.start_date_label' | translate"
@@ -68,6 +69,7 @@
       />
       <input
         type="date"
+        lang="ka-GE"
         [value]="endDate() ?? ''"
         (change)="onEndDateChange($event)"
         [attr.aria-label]="'audit.end_date_label' | translate"
@@ -88,6 +90,8 @@
       <button
         type="button"
         (click)="refresh()"
+        [attr.aria-label]="'audit.refresh' | translate"
+        [attr.title]="'audit.refresh' | translate"
         class="flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
       >
         <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
@@ -164,8 +168,8 @@
                   <span class="h-1.5 w-1.5 rounded-full" [class]="categoryBadge(log.category).dotClass"></span>{{ categoryBadge(log.category).label }}
                 </span>
               </td>
-              <td class="px-5 py-2.5"><span class="rounded-lg border border-gray-200/60 bg-gray-50 px-2 py-0.5 text-[11px] font-bold text-gray-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">{{ log.action }}</span></td>
-              <td class="px-5 py-2.5 text-gray-700 dark:text-zinc-300">{{ log.item_name ? (log.item_type + ': ' + log.item_name) : log.item_type }}</td>
+              <td class="px-5 py-2.5"><span [attr.title]="log.action" class="rounded-lg border border-gray-200/60 bg-gray-50 px-2 py-0.5 text-[11px] font-bold text-gray-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">{{ actionLabel(log.action) }}</span></td>
+              <td class="px-5 py-2.5 text-gray-700 dark:text-zinc-300">{{ log.item_name ? (itemTypeLabel(log.item_type) + ': ' + log.item_name) : itemTypeLabel(log.item_type) }}</td>
               <td class="px-5 py-2.5 text-center">
                 @if (log.row_hash) {
                   <button
@@ -222,7 +226,7 @@
         <span class="inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-[11px] font-bold" [class]="categoryBadge(log.category).badgeClass">
           <span class="h-1.5 w-1.5 rounded-full" [class]="categoryBadge(log.category).dotClass"></span>{{ categoryBadge(log.category).label }}
         </span>
-        <span class="rounded-lg border border-gray-200/60 bg-gray-50 px-2 py-0.5 text-[11px] font-bold text-gray-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">{{ log.action }}</span>
+        <span [attr.title]="log.action" class="rounded-lg border border-gray-200/60 bg-gray-50 px-2 py-0.5 text-[11px] font-bold text-gray-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">{{ actionLabel(log.action) }}</span>
         <span class="text-xs text-gray-400 dark:text-zinc-500">{{ formatTimestamp(log.timestamp) }}</span>
       </div>
 
@@ -233,7 +237,7 @@
         </div>
         <div>
           <span class="block text-gray-400 dark:text-zinc-500">{{ 'audit.detail_object' | translate }}</span>
-          <span class="font-medium text-gray-800 dark:text-zinc-200">{{ log.item_name ? (log.item_type + ': ' + log.item_name) : log.item_type }} (#{{ log.item_id }})</span>
+          <span class="font-medium text-gray-800 dark:text-zinc-200">{{ log.item_name ? (itemTypeLabel(log.item_type) + ': ' + log.item_name) : itemTypeLabel(log.item_type) }} (#{{ log.item_id }})</span>
         </div>
         <div>
           <span class="block text-gray-400 dark:text-zinc-500">{{ 'audit.detail_ip' | translate }}</span>

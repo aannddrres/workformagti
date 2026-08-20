@@ -3,6 +3,27 @@ export interface DepartmentBadge {
   colorClass: string;
 }
 
+const DEPARTMENT_LABELS: Record<string, string> = {
+  All: 'საერთო',
+  Support: 'ტექნიკური მხარდაჭერა',
+  Informational: 'საინფორმაციო',
+  Administration: 'ადმინისტრაცია',
+  'Content Creation': 'კონტენტის მართვა',
+  'ტექნიკური': 'ტექნიკური',
+  'საინფო': 'საინფორმაციო',
+  'ოფისი': 'ოფისი'
+};
+
+/**
+ * The database still contains both legacy English and current Georgian
+ * department values. Keep those stable identifiers intact for filtering and
+ * API calls, but never expose the legacy taxonomy in the Georgian interface.
+ */
+export function formatDepartmentLabel(department: string | null | undefined): string {
+  if (!department) return 'არ არის მითითებული';
+  return DEPARTMENT_LABELS[department] ?? department;
+}
+
 /**
  * News's department badge (app-renderers.js:456-469) checks
  * `target_department` against a stale English taxonomy ('Support' /
@@ -25,6 +46,6 @@ export function getDepartmentBadge(department: string | null | undefined): Depar
     case 'All':
       return { label: 'საერთო', colorClass: 'bg-purple-50 text-purple-600 border border-purple-100' };
     default:
-      return { label: department || 'საერთო', colorClass: 'bg-gray-100 text-gray-600' };
+      return { label: formatDepartmentLabel(department), colorClass: 'bg-gray-100 text-gray-600' };
   }
 }

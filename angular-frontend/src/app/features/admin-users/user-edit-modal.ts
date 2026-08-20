@@ -91,6 +91,9 @@ export class UserEditModal {
       }))
     }));
   });
+  protected readonly effectivePermissionCount = computed(() =>
+    this.editPermissionGroups().flatMap((group) => group.options).filter((option) => option.checked).length
+  );
 
   constructor() {
     effect(() => {

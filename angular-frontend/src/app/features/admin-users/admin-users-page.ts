@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { AdminUsersService } from '../../core/services/admin-users.service';
@@ -7,6 +7,9 @@ import { AdminUser, GroupLeader } from '../../core/models/admin-user';
 import { DEPARTMENTS, ROLES } from '../../shared/user-roles';
 import { UserEditModal } from './user-edit-modal';
 import { ToastService } from '../../core/notifications/toast.service';
+import { StatsService } from '../../core/services/stats.service';
+import { formatKaDateTime } from '../../shared/ka-date';
+import { formatDepartmentLabel } from '../../shared/department-badge';
 
 /**
  * Port of #admin-users (base-layout.html:2094-2186) + its lazy-load-on-login
@@ -34,19 +37,46 @@ import { ToastService } from '../../core/notifications/toast.service';
   templateUrl: './admin-users-page.html'
 })
 export class AdminUsersPage {
+  readonly embedded = input(false);
   private readonly toast = inject(ToastService);
   private readonly translate = inject(TranslateService);
   private readonly usersService = inject(AdminUsersService);
   private readonly authService = inject(AuthService);
+  private readonly statsService = inject(StatsService);
 
   protected readonly currentUserEmail = computed(() => this.authService.currentUser()?.email ?? null);
 
   protected readonly departments = DEPARTMENTS;
   protected readonly roles = ROLES;
+  protected readonly departmentLabel = formatDepartmentLabel;
 
   protected readonly users = signal<AdminUser[]>([]);
   protected readonly loading = signal(true);
   protected readonly error = signal(false);
+  protected readonly query = signal('');
+  protected readonly roleFilter = signal('');
+  protected readonly statusFilter = signal('');
+  protected readonly overdueByUser = signal<Map<number, number>>(new Map());
+  protected readonly currentPage = signal(1);
+  protected readonly pageSize = 50;
+
+  protected readonly filteredUsers = computed(() => {
+    const query = this.query().trim().toLocaleLowerCase('ka');
+    const role = this.roleFilter();
+    const status = this.statusFilter();
+    return this.users().filter((user) => {
+      const matchesQuery = !query || `${user.name} ${user.email} ${user.department ?? ''}`.toLocaleLowerCase('ka').includes(query);
+      const matchesRole = !role || user.role === role;
+      const matchesStatus = !status || (status === 'active' ? user.is_active : !user.is_active);
+      return matchesQuery && matchesRole && matchesStatus;
+    });
+  });
+  protected readonly totalPages = computed(() => Math.max(1, Math.ceil(this.filteredUsers().length / this.pageSize)));
+  protected readonly pagedUsers = computed(() => {
+    const page = Math.min(this.currentPage(), this.totalPages());
+    const start = (page - 1) * this.pageSize;
+    return this.filteredUsers().slice(start, start + this.pageSize);
+  });
 
   protected readonly groupLeaders = signal<GroupLeader[]>([]);
   protected readonly groupLeadersFailed = signal(false);
@@ -67,6 +97,9 @@ export class AdminUsersPage {
   constructor() {
     this.loadUsers();
     this.loadGroupLeaders();
+    this.statsService.criticalOperators().subscribe({
+      next: (data) => this.overdueByUser.set(new Map(data.operators.map((operator) => [operator.user_id, operator.overdue_count])))
+    });
   }
 
   private loadUsers(): void {
@@ -106,6 +139,25 @@ export class AdminUsersPage {
     this.loadUsers();
   }
 
+  onQueryChange(event: Event): void {
+    this.query.set((event.target as HTMLInputElement).value);
+    this.currentPage.set(1);
+  }
+
+  onRoleFilterChange(event: Event): void {
+    this.roleFilter.set((event.target as HTMLSelectElement).value);
+    this.currentPage.set(1);
+  }
+
+  onStatusFilterChange(event: Event): void {
+    this.statusFilter.set((event.target as HTMLSelectElement).value);
+    this.currentPage.set(1);
+  }
+
+  setPage(page: number): void {
+    this.currentPage.set(Math.max(1, Math.min(page, this.totalPages())));
+  }
+
   isSelf(user: AdminUser): boolean {
     return this.currentUserEmail() === user.email;
   }
@@ -118,6 +170,14 @@ export class AdminUsersPage {
     const required = user.required_count ?? 0;
     const read = user.read_count ?? 0;
     return required > 0 ? Math.round((read / required) * 100) : 0;
+  }
+
+  overdueCount(user: AdminUser): number {
+    return this.overdueByUser().get(user.id) ?? 0;
+  }
+
+  lastActiveLabel(value: string | null): string {
+    return value ? formatKaDateTime(value) : 'ჯერ არ შესულა';
   }
 
   /**

@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { AdminUsersService } from '../../core/services/admin-users.service';
 import { AuthService } from '../../core/auth/auth.service';
@@ -36,6 +36,7 @@ const ROLE_ICONS: Record<string, string> = {
   templateUrl: './admin-roles-page.html'
 })
 export class AdminRolesPage {
+  readonly embedded = input(false);
   private readonly usersService = inject(AdminUsersService);
   private readonly authService = inject(AuthService);
   private readonly translate = inject(TranslateService);

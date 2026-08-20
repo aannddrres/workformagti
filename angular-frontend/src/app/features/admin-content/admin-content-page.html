@@ -1,3 +1,4 @@
+<div class="portal-page">
 @if (actionError()) {
   <div class="mb-4 flex items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-400">
     <span>{{ actionError() }}</span>
@@ -7,62 +8,43 @@
   </div>
 }
 
-<!-- Was: `sticky ... z-10` classes PLUS an inline style repeating position,
-     z-index and a bare `top: 120px`, with the surface hard-coded to #F5F5F5 /
-     #121212 outside the token system. That cleanup kept the 120px verbatim on
-     the grounds that it was "tuned to the topbar height" and re-tuning was
-     out of scope. Measured since: the topbar is 61px, and this bar scrolls
-     inside `main`, not the viewport — so `top` is relative to that scroll
-     container and any non-zero value pushes the bar DOWN over the content
-     below it. At rest it sat at y=181 while the search-and-filter row started
-     at y=216, hiding the top 41px of the search field. top-0 is the offset
-     this element always wanted. -->
-<div
-  class="sticky top-0 z-10 mb-5 flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-4 shadow-sm dark:border-zinc-800/60 dark:bg-zinc-950"
->
-  <h2 class="text-2xl font-semibold uppercase tracking-wider text-gray-800 dark:text-zinc-100 md:text-3xl">{{ 'content.heading' | translate }}</h2>
+<header class="portal-page-header">
+  <div>
+    <p class="portal-eyebrow">კონტენტის ადმინისტრირება</p>
+    <h1 class="portal-title">{{ 'content.heading' | translate }}</h1>
+    <p class="portal-subtitle">სტატიები, სიახლეები და ვიდეო ინსტრუქციები ერთ სამუშაო სივრცეში.</p>
+  </div>
   <div class="flex items-start gap-3">
     @if (activeTab() === 'articles') {
-      <button (click)="openCreateArticle()" class="rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700">
-        + {{ 'content.articles.new' | translate }}
-      </button>
-      <button
-        (click)="bulkArchive(true)"
-        [disabled]="selectionCount() === 0"
-        class="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
-      >
-        {{ 'content.articles.archive_selected' | translate }}
-        @if (selectionCount() > 0) {
-          <span class="tabular-nums">({{ selectionCount() }})</span>
-        }
-      </button>
-      <button
-        (click)="bulkArchive(false)"
-        [disabled]="selectionCount() === 0"
-        class="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
-      >
-        {{ 'content.articles.unarchive_selected' | translate }}
-        @if (selectionCount() > 0) {
-          <span class="tabular-nums">({{ selectionCount() }})</span>
-        }
+      <button (click)="openCreateArticle()" class="primary-button">
+        <i class="fa-solid fa-plus" aria-hidden="true"></i>{{ 'content.articles.new' | translate }}
       </button>
     }
   </div>
-</div>
+</header>
 
-<div class="mb-6 flex items-center gap-4 border-b border-gray-200 dark:border-zinc-800">
-  <button (click)="switchTab('articles')" [class]="tabClass('articles')">
+<div class="mb-5 flex items-center gap-4 rounded-xl border border-slate-200 bg-white px-3 pt-3 dark:border-slate-700 dark:bg-slate-900" role="tablist" aria-label="კონტენტის ტიპები">
+  <button type="button" role="tab" [attr.aria-selected]="activeTab() === 'articles'" (click)="switchTab('articles')" [class]="tabClass('articles')">
     {{ 'content.tabs.articles' | translate }}
   </button>
-  <button (click)="switchTab('news')" [class]="tabClass('news')">
+  <button type="button" role="tab" [attr.aria-selected]="activeTab() === 'news'" (click)="switchTab('news')" [class]="tabClass('news')">
     {{ 'content.tabs.news' | translate }}
   </button>
-  <button (click)="switchTab('videos')" [class]="tabClass('videos')">
+  <button type="button" role="tab" [attr.aria-selected]="activeTab() === 'videos'" (click)="switchTab('videos')" [class]="tabClass('videos')">
     {{ 'content.tabs.videos' | translate }}
   </button>
 </div>
 
 @if (activeTab() === 'articles') {
+  @if (selectionCount() > 0) {
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand/20 bg-brand/5 px-4 py-3">
+      <p class="text-sm font-bold text-slate-800 dark:text-slate-200">მონიშნულია {{ selectionCount() }} სტატია</p>
+      <div class="flex flex-wrap gap-2">
+        <button type="button" (click)="bulkArchive(true)" class="secondary-button"><i class="fa-solid fa-box-archive" aria-hidden="true"></i>{{ 'content.articles.archive_selected' | translate }}</button>
+        <button type="button" (click)="bulkArchive(false)" class="secondary-button"><i class="fa-solid fa-box-open" aria-hidden="true"></i>{{ 'content.articles.unarchive_selected' | translate }}</button>
+      </div>
+    </div>
+  }
   <div class="mb-4 flex flex-wrap gap-3 items-center bg-gray-50 dark:bg-zinc-900 p-4 rounded-xl border border-gray-100 dark:border-zinc-800">
     <div class="flex-1 min-w-[200px]">
       <input
@@ -218,6 +200,7 @@
 } @else {
   <app-videos-admin-table />
 }
+</div>
 
 @if (editingArticle(); as article) {
   <app-article-edit-drawer [articleId]="article.id" (closed)="closeArticleDrawer()" (saved)="onArticleSaved()" />
