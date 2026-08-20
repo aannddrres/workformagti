@@ -36,10 +36,12 @@ import ge.magti.portal.util.TbilisiTime;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -112,6 +114,8 @@ class ArticleControllerIntegrationTest {
     private TagRepository tagRepository;
     @PersistenceContext
     private EntityManager entityManager;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
     @Autowired
     private JwtService jwtService;
     @Autowired
@@ -1233,6 +1237,54 @@ class ArticleControllerIntegrationTest {
         assertEquals(original, restored.getContent());
         assertTrue(articleHistoryRepository.findByArticleId(articleId).stream()
                 .anyMatch(h -> Integer.valueOf(2).equals(h.getVersionId()) && updated.equals(h.getContent())));
+    }
+
+    @Test
+    @EnabledIfSystemProperty(named = "user.timezone", matches = "UTC")
+    void jdbcAndJpaHistoryWritersNormalizeTheSameTbilisiInstantInUtc() {
+        String originalSessionTimeZone = jdbcTemplate.queryForObject(
+                "SELECT SESSIONTIMEZONE FROM dual", String.class);
+        assertTrue(originalSessionTimeZone != null
+                        && originalSessionTimeZone.matches("[A-Za-z0-9_./:+-]+"),
+                "unexpected Oracle session time-zone value: " + originalSessionTimeZone);
+        jdbcTemplate.execute("ALTER SESSION SET TIME_ZONE = '+00:00'");
+        try {
+            User admin = createUser("aa39-history-timezone@magti.ge", Role.CONTENT_ADMIN, "All");
+            Category category = createCategory("კატ-history-timezone");
+
+            // Legacy rows can have no updated_at; the controller then supplies
+            // TbilisiTime.now() to archiveIfMissing.
+            Article legacy = new Article();
+            legacy.setTitle("Legacy timestamp");
+            legacy.setContent("საწყისი შინაარსი");
+            legacy.setCategoryId(category.getId());
+            legacy.setAuthorId(admin.getId());
+            legacy.setUpdatedAt(null);
+            legacy = articleRepository.saveAndFlush(legacy);
+
+            OffsetDateTime fallbackTime = TbilisiTime.now().withNano(0);
+            articleHistoryRepository.archiveIfMissing(
+                    legacy.getId(), legacy.getTitle(), legacy.getContent(), admin.getId(), 1, fallbackTime);
+
+            ArticleHistory jpaWritten = new ArticleHistory();
+            jpaWritten.setArticleId(legacy.getId());
+            jpaWritten.setTitle("JPA timestamp");
+            jpaWritten.setContent("განახლებული შინაარსი");
+            jpaWritten.setUpdatedBy(admin.getId());
+            jpaWritten.setVersionId(2);
+            jpaWritten.setUpdatedAt(fallbackTime);
+            articleHistoryRepository.saveAndFlush(jpaWritten);
+            entityManager.clear();
+
+            Map<Integer, ArticleHistory> byVersion = articleHistoryRepository.findByArticleId(legacy.getId()).stream()
+                    .collect(java.util.stream.Collectors.toMap(ArticleHistory::getVersionId, history -> history));
+            assertEquals(byVersion.get(2).getUpdatedAt(), byVersion.get(1).getUpdatedAt());
+            assertEquals(byVersion.get(2).getUpdatedAt().toInstant(), byVersion.get(1).getUpdatedAt().toInstant());
+            assertEquals(byVersion.get(2).getUpdatedAt().getOffset(), byVersion.get(1).getUpdatedAt().getOffset());
+        } finally {
+            entityManager.clear();
+            jdbcTemplate.execute("ALTER SESSION SET TIME_ZONE = '" + originalSessionTimeZone + "'");
+        }
     }
 
     // ── read-receipts / views ─────────────────────────────────────────

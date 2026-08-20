@@ -6,7 +6,6 @@ import org.springframework.stereotype.Repository;
 
 import java.io.StringReader;
 import java.sql.PreparedStatement;
-import java.sql.Timestamp;
 import java.time.OffsetDateTime;
 
 /**
@@ -59,7 +58,11 @@ public class ArticleHistoryRepositoryCustomImpl implements ArticleHistoryReposit
                 } else {
                     statement.setInt(5, versionId);
                 }
-                statement.setTimestamp(6, Timestamp.valueOf(updatedAt.toLocalDateTime()));
+                // Match Hibernate's OffsetDateTime binding for the JPA writers
+                // of this same Oracle TIMESTAMP column. Binding the temporal
+                // value with its offset lets Oracle normalize it to the
+                // connection/session zone exactly as those writers do.
+                statement.setObject(6, updatedAt);
                 statement.execute();
                 return null;
             }

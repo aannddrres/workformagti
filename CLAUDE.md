@@ -17,7 +17,9 @@
 ## Architecture
 - ~600 users, call center department
 - Auth/backend owned in this repo (not by Magti IT — that was an outdated assumption)
-- Search relies on Postgres `pg_trgm` GIN indexes (spec slide 28)
+- The active Java/Oracle search uses the materialized `search_trigrams` table
+  and its Oracle indexes introduced by `V29__search_trigram_index.sql`.
+  PostgreSQL `pg_trgm` belongs only to the legacy Python/Postgres stack.
 - **Product/UX source of truth:** read
   `docs/PRODUCT_UX_REQUIREMENTS_KA.md` before changing UX, search, content
   lifecycle, compliance/audit flows, role dashboards, exports or branding.

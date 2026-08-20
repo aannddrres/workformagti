@@ -71,6 +71,8 @@ UI-ის ყველა გადაწყვეტილება უნდ�
 | 3-თვიანი review + override | `last_verified_at` არსებობს | global default, per-item interval და scheduler |
 | profile/cabinet | placeholder routes | საერთო account shell და role summaries |
 | 100–200% font scaling | არ არსებობს | preference + reflow-safe component სისტემა |
+| ციფრული category slug | category view ციფრულ route-ს ჯერ ID-ად კითხულობს | slug/ID namespace-ის ცალსახა წესი redesign-მდე |
+| slug uniqueness | application-level შემოწმებას DB unique constraint არ იცავს | concurrency-safe uniqueness design და არსებული duplicate-ების cleanup გადაწყვეტილება |
 
 ეს ცვლილებები redesign-ის ნაწილია და არა მომავალში გადასადები „დამატებები“;
 მათ გარეშე შეთანხმებული UX ზუსტად ვერ იმუშავებს.
@@ -583,6 +585,9 @@ Bulk publish და hard delete ნაგულისხმევად არ �
 ### ფაზა 0 — ფუნქციური საფუძვლის სტაბილიზაცია
 
 - `/category/null` და article-history Oracle/CLOB ხარვეზების გასწორება;
+- category route identity-ის გამიჯვნა: ციფრული slug (მაგ. `2024`) არ უნდა
+  აირიოს numeric ID fallback-ში; პარალელური create-ისთვის slug uniqueness
+  database-level ან ეკვივალენტურად atomic მექანიზმით უნდა იყოს დაცული;
 - მიმდინარე role/permission enforcement-ის სრული mapping;
 - არსებული ერთი role + per-user permissions მოდელით პასუხისმგებლობების
   capability-gap ტესტი; multi-role migration ამ ფაზაში არ იგეგმება;
@@ -592,6 +597,10 @@ Bulk publish და hard delete ნაგულისხმევად არ �
 - multi-category, audience და compliance-version მონაცემთა მოდელის დეტალური
   migration design;
 - baseline tests და მონაცემთა backup/rollback გეგმა.
+- `locustfile.py`-ით მიმდინარე UI/backend-ის baseline გაზომვა 150 concurrent
+  user-ზე redesign-მდე: P95 search latency, error rate და throughput. „1–2 წამი“
+  acceptance criterion-ს ამჟამად შესრულების მტკიცებულება არ აქვს; baseline-ის
+  გარეშე redesign-ის გავლენა ობიექტურად ვერ შეფასდება.
 
 ### ფაზა 1 — Design system და App Shell
 
