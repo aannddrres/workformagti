@@ -17,7 +17,9 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.text.Normalizer;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -201,13 +203,57 @@ public class CategoryController {
                 .body(Map.of("detail", "ამ სახელით კატეგორია უკვე არსებობს: " + name.strip()));
     }
 
-    private static void applyRequest(Category category, CategoryRequest request) {
-        category.setName(request.name());
+    private void applyRequest(Category category, CategoryRequest request) {
+        String normalizedName = request.name().strip();
+        category.setName(normalizedName);
         category.setParentId(request.parentId());
-        category.setSlug(request.slug());
+        category.setSlug(resolveSlug(request.slug(), normalizedName, category.getId()));
         category.setIcon(request.icon());
         category.setPastelColorClass(request.pastelColorClass());
         category.setActive(request.isActiveOrDefault());
+    }
+
+    /**
+     * Makes a usable route mandatory even when the admin leaves the optional
+     * slug field empty. Georgian letters are deliberately retained: Angular
+     * encodes them safely in the URL, while transliteration would introduce
+     * a second naming system administrators would have to learn.
+     *
+     * <p>There is no database unique constraint because historical data
+     * already contains duplicate slugs. New active rows are nevertheless
+     * made unambiguous by adding a numeric suffix when necessary.
+     */
+    private String resolveSlug(String requestedSlug, String categoryName, Long excludeId) {
+        String source = requestedSlug == null || requestedSlug.isBlank() ? categoryName : requestedSlug;
+        String base = slugify(source);
+        if (base.isBlank()) {
+            base = "category";
+        }
+
+        String candidate = base;
+        int suffix = 2;
+        while (isActiveSlugConflict(candidate, excludeId)) {
+            String suffixText = "-" + suffix++;
+            candidate = truncate(base, 150 - suffixText.length()) + suffixText;
+        }
+        return candidate;
+    }
+
+    private boolean isActiveSlugConflict(String slug, Long excludeId) {
+        Optional<Category> existing = categoryRepository.findFirstBySlugIgnoreCaseAndActiveTrue(slug);
+        return existing.isPresent() && !existing.get().getId().equals(excludeId);
+    }
+
+    private static String slugify(String source) {
+        String normalized = Normalizer.normalize(source.strip(), Normalizer.Form.NFKC)
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("[^\\p{L}\\p{N}]+", "-")
+                .replaceAll("^-+|-+$", "");
+        return truncate(normalized, 150);
+    }
+
+    private static String truncate(String value, int maxLength) {
+        return value.length() <= maxLength ? value : value.substring(0, maxLength).replaceAll("-+$", "");
     }
 
     private static ResponseEntity<?> notFound() {

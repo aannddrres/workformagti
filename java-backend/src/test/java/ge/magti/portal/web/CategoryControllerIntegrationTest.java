@@ -163,6 +163,38 @@ class CategoryControllerIntegrationTest {
     }
 
     @Test
+    void omittedSlugIsGeneratedFromTheGeorgianName() throws Exception {
+        User admin = createUser("slug-generation@magti.ge", Role.CONTENT_ADMIN);
+        String name = "ახალი ქართული კატეგორია " + System.nanoTime();
+        String expectedSlug = name.replace(' ', '-');
+
+        String response = mockMvc.perform(authed(post("/api/categories"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"" + name + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.slug").value(expectedSlug))
+                .andReturn().getResponse().getContentAsString();
+
+        long id = new com.fasterxml.jackson.databind.ObjectMapper().readTree(response).get("id").asLong();
+        assertEquals(expectedSlug, categoryRepository.findById(id).orElseThrow().getSlug());
+    }
+
+    @Test
+    void editingAHistoricalCategoryWithNoSlugRepairsItsRoute() throws Exception {
+        User admin = createUser("slug-repair@magti.ge", Role.CONTENT_ADMIN);
+        Category historical = createCategory("ძველი კატეგორია " + System.nanoTime());
+        historical.setSlug(null);
+        categoryRepository.saveAndFlush(historical);
+
+        String renamed = historical.getName() + " განახლებული";
+        mockMvc.perform(authed(put("/api/categories/" + historical.getId()), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"" + renamed + "\",\"slug\":null}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.slug").value(renamed.replace(' ', '-')));
+    }
+
+    @Test
     void updatingAndDeletingAMissingCategoryIs404() throws Exception {
         User admin = createUser("ca4@magti.ge", Role.CONTENT_ADMIN);
 

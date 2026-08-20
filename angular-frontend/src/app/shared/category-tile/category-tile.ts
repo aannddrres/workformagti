@@ -24,4 +24,6 @@ export class CategoryTile {
   readonly hasRecent = input(false);
 
   protected readonly icon = computed(() => this.category().icon || getCategoryIcon(this.category().name, ''));
+  /** Historical rows may predate mandatory slugs; the category page already accepts an ID route. */
+  protected readonly routeKey = computed(() => this.category().slug?.trim() || String(this.category().id));
 }

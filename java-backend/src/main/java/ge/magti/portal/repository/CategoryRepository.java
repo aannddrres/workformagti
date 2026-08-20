@@ -35,4 +35,7 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     /** BL-08: duplicate-name guard for create/update. Case-insensitive, since two categories differing only in case are indistinguishable to a user reading a dropdown. */
     Optional<Category> findFirstByNameIgnoreCaseAndActiveTrue(String name);
+
+    /** Active category routes must be unambiguous; inactive rows do not appear in the public category list. */
+    Optional<Category> findFirstBySlugIgnoreCaseAndActiveTrue(String slug);
 }

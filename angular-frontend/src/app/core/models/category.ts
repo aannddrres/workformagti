@@ -3,7 +3,7 @@ export interface Category {
   id: number;
   name: string;
   parent_id: number | null;
-  slug: string;
+  slug: string | null;
   icon: string | null;
   pastel_color_class: string | null;
   is_active: boolean;

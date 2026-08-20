@@ -150,6 +150,10 @@
     "category_view": {
       "back_button": "Back",
       "empty_state": "No material found for this filter.",
+      "not_found_title": "Category not found",
+      "not_found_body": "The category may have been removed or the link is incorrect.",
+      "load_failed_title": "Could not load category",
+      "load_failed_body": "Refresh the page. If the problem continues, contact the system administrator.",
       "profile_all": "All",
       "profile_info": "Informational",
       "profile_tech": "Technical"

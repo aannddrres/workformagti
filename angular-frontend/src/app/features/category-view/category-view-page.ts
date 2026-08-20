@@ -34,6 +34,7 @@ export class CategoryViewPage {
   protected readonly category = signal<Category | null>(null);
   protected readonly rows = signal<CategoryArticleRow[]>([]);
   protected readonly loading = signal(true);
+  protected readonly loadError = signal(false);
   protected readonly profile = signal<AudienceProfile>('all');
 
   protected readonly icon = computed(() => {
@@ -53,13 +54,19 @@ export class CategoryViewPage {
   });
 
   constructor() {
-    this.categoriesService.list().subscribe((categories) => {
-      const slug = this.slug();
-      const found = categories.find((c) => c.slug === slug || String(c.id) === slug) ?? null;
-      this.category.set(found);
-      if (found) {
-        this.loadArticles(found.id, found.name);
-      } else {
+    this.categoriesService.list().subscribe({
+      next: (categories) => {
+        const slug = this.slug();
+        const found = categories.find((c) => c.slug === slug || String(c.id) === slug) ?? null;
+        this.category.set(found);
+        if (found) {
+          this.loadArticles(found.id, found.name);
+        } else {
+          this.loading.set(false);
+        }
+      },
+      error: () => {
+        this.loadError.set(true);
         this.loading.set(false);
       }
     });
@@ -82,7 +89,10 @@ export class CategoryViewPage {
         );
         this.loading.set(false);
       },
-      error: () => this.loading.set(false)
+      error: () => {
+        this.loadError.set(true);
+        this.loading.set(false);
+      }
     });
   }
 

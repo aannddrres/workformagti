@@ -41,11 +41,10 @@ export class DashboardPage {
 
   protected readonly isManagement = computed(() => MANAGEMENT_ROLES.includes(this.authService.currentUser()?.role ?? ''));
 
-  // Dashboard's category grid shows every category with a slug (no
-  // top-level-only cap, unlike the KB page's bento grid) -- a real
-  // difference in the original (renderDashboardCategoryGrid vs renderKbBento).
+  // Show historical categories even when they predate mandatory slugs;
+  // CategoryTile falls back to the already-supported numeric ID route.
   protected readonly categories = signal<Category[]>([]);
-  protected readonly gridCategories = computed(() => this.categories().filter((c) => !!c.slug));
+  protected readonly gridCategories = computed(() => this.categories());
 
   protected readonly countingSet = signal<ArticleCardViewModel[]>([]);
   protected readonly categoryCounts = computed(() => buildCategoryCounts(this.countingSet()));
