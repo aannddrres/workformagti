@@ -2,6 +2,15 @@
 
 This document outlines behavioral constraints and architectural guidelines specific to the Magti Portal codebase.
 
+## 0. Product and UX Source of Truth
+
+- Before changing UX, search, content lifecycle, compliance/audit flows, role
+  dashboards, exports or branding, read
+  `docs/PRODUCT_UX_REQUIREMENTS_KA.md` and `docs/UI_UX_REDESIGN_PLAN_KA.md`.
+- That document contains the product owner's confirmed requirements and an
+  explicit list of unresolved decisions. Do not replace unresolved answers
+  with assumptions.
+
 ## 1. Router-Based Architecture (Corrected 2026-08-05 — see below)
 - **Current state**: `main.py` holds no routes. It only does app/middleware setup and wires up 14 domain routers via `include_router()`. All routes live in `routers/*.py` (articles, auth, users, news, videos, categories, favorites, compliance, messaging, exports, audit_logs, search, stats, platform) — see `CLAUDE.md` for the authoritative file map.
 - **When adding or changing a route**: put it in the matching `routers/*.py` file, not in `main.py`.

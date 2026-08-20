@@ -18,6 +18,13 @@
 - ~600 users, call center department
 - Auth/backend owned in this repo (not by Magti IT — that was an outdated assumption)
 - Search relies on Postgres `pg_trgm` GIN indexes (spec slide 28)
+- **Product/UX source of truth:** read
+  `docs/PRODUCT_UX_REQUIREMENTS_KA.md` before changing UX, search, content
+  lifecycle, compliance/audit flows, role dashboards, exports or branding.
+  It records the product owner's confirmed decisions and unresolved questions;
+  do not infer answers for items explicitly left open there. For the approved
+  proposed target information architecture, component behavior, rollout order and
+  acceptance criteria, also read `docs/UI_UX_REDESIGN_PLAN_KA.md`.
 
 ## Docker (`docker-compose.yml`)
 | Container | Image | Port | Role |
