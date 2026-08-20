@@ -1,919 +1,55 @@
 <!doctype html>
 <html lang="ka">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
-<title>Magti Portal — System Admin Wireframes</title>
-<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; font-src 'none'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Magti Portal — System Admin Wireframes</title>
+  <style>
+    html { color-scheme: light dark; background: light-dark(#eef0f3, #111317); }
+    body { margin: 0; padding: 16px; background: inherit; }
+    .mw-icon-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+    .mw-inline-icon { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  </style>
 </head>
 <body>
-<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Magti Portal — System Admin Wireframes" srcdoc="&lt;!doctype html&gt;
-&lt;html lang=&quot;ka&quot;&gt;
-&lt;head&gt;
-&lt;meta charset=&quot;utf-8&quot;&gt;
-&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
-&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
-&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
-&lt;title&gt;Magti Portal — System Admin Wireframes&lt;/title&gt;
-&lt;style&gt;:root {
-  color-scheme: light dark;
-  background-color: var(
-    --background,
-    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
-  ) !important;
-
-  /* Agent-facing contract; keep in sync with SKILL.md. */
-  --background: var(
-    --color-background-primary,
-    light-dark(rgb(255 255 255), rgb(24 24 24))
-  );
-  --foreground: var(
-    --color-text-primary,
-    light-dark(rgb(26 28 31), rgb(255 255 255))
-  );
-  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
-  --card-foreground: var(
-    --color-text-primary,
-    light-dark(rgb(26 28 31), rgb(255 255 255))
-  );
-  --popover: var(
-    --color-background-secondary,
-    light-dark(rgb(255 255 255), rgb(45 45 45))
-  );
-  --popover-foreground: var(
-    --color-text-primary,
-    light-dark(rgb(26 28 31), rgb(255 255 255))
-  );
-  --primary: var(
-    --color-text-info,
-    light-dark(rgb(51 156 255), rgb(131 195 255))
-  );
-  --primary-foreground: var(
-    --color-text-inverse,
-    light-dark(rgb(255 255 255), rgb(13 13 13))
-  );
-  --secondary: var(
-    --color-background-secondary,
-    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
-  );
-  --secondary-foreground: var(
-    --color-text-primary,
-    light-dark(rgb(26 28 31), rgb(255 255 255))
-  );
-  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
-  --muted-foreground: var(
-    --color-text-secondary,
-    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
-  );
-  --accent: var(
-    --color-background-info,
-    light-dark(rgb(229 242 255), rgb(13 39 63))
-  );
-  --accent-foreground: var(
-    --color-text-info,
-    light-dark(rgb(51 156 255), rgb(131 195 255))
-  );
-  --destructive: var(
-    --color-text-warning,
-    light-dark(rgb(226 85 7), rgb(255 133 73))
-  );
-  --border: var(
-    --color-border-secondary,
-    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
-  );
-  --input: var(
-    --color-border-primary,
-    light-dark(
-      rgb(26 28 31 / 11.8%),
-      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
-    )
-  );
-  --ring: var(
-    --color-ring-primary,
-    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
-  );
-  --font-size-base: var(--font-text-md-size, 14px);
-  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
-  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
-  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
-  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
-  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
-  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
-  --viz-series-1: var(--primary);
-  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
-  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
-  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
-  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
-  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
-
-  /* Internal implementation variables; not part of the agent contract. */
-  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
-  --font-mono:
-    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
-    monospace;
-  --font-size-normal: max(11px, var(--font-size-base));
-  --font-size-tooltip: calc(var(--font-size-base) - 1px);
-  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
-  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
-  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
-  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
-  --font-weight-normal: 430;
-  --font-weight-medium: 500;
-  --line-height-normal: calc(var(--font-size-normal) * 1.5);
-  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
-  --line-height-small: calc(var(--font-size-small) + 4px);
-  --radius: var(--border-radius-lg, 12.5px);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-2xl: calc(var(--radius) * 1.6);
-  --radius-full: 9999px;
-  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
-  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
-
-  /* Legacy aliases; not part of the current agent contract. */
-  --viz-bg: transparent;
-  --viz-panel: var(--card);
-  --viz-border: var(--border);
-  --viz-text: var(--foreground);
-  --viz-muted: var(--muted-foreground);
-  --viz-accent: var(--primary);
-  --viz-accent-text: var(--primary-foreground);
-  --viz-accent-bg: var(--accent);
-  --viz-font-size: var(--font-size-base);
-  --viz-warning: var(--destructive);
-}
-
-:root[data-theme=&quot;light&quot;] {
-  color-scheme: light;
-}
-
-:root[data-theme=&quot;dark&quot;] {
-  color-scheme: dark;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html &gt; body {
-  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
-  --color-background-primary: var(
-    --background,
-    light-dark(rgb(255 255 255), rgb(24 24 24))
-  );
-  --color-text-primary: var(
-    --foreground,
-    light-dark(rgb(26 28 31), rgb(255 255 255))
-  );
-  --color-border-secondary: var(
-    --border,
-    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
-  );
-
-  margin: 0;
-  padding: 5px;
-  color: var(--foreground);
-  background: transparent !important;
-  font-family: var(--font-sans) !important;
-  font-size: var(--font-size-normal);
-  font-weight: var(--font-weight-normal);
-  line-height: var(--line-height-normal);
-}
-
-a {
-  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
-  cursor: pointer;
-  font-weight: var(--font-weight-medium, 500);
-  text-decoration: none;
-  text-underline-offset: 2px;
-}
-
-a:is(:hover, :focus-visible) {
-  text-decoration-line: underline;
-  text-decoration-style: dashed;
-  text-decoration-thickness: 0.5px;
-}
-
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-p {
-  margin-block: 0;
-}
-
-h1 {
-  font-size: var(--font-size-h1);
-  font-weight: var(--font-weight-medium);
-  line-height: 1.25;
-}
-
-h2 {
-  font-size: var(--font-size-h2);
-  font-weight: var(--font-weight-medium);
-  line-height: 1.25;
-}
-
-h3,
-h4,
-h5,
-h6 {
-  font-size: var(--font-size-h3);
-  font-weight: var(--font-weight-medium);
-  line-height: 1.3;
-}
-
-b,
-strong,
-th {
-  font-weight: var(--font-weight-medium);
-}
-
-code:not(pre code) {
-  display: inline;
-  padding: 1px 6px;
-  border-radius: var(--radius-sm);
-  corner-shape: superellipse(1.5);
-  background: var(--muted);
-  font-family: var(--font-mono);
-  font-size: 0.92em;
-  overflow-wrap: anywhere;
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
-  word-break: break-word;
-}
-
-.table-responsive {
-  width: 100%;
-  overflow-x: auto;
-  scrollbar-width: thin;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  color: var(--foreground);
-  font: inherit;
-  text-align: start;
-}
-
-.table :is(th, td) {
-  padding-block: 10px;
-  padding-inline: 0 24px;
-  overflow-wrap: anywhere;
-  border-bottom: 1px solid var(--border);
-  text-align: start;
-  vertical-align: top;
-}
-
-.table-responsive &gt; .table :is(th, td) {
-  overflow-wrap: break-word;
-}
-
-.table :is(th, td):last-child {
-  padding-inline-end: 0;
-}
-
-.table :is(caption, thead th) {
-  font-weight: 600;
-}
-
-.table thead th {
-  padding-block: 8px;
-  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
-}
-
-.table tbody tr:last-child :is(th, td) {
-  border-bottom: 0;
-}
-
-.table.table-sm :is(th, td) {
-  padding-block: 6px;
-}
-
-.table.table-sm :is(th, td):not(:last-child) {
-  padding-inline-end: 16px;
-}
-
-.table :is(.text-end, [align=&quot;right&quot;]) {
-  text-align: end;
-  font-variant-numeric: tabular-nums;
-}
-
-.table :is(.text-center, [align=&quot;center&quot;]) {
-  text-align: center;
-}
-
-.table .text-nowrap {
-  white-space: nowrap;
-}
-
-#widget {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  width: 100%;
-  padding: 0;
-  background: transparent !important;
-}
-
-.card {
-  min-width: 0;
-  padding: 12px;
-  overflow: hidden;
-  overflow-wrap: break-word;
-  border-radius: var(--radius-2xl);
-  corner-shape: superellipse(1.5);
-  color: var(--card-foreground);
-  background: var(--card);
-}
-
-#widget &gt; :not(.card, .progress) {
-  width: 100% !important;
-  max-width: none !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-.tooltip {
-  position: fixed;
-  z-index: 50;
-  top: 0;
-  left: 0;
-  width: max-content;
-  max-width: min(
-    20rem,
-    var(--tooltip-available-width, calc(100vw - 10px)),
-    calc(100vw - 10px)
-  );
-  max-height: min(
-    var(--tooltip-available-height, calc(100vh - 10px)),
-    calc(100vh - 10px)
-  );
-  padding: 4px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  corner-shape: superellipse(1.5);
-  color: var(--popover-foreground);
-  background: var(--popover);
-  box-shadow: none;
-  font-size: var(--font-size-tooltip);
-  line-height: var(--line-height-tooltip);
-  overflow-wrap: break-word;
-  white-space: normal;
-  pointer-events: none;
-  user-select: none;
-}
-
-.viz-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
-  gap: 10px;
-}
-
-.viz-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.viz-stat-value {
-  font-size: var(--font-size-h2);
-  font-weight: var(--font-weight-medium);
-  line-height: 1.25;
-}
-
-.viz-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-}
-
-.progress {
-  display: flex;
-  height: 6px;
-  margin-block: calc((var(--line-height-normal, 1.5em) - 6px) / 2);
-  overflow: hidden;
-  border: 0;
-  border-radius: var(--radius-full);
-  background: var(--muted);
-}
-
-.progress-bar {
-  height: 100%;
-  flex-shrink: 0;
-  border: 0;
-  background: var(--viz-series-1);
-}
-
-.viz-badge {
-  padding: 3px 8px;
-  border-radius: var(--radius-full);
-  color: var(--accent-foreground);
-  background: var(--accent);
-  font-weight: var(--font-weight-medium);
-}
-
-small,
-.text-small,
-.viz-badge {
-  font-size: var(--font-size-small);
-  line-height: var(--line-height-small);
-}
-
-.text-muted {
-  color: var(--muted-foreground);
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.viz-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.viz-controls &gt; .form-label {
-  display: grid;
-  min-width: min(100%, 260px);
-  flex: 1 1 280px;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: baseline;
-  gap: 2px 12px;
-  margin-bottom: 0;
-}
-
-.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
-  grid-column: 1 / -1;
-}
-
-.btn,
-.form-check-input,
-.form-control,
-.form-range,
-.form-select {
-  font: inherit;
-}
-
-.btn {
-  appearance: button;
-  display: inline-flex;
-  inline-size: fit-content;
-  max-inline-size: 100%;
-  min-height: 28px;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  margin: 0;
-  padding: 0 8px;
-  -webkit-app-region: no-drag;
-  border: 1px solid var(--input);
-  border-radius: var(--radius-lg);
-  corner-shape: superellipse(1.5);
-  color: var(--secondary-foreground);
-  background: var(--secondary);
-  cursor: var(--cursor-interaction, pointer);
-  text-align: center;
-  text-decoration: none;
-  white-space: nowrap;
-  user-select: none;
-  -webkit-font-smoothing: antialiased;
-}
-
-.btn:is(.btn-block, .viz-tile) {
-  inline-size: 100%;
-}
-
-.btn.viz-tile {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  white-space: normal;
-}
-
-a.btn {
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.btn:not(:disabled):hover {
-  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
-}
-
-.btn-primary {
-  border-color: transparent;
-  color: var(--primary-foreground);
-  background: var(--foreground);
-  background-clip: padding-box;
-}
-
-.btn-primary .text-muted {
-  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
-}
-
-.btn-primary:not(:disabled):hover {
-  background: color-mix(in srgb, var(--foreground) 80%, transparent);
-  background-clip: padding-box;
-}
-
-.btn-ghost {
-  border-color: transparent;
-  color: var(--muted-foreground);
-  background: transparent;
-}
-
-.btn-ghost:not(:disabled):hover {
-  color: var(--foreground);
-  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
-}
-
-.btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.4;
-}
-
-[data-lucide] {
-  stroke-width: 1.6;
-}
-
-.form-label {
-  display: block;
-  margin-bottom: 6px;
-  color: var(--foreground);
-}
-
-.form-control {
-  display: block;
-  width: 100%;
-  min-height: 28px;
-  padding: 0 8px;
-  outline: none;
-  border: 1px solid var(--input);
-  border-radius: var(--radius-lg);
-  corner-shape: superellipse(1.5);
-  color: var(--foreground);
-  background: var(--secondary);
-}
-
-.form-control::placeholder {
-  color: var(--muted-foreground);
-}
-
-.form-control[type=&quot;file&quot;] {
-  padding: 0;
-  overflow: hidden;
-  cursor: var(--cursor-interaction, pointer);
-}
-
-.form-control[type=&quot;file&quot;]::file-selector-button {
-  min-height: 26px;
-  margin-right: 8px;
-  padding: 0 8px;
-  border: 0;
-  border-right: 1px solid var(--input);
-  color: var(--secondary-foreground);
-  background: var(--secondary);
-  cursor: inherit;
-  font: inherit;
-}
-
-.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
-  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
-}
-
-.form-control-color[type=&quot;color&quot;] {
-  width: 40px;
-  height: 28px;
-  padding: 3px;
-  cursor: var(--cursor-interaction, pointer);
-}
-
-.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
-  padding: 0;
-}
-
-.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
-  border: 0;
-  border-radius: calc(var(--radius-lg) - 4px);
-  corner-shape: superellipse(1.5);
-}
-
-textarea.form-control {
-  height: auto;
-  min-height: 72px;
-  padding: 8px 10px;
-  resize: vertical;
-}
-
-.form-control:focus-visible {
-  border-color: var(--ring);
-  box-shadow: inset 0 0 0 1px var(--ring);
-}
-
-.form-control:disabled,
-.form-select:disabled {
-  cursor: not-allowed;
-  opacity: 0.4;
-}
-
-.form-select {
-  appearance: none;
-  display: block;
-  width: 100%;
-  min-height: 28px;
-  margin: 0;
-  padding: 0 32px 0 8px;
-  outline: none;
-  border: 1px solid var(--input);
-  border-radius: var(--radius-lg);
-  corner-shape: superellipse(1.5);
-  color: var(--foreground);
-  background-color: var(--secondary);
-  background-image:
-    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
-    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
-  background-position:
-    calc(100% - 14px) 50%,
-    calc(100% - 10px) 50%;
-  background-repeat: no-repeat;
-  background-size: 4px 4px;
-  cursor: var(--cursor-interaction, default);
-}
-
-.form-select:not(:disabled):hover {
-  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
-}
-
-.form-select:focus-visible {
-  border-color: var(--ring);
-  box-shadow: inset 0 0 0 1px var(--ring);
-}
-
-.form-check {
-  display: flex;
-  min-height: 20px;
-  align-items: center;
-  gap: 6px;
-}
-
-.form-check-input {
-  appearance: none;
-  width: 14px;
-  height: 14px;
-  flex: 0 0 auto;
-  margin: 0;
-  border: 1px solid var(--input);
-  color: var(--primary-foreground);
-  background-color: transparent;
-  cursor: var(--cursor-interaction, default);
-  transition:
-    background-color 150ms,
-    border-color 150ms,
-    box-shadow 150ms;
-}
-
-.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
-  border-color: var(--input);
-  border-radius: var(--radius-sm);
-  corner-shape: superellipse(1.5);
-  background-color: var(--secondary);
-  box-shadow: var(--shadow-sm);
-}
-
-.form-check:not(.form-switch)
-  .form-check-input:not(:disabled):not(:checked):hover {
-  background-color: var(--card);
-}
-
-.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
-  border-color: var(--primary);
-  background-color: var(--primary);
-}
-
-.form-check:not(.form-switch)
-  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
-  display: block;
-  width: 100%;
-  height: 100%;
-  background: var(--primary-foreground);
-  content: &quot;&quot;;
-  mask: var(--checkmark-image) center / 12px 12px no-repeat;
-}
-
-.form-check-input[type=&quot;radio&quot;] {
-  width: 14px;
-  height: 14px;
-  border-radius: var(--radius-full);
-}
-
-.form-check-input[type=&quot;radio&quot;]:checked {
-  border: 2px solid var(--primary);
-  background:
-    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
-    var(--primary);
-}
-
-.form-check:not(.form-switch) .form-check-input:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-}
-
-.form-check:not(.form-switch) .form-check-input:disabled {
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
-.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
-  cursor: not-allowed;
-}
-
-.form-switch .form-check-input:disabled,
-.form-switch .form-check-input:disabled + .form-check-label {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.form-check-label {
-  color: var(--foreground);
-  cursor: var(--cursor-interaction, default);
-}
-
-.form-switch .form-check-input {
-  position: relative;
-  width: 32px;
-  height: 20px;
-  border: 0;
-  border-radius: var(--radius-full);
-  background: var(--muted);
-  box-shadow: none;
-  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
-}
-
-.form-switch .form-check-input::before {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  width: 16px;
-  height: 16px;
-  box-sizing: border-box;
-  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
-  border-radius: var(--radius-full);
-  background: light-dark(var(--primary-foreground), var(--foreground));
-  box-shadow: var(--shadow-sm);
-  content: &quot;&quot;;
-  transform: translate(2px, -50%);
-  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
-}
-
-.form-switch .form-check-input:checked {
-  background: var(--primary);
-}
-
-.form-switch .form-check-input:checked::before {
-  transform: translate(14px, -50%);
-}
-
-.form-switch .form-check-input:focus-visible {
-  box-shadow: 0 0 0 2px var(--ring);
-}
-
-.form-range {
-  appearance: none;
-  display: block;
-  width: 100%;
-  height: 28px;
-  flex: 1;
-  margin: 0;
-  padding: 0;
-  outline: none;
-  border: 0;
-  accent-color: var(--primary);
-  background: linear-gradient(
-      color-mix(in srgb, var(--foreground) 7%, transparent),
-      color-mix(in srgb, var(--foreground) 7%, transparent)
-    )
-    center / 100% 2px no-repeat;
-}
-
-.form-range::-webkit-slider-runnable-track {
-  height: 28px;
-  background: transparent;
-}
-
-.form-range::-webkit-slider-thumb {
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  margin-top: 4px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  background: light-dark(var(--primary-foreground), var(--foreground));
-}
-
-.form-range:focus-visible::-webkit-slider-thumb {
-  border-color: var(--ring);
-  box-shadow: inset 0 0 0 1px var(--ring);
-}
-
-.form-range::-moz-range-track {
-  height: 28px;
-  background: transparent;
-}
-
-.form-range::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  background: light-dark(var(--primary-foreground), var(--foreground));
-}
-
-.form-range:focus-visible::-moz-range-thumb {
-  border-color: var(--ring);
-  box-shadow: inset 0 0 0 1px var(--ring);
-}
-
-.form-range:disabled {
-  cursor: not-allowed;
-  opacity: 0.4;
-}
-
-.btn:not(.btn-primary, .viz-tile):is(
-  [aria-pressed=&quot;true&quot;],
-  [aria-selected=&quot;true&quot;],
-  .is-selected
-) {
-  border-color: var(--primary);
-  color: var(--primary-foreground);
-  background: var(--primary);
-}
-
-.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
-  border-color: var(--primary);
-  box-shadow: inset 0 0 0 1px var(--primary);
-}
-
-.btn:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-}
-
-svg {
-  display: block;
-  max-width: 100%;
-  height: auto;
-}
-
-#widget &gt; svg {
-  width: 100%;
-}
-
-/* Model-authored chart rules can otherwise stretch icons after these styles load. */
-svg.lucide {
-  display: block;
-  width: 16px !important;
-  height: 16px !important;
-  flex: none;
-  margin: 0 !important;
-  stroke-width: 1.6;
-}
-
-.text-warning,
-.text-destructive {
-  color: var(--destructive);
-}
-
-html&gt;body{padding:0}&lt;/style&gt;
-&lt;/head&gt;
-&lt;body&gt;
-&lt;div id=&quot;magti-admin-wireframes&quot;&gt;
-  &lt;style&gt;
+<svg class="mw-icon-sprite" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <symbol id="mw-icon-layout-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></symbol>
+    <symbol id="mw-icon-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+    <symbol id="mw-icon-files" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/></symbol>
+    <symbol id="mw-icon-shield-check" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></symbol>
+    <symbol id="mw-icon-bar-chart-3" viewBox="0 0 24 24"><path d="M3 3v18h18M7 16v2M12 11v7M17 6v12"/></symbol>
+    <symbol id="mw-icon-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21H9.6v-.1A1.7 1.7 0 0 0 8.5 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3V9.6h.1A1.7 1.7 0 0 0 4.6 8.5a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.1A1.7 1.7 0 0 0 15.5 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.18.38.39.72.6 1 .3.34.7.53 1.1.6h.1v4h-.1a1.7 1.7 0 0 0-1.7.4z"/></symbol>
+    <symbol id="mw-icon-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></symbol>
+    <symbol id="mw-icon-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></symbol>
+    <symbol id="mw-icon-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="mw-icon-user-plus" viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M15 21v-2a6 6 0 0 0-12 0v2M19 8v6M16 11h6"/></symbol>
+    <symbol id="mw-icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="mw-icon-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></symbol>
+    <symbol id="mw-icon-sliders-horizontal" viewBox="0 0 24 24"><path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3"/><circle cx="12" cy="4" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="14" cy="20" r="2"/></symbol>
+    <symbol id="mw-icon-smartphone" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 18h6"/></symbol>
+    <symbol id="mw-icon-wifi" viewBox="0 0 24 24"><path d="M5 12.6a10 10 0 0 1 14 0M8.5 16.1a5 5 0 0 1 7 0M2 9.1a15 15 0 0 1 20 0"/><circle cx="12" cy="20" r="1"/></symbol>
+    <symbol id="mw-icon-monitor-cog" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><circle cx="16.5" cy="10" r="2"/><path d="M16.5 6.5v1M16.5 12.5v1M13 10h1M19 10h1"/></symbol>
+    <symbol id="mw-icon-badge-percent" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 16 8-8"/><circle cx="9" cy="9" r="1"/><circle cx="15" cy="15" r="1"/></symbol>
+    <symbol id="mw-icon-headphones" viewBox="0 0 24 24"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><path d="M18 19h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3v5a2 2 0 0 1-2 2zM6 19H5a2 2 0 0 1-2-2v-5h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2z"/></symbol>
+    <symbol id="mw-icon-building-2" viewBox="0 0 24 24"><path d="M3 21h18M6 21V3h9v18M15 8h4v13M9 7h2M9 11h2M9 15h2"/></symbol>
+    <symbol id="mw-icon-clock-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2M19 3v4M19 10h.01"/></symbol>
+    <symbol id="mw-icon-file-warning" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M12 12v4M12 19h.01"/></symbol>
+    <symbol id="mw-icon-shield-alert" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zM12 8v5M12 17h.01"/></symbol>
+    <symbol id="mw-icon-user-round-x" viewBox="0 0 24 24"><circle cx="10" cy="8" r="4"/><path d="M2 21a8 8 0 0 1 13-6M17 17l5 5M22 17l-5 5"/></symbol>
+  </defs>
+</svg>
+<div id="magti-admin-wireframes">
+  <style>
     #magti-admin-wireframes {
       color-scheme: light dark;
       width: 100%;
       min-height: 760px;
       color: light-dark(#1d2025, #f4f5f7);
       background: light-dark(#eef0f3, #111317);
-      font-family: &quot;Noto Sans Georgian&quot;, &quot;Segoe UI&quot;, sans-serif;
+      font-family: "Noto Sans Georgian", "Segoe UI", sans-serif;
       font-size: 14px;
       line-height: 1.45;
     }
@@ -981,7 +117,7 @@ html&gt;body{padding:0}&lt;/style&gt;
       text-align: left;
     }
     #magti-admin-wireframes .mw-nav button:hover { background: light-dark(#f2f3f5, #22262c); }
-    #magti-admin-wireframes .mw-nav button[aria-current=&quot;page&quot;] {
+    #magti-admin-wireframes .mw-nav button[aria-current="page"] {
       color: light-dark(#9d1117, #ff7377);
       background: light-dark(#fff0f0, #321d20);
       font-weight: 700;
@@ -1100,9 +236,9 @@ html&gt;body{padding:0}&lt;/style&gt;
       background: light-dark(#fff, #1c2025);
     }
     #magti-admin-wireframes .mw-metric { position: relative; padding: 18px; overflow: hidden; }
-    #magti-admin-wireframes .mw-metric::before { content: &quot;&quot;; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: #d71920; }
-    #magti-admin-wireframes .mw-metric[data-tone=&quot;neutral&quot;]::before { background: #7b838e; }
-    #magti-admin-wireframes .mw-metric[data-tone=&quot;amber&quot;]::before { background: #c97a11; }
+    #magti-admin-wireframes .mw-metric::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: #d71920; }
+    #magti-admin-wireframes .mw-metric[data-tone="neutral"]::before { background: #7b838e; }
+    #magti-admin-wireframes .mw-metric[data-tone="amber"]::before { background: #c97a11; }
     #magti-admin-wireframes .mw-metric-label { color: light-dark(#737983, #abb1ba); font-size: 12px; }
     #magti-admin-wireframes .mw-metric strong { display: block; margin: 7px 0 3px; font-size: 25px; line-height: 1; }
     #magti-admin-wireframes .mw-metric small { color: light-dark(#858b94, #959da8); }
@@ -1134,7 +270,7 @@ html&gt;body{padding:0}&lt;/style&gt;
     #magti-admin-wireframes .mw-count { color: light-dark(#9d1117, #ff7d81); font-size: 12px; font-weight: 750; }
     #magti-admin-wireframes .mw-tabs { display: flex; gap: 2px; margin-bottom: 16px; border-bottom: 1px solid light-dark(#dfe2e6, #30353d); }
     #magti-admin-wireframes .mw-tabs button { padding: 10px 13px; border: 0; border-bottom: 2px solid transparent; color: light-dark(#747a84, #a9b0ba); background: transparent; }
-    #magti-admin-wireframes .mw-tabs button[aria-selected=&quot;true&quot;] { border-bottom-color: #d71920; color: light-dark(#a30f15, #ff777b); font-weight: 750; }
+    #magti-admin-wireframes .mw-tabs button[aria-selected="true"] { border-bottom-color: #d71920; color: light-dark(#a30f15, #ff777b); font-weight: 750; }
     #magti-admin-wireframes .mw-toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) 180px 160px auto; gap: 10px; margin-bottom: 14px; }
     #magti-admin-wireframes .mw-toolbar input,
     #magti-admin-wireframes .mw-toolbar select { height: 38px; padding: 0 11px; }
@@ -1151,9 +287,9 @@ html&gt;body{padding:0}&lt;/style&gt;
     #magti-admin-wireframes .mw-person small,
     #magti-admin-wireframes .mw-title-cell small { color: light-dark(#818790, #9fa6b0); }
     #magti-admin-wireframes .mw-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 999px; color: light-dark(#4f5760, #d3d7dc); background: light-dark(#edf0f2, #2b3037); font-size: 11px; font-weight: 700; white-space: nowrap; }
-    #magti-admin-wireframes .mw-badge[data-tone=&quot;green&quot;] { color: light-dark(#25603e, #91d8aa); background: light-dark(#e9f5ed, #1d3727); }
-    #magti-admin-wireframes .mw-badge[data-tone=&quot;red&quot;] { color: light-dark(#9c151a, #ff8c90); background: light-dark(#fdecee, #3a2225); }
-    #magti-admin-wireframes .mw-badge[data-tone=&quot;amber&quot;] { color: light-dark(#7d5112, #f0bd70); background: light-dark(#fff3dd, #3c2f1e); }
+    #magti-admin-wireframes .mw-badge[data-tone="green"] { color: light-dark(#25603e, #91d8aa); background: light-dark(#e9f5ed, #1d3727); }
+    #magti-admin-wireframes .mw-badge[data-tone="red"] { color: light-dark(#9c151a, #ff8c90); background: light-dark(#fdecee, #3a2225); }
+    #magti-admin-wireframes .mw-badge[data-tone="amber"] { color: light-dark(#7d5112, #f0bd70); background: light-dark(#fff3dd, #3c2f1e); }
     #magti-admin-wireframes .mw-drawer-backdrop { position: absolute; inset: 0; z-index: 10; background: rgba(16,18,21,.35); backdrop-filter: blur(1px); }
     #magti-admin-wireframes .mw-drawer-backdrop[hidden] { display: none; }
     #magti-admin-wireframes .mw-drawer {
@@ -1178,7 +314,7 @@ html&gt;body{padding:0}&lt;/style&gt;
     #magti-admin-wireframes .mw-field label { display: block; margin-bottom: 6px; color: light-dark(#6f7580, #abb2bc); font-size: 11px; font-weight: 700; }
     #magti-admin-wireframes .mw-field input,
     #magti-admin-wireframes .mw-field select { height: 39px; padding: 0 10px; }
-    #magti-admin-wireframes .mw-field[data-span=&quot;2&quot;] { grid-column: 1 / -1; }
+    #magti-admin-wireframes .mw-field[data-span="2"] { grid-column: 1 / -1; }
     #magti-admin-wireframes .mw-permission-list { display: grid; gap: 8px; }
     #magti-admin-wireframes .mw-permission {
       display: grid;
@@ -1220,447 +356,205 @@ html&gt;body{padding:0}&lt;/style&gt;
       #magti-admin-wireframes .mw-quick-categories,
       #magti-admin-wireframes .mw-toolbar,
       #magti-admin-wireframes .mw-fields { grid-template-columns: 1fr; }
-      #magti-admin-wireframes .mw-field[data-span=&quot;2&quot;] { grid-column: auto; }
+      #magti-admin-wireframes .mw-field[data-span="2"] { grid-column: auto; }
     }
-  &lt;/style&gt;
+  </style>
 
-  &lt;div class=&quot;mw-shell&quot;&gt;
-    &lt;aside class=&quot;mw-sidebar&quot; aria-label=&quot;სისტემური ადმინისტრაციის ნავიგაცია&quot;&gt;
-      &lt;div class=&quot;mw-brand&quot;&gt;&lt;span class=&quot;mw-brand-mark&quot;&gt;M&lt;/span&gt;&lt;span&gt;ცოდნის პორტალი&lt;/span&gt;&lt;/div&gt;
-      &lt;div&gt;
-        &lt;p class=&quot;mw-nav-label&quot;&gt;ადმინისტრირება&lt;/p&gt;
-        &lt;nav class=&quot;mw-nav&quot;&gt;
-          &lt;button type=&quot;button&quot; data-screen=&quot;overview&quot; aria-current=&quot;page&quot;&gt;&lt;i data-lucide=&quot;layout-dashboard&quot;&gt;&lt;/i&gt; მიმოხილვა&lt;/button&gt;
-          &lt;button type=&quot;button&quot; data-screen=&quot;access&quot;&gt;&lt;i data-lucide=&quot;users&quot;&gt;&lt;/i&gt; მომხმარებლები და წვდომა&lt;/button&gt;
-          &lt;button type=&quot;button&quot; data-screen=&quot;content&quot;&gt;&lt;i data-lucide=&quot;files&quot;&gt;&lt;/i&gt; კონტენტის მართვა&lt;/button&gt;
-          &lt;button type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;shield-check&quot;&gt;&lt;/i&gt; აუდიტი და უსაფრთხოება&lt;/button&gt;
-          &lt;button type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;bar-chart-3&quot;&gt;&lt;/i&gt; ანგარიშები&lt;/button&gt;
-          &lt;button type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;settings&quot;&gt;&lt;/i&gt; სისტემის პარამეტრები&lt;/button&gt;
-        &lt;/nav&gt;
-      &lt;/div&gt;
-      &lt;div class=&quot;mw-sidebar-foot&quot;&gt;&lt;strong&gt;სისტემური ადმინისტრატორი&lt;/strong&gt;&lt;span&gt;სრული სისტემური წვდომა&lt;/span&gt;&lt;/div&gt;
-    &lt;/aside&gt;
+  <div class="mw-shell">
+    <aside class="mw-sidebar" aria-label="სისტემური ადმინისტრაციის ნავიგაცია">
+      <div class="mw-brand"><span class="mw-brand-mark">M</span><span>ცოდნის პორტალი</span></div>
+      <div>
+        <p class="mw-nav-label">ადმინისტრირება</p>
+        <nav class="mw-nav">
+          <button type="button" data-screen="overview" aria-current="page"><svg class="mw-inline-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#mw-icon-layout-dashboard"></use></svg> მიმოხილვა</button>
+          <button type="button" data-screen="access"><svg class="mw-inline-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#mw-icon-users"></use></svg> მომხმარებლები და წვდომა</button>
+          <button type="button" data-screen="content"><svg class="mw-inline-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#mw-icon-files"></use></svg> კონტენტის მართვა</button>
+          <button type="button"><svg class="mw-inline-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#mw-icon-shield-check"></use></svg> აუდიტი და უსაფრთხოება</button>
+          <button type="button"><svg class="mw-inline-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#mw-icon-bar-chart-3"></use></svg> ანგარიშები</button>
+          <button type="button"><svg class="mw-inline-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#mw-icon-settings"></use></svg> სისტემის პარამეტრები</button>
+        </nav>
+      </div>
+      <div class="mw-sidebar-foot"><strong>სისტემური ადმინისტრატორი</strong><span>სრული სისტემური წვდომა</span></div>
+    </aside>
 
-    &lt;main class=&quot;mw-main&quot;&gt;
-      &lt;header class=&quot;mw-topbar&quot;&gt;
-        &lt;div class=&quot;mw-global-search&quot;&gt;
-          &lt;i data-lucide=&quot;search&quot;&gt;&lt;/i&gt;
-          &lt;input type=&quot;search&quot; aria-label=&quot;გლობალური ძიება&quot; placeholder=&quot;მოძებნეთ სტატია, ინსტრუქცია ან პირობა…&quot;&gt;
-          &lt;span class=&quot;mw-shortcut&quot;&gt;Ctrl K&lt;/span&gt;
-        &lt;/div&gt;
-        &lt;div class=&quot;mw-top-actions&quot;&gt;
-          &lt;button type=&quot;button&quot; class=&quot;mw-icon-button&quot; aria-label=&quot;შეტყობინებები&quot;&gt;&lt;i data-lucide=&quot;bell&quot;&gt;&lt;/i&gt;&lt;/button&gt;
-          &lt;span class=&quot;mw-avatar&quot; title=&quot;ნიკა ადმინისტრატორი&quot;&gt;ნა&lt;/span&gt;
-        &lt;/div&gt;
-      &lt;/header&gt;
+    <main class="mw-main">
+      <header class="mw-topbar">
+        <div class="mw-global-search">
+          <svg class="mw-inline-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#mw-icon-search"></use></svg>
+          <input type="search" aria-label="გლობალური ძიება" placeholder="მოძებნეთ სტატია, ინსტრუქცია ან პირობა…">
+          <span class="mw-shortcut">Ctrl K</span>
+        </div>
+        <div class="mw-top-actions">
+          <button type="button" class="mw-icon-button" aria-label="შეტყობინებები"><svg class="mw-inline-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#mw-icon-bell"></use></svg></button>
+          <span class="mw-avatar" title="ნიკა ადმინისტრატორი">ნა</span>
+        </div>
+      </header>
 
-      &lt;div class=&quot;mw-content&quot;&gt;
-        &lt;section class=&quot;mw-screen&quot; data-view=&quot;overview&quot;&gt;
-          &lt;div class=&quot;mw-page-head&quot;&gt;
-            &lt;div&gt;&lt;h1&gt;სისტემის მიმოხილვა&lt;/h1&gt;&lt;p&gt;დღის პრიორიტეტები, რისკები და სწრაფი წვდომა ადმინისტრატორისთვის.&lt;/p&gt;&lt;/div&gt;
-          &lt;/div&gt;
-          &lt;div class=&quot;mw-metrics&quot;&gt;
-            &lt;article class=&quot;mw-metric&quot;&gt;&lt;span class=&quot;mw-metric-label&quot;&gt;ვადაგადაცილებული გაცნობა&lt;/span&gt;&lt;strong&gt;18&lt;/strong&gt;&lt;small&gt;4 ჯგუფი · საჭიროებს რეაგირებას&lt;/small&gt;&lt;/article&gt;
-            &lt;article class=&quot;mw-metric&quot; data-tone=&quot;amber&quot;&gt;&lt;span class=&quot;mw-metric-label&quot;&gt;გადასამოწმებელი კონტენტი&lt;/span&gt;&lt;strong&gt;34&lt;/strong&gt;&lt;small&gt;7 სტატია ვადას უახლოვდება&lt;/small&gt;&lt;/article&gt;
-            &lt;article class=&quot;mw-metric&quot;&gt;&lt;span class=&quot;mw-metric-label&quot;&gt;უსაფრთხოების სიგნალი&lt;/span&gt;&lt;strong&gt;2&lt;/strong&gt;&lt;small&gt;ბოლო 24 საათში&lt;/small&gt;&lt;/article&gt;
-            &lt;article class=&quot;mw-metric&quot; data-tone=&quot;neutral&quot;&gt;&lt;span class=&quot;mw-metric-label&quot;&gt;აქტიური მომხმარებელი&lt;/span&gt;&lt;strong&gt;576&lt;/strong&gt;&lt;small&gt;600 რეგისტრირებულიდან&lt;/small&gt;&lt;/article&gt;
-          &lt;/div&gt;
-          &lt;div class=&quot;mw-dashboard-grid&quot;&gt;
-            &lt;section class=&quot;mw-panel&quot;&gt;
-              &lt;div class=&quot;mw-panel-head&quot;&gt;&lt;h2&gt;სწრაფი წვდომა კატეგორიებზე&lt;/h2&gt;&lt;button type=&quot;button&quot; class=&quot;mw-text-button&quot;&gt;ყველას ნახვა&lt;/button&gt;&lt;/div&gt;
-              &lt;div class=&quot;mw-quick-categories&quot;&gt;
-                &lt;button type=&quot;button&quot; class=&quot;mw-category-card&quot;&gt;&lt;i data-lucide=&quot;smartphone&quot;&gt;&lt;/i&gt;&lt;strong&gt;მობილური მომსახურება&lt;/strong&gt;&lt;small&gt;128 სტატია&lt;/small&gt;&lt;/button&gt;
-                &lt;button type=&quot;button&quot; class=&quot;mw-category-card&quot;&gt;&lt;i data-lucide=&quot;wifi&quot;&gt;&lt;/i&gt;&lt;strong&gt;ინტერნეტი&lt;/strong&gt;&lt;small&gt;94 სტატია&lt;/small&gt;&lt;/button&gt;
-                &lt;button type=&quot;button&quot; class=&quot;mw-category-card&quot;&gt;&lt;i data-lucide=&quot;monitor-cog&quot;&gt;&lt;/i&gt;&lt;strong&gt;შიდა პროგრამები&lt;/strong&gt;&lt;small&gt;61 ინსტრუქცია&lt;/small&gt;&lt;/button&gt;
-                &lt;button type=&quot;button&quot; class=&quot;mw-category-card&quot;&gt;&lt;i data-lucide=&quot;badge-percent&quot;&gt;&lt;/i&gt;&lt;strong&gt;აქციები&lt;/strong&gt;&lt;small&gt;16 აქტიური&lt;/small&gt;&lt;/button&gt;
-                &lt;button type=&quot;button&quot; class=&quot;mw-category-card&quot;&gt;&lt;i data-lucide=&quot;headphones&quot;&gt;&lt;/i&gt;&lt;strong&gt;ტექნიკური მხარდაჭერა&lt;/strong&gt;&lt;small&gt;87 სტატია&lt;/small&gt;&lt;/button&gt;
-                &lt;button type=&quot;button&quot; class=&quot;mw-category-card&quot;&gt;&lt;i data-lucide=&quot;building-2&quot;&gt;&lt;/i&gt;&lt;strong&gt;ოფისების მომსახურება&lt;/strong&gt;&lt;small&gt;42 სტატია&lt;/small&gt;&lt;/button&gt;
-              &lt;/div&gt;
-            &lt;/section&gt;
-            &lt;section class=&quot;mw-panel&quot;&gt;
-              &lt;div class=&quot;mw-panel-head&quot;&gt;&lt;h2&gt;სასწრაფო მოქმედებები&lt;/h2&gt;&lt;/div&gt;
-              &lt;ul class=&quot;mw-action-list&quot;&gt;
-                &lt;li&gt;&lt;span class=&quot;mw-action-icon&quot;&gt;&lt;i data-lucide=&quot;clock-alert&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;strong&gt;გაცნობის ვადა დარღვეულია&lt;/strong&gt;&lt;small&gt;ტექნიკური ჯგუფი A&lt;/small&gt;&lt;/span&gt;&lt;span class=&quot;mw-count&quot;&gt;12 პირი&lt;/span&gt;&lt;/li&gt;
-                &lt;li&gt;&lt;span class=&quot;mw-action-icon&quot;&gt;&lt;i data-lucide=&quot;file-warning&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;strong&gt;სანდოობის გადამოწმება&lt;/strong&gt;&lt;small&gt;„როუმინგის პირობები“&lt;/small&gt;&lt;/span&gt;&lt;span class=&quot;mw-count&quot;&gt;დღეს&lt;/span&gt;&lt;/li&gt;
-                &lt;li&gt;&lt;span class=&quot;mw-action-icon&quot;&gt;&lt;i data-lucide=&quot;shield-alert&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;strong&gt;წვდომის უჩვეულო მცდელობა&lt;/strong&gt;&lt;small&gt;დაბლოკილი ანგარიში&lt;/small&gt;&lt;/span&gt;&lt;span class=&quot;mw-count&quot;&gt;ნახვა&lt;/span&gt;&lt;/li&gt;
-                &lt;li&gt;&lt;span class=&quot;mw-action-icon&quot;&gt;&lt;i data-lucide=&quot;user-round-x&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;&lt;strong&gt;პასუხისმგებლობის გადაცემა&lt;/strong&gt;&lt;small&gt;გასული თანამშრომლის კონტენტი&lt;/small&gt;&lt;/span&gt;&lt;span class=&quot;mw-count&quot;&gt;5 ერთ.&lt;/span&gt;&lt;/li&gt;
-              &lt;/ul&gt;
-            &lt;/section&gt;
-          &lt;/div&gt;
-        &lt;/section&gt;
+      <div class="mw-content">
+        <section class="mw-screen" data-view="overview">
+          <div class="mw-page-head">
+            <div><h1>სისტემის მიმოხილვა</h1><p>დღის პრიორიტეტები, რისკები და სწრაფი წვდომა ადმინისტრატორისთვის.</p></div>
+          </div>
+          <div class="mw-metrics">
+            <article class="mw-metric"><span class="mw-metric-label">ვადაგადაცილებული გაცნობა</span><strong>18</strong><small>4 ჯგუფი · საჭიროებს რეაგირებას</small></article>
+            <article class="mw-metric" data-tone="amber"><span class="mw-metric-label">გადასამოწმებელი კონტენტი</span><strong>34</strong><small>7 სტატია ვადას უახლოვდება</small></article>
+            <article class="mw-metric"><span class="mw-metric-label">უსაფრთხოების სიგნალი</span><strong>2</strong><small>ბოლო 24 საათში</small></article>
+            <article class="mw-metric" data-tone="neutral"><span class="mw-metric-label">აქტიური მომხმარებელი</span><strong>576</strong><small>600 რეგისტრირებულიდან</small></article>
+          </div>
+          <div class="mw-dashboard-grid">
+            <section class="mw-panel">
+              <div class="mw-panel-head"><h2>სწრაფი წვდომა კატეგორიებზე</h2><button type="button" class="mw-text-button">ყველას ნახვა</button></div>
+              <div class="mw-quick-categories">
+                <button type="button" class="mw-category-card"><svg class="mw-inline-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#mw-icon-smartphone"></use></svg><strong>მობილური მომსახურება</strong><small>128 სტატია</small></button>
+                <button type="button" class="mw-category-card"><svg class="mw-inline-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#mw-icon-wifi"></use></svg><strong>ინტერნეტი</strong><small>94 სტატია</small></button>
+                <button type="button" class="mw-category-card"><svg class="mw-inline-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#mw-icon-monitor-cog"></use></svg><strong>შიდა პროგრამები</strong><small>61 ინსტრუქცია</small></button>
+                <button type="button" class="mw-category-card"><svg class="mw-inline-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#mw-icon-badge-percent"></use></svg><strong>აქციები</strong><small>16 აქტიური</small></button>
+                <button type="button" class="mw-category-card"><svg class="mw-inline-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#mw-icon-headphones"></use></svg><strong>ტექნიკური მხარდაჭერა</strong><small>87 სტატია</small></button>
+                <button type="button" class="mw-category-card"><svg class="mw-inline-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#mw-icon-building-2"></use></svg><strong>ოფისების მომსახურება</strong><small>42 სტატია</small></button>
+              </div>
+            </section>
+            <section class="mw-panel">
+              <div class="mw-panel-head"><h2>სასწრაფო მოქმედებები</h2></div>
+              <ul class="mw-action-list">
+                <li><span class="mw-action-icon"><svg class="mw-inline-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#mw-icon-clock-alert"></use></svg></span><span><strong>გაცნობის ვადა დარღვეულია</strong><small>ტექნიკური ჯგუფი A</small></span><span class="mw-count">12 პირი</span></li>
+                <li><span class="mw-action-icon"><svg class="mw-inline-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#mw-icon-file-warning"></use></svg></span><span><strong>სანდოობის გადამოწმება</strong><small>„როუმინგის პირობები“</small></span><span class="mw-count">დღეს</span></li>
+                <li><span class="mw-action-icon"><svg class="mw-inline-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#mw-icon-shield-alert"></use></svg></span><span><strong>წვდომის უჩვეულო მცდელობა</strong><small>დაბლოკილი ანგარიში</small></span><span class="mw-count">ნახვა</span></li>
+                <li><span class="mw-action-icon"><svg class="mw-inline-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#mw-icon-user-round-x"></use></svg></span><span><strong>პასუხისმგებლობის გადაცემა</strong><small>გასული თანამშრომლის კონტენტი</small></span><span class="mw-count">5 ერთ.</span></li>
+              </ul>
+            </section>
+          </div>
+        </section>
 
-        &lt;section class=&quot;mw-screen&quot; data-view=&quot;access&quot; hidden&gt;
-          &lt;div class=&quot;mw-page-head&quot;&gt;
-            &lt;div&gt;&lt;h1&gt;მომხმარებლები და წვდომა&lt;/h1&gt;&lt;p&gt;ფიქსირებული როლები, ინდივიდუალური უფლებები და მონაცემთა ხილვადობის სფერო.&lt;/p&gt;&lt;/div&gt;
-            &lt;button type=&quot;button&quot; class=&quot;mw-primary&quot;&gt;&lt;i data-lucide=&quot;user-plus&quot;&gt;&lt;/i&gt; მომხმარებლის დამატება&lt;/button&gt;
-          &lt;/div&gt;
-          &lt;div class=&quot;mw-tabs&quot; role=&quot;tablist&quot; aria-label=&quot;წვდომის სექციები&quot;&gt;
-            &lt;button type=&quot;button&quot; role=&quot;tab&quot; aria-selected=&quot;true&quot;&gt;მომხმარებლები&lt;/button&gt;
-            &lt;button type=&quot;button&quot; role=&quot;tab&quot; aria-selected=&quot;false&quot;&gt;როლები და უფლებები&lt;/button&gt;
-            &lt;button type=&quot;button&quot; role=&quot;tab&quot; aria-selected=&quot;false&quot;&gt;წვდომის ისტორია&lt;/button&gt;
-          &lt;/div&gt;
-          &lt;div class=&quot;mw-toolbar&quot;&gt;
-            &lt;input type=&quot;search&quot; aria-label=&quot;მომხმარებლის ძიება&quot; placeholder=&quot;სახელი, ელფოსტა ან ჯგუფი&quot;&gt;
-            &lt;select aria-label=&quot;დეპარტამენტი&quot;&gt;&lt;option&gt;ყველა დეპარტამენტი&lt;/option&gt;&lt;option&gt;ტექნიკური&lt;/option&gt;&lt;option&gt;მობილური / საინფორმაციო&lt;/option&gt;&lt;option&gt;ოფისები&lt;/option&gt;&lt;/select&gt;
-            &lt;select aria-label=&quot;სტატუსი&quot;&gt;&lt;option&gt;ყველა სტატუსი&lt;/option&gt;&lt;option&gt;აქტიური&lt;/option&gt;&lt;option&gt;დაბლოკილი&lt;/option&gt;&lt;/select&gt;
-            &lt;button type=&quot;button&quot; class=&quot;mw-secondary&quot;&gt;&lt;i data-lucide=&quot;sliders-horizontal&quot;&gt;&lt;/i&gt; ფილტრები&lt;/button&gt;
-          &lt;/div&gt;
-          &lt;div class=&quot;mw-table-wrap&quot;&gt;
-            &lt;table&gt;
-              &lt;thead&gt;&lt;tr&gt;&lt;th&gt;მომხმარებელი&lt;/th&gt;&lt;th&gt;დეპარტამენტი / ჯგუფი&lt;/th&gt;&lt;th&gt;ძირითადი როლი&lt;/th&gt;&lt;th&gt;დამატებითი უფლებები&lt;/th&gt;&lt;th&gt;სტატუსი&lt;/th&gt;&lt;th&gt;ბოლო შესვლა&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;
-              &lt;tbody&gt;
-                &lt;tr data-open-user tabindex=&quot;0&quot;&gt;&lt;td&gt;&lt;span class=&quot;mw-person&quot;&gt;&lt;span class=&quot;mw-avatar&quot;&gt;ნლ&lt;/span&gt;&lt;span&gt;&lt;strong&gt;ნინო ლომიძე&lt;/strong&gt;&lt;small&gt;n.lomidze@magti.ge&lt;/small&gt;&lt;/span&gt;&lt;/span&gt;&lt;/td&gt;&lt;td&gt;ტექნიკური&lt;br&gt;&lt;small&gt;ჯგუფი A&lt;/small&gt;&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;mw-badge&quot;&gt;ჯგუფის უფროსი&lt;/span&gt;&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;mw-badge&quot; data-tone=&quot;red&quot;&gt;+4 უფლება&lt;/span&gt;&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;mw-badge&quot; data-tone=&quot;green&quot;&gt;აქტიური&lt;/span&gt;&lt;/td&gt;&lt;td&gt;დღეს, 09:42&lt;/td&gt;&lt;/tr&gt;
-                &lt;tr data-open-user tabindex=&quot;0&quot;&gt;&lt;td&gt;&lt;span class=&quot;mw-person&quot;&gt;&lt;span class=&quot;mw-avatar&quot;&gt;გმ&lt;/span&gt;&lt;span&gt;&lt;strong&gt;გიორგი მაისურაძე&lt;/strong&gt;&lt;small&gt;g.maisuradze@magti.ge&lt;/small&gt;&lt;/span&gt;&lt;/span&gt;&lt;/td&gt;&lt;td&gt;მობილური / საინფ.&lt;br&gt;&lt;small&gt;ჯგუფი C&lt;/small&gt;&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;mw-badge&quot;&gt;ოპერატორი&lt;/span&gt;&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;mw-badge&quot;&gt;კონტენტის რედაქტირება&lt;/span&gt;&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;mw-badge&quot; data-tone=&quot;green&quot;&gt;აქტიური&lt;/span&gt;&lt;/td&gt;&lt;td&gt;დღეს, 09:19&lt;/td&gt;&lt;/tr&gt;
-                &lt;tr data-open-user tabindex=&quot;0&quot;&gt;&lt;td&gt;&lt;span class=&quot;mw-person&quot;&gt;&lt;span class=&quot;mw-avatar&quot;&gt;მკ&lt;/span&gt;&lt;span&gt;&lt;strong&gt;მარიამ კიკნაძე&lt;/strong&gt;&lt;small&gt;m.kiknadze@magti.ge&lt;/small&gt;&lt;/span&gt;&lt;/span&gt;&lt;/td&gt;&lt;td&gt;ოფისები&lt;br&gt;&lt;small&gt;ბათუმი&lt;/small&gt;&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;mw-badge&quot;&gt;კონტენტ ადმინი&lt;/span&gt;&lt;/td&gt;&lt;td&gt;—&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;mw-badge&quot; data-tone=&quot;green&quot;&gt;აქტიური&lt;/span&gt;&lt;/td&gt;&lt;td&gt;გუშინ, 18:07&lt;/td&gt;&lt;/tr&gt;
-                &lt;tr data-open-user tabindex=&quot;0&quot;&gt;&lt;td&gt;&lt;span class=&quot;mw-person&quot;&gt;&lt;span class=&quot;mw-avatar&quot;&gt;ლბ&lt;/span&gt;&lt;span&gt;&lt;strong&gt;ლევან ბერიძე&lt;/strong&gt;&lt;small&gt;l.beridze@magti.ge&lt;/small&gt;&lt;/span&gt;&lt;/span&gt;&lt;/td&gt;&lt;td&gt;ტექნიკური&lt;br&gt;&lt;small&gt;ჯგუფი B&lt;/small&gt;&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;mw-badge&quot;&gt;ოპერატორი&lt;/span&gt;&lt;/td&gt;&lt;td&gt;—&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;mw-badge&quot; data-tone=&quot;amber&quot;&gt;დაბლოკილი&lt;/span&gt;&lt;/td&gt;&lt;td&gt;18 აგვ, 15:31&lt;/td&gt;&lt;/tr&gt;
-              &lt;/tbody&gt;
-            &lt;/table&gt;
-          &lt;/div&gt;
-        &lt;/section&gt;
+        <section class="mw-screen" data-view="access" hidden>
+          <div class="mw-page-head">
+            <div><h1>მომხმარებლები და წვდომა</h1><p>ფიქსირებული როლები, ინდივიდუალური უფლებები და მონაცემთა ხილვადობის სფერო.</p></div>
+            <button type="button" class="mw-primary"><svg class="mw-inline-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#mw-icon-user-plus"></use></svg> მომხმარებლის დამატება</button>
+          </div>
+          <div class="mw-tabs" role="tablist" aria-label="წვდომის სექციები">
+            <button type="button" role="tab" aria-selected="true">მომხმარებლები</button>
+            <button type="button" role="tab" aria-selected="false">როლები და უფლებები</button>
+            <button type="button" role="tab" aria-selected="false">წვდომის ისტორია</button>
+          </div>
+          <div class="mw-toolbar">
+            <input type="search" aria-label="მომხმარებლის ძიება" placeholder="სახელი, ელფოსტა ან ჯგუფი">
+            <select aria-label="დეპარტამენტი"><option>ყველა დეპარტამენტი</option><option>ტექნიკური</option><option>მობილური / საინფორმაციო</option><option>ოფისები</option></select>
+            <select aria-label="სტატუსი"><option>ყველა სტატუსი</option><option>აქტიური</option><option>დაბლოკილი</option></select>
+            <button type="button" class="mw-secondary"><svg class="mw-inline-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#mw-icon-sliders-horizontal"></use></svg> ფილტრები</button>
+          </div>
+          <div class="mw-table-wrap">
+            <table>
+              <thead><tr><th>მომხმარებელი</th><th>დეპარტამენტი / ჯგუფი</th><th>ძირითადი როლი</th><th>დამატებითი უფლებები</th><th>სტატუსი</th><th>ბოლო შესვლა</th></tr></thead>
+              <tbody>
+                <tr data-open-user tabindex="0"><td><span class="mw-person"><span class="mw-avatar">ნლ</span><span><strong>ნინო ლომიძე</strong><small>n.lomidze@magti.ge</small></span></span></td><td>ტექნიკური<br><small>ჯგუფი A</small></td><td><span class="mw-badge">ჯგუფის უფროსი</span></td><td><span class="mw-badge" data-tone="red">+4 უფლება</span></td><td><span class="mw-badge" data-tone="green">აქტიური</span></td><td>დღეს, 09:42</td></tr>
+                <tr data-open-user tabindex="0"><td><span class="mw-person"><span class="mw-avatar">გმ</span><span><strong>გიორგი მაისურაძე</strong><small>g.maisuradze@magti.ge</small></span></span></td><td>მობილური / საინფ.<br><small>ჯგუფი C</small></td><td><span class="mw-badge">ოპერატორი</span></td><td><span class="mw-badge">კონტენტის რედაქტირება</span></td><td><span class="mw-badge" data-tone="green">აქტიური</span></td><td>დღეს, 09:19</td></tr>
+                <tr data-open-user tabindex="0"><td><span class="mw-person"><span class="mw-avatar">მკ</span><span><strong>მარიამ კიკნაძე</strong><small>m.kiknadze@magti.ge</small></span></span></td><td>ოფისები<br><small>ბათუმი</small></td><td><span class="mw-badge">კონტენტ ადმინი</span></td><td>—</td><td><span class="mw-badge" data-tone="green">აქტიური</span></td><td>გუშინ, 18:07</td></tr>
+                <tr data-open-user tabindex="0"><td><span class="mw-person"><span class="mw-avatar">ლბ</span><span><strong>ლევან ბერიძე</strong><small>l.beridze@magti.ge</small></span></span></td><td>ტექნიკური<br><small>ჯგუფი B</small></td><td><span class="mw-badge">ოპერატორი</span></td><td>—</td><td><span class="mw-badge" data-tone="amber">დაბლოკილი</span></td><td>18 აგვ, 15:31</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
 
-        &lt;section class=&quot;mw-screen&quot; data-view=&quot;content&quot; hidden&gt;
-          &lt;div class=&quot;mw-page-head&quot;&gt;
-            &lt;div&gt;&lt;h1&gt;კონტენტის მართვა&lt;/h1&gt;&lt;p&gt;სტატიების სიცოცხლის ციკლი, აუდიტორია, სანდოობა და გაცნობის ვალდებულება ერთ სივრცეში.&lt;/p&gt;&lt;/div&gt;
-            &lt;button type=&quot;button&quot; class=&quot;mw-primary&quot;&gt;&lt;i data-lucide=&quot;plus&quot;&gt;&lt;/i&gt; ახალი სტატია&lt;/button&gt;
-          &lt;/div&gt;
-          &lt;div class=&quot;mw-tabs&quot; role=&quot;tablist&quot; aria-label=&quot;კონტენტის ტიპები&quot;&gt;
-            &lt;button type=&quot;button&quot; role=&quot;tab&quot; aria-selected=&quot;true&quot;&gt;სტატიები &lt;span class=&quot;mw-badge&quot;&gt;412&lt;/span&gt;&lt;/button&gt;
-            &lt;button type=&quot;button&quot; role=&quot;tab&quot; aria-selected=&quot;false&quot;&gt;სიახლეები&lt;/button&gt;
-            &lt;button type=&quot;button&quot; role=&quot;tab&quot; aria-selected=&quot;false&quot;&gt;ვიდეოები&lt;/button&gt;
-            &lt;button type=&quot;button&quot; role=&quot;tab&quot; aria-selected=&quot;false&quot;&gt;არქივი&lt;/button&gt;
-          &lt;/div&gt;
-          &lt;div class=&quot;mw-toolbar&quot;&gt;
-            &lt;input type=&quot;search&quot; aria-label=&quot;კონტენტის ძიება&quot; placeholder=&quot;სათაური, კატეგორია ან ავტორი&quot;&gt;
-            &lt;select aria-label=&quot;კატეგორია&quot;&gt;&lt;option&gt;ყველა კატეგორია&lt;/option&gt;&lt;option&gt;ინტერნეტი&lt;/option&gt;&lt;option&gt;მობილური მომსახურება&lt;/option&gt;&lt;/select&gt;
-            &lt;select aria-label=&quot;კონტენტის სტატუსი&quot;&gt;&lt;option&gt;ყველა სტატუსი&lt;/option&gt;&lt;option&gt;გამოქვეყნებული&lt;/option&gt;&lt;option&gt;გადასამოწმებელი&lt;/option&gt;&lt;/select&gt;
-            &lt;button type=&quot;button&quot; class=&quot;mw-secondary&quot;&gt;&lt;i data-lucide=&quot;download&quot;&gt;&lt;/i&gt; ექსპორტი&lt;/button&gt;
-          &lt;/div&gt;
-          &lt;div class=&quot;mw-table-wrap&quot;&gt;
-            &lt;table&gt;
-              &lt;thead&gt;&lt;tr&gt;&lt;th&gt;სათაური&lt;/th&gt;&lt;th&gt;კატეგორია&lt;/th&gt;&lt;th&gt;აუდიტორია&lt;/th&gt;&lt;th&gt;პასუხისმგებელი&lt;/th&gt;&lt;th&gt;სიცოცხლის ციკლი&lt;/th&gt;&lt;th&gt;გაცნობა / review&lt;/th&gt;&lt;th&gt;განახლდა&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;
-              &lt;tbody&gt;
-                &lt;tr&gt;&lt;td class=&quot;mw-title-cell&quot;&gt;&lt;strong&gt;როუმინგის ახალი პირობები&lt;/strong&gt;&lt;small&gt;ვერსია 4 · ქვიზი სავალდებულოა&lt;/small&gt;&lt;/td&gt;&lt;td&gt;მობილური მომსახურება&lt;/td&gt;&lt;td&gt;ყველა დეპარტამენტი&lt;/td&gt;&lt;td&gt;მ. კიკნაძე&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;mw-badge&quot; data-tone=&quot;green&quot;&gt;გამოქვეყნებული&lt;/span&gt;&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;mw-badge&quot; data-tone=&quot;red&quot;&gt;18 ვადაგადაცილებული&lt;/span&gt;&lt;/td&gt;&lt;td&gt;დღეს, 09:18&lt;/td&gt;&lt;/tr&gt;
-                &lt;tr&gt;&lt;td class=&quot;mw-title-cell&quot;&gt;&lt;strong&gt;ოპტიკური ინტერნეტის დიაგნოსტიკა&lt;/strong&gt;&lt;small&gt;ვერსია 7&lt;/small&gt;&lt;/td&gt;&lt;td&gt;ტექნიკური მხარდაჭერა&lt;/td&gt;&lt;td&gt;ტექნიკური&lt;/td&gt;&lt;td&gt;გ. მაისურაძე&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;mw-badge&quot; data-tone=&quot;green&quot;&gt;გამოქვეყნებული&lt;/span&gt;&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;mw-badge&quot; data-tone=&quot;amber&quot;&gt;review: 6 დღეში&lt;/span&gt;&lt;/td&gt;&lt;td&gt;19 აგვ, 16:40&lt;/td&gt;&lt;/tr&gt;
-                &lt;tr&gt;&lt;td class=&quot;mw-title-cell&quot;&gt;&lt;strong&gt;საზაფხულო შეთავაზება 2026&lt;/strong&gt;&lt;small&gt;ავტომატური დამალვა ჩართულია&lt;/small&gt;&lt;/td&gt;&lt;td&gt;აქციები&lt;/td&gt;&lt;td&gt;მობილური / საინფ.&lt;/td&gt;&lt;td&gt;ნ. ლომიძე&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;mw-badge&quot; data-tone=&quot;amber&quot;&gt;სრულდება 31 აგვ&lt;/span&gt;&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;mw-badge&quot; data-tone=&quot;green&quot;&gt;96% გაეცნო&lt;/span&gt;&lt;/td&gt;&lt;td&gt;18 აგვ, 11:22&lt;/td&gt;&lt;/tr&gt;
-                &lt;tr&gt;&lt;td class=&quot;mw-title-cell&quot;&gt;&lt;strong&gt;CRM-ში განაცხადის რეგისტრაცია&lt;/strong&gt;&lt;small&gt;ვერსია 12&lt;/small&gt;&lt;/td&gt;&lt;td&gt;შიდა პროგრამები&lt;/td&gt;&lt;td&gt;ყველა დეპარტამენტი&lt;/td&gt;&lt;td&gt;სისტ. ადმინი&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;mw-badge&quot;&gt;შავი ვერსია&lt;/span&gt;&lt;/td&gt;&lt;td&gt;გაცნობა არ მოითხოვება&lt;/td&gt;&lt;td&gt;17 აგვ, 14:05&lt;/td&gt;&lt;/tr&gt;
-              &lt;/tbody&gt;
-            &lt;/table&gt;
-          &lt;/div&gt;
-        &lt;/section&gt;
+        <section class="mw-screen" data-view="content" hidden>
+          <div class="mw-page-head">
+            <div><h1>კონტენტის მართვა</h1><p>სტატიების სიცოცხლის ციკლი, აუდიტორია, სანდოობა და გაცნობის ვალდებულება ერთ სივრცეში.</p></div>
+            <button type="button" class="mw-primary"><svg class="mw-inline-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#mw-icon-plus"></use></svg> ახალი სტატია</button>
+          </div>
+          <div class="mw-tabs" role="tablist" aria-label="კონტენტის ტიპები">
+            <button type="button" role="tab" aria-selected="true">სტატიები <span class="mw-badge">412</span></button>
+            <button type="button" role="tab" aria-selected="false">სიახლეები</button>
+            <button type="button" role="tab" aria-selected="false">ვიდეოები</button>
+            <button type="button" role="tab" aria-selected="false">არქივი</button>
+          </div>
+          <div class="mw-toolbar">
+            <input type="search" aria-label="კონტენტის ძიება" placeholder="სათაური, კატეგორია ან ავტორი">
+            <select aria-label="კატეგორია"><option>ყველა კატეგორია</option><option>ინტერნეტი</option><option>მობილური მომსახურება</option></select>
+            <select aria-label="კონტენტის სტატუსი"><option>ყველა სტატუსი</option><option>გამოქვეყნებული</option><option>გადასამოწმებელი</option></select>
+            <button type="button" class="mw-secondary"><svg class="mw-inline-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#mw-icon-download"></use></svg> ექსპორტი</button>
+          </div>
+          <div class="mw-table-wrap">
+            <table>
+              <thead><tr><th>სათაური</th><th>კატეგორია</th><th>აუდიტორია</th><th>პასუხისმგებელი</th><th>სიცოცხლის ციკლი</th><th>გაცნობა / review</th><th>განახლდა</th></tr></thead>
+              <tbody>
+                <tr><td class="mw-title-cell"><strong>როუმინგის ახალი პირობები</strong><small>ვერსია 4 · ქვიზი სავალდებულოა</small></td><td>მობილური მომსახურება</td><td>ყველა დეპარტამენტი</td><td>მ. კიკნაძე</td><td><span class="mw-badge" data-tone="green">გამოქვეყნებული</span></td><td><span class="mw-badge" data-tone="red">18 ვადაგადაცილებული</span></td><td>დღეს, 09:18</td></tr>
+                <tr><td class="mw-title-cell"><strong>ოპტიკური ინტერნეტის დიაგნოსტიკა</strong><small>ვერსია 7</small></td><td>ტექნიკური მხარდაჭერა</td><td>ტექნიკური</td><td>გ. მაისურაძე</td><td><span class="mw-badge" data-tone="green">გამოქვეყნებული</span></td><td><span class="mw-badge" data-tone="amber">review: 6 დღეში</span></td><td>19 აგვ, 16:40</td></tr>
+                <tr><td class="mw-title-cell"><strong>საზაფხულო შეთავაზება 2026</strong><small>ავტომატური დამალვა ჩართულია</small></td><td>აქციები</td><td>მობილური / საინფ.</td><td>ნ. ლომიძე</td><td><span class="mw-badge" data-tone="amber">სრულდება 31 აგვ</span></td><td><span class="mw-badge" data-tone="green">96% გაეცნო</span></td><td>18 აგვ, 11:22</td></tr>
+                <tr><td class="mw-title-cell"><strong>CRM-ში განაცხადის რეგისტრაცია</strong><small>ვერსია 12</small></td><td>შიდა პროგრამები</td><td>ყველა დეპარტამენტი</td><td>სისტ. ადმინი</td><td><span class="mw-badge">შავი ვერსია</span></td><td>გაცნობა არ მოითხოვება</td><td>17 აგვ, 14:05</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
 
-        &lt;div class=&quot;mw-drawer-backdrop&quot; hidden&gt;
-          &lt;aside class=&quot;mw-drawer&quot; role=&quot;dialog&quot; aria-modal=&quot;true&quot; aria-labelledby=&quot;mw-drawer-title&quot;&gt;
-            &lt;div class=&quot;mw-drawer-head&quot;&gt;
-              &lt;span class=&quot;mw-avatar&quot;&gt;ნლ&lt;/span&gt;
-              &lt;div&gt;&lt;h2 id=&quot;mw-drawer-title&quot;&gt;ნინო ლომიძე&lt;/h2&gt;&lt;p&gt;n.lomidze@magti.ge · &lt;span class=&quot;mw-badge&quot; data-tone=&quot;green&quot;&gt;აქტიური&lt;/span&gt;&lt;/p&gt;&lt;/div&gt;
-              &lt;button type=&quot;button&quot; class=&quot;mw-icon-button&quot; data-close-drawer aria-label=&quot;დახურვა&quot;&gt;&lt;i data-lucide=&quot;x&quot;&gt;&lt;/i&gt;&lt;/button&gt;
-            &lt;/div&gt;
-            &lt;div class=&quot;mw-tabs&quot; role=&quot;tablist&quot; aria-label=&quot;მომხმარებლის დეტალები&quot;&gt;
-              &lt;button type=&quot;button&quot; role=&quot;tab&quot; aria-selected=&quot;false&quot; data-drawer-tab=&quot;summary&quot;&gt;მიმოხილვა&lt;/button&gt;
-              &lt;button type=&quot;button&quot; role=&quot;tab&quot; aria-selected=&quot;true&quot; data-drawer-tab=&quot;permissions&quot;&gt;როლი და უფლებები&lt;/button&gt;
-              &lt;button type=&quot;button&quot; role=&quot;tab&quot; aria-selected=&quot;false&quot; data-drawer-tab=&quot;reading&quot;&gt;გაცნობა&lt;/button&gt;
-              &lt;button type=&quot;button&quot; role=&quot;tab&quot; aria-selected=&quot;false&quot; data-drawer-tab=&quot;security&quot;&gt;უსაფრთხოება&lt;/button&gt;
-              &lt;button type=&quot;button&quot; role=&quot;tab&quot; aria-selected=&quot;false&quot; data-drawer-tab=&quot;audit&quot;&gt;აუდიტი&lt;/button&gt;
-            &lt;/div&gt;
-            &lt;div class=&quot;mw-drawer-body&quot;&gt;
-              &lt;div data-drawer-panel=&quot;permissions&quot;&gt;
-                &lt;h3 class=&quot;mw-section-title&quot;&gt;ძირითადი წვდომა&lt;/h3&gt;
-                &lt;div class=&quot;mw-fields&quot;&gt;
-                  &lt;div class=&quot;mw-field&quot;&gt;&lt;label for=&quot;mw-role&quot;&gt;ფიქსირებული როლი&lt;/label&gt;&lt;select id=&quot;mw-role&quot;&gt;&lt;option&gt;ჯგუფის უფროსი&lt;/option&gt;&lt;option&gt;ოპერატორი&lt;/option&gt;&lt;option&gt;კონტენტ ადმინი&lt;/option&gt;&lt;option&gt;სისტემური ადმინი&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;
-                  &lt;div class=&quot;mw-field&quot;&gt;&lt;label for=&quot;mw-status&quot;&gt;ანგარიშის სტატუსი&lt;/label&gt;&lt;select id=&quot;mw-status&quot;&gt;&lt;option&gt;აქტიური&lt;/option&gt;&lt;option&gt;დაბლოკილი&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;
-                  &lt;div class=&quot;mw-field&quot; data-span=&quot;2&quot;&gt;&lt;label for=&quot;mw-scope&quot;&gt;მონაცემთა ხილვადობის სფერო&lt;/label&gt;&lt;select id=&quot;mw-scope&quot;&gt;&lt;option&gt;ტექნიკური დეპარტამენტი / ჯგუფი A&lt;/option&gt;&lt;option&gt;ტექნიკური დეპარტამენტი&lt;/option&gt;&lt;option&gt;ყველა დეპარტამენტი&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;
-                &lt;/div&gt;
-                &lt;h3 class=&quot;mw-section-title&quot;&gt;დამატებითი ინდივიდუალური უფლებები&lt;/h3&gt;
-                &lt;div class=&quot;mw-permission-list&quot;&gt;
-                  &lt;label class=&quot;mw-permission&quot;&gt;&lt;input type=&quot;checkbox&quot; checked&gt;&lt;span&gt;&lt;strong&gt;კონტენტის შექმნა და რედაქტირება&lt;/strong&gt;&lt;small&gt;სტატიების მომზადება და ცვლილება გამოქვეყნების გარეშე&lt;/small&gt;&lt;/span&gt;&lt;span class=&quot;mw-badge&quot;&gt;content.edit&lt;/span&gt;&lt;/label&gt;
-                  &lt;label class=&quot;mw-permission&quot;&gt;&lt;input type=&quot;checkbox&quot; checked&gt;&lt;span&gt;&lt;strong&gt;კონტენტის გამოქვეყნება&lt;/strong&gt;&lt;small&gt;პუბლიკაცია, ვადის და აუდიტორიის მართვა&lt;/small&gt;&lt;/span&gt;&lt;span class=&quot;mw-badge&quot;&gt;content.publish&lt;/span&gt;&lt;/label&gt;
-                  &lt;label class=&quot;mw-permission&quot;&gt;&lt;input type=&quot;checkbox&quot; checked&gt;&lt;span&gt;&lt;strong&gt;ჯგუფის ექსპორტი&lt;/strong&gt;&lt;small&gt;მხოლოდ საკუთარ scope-ში, პირადი მონაცემების გარეშე&lt;/small&gt;&lt;/span&gt;&lt;span class=&quot;mw-badge&quot;&gt;export.team&lt;/span&gt;&lt;/label&gt;
-                  &lt;label class=&quot;mw-permission&quot;&gt;&lt;input type=&quot;checkbox&quot;&gt;&lt;span&gt;&lt;strong&gt;Broadcast შეტყობინება&lt;/strong&gt;&lt;small&gt;მიზნობრივი ოპერატიული შეტყობინების გაგზავნა&lt;/small&gt;&lt;/span&gt;&lt;span class=&quot;mw-badge&quot;&gt;broadcast.send&lt;/span&gt;&lt;/label&gt;
-                &lt;/div&gt;
-                &lt;div class=&quot;mw-access-summary&quot;&gt;&lt;strong&gt;ეფექტური წვდომა:&lt;/strong&gt; ჯგუფის უფროსის საბაზო უფლებები + 3 ინდივიდუალური უფლება. მონაცემთა ხილვადობა რჩება მხოლოდ „ტექნიკური / ჯგუფი A“-ს ფარგლებში.&lt;/div&gt;
-              &lt;/div&gt;
-              &lt;div class=&quot;mw-placeholder&quot; data-drawer-panel=&quot;summary&quot; hidden&gt;ანგარიშის მოკლე სტატუსი, პასუხისმგებლობები და ბოლო აქტივობა.&lt;/div&gt;
-              &lt;div class=&quot;mw-placeholder&quot; data-drawer-panel=&quot;reading&quot; hidden&gt;სავალდებულო მასალების პროგრესი, ვადები და ქვიზის მცდელობები.&lt;/div&gt;
-              &lt;div class=&quot;mw-placeholder&quot; data-drawer-panel=&quot;security&quot; hidden&gt;შესვლები, აქტიური სესიები, დაბლოკვები და უსაფრთხოების მოვლენები.&lt;/div&gt;
-              &lt;div class=&quot;mw-placeholder&quot; data-drawer-panel=&quot;audit&quot; hidden&gt;როლის, უფლებების და scope-ის ცვლილებების უცვლელი ჟურნალი.&lt;/div&gt;
-            &lt;/div&gt;
-            &lt;div class=&quot;mw-drawer-foot&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;mw-secondary&quot; data-close-drawer&gt;გაუქმება&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;mw-primary&quot;&gt;ცვლილებების შენახვა&lt;/button&gt;&lt;/div&gt;
-          &lt;/aside&gt;
-        &lt;/div&gt;
-      &lt;/div&gt;
-    &lt;/main&gt;
-  &lt;/div&gt;
+        <div class="mw-drawer-backdrop" hidden>
+          <aside class="mw-drawer" role="dialog" aria-modal="true" aria-labelledby="mw-drawer-title">
+            <div class="mw-drawer-head">
+              <span class="mw-avatar">ნლ</span>
+              <div><h2 id="mw-drawer-title">ნინო ლომიძე</h2><p>n.lomidze@magti.ge · <span class="mw-badge" data-tone="green">აქტიური</span></p></div>
+              <button type="button" class="mw-icon-button" data-close-drawer aria-label="დახურვა"><svg class="mw-inline-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#mw-icon-x"></use></svg></button>
+            </div>
+            <div class="mw-tabs" role="tablist" aria-label="მომხმარებლის დეტალები">
+              <button type="button" role="tab" aria-selected="false" data-drawer-tab="summary">მიმოხილვა</button>
+              <button type="button" role="tab" aria-selected="true" data-drawer-tab="permissions">როლი და უფლებები</button>
+              <button type="button" role="tab" aria-selected="false" data-drawer-tab="reading">გაცნობა</button>
+              <button type="button" role="tab" aria-selected="false" data-drawer-tab="security">უსაფრთხოება</button>
+              <button type="button" role="tab" aria-selected="false" data-drawer-tab="audit">აუდიტი</button>
+            </div>
+            <div class="mw-drawer-body">
+              <div data-drawer-panel="permissions">
+                <h3 class="mw-section-title">ძირითადი წვდომა</h3>
+                <div class="mw-fields">
+                  <div class="mw-field"><label for="mw-role">ფიქსირებული როლი</label><select id="mw-role"><option>ჯგუფის უფროსი</option><option>ოპერატორი</option><option>კონტენტ ადმინი</option><option>სისტემური ადმინი</option></select></div>
+                  <div class="mw-field"><label for="mw-status">ანგარიშის სტატუსი</label><select id="mw-status"><option>აქტიური</option><option>დაბლოკილი</option></select></div>
+                  <div class="mw-field" data-span="2"><label for="mw-scope">მონაცემთა ხილვადობის სფერო</label><select id="mw-scope"><option>ტექნიკური დეპარტამენტი / ჯგუფი A</option><option>ტექნიკური დეპარტამენტი</option><option>ყველა დეპარტამენტი</option></select></div>
+                </div>
+                <h3 class="mw-section-title">დამატებითი ინდივიდუალური უფლებები</h3>
+                <div class="mw-permission-list">
+                  <label class="mw-permission"><input type="checkbox" checked><span><strong>კონტენტის შექმნა და რედაქტირება</strong><small>სტატიების მომზადება და ცვლილება გამოქვეყნების გარეშე</small></span><span class="mw-badge">content.edit</span></label>
+                  <label class="mw-permission"><input type="checkbox" checked><span><strong>კონტენტის გამოქვეყნება</strong><small>პუბლიკაცია, ვადის და აუდიტორიის მართვა</small></span><span class="mw-badge">content.publish</span></label>
+                  <label class="mw-permission"><input type="checkbox" checked><span><strong>ჯგუფის ექსპორტი</strong><small>მხოლოდ საკუთარ scope-ში, პირადი მონაცემების გარეშე</small></span><span class="mw-badge">export.team</span></label>
+                  <label class="mw-permission"><input type="checkbox"><span><strong>Broadcast შეტყობინება</strong><small>მიზნობრივი ოპერატიული შეტყობინების გაგზავნა</small></span><span class="mw-badge">broadcast.send</span></label>
+                </div>
+                <div class="mw-access-summary"><strong>ეფექტური წვდომა:</strong> ჯგუფის უფროსის საბაზო უფლებები + 3 ინდივიდუალური უფლება. მონაცემთა ხილვადობა რჩება მხოლოდ „ტექნიკური / ჯგუფი A“-ს ფარგლებში.</div>
+              </div>
+              <div class="mw-placeholder" data-drawer-panel="summary" hidden>ანგარიშის მოკლე სტატუსი, პასუხისმგებლობები და ბოლო აქტივობა.</div>
+              <div class="mw-placeholder" data-drawer-panel="reading" hidden>სავალდებულო მასალების პროგრესი, ვადები და ქვიზის მცდელობები.</div>
+              <div class="mw-placeholder" data-drawer-panel="security" hidden>შესვლები, აქტიური სესიები, დაბლოკვები და უსაფრთხოების მოვლენები.</div>
+              <div class="mw-placeholder" data-drawer-panel="audit" hidden>როლის, უფლებების და scope-ის ცვლილებების უცვლელი ჟურნალი.</div>
+            </div>
+            <div class="mw-drawer-foot"><button type="button" class="mw-secondary" data-close-drawer>გაუქმება</button><button type="button" class="mw-primary">ცვლილებების შენახვა</button></div>
+          </aside>
+        </div>
+      </div>
+    </main>
+  </div>
 
-  &lt;script&gt;
-    (() =&gt; {
-      const root = document.getElementById(&#x27;magti-admin-wireframes&#x27;);
-      const drawer = root.querySelector(&#x27;.mw-drawer-backdrop&#x27;);
-      const showScreen = (name) =&gt; {
-        root.querySelectorAll(&#x27;[data-view]&#x27;).forEach((view) =&gt; { view.hidden = view.dataset.view !== name; });
-        root.querySelectorAll(&#x27;[data-screen]&#x27;).forEach((button) =&gt; {
-          if (button.dataset.screen === name) button.setAttribute(&#x27;aria-current&#x27;, &#x27;page&#x27;);
-          else button.removeAttribute(&#x27;aria-current&#x27;);
+  <script>
+    (() => {
+      const root = document.getElementById('magti-admin-wireframes');
+      const drawer = root.querySelector('.mw-drawer-backdrop');
+      const showScreen = (name) => {
+        root.querySelectorAll('[data-view]').forEach((view) => { view.hidden = view.dataset.view !== name; });
+        root.querySelectorAll('[data-screen]').forEach((button) => {
+          if (button.dataset.screen === name) button.setAttribute('aria-current', 'page');
+          else button.removeAttribute('aria-current');
         });
         drawer.hidden = true;
       };
-      root.querySelectorAll(&#x27;[data-screen]&#x27;).forEach((button) =&gt; button.addEventListener(&#x27;click&#x27;, () =&gt; showScreen(button.dataset.screen)));
-      const openDrawer = () =&gt; { drawer.hidden = false; root.querySelector(&#x27;[data-close-drawer]&#x27;).focus(); };
-      root.querySelectorAll(&#x27;[data-open-user]&#x27;).forEach((row) =&gt; {
-        row.addEventListener(&#x27;click&#x27;, openDrawer);
-        row.addEventListener(&#x27;keydown&#x27;, (event) =&gt; { if (event.key === &#x27;Enter&#x27; || event.key === &#x27; &#x27;) openDrawer(); });
+      root.querySelectorAll('[data-screen]').forEach((button) => button.addEventListener('click', () => showScreen(button.dataset.screen)));
+      const openDrawer = () => { drawer.hidden = false; root.querySelector('[data-close-drawer]').focus(); };
+      root.querySelectorAll('[data-open-user]').forEach((row) => {
+        row.addEventListener('click', openDrawer);
+        row.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') openDrawer(); });
       });
-      root.querySelectorAll(&#x27;[data-close-drawer]&#x27;).forEach((button) =&gt; button.addEventListener(&#x27;click&#x27;, () =&gt; { drawer.hidden = true; }));
-      drawer.addEventListener(&#x27;click&#x27;, (event) =&gt; { if (event.target === drawer) drawer.hidden = true; });
-      root.querySelectorAll(&#x27;[data-drawer-tab]&#x27;).forEach((button) =&gt; button.addEventListener(&#x27;click&#x27;, () =&gt; {
+      root.querySelectorAll('[data-close-drawer]').forEach((button) => button.addEventListener('click', () => { drawer.hidden = true; }));
+      drawer.addEventListener('click', (event) => { if (event.target === drawer) drawer.hidden = true; });
+      root.querySelectorAll('[data-drawer-tab]').forEach((button) => button.addEventListener('click', () => {
         const name = button.dataset.drawerTab;
-        root.querySelectorAll(&#x27;[data-drawer-tab]&#x27;).forEach((tab) =&gt; tab.setAttribute(&#x27;aria-selected&#x27;, String(tab === button)));
-        root.querySelectorAll(&#x27;[data-drawer-panel]&#x27;).forEach((panel) =&gt; { panel.hidden = panel.dataset.drawerPanel !== name; });
+        root.querySelectorAll('[data-drawer-tab]').forEach((tab) => tab.setAttribute('aria-selected', String(tab === button)));
+        root.querySelectorAll('[data-drawer-panel]').forEach((panel) => { panel.hidden = panel.dataset.drawerPanel !== name; });
       }));
     })();
-  &lt;/script&gt;
-&lt;/div&gt;
+  </script>
+</div>
 
-&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
-&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
-&lt;script&gt;
-(() =&gt; {
-  if (window.FloatingUIDOM == null) {
-    return;
-  }
-  const { autoUpdate, computePosition, flip, offset, shift, size } =
-    window.FloatingUIDOM;
-  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
-  const tooltipId = `codex-visualization-tooltip-${
-    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
-  }`;
-  const tooltipGap = 5;
-  const hoverDelay = 700;
-  const skipDelay = 300;
-  let activeTrigger = null;
-  let pendingTrigger = null;
-  let tooltip = null;
-  let openTimeout = null;
-  let autoUpdateCleanup = null;
-  let positionRequest = 0;
-  let skipDelayUntil = 0;
-
-  const getTrigger = (target) =&gt;
-    target?.nodeType === Node.ELEMENT_NODE
-      ? target.closest(&quot;[data-tooltip]&quot;)
-      : null;
-  const containsTarget = (trigger, target) =&gt;
-    target?.nodeType != null &amp;&amp; trigger.contains(target);
-  const getContent = (trigger) =&gt;
-    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
-  const getPlacement = (trigger) =&gt; {
-    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
-    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
-  };
-  const getTooltip = () =&gt; {
-    if (tooltip == null) {
-      tooltip = document.createElement(&quot;div&quot;);
-      tooltip.id = tooltipId;
-      tooltip.className = &quot;tooltip&quot;;
-      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
-    }
-    return tooltip;
-  };
-  const setDescribedBy = (trigger, described) =&gt; {
-    const ids = new Set(
-      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
-        .split(/\s+/)
-        .filter(Boolean),
-    );
-    if (described) {
-      ids.add(tooltipId);
-    } else {
-      ids.delete(tooltipId);
-    }
-    if (ids.size === 0) {
-      trigger.removeAttribute(&quot;aria-describedby&quot;);
-    } else {
-      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
-    }
-  };
-  const clearOpenTimeout = () =&gt; {
-    if (openTimeout != null) {
-      window.clearTimeout(openTimeout);
-      openTimeout = null;
-    }
-    pendingTrigger = null;
-  };
-  const closeTooltip = (activateSkipDelay = true) =&gt; {
-    clearOpenTimeout();
-    positionRequest += 1;
-    autoUpdateCleanup?.();
-    autoUpdateCleanup = null;
-    if (activeTrigger == null) {
-      return;
-    }
-    setDescribedBy(activeTrigger, false);
-    activeTrigger = null;
-    tooltip?.remove();
-    if (activateSkipDelay) {
-      skipDelayUntil = Date.now() + skipDelay;
-    }
-  };
-  const updatePosition = (trigger, floating) =&gt; {
-    const request = ++positionRequest;
-    void computePosition(trigger, floating, {
-      middleware: [
-        offset(tooltipGap),
-        flip({ padding: tooltipGap }),
-        shift({ padding: tooltipGap }),
-        size({
-          padding: tooltipGap,
-          apply({ availableHeight, availableWidth, elements }) {
-            elements.floating.style.setProperty(
-              &quot;--tooltip-available-width&quot;,
-              `${Math.max(0, availableWidth)}px`,
-            );
-            elements.floating.style.setProperty(
-              &quot;--tooltip-available-height&quot;,
-              `${Math.max(0, availableHeight)}px`,
-            );
-          },
-        }),
-      ],
-      placement: getPlacement(trigger),
-      strategy: &quot;fixed&quot;,
-    })
-      .then(({ x, y }) =&gt; {
-        if (activeTrigger !== trigger || request !== positionRequest) {
-          return;
-        }
-        const scale = window.devicePixelRatio || 1;
-        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
-        floating.style.visibility = &quot;visible&quot;;
-      })
-      .catch(() =&gt; {
-        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
-          closeTooltip(false);
-        }
-      });
-  };
-  const openTooltip = (trigger) =&gt; {
-    const content = getContent(trigger);
-    if (!trigger.isConnected || content.length === 0) {
-      return;
-    }
-    clearOpenTimeout();
-    if (activeTrigger === trigger) {
-      return;
-    }
-    closeTooltip();
-    const floating = getTooltip();
-    floating.textContent = content;
-    floating.style.visibility = &quot;hidden&quot;;
-    floating.style.transform = &quot;translate(0, 0)&quot;;
-    document.body.appendChild(floating);
-    activeTrigger = trigger;
-    setDescribedBy(trigger, true);
-    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
-      updatePosition(trigger, floating);
-    });
-  };
-  const requestOpen = (trigger, immediate = false) =&gt; {
-    if (
-      getContent(trigger).length === 0 ||
-      activeTrigger === trigger ||
-      pendingTrigger === trigger
-    ) {
-      return;
-    }
-    clearOpenTimeout();
-    pendingTrigger = trigger;
-    const delay =
-      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
-        ? 0
-        : hoverDelay;
-    if (delay === 0) {
-      openTooltip(trigger);
-      return;
-    }
-    openTimeout = window.setTimeout(() =&gt; {
-      openTimeout = null;
-      pendingTrigger = null;
-      openTooltip(trigger);
-    }, delay);
-  };
-  const handlePointerOpen = (event) =&gt; {
-    if (event.pointerType === &quot;touch&quot;) {
-      return;
-    }
-    const trigger = getTrigger(event.target);
-    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
-      return;
-    }
-    requestOpen(trigger);
-  };
-  const handleLeave = (event) =&gt; {
-    const trigger = getTrigger(event.target);
-    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
-      return;
-    }
-    if (activeTrigger === trigger || pendingTrigger === trigger) {
-      closeTooltip();
-    }
-  };
-  const handleFocusIn = (event) =&gt; {
-    const trigger = getTrigger(event.target);
-    if (trigger?.matches(&quot;:focus-visible&quot;)) {
-      requestOpen(trigger, true);
-    }
-  };
-  const handleKeyDown = (event) =&gt; {
-    if (event.key === &quot;Escape&quot;) {
-      closeTooltip();
-    }
-  };
-  const handleContextMenu = (event) =&gt; {
-    const trigger = getTrigger(event.target);
-    if (activeTrigger === trigger || pendingTrigger === trigger) {
-      closeTooltip();
-    }
-  };
-  const destroy = () =&gt; {
-    closeTooltip(false);
-    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
-    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
-    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
-    document.removeEventListener(&quot;focusout&quot;, handleLeave);
-    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
-    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
-    tooltip = null;
-  };
-
-  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
-  document.addEventListener(&quot;pointerout&quot;, handleLeave);
-  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
-  document.addEventListener(&quot;focusout&quot;, handleLeave);
-  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
-  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
-  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
-})();
-&lt;/script&gt;
-&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
-&lt;script&gt;
-(() =&gt; {
-  const initialize = () =&gt; {
-    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
-  };
-  if (globalThis.lucide != null) {
-    initialize();
-    return;
-  }
-  document
-    .getElementById(&quot;codex-visualization-lucide&quot;)
-    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
-})();
-&lt;/script&gt;
-
-&lt;/body&gt;
-&lt;/html&gt;
-"></iframe>
 </body>
 </html>

@@ -585,6 +585,9 @@ Bulk publish და hard delete ნაგულისხმევად არ �
 ### ფაზა 0 — ფუნქციური საფუძვლის სტაბილიზაცია
 
 - `/category/null` და article-history Oracle/CLOB ხარვეზების გასწორება;
+- `ArticleHistoryRepositoryCustomImplTest` არის binding contract-lock
+  (`setObject(OffsetDateTime)`), ხოლო Oracle-ში დროის correctness-ს ცალკე
+  real-Oracle integration test ამოწმებს; driver-ის შეცვლისას ორივე უნდა დარჩეს;
 - category route identity-ის გამიჯვნა: ციფრული slug (მაგ. `2024`) არ უნდა
   აირიოს numeric ID fallback-ში; პარალელური create-ისთვის slug uniqueness
   database-level ან ეკვივალენტურად atomic მექანიზმით უნდა იყოს დაცული;
