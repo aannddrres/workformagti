@@ -178,12 +178,25 @@ test.describe('reading and version history', () => {
     await expect(overlay.getByText('ცვლილებების ისტორია')).toBeVisible();
 
     // --- pick a version ----------------------------------------------------
-    // Clicked on the badge rather than by row index: the row is an unlabelled
-    // div and the badge is the only thing on it that names which version it
-    // is. The click bubbles to the row's own handler.
+    // The SECOND row, not the first, and by the row's own class rather than
+    // by its badge text.
+    //
+    // load() auto-selects data[0] as soon as the version list arrives and
+    // fetches its diff (overlay ts:76-78), so clicking the top row asks for a
+    // diff that is already on screen -- nothing observable changes and there
+    // is no clean signal to wait on. The second row is an actual state
+    // change. `cursor-pointer` is the row's own base class (ROW_BASE, ts:88),
+    // which is what makes this a stable handle on an otherwise unlabelled div.
+    // Not an exact count: whether the list carries the current state as its
+    // own entry or only the saved history rows is the component's business,
+    // and this test does not need to pin it down. More than one is what the
+    // rest of the assertions actually depend on.
+    const rows = overlay.locator('div.cursor-pointer');
+    await expect(rows.nth(1)).toBeVisible();
+
     const [selected] = await Promise.all([
       page.waitForResponse((r) => r.url().includes('/diff')),
-      overlay.getByText(/^V\d+ \(მიმდინარე\)/).click()
+      rows.nth(1).click()
     ]);
     expect(selected.status(), 'selecting a version must fetch its diff').toBe(200);
 
