@@ -174,8 +174,14 @@ test.describe('content admin recovery paths', () => {
     // handler at all (article-history-modal.html has exactly two exits, the
     // backdrop and this button), so Escape left the backdrop over the page and
     // every later click landed on it.
+    //
+    // Presence is asserted on the modal's heading, not on its host element:
+    // an Angular host is an unstyled inline box and everything inside this one
+    // is `position: fixed`, so <app-article-history-modal> itself measures
+    // zero and Playwright calls it hidden while the modal is plainly on
+    // screen. Same for the drawer below.
     const historyModal = page.locator('app-article-history-modal');
-    await expect(historyModal).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'ცვლილებების ისტორია' })).toBeVisible();
     await historyModal.getByRole('button', { name: 'დახურვა' }).click();
     await expect(historyModal).toHaveCount(0);
 
@@ -184,7 +190,7 @@ test.describe('content admin recovery paths', () => {
     await page.getByRole('button', { name: 'რედაქტირება' }).click();
 
     const drawer = page.locator('app-article-edit-drawer');
-    await expect(drawer).toBeVisible();
+    await expect(drawer).toHaveCount(1);
     // The title field carries the article's own title, which is the drawer
     // saying which article it opened on.
     await expect(drawer.locator('input[type="text"]').first()).toHaveValue(title);
