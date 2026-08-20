@@ -64,43 +64,22 @@ test.describe('audit log', () => {
     await expect(archiveRows.first()).toBeVisible();
 
     // --- the pager ---------------------------------------------------------
-    // Narrowed to the fixture's own action first, and not for tidiness:
-    // READING the audit log writes an audit row of its own
-    // (AuditLogController.java:115, VIEW_AUDIT_LOG). The unfiltered list is
-    // therefore a moving target -- every page change pushes a fresh row onto
-    // the top of page 1 -- and the first version of this test failed on
-    // exactly that, comparing page 1's top row before and after and finding
-    // it two seconds newer. ARCHIVE rows are only written by the fixture, so
-    // this list holds still while the pager is exercised.
-    const search = page.getByPlaceholder('ძებნა… actor:admin category:SECURITY');
-    await search.fill('action:ARCHIVE');
-
-    // Wait for the FILTER to land before touching the pager, and wait on the
-    // rows rather than on a timer. Typing debounces 300ms and then calls
-    // reload(), which sets offset back to 0 (admin-audit-page.ts:154-157) --
-    // so a pager click issued before that debounce fires is undone by it, and
-    // "წინა" stays disabled for the rest of the test. That is exactly how the
-    // first version of this spec spent its whole 120s budget retrying a click
-    // on a button that could never become enabled.
+    // Unfiltered, and that is the simplification three failed attempts were
+    // missing. Every earlier version narrowed the list first, to hold it
+    // still, because it identified a page by WHAT WAS IN IT -- and then had
+    // to fight the search box's 300ms debounce, which calls reload() and puts
+    // offset back to 0 (admin-audit-page.ts:154-157), disabling "წინა"
+    // underneath the test.
     //
-    // "every row is an ARCHIVE row" is the precise signal: the unfiltered list
-    // is a mix (VIEW_AUDIT_LOG, CREATE, LOGIN), so this count only reaches a
-    // full page once the filtered response has replaced it.
+    // Nothing here reads the rows any more. The assertions are the offset the
+    // pager asks the server for (audit.service.ts:6-7) and the button state
+    // that mirrors it (`offset() <= 0`, admin-audit-page.html:196). Neither
+    // cares that reading the audit log writes a VIEW_AUDIT_LOG row of its own
+    // (AuditLogController.java:115) and keeps the list moving. So no filter is
+    // needed, and no debounce can interfere.
     const firstPage = page.locator('tbody tr');
     await expect(firstPage).toHaveCount(PAGE_SIZE);
-    await expect(archiveRows).toHaveCount(PAGE_SIZE);
 
-    // Asserted on the OFFSET the pager asks the server for, which is the whole
-    // of its job (audit.service.ts:6-7), plus the button state that mirrors it.
-    //
-    // Two earlier versions tried to identify the page by what was in the table.
-    // Both were wrong for the same underlying reason: these rows are not
-    // distinguishable from each other on screen. Comparing whole row text broke
-    // on a cell that re-rendered; comparing the timestamp cell broke because
-    // the fixture writes its 52 rows in a tight loop, so many share the same
-    // whole second and the table prints seconds -- page 1's top row and page
-    // 2's top row can legitimately show the identical string, which is what the
-    // last run failed on. Not a pager that refused to move: it had moved.
     const previous = page.getByRole('button', { name: 'წინა' });
     await expect(previous).toBeDisabled();
 
@@ -118,6 +97,26 @@ test.describe('audit log', () => {
     expect(first.status()).toBe(200);
     // Back at offset 0, and the button says so by disabling itself again.
     await expect(previous).toBeDisabled();
+
+    // --- the search box's structured tokens --------------------------------
+    // `action:` is one of three tokens this box understands
+    // (audit-format.ts:34-50): it is parsed out and sent as its own query
+    // parameter, and only leftover words become the free-text `q`. Asserting
+    // that is the point -- an earlier version waited for `q=action:ARCHIVE`
+    // and timed out on a request that was never going to be made.
+    //
+    // The exclusion is what makes this worth asserting: LOGIN rows exist on
+    // every run (the personas log in) and they must all be gone.
+    const search = page.getByPlaceholder('ძებნა… actor:admin category:SECURITY');
+    const [filtered] = await Promise.all([
+      page.waitForResponse(
+        (r) => r.url().includes('/api/audit-logs?') && r.url().includes('action=ARCHIVE')
+      ),
+      search.fill('action:ARCHIVE')
+    ]);
+    expect(filtered.status(), 'the filtered query must reach the server').toBe(200);
+    await expect(page.locator('tbody tr', { hasText: 'LOGIN' })).toHaveCount(0);
+    await expect(archiveRows.first()).toBeVisible();
 
     await search.fill('');
 

@@ -186,59 +186,10 @@ done
 # Skipped entirely if any article already exists, so re-running is safe and
 # never duplicates.
 
-seed_content() {
-  local token cat_a cat_b
-  token="$(curl -sf -X POST "$BACKEND_URL/api/auth/login" \
-      -H 'Content-Type: application/json' \
-      -d '{"email":"admin@magti.ge","password":"x"}' \
-    | grep -o '"access_token":"[^"]*"' | head -1 | cut -d'"' -f4)"
-  [ -n "$token" ] || { warn "could not log in to seed demo content; skipping"; return 0; }
-
-  # "does any article exist" rather than "is the body exactly []", so
-  # pretty-printing or a changed envelope cannot turn this into a duplicate
-  # seed on every start.
-  if curl -sf "$BACKEND_URL/api/articles" -H "Authorization: Bearer $token" | grep -q '"id"'; then
-    say "content already present, not seeding"
-    return 0
-  fi
-
-  say "seeding demo content"
-  api() { curl -sf -X POST "$BACKEND_URL$1" -H "Authorization: Bearer $token" -H 'Content-Type: application/json' -d "$2"; }
-  # First "id" in the response, not the last: a greedy match would pick up an
-  # id from a nested object if the shape ever grows one.
-  id_of() { grep -o '"id":[0-9]*' | head -1 | cut -d: -f2; }
-
-  cat_a="$(api /api/categories '{"name":"ინტერნეტი და ქსელი","parent_id":null}' | id_of)"
-  cat_b="$(api /api/categories '{"name":"ტარიფები","parent_id":null}' | id_of)"
-
-  article() {
-    api /api/articles "$(cat <<JSON
-{"title":$1,"content":$2,"category_id":$3,"tags":null,
- "target_departments":["საინფორმაციო","ტექნიკური"],"status":"published",
- "published_at":null,"attachment_url":null,"audience_profile":"all",
- "visible_to_tech_info":true,"visible_to_service_center":false,
- "is_draft":false,"quiz_enabled":false,"notify_operators":false}
-JSON
-)" >/dev/null
-  }
-
-  article '"ინტერნეტი არ მუშაობს — პირველი ნაბიჯები"' \
-          '"<p>შეამოწმეთ ტერმინალის ინდიკატორები, გადატვირთეთ როუტერი, დააფიქსირეთ ხაზის სტატუსი.</p>"' "$cat_a"
-  article '"GPON ტერმინალის დიაგნოსტიკა"' \
-          '"<p>LOS ინდიკატორი, სიგნალის დონე, ოპტიკური ხაზის შემოწმების თანმიმდევრობა.</p>"' "$cat_a"
-  article '"Wi-Fi სიჩქარე დაბალია"' \
-          '"<p>არხის დატვირთვა, 2.4 vs 5 GHz, ტერმინალის განთავსება.</p>"' "$cat_a"
-  article '"სატარიფო გეგმის შეცვლა"' \
-          '"<p>რა პირობებით იცვლება გეგმა და როდის ამოქმედდება ცვლილება.</p>"' "$cat_b"
-  article '"დამატებითი პაკეტების აქტივაცია"' \
-          '"<p>აქტივაციის არხები და მოქმედების ვადები.</p>"' "$cat_b"
-
-  api /api/news '{"title":"ახალი სატარიფო გეგმები 1 სექტემბრიდან","content":"<p>დეტალები ცალკე ინსტრუქციაში.</p>","target_department":"All","attachment_url":null,"visible_to_tech_info":true,"visible_to_service_center":true,"expires_at":null,"is_draft":false}' >/dev/null
-  api /api/news '{"title":"გეგმიური სამუშაოები ქსელზე","content":"<p>შესაძლო შეფერხებები ღამის საათებში.</p>","target_department":"All","attachment_url":null,"visible_to_tech_info":true,"visible_to_service_center":true,"expires_at":null,"is_draft":false}' >/dev/null
-
-  say "seeded 2 categories, 5 articles, 2 news items"
-}
-seed_content || warn "seeding failed; the portal will start empty"
+# Shared with docker-compose.local.yml's `seed` service, so the two paths into
+# this app cannot drift into seeding different things.
+"$REPO_ROOT/scripts/seed-demo-content.sh" "$BACKEND_URL" \
+  || warn "seeding failed; the portal will start empty"
 
 # --- frontend --------------------------------------------------------------
 
