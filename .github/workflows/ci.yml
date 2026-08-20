@@ -182,26 +182,39 @@ jobs:
     # Angular build, against the real Spring Boot app, against a real Oracle.
     # Everything else here tests one layer in isolation -- which is why the
     # audits kept finding defects that every suite was green through.
-    services:
-      oracle:
-        # Same image and same reasoning as java-integration above: XE 21c has
-        # no native BOOLEAN, so it agrees with production 19c about the
-        # NUMBER(1) flag columns that ddl-auto=validate checks at startup.
-        image: gvenzl/oracle-xe:21-slim-faststart
-        env:
-          ORACLE_PASSWORD: ci_only_sys_pw
-          APP_USER: magti_app
-          APP_USER_PASSWORD: ci_only_app_pw
-        ports:
-          - 1521:1521
-        options: >-
-          --health-cmd healthcheck.sh
-          --health-interval 10s
-          --health-timeout 10s
-          --health-retries 30
-          --health-start-period 60s
+    #
+    # Oracle is started by a STEP here, not by `services:` as java-integration
+    # does it, and the reason is diagnosability rather than taste. For a job
+    # with a service container the runner appends that container's entire log
+    # -- ~110 lines of Oracle startup banner -- after every step has finished.
+    # The Actions API returns only a capped window from the end of a job log,
+    # so that banner is the last thing in the window and the E2E failure
+    # summary never is. Four rounds of debugging were spent reading Oracle
+    # boot messages instead of the failing assertion. Nothing inside the job
+    # can move output after the runner's own post-job dump; not having a
+    # service container is the only thing that removes it.
     steps:
       - uses: actions/checkout@v4
+
+      # Same image and same reasoning as java-integration: XE 21c has no
+      # native BOOLEAN, so it agrees with production 19c about the NUMBER(1)
+      # flag columns that ddl-auto=validate checks at startup.
+      - name: Start Oracle
+        run: |
+          docker run -d --name e2e-oracle -p 1521:1521 \
+            -e ORACLE_PASSWORD=ci_only_sys_pw \
+            -e APP_USER=magti_app \
+            -e APP_USER_PASSWORD=ci_only_app_pw \
+            gvenzl/oracle-xe:21-slim-faststart
+          # Same budget the service-container healthcheck had: a 60s grace
+          # period plus 30 tries at 10s.
+          for i in $(seq 1 36); do
+            if docker exec e2e-oracle healthcheck.sh > /dev/null 2>&1; then
+              echo "Oracle healthy after $((i * 10))s"; exit 0
+            fi
+            sleep 10
+          done
+          echo "Oracle never became healthy"; docker logs --tail 40 e2e-oracle; exit 1
 
       - uses: actions/setup-java@v4
         with:
