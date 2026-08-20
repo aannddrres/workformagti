@@ -295,14 +295,18 @@ jobs:
           E2E_BASE_URL: http://localhost:4200
         run: npx playwright test
 
-      - name: Server logs on failure
+      # Only the lines that would explain a server that FELL OVER. The full
+      # dumps used to live here and were never once the answer -- every real
+      # diagnosis in this suite has come from Playwright's own block -- while
+      # the 60 lines they printed pushed that block out of the range the
+      # Actions API returns from the tail. Errors only, and few of them.
+      - name: Server errors on failure
         if: failure()
         run: |
-          # Deliberately short. The interesting part of a server log on a
-          # failed E2E run is its tail, and every line here pushes the
-          # spec summary below further from the end of the job log.
-          echo "===== backend ====="; tail -40 backend.log || true
-          echo "===== frontend ====="; tail -20 frontend.log || true
+          echo "===== backend errors ====="
+          grep -E "ERROR|Exception|Caused by" backend.log | tail -8 || echo "(none)"
+          echo "===== frontend errors ====="
+          grep -iE "error|failed" frontend.log | tail -5 || echo "(none)"
 
       # Which specs failed, and why.
       #
@@ -324,6 +328,15 @@ jobs:
       # startup banners. Downloading the report artifact instead is not a way
       # out either -- it is served from a storage host that a restricted
       # network can block, which is exactly what happened.
+      # Which specs failed, and why.
+      #
+      # Order inside this step matters as much as the step being last. The
+      # long forms go FIRST -- the ::error:: annotations, whose messages are
+      # one very long %0A-escaped line each, and the run-page summary -- and
+      # the short human list goes LAST, because the Actions API returns a
+      # byte-capped window from the END of the log. Emitting the long forms
+      # last is what made the previous version unreadable: the annotations
+      # pushed the summary they were meant to duplicate out of the window.
       - name: Which specs failed
         if: failure()
         working-directory: angular-frontend
@@ -333,40 +346,48 @@ jobs:
             const f = "playwright-report/results.json";
             if (!fs.existsSync(f)) { console.log("no results.json"); process.exit(0); }
             const report = JSON.parse(fs.readFileSync(f, "utf8"));
-            const summary = [];
+            const failures = [];
             const walk = (suite, trail = []) => {
               const here = suite.title ? [...trail, suite.title] : trail;
               for (const spec of suite.specs ?? []) {
                 if (spec.ok) continue;
                 const name = [...here, spec.title].join(" > ");
-                console.log("FAILED  " + name);
                 for (const test of spec.tests ?? []) {
                   for (const result of test.results ?? []) {
-                    // 16, not 6: a truncated diff cost a whole run once --
-                    // the failing line was inside the part that got cut.
-                    const message = (result.error?.message ?? "").split("\n").slice(0, 16);
-                    for (const line of message) console.log("        " + line);
+                    const message = (result.error?.message ?? "").split("\n");
                     const l = result.error?.location;
-                    if (l) console.log("        at " + l.file + ":" + l.line);
-
-                    // One annotation per failure. Newlines have to be escaped
-                    // as %0A or the runner keeps only the first line, which
-                    // would throw away the call log -- the part that names the
-                    // element rather than just the assertion.
-                    const detail = [name, ...message].join("\n")
-                      .replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
-                    const where = l ? "file=" + l.file.replace(/^.*angular-frontend\//, "angular-frontend/") + ",line=" + l.line : "";
-                    console.log("::error " + where + "::" + detail);
-                    summary.push("### " + name + "\n\n```\n" + message.join("\n") + "\n```\n");
+                    failures.push({ name, message, at: l ? l.file.replace(/^.*angular-frontend\//, "") + ":" + l.line : "" });
                   }
                 }
               }
               for (const child of suite.suites ?? []) walk(child, here);
             };
             for (const suite of report.suites ?? []) walk(suite);
-            if (summary.length && process.env.GITHUB_STEP_SUMMARY) {
-              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, "## E2E failures\n\n" + summary.join("\n"));
+
+            // Long forms first. Newlines escaped as %0A or the runner keeps
+            // only the first line, which is the assertion -- while the part
+            // that names the element is the call log under it.
+            for (const x of failures) {
+              const detail = [x.name, ...x.message.slice(0, 16)].join("\n")
+                .replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
+              console.log("::error ::" + detail);
             }
+            if (failures.length && process.env.GITHUB_STEP_SUMMARY) {
+              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+                "## E2E failures\n\n" + failures.map((x) =>
+                  "### " + x.name + "\n\n`" + x.at + "`\n\n```\n" + x.message.slice(0, 30).join("\n") + "\n```\n").join("\n"));
+            }
+
+            // Short form LAST, and kept short on purpose: this is the copy
+            // that has to survive the tail window.
+            console.log("");
+            console.log("========== E2E FAILURES ==========");
+            for (const x of failures) {
+              console.log("FAILED  " + x.name);
+              console.log("   at   " + x.at);
+              for (const line of x.message.slice(0, 6)) console.log("   " + line);
+            }
+            console.log("==================================");
           ' || true
 
       - name: Upload Playwright report
