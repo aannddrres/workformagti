@@ -39,6 +39,8 @@ import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -378,5 +380,64 @@ class SearchControllerIntegrationTest {
         List<SearchLog> logs = searchLogRepository.findAll().stream()
                 .filter(l -> l.getUserId().equals(operator.getId())).toList();
         assertEquals(0, logs.size());
+    }
+
+    /**
+     * The admin stats page has a "failed searches" panel, and until this test
+     * existed nothing could ever appear in it: writeSearchLog returned early on
+     * a zero-result query, so no {@code has_results = false} row was ever
+     * written by either endpoint.
+     *
+     * <p>Asserted at the repository, not through
+     * {@code /api/statistics/failed-searches}: that endpoint returns the top 10
+     * terms by count across the whole instance, so a fixture with a count of
+     * one is not guaranteed a place in it. That the endpoint surfaces such rows
+     * once they exist is already covered, by
+     * StatsControllerIntegrationTest#popularAndFailedSearchesGroupNormalizedTermsCaseAndWhitespace
+     * -- which seeds its failed rows directly, and is precisely why the missing
+     * write side went unnoticed for so long.
+     */
+    @Test
+    void aSearchThatFindsNothingIsRecordedAsAFailedSearch() throws Exception {
+        User operator = createUser("search-op7@magti.ge", Role.OPERATOR, "All");
+        // nanoTime so it cannot collide with the 112 real imported articles,
+        // and so the 60s global-search cache cannot answer from another run.
+        String missing = "არარსებული-მოთხოვნა-" + System.nanoTime();
+
+        mockMvc.perform(authed(get("/api/search"), tokenFor(operator)).param("q", missing))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(0)));
+        mockMvc.perform(authed(get("/api/search/global"), tokenFor(operator)).param("q", missing))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.articles", hasSize(0)))
+                .andExpect(jsonPath("$.news", hasSize(0)))
+                .andExpect(jsonPath("$.videos", hasSize(0)));
+
+        List<SearchLog> logs = searchLogRepository.findAll().stream()
+                .filter(l -> l.getUserId().equals(operator.getId())).toList();
+        assertEquals(2, logs.size(), "a search that found nothing was not recorded at all");
+        for (SearchLog log : logs) {
+            assertEquals(missing.toLowerCase(), log.getSearchTerm());
+            assertFalse(log.isHasResults(), "a miss was recorded as a hit, so it can never reach the failed panel");
+            assertEquals(0, log.getResultsFound().intValue());
+        }
+    }
+
+    /** The other half of the same flag: a hit is still a hit. */
+    @Test
+    void aSearchThatFindsSomethingIsStillRecordedAsSuccessful() throws Exception {
+        User operator = createUser("search-op8@magti.ge", Role.OPERATOR, "All");
+        String term = "ნაპოვნი-" + System.nanoTime();
+        createArticle(term + " თემა", "შიგთავსი", null, "published", false, List.of("All"), TbilisiTime.now());
+
+        mockMvc.perform(authed(get("/api/search"), tokenFor(operator)).param("q", term))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)));
+
+        List<SearchLog> logs = searchLogRepository.findAll().stream()
+                .filter(l -> l.getUserId().equals(operator.getId())).toList();
+        assertEquals(1, logs.size());
+        assertTrue(logs.get(0).isHasResults());
+        assertEquals(1, logs.get(0).getResultsFound().intValue());
     }
 }

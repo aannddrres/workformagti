@@ -37,7 +37,15 @@ async function writeAuditRows(
 
 test.describe('audit log', () => {
   test('filters, presets and the pager', async ({ page, request }) => {
-    test.setTimeout(120_000);
+    // 180s, not 120s. The fixture below writes PAGE_SIZE + 2 audit rows one
+    // at a time, because each row hash-chains onto the previous one and there
+    // is no bulk path -- 52 sequential round-trips against a real Oracle
+    // before the first assertion runs. That is genuinely most of the budget
+    // on a slow runner, and this test has now failed on the clock twice while
+    // passing on faster ones. Sizing the budget to the work, not hiding a
+    // hang: playwright.config.ts caps every individual action at 15s, so a
+    // control that never becomes usable still fails fast and says so.
+    test.setTimeout(180_000);
     const id = runId();
     const token = await apiLogin(request, 'admin@magti.ge');
     const category = await createCategory(request, token, `E2E აუდიტის კატეგორია ${id}`);
@@ -82,30 +90,34 @@ test.describe('audit log', () => {
     await expect(firstPage).toHaveCount(PAGE_SIZE);
     await expect(archiveRows).toHaveCount(PAGE_SIZE);
 
-    // The row's TIMESTAMP, not its whole rendering. Comparing the full row
-    // text made this assertion depend on every cell staying byte-identical
-    // across a re-render, which is more than "the pager came back to the
-    // same entries" needs to mean -- and it failed on a cell other than the
-    // one that identifies the row. The timestamp is the identity that is
-    // actually visible.
-    const topStamp = () => page.locator('tbody tr').first().locator('td').first().innerText();
-    const page1Top = await topStamp();
-
+    // Asserted on the OFFSET the pager asks the server for, which is the whole
+    // of its job (audit.service.ts:6-7), plus the button state that mirrors it.
+    //
+    // Two earlier versions tried to identify the page by what was in the table.
+    // Both were wrong for the same underlying reason: these rows are not
+    // distinguishable from each other on screen. Comparing whole row text broke
+    // on a cell that re-rendered; comparing the timestamp cell broke because
+    // the fixture writes its 52 rows in a tight loop, so many share the same
+    // whole second and the table prints seconds -- page 1's top row and page
+    // 2's top row can legitimately show the identical string, which is what the
+    // last run failed on. Not a pager that refused to move: it had moved.
     const previous = page.getByRole('button', { name: 'წინა' });
     await expect(previous).toBeDisabled();
 
-    await page.getByRole('button', { name: 'შემდეგი' }).click();
-    // Enabled first: "წინა" is disabled at offset 0, so this is the pager's own
-    // statement that it left page 1. Asserting it here turns a page that never
-    // moved into a 5s failure instead of a 120s timeout spent clicking a button
-    // that is never going to accept the click.
+    const [second] = await Promise.all([
+      page.waitForResponse((r) => r.url().includes('/api/audit-logs?') && r.url().includes('offset=50')),
+      page.getByRole('button', { name: 'შემდეგი' }).click()
+    ]);
+    expect(second.status(), 'the pager must fetch the next slice from the server').toBe(200);
     await expect(previous).toBeEnabled();
-    // And a different page means different ROWS, not merely a different state
-    // on the pager -- so this compares what is actually in the table.
-    await expect.poll(topStamp).not.toBe(page1Top);
 
-    await previous.click();
-    await expect.poll(topStamp).toBe(page1Top);
+    const [first] = await Promise.all([
+      page.waitForResponse((r) => r.url().includes('/api/audit-logs?') && r.url().includes('offset=0')),
+      previous.click()
+    ]);
+    expect(first.status()).toBe(200);
+    // Back at offset 0, and the button says so by disabling itself again.
+    await expect(previous).toBeDisabled();
 
     await search.fill('');
 
