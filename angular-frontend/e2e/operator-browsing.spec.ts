@@ -52,13 +52,24 @@ test.describe('operator browsing', () => {
 
     // One more than a page, so "load more" has somewhere to go, plus two
     // named items the filters can be pointed at.
+    //
+    // The two named items are created LAST, and that ordering is load-bearing.
+    // The page fetches a page at a time and every filter on it -- search,
+    // department, favourites -- runs over what has been LOADED, not over the
+    // whole set (news-page.ts:53-70, a computed over allItems()). So an item
+    // that has fallen off page one is invisible to the search box until
+    // "load more" is pressed. Creating the named items last makes them the
+    // newest, which keeps them on page one after refresh() resets to skip=0.
+    //
+    // Worth stating rather than just working around: an operator who searches
+    // for an older item without paging first is told there is nothing.
     const techTitle = `E2E ტექნიკური სიახლე ${id}`;
     const infoTitle = `E2E საინფო სიახლე ${id}`;
-    await createNews(request, token, techTitle, 'ტექნიკური');
-    await createNews(request, token, infoTitle, 'საინფორმაციო');
     for (let i = 0; i < NEWS_PAGE_SIZE; i++) {
       await createNews(request, token, `E2E ფონური სიახლე ${id}-${i}`, 'All');
     }
+    await createNews(request, token, techTitle, 'ტექნიკური');
+    await createNews(request, token, infoTitle, 'საინფორმაციო');
 
     await seedTokenIntoPage(page, token);
     await page.goto('/news');
@@ -160,6 +171,9 @@ test.describe('operator browsing', () => {
 
     // --- open one, and come back -------------------------------------------
     await page.getByPlaceholder('ძიება სათაურით ან შინაარსით ...').fill(techTitle);
+    // Visible before clicked, so a row that never arrives is reported as a
+    // missing row rather than as a click that hung.
+    await expect(techRow).toBeVisible();
     await techRow.click();
     await expect(page).toHaveURL(/\/news\/\d+$/);
     await expect(page.getByRole('heading', { name: techTitle })).toBeVisible();

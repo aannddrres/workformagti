@@ -37,7 +37,15 @@ async function writeAuditRows(
 
 test.describe('audit log', () => {
   test('filters, presets and the pager', async ({ page, request }) => {
-    test.setTimeout(120_000);
+    // 180s, not 120s. The fixture below writes PAGE_SIZE + 2 audit rows one
+    // at a time, because each row hash-chains onto the previous one and there
+    // is no bulk path -- 52 sequential round-trips against a real Oracle
+    // before the first assertion runs. That is genuinely most of the budget
+    // on a slow runner, and this test has now failed on the clock twice while
+    // passing on faster ones. Sizing the budget to the work, not hiding a
+    // hang: playwright.config.ts caps every individual action at 15s, so a
+    // control that never becomes usable still fails fast and says so.
+    test.setTimeout(180_000);
     const id = runId();
     const token = await apiLogin(request, 'admin@magti.ge');
     const category = await createCategory(request, token, `E2E აუდიტის კატეგორია ${id}`);

@@ -31,6 +31,18 @@ export default defineConfig({
     ? [['list'], ['html', { open: 'never' }], ['json', { outputFile: 'playwright-report/results.json' }]]
     : [['list']],
   use: {
+    // Playwright's default here is 0 -- no limit -- so a click on an element
+    // that never appears is bounded only by the TEST timeout. Three separate
+    // debugging rounds on this suite were spent on that: the run burns two or
+    // three minutes and reports "Test timeout exceeded", naming the line but
+    // never the element or the reason, and the actual call log only survives
+    // in the html report. With a bound, the same miss fails in 15s and says
+    // what it was waiting for.
+    //
+    // 15s rather than the 5s expect timeout: these specs drive a dev-server
+    // build against a real Oracle, and a first-paint click after a route
+    // change is legitimately slow on a cold CI runner.
+    actionTimeout: 15_000,
     baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:4201',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
