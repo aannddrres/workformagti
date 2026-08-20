@@ -89,7 +89,11 @@
   main.py's `actor_context_middleware` ContextVar, NOT `get_current_user` —
   sync dependencies run in a copied threadpool context, so a set there is lost
 - `retention.py` — 180-day archive-then-purge for `audit_logs` +
-  `article_view_logs` (`AUDIT_RETENTION_DAYS`); run daily by `backup.py`
+  `article_view_logs` (`AUDIT_RETENTION_DAYS`); run daily by `backup.py`.
+  **This policy is not ported to the Java/Oracle backend.** Do not recreate a
+  broad purge there without an approved retention policy; quiz attempts, read
+  receipts/acknowledgments and compliance evidence are explicitly excluded
+  from any generic purge.
 - `database.py` — DB session/engine
 - `config.py` — settings (`.env` via python-dotenv; see `.env.example`); also
   holds a startup guard that refuses to boot when `APP_ENV=production` with a
@@ -107,9 +111,14 @@
 
 ## Rules for Claude Code
 - Surgical edits only — never rewrite full files; cite file name + line number
-- Bilingual: Georgian + English
+- Product target is Georgian-only, Chrome/1080p desktop-first; mobile/touch is
+  out of the current scope (confirmed in `docs/PRODUCT_UX_REQUIREMENTS_KA.md`).
+  Keep `ka.json` and `en.json` keys synchronized and keep the i18n CI guard
+  until a dedicated, explicitly approved cleanup removes the legacy English
+  locale infrastructure.
 - Dark/light theme support required
-- Mobile-first
+- Desktop-first responsive layout across supported desktop monitor sizes;
+  narrow/mobile UX must not drive redesign priorities in the current phase.
 - Migrations: the idempotency rule applies to the **Python** `migrate.py` only
   (its workers race on `CREATE TABLE`). Flyway migrations in
   `java-backend/src/main/resources/db/migration/` do **not** need to be
