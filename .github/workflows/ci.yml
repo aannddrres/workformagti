@@ -304,14 +304,26 @@ jobs:
           echo "===== backend ====="; tail -40 backend.log || true
           echo "===== frontend ====="; tail -20 frontend.log || true
 
-      # Which specs failed, and why -- LAST, on purpose.
+      # Which specs failed, and why.
       #
-      # Playwright prints this itself, but above the server-log dumps, ~230
-      # lines from the end of the job. The Actions API caps how much of a log
-      # it returns from the tail, so on a run with real server output that
-      # block cannot be reached at all: three separate attempts to read it
-      # came back with nothing but Flyway migration lines. Putting the
-      # summary last is what makes a failed run diagnosable remotely.
+      # Emitted THREE ways, because each of the first two turned out to be
+      # unreachable from outside the browser UI:
+      #
+      #   ::error:: annotations   the one that actually works remotely. They
+      #                           come back from the check-run API in a single
+      #                           small response, with no log to page through.
+      #   $GITHUB_STEP_SUMMARY    rendered on the run's own page, for a human.
+      #   stdout                  last in the job, on purpose.
+      #
+      # The log route alone is not enough and that cost several rounds to
+      # learn. Playwright prints this block ~230 lines from the end, under two
+      # server-log dumps, and the runner then appends the whole Oracle service
+      # container log after everything. The Actions API caps how much of a log
+      # it returns from the tail, so on a real run the block cannot be reached:
+      # repeated attempts came back with nothing but Flyway lines and Oracle
+      # startup banners. Downloading the report artifact instead is not a way
+      # out either -- it is served from a storage host that a restricted
+      # network can block, which is exactly what happened.
       - name: Which specs failed
         if: failure()
         working-directory: angular-frontend
@@ -321,27 +333,40 @@ jobs:
             const f = "playwright-report/results.json";
             if (!fs.existsSync(f)) { console.log("no results.json"); process.exit(0); }
             const report = JSON.parse(fs.readFileSync(f, "utf8"));
+            const summary = [];
             const walk = (suite, trail = []) => {
               const here = suite.title ? [...trail, suite.title] : trail;
               for (const spec of suite.specs ?? []) {
                 if (spec.ok) continue;
-                console.log("FAILED  " + [...here, spec.title].join(" > "));
+                const name = [...here, spec.title].join(" > ");
+                console.log("FAILED  " + name);
                 for (const test of spec.tests ?? []) {
                   for (const result of test.results ?? []) {
                     // 16, not 6: a truncated diff cost a whole run once --
                     // the failing line was inside the part that got cut.
                     const message = (result.error?.message ?? "").split("\n").slice(0, 16);
                     for (const line of message) console.log("        " + line);
-                    if (result.error?.location) {
-                      const l = result.error.location;
-                      console.log("        at " + l.file + ":" + l.line);
-                    }
+                    const l = result.error?.location;
+                    if (l) console.log("        at " + l.file + ":" + l.line);
+
+                    // One annotation per failure. Newlines have to be escaped
+                    // as %0A or the runner keeps only the first line, which
+                    // would throw away the call log -- the part that names the
+                    // element rather than just the assertion.
+                    const detail = [name, ...message].join("\n")
+                      .replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
+                    const where = l ? "file=" + l.file.replace(/^.*angular-frontend\//, "angular-frontend/") + ",line=" + l.line : "";
+                    console.log("::error " + where + "::" + detail);
+                    summary.push("### " + name + "\n\n```\n" + message.join("\n") + "\n```\n");
                   }
                 }
               }
               for (const child of suite.suites ?? []) walk(child, here);
             };
             for (const suite of report.suites ?? []) walk(suite);
+            if (summary.length && process.env.GITHUB_STEP_SUMMARY) {
+              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, "## E2E failures\n\n" + summary.join("\n"));
+            }
           ' || true
 
       - name: Upload Playwright report
