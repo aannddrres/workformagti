@@ -100,6 +100,13 @@ test.describe('role management', () => {
     // fixture -- it grants no ability to edit users back.
     await page.locator('select').selectOption('manager');
 
+    // A native window.confirm() gates the move (admin-roles-page.ts:158) and
+    // Playwright dismisses dialogs by default, so without this the request is
+    // never made at all. Accepting it here rather than routing around it: the
+    // confirmation IS the feature -- an explicit step before a change that
+    // rewrites what several people are allowed to do.
+    page.once('dialog', (dialog) => dialog.accept());
+
     const [moved] = await Promise.all([
       page.waitForResponse((r) => r.url().includes('/api/admin/roles/bulk-reassign')),
       page.getByRole('button', { name: 'გადაყვანა', exact: true }).click()
