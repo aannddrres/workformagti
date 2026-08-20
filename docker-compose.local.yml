@@ -1,0 +1,112 @@
+# Run the whole product on one machine with nothing installed but Docker.
+#
+#   docker compose -f docker-compose.local.yml up --build      then http://localhost:8080
+#   docker compose -f docker-compose.local.yml down            stop, keep the database
+#   docker compose -f docker-compose.local.yml down -v         stop and delete the database
+#
+# This exists because scripts/run-local.sh needs a JDK and a pinned Node on
+# the host and is a bash script, which makes it awkward on Windows. Here the
+# only prerequisite is Docker, and it behaves the same on Windows, macOS and
+# Linux.
+#
+# It builds the SAME two images the Kubernetes deployment will run
+# (java-backend/Dockerfile, angular-frontend/Dockerfile) rather than a
+# separate development arrangement, so what you look at locally is the
+# artefact that ships. The frontend image already proxies /api to
+# ${BACKEND_HOST}:${BACKEND_PORT} for exactly this reason -- in the cluster
+# that is a Service name, here it is the compose service below.
+#
+# ---------------------------------------------------------------------------
+# SECURITY, read this once.
+#
+# The backend is started with APP_ENV=development and ALLOW_DEV_LOGIN=true,
+# which turn on password-less login for the seeded accounts INCLUDING an
+# admin: any password is accepted. That is deliberate on a laptop and
+# catastrophic anywhere else. The image itself ships as APP_ENV=production and
+# refuses to start with a dev login (SEC-01) -- this file overrides that on
+# purpose, which is why the override lives in a file named "local" rather than
+# in the image.
+#
+# Only the frontend is published, and only to 127.0.0.1. The database and the
+# backend are reachable only from inside the compose network.
+# ---------------------------------------------------------------------------
+
+name: magti-portal-local
+
+services:
+  oracle:
+    # Same image and version as the CI jobs. XE 21c rather than something
+    # lighter because it agrees with production 19c about NUMBER(1) boolean
+    # columns, which is what Hibernate's ddl-auto=validate checks at startup:
+    # a different engine would pass here and fail there.
+    image: gvenzl/oracle-xe:21-slim-faststart
+    environment:
+      # Throwaway credentials for a throwaway local database. Not secrets:
+      # nothing outside this compose network can reach it, and `down -v`
+      # deletes it.
+      ORACLE_PASSWORD: local_only_sys_pw
+      APP_USER: magti_app
+      APP_USER_PASSWORD: local_only_app_pw
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 10s
+      # 40 x 10s on top of a 90s grace period: first start initialises the
+      # database and genuinely takes minutes on a laptop.
+      retries: 40
+      start_period: 90s
+
+  backend:
+    build:
+      context: ./java-backend
+    depends_on:
+      oracle:
+        condition: service_healthy
+    environment:
+      ORACLE_DB_URL: jdbc:oracle:thin:@oracle:1521/XEPDB1
+      ORACLE_DB_USER: magti_app
+      ORACLE_DB_PASSWORD: local_only_app_pw
+      # See the security note at the top of this file before copying these
+      # three anywhere.
+      APP_ENV: development
+      ALLOW_DEV_LOGIN: "true"
+      COOKIE_SECURE: "false"
+    # Not published to the host: the frontend proxies /api to it over the
+    # compose network, the same shape as an in-cluster Service.
+    expose:
+      - "8080"
+
+  seed:
+    # Enough content to browse, added through the real API once the backend is
+    # answering. Exits immediately after; a "seed exited with code 0" line in
+    # the output is the success case, not an error.
+    image: curlimages/curl:8.11.1
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - ./scripts/seed-demo-content.sh:/seed.sh:ro
+    entrypoint: ["sh", "/seed.sh", "http://backend:8080"]
+    restart: "no"
+
+  frontend:
+    build:
+      context: ./angular-frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      # The image defaults these to a Kubernetes Service name; here they point
+      # at the compose service.
+      BACKEND_HOST: backend
+      BACKEND_PORT: "8080"
+    ports:
+      # Bound to the loopback address on purpose. Published as 0.0.0.0 this
+      # would put an admin account with no password on every network the
+      # laptop is attached to.
+      - "127.0.0.1:8080:8080"
+
+volumes:
+  oracle-data:
