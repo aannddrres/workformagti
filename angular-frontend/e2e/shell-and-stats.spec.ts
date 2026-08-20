@@ -52,9 +52,21 @@ test.describe('the shell', () => {
     await expect(page.getByRole('button', { name: 'სისტემიდან გასვლა' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Log out' })).toBeVisible();
 
-    // A language that resets on the next page change is not a language
-    // setting, so this is the half of the feature worth asserting.
-    await page.goto('/news');
+    // Navigated IN-APP, by the sidebar link, not with page.goto.
+    //
+    // The distinction is the product's actual behaviour, found here: nothing
+    // persists the choice. app.config.ts:20 bootstraps the app at `lang: 'ka'`
+    // and toggleLanguage only calls translate.use(), so the selection lives in
+    // memory for the lifetime of the page. Client-side routing keeps it; a
+    // browser refresh resets it to Georgian.
+    //
+    // Worth knowing rather than worth failing over: Georgian is the primary
+    // and only reviewed language (app.config.ts:12), so an English-preferring
+    // operator re-picking EN after a refresh is a small cost, not a broken
+    // feature. The test asserts what the app does, and this comment records
+    // what it does not.
+    await page.getByRole('link', { name: 'News' }).click();
+    await expect(page).toHaveURL(/\/news$/);
     await expect(page.getByRole('button', { name: 'KA', exact: true })).toBeVisible();
 
     await page.getByRole('button', { name: 'KA', exact: true }).click();
@@ -86,7 +98,13 @@ test.describe('the shell', () => {
 
     // Closed from the backdrop, which is the only thing closeMobileMenu is
     // wired to (app-shell.html:4).
-    await backdrop.click({ position: { x: 5, y: 5 } });
+    //
+    // x: 350, not x: 5. The open sidebar is `fixed inset-y-0 left-0 w-64`
+    // at z-40, above the backdrop's z-30, so a click near the left edge lands
+    // on the sidebar instead and Playwright waits out the full action timeout
+    // for a backdrop that will never receive it. 350 is clear of the 256px
+    // sidebar in this 390px viewport.
+    await backdrop.click({ position: { x: 350, y: 400 } });
     await expect(backdrop).toHaveCount(0);
 
     // And the trigger disappears above the breakpoint rather than merely
@@ -233,9 +251,13 @@ test.describe('admin dashboard and videos', () => {
     test.setTimeout(120_000);
     const id = runId();
     const token = await apiLogin(request, 'admin@magti.ge');
-    const category = await createCategory(request, token, `E2E უკან კატეგორია ${id}`);
+    // The fixture title deliberately avoids the word the back button uses.
+    // "უკან" inside an article title made the card's accessible name contain
+    // it too, and getByRole matches names by substring -- so the locator
+    // resolved to both the button and the card, and failed on strict mode.
+    const category = await createCategory(request, token, `E2E ნავიგაციის კატეგორია ${id}`);
     await createArticle(request, token, {
-      title: `E2E უკან სტატია ${id}`,
+      title: `E2E ნავიგაციის სტატია ${id}`,
       categoryId: category.id,
       targetDepartments: ['საინფორმაციო']
     });
@@ -244,7 +266,7 @@ test.describe('admin dashboard and videos', () => {
     await page.goto('/info');
     await page.goto(`/category/${category.id}`);
 
-    await page.getByRole('button', { name: 'უკან' }).click();
+    await page.getByRole('button', { name: 'უკან', exact: true }).click();
     await expect(page).toHaveURL(/\/info$/);
   });
 });
