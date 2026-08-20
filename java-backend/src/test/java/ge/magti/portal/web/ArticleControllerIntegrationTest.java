@@ -36,7 +36,6 @@ import ge.magti.portal.util.TbilisiTime;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -1240,14 +1239,15 @@ class ArticleControllerIntegrationTest {
     }
 
     @Test
-    @EnabledIfSystemProperty(named = "user.timezone", matches = "UTC")
-    void jdbcAndJpaHistoryWritersNormalizeTheSameTbilisiInstantInUtc() {
+    void jdbcAndJpaHistoryWritersNormalizeTheSameTbilisiInstantAcrossSessionTimeZones() {
         String originalSessionTimeZone = jdbcTemplate.queryForObject(
                 "SELECT SESSIONTIMEZONE FROM dual", String.class);
         assertTrue(originalSessionTimeZone != null
                         && originalSessionTimeZone.matches("[A-Za-z0-9_./:+-]+"),
                 "unexpected Oracle session time-zone value: " + originalSessionTimeZone);
-        jdbcTemplate.execute("ALTER SESSION SET TIME_ZONE = '+00:00'");
+        // Exercise both real writer paths through a session zone that differs
+        // from CI's UTC JVM and the value's +04 offset.
+        jdbcTemplate.execute("ALTER SESSION SET TIME_ZONE = '+09:00'");
         try {
             User admin = createUser("aa39-history-timezone@magti.ge", Role.CONTENT_ADMIN, "All");
             Category category = createCategory("კატ-history-timezone");
@@ -1278,9 +1278,8 @@ class ArticleControllerIntegrationTest {
 
             Map<Integer, ArticleHistory> byVersion = articleHistoryRepository.findByArticleId(legacy.getId()).stream()
                     .collect(java.util.stream.Collectors.toMap(ArticleHistory::getVersionId, history -> history));
-            assertEquals(byVersion.get(2).getUpdatedAt(), byVersion.get(1).getUpdatedAt());
-            assertEquals(byVersion.get(2).getUpdatedAt().toInstant(), byVersion.get(1).getUpdatedAt().toInstant());
-            assertEquals(byVersion.get(2).getUpdatedAt().getOffset(), byVersion.get(1).getUpdatedAt().getOffset());
+            assertEquals(fallbackTime, byVersion.get(1).getUpdatedAt());
+            assertEquals(fallbackTime, byVersion.get(2).getUpdatedAt());
         } finally {
             entityManager.clear();
             jdbcTemplate.execute("ALTER SESSION SET TIME_ZONE = '" + originalSessionTimeZone + "'");
