@@ -93,11 +93,14 @@ test.describe('audit log', () => {
     // Waiting on the response removes the race rather than narrowing it: when
     // it arrives, the debounce has fired, the request went out, and there is
     // no second reload pending.
+    // action=ARCHIVE, not q=action:ARCHIVE. `action:` is one of three
+    // structured tokens the box understands (audit-format.ts:34-50) -- it is
+    // parsed out and sent as its own parameter, and only what is left over
+    // becomes the free-text `q`. Matching on `q` waited 15s for a request
+    // that was never going to be made.
     const [filtered] = await Promise.all([
       page.waitForResponse(
-        (r) =>
-          r.url().includes('/api/audit-logs?') &&
-          decodeURIComponent(r.url()).includes('q=action:ARCHIVE')
+        (r) => r.url().includes('/api/audit-logs?') && r.url().includes('action=ARCHIVE')
       ),
       search.fill('action:ARCHIVE')
     ]);
