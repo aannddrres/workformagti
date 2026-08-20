@@ -1198,6 +1198,43 @@ class ArticleControllerIntegrationTest {
                 .andExpect(jsonPath("$[0].version").value(2));
     }
 
+    @Test
+    void longGeorgianContentCanBeUpdatedListedAndRestoredThroughRealOracle() throws Exception {
+        User admin = createUser("aa39-clob@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-CLOB");
+        String original = "ეს არის გრძელი ქართული სტატიის საწყისი აბზაცი. ".repeat(140);
+        String updated = "ეს არის განახლებული ქართული სტატიის სრული აბზაცი. ".repeat(140);
+        assertTrue(original.length() > 5_000);
+        assertTrue(updated.length() > 5_000);
+
+        long articleId = createArticleViaApi(tokenFor(admin), "CLOB საწყისი ვერსია", original, cat.getId());
+
+        // Save/update path: archives the >5,000-character current version.
+        updateArticleViaApi(tokenFor(admin), articleId, "CLOB განახლებული ვერსია", updated, cat.getId());
+        ArticleHistory v1 = articleHistoryRepository.findByArticleId(articleId).stream()
+                .filter(h -> Integer.valueOf(1).equals(h.getVersionId()))
+                .findFirst().orElseThrow();
+        assertEquals(original, v1.getContent());
+
+        // History-opening path: self-heals the long current version as CLOB.
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/versions"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].version").value(2));
+
+        // Restore path: archives the long current version before restoring v1.
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/history/" + v1.getId() + "/restore"),
+                        tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").value(original))
+                .andExpect(jsonPath("$.version").value(3));
+
+        Article restored = articleRepository.findById(articleId).orElseThrow();
+        assertEquals(original, restored.getContent());
+        assertTrue(articleHistoryRepository.findByArticleId(articleId).stream()
+                .anyMatch(h -> Integer.valueOf(2).equals(h.getVersionId()) && updated.equals(h.getContent())));
+    }
+
     // ── read-receipts / views ─────────────────────────────────────────
 
     private long createArticleViaApiWithDept(
