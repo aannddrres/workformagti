@@ -24,7 +24,14 @@
   `docs/PRODUCT_UX_REQUIREMENTS_KA.md` before changing UX, search, content
   lifecycle, compliance/audit flows, role dashboards, exports or branding.
   It records the product owner's confirmed decisions and unresolved questions;
-  do not infer answers for items explicitly left open there. For the approved
+  do not infer answers for items explicitly left open there.
+- **Access/authorization source of truth:** `docs/ACCESS_CONTRACT_MATRIX_KA.md`
+  states, for all 112 backend endpoints, what gates each one today and what
+  capability + data scope it must have in the target model.
+  `AccessContractCoverageTest` fails the build when an endpoint has no row,
+  a row has no endpoint, or a gate changes without the contract changing with
+  it — so adding or re-gating an endpoint means editing that file in the same
+  commit. Its `⚠` rows are open decisions: do not resolve one by writing code. For the approved
   proposed target information architecture, component behavior, rollout order and
   acceptance criteria, also read `docs/UI_UX_REDESIGN_PLAN_KA.md`.
 
