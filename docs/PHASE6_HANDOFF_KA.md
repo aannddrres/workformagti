@@ -1,6 +1,6 @@
 # Phase 6 — content gates: role → permission
 
-**სტატუსი:** დავალება Codex-ისთვის
+**სტატუსი:** ✅ დასრულებული Codex-ის მიერ (2026-08-21)
 **შედგენილია:** 2026-08-21
 **კონტექსტი:** `docs/ORG_ACCESS_ARCHITECTURE_PLAN_KA.md` §5.8, §7.6
 **კონტრაქტი:** `docs/ACCESS_CONTRACT_MATRIX_KA.md`
@@ -15,7 +15,11 @@
 | 1 — decision/contract lock | ✅ დასრულებული |
 | 2 — schema expand + backfill | ✅ **კოდი დაწერილია**, ❌ Oracle-ზე არ გაშვებულა |
 | 3 — policy layer (shadow) | ✅ დასრულებული |
-| **6 — content gates** | ⬅ **ეს დავალება** |
+| **6 — content gates** | ✅ დასრულებული და Oracle/Angular-ზე გადამოწმებული |
+
+დასრულების შემოწმება: backend-ის სრული suite — 610 ტესტი, 0 failure/error
+(1 განზრახ skipped); Angular — 60 ტესტი, 0 failure; production build — წარმატებული.
+Oracle 19c-ზე `V36` გამოყენებულია, ხოლო აკრძალული backfill/`V37` არ გაშვებულა.
 
 Phase 4 (leadership scope cutover) და 5 (compliance cutover) **დაბლოკილია** — იხ. §5.
 Phase 6 მათზე დამოკიდებული **არ არის**: content permission-ები ჯგუფებს, scope-ს და
@@ -265,21 +269,8 @@ DB-free ტესტები: **597, 0 failure**.
 
 ---
 
-## 7. მიმდინარე branch
+## 7. განხორციელების branch
 
 ```
-codex/ui-ux-plan-oracle-category-fixes  →  0e0cd0b
-```
-
-ბოლო commit-ები:
-
-```
-0e0cd0b  feat(policy): make the shadow run and the backfill report readable
-04af923  feat(policy): add the authorization policy layer, measuring only
-534c0db  feat(access): close D-1 and D-3 from the access contract
-b53a28c  feat(org): expand the schema for departments, groups and leadership
-1e44207  test(access): enforce the export allowlist and the response shapes
-39077db  docs(access): lock the access contract for all 112 endpoints
-8d4714b  fix(security): stop a permission grant from creating an export scope
-d1b48a1  fix(security): fail closed phase zero scopes
+codex/phase6-content-gates  (base: claude/dept-groups-architecture-biqtma)
 ```

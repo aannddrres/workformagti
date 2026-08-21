@@ -16,6 +16,7 @@ import ge.magti.portal.domain.Tag;
 import ge.magti.portal.domain.TagMapping;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.domain.UserNote;
+import ge.magti.portal.domain.UserPermissionOverride;
 import ge.magti.portal.repository.ArticleHistoryRepository;
 import ge.magti.portal.repository.ArticleReadReceiptRepository;
 import ge.magti.portal.repository.ArticleRepository;
@@ -31,6 +32,7 @@ import ge.magti.portal.repository.TagMappingRepository;
 import ge.magti.portal.repository.TagRepository;
 import ge.magti.portal.repository.UserNoteRepository;
 import ge.magti.portal.repository.UserRepository;
+import ge.magti.portal.repository.UserPermissionOverrideRepository;
 import ge.magti.portal.security.JwtService;
 import ge.magti.portal.util.TbilisiTime;
 import jakarta.persistence.EntityManager;
@@ -84,6 +86,8 @@ class ArticleControllerIntegrationTest {
     @Autowired
     private UserRepository userRepository;
     @Autowired
+    private UserPermissionOverrideRepository permissionOverrideRepository;
+    @Autowired
     private ArticleRepository articleRepository;
     @Autowired
     private ArticleTargetDepartmentRepository targetDepartmentRepository;
@@ -136,6 +140,16 @@ class ArticleControllerIntegrationTest {
 
     private String tokenFor(User user) {
         return jwtService.createAccessToken(Map.of("sub", user.getEmail(), "role", user.getRole().value()));
+    }
+
+    private void deny(User user, Permission permission) {
+        UserPermissionOverride override = new UserPermissionOverride();
+        override.setUserId(user.getId());
+        override.setPermission(permission.value());
+        override.setState(UserPermissionOverride.State.DENY);
+        override.setUpdatedAt(TbilisiTime.now());
+        override.setUpdatedBy(user.getId());
+        permissionOverrideRepository.saveAndFlush(override);
     }
 
     private Category createCategory(String name) {
@@ -305,7 +319,7 @@ class ArticleControllerIntegrationTest {
                         .content("{\"title\":\"x\",\"content\":\"y\",\"category_id\":" + cat.getId()
                                 + ",\"target_departments\":[\"All\"]}"))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.detail").value("Not enough permissions to perform this action"));
+                .andExpect(jsonPath("$.detail").value("წვდომა უარყოფილია: არასაკმარისი უფლებები"));
     }
 
     @Test
@@ -319,9 +333,7 @@ class ArticleControllerIntegrationTest {
         Article existing = createArticle("არსებული სტატია", cat.getId(), "draft", true, List.of("All"), null);
 
         // Same content_admin, articles.edit revoked (default set minus edit).
-        admin.setPermissions(new java.util.LinkedHashSet<>(admin.getPermissions()));
-        admin.getPermissions().remove(Permission.ARTICLES_EDIT.value());
-        userRepository.saveAndFlush(admin);
+        deny(admin, Permission.ARTICLES_EDIT);
 
         mockMvc.perform(authed(post("/api/articles"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -344,9 +356,7 @@ class ArticleControllerIntegrationTest {
         // A second content_admin keeps articles.edit but has articles.publish
         // revoked -- can still save as draft, but cannot set status=published.
         User editorNoPublish = createUser("aa7c@magti.ge", Role.CONTENT_ADMIN, "All");
-        editorNoPublish.setPermissions(new java.util.LinkedHashSet<>(editorNoPublish.getPermissions()));
-        editorNoPublish.getPermissions().remove(Permission.ARTICLES_PUBLISH.value());
-        userRepository.saveAndFlush(editorNoPublish);
+        deny(editorNoPublish, Permission.ARTICLES_PUBLISH);
 
         mockMvc.perform(authed(post("/api/articles"), tokenFor(editorNoPublish))
                         .contentType(MediaType.APPLICATION_JSON)

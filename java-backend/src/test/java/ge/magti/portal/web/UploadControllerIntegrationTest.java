@@ -106,7 +106,7 @@ class UploadControllerIntegrationTest {
 
         mockMvc.perform(authed(multipart("/api/upload").file(file), tokenFor(operator)))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.detail").value("Not enough permissions to perform this action"));
+                .andExpect(jsonPath("$.detail").value("წვდომა უარყოფილია: არასაკმარისი უფლებები"));
     }
 
     @Test

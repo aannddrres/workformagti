@@ -3,12 +3,14 @@ package ge.magti.portal.web;
 import ge.magti.portal.content.ContentDeletionService;
 import ge.magti.portal.domain.News;
 import ge.magti.portal.domain.NewsHistory;
+import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.news.NewsQueryService;
 import ge.magti.portal.repository.NewsHistoryRepository;
 import ge.magti.portal.repository.NewsRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.search.SearchReindexService;
+import ge.magti.portal.security.PermissionChecker;
 import ge.magti.portal.util.DepartmentMatcher;
 import ge.magti.portal.util.TbilisiTime;
 import jakarta.validation.Valid;
@@ -67,6 +69,7 @@ public class NewsController {
     private final NewsQueryService newsQueryService;
     private final SearchReindexService searchReindexService;
     private final ContentDeletionService contentDeletionService;
+    private final PermissionChecker permissionChecker;
 
     public NewsController(
             NewsRepository newsRepository,
@@ -74,13 +77,15 @@ public class NewsController {
             UserRepository userRepository,
             NewsQueryService newsQueryService,
             SearchReindexService searchReindexService,
-            ContentDeletionService contentDeletionService) {
+            ContentDeletionService contentDeletionService,
+            PermissionChecker permissionChecker) {
         this.newsRepository = newsRepository;
         this.newsHistoryRepository = newsHistoryRepository;
         this.userRepository = userRepository;
         this.newsQueryService = newsQueryService;
         this.searchReindexService = searchReindexService;
         this.contentDeletionService = contentDeletionService;
+        this.permissionChecker = permissionChecker;
     }
 
     /** Port of get_news_item (routers/news.py:23-44). */
@@ -131,7 +136,7 @@ public class NewsController {
     @PostMapping("/api/news")
     @Transactional
     public ResponseEntity<?> createNews(@Valid @RequestBody NewsRequest request, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
         if (denial != null) {
             return denial;
         }
@@ -151,7 +156,7 @@ public class NewsController {
     @Transactional
     public ResponseEntity<?> updateNews(
             @PathVariable Long id, @Valid @RequestBody NewsRequest request, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
         if (denial != null) {
             return denial;
         }
@@ -180,7 +185,7 @@ public class NewsController {
     @DeleteMapping("/api/news/{id}")
     @Transactional
     public ResponseEntity<?> deleteNews(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
         if (denial != null) {
             return denial;
         }
@@ -202,7 +207,7 @@ public class NewsController {
     @Transactional
     public ResponseEntity<?> autosaveNews(
             @PathVariable Long id, @RequestBody Map<String, Object> body, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
         if (denial != null) {
             return denial;
         }
@@ -256,7 +261,7 @@ public class NewsController {
     /** Port of get_news_history (routers/news.py:241-265). */
     @GetMapping("/api/news/{id}/history")
     public ResponseEntity<?> getNewsHistory(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
         if (denial != null) {
             return denial;
         }
@@ -278,7 +283,7 @@ public class NewsController {
     @Transactional
     public ResponseEntity<?> restoreNewsVersion(
             @PathVariable Long id, @PathVariable("historyId") Long historyId, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
         if (denial != null) {
             return denial;
         }
@@ -344,14 +349,14 @@ public class NewsController {
         return null;
     }
 
-    private static ResponseEntity<Map<String, String>> requireContentAdmin(User user) {
+    private ResponseEntity<Map<String, String>> requireContentManage(User user) {
         ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
         if (authFailure != null) {
             return authFailure;
         }
-        if (!user.getRole().isContentAdmin()) {
+        if (!permissionChecker.hasPermission(user, Permission.CONTENT_MANAGE)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("detail", "Not enough permissions to perform this action"));
+                    .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
         }
         return null;
     }

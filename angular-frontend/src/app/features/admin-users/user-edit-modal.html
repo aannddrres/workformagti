@@ -84,21 +84,32 @@
               <h4 class="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">{{ 'users.perm_group_' + group.heading | translate }}</h4>
               <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 @for (option of group.options; track option.value) {
-                  <label class="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer dark:text-zinc-300" [class.opacity-70]="option.disabled">
-                    <input
-                      type="checkbox"
-                      class="h-4 w-4 rounded border-gray-300 accent-brand dark:border-zinc-600"
-                      [checked]="option.checked"
+                  <div class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900/60" [class.opacity-70]="option.disabled">
+                    <div class="mb-2 flex items-start justify-between gap-3">
+                      <div>
+                        <p class="text-sm font-semibold text-gray-700 dark:text-zinc-200">{{ 'users.perm_' + option.label | translate }}</p>
+                        <p class="mt-0.5 text-xs text-gray-400 dark:text-zinc-500">
+                          {{ option.inherited ? ('users.perm_role_grants' | translate) : ('users.perm_role_denies' | translate) }}
+                        </p>
+                      </div>
+                      <span class="rounded-full px-2 py-1 text-[0.68rem] font-bold"
+                        [class.bg-emerald-100]="option.effective"
+                        [class.text-emerald-700]="option.effective"
+                        [class.bg-slate-100]="!option.effective"
+                        [class.text-slate-500]="!option.effective">
+                        {{ (option.effective ? 'users.perm_effective_on' : 'users.perm_effective_off') | translate }}
+                      </span>
+                    </div>
+                    <select
+                      class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
                       [disabled]="option.disabled"
-                      (change)="togglePermission(option.value, $any($event.target).checked)"
-                    />
-                    <span>
-                      {{ 'users.perm_' + option.label | translate }}
-                      @if (option.lockReason === 'role-default') {
-                        <span class="ml-1 text-xs font-normal text-gray-400 dark:text-zinc-500">{{ 'users.perm_inherited' | translate }}</span>
-                      }
-                    </span>
-                  </label>
+                      (change)="setPermissionOverride(option.value, $any($event.target).value)"
+                    >
+                      <option value="INHERIT" [attr.selected]="option.overrideState === 'INHERIT' ? '' : null">{{ 'users.perm_state_inherit' | translate }}</option>
+                      <option value="ALLOW" [attr.selected]="option.overrideState === 'ALLOW' ? '' : null">{{ 'users.perm_state_allow' | translate }}</option>
+                      <option value="DENY" [attr.selected]="option.overrideState === 'DENY' ? '' : null">{{ 'users.perm_state_deny' | translate }}</option>
+                    </select>
+                  </div>
                 }
               </div>
             </div>

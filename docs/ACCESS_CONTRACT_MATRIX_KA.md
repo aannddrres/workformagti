@@ -84,20 +84,20 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
-| `GET /api/admin/articles/stale` | `ArticleController.getStaleArticles` | `requireContentAdmin` | content.manage `NEW` | `ORG-CONTENT` | no | დღეს role-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `GET /api/admin/articles/stale` | `ArticleController.getStaleArticles` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
 | `GET /api/admin/feedback` | `ArticleController.getAdminFeedback` | `requireContentAdmin` | content.evidence `NEW` ⚠ | `⚠` | **yes** | **გადასაწყვეტი.** აბრუნებს operator-ის სახელს/email-ს/დეპარტამენტს/დაგვიანებას org-wide, მხოლოდ `requireContentAdmin`-ით. წესი #15 კრძალავს content permission-ით თანამშრომლის სტატისტიკას; მაგრამ per-article გაცნობის მტკიცებულება კონტენტის lifecycle-იცაა. |
 | `GET /api/articles` | `ArticleController.getArticles` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
-| `POST /api/articles` | `ArticleController.createArticle` | `requireArticlesEditPermission`, `requireArticlesPublishPermission`, `requireContentAdmin` | articles.edit + articles.publish | `ORG-CONTENT` | no | უკვე permission-ზეა; role-gate `requireContentAdmin` Phase 6-ზე ცვდება. |
+| `POST /api/articles` | `ArticleController.createArticle` | `requireArticlesEditPermission`, `requireArticlesPublishPermission` | articles.edit + articles.publish | `ORG-CONTENT` | no | Phase 6: redundant content-admin role-gate მოიხსნა; explicit permission override მუშაობს. |
 | `POST /api/articles/bulk-archive` | `ArticleController.bulkArchiveArticles` | `requireArticlesArchivePermission` | articles.archive | `ORG-CONTENT` | no | უკვე permission-ზეა. |
-| `DELETE /api/articles/{id}` | `ArticleController.deleteArticle` | `requireArticlesEditPermission`, `requireContentAdmin` | articles.edit | `ORG-CONTENT` | no | role-gate Phase 6-ზე ცვდება. |
+| `DELETE /api/articles/{id}` | `ArticleController.deleteArticle` | `requireArticlesEditPermission` | articles.edit | `ORG-CONTENT` | no | Phase 6: redundant content-admin role-gate მოიხსნა. |
 | `GET /api/articles/{id}` | `ArticleController.getArticle` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
-| `PUT /api/articles/{id}` | `ArticleController.updateArticle` | `requireArticlesEditPermission`, `requireArticlesPublishPermission`, `requireContentAdmin` | articles.edit + articles.publish | `ORG-CONTENT` | no | უკვე permission-ზეა; role-gate `requireContentAdmin` Phase 6-ზე ცვდება. |
+| `PUT /api/articles/{id}` | `ArticleController.updateArticle` | `requireArticlesEditPermission`, `requireArticlesPublishPermission` | articles.edit + articles.publish | `ORG-CONTENT` | no | Phase 6: redundant content-admin role-gate მოიხსნა; explicit permission override მუშაობს. |
 | `POST /api/articles/{id}/archive` | `ArticleController.archiveArticle` | `requireArticlesArchivePermission` | articles.archive | `ORG-CONTENT` | no | უკვე permission-ზეა. |
-| `PATCH /api/articles/{id}/autosave` | `ArticleController.autosaveArticle` | `requireArticlesEditPermission`, `requireArticlesPublishPermission`, `requireContentAdmin` | articles.edit + articles.publish | `ORG-CONTENT` | no | უკვე permission-ზეა; role-gate `requireContentAdmin` Phase 6-ზე ცვდება. |
+| `PATCH /api/articles/{id}/autosave` | `ArticleController.autosaveArticle` | `requireArticlesEditPermission`, `requireArticlesPublishPermission` | articles.edit + articles.publish | `ORG-CONTENT` | no | Phase 6: redundant content-admin role-gate მოიხსნა; explicit permission override მუშაობს. |
 | `POST /api/articles/{id}/feedback` | `ArticleController.createArticleFeedback` | `requireAuthenticated` | AUTH | `SELF` | no | საკუთარი ჩანაწერი ხილულ კონტენტზე. |
-| `GET /api/articles/{id}/history` | `ArticleController.getArticleHistory` | `requireContentAdmin` | content.manage `NEW` | `ORG-CONTENT` | no | დღეს role-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `GET /api/articles/{id}/history` | `ArticleController.getArticleHistory` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
 | `GET /api/articles/{id}/history/{historyId}/diff` | `ArticleController.getArticleDiff` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
-| `POST /api/articles/{id}/history/{historyId}/restore` | `ArticleController.restoreArticleVersion` | `requireContentAdmin` | content.manage `NEW` | `ORG-CONTENT` | no | დღეს role-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `POST /api/articles/{id}/history/{historyId}/restore` | `ArticleController.restoreArticleVersion` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
 | `GET /api/articles/{id}/note` | `ArticleController.getUserNote` | `requireAuthenticated`, `requireVisibleArticle` | AUTH | `SELF` | no | საკუთარი ჩანაწერი ხილულ კონტენტზე. |
 | `PUT /api/articles/{id}/note` | `ArticleController.putUserNote` | `requireAuthenticated`, `requireVisibleArticle` | AUTH | `SELF` | no | საკუთარი ჩანაწერი ხილულ კონტენტზე. |
 | `POST /api/articles/{id}/read-receipt` | `ArticleController.createArticleReadReceipt` | `requireAuthenticated`, `requireQuizPassed` | AUTH | `SELF` | no | compliance-ის მტკიცებულება; retention purge-იდან გამორიცხული. |
@@ -105,7 +105,7 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | `GET /api/articles/{id}/read-receipts` | `ArticleController.getArticleReadReceipts` | `requireContentAdmin` | content.evidence `NEW` ⚠ | `⚠` | **yes** | **გადასაწყვეტი.** აბრუნებს operator-ის სახელს/email-ს/დეპარტამენტს/დაგვიანებას org-wide, მხოლოდ `requireContentAdmin`-ით. წესი #15 კრძალავს content permission-ით თანამშრომლის სტატისტიკას; მაგრამ per-article გაცნობის მტკიცებულება კონტენტის lifecycle-იცაა. |
 | `GET /api/articles/{id}/related` | `ArticleController.getRelatedArticles` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
 | `POST /api/articles/{id}/unarchive` | `ArticleController.unarchiveArticle` | `requireArticlesArchivePermission` | articles.archive | `ORG-CONTENT` | no | უკვე permission-ზეა. |
-| `POST /api/articles/{id}/verify` | `ArticleController.verifyArticle` | `requireContentAdmin` | content.manage `NEW` | `ORG-CONTENT` | no | დღეს role-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `POST /api/articles/{id}/verify` | `ArticleController.verifyArticle` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
 | `GET /api/articles/{id}/versions` | `ArticleController.getArticleVersions` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
 | `POST /api/articles/{id}/view` | `ArticleController.trackArticleView` | `requireAuthenticated` | AUTH | `SELF` | no | საკუთარი ჩანაწერი ხილულ კონტენტზე. |
 | `GET /api/articles/{id}/views` | `ArticleController.getArticleViews` | `requireContentAdmin` | content.evidence `NEW` ⚠ | `⚠` | **yes** | **გადასაწყვეტი.** აბრუნებს operator-ის სახელს/email-ს/დეპარტამენტს/დაგვიანებას org-wide, მხოლოდ `requireContentAdmin`-ით. წესი #15 კრძალავს content permission-ით თანამშრომლის სტატისტიკას; მაგრამ per-article გაცნობის მტკიცებულება კონტენტის lifecycle-იცაა. |
@@ -132,9 +132,9 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
 | `GET /api/categories` | `CategoryController.getCategories` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
-| `POST /api/categories` | `CategoryController.createCategory` | `requireContentAdmin` | content.manage `NEW` | `ORG-CONTENT` | no | დღეს role-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
-| `DELETE /api/categories/{id}` | `CategoryController.deleteCategory` | `requireContentAdmin` | content.manage `NEW` | `ORG-CONTENT` | no | დღეს role-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
-| `PUT /api/categories/{id}` | `CategoryController.updateCategory` | `requireContentAdmin` | content.manage `NEW` | `ORG-CONTENT` | no | დღეს role-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `POST /api/categories` | `CategoryController.createCategory` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `DELETE /api/categories/{id}` | `CategoryController.deleteCategory` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `PUT /api/categories/{id}` | `CategoryController.updateCategory` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
 
 ### Compliance (7)
 
@@ -144,7 +144,7 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | `GET /api/compliance/my-progress` | `ComplianceController.getMyProgress` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი მონაცემი. |
 | `GET /api/compliance/my-readings` | `ComplianceController.getMyReadings` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი მონაცემი. |
 | `POST /api/compliance/required-readings` | `ComplianceController.createRequiredReading` | `requireComplianceAssign` | compliance.assign | `ORG-CONTENT` | no | წესი #12: target არის დეპარტამენტი ან `All`, არასოდეს ჯგუფი. |
-| `GET /api/compliance/required-readings/by-item/{itemType}/{itemId}` | `ComplianceController.getRequiredReadingForItem` | `requireContentAdmin` | compliance.assign | `ORG-CONTENT` | no | role-gate Phase 6-ზე `compliance.assign`-ით იცვლება. |
+| `GET /api/compliance/required-readings/by-item/{itemType}/{itemId}` | `ComplianceController.getRequiredReadingForItem` | `requireComplianceAssign` | compliance.assign | `ORG-CONTENT` | no | Phase 6: read/edit drawer-იც იმავე capability-ით იმართება. |
 | `DELETE /api/compliance/required-readings/{readingId}` | `ComplianceController.deleteRequiredReading` | `requireComplianceAssign` | compliance.assign | `ORG-CONTENT` | no | წესი #12: target არის დეპარტამენტი ან `All`, არასოდეს ჯგუფი. |
 | `PUT /api/compliance/required-readings/{readingId}` | `ComplianceController.updateRequiredReading` | `requireComplianceAssign` | compliance.assign | `ORG-CONTENT` | no | წესი #12: target არის დეპარტამენტი ან `All`, არასოდეს ჯგუფი. |
 
@@ -189,13 +189,13 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
 | `GET /api/news` | `NewsController.getNews` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
-| `POST /api/news` | `NewsController.createNews` | `requireContentAdmin` | content.manage `NEW` | `ORG-CONTENT` | no | დღეს role-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
-| `DELETE /api/news/{id}` | `NewsController.deleteNews` | `requireContentAdmin` | content.manage `NEW` | `ORG-CONTENT` | no | დღეს role-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `POST /api/news` | `NewsController.createNews` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `DELETE /api/news/{id}` | `NewsController.deleteNews` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
 | `GET /api/news/{id}` | `NewsController.getNewsItem` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
-| `PUT /api/news/{id}` | `NewsController.updateNews` | `requireContentAdmin` | content.manage `NEW` | `ORG-CONTENT` | no | დღეს role-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
-| `PATCH /api/news/{id}/autosave` | `NewsController.autosaveNews` | `requireContentAdmin` | content.manage `NEW` | `ORG-CONTENT` | no | დღეს role-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
-| `GET /api/news/{id}/history` | `NewsController.getNewsHistory` | `requireContentAdmin` | content.manage `NEW` | `ORG-CONTENT` | no | დღეს role-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
-| `POST /api/news/{id}/history/{historyId}/restore` | `NewsController.restoreNewsVersion` | `requireContentAdmin` | content.manage `NEW` | `ORG-CONTENT` | no | დღეს role-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `PUT /api/news/{id}` | `NewsController.updateNews` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `PATCH /api/news/{id}/autosave` | `NewsController.autosaveNews` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `GET /api/news/{id}/history` | `NewsController.getNewsHistory` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `POST /api/news/{id}/history/{historyId}/restore` | `NewsController.restoreNewsVersion` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
 
 ### Platform (2)
 
@@ -217,8 +217,8 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
 | `GET /api/articles/{id}/quiz` | `QuizController.getArticleQuiz` | `requireAuthenticated` | AUTH | `SELF` | no | compliance-ის მტკიცებულება; retention purge-იდან გამორიცხული. |
-| `GET /api/articles/{id}/quiz/admin` | `QuizController.getArticleQuizAdmin` | `requireContentAdmin` | content.manage `NEW` | `ORG-CONTENT` | no | დღეს role-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
-| `PUT /api/articles/{id}/quiz/admin` | `QuizController.updateArticleQuizAdmin` | `requireContentAdmin` | content.manage `NEW` | `ORG-CONTENT` | no | დღეს role-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `GET /api/articles/{id}/quiz/admin` | `QuizController.getArticleQuizAdmin` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `PUT /api/articles/{id}/quiz/admin` | `QuizController.updateArticleQuizAdmin` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
 | `POST /api/articles/{id}/quiz/attempt` | `QuizController.submitArticleQuizAttempt` | `requireAuthenticated` | AUTH | `SELF` | no | compliance-ის მტკიცებულება; retention purge-იდან გამორიცხული. |
 | `GET /api/users/me/knowledge-score` | `QuizController.getMyKnowledgeScore` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი მონაცემი. |
 
@@ -239,19 +239,19 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | `GET /api/admin/stats/team/{teamId}` | `StatsController.getAdminTeamStats` | `requireSystemAdmin` | AUTH + leadership | `ORG` | **yes** | Phase 0: SYSTEM_ADMIN-only. Phase 4: `{teamId}` scope-ზე უნდა შემოწმდეს, არა role-ზე. |
 | `GET /api/manager/department-stats` | `StatsController.getDepartmentStats` | `requireManagerOrAdmin` | AUTH + leadership | `GROUP/DEPT` | **yes** | Phase 0: `ManagerScope`. Phase 4: `ScopeResolver`; nested group/department row-ებიც იფილტრება. |
 | `GET /api/manager/team-stats` | `StatsController.getTeamStats` | `requireManagerOrAdmin` | AUTH + leadership | `GROUP/DEPT` | **yes** | Phase 0: `ManagerScope`. Phase 4: `ScopeResolver`; nested group/department row-ებიც იფილტრება. |
-| `GET /api/statistics/activity` | `StatsController.getActivityTrend` | `requireContentAdmin` | content.manage `NEW` | `ORG-AGG` | no | მხოლოდ აგრეგატები; იდენტობა არ ჟონავს. |
-| `GET /api/statistics/breakdown` | `StatsController.getStatisticsBreakdown` | `requireContentAdmin` | content.manage `NEW` | `ORG-AGG` | no | დაშვებული dimension: department/role/status — `COUNT`, სახელების გარეშე. |
-| `GET /api/statistics/compliance` | `StatsController.getComplianceStatistics` | `requireContentAdmin` | content.manage `NEW` | `ORG-AGG` | no | მხოლოდ აგრეგატები; იდენტობა არ ჟონავს. |
-| `GET /api/statistics/failed-searches` | `StatsController.getFailedSearches` | `requireContentAdmin` | content.manage `NEW` | `ORG-AGG` | no | მხოლოდ აგრეგატები; იდენტობა არ ჟონავს. |
-| `GET /api/statistics/kpi` | `StatsController.getKpiCounts` | `requireContentAdmin` | content.manage `NEW` | `ORG-AGG` | no | მხოლოდ აგრეგატები; იდენტობა არ ჟონავს. |
-| `GET /api/statistics/popular-searches` | `StatsController.getPopularSearches` | `requireContentAdmin` | content.manage `NEW` | `ORG-AGG` | no | მხოლოდ აგრეგატები; იდენტობა არ ჟონავს. |
+| `GET /api/statistics/activity` | `StatsController.getActivityTrend` | `requireContentManage` | content.manage | `ORG-AGG` | no | მხოლოდ აგრეგატები; იდენტობა არ ჟონავს. |
+| `GET /api/statistics/breakdown` | `StatsController.getStatisticsBreakdown` | `requireContentManage` | content.manage | `ORG-AGG` | no | დაშვებული dimension: department/role/status — `COUNT`, სახელების გარეშე. |
+| `GET /api/statistics/compliance` | `StatsController.getComplianceStatistics` | `requireContentManage` | content.manage | `ORG-AGG` | no | მხოლოდ აგრეგატები; იდენტობა არ ჟონავს. |
+| `GET /api/statistics/failed-searches` | `StatsController.getFailedSearches` | `requireContentManage` | content.manage | `ORG-AGG` | no | მხოლოდ აგრეგატები; იდენტობა არ ჟონავს. |
+| `GET /api/statistics/kpi` | `StatsController.getKpiCounts` | `requireContentManage` | content.manage | `ORG-AGG` | no | მხოლოდ აგრეგატები; იდენტობა არ ჟონავს. |
+| `GET /api/statistics/popular-searches` | `StatsController.getPopularSearches` | `requireContentManage` | content.manage | `ORG-AGG` | no | მხოლოდ აგრეგატები; იდენტობა არ ჟონავს. |
 | `GET /api/statistics/user-progress` | `StatsController.getUserProgress` | `requireSystemAdmin` | AUTH + leadership | `ORG` | **yes** | ყველა თანამშრომლის სახელი + დეპარტამენტი + პროცენტი. სწორად SYSTEM_ADMIN-only; Phase 4-ზე scope-ით უნდა გაიხსნას leadership-ისთვის, არა role-ით. |
 
 ### Upload (1)
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
-| `POST /api/upload` | `UploadController.uploadFile` | `requireContentAdmin` | content.manage `NEW` | `ORG-CONTENT` | no | დღეს role-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `POST /api/upload` | `UploadController.uploadFile` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
 
 ### UploadedFile (1)
 
@@ -282,9 +282,9 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
 | `GET /api/videos` | `VideoController.getVideos` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
-| `POST /api/videos` | `VideoController.createVideo` | `requireContentAdmin` | content.manage `NEW` | `ORG-CONTENT` | no | დღეს role-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
-| `DELETE /api/videos/{id}` | `VideoController.deleteVideo` | `requireContentAdmin` | content.manage `NEW` | `ORG-CONTENT` | no | დღეს role-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
-| `PUT /api/videos/{id}` | `VideoController.updateVideo` | `requireContentAdmin` | content.manage `NEW` | `ORG-CONTENT` | no | დღეს role-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `POST /api/videos` | `VideoController.createVideo` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `DELETE /api/videos/{id}` | `VideoController.deleteVideo` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `PUT /api/videos/{id}` | `VideoController.updateVideo` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
 | `POST /api/videos/{id}/archive` | `VideoController.archiveVideo` | `requireVideosArchivePermission` | videos.archive | `ORG-CONTENT` | no | უკვე permission-ზეა. |
 | `POST /api/videos/{id}/unarchive` | `VideoController.unarchiveVideo` | `requireVideosArchivePermission` | videos.archive | `ORG-CONTENT` | no | უკვე permission-ზეა. |
 | `POST /api/videos/{id}/view` | `VideoController.viewVideo` | `requireAuthenticated` | AUTH | `SELF` | no | საკუთარი ჩანაწერი ხილულ კონტენტზე. |

@@ -11,9 +11,11 @@ import org.springframework.stereotype.Service;
  * simplified per the 2026-07-30 RBAC-catalog decision (migration doc §5,
  * bug #5): the DB-backed {@code Role}/{@code Permission}/
  * {@code RolePermission} tables and their disjoint colon-named catalog are
- * retired, not ported -- {@link User#getPermissions()} is now the single
- * source of truth for every permission, {@code system:audit} included.
- * That collapses the Python function's two-source check down to one.
+ * retired, not ported. Since Phase 6, the effective decision is composed by
+ * {@link CapabilityService} from role defaults plus explicit
+ * {@code ALLOW}/{@code DENY} overrides. The legacy
+ * {@link User#getPermissions()} list remains only for compatibility until the
+ * Phase 7 response-contract cleanup.
  *
  * <h2>SYSTEM_ADMIN bypasses every permission check. Read this before adding one.</h2>
  *
@@ -49,12 +51,9 @@ import org.springframework.stereotype.Service;
 public class PermissionChecker {
 
     /**
-     * Phase 3 shadow only -- nullable, and null means "do not measure".
-     *
-     * <p>The no-argument constructor below is kept so the several unit tests
-     * that build this directly stay unchanged: a measurement being added is
-     * not a reason to touch five test files, and a test that measures nothing
-     * is testing the same rule the application enforces.
+     * Production policy engine. The no-argument fallback exists only for
+     * DB-free tests that construct this checker directly; Spring always
+     * injects the capability service.
      */
     private final CapabilityService capabilityService;
 
@@ -73,13 +72,14 @@ public class PermissionChecker {
         if (user.getRole() == Role.SYSTEM_ADMIN) {
             return true;
         }
-        boolean granted = user.hasPermission(permission);
         if (capabilityService != null) {
-            // Records what the composed role-default-plus-override rule would
-            // answer, and returns the stored-list answer regardless. Phase 6
-            // swaps which one decides.
-            return capabilityService.shadowCompare("capability", user, permission, granted);
+            // Phase 6 cutover: role defaults plus explicit ALLOW/DENY now
+            // decide. users.permissions remains only as a compatibility
+            // column until the Phase 7 response-contract cleanup.
+            return capabilityService.hasCapability(user, permission);
         }
-        return granted;
+        // DB-free legacy unit tests construct this service directly. The
+        // Spring application always injects CapabilityService above.
+        return user.hasPermission(permission);
     }
 }

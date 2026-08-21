@@ -9,6 +9,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Version;
 
 import java.time.OffsetDateTime;
 import java.util.LinkedHashSet;
@@ -100,12 +101,14 @@ public class User {
     @Column(name = "compliance_override")
     private Boolean complianceOverride;
 
-    // NOTE: V36 also adds users.lock_version, and it is deliberately NOT
-    // mapped as @Version here. Doing so would turn on optimistic locking for
-    // every User save in the application at once, including paths that save a
-    // detached principal, and Phase 2's contract is "schema expand, behavior
-    // unchanged". Phase 6 maps it, together with the delta-based permissions
-    // endpoint that is the reason it exists.
+    /**
+     * Phase 6 optimistic lock. Deliberately separate from tokenVersion:
+     * changing a profile or permission must detect stale writes without
+     * revoking every issued access token.
+     */
+    @Version
+    @Column(name = "lock_version", nullable = false)
+    private long lockVersion;
 
     @Column(name = "token_version", nullable = false)
     private long tokenVersion = 0L;
@@ -248,6 +251,14 @@ public class User {
 
     public void setPermissions(Set<String> permissions) {
         this.permissions = permissions;
+    }
+
+    public long getLockVersion() {
+        return lockVersion;
+    }
+
+    public void setLockVersion(long lockVersion) {
+        this.lockVersion = lockVersion;
     }
 
     public Long getTeamId() {

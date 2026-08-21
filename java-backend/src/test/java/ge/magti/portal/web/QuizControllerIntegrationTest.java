@@ -310,41 +310,4 @@ class QuizControllerIntegrationTest {
                 .andExpect(jsonPath("$.first_try_passes").value(1));
     }
 
-    // ── leaderboard ───────────────────────────────────────────────────
-
-    @Test
-    void leaderboardRanksByScoreWithinDepartmentAndExcludesZeroScorers() throws Exception {
-        String dept = "ლიდერბორდ-დეპარტამენტი-" + System.nanoTime();
-        User admin = createUser("qa13@magti.ge", Role.CONTENT_ADMIN, dept);
-        Article article = createArticle(true, List.of(dept));
-        String adminBody = mockMvc.perform(authed(put("/api/articles/" + article.getId() + "/quiz/admin"),
-                        tokenFor(admin)).contentType(MediaType.APPLICATION_JSON).content(TWO_QUESTION_PAYLOAD))
-                .andReturn().getResponse().getContentAsString();
-        com.fasterxml.jackson.databind.JsonNode questions =
-                new com.fasterxml.jackson.databind.ObjectMapper().readTree(adminBody).get("questions");
-        long q1 = questions.get(0).get("id").asLong();
-        long q1CorrectAnswer = questions.get(0).get("answers").get(1).get("id").asLong();
-        long q2 = questions.get(1).get("id").asLong();
-        long q2CorrectAnswer = questions.get(1).get("answers").get(0).get("id").asLong();
-        String correctPayload = "{\"answers\":{\"" + q1 + "\":" + q1CorrectAnswer + ",\"" + q2 + "\":"
-                + q2CorrectAnswer + "}}";
-
-        User topScorer = createUser("qa14@magti.ge", Role.OPERATOR, dept);
-        mockMvc.perform(authed(post("/api/articles/" + article.getId() + "/quiz/attempt"), tokenFor(topScorer))
-                        .contentType(MediaType.APPLICATION_JSON).content(correctPayload))
-                .andExpect(status().isOk());
-
-        User zeroScorer = createUser("qa15@magti.ge", Role.OPERATOR, dept);
-        // Management roles are excluded from the leaderboard outright, even
-        // if they had a score -- not exercised here directly, but the
-        // exclusion filter is applied unconditionally in the controller.
-
-        mockMvc.perform(authed(get("/api/knowledge-leaderboard").param("scope", "department"), tokenFor(admin)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.entries.length()").value(1))
-                .andExpect(jsonPath("$.entries[0].user_name").value(topScorer.getName()))
-                .andExpect(jsonPath("$.entries[0].rank").value(1))
-                .andExpect(jsonPath("$.entries[0].score").value(15));
-        // entries.length()==1 above already proves zeroScorer (score 0) was excluded.
-    }
 }

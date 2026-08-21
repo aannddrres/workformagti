@@ -15,7 +15,7 @@ import java.util.List;
  *
  * <h2>Why not just read users.permissions</h2>
  *
- * {@link PermissionChecker} reads a flat JSON list, which cannot say whether a
+ * The legacy flat JSON list cannot say whether a
  * permission is there because the role grants it or because an administrator
  * granted it to this person. Without that distinction a role change has to
  * either wipe explicit grants or keep grants the new role never had. Both are
@@ -37,12 +37,11 @@ import java.util.List;
  * mutations are fail-closed by having no endpoint at all rather than by a
  * permission check, which this method would wave through.
  *
- * <h2>Shadow mode</h2>
+ * <h2>Cutover and retained diagnostics</h2>
  *
- * Nothing routes through this yet. {@link #shadowCompare} lets
- * {@link PermissionChecker} record what would change while continuing to serve
- * the stored list, so Phase 6 can cut over knowing exactly whose abilities
- * move.
+ * Phase 6 routes production permission checks through this service.
+ * {@link #shadowCompare} remains available for rollout diagnostics and for
+ * comparing legacy decisions while the compatibility column still exists.
  */
 @Service
 public class CapabilityService {

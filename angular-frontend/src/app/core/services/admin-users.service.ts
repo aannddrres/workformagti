@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { AdminUser, BulkRoleReassignResponse, GroupLeader, UserAdminUpdateRequest, UserCreateRequest } from '../models/admin-user';
+import { AdminUser, BulkRoleReassignResponse, GroupLeader, PermissionsDeltaRequest, UserAdminUpdateRequest, UserCreateRequest } from '../models/admin-user';
 
 @Injectable({ providedIn: 'root' })
 export class AdminUsersService {
@@ -31,8 +31,8 @@ export class AdminUsersService {
     return this.http.put<AdminUser>(`/api/users/${userId}/status`, { is_active: active });
   }
 
-  updatePermissions(userId: number, permissions: string[]): Observable<AdminUser> {
-    return this.http.put<AdminUser>(`/api/users/${userId}/permissions`, { permissions });
+  updatePermissions(userId: number, request: PermissionsDeltaRequest): Observable<AdminUser> {
+    return this.http.put<AdminUser>(`/api/users/${userId}/permissions`, request);
   }
 
   bulkReassignRole(userIds: number[], newRole: string): Observable<BulkRoleReassignResponse> {

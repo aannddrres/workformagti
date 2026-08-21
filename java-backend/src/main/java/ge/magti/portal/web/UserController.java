@@ -7,11 +7,13 @@ import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
+import ge.magti.portal.domain.UserPermissionOverride;
 import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.ReadStatusRepository;
 import ge.magti.portal.repository.RequiredReadingRepository;
 import ge.magti.portal.repository.TeamRepository;
 import ge.magti.portal.repository.UserRepository;
+import ge.magti.portal.repository.UserPermissionOverrideRepository;
 import ge.magti.portal.security.PasswordPolicy;
 import ge.magti.portal.security.PermissionChecker;
 import ge.magti.portal.util.TbilisiTime;
@@ -36,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.time.OffsetDateTime;
 
 /**
  * Mirrors routers/users.py's 14 endpoints, minus one: {@code POST
@@ -67,11 +70,13 @@ public class UserController {
     private final ReadStatusRepository readStatusRepository;
     private final PasswordEncoder passwordEncoder;
     private final PermissionChecker permissionChecker;
+    private final UserPermissionOverrideRepository permissionOverrideRepository;
 
     public UserController(
             UserRepository userRepository, TeamRepository teamRepository, AuditLogRepository auditLogRepository,
             RequiredReadingRepository requiredReadingRepository, ReadStatusRepository readStatusRepository,
-            PasswordEncoder passwordEncoder, PermissionChecker permissionChecker) {
+            PasswordEncoder passwordEncoder, PermissionChecker permissionChecker,
+            UserPermissionOverrideRepository permissionOverrideRepository) {
         this.userRepository = userRepository;
         this.teamRepository = teamRepository;
         this.auditLogRepository = auditLogRepository;
@@ -79,6 +84,7 @@ public class UserController {
         this.readStatusRepository = readStatusRepository;
         this.passwordEncoder = passwordEncoder;
         this.permissionChecker = permissionChecker;
+        this.permissionOverrideRepository = permissionOverrideRepository;
     }
 
     /** Port of read_users_me (routers/users.py:29-50). */
@@ -208,11 +214,6 @@ public class UserController {
             }
         }
 
-        Set<String> defaultPerms = new LinkedHashSet<>();
-        for (Permission p : Permission.defaultsFor(newRole)) {
-            defaultPerms.add(p.value());
-        }
-
         int changed = 0;
         for (User u : users) {
             if (u.getRole() == newRole) {
@@ -220,7 +221,6 @@ public class UserController {
             }
             String oldRoleValue = u.getRole().value();
             u.setRole(newRole);
-            u.setPermissions(new LinkedHashSet<>(defaultPerms));
 
             AuditLog audit = new AuditLog();
             audit.setAdminId(admin.getId());
@@ -312,11 +312,13 @@ public class UserController {
             }
         }
 
+        Map<Long, List<UserPermissionOverride>> overridesByUser = overridesByUser(users);
         List<UserResponse> responses = new ArrayList<>();
         for (User user : users) {
             ReadingProgress progress = ComplianceCalculator.computeProgress(
                     user, allRequired, requiredCountsByDept, readCountsByUserDept);
-            responses.add(UserResponse.from(user, progress));
+            responses.add(UserResponse.from(
+                    user, progress, overridesByUser.getOrDefault(user.getId(), List.of())));
         }
         return ResponseEntity.ok(responses);
     }
@@ -379,7 +381,7 @@ public class UserController {
         }
 
         User saved = userRepository.save(user);
-        return ResponseEntity.ok(UserResponse.from(saved));
+        return ResponseEntity.ok(UserResponse.from(saved, permissionOverrideRepository.findByUserId(saved.getId())));
     }
 
     /** Port of get_teams (routers/users.py:337-346). */
@@ -501,18 +503,7 @@ public class UserController {
         return ResponseEntity.ok(Map.of("detail", "პაროლი წარმატებით აღდგა."));
     }
 
-    /**
-     * Port of admin_update_permissions (routers/users.py:448-479).
-     *
-     * <p>Python's "known" whitelist (routers/users.py:460-465) hand-copies 7
-     * of the 8 dotted {@link Permission} constants, omitting VIDEOS_ARCHIVE
-     * (a pre-existing, documented gap -- see {@link Permission}'s javadoc,
-     * "known bug #4"). That javadoc already recommends the fix for whoever
-     * ports this endpoint: validate against {@code Permission.values()}
-     * rather than re-copying the incomplete set. Done here -- an admin can
-     * now grant videos.archive by hand, which Python's endpoint silently
-     * could never do.
-     */
+    /** Phase 6 override-aware permission delta with optimistic concurrency. */
     @PutMapping("/api/users/{userId}/permissions")
     @Transactional
     public ResponseEntity<?> adminUpdatePermissions(
@@ -523,24 +514,64 @@ public class UserController {
             return denial;
         }
         List<String> unknown = new ArrayList<>();
-        for (String value : request.permissions()) {
+        Set<String> seen = new LinkedHashSet<>();
+        List<String> duplicates = new ArrayList<>();
+        for (PermissionOverrideDelta delta : request.overrides()) {
             try {
-                Permission.fromValue(value);
+                Permission.fromValue(delta.permission());
             } catch (IllegalArgumentException e) {
-                unknown.add(value);
+                unknown.add(delta.permission());
+            }
+            if (!seen.add(delta.permission())) {
+                duplicates.add(delta.permission());
             }
         }
         if (!unknown.isEmpty()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("detail", "უცნობი უფლება(ები): " + String.join(", ", unknown)));
         }
+        if (!duplicates.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("detail", "დუბლირებული უფლება(ები): " + String.join(", ", duplicates)));
+        }
         Optional<User> found = userRepository.findById(userId);
         if (found.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", "მომხმარებელი ვერ მოიძებნა"));
         }
         User user = found.get();
+        if (user.getLockVersion() != request.lockVersion()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                    "detail", "მომხმარებლის მონაცემები შეიცვალა. განაახლეთ გვერდი და სცადეთ თავიდან.",
+                    "lock_version", user.getLockVersion()));
+        }
 
-        user.setPermissions(new LinkedHashSet<>(request.permissions()));
+        if (userRepository.advanceLockVersion(userId, request.lockVersion()) != 1) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                    "detail", "მომხმარებლის მონაცემები შეიცვალა. განაახლეთ გვერდი და სცადეთ თავიდან."));
+        }
+        user = userRepository.findById(userId).orElseThrow();
+
+        Map<String, UserPermissionOverride> existing = new HashMap<>();
+        for (UserPermissionOverride override : permissionOverrideRepository.findByUserId(userId)) {
+            existing.put(override.getPermission(), override);
+        }
+        OffsetDateTime now = TbilisiTime.now();
+        for (PermissionOverrideDelta delta : request.overrides()) {
+            UserPermissionOverride current = existing.get(delta.permission());
+            if (delta.state() == PermissionOverrideDelta.State.INHERIT) {
+                if (current != null) {
+                    permissionOverrideRepository.delete(current);
+                }
+                continue;
+            }
+            UserPermissionOverride override = current == null ? new UserPermissionOverride() : current;
+            override.setUserId(userId);
+            override.setPermission(delta.permission());
+            override.setState(UserPermissionOverride.State.valueOf(delta.state().name()));
+            override.setUpdatedAt(now);
+            override.setUpdatedBy(admin.getId());
+            permissionOverrideRepository.save(override);
+        }
 
         AuditLog audit = new AuditLog();
         audit.setAdminId(admin.getId());
@@ -550,8 +581,20 @@ public class UserController {
         audit.setTimestamp(TbilisiTime.now());
         auditLogRepository.save(audit);
 
-        User saved = userRepository.save(user);
-        return ResponseEntity.ok(UserResponse.from(saved));
+        permissionOverrideRepository.flush();
+        return ResponseEntity.ok(UserResponse.from(user, permissionOverrideRepository.findByUserId(userId)));
+    }
+
+    private Map<Long, List<UserPermissionOverride>> overridesByUser(List<User> users) {
+        List<Long> ids = users.stream().map(User::getId).toList();
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, List<UserPermissionOverride>> result = new HashMap<>();
+        for (UserPermissionOverride override : permissionOverrideRepository.findByUserIdIn(ids)) {
+            result.computeIfAbsent(override.getUserId(), ignored -> new ArrayList<>()).add(override);
+        }
+        return result;
     }
 
     private static ResponseEntity<Map<String, String>> passwordPolicyError(List<String> errors) {

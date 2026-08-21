@@ -173,7 +173,7 @@ class StatsControllerIntegrationTest {
 
         mockMvc.perform(authed(get("/api/statistics/kpi"), tokenFor(operator)))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.detail").value("Not enough permissions to perform this action"));
+                .andExpect(jsonPath("$.detail").value("წვდომა უარყოფილია: არასაკმარისი უფლებები"));
         mockMvc.perform(authed(get("/api/admin/critical-operators"), tokenFor(operator)))
                 .andExpect(status().isForbidden());
         mockMvc.perform(authed(get("/api/manager/department-stats"), tokenFor(operator)))

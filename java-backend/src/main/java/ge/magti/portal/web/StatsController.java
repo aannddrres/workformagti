@@ -3,6 +3,7 @@ package ge.magti.portal.web;
 import ge.magti.portal.compliance.ComplianceCalculator;
 import ge.magti.portal.compliance.ComplianceQueryService;
 import ge.magti.portal.domain.Article;
+import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.repository.ArticleRepository;
@@ -14,6 +15,7 @@ import ge.magti.portal.repository.SearchLogRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.repository.VideoInstructionRepository;
 import ge.magti.portal.security.ManagerScope;
+import ge.magti.portal.security.PermissionChecker;
 import ge.magti.portal.security.ScopeResolver;
 import ge.magti.portal.stats.ComplianceRecord;
 import ge.magti.portal.stats.CriticalOperator;
@@ -79,6 +81,7 @@ public class StatsController {
     private final AuditLogRepository auditLogRepository;
     private final ArticleViewLogRepository articleViewLogRepository;
     private final ScopeResolver scopeResolver;
+    private final PermissionChecker permissionChecker;
 
     public StatsController(
             ComplianceQueryService complianceQueryService,
@@ -92,7 +95,7 @@ public class StatsController {
             ArticleViewLogRepository articleViewLogRepository) {
         this(complianceQueryService, userRepository, searchLogRepository, requiredReadingRepository,
                 readStatusRepository, articleRepository, videoInstructionRepository, auditLogRepository,
-                articleViewLogRepository, null);
+                articleViewLogRepository, null, new PermissionChecker());
     }
 
     /** Phase 3 shadow only; the nine-argument constructor above keeps the DB-free tests unchanged. */
@@ -107,7 +110,8 @@ public class StatsController {
             VideoInstructionRepository videoInstructionRepository,
             AuditLogRepository auditLogRepository,
             ArticleViewLogRepository articleViewLogRepository,
-            ScopeResolver scopeResolver) {
+            ScopeResolver scopeResolver,
+            PermissionChecker permissionChecker) {
         this.scopeResolver = scopeResolver;
         this.complianceQueryService = complianceQueryService;
         this.userRepository = userRepository;
@@ -118,12 +122,13 @@ public class StatsController {
         this.videoInstructionRepository = videoInstructionRepository;
         this.auditLogRepository = auditLogRepository;
         this.articleViewLogRepository = articleViewLogRepository;
+        this.permissionChecker = permissionChecker;
     }
 
     /** Port of get_popular_searches (routers/stats.py:94-116). */
     @GetMapping("/api/statistics/popular-searches")
     public ResponseEntity<?> getPopularSearches(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
         if (denial != null) {
             return denial;
         }
@@ -136,7 +141,7 @@ public class StatsController {
     /** Port of get_failed_searches (routers/stats.py:119-134). */
     @GetMapping("/api/statistics/failed-searches")
     public ResponseEntity<?> getFailedSearches(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
         if (denial != null) {
             return denial;
         }
@@ -149,7 +154,7 @@ public class StatsController {
     /** Port of get_compliance_statistics (routers/stats.py:137-224). */
     @GetMapping("/api/statistics/compliance")
     public ResponseEntity<?> getComplianceStatistics(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
         if (denial != null) {
             return denial;
         }
@@ -429,7 +434,7 @@ public class StatsController {
             @RequestParam(defaultValue = "day") String bucket,
             @RequestParam(required = false) String category,
             @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
         if (denial != null) {
             return denial;
         }
@@ -483,7 +488,7 @@ public class StatsController {
     @GetMapping("/api/statistics/breakdown")
     public ResponseEntity<?> getStatisticsBreakdown(
             @RequestParam String dimension, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
         if (denial != null) {
             return denial;
         }
@@ -508,7 +513,7 @@ public class StatsController {
     /** Port of get_kpi_counts (routers/stats.py:930-965). */
     @GetMapping("/api/statistics/kpi")
     public ResponseEntity<?> getKpiCounts(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
         if (denial != null) {
             return denial;
         }
@@ -537,14 +542,14 @@ public class StatsController {
                 : scopeResolver.shadowCompare(decision, caller, candidates, legacyVisible);
     }
 
-    private static ResponseEntity<Map<String, String>> requireContentAdmin(User user) {
+    private ResponseEntity<Map<String, String>> requireContentManage(User user) {
         ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
         if (authFailure != null) {
             return authFailure;
         }
-        if (!user.getRole().isContentAdmin()) {
+        if (!permissionChecker.hasPermission(user, Permission.CONTENT_MANAGE)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("detail", "Not enough permissions to perform this action"));
+                    .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
         }
         return null;
     }

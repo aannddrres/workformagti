@@ -10,11 +10,13 @@ import ge.magti.portal.domain.RequiredReading;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.Team;
 import ge.magti.portal.domain.User;
+import ge.magti.portal.domain.UserPermissionOverride;
 import ge.magti.portal.repository.ArticleRepository;
 import ge.magti.portal.repository.ReadStatusRepository;
 import ge.magti.portal.repository.RequiredReadingRepository;
 import ge.magti.portal.repository.TeamRepository;
 import ge.magti.portal.repository.UserRepository;
+import ge.magti.portal.repository.UserPermissionOverrideRepository;
 import ge.magti.portal.security.JwtService;
 import ge.magti.portal.util.TbilisiTime;
 import org.junit.jupiter.api.Test;
@@ -58,6 +60,8 @@ class UserControllerIntegrationTest {
     private MockMvc mockMvc;
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private UserPermissionOverrideRepository permissionOverrideRepository;
     @Autowired
     private TeamRepository teamRepository;
     @Autowired
@@ -248,7 +252,9 @@ class UserControllerIntegrationTest {
         User reloadedOperator = userRepository.findById(operator.getId()).orElseThrow();
         assertEquals(Role.SYSTEM_ADMIN, reloadedAdmin.getRole());
         assertEquals(Role.MANAGER, reloadedOperator.getRole());
-        assertTrue(reloadedOperator.getPermissions().contains(Permission.REPORTS_EXPORT.value()));
+        assertFalse(reloadedOperator.getPermissions().contains(Permission.REPORTS_EXPORT.value()),
+                "role defaults are computed, not copied into legacy flat permissions");
+        assertTrue(permissionOverrideRepository.findByUserId(operator.getId()).isEmpty());
     }
 
     @Test
@@ -473,29 +479,81 @@ class UserControllerIntegrationTest {
     // ── admin update permissions ─────────────────────────────────────────
 
     @Test
-    void adminUpdatePermissionsRejectsUnknownAndAcceptsFullCatalogIncludingVideosArchive() throws Exception {
+    void permissionDeltaValidatesCatalogPersistsBothStatesAndDeletesInherit() throws Exception {
         User admin = createUser("perm-admin1@magti.ge", Role.SYSTEM_ADMIN, "All");
         User target = createUser("perm-op1@magti.ge", Role.OPERATOR, "All");
 
         mockMvc.perform(authed(put("/api/users/" + target.getId() + "/permissions"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"permissions\":[\"articles.edit\",\"not.a.real.permission\"]}"))
+                        .content("{\"lock_version\":0,\"overrides\":["
+                                + "{\"permission\":\"not.a.real.permission\",\"state\":\"ALLOW\"}]}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("not.a.real.permission")));
 
-        // videos.archive is the permission Python's own hand-copied whitelist
-        // can never grant (known bug #4) -- the Java port fixed the check to
-        // validate against the full Permission enum instead.
+        String allowed = mockMvc.perform(authed(put("/api/users/" + target.getId() + "/permissions"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"lock_version\":0,\"overrides\":["
+                                + "{\"permission\":\"content.manage\",\"state\":\"ALLOW\"},"
+                                + "{\"permission\":\"reports.export\",\"state\":\"DENY\"}]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.permission_overrides[*].state",
+                        org.hamcrest.Matchers.containsInAnyOrder("ALLOW", "DENY")))
+                .andReturn().getResponse().getContentAsString();
+        long nextLock = objectMapper.readTree(allowed).get("lock_version").asLong();
+        assertEquals(2, permissionOverrideRepository.findByUserId(target.getId()).size());
+
         mockMvc.perform(authed(put("/api/users/" + target.getId() + "/permissions"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"permissions\":[\"articles.edit\",\"videos.archive\"]}"))
+                        .content("{\"lock_version\":" + nextLock + ",\"overrides\":["
+                                + "{\"permission\":\"content.manage\",\"state\":\"INHERIT\"}]}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.permissions", org.hamcrest.Matchers.containsInAnyOrder("articles.edit", "videos.archive")));
+                .andExpect(jsonPath("$.permission_overrides[*].permission",
+                        org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem("content.manage"))));
+        assertEquals(List.of(Permission.REPORTS_EXPORT.value()), permissionOverrideRepository
+                .findByUserId(target.getId()).stream().map(UserPermissionOverride::getPermission).toList());
 
         mockMvc.perform(authed(put("/api/users/999999999/permissions"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"permissions\":[]}"))
+                        .content("{\"lock_version\":0,\"overrides\":[]}"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void permissionDeltaRejectsAStaleLockVersion() throws Exception {
+        User admin = createUser("perm-lock-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
+        User target = createUser("perm-lock-target@magti.ge", Role.OPERATOR, "All");
+        String body = "{\"lock_version\":0,\"overrides\":["
+                + "{\"permission\":\"content.manage\",\"state\":\"ALLOW\"}]}";
+
+        mockMvc.perform(authed(put("/api/users/" + target.getId() + "/permissions"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk());
+        mockMvc.perform(authed(put("/api/users/" + target.getId() + "/permissions"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void bulkRoleChangePreservesExplicitOverridesAndDoesNotMaterializeDefaults() throws Exception {
+        User admin = createUser("perm-role-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
+        User target = createUser("perm-role-target@magti.ge", Role.OPERATOR, "All");
+        mockMvc.perform(authed(put("/api/users/" + target.getId() + "/permissions"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"lock_version\":0,\"overrides\":["
+                                + "{\"permission\":\"content.manage\",\"state\":\"ALLOW\"}]}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(authed(post("/api/admin/roles/bulk-reassign"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"user_ids\":[" + target.getId() + "],\"new_role\":\"manager\"}"))
+                .andExpect(status().isOk());
+
+        List<UserPermissionOverride> rows = permissionOverrideRepository.findByUserId(target.getId());
+        assertEquals(1, rows.size());
+        assertEquals(Permission.CONTENT_MANAGE.value(), rows.getFirst().getPermission());
+        assertEquals(UserPermissionOverride.State.ALLOW, rows.getFirst().getState());
+        assertFalse(rows.stream().anyMatch(row -> row.getPermission().equals(Permission.REPORTS_EXPORT.value())),
+                "the manager role default must not be copied into the override table");
     }
 
     /**
@@ -530,7 +588,8 @@ class UserControllerIntegrationTest {
 
         mockMvc.perform(authed(put("/api/users/" + target.getId() + "/permissions"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"permissions\":[\"articles.view\"]}"))
+                        .content("{\"lock_version\":0,\"overrides\":["
+                                + "{\"permission\":\"articles.view\",\"state\":\"ALLOW\"}]}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("articles.view")));
     }

@@ -1,30 +1,19 @@
 import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
 import { AdminUsersService } from '../../core/services/admin-users.service';
-import { AdminUser } from '../../core/models/admin-user';
+import { AdminUser, PermissionDeltaState, PermissionOverrideDelta, PermissionOverrideState } from '../../core/models/admin-user';
 import { defaultPermissionsForRole, PERMISSION_GROUPS } from '../../shared/permission-catalog';
 import { DEPARTMENTS, ROLES } from '../../shared/user-roles';
 
 interface PermissionOptionState {
   value: string;
   label: string;
-  checked: boolean;
+  effective: boolean;
+  inherited: boolean;
+  overrideState: PermissionDeltaState;
   disabled: boolean;
-  lockReason: PermissionLockReason;
+  lockReason: 'none' | 'admin-bypass';
 }
-
-/**
- * Why a locked switch is locked. The two are not the same reason, and the
- * UI used to give the first one for both.
- *
- * - `role-default`: the role grants it out of the box. Changing the role's
- *   defaults would change this, and the permission IS consulted at runtime.
- * - `admin-bypass`: PermissionChecker.hasPermission returns true for
- *   SYSTEM_ADMIN before it looks at anything, so the stored set is not read
- *   at all. Nothing that can be typed into this modal will restrict a system
- *   admin -- see audit SEC-06.
- */
-type PermissionLockReason = 'none' | 'role-default' | 'admin-bypass';
 
 interface PermissionGroupState {
   heading: string;
@@ -61,7 +50,8 @@ export class UserEditModal {
   protected readonly editRole = signal('operator');
   protected readonly editDepartment = signal('All');
   protected readonly editPosition = signal('');
-  protected readonly editPermissions = signal<Set<string>>(new Set());
+  protected readonly editOverrides = signal<Map<string, PermissionOverrideState>>(new Map());
+  private originalOverrides = new Map<string, PermissionOverrideState>();
   protected readonly saving = signal(false);
   protected readonly saveError = signal<string | null>(null);
 
@@ -73,26 +63,28 @@ export class UserEditModal {
 
   protected readonly editPermissionGroups = computed<PermissionGroupState[]>(() => {
     const role = this.editRole();
-    const userPerms = this.editPermissions();
+    const overrides = this.editOverrides();
     const defaults = new Set(defaultPermissionsForRole(role));
     const bypass = this.bypassesPermissionChecks();
     return PERMISSION_GROUPS.map((group) => ({
       heading: group.heading,
-      options: group.options.map((option) => ({
-        value: option.value,
-        label: option.label,
-        disabled: bypass || defaults.has(option.value),
-        checked: bypass || defaults.has(option.value) || userPerms.has(option.value),
-        // A system admin's switches are locked for a different reason than a
-        // content admin's, and saying "from role" for both was the
-        // inaccuracy: for an admin the permission is never consulted, so
-        // changing the role's defaults would not change the outcome.
-        lockReason: bypass ? 'admin-bypass' : defaults.has(option.value) ? 'role-default' : 'none'
-      }))
+      options: group.options.map((option) => {
+        const inherited = defaults.has(option.value);
+        const overrideState: PermissionDeltaState = overrides.get(option.value) ?? 'INHERIT';
+        return {
+          value: option.value,
+          label: option.label,
+          inherited,
+          overrideState,
+          disabled: bypass,
+          effective: bypass || overrideState === 'ALLOW' || (overrideState === 'INHERIT' && inherited),
+          lockReason: bypass ? 'admin-bypass' : 'none'
+        };
+      })
     }));
   });
   protected readonly effectivePermissionCount = computed(() =>
-    this.editPermissionGroups().flatMap((group) => group.options).filter((option) => option.checked).length
+    this.editPermissionGroups().flatMap((group) => group.options).filter((option) => option.effective).length
   );
 
   constructor() {
@@ -101,7 +93,11 @@ export class UserEditModal {
       this.editRole.set(u.role);
       this.editDepartment.set(u.department || 'All');
       this.editPosition.set(u.position || '');
-      this.editPermissions.set(new Set(u.permissions));
+      const overrides = new Map(
+        (u.permission_overrides ?? []).map((override) => [override.permission, override.state] as const)
+      );
+      this.originalOverrides = new Map(overrides);
+      this.editOverrides.set(overrides);
       this.saveError.set(null);
     });
   }
@@ -112,14 +108,13 @@ export class UserEditModal {
 
   onEditRoleChange(event: Event): void {
     this.editRole.set((event.target as HTMLSelectElement).value);
-    this.editPermissions.set(new Set());
   }
 
-  togglePermission(value: string, checked: boolean): void {
-    const next = new Set(this.editPermissions());
-    if (checked) next.add(value);
-    else next.delete(value);
-    this.editPermissions.set(next);
+  setPermissionOverride(value: string, state: PermissionDeltaState): void {
+    const next = new Map(this.editOverrides());
+    if (state === 'INHERIT') next.delete(value);
+    else next.set(value, state);
+    this.editOverrides.set(next);
   }
 
   submitEdit(event: Event): void {
@@ -128,10 +123,13 @@ export class UserEditModal {
     this.saving.set(true);
     this.saveError.set(null);
 
-    const permissions = this.editPermissionGroups()
+    const deltas: PermissionOverrideDelta[] = this.editPermissionGroups()
       .flatMap((group) => group.options)
-      .filter((option) => option.checked)
-      .map((option) => option.value);
+      .map((option) => ({
+        permission: option.value,
+        state: this.editOverrides().get(option.value) ?? 'INHERIT'
+      } as PermissionOverrideDelta))
+      .filter((delta) => delta.state !== (this.originalOverrides.get(delta.permission) ?? 'INHERIT'));
 
     this.usersService
       .update(user.id, {
@@ -140,8 +138,16 @@ export class UserEditModal {
         position: this.editPosition() || null
       })
       .subscribe({
-        next: () => {
-          this.usersService.updatePermissions(user.id, permissions).subscribe({
+        next: (updatedUser) => {
+          if (deltas.length === 0) {
+            this.saving.set(false);
+            this.saved.emit();
+            return;
+          }
+          this.usersService.updatePermissions(user.id, {
+            lock_version: updatedUser.lock_version,
+            overrides: deltas
+          }).subscribe({
             next: () => {
               this.saving.set(false);
               this.saved.emit();

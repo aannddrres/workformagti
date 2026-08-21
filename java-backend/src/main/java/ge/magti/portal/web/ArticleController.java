@@ -221,11 +221,7 @@ public class ArticleController {
     @Transactional
     public ResponseEntity<?> createArticle(
             @Valid @RequestBody ArticleRequest request, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
-        if (denial != null) {
-            return denial;
-        }
-        denial = requireArticlesEditPermission(user);
+        ResponseEntity<Map<String, String>> denial = requireArticlesEditPermission(user);
         if (denial != null) {
             return denial;
         }
@@ -273,11 +269,7 @@ public class ArticleController {
     @Transactional
     public ResponseEntity<?> updateArticle(
             @PathVariable Long id, @Valid @RequestBody ArticleRequest request, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
-        if (denial != null) {
-            return denial;
-        }
-        denial = requireArticlesEditPermission(user);
+        ResponseEntity<Map<String, String>> denial = requireArticlesEditPermission(user);
         if (denial != null) {
             return denial;
         }
@@ -386,11 +378,7 @@ public class ArticleController {
     public ResponseEntity<?> autosaveArticle(
             @PathVariable Long id, @RequestBody Map<String, Object> body,
             @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
-        if (denial != null) {
-            return denial;
-        }
-        denial = requireArticlesEditPermission(user);
+        ResponseEntity<Map<String, String>> denial = requireArticlesEditPermission(user);
         if (denial != null) {
             return denial;
         }
@@ -511,11 +499,7 @@ public class ArticleController {
     @DeleteMapping("/api/articles/{id}")
     @Transactional
     public ResponseEntity<?> deleteArticle(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
-        if (denial != null) {
-            return denial;
-        }
-        denial = requireArticlesEditPermission(user);
+        ResponseEntity<Map<String, String>> denial = requireArticlesEditPermission(user);
         if (denial != null) {
             return denial;
         }
@@ -701,7 +685,7 @@ public class ArticleController {
     @PostMapping("/api/articles/{id}/verify")
     @Transactional
     public ResponseEntity<?> verifyArticle(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
         if (denial != null) {
             return denial;
         }
@@ -720,7 +704,7 @@ public class ArticleController {
 
     @GetMapping("/api/admin/articles/stale")
     public ResponseEntity<?> getStaleArticles(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
         if (denial != null) {
             return denial;
         }
@@ -828,7 +812,7 @@ public class ArticleController {
 
     @GetMapping("/api/articles/{id}/history")
     public ResponseEntity<?> getArticleHistory(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
         if (denial != null) {
             return denial;
         }
@@ -909,7 +893,7 @@ public class ArticleController {
     @Transactional
     public ResponseEntity<?> restoreArticleVersion(
             @PathVariable Long id, @PathVariable Long historyId, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
         if (denial != null) {
             return denial;
         }
@@ -1374,6 +1358,18 @@ public class ArticleController {
         if (!user.getRole().isContentAdmin()) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("detail", "Not enough permissions to perform this action"));
+        }
+        return null;
+    }
+
+    private ResponseEntity<Map<String, String>> requireContentManage(User user) {
+        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
+        if (authFailure != null) {
+            return authFailure;
+        }
+        if (!permissionChecker.hasPermission(user, Permission.CONTENT_MANAGE)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
         }
         return null;
     }

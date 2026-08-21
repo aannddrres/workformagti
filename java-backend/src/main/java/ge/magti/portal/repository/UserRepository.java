@@ -3,12 +3,20 @@ package ge.magti.portal.repository;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
+
+    /** Immediate compare-and-swap used by the permission delta endpoint. */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE User u SET u.lockVersion = u.lockVersion + 1 "
+            + "WHERE u.id = :userId AND u.lockVersion = :expected")
+    int advanceLockVersion(@Param("userId") Long userId, @Param("expected") long expected);
 
     /** Case-sensitive -- mirrors get_current_user's exact-match lookup (security.py:299). */
     Optional<User> findByEmail(String email);

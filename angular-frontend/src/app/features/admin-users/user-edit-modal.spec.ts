@@ -5,6 +5,9 @@ import { provideTranslateService } from '@ngx-translate/core';
 import { provideTranslateHttpLoader } from '@ngx-translate/http-loader';
 import { UserEditModal } from './user-edit-modal';
 import { AdminUser } from '../../core/models/admin-user';
+import { AdminUsersService } from '../../core/services/admin-users.service';
+import { of } from 'rxjs';
+import { vi } from 'vitest';
 
 /**
  * Why a permission switch is locked is not the same question as whether it
@@ -30,7 +33,7 @@ describe('UserEditModal permission lock reasons', () => {
     }).compileComponents();
   });
 
-  function modalFor(role: string, permissions: string[] = []) {
+  function modalFor(role: string, overrides: AdminUser['permission_overrides'] = []) {
     const fixture = TestBed.createComponent(UserEditModal);
     fixture.componentRef.setInput('user', {
       id: 1,
@@ -40,7 +43,9 @@ describe('UserEditModal permission lock reasons', () => {
       department: 'All',
       position: '',
       is_active: true,
-      permissions
+      permissions: [],
+      permission_overrides: overrides,
+      lock_version: 0
     } as unknown as AdminUser);
     fixture.detectChanges();
     return fixture.componentInstance as any;
@@ -56,35 +61,80 @@ describe('UserEditModal permission lock reasons', () => {
     expect(modalFor('manager').bypassesPermissionChecks()).toBe(false);
   });
 
-  it('labels every switch admin-bypass for a system admin, never role-default', () => {
+  it('labels every control admin-bypass for a system admin', () => {
     const options = allOptions(modalFor('admin'));
 
     expect(options.length).toBeGreaterThan(0);
     expect(options.every((o: any) => o.lockReason === 'admin-bypass')).toBe(true);
-    expect(options.every((o: any) => o.disabled && o.checked)).toBe(true);
+    expect(options.every((o: any) => o.disabled && o.effective)).toBe(true);
   });
 
   /**
    * The distinction has to survive the case that motivated it: a content
    * admin's locked switches ARE role defaults, and saying so is correct.
    */
-  it('still labels a content admin locked switch as a role default', () => {
+  it('shows role defaults as inherited without locking out a DENY override', () => {
     const options = allOptions(modalFor('content_admin'));
-    const locked = options.filter((o: any) => o.disabled);
+    const inherited = options.filter((o: any) => o.inherited);
 
-    expect(locked.length).toBeGreaterThan(0);
-    expect(locked.every((o: any) => o.lockReason === 'role-default')).toBe(true);
+    expect(inherited.length).toBeGreaterThan(0);
+    expect(inherited.every((o: any) => o.overrideState === 'INHERIT')).toBe(true);
+    expect(inherited.every((o: any) => o.effective && !o.disabled)).toBe(true);
   });
 
   /**
    * ...and a permission a role does NOT grant stays freely toggleable, which
    * is the only case where the switch does real work.
    */
-  it('leaves a non-default permission unlocked for a non-admin role', () => {
+  it('keeps a non-default permission inactive while inherited', () => {
     const options = allOptions(modalFor('manager'));
-    const unlocked = options.filter((o: any) => o.lockReason === 'none');
+    const nonDefaults = options.filter((o: any) => !o.inherited);
 
-    expect(unlocked.length).toBeGreaterThan(0);
-    expect(unlocked.every((o: any) => !o.disabled)).toBe(true);
+    expect(nonDefaults.length).toBeGreaterThan(0);
+    expect(nonDefaults.every((o: any) => !o.effective && !o.disabled)).toBe(true);
+  });
+
+  it('applies an explicit DENY above a content-admin role default', () => {
+    const component = modalFor('content_admin', [{ permission: 'content.manage', state: 'DENY' }]);
+    const contentManage = allOptions(component).find((o: any) => o.value === 'content.manage');
+
+    expect(contentManage.inherited).toBe(true);
+    expect(contentManage.overrideState).toBe('DENY');
+    expect(contentManage.effective).toBe(false);
+  });
+
+  it('preserves explicit overrides when the role changes', () => {
+    const component = modalFor('operator', [{ permission: 'content.manage', state: 'ALLOW' }]);
+
+    component.onEditRoleChange({ target: { value: 'manager' } } as unknown as Event);
+
+    expect(component.editOverrides().get('content.manage')).toBe('ALLOW');
+  });
+
+  it('does not persist inherited role defaults as explicit overrides on ordinary save', () => {
+    const service = TestBed.inject(AdminUsersService);
+    const component = modalFor('content_admin');
+    vi.spyOn(service, 'update').mockReturnValue(of({ ...component.user(), lock_version: 1 }));
+    const permissionSpy = vi.spyOn(service, 'updatePermissions');
+
+    component.submitEdit(new Event('submit'));
+
+    expect(permissionSpy).not.toHaveBeenCalled();
+  });
+
+  it('sends only the changed override and uses the post-profile-update lock version', () => {
+    const service = TestBed.inject(AdminUsersService);
+    const component = modalFor('operator');
+    vi.spyOn(service, 'update').mockReturnValue(of({ ...component.user(), lock_version: 7 }));
+    const permissionSpy = vi.spyOn(service, 'updatePermissions')
+      .mockReturnValue(of({ ...component.user(), lock_version: 8 }));
+    component.setPermissionOverride('content.manage', 'ALLOW');
+
+    component.submitEdit(new Event('submit'));
+
+    expect(permissionSpy).toHaveBeenCalledWith(1, {
+      lock_version: 7,
+      overrides: [{ permission: 'content.manage', state: 'ALLOW' }]
+    });
   });
 });

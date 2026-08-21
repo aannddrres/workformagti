@@ -6,6 +6,7 @@ import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.QuizAnswer;
 import ge.magti.portal.domain.QuizAttempt;
 import ge.magti.portal.domain.QuizQuestion;
+import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.quiz.KnowledgeScoreResult;
 import ge.magti.portal.quiz.KnowledgeScoreService;
@@ -17,6 +18,7 @@ import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.QuizAnswerRepository;
 import ge.magti.portal.repository.QuizAttemptRepository;
 import ge.magti.portal.repository.QuizQuestionRepository;
+import ge.magti.portal.security.PermissionChecker;
 import ge.magti.portal.util.DepartmentMatcher;
 import ge.magti.portal.util.TbilisiTime;
 import org.springframework.http.HttpStatus;
@@ -64,6 +66,7 @@ public class QuizController {
     private final QuizAttemptRepository quizAttemptRepository;
     private final AuditLogRepository auditLogRepository;
     private final KnowledgeScoreService knowledgeScoreService;
+    private final PermissionChecker permissionChecker;
 
     public QuizController(
             ArticleRepository articleRepository,
@@ -72,7 +75,8 @@ public class QuizController {
             QuizAnswerRepository quizAnswerRepository,
             QuizAttemptRepository quizAttemptRepository,
             AuditLogRepository auditLogRepository,
-            KnowledgeScoreService knowledgeScoreService) {
+            KnowledgeScoreService knowledgeScoreService,
+            PermissionChecker permissionChecker) {
         this.articleRepository = articleRepository;
         this.targetDepartmentRepository = targetDepartmentRepository;
         this.quizQuestionRepository = quizQuestionRepository;
@@ -80,11 +84,12 @@ public class QuizController {
         this.quizAttemptRepository = quizAttemptRepository;
         this.auditLogRepository = auditLogRepository;
         this.knowledgeScoreService = knowledgeScoreService;
+        this.permissionChecker = permissionChecker;
     }
 
     @GetMapping("/api/articles/{id}/quiz/admin")
     public ResponseEntity<?> getArticleQuizAdmin(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
         if (denial != null) {
             return denial;
         }
@@ -98,7 +103,7 @@ public class QuizController {
     @Transactional
     public ResponseEntity<?> updateArticleQuizAdmin(
             @PathVariable Long id, @RequestBody QuizAdminUpdate payload, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
         if (denial != null) {
             return denial;
         }
@@ -318,14 +323,14 @@ public class QuizController {
         return null;
     }
 
-    private static ResponseEntity<Map<String, String>> requireContentAdmin(User user) {
+    private ResponseEntity<Map<String, String>> requireContentManage(User user) {
         ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
         if (authFailure != null) {
             return authFailure;
         }
-        if (!user.getRole().isContentAdmin()) {
+        if (!permissionChecker.hasPermission(user, Permission.CONTENT_MANAGE)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("detail", "Not enough permissions to perform this action"));
+                    .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
         }
         return null;
     }

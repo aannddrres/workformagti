@@ -118,7 +118,7 @@ public class VideoController {
     @Transactional
     public ResponseEntity<?> createVideo(
             @Valid @RequestBody VideoInstructionRequest request, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
         if (denial != null) {
             return denial;
         }
@@ -138,7 +138,7 @@ public class VideoController {
     public ResponseEntity<?> updateVideo(
             @PathVariable Long id, @Valid @RequestBody VideoInstructionRequest request,
             @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
         if (denial != null) {
             return denial;
         }
@@ -159,7 +159,7 @@ public class VideoController {
     @DeleteMapping("/api/videos/{id}")
     @Transactional
     public ResponseEntity<?> deleteVideo(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
         if (denial != null) {
             return denial;
         }
@@ -251,14 +251,14 @@ public class VideoController {
         return null;
     }
 
-    private static ResponseEntity<Map<String, String>> requireContentAdmin(User user) {
+    private ResponseEntity<Map<String, String>> requireContentManage(User user) {
         ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
         if (authFailure != null) {
             return authFailure;
         }
-        if (!user.getRole().isContentAdmin()) {
+        if (!permissionChecker.hasPermission(user, Permission.CONTENT_MANAGE)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("detail", "Not enough permissions to perform this action"));
+                    .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
         }
         return null;
     }

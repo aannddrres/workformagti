@@ -55,6 +55,7 @@ public enum Permission {
     ARTICLES_PUBLISH("articles.publish"),
     ARTICLES_ARCHIVE("articles.archive"),
     VIDEOS_ARCHIVE("videos.archive"),
+    CONTENT_MANAGE("content.manage"),
     // USERS_MANAGE ("users.manage") was REMOVED here too (audit SEC-06),
     // for a reason the audit did not surface and that only appeared when a
     // test tried to enforce it: PermissionChecker.hasPermission returns TRUE
@@ -82,10 +83,10 @@ public enum Permission {
             Role.MANAGER, EnumSet.of(REPORTS_EXPORT, SYSTEM_AUDIT),
             Role.CONTENT_ADMIN, EnumSet.of(
                     ARTICLES_EDIT, ARTICLES_PUBLISH, ARTICLES_ARCHIVE,
-                    VIDEOS_ARCHIVE, COMPLIANCE_ASSIGN, SYSTEM_AUDIT),
+                    VIDEOS_ARCHIVE, CONTENT_MANAGE, COMPLIANCE_ASSIGN, SYSTEM_AUDIT),
             Role.SYSTEM_ADMIN, EnumSet.of(
                     ARTICLES_EDIT, ARTICLES_PUBLISH, ARTICLES_ARCHIVE,
-                    VIDEOS_ARCHIVE, COMPLIANCE_ASSIGN, REPORTS_EXPORT, SYSTEM_AUDIT));
+                    VIDEOS_ARCHIVE, CONTENT_MANAGE, COMPLIANCE_ASSIGN, REPORTS_EXPORT, SYSTEM_AUDIT));
 
     private final String value;
 

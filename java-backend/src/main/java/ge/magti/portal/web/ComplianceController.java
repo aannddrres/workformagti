@@ -258,7 +258,7 @@ public class ComplianceController {
     @GetMapping("/api/compliance/required-readings/by-item/{itemType}/{itemId}")
     public ResponseEntity<?> getRequiredReadingForItem(
             @PathVariable String itemType, @PathVariable Long itemId, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireComplianceAssign(user);
         if (denial != null) {
             return denial;
         }
@@ -380,16 +380,14 @@ public class ComplianceController {
      * Assigning mandatory reading gated on the ROLE alone, so granting or
      * revoking the permission changed nothing.
      *
-     * <p>Applied to the three endpoints that CREATE, CHANGE or DELETE an
-     * obligation -- the ones the permission is named for. The read-only
-     * by-item lookup keeps the plain role gate: it assigns nothing, and
-     * making a content admin unable to see whether an article is already
-     * mandatory would break the edit drawer for no security gain.
+     * <p>Applied to create, change, delete and the by-item lookup. The lookup
+     * is part of the same administration drawer, so its visibility follows
+     * the same capability instead of a separate role-only rule.
      */
     private ResponseEntity<Map<String, String>> requireComplianceAssign(User user) {
-        ResponseEntity<Map<String, String>> roleFailure = requireContentAdmin(user);
-        if (roleFailure != null) {
-            return roleFailure;
+        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
+        if (authFailure != null) {
+            return authFailure;
         }
         if (!permissionChecker.hasPermission(user, Permission.COMPLIANCE_ASSIGN)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -398,15 +396,4 @@ public class ComplianceController {
         return null;
     }
 
-    private static ResponseEntity<Map<String, String>> requireContentAdmin(User user) {
-        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
-        if (authFailure != null) {
-            return authFailure;
-        }
-        if (!user.getRole().isContentAdmin()) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("detail", "Not enough permissions to perform this action"));
-        }
-        return null;
-    }
 }

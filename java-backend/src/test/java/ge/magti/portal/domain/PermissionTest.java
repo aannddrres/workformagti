@@ -50,7 +50,7 @@ class PermissionTest {
                 // have closed the knowledge base to everyone who uses it.
                 Set.of(Permission.ARTICLES_EDIT, Permission.ARTICLES_PUBLISH,
                         Permission.ARTICLES_ARCHIVE, Permission.VIDEOS_ARCHIVE, Permission.COMPLIANCE_ASSIGN,
-                        Permission.SYSTEM_AUDIT),
+                        Permission.CONTENT_MANAGE, Permission.SYSTEM_AUDIT),
                 Permission.defaultsFor(Role.CONTENT_ADMIN));
     }
 }

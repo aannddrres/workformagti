@@ -120,7 +120,7 @@ class NewsControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(newsRequestJson("სათაური", "All")))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.detail").value("Not enough permissions to perform this action"));
+                .andExpect(jsonPath("$.detail").value("წვდომა უარყოფილია: არასაკმარისი უფლებები"));
     }
 
     /**

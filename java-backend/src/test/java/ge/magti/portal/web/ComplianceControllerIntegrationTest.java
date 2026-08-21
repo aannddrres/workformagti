@@ -10,6 +10,7 @@ import ge.magti.portal.domain.ReadStatus;
 import ge.magti.portal.domain.RequiredReading;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
+import ge.magti.portal.domain.UserPermissionOverride;
 import ge.magti.portal.domain.VideoInstruction;
 import ge.magti.portal.repository.ArticleReadReceiptRepository;
 import ge.magti.portal.repository.ArticleRepository;
@@ -19,6 +20,7 @@ import ge.magti.portal.repository.QuizAttemptRepository;
 import ge.magti.portal.repository.ReadStatusRepository;
 import ge.magti.portal.repository.RequiredReadingRepository;
 import ge.magti.portal.repository.UserRepository;
+import ge.magti.portal.repository.UserPermissionOverrideRepository;
 import ge.magti.portal.repository.VideoInstructionRepository;
 import ge.magti.portal.security.JwtService;
 import ge.magti.portal.util.TbilisiTime;
@@ -64,6 +66,8 @@ class ComplianceControllerIntegrationTest {
     private MockMvc mockMvc;
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private UserPermissionOverrideRepository permissionOverrideRepository;
     @Autowired
     private RequiredReadingRepository requiredReadingRepository;
     @Autowired
@@ -168,7 +172,7 @@ class ComplianceControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requiredReadingJson("article", 1, "All", "2030-01-01T00:00:00+04:00")))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.detail").value("Not enough permissions to perform this action"));
+                .andExpect(jsonPath("$.detail").value("წვდომა უარყოფილია: არასაკმარისი უფლებები"));
     }
 
     @Test
@@ -481,11 +485,13 @@ class ComplianceControllerIntegrationTest {
         Article article = createArticle("სავალდებულო მასალა", false);
         RequiredReading existing = createReading("article", article.getId(), "All", TbilisiTime.now().plusDays(5));
 
-        admin.setPermissions(Permission.defaultsFor(Role.CONTENT_ADMIN).stream()
-                .filter(p -> p != Permission.COMPLIANCE_ASSIGN)
-                .map(Permission::value)
-                .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new)));
-        userRepository.saveAndFlush(admin);
+        UserPermissionOverride deny = new UserPermissionOverride();
+        deny.setUserId(admin.getId());
+        deny.setPermission(Permission.COMPLIANCE_ASSIGN.value());
+        deny.setState(UserPermissionOverride.State.DENY);
+        deny.setUpdatedAt(TbilisiTime.now());
+        deny.setUpdatedBy(admin.getId());
+        permissionOverrideRepository.saveAndFlush(deny);
 
         mockMvc.perform(authed(post("/api/compliance/required-readings"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -498,11 +504,10 @@ class ComplianceControllerIntegrationTest {
         mockMvc.perform(authed(delete("/api/compliance/required-readings/" + existing.getId()), tokenFor(admin)))
                 .andExpect(status().isForbidden());
 
-        // The read-only by-item lookup deliberately keeps the plain role
-        // gate: it assigns nothing, and blocking it would break the edit
-        // drawer's "is this already mandatory?" check for no security gain.
+        // Phase 6 gives the edit drawer the same capability contract as the
+        // create/change/delete actions.
         mockMvc.perform(authed(get("/api/compliance/required-readings/by-item/article/" + article.getId()), tokenFor(admin)))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden());
     }
 
     /**

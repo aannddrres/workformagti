@@ -3,6 +3,7 @@ package ge.magti.portal.web;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import ge.magti.portal.compliance.ReadingProgress;
 import ge.magti.portal.domain.User;
+import ge.magti.portal.domain.UserPermissionOverride;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -32,19 +33,35 @@ public record UserResponse(
         @JsonProperty("required_count") Integer requiredCount,
         @JsonProperty("progress_percentage") Integer progressPercentage,
         @JsonProperty("card_style") String cardStyle,
-        List<String> permissions
+        List<String> permissions,
+        @JsonProperty("permission_overrides") List<PermissionOverrideResponse> permissionOverrides,
+        @JsonProperty("lock_version") long lockVersion
 ) {
     public static UserResponse from(User user) {
-        return from(user, null);
+        return from(user, null, List.of());
     }
 
     public static UserResponse from(User user, ReadingProgress progress) {
+        return from(user, progress, List.of());
+    }
+
+    public static UserResponse from(User user, List<UserPermissionOverride> overrides) {
+        return from(user, null, overrides);
+    }
+
+    public static UserResponse from(
+            User user, ReadingProgress progress, List<UserPermissionOverride> overrides) {
         return new UserResponse(
                 user.getId(), user.getEmail(), user.getName(), user.getDepartment(), user.getPosition(),
                 user.getPhone(), user.getRole().value(), user.getTeamId(), user.isActive(), user.getLastActive(),
                 progress == null ? null : progress.readCount(),
                 progress == null ? null : progress.requiredCount(),
                 progress == null ? null : progress.percentage(),
-                user.getCardStyle(), new ArrayList<>(user.getPermissions()));
+                user.getCardStyle(), new ArrayList<>(user.getPermissions()),
+                overrides.stream()
+                        .sorted(java.util.Comparator.comparing(UserPermissionOverride::getPermission))
+                        .map(PermissionOverrideResponse::from)
+                        .toList(),
+                user.getLockVersion());
     }
 }

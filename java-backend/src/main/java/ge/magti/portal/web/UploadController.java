@@ -1,9 +1,11 @@
 package ge.magti.portal.web;
 
 import ge.magti.portal.domain.AuditLog;
+import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.storage.FileStorageService;
+import ge.magti.portal.security.PermissionChecker;
 import ge.magti.portal.storage.FileTypeVerifier;
 import ge.magti.portal.util.TbilisiTime;
 import org.springframework.http.HttpStatus;
@@ -75,16 +77,20 @@ public class UploadController {
 
     private final FileStorageService fileStorageService;
     private final AuditLogRepository auditLogRepository;
+    private final PermissionChecker permissionChecker;
 
-    public UploadController(FileStorageService fileStorageService, AuditLogRepository auditLogRepository) {
+    public UploadController(
+            FileStorageService fileStorageService, AuditLogRepository auditLogRepository,
+            PermissionChecker permissionChecker) {
         this.fileStorageService = fileStorageService;
         this.auditLogRepository = auditLogRepository;
+        this.permissionChecker = permissionChecker;
     }
 
     @PostMapping("/api/upload")
     public ResponseEntity<?> uploadFile(
             @RequestParam("file") MultipartFile file, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
         if (denial != null) {
             return denial;
         }
@@ -134,14 +140,14 @@ public class UploadController {
         return ResponseEntity.ok(new UploadResponse("/uploads/" + uniqueFilename, uniqueFilename));
     }
 
-    private static ResponseEntity<Map<String, String>> requireContentAdmin(User user) {
+    private ResponseEntity<Map<String, String>> requireContentManage(User user) {
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("detail", "Could not validate credentials"));
         }
-        if (!user.getRole().isContentAdmin()) {
+        if (!permissionChecker.hasPermission(user, Permission.CONTENT_MANAGE)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("detail", "Not enough permissions to perform this action"));
+                    .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
         }
         return null;
     }

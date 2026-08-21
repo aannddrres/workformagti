@@ -25,8 +25,8 @@ import java.time.OffsetDateTime;
  * {@link Permission#defaultsFor}. Storing it would add a third state that has
  * to be kept in agreement with the role catalog forever.
  *
- * <p>Nothing reads this table yet -- Phase 6 does, when
- * {@code PUT /api/users/{id}/permissions} stops being a flat replace.
+ * <p>Phase 6 reads this table for effective authorization and updates it via
+ * the delta-based {@code PUT /api/users/{id}/permissions} contract.
  */
 @Entity
 @Table(name = "user_permission_overrides")

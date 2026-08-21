@@ -15,6 +15,26 @@ export interface AdminUser {
   progress_percentage: number | null;
   card_style: string | null;
   permissions: string[];
+  permission_overrides: PermissionOverride[];
+  lock_version: number;
+}
+
+export type PermissionOverrideState = 'ALLOW' | 'DENY';
+export type PermissionDeltaState = PermissionOverrideState | 'INHERIT';
+
+export interface PermissionOverride {
+  permission: string;
+  state: PermissionOverrideState;
+}
+
+export interface PermissionOverrideDelta {
+  permission: string;
+  state: PermissionDeltaState;
+}
+
+export interface PermissionsDeltaRequest {
+  lock_version: number;
+  overrides: PermissionOverrideDelta[];
 }
 
 /** Mirrors web.GroupLeaderResponse -- GET /api/admin/group-leaders. */
