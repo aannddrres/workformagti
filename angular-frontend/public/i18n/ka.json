@@ -119,6 +119,9 @@
       "type_article": "სტატია",
       "type_news": "სიახლე",
       "type_video": "ვიდეო",
+      "match_title": "ზუსტი სათაური",
+      "match_other": "სხვა დამთხვევა",
+      "show_all": "ყველა შედეგი",
       "legend_navigate": "↑↓ ნავიგაცია",
       "legend_open": "Enter გახსნა"
     }
@@ -145,7 +148,8 @@
       "all_categories_option": "ყველა კატეგორია",
       "new_badge_tip": "ბოლო 4 დღის განმავლობაში განახლებულ სტატიებს აქვს ახალი აღნიშვნა.",
       "no_results": "შედეგი ვერ მოიძებნა.",
-      "search_error": "ძიებისას დაფიქსირდა შეცდომა."
+      "search_error": "ძიებისას დაფიქსირდა შეცდომა.",
+      "show_more": "მეტის ჩვენება"
     },
     "category_view": {
       "back_button": "უკან",
@@ -156,13 +160,20 @@
       "load_failed_body": "სცადეთ გვერდის განახლება. თუ პრობლემა განმეორდა, დაუკავშირდით სისტემურ ადმინისტრატორს.",
       "profile_all": "ყველა",
       "profile_info": "საინფორმაციო",
-      "profile_tech": "ტექნიკური"
+      "profile_tech": "ტექნიკური",
+      "subcategories": "ქვეკატეგორიები"
     },
     "detail_page": {
       "back_button": "უკან დაბრუნება",
+      "breadcrumb_label": "სტატიის მდებარეობა",
+      "content_label": "სტატიის შინაარსი",
       "attachment_download": "ფაილის ჩამოტვირთვა",
       "not_found": "სტატია ვერ მოიძებნა",
-      "version_label": "ვერსია {{version}}"
+      "version_label": "ვერსია {{version}}",
+      "related_heading": "დაკავშირებული მასალები",
+      "sibling_navigation": "ნავიგაცია ამავე კატეგორიაში",
+      "previous_article": "წინა სტატია",
+      "next_article": "შემდეგი სტატია"
     },
     "version_history": {
       "button": "ვერსიების ისტორია",

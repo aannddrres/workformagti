@@ -1,7 +1,6 @@
 import { Component, computed, input, output } from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
 import { getCategoryCardStyles, getCategoryIcon, isRecentlyPublished } from '../category-visuals';
-import { formatKaDate } from '../ka-date';
 import { FavoriteStar } from '../favorite-star/favorite-star';
 
 export interface ArticleCardViewModel {
@@ -11,6 +10,10 @@ export interface ArticleCardViewModel {
   createdAt: string;
   publishedAt: string | null;
   readTime: number;
+  categoryContext?: string;
+  excerpt?: string;
+  targetDepartments?: string[];
+  matchKind?: 'title' | 'other';
 }
 
 /**
@@ -25,16 +28,20 @@ export interface ArticleCardViewModel {
   selector: 'app-article-card',
   standalone: true,
   imports: [TranslatePipe, FavoriteStar],
-  templateUrl: './article-card.html'
+  templateUrl: './article-card.html',
 })
 export class ArticleCard {
   readonly article = input.required<ArticleCardViewModel>();
   readonly opened = output<number>();
 
-  protected readonly icon = computed(() => getCategoryIcon(this.article().categoryName, this.article().title));
+  protected readonly icon = computed(() =>
+    getCategoryIcon(this.article().categoryName, this.article().title),
+  );
   protected readonly styles = computed(() => getCategoryCardStyles(this.article().categoryName));
   protected readonly isNew = computed(() => isRecentlyPublished(this.article()));
-  protected readonly dateLabel = computed(() => formatKaDate(this.article().createdAt));
+  protected readonly visibleDepartments = computed(() =>
+    (this.article().targetDepartments ?? []).filter((department) => department !== 'All'),
+  );
 
   open(): void {
     this.opened.emit(this.article().id);

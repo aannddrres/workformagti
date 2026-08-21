@@ -9,7 +9,9 @@
   class="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs text-gray-500 transition-colors hover:border-gray-300 hover:bg-gray-100 dark:border-gray-700 dark:bg-white/5 dark:text-gray-400 dark:hover:bg-white/10 sm:min-w-[220px]"
 >
   <i class="fa-solid fa-magnifying-glass text-[11px]" aria-hidden="true"></i>
-  <span class="hidden flex-1 text-left sm:block">{{ 'search.palette.placeholder' | translate }}</span>
+  <span class="hidden flex-1 text-left sm:block">{{
+    'search.palette.placeholder' | translate
+  }}</span>
   <kbd
     class="hidden rounded border border-gray-300 bg-white px-1.5 py-0.5 font-sans text-[10px] font-semibold text-gray-400 dark:border-gray-600 dark:bg-gray-800 sm:block"
     >{{ 'search.palette.shortcut' | translate }}</kbd
@@ -61,7 +63,9 @@
         @if (failed()) {
           <!-- Never an empty list on failure: that would read as "nothing found". -->
           <div class="px-4 py-8 text-center">
-            <p class="text-sm font-medium text-red-600 dark:text-red-400">{{ 'search.palette.error' | translate }}</p>
+            <p class="text-sm font-medium text-red-600 dark:text-red-400">
+              {{ 'search.palette.error' | translate }}
+            </p>
             <button
               type="button"
               (click)="retry()"
@@ -75,7 +79,9 @@
             {{ 'search.palette.too_short' | translate: { count: minLength } }}
           </p>
         } @else if (query().trim().length === 0) {
-          <p class="px-4 py-8 text-center text-sm text-gray-400">{{ 'search.palette.hint' | translate }}</p>
+          <p class="px-4 py-8 text-center text-sm text-gray-400">
+            {{ 'search.palette.hint' | translate }}
+          </p>
         } @else if (empty()) {
           <p class="px-4 py-8 text-center text-sm text-gray-400">
             {{ 'search.palette.no_results' | translate: { query: query() } }}
@@ -90,7 +96,11 @@
               (click)="openHit(hit)"
               (mouseenter)="activeIndex.set(i)"
               class="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors"
-              [class]="i === activeIndex() ? 'bg-brand/[0.06] dark:bg-brand/20' : 'hover:bg-gray-50 dark:hover:bg-white/5'"
+              [class]="
+                i === activeIndex()
+                  ? 'bg-brand/[0.06] dark:bg-brand/20'
+                  : 'hover:bg-gray-50 dark:hover:bg-white/5'
+              "
             >
               <span
                 class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-xs text-gray-500 dark:bg-white/5 dark:text-gray-400"
@@ -98,12 +108,23 @@
                 <i class="fa-solid" [class]="iconFor(hit)" aria-hidden="true"></i>
               </span>
               <span class="min-w-0 flex-1">
-                <span class="block truncate text-sm font-medium text-gray-800 dark:text-gray-100">{{ hit.title }}</span>
-                @if (hit.context) {
-                  <span class="block truncate text-xs text-gray-400">{{ hit.context }}</span>
+                <span class="block truncate text-sm font-medium text-gray-800 dark:text-gray-100">{{
+                  hit.title
+                }}</span>
+                @if (contextFor(hit); as context) {
+                  <span class="block truncate text-xs text-gray-400">{{ context }}</span>
                 }
               </span>
-              <span class="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+              @if (hit.itemType === 'article' && hit.matchKind) {
+                <span
+                  class="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[9px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                >
+                  {{ 'search.palette.match_' + hit.matchKind | translate }}
+                </span>
+              }
+              <span
+                class="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-400"
+              >
                 {{ 'search.palette.type_' + hit.itemType | translate }}
               </span>
             </button>
@@ -114,10 +135,19 @@
       <!-- Keyboard legend: the shortcuts exist, so say so. -->
       @if (hits().length > 0) {
         <div
-          class="flex items-center gap-4 border-t border-gray-100 px-4 py-2 text-[10px] text-gray-400 dark:border-gray-800"
+          class="flex items-center justify-between gap-4 border-t border-gray-100 px-4 py-2 text-[10px] text-gray-400 dark:border-gray-800"
         >
-          <span>{{ 'search.palette.legend_navigate' | translate }}</span>
-          <span>{{ 'search.palette.legend_open' | translate }}</span>
+          <span class="flex items-center gap-4">
+            <span>{{ 'search.palette.legend_navigate' | translate }}</span>
+            <span>{{ 'search.palette.legend_open' | translate }}</span>
+          </span>
+          <button
+            type="button"
+            (click)="openAllResults()"
+            class="font-bold text-brand hover:underline"
+          >
+            {{ 'search.palette.show_all' | translate }}
+          </button>
         </div>
       }
     </div>

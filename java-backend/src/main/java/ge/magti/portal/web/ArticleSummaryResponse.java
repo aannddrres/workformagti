@@ -10,14 +10,10 @@ import java.util.List;
  * Mirrors schemas.py's ArticleSummaryResponse -- the list-view shape
  * (excludes {@code content}, adds {@code category_name}).
  *
- * <p>{@code read_time} is hardcoded to 1 here, not computed from real
- * content: routers/articles.py's list query explicitly {@code defer()}s the
- * content column for list-view performance, and models.Article.read_time
- * (models.py:173-186) returns exactly 1 whenever content is unloaded -- so
- * Python's list view always shows "1 minute" regardless of true length. This
- * port fetches full entities for simplicity (no lazy-loading infrastructure
- * exists yet), but the summary mapper still hardcodes 1 to match Python's
- * actual observed list-view output, not "improve" on it.
+ * <p>The Java list query currently loads the entity content CLOB, so the
+ * summary can expose the same real estimate as the detail response. Returning
+ * a hardcoded one-minute value made every migrated article look identical and
+ * was misleading to operators.
  */
 public record ArticleSummaryResponse(
         Long id,
@@ -39,7 +35,8 @@ public record ArticleSummaryResponse(
         return new ArticleSummaryResponse(
                 article.getId(), article.getTitle(), article.getCategoryId(), categoryName, article.getTags(),
                 targetDepartments, article.getStatus() == null ? "draft" : article.getStatus(),
-                article.getPublishedAt(), article.getCreatedAt(), 1, article.getAudienceProfile(),
+                article.getPublishedAt(), article.getCreatedAt(),
+                ArticleResponse.computeReadTime(article.getContent()), article.getAudienceProfile(),
                 article.isVisibleToTechInfo(), article.isVisibleToServiceCenter(), article.isDraft());
     }
 }

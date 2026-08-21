@@ -23,6 +23,13 @@ export interface RecentlyViewedItem {
   viewed_at: string;
 }
 
+export interface RelatedArticle {
+  id: number;
+  title: string;
+  category_id: number | null;
+  tags: string | null;
+}
+
 /** Mirrors web.ArticleRequest -- shared create/update body. */
 export interface ArticleRequest {
   title: string;

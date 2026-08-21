@@ -25,4 +25,7 @@ export interface SearchHit {
   title: string;
   /** Category, department or similar — the one line of context under the title. */
   context: string | null;
+  categoryId?: number | null;
+  targetDepartments?: string[];
+  matchKind?: 'title' | 'other';
 }

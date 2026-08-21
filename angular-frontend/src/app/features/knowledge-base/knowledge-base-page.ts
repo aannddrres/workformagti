@@ -1,5 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { Subject, catchError, debounceTime, map, of, switchMap } from 'rxjs';
 import { CategoriesService } from '../../core/services/categories.service';
@@ -9,23 +9,44 @@ import { Article, ArticleSummary } from '../../core/models/article';
 import { ArticleCard, ArticleCardViewModel } from '../../shared/article-card/article-card';
 import { CategoryTile } from '../../shared/category-tile/category-tile';
 import { isRecentlyPublished } from '../../shared/category-visuals';
+import {
+  buildRecursiveCategoryCounts,
+  categoryPath,
+  descendantCategoryIds,
+} from '../../shared/category-tree';
+import { isReaderVisibleArticle } from '../../shared/article-visibility';
 
 @Component({
   selector: 'app-knowledge-base-page',
   standalone: true,
   imports: [ArticleCard, CategoryTile, TranslatePipe],
-  templateUrl: './knowledge-base-page.html'
+  templateUrl: './knowledge-base-page.html',
 })
 export class KnowledgeBasePage {
   private readonly categoriesService = inject(CategoriesService);
   private readonly articlesService = inject(ArticlesService);
   private readonly translate = inject(TranslateService);
+  private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
   protected readonly categories = signal<Category[]>([]);
-  protected readonly topLevelCategories = computed(() => this.categories().filter((c) => !c.parent_id));
+  protected readonly topLevelCategories = computed(() =>
+    this.categories().filter(
+      (category) =>
+        category.parent_id == null &&
+        category.is_active &&
+        (this.categoryCounts().get(category.id) ?? 0) > 0,
+    ),
+  );
+  protected readonly activeCategories = computed(() =>
+    this.categories().filter((category) => category.is_active),
+  );
 
-  protected readonly cards = signal<ArticleCardViewModel[]>([]);
+  private readonly resultCards = signal<ArticleCardViewModel[]>([]);
+  protected readonly pageSize = 40;
+  protected readonly visibleLimit = signal(this.pageSize);
+  protected readonly cards = computed(() => this.resultCards().slice(0, this.visibleLimit()));
+  protected readonly canLoadMore = computed(() => this.cards().length < this.resultCards().length);
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
 
@@ -33,14 +54,10 @@ export class KnowledgeBasePage {
    *  cache) dataset used only to compute the bento grid's per-category
    *  counts and "recent" indicators -- decoupled from `cards`, which
    *  reflects the current search/filter. */
-  protected readonly countingSet = signal<ArticleCardViewModel[]>([]);
-  protected readonly categoryCounts = computed(() => {
-    const counts = new Map<string, number>();
-    for (const card of this.countingSet()) {
-      counts.set(card.categoryName, (counts.get(card.categoryName) ?? 0) + 1);
-    }
-    return counts;
-  });
+  protected readonly countingSet = signal<ArticleSummary[]>([]);
+  protected readonly categoryCounts = computed(() =>
+    buildRecursiveCategoryCounts(this.categories(), this.countingSet()),
+  );
 
   protected readonly searchQuery = signal('');
   protected readonly selectedCategoryId = signal<number | null>(null);
@@ -48,23 +65,42 @@ export class KnowledgeBasePage {
   private readonly search$ = new Subject<{ q: string; categoryId: number | null }>();
 
   constructor() {
-    this.categoriesService.list().subscribe((categories) => this.categories.set(categories));
-    this.articlesService
-      .list({ limit: 200 })
-      .subscribe((articles) => this.countingSet.set(articles.map((a) => this.fromSummary(a))));
-
     this.search$
       .pipe(
         debounceTime(300),
-        switchMap(({ q, categoryId }) => this.fetch(q, categoryId))
+        switchMap(({ q, categoryId }) => this.fetch(q, categoryId)),
       )
       .subscribe(({ cards, error }) => {
-        this.cards.set(cards);
+        this.resultCards.set(cards);
+        this.visibleLimit.set(this.pageSize);
         this.errorMessage.set(error);
         this.loading.set(false);
       });
 
-    this.search$.next({ q: '', categoryId: null });
+    const initialQuery = this.route.snapshot.queryParamMap.get('q')?.trim() ?? '';
+    const initialCategory = Number(this.route.snapshot.queryParamMap.get('category')) || null;
+    this.searchQuery.set(initialQuery);
+    this.selectedCategoryId.set(initialCategory);
+
+    this.categoriesService.list().subscribe({
+      next: (categories) => {
+        this.categories.set(categories);
+        this.articlesService.list({ limit: 1000 }).subscribe({
+          next: (articles) => {
+            this.countingSet.set(articles.filter(isReaderVisibleArticle));
+            this.search$.next({ q: initialQuery, categoryId: initialCategory });
+          },
+          error: () => {
+            this.loading.set(false);
+            this.errorMessage.set(this.translate.instant('articles.kb_page.search_error'));
+          },
+        });
+      },
+      error: () => {
+        this.loading.set(false);
+        this.errorMessage.set(this.translate.instant('articles.kb_page.search_error'));
+      },
+    });
   }
 
   private uncategorizedLabel(): string {
@@ -78,54 +114,131 @@ export class KnowledgeBasePage {
       categoryName: a.category_name || this.uncategorizedLabel(),
       createdAt: a.created_at,
       publishedAt: a.published_at,
-      readTime: a.read_time
+      readTime: a.read_time,
     };
   }
 
-  private fromFullArticle(a: Article): ArticleCardViewModel {
-    const categoryName = this.categories().find((c) => c.id === a.category_id)?.name || this.uncategorizedLabel();
+  private fromFullArticle(a: Article, query: string): ArticleCardViewModel {
+    const categoryName =
+      this.categories().find((c) => c.id === a.category_id)?.name || this.uncategorizedLabel();
+    const normalizedQuery = query.trim().toLocaleLowerCase('ka');
     return {
       id: a.id,
       title: a.title,
       categoryName,
       createdAt: a.created_at,
       publishedAt: a.published_at,
-      readTime: a.read_time
+      readTime: a.read_time,
+      categoryContext:
+        categoryPath(this.categories(), a.category_id)
+          .map((category) => category.name)
+          .join(' › ') || categoryName,
+      excerpt: this.buildExcerpt(a.content, query),
+      targetDepartments: a.target_departments,
+      matchKind:
+        normalizedQuery && a.title.toLocaleLowerCase('ka').includes(normalizedQuery)
+          ? 'title'
+          : 'other',
     };
+  }
+
+  private buildExcerpt(content: string, query: string): string {
+    const document = new DOMParser().parseFromString(content || '', 'text/html');
+    const text = (document.body.innerText || document.body.textContent || '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!text) {
+      return '';
+    }
+
+    const normalized = text.toLocaleLowerCase('ka');
+    const needle = query.trim().toLocaleLowerCase('ka');
+    const match = needle ? normalized.indexOf(needle) : -1;
+    const start = match > 70 ? match - 70 : 0;
+    const end = Math.min(text.length, match >= 0 ? match + needle.length + 150 : 220);
+    return `${start > 0 ? '…' : ''}${text.slice(start, end).trim()}${end < text.length ? '…' : ''}`;
   }
 
   private fetch(q: string, categoryId: number | null) {
     this.loading.set(true);
     const trimmed = q.trim();
+    const categoryIds =
+      categoryId == null ? null : descendantCategoryIds(this.categories(), categoryId);
 
-    const request$ =
-      !trimmed && categoryId == null
-        ? this.articlesService.list({ limit: 40 }).pipe(map((articles) => articles.map((a) => this.fromSummary(a))))
-        : this.articlesService.search(trimmed, categoryId ?? undefined).pipe(map((articles) => articles.map((a) => this.fromFullArticle(a))));
+    const request$ = trimmed
+      ? this.articlesService.search(trimmed).pipe(
+          map((articles) =>
+            articles.filter(
+              (article) =>
+                isReaderVisibleArticle(article) &&
+                (categoryIds == null ||
+                  (article.category_id != null && categoryIds.has(article.category_id))),
+            ),
+          ),
+          map((articles) => articles.map((article) => this.fromFullArticle(article, trimmed))),
+        )
+      : of(
+          this.countingSet()
+            .filter(
+              (article) =>
+                categoryIds == null ||
+                (article.category_id != null && categoryIds.has(article.category_id)),
+            )
+            .map((article) => this.fromSummary(article))
+            .sort((a, b) => a.title.localeCompare(b.title, 'ka')),
+        );
 
     return request$.pipe(
       map((cards) => ({ cards, error: null as string | null })),
-      catchError(() => of({ cards: [] as ArticleCardViewModel[], error: this.translate.instant('articles.kb_page.search_error') as string }))
+      catchError(() =>
+        of({
+          cards: [] as ArticleCardViewModel[],
+          error: this.translate.instant('articles.kb_page.search_error') as string,
+        }),
+      ),
     );
   }
 
   onSearchInput(value: string): void {
     this.searchQuery.set(value);
+    this.persistFilters();
     this.search$.next({ q: value, categoryId: this.selectedCategoryId() });
   }
 
   onCategoryFilterChange(value: string): void {
     const categoryId = value ? Number(value) : null;
     this.selectedCategoryId.set(categoryId);
+    this.persistFilters();
     this.search$.next({ q: this.searchQuery(), categoryId });
+  }
+
+  private persistFilters(): void {
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: {
+        q: this.searchQuery().trim() || null,
+        category: this.selectedCategoryId(),
+      },
+      replaceUrl: true,
+    });
+  }
+
+  showMore(): void {
+    this.visibleLimit.update((limit) => limit + this.pageSize);
   }
 
   openArticle(id: number): void {
     this.articlesService.logView(id);
-    this.router.navigate(['/article', id]);
+    this.router.navigate(['/article', id], { queryParams: { returnUrl: this.router.url } });
   }
 
   hasRecentInCategory(category: Category): boolean {
-    return this.countingSet().some((card) => card.categoryName === category.name && isRecentlyPublished(card));
+    const ids = descendantCategoryIds(this.categories(), category.id);
+    return this.countingSet().some(
+      (article) =>
+        article.category_id != null &&
+        ids.has(article.category_id) &&
+        isRecentlyPublished({ publishedAt: article.published_at, createdAt: article.created_at }),
+    );
   }
 }

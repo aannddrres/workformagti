@@ -184,6 +184,14 @@ export class AppShell {
       child = active.firstChild;
     }
     const titleKey = active.snapshot?.data?.['title'] as string | undefined;
-    this.pageTitle.set(titleKey ? this.translate.instant(titleKey) : 'მთავარი');
+    if (!titleKey) {
+      this.pageTitle.set('მთავარი');
+      return;
+    }
+
+    // `instant()` returns the raw key when the async locale file has not
+    // arrived yet (most visible on a hard refresh of a deep article link).
+    // `get()` waits for the active translation and completes after one value.
+    this.translate.get(titleKey).subscribe((title) => this.pageTitle.set(title));
   }
 }

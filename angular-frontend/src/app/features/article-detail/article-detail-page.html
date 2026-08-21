@@ -1,19 +1,47 @@
-<div class="mx-auto w-full max-w-[920px] px-4 pb-8 pt-4 md:px-6 md:pt-6">
-  <div class="mb-6 flex items-center justify-between gap-3">
-    <button
-      (click)="goBack()"
-      class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 shadow-sm transition-all hover:bg-gray-50 hover:text-gray-900 active:scale-[0.98] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
-    >
-      <i aria-hidden="true" class="fa-solid fa-arrow-left text-xs"></i> {{ 'articles.detail_page.back_button' | translate }}
-    </button>
-    @if (article(); as a) {
+<div class="mx-auto w-full max-w-[1080px] px-4 pb-10 pt-4 md:px-6 md:pt-6">
+  <div class="mb-5 flex items-center justify-between gap-3">
+    <div class="flex min-w-0 flex-1 items-center gap-3">
       <button
-        (click)="toggleHistory()"
-        class="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        (click)="goBack()"
+        class="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-900 active:scale-[0.98] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
       >
-        <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
-        <span>{{ 'articles.version_history.button' | translate }}</span>
+        <i aria-hidden="true" class="fa-solid fa-arrow-left text-xs"></i>
+        {{ 'articles.detail_page.back_button' | translate }}
       </button>
+
+      <nav
+        class="hidden min-w-0 items-center gap-2 text-sm text-slate-500 md:flex dark:text-slate-400"
+        [attr.aria-label]="'articles.detail_page.breadcrumb_label' | translate"
+      >
+        <a routerLink="/info" class="shrink-0 font-semibold transition hover:text-brand">
+          {{ 'nav.sidebar.section_kb' | translate }}
+        </a>
+        @for (category of categoryPath(); track category.id) {
+          <i
+            class="fa-solid fa-chevron-right text-[9px] text-slate-300 dark:text-slate-600"
+            aria-hidden="true"
+          ></i>
+          <a
+            [routerLink]="['/category', category.slug || category.id]"
+            class="truncate font-semibold transition hover:text-brand"
+          >
+            {{ category.name }}
+          </a>
+        }
+      </nav>
+    </div>
+
+    @if (article(); as a) {
+      <div class="flex items-center gap-2">
+        <app-favorite-star itemType="article" [itemId]="a.id" />
+        <button
+          (click)="toggleHistory()"
+          class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+        >
+          <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
+          <span>{{ 'articles.version_history.button' | translate }}</span>
+        </button>
+      </div>
     }
   </div>
 
@@ -22,7 +50,9 @@
   }
 
   @if (loading()) {
-    <div class="animate-pulse space-y-4 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8">
+    <div
+      class="animate-pulse space-y-4 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8"
+    >
       <div class="h-3 w-1/3 rounded bg-gray-100 dark:bg-zinc-800"></div>
       <div class="h-8 w-2/3 rounded bg-gray-100 dark:bg-zinc-800"></div>
       <div class="h-4 w-full rounded bg-gray-100 dark:bg-zinc-800"></div>
@@ -30,32 +60,124 @@
       <div class="h-4 w-2/3 rounded bg-gray-100 dark:bg-zinc-800"></div>
     </div>
   } @else if (notFound()) {
-    <p class="rounded-xl border border-dashed border-slate-200 bg-white/40 p-8 text-center text-sm font-medium text-slate-400 dark:border-zinc-700 dark:bg-zinc-800/40">
+    <p
+      class="rounded-xl border border-dashed border-slate-200 bg-white/40 p-8 text-center text-sm font-medium text-slate-400 dark:border-zinc-700 dark:bg-zinc-800/40"
+    >
       {{ 'articles.detail_page.not_found' | translate }}
     </p>
   } @else if (article(); as a) {
-    <article class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8">
-      <div class="mb-4 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">{{ metaLine() }}</div>
-      <h1 class="mb-6 text-3xl font-extrabold leading-tight text-gray-900 dark:text-zinc-100">{{ a.title }}</h1>
-      <hr class="mb-6 border-gray-100 dark:border-zinc-800" />
-      <div
-        class="article-content-optimized prose max-w-none text-sm leading-relaxed text-gray-700 dark:text-zinc-300 sm:text-base"
-        [innerHTML]="formattedContent()"
-      ></div>
-      <div class="mt-8 border-t border-gray-150 pt-6 dark:border-zinc-800">
-        @if (a.attachment_url) {
-          <a
-            [href]="a.attachment_url"
-            target="_blank"
-            rel="noopener"
-            class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm font-medium text-brand transition-colors hover:bg-red-50 dark:border-zinc-700 dark:bg-zinc-800"
+    <article
+      class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.055)] dark:border-slate-700 dark:bg-slate-900"
+    >
+      <header class="border-b border-slate-100 px-6 py-7 dark:border-slate-800 sm:px-10 sm:py-9">
+        <div class="mx-auto max-w-[780px]">
+          @if (metaLine()) {
+            <div class="mb-3 text-xs font-semibold leading-5 text-slate-500 dark:text-slate-400">
+              {{ metaLine() }}
+            </div>
+          }
+          <h1
+            class="article-reader-title text-[1.75rem] font-bold leading-[1.28] tracking-[-0.025em] text-slate-950 dark:text-slate-50 sm:text-[2rem]"
           >
-            <i class="fa-solid fa-paperclip"></i>
-            <span>{{ 'articles.detail_page.attachment_download' | translate }}</span>
-          </a>
+            {{ a.title }}
+          </h1>
+        </div>
+      </header>
+
+      <div class="px-6 py-8 sm:px-10 sm:py-10">
+        <div
+          class="article-reader mx-auto max-w-[780px]"
+          role="region"
+          [attr.aria-label]="'articles.detail_page.content_label' | translate"
+          [innerHTML]="formattedContent()"
+          (click)="onArticleContentClick($event)"
+        ></div>
+
+        @if (a.attachment_url) {
+          <div
+            class="mx-auto mt-10 max-w-[780px] border-t border-slate-200 pt-6 dark:border-slate-700"
+          >
+            <a
+              [href]="a.attachment_url"
+              target="_blank"
+              rel="noopener"
+              class="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-brand transition hover:border-brand/30 hover:bg-brand/5 dark:border-slate-700 dark:bg-slate-800"
+            >
+              <i class="fa-solid fa-paperclip"></i>
+              <span>{{ 'articles.detail_page.attachment_download' | translate }}</span>
+            </a>
+          </div>
         }
       </div>
     </article>
+
+    @if (relatedArticles().length > 0) {
+      <section
+        class="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-6"
+        [attr.aria-label]="'articles.detail_page.related_heading' | translate"
+      >
+        <h2
+          class="text-sm font-bold uppercase tracking-[0.12em] text-slate-700 dark:text-slate-200"
+        >
+          {{ 'articles.detail_page.related_heading' | translate }}
+        </h2>
+        <div class="mt-4 grid gap-3 sm:grid-cols-2">
+          @for (related of relatedArticles(); track related.id) {
+            <a
+              [routerLink]="['/article', related.id]"
+              [queryParams]="navigationQueryParams()"
+              class="group rounded-xl border border-slate-200 p-4 transition hover:border-brand/30 hover:bg-brand/[0.025] dark:border-slate-700"
+            >
+              <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{
+                relatedCategoryName(related)
+              }}</span>
+              <span
+                class="mt-1 block text-sm font-bold leading-5 text-slate-800 transition group-hover:text-brand dark:text-slate-100"
+                >{{ related.title }}</span
+              >
+            </a>
+          }
+        </div>
+      </section>
+    }
+
+    @if (siblingNavigation().previous || siblingNavigation().next) {
+      <nav
+        class="mt-6 grid gap-3 sm:grid-cols-2"
+        [attr.aria-label]="'articles.detail_page.sibling_navigation' | translate"
+      >
+        @if (siblingNavigation().previous; as previous) {
+          <a
+            [routerLink]="['/article', previous.id]"
+            [queryParams]="navigationQueryParams()"
+            class="rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-brand/30 dark:border-slate-700 dark:bg-slate-900"
+          >
+            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400"
+              >← {{ 'articles.detail_page.previous_article' | translate }}</span
+            >
+            <span class="mt-1 block text-sm font-semibold text-slate-800 dark:text-slate-100">{{
+              previous.title
+            }}</span>
+          </a>
+        } @else {
+          <span></span>
+        }
+        @if (siblingNavigation().next; as next) {
+          <a
+            [routerLink]="['/article', next.id]"
+            [queryParams]="navigationQueryParams()"
+            class="rounded-xl border border-slate-200 bg-white p-4 text-right shadow-sm transition hover:border-brand/30 dark:border-slate-700 dark:bg-slate-900"
+          >
+            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400"
+              >{{ 'articles.detail_page.next_article' | translate }} →</span
+            >
+            <span class="mt-1 block text-sm font-semibold text-slate-800 dark:text-slate-100">{{
+              next.title
+            }}</span>
+          </a>
+        }
+      </nav>
+    }
 
     <!-- Compliance confirmation lives at the end of the material, not on a list row. -->
     <app-reading-confirm itemType="article" [itemId]="a.id" />

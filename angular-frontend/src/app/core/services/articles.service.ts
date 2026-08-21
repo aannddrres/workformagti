@@ -6,7 +6,8 @@ import {
   ArticleBulkArchiveResponse,
   ArticleRequest,
   ArticleSummary,
-  RecentlyViewedItem
+  RecentlyViewedItem,
+  RelatedArticle,
 } from '../models/article';
 import { ArticleDiff, ArticleHistoryItem, ArticleVersionItem } from '../models/article-history';
 
@@ -15,11 +16,15 @@ export class ArticlesService {
   private readonly http = inject(HttpClient);
 
   list(
-    options: { skip?: number; limit?: number; categoryId?: number; q?: string; status?: string } = {}
+    options: {
+      skip?: number;
+      limit?: number;
+      categoryId?: number;
+      q?: string;
+      status?: string;
+    } = {},
   ): Observable<ArticleSummary[]> {
-    let params = new HttpParams()
-      .set('skip', options.skip ?? 0)
-      .set('limit', options.limit ?? 20);
+    let params = new HttpParams().set('skip', options.skip ?? 0).set('limit', options.limit ?? 20);
     if (options.categoryId != null) {
       params = params.set('category_id', options.categoryId);
     }
@@ -35,7 +40,9 @@ export class ArticlesService {
   /** Admin content-management table: mirrors fetchAndRenderAdminContent's
    *  fetch-everything-then-paginate-client-side approach (no server-side
    *  pagination on this endpoint). */
-  listAdmin(options: { q?: string; categoryId?: number; status?: string } = {}): Observable<ArticleSummary[]> {
+  listAdmin(
+    options: { q?: string; categoryId?: number; status?: string } = {},
+  ): Observable<ArticleSummary[]> {
     return this.list({ limit: 1000, ...options });
   }
 
@@ -76,11 +83,18 @@ export class ArticlesService {
   }
 
   bulkArchive(ids: number[], archive: boolean): Observable<ArticleBulkArchiveResponse> {
-    return this.http.post<ArticleBulkArchiveResponse>('/api/articles/bulk-archive', { ids, archive });
+    return this.http.post<ArticleBulkArchiveResponse>('/api/articles/bulk-archive', {
+      ids,
+      archive,
+    });
   }
 
   get(id: number): Observable<Article> {
     return this.http.get<Article>(`/api/articles/${id}`);
+  }
+
+  related(id: number): Observable<RelatedArticle[]> {
+    return this.http.get<RelatedArticle[]>(`/api/articles/${id}/related`);
   }
 
   /** GET /api/search -- returns full Article (not ArticleSummary), and has

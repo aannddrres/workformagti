@@ -1,5 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import { CategoriesService } from '../../core/services/categories.service';
 import { ArticlesService } from '../../core/services/articles.service';
 import { ComplianceService } from '../../core/services/compliance.service';
@@ -7,13 +7,14 @@ import { AuthService } from '../../core/auth/auth.service';
 import { Category } from '../../core/models/category';
 import { ArticleSummary } from '../../core/models/article';
 import { MyProgress } from '../../core/models/compliance';
-import { ArticleCardViewModel } from '../../shared/article-card/article-card';
 import { CategoryTile } from '../../shared/category-tile/category-tile';
 import { ProgressRing } from '../../shared/progress-ring/progress-ring';
 import { MandatoryReadingWidget } from './mandatory-reading-widget';
 import { NewsPreview } from './news-preview';
 import { RecentlyViewedStrip } from './recently-viewed-strip';
-import { buildCategoryCounts, isRecentlyPublished } from '../../shared/category-visuals';
+import { isRecentlyPublished } from '../../shared/category-visuals';
+import { buildRecursiveCategoryCounts, descendantCategoryIds } from '../../shared/category-tree';
+import { isReaderVisibleArticle } from '../../shared/article-visibility';
 
 const MANAGEMENT_ROLES = ['admin', 'content_admin', 'manager'];
 
@@ -29,25 +30,42 @@ const MANAGEMENT_ROLES = ['admin', 'content_admin', 'manager'];
 @Component({
   selector: 'app-dashboard-page',
   standalone: true,
-  imports: [CategoryTile, ProgressRing, MandatoryReadingWidget, NewsPreview, RecentlyViewedStrip, TranslatePipe],
-  templateUrl: './dashboard-page.html'
+  imports: [
+    CategoryTile,
+    ProgressRing,
+    MandatoryReadingWidget,
+    NewsPreview,
+    RecentlyViewedStrip,
+    TranslatePipe,
+  ],
+  templateUrl: './dashboard-page.html',
 })
 export class DashboardPage {
   private readonly categoriesService = inject(CategoriesService);
   private readonly articlesService = inject(ArticlesService);
   private readonly complianceService = inject(ComplianceService);
   private readonly authService = inject(AuthService);
-  private readonly translate = inject(TranslateService);
 
-  protected readonly isManagement = computed(() => MANAGEMENT_ROLES.includes(this.authService.currentUser()?.role ?? ''));
+  protected readonly isManagement = computed(() =>
+    MANAGEMENT_ROLES.includes(this.authService.currentUser()?.role ?? ''),
+  );
 
   // Show historical categories even when they predate mandatory slugs;
   // CategoryTile falls back to the already-supported numeric ID route.
   protected readonly categories = signal<Category[]>([]);
-  protected readonly gridCategories = computed(() => this.categories());
+  protected readonly gridCategories = computed(() =>
+    this.categories().filter(
+      (category) =>
+        category.parent_id == null &&
+        category.is_active &&
+        (this.categoryCounts().get(category.id) ?? 0) > 0,
+    ),
+  );
 
-  protected readonly countingSet = signal<ArticleCardViewModel[]>([]);
-  protected readonly categoryCounts = computed(() => buildCategoryCounts(this.countingSet()));
+  protected readonly countingSet = signal<ArticleSummary[]>([]);
+  protected readonly categoryCounts = computed(() =>
+    buildRecursiveCategoryCounts(this.categories(), this.countingSet()),
+  );
 
   protected readonly progress = signal<MyProgress | null>(null);
   protected readonly progressError = signal(false);
@@ -58,7 +76,7 @@ export class DashboardPage {
    * by design, so they always get the banner.
    */
   protected readonly needsAttention = computed(
-    () => !this.isManagement() && (this.progress()?.pending ?? 0) > 0
+    () => !this.isManagement() && (this.progress()?.pending ?? 0) > 0,
   );
 
   /**
@@ -70,35 +88,30 @@ export class DashboardPage {
    * slot until the answer arrives costs one skeleton and avoids the flip.
    */
   protected readonly awaitingProgress = computed(
-    () => !this.isManagement() && this.progress() === null && !this.progressError()
+    () => !this.isManagement() && this.progress() === null && !this.progressError(),
   );
 
   constructor() {
     this.categoriesService.list().subscribe((categories) => this.categories.set(categories));
     this.articlesService
-      .list({ limit: 200 })
-      .subscribe((articles) => this.countingSet.set(articles.map((a) => this.toCardViewModel(a))));
+      .list({ limit: 1000 })
+      .subscribe((articles) => this.countingSet.set(articles.filter(isReaderVisibleArticle)));
 
     if (!this.isManagement()) {
       this.complianceService.myProgress().subscribe({
         next: (p) => this.progress.set(p),
-        error: () => this.progressError.set(true)
+        error: () => this.progressError.set(true),
       });
     }
   }
 
-  private toCardViewModel(a: ArticleSummary): ArticleCardViewModel {
-    return {
-      id: a.id,
-      title: a.title,
-      categoryName: a.category_name || this.translate.instant('articles.card.uncategorized'),
-      createdAt: a.created_at,
-      publishedAt: a.published_at,
-      readTime: a.read_time
-    };
-  }
-
   hasRecentInCategory(category: Category): boolean {
-    return this.countingSet().some((card) => card.categoryName === category.name && isRecentlyPublished(card));
+    const ids = descendantCategoryIds(this.categories(), category.id);
+    return this.countingSet().some(
+      (article) =>
+        article.category_id != null &&
+        ids.has(article.category_id) &&
+        isRecentlyPublished({ publishedAt: article.published_at, createdAt: article.created_at }),
+    );
   }
 }

@@ -119,6 +119,9 @@
       "type_article": "Article",
       "type_news": "News",
       "type_video": "Video",
+      "match_title": "Exact title",
+      "match_other": "Other match",
+      "show_all": "All results",
       "legend_navigate": "↑↓ navigate",
       "legend_open": "Enter to open"
     }
@@ -145,7 +148,8 @@
       "all_categories_option": "All categories",
       "new_badge_tip": "Articles updated in the last 4 days are marked New.",
       "no_results": "No results found.",
-      "search_error": "An error occurred while searching."
+      "search_error": "An error occurred while searching.",
+      "show_more": "Show more"
     },
     "category_view": {
       "back_button": "Back",
@@ -156,13 +160,20 @@
       "load_failed_body": "Refresh the page. If the problem continues, contact the system administrator.",
       "profile_all": "All",
       "profile_info": "Informational",
-      "profile_tech": "Technical"
+      "profile_tech": "Technical",
+      "subcategories": "Subcategories"
     },
     "detail_page": {
       "back_button": "Back",
+      "breadcrumb_label": "Article location",
+      "content_label": "Article content",
       "attachment_download": "Download file",
       "not_found": "Article not found",
-      "version_label": "Version {{version}}"
+      "version_label": "Version {{version}}",
+      "related_heading": "Related materials",
+      "sibling_navigation": "Navigation within this category",
+      "previous_article": "Previous article",
+      "next_article": "Next article"
     },
     "version_history": {
       "button": "Version history",

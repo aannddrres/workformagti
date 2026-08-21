@@ -62,8 +62,14 @@
    * or Firo) as woff2 and prepend it here — add the @font-face blocks below.
    * That is the single highest-impact visual change available to this app. */
   --font-sans:
-    "Noto Sans Georgian", "BPG Arial", Sylfaen,
-    system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    'Noto Sans Georgian', 'BPG Arial', Sylfaen, system-ui, -apple-system, 'Segoe UI', Roboto, Arial,
+    sans-serif;
+
+  /* A bundled Georgian-capable reading face for long-form knowledge-base
+   * content. This avoids the serif Sylfaen fallback on managed Windows PCs
+   * and works without internet access. It is intentionally scoped to the
+   * reader until the official brand font is approved. */
+  --font-reading: 'Portal Georgian', 'DejaVu Sans', var(--font-sans);
 
   /* User-controlled accessibility scale. Every Tailwind rem value follows
    * this root size, so the layout reflows instead of merely magnifying pixels. */
@@ -94,20 +100,13 @@
   --text-muted: 167 180 197;
 }
 
-/* SELF-HOSTED GEORGIAN FONT GOES HERE.
- * Drop the woff2 files in public/fonts/ and uncomment, then prepend the family
- * name to --font-sans above. Self-hosted rather than a CDN on purpose: this is
- * an internal call-centre portal whose network may not allow outbound
- * requests — the same reason the Font Awesome CDN link in index.html is a
- * liability (every icon becomes an empty box if cdnjs is unreachable).
- *
- * @font-face {
- *   font-family: "Magti Sans";
- *   src: url("/fonts/magti-sans-400.woff2") format("woff2");
- *   font-weight: 400;
- *   font-display: swap;
- * }
- */
+@font-face {
+  font-family: 'Portal Georgian';
+  src: url('/fonts/DejaVuSans.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
 
 @layer base {
   html {
@@ -214,6 +213,288 @@
 
   .table-shell tbody tr {
     @apply transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/55;
+  }
+
+  /* Non-destructive long-form renderer. Tailwind's base reset removes the
+   * browser's paragraph/list rhythm, and this project does not load the
+   * typography plugin, so a plain `prose` class cannot restore it. These
+   * rules style the legacy HTML as-is; they do not rewrite stored content. */
+  .article-reader,
+  .article-reader-title {
+    font-family: var(--font-reading);
+  }
+
+  .article-reader {
+    color: rgb(51 65 85);
+    font-size: 1.0625rem;
+    line-height: 1.78;
+    overflow-wrap: anywhere;
+    text-rendering: optimizeLegibility;
+  }
+
+  .dark .article-reader {
+    color: rgb(203 213 225);
+  }
+
+  .article-reader > :first-child {
+    margin-top: 0;
+  }
+
+  .article-reader > :last-child {
+    margin-bottom: 0;
+  }
+
+  .article-reader p {
+    margin: 0 0 1.15em;
+  }
+
+  .article-reader h1,
+  .article-reader h2,
+  .article-reader h3,
+  .article-reader h4,
+  .article-reader h5,
+  .article-reader h6 {
+    color: rgb(15 23 42);
+    font-weight: 700;
+    line-height: 1.35;
+    scroll-margin-top: 6rem;
+  }
+
+  .dark .article-reader h1,
+  .dark .article-reader h2,
+  .dark .article-reader h3,
+  .dark .article-reader h4,
+  .dark .article-reader h5,
+  .dark .article-reader h6 {
+    color: rgb(248 250 252);
+  }
+
+  .article-reader h1 {
+    margin: 1.75em 0 0.65em;
+    font-size: 1.65em;
+  }
+
+  .article-reader h2 {
+    margin: 1.65em 0 0.65em;
+    padding-bottom: 0.45em;
+    border-bottom: 1px solid rgb(226 232 240);
+    font-size: 1.35em;
+  }
+
+  .dark .article-reader h2 {
+    border-bottom-color: rgb(51 65 85);
+  }
+
+  .article-reader h3 {
+    margin: 1.45em 0 0.55em;
+    font-size: 1.16em;
+  }
+
+  .article-reader h4,
+  .article-reader h5,
+  .article-reader h6 {
+    margin: 1.3em 0 0.5em;
+    font-size: 1em;
+  }
+
+  .article-reader ul,
+  .article-reader ol {
+    margin: 0.35em 0 1.25em;
+    padding-inline-start: 1.55em;
+  }
+
+  .article-reader ul {
+    list-style: disc;
+  }
+
+  .article-reader ol {
+    list-style: decimal;
+  }
+
+  .article-reader li {
+    margin: 0.42em 0;
+    padding-inline-start: 0.25em;
+  }
+
+  .article-reader li::marker {
+    color: rgb(var(--brand-600));
+    font-weight: 700;
+  }
+
+  .article-reader li > p {
+    margin: 0.35em 0;
+  }
+
+  .article-reader p.article-reader__clauses {
+    margin: 1.15em 0 1.4em;
+    border: 1px solid rgb(226 232 240);
+    border-radius: 0.85rem;
+    background: rgb(248 250 252 / 0.72);
+    padding: 0.65em 1em;
+  }
+
+  .dark .article-reader p.article-reader__clauses {
+    border-color: rgb(51 65 85);
+    background: rgb(30 41 59 / 0.55);
+  }
+
+  .article-reader__clause {
+    position: relative;
+    display: block;
+    margin: 0.42em 0;
+    padding-inline-start: 1.05em;
+  }
+
+  .article-reader__clause::before {
+    position: absolute;
+    inset-inline-start: 0;
+    top: 0.78em;
+    width: 0.34em;
+    height: 0.34em;
+    border-radius: 999px;
+    background: rgb(var(--brand-600) / 0.72);
+    content: '';
+  }
+
+  .article-reader strong,
+  .article-reader b {
+    color: rgb(15 23 42);
+    font-weight: 700;
+  }
+
+  .dark .article-reader strong,
+  .dark .article-reader b {
+    color: rgb(248 250 252);
+  }
+
+  .article-reader a {
+    color: rgb(var(--brand-600));
+    font-weight: 650;
+    text-decoration: underline;
+    text-decoration-color: rgb(var(--brand-600) / 0.35);
+    text-decoration-thickness: 0.08em;
+    text-underline-offset: 0.18em;
+  }
+
+  .article-reader a:hover {
+    color: rgb(var(--brand-700));
+    text-decoration-color: currentColor;
+  }
+
+  .article-reader a.article-reader__portal-link::after {
+    display: inline-block;
+    margin-inline-start: 0.28em;
+    color: rgb(var(--brand-600) / 0.75);
+    font-size: 0.82em;
+    font-weight: 800;
+    text-decoration: none;
+    content: '→';
+  }
+
+  .article-reader a.article-reader__legacy-search {
+    text-decoration-style: dashed;
+  }
+
+  .article-reader a.article-reader__legacy-search::after {
+    content: '⌕';
+  }
+
+  .article-reader blockquote {
+    margin: 1.4em 0;
+    border-inline-start: 4px solid rgb(var(--brand-600) / 0.55);
+    border-radius: 0 0.75rem 0.75rem 0;
+    background: rgb(var(--brand-600) / 0.045);
+    padding: 1em 1.15em;
+  }
+
+  .article-reader .article-reader__token {
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+    border: 1px solid rgb(203 213 225);
+    border-radius: 0.42rem;
+    background: rgb(248 250 252);
+    color: rgb(15 23 42);
+    font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    font-size: 0.88em;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    padding: 0.08em 0.38em;
+    white-space: nowrap;
+  }
+
+  .dark .article-reader .article-reader__token {
+    border-color: rgb(71 85 105);
+    background: rgb(30 41 59);
+    color: rgb(241 245 249);
+  }
+
+  .article-reader img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 1.6em auto;
+    border: 1px solid rgb(226 232 240);
+    border-radius: 0.85rem;
+    background: white;
+    box-shadow: 0 8px 24px rgb(15 23 42 / 0.07);
+  }
+
+  .dark .article-reader img {
+    border-color: rgb(51 65 85);
+  }
+
+  .article-reader table {
+    width: 100%;
+    margin: 1.5em 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow: hidden;
+    border: 1px solid rgb(226 232 240);
+    border-radius: 0.75rem;
+    font-size: 0.92em;
+    line-height: 1.55;
+  }
+
+  .dark .article-reader table {
+    border-color: rgb(51 65 85);
+  }
+
+  .article-reader th,
+  .article-reader td {
+    border-bottom: 1px solid rgb(226 232 240);
+    padding: 0.7em 0.85em;
+    text-align: start;
+    vertical-align: top;
+  }
+
+  .dark .article-reader th,
+  .dark .article-reader td {
+    border-bottom-color: rgb(51 65 85);
+  }
+
+  .article-reader th {
+    background: rgb(248 250 252);
+    color: rgb(15 23 42);
+    font-weight: 700;
+  }
+
+  .dark .article-reader th {
+    background: rgb(30 41 59);
+    color: rgb(248 250 252);
+  }
+
+  .article-reader tr:last-child > * {
+    border-bottom: 0;
+  }
+
+  .article-reader hr {
+    margin: 1.8em 0;
+    border: 0;
+    border-top: 1px solid rgb(226 232 240);
+  }
+
+  .dark .article-reader hr {
+    border-top-color: rgb(51 65 85);
   }
 }
 

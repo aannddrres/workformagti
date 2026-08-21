@@ -1,4 +1,13 @@
-import { Component, DestroyRef, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  ElementRef,
+  computed,
+  effect,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -7,6 +16,9 @@ import { catchError, tap } from 'rxjs/operators';
 import { SearchService } from '../../core/services/search.service';
 import { SearchHit } from '../../core/models/search';
 import { detailRouteFor, iconForContentType } from '../content-type-visuals';
+import { CategoriesService } from '../../core/services/categories.service';
+import { Category } from '../../core/models/category';
+import { categoryPath } from '../category-tree';
 
 /**
  * Command-palette search, reachable from anywhere with Ctrl/⌘+K.
@@ -37,13 +49,14 @@ import { detailRouteFor, iconForContentType } from '../content-type-visuals';
   imports: [TranslatePipe],
   templateUrl: './global-search.html',
   host: {
-    '(document:keydown)': 'onDocumentKeydown($event)'
-  }
+    '(document:keydown)': 'onDocumentKeydown($event)',
+  },
 })
 export class GlobalSearch {
   private readonly searchService = inject(SearchService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly categoriesService = inject(CategoriesService);
 
   private readonly input = viewChild<ElementRef<HTMLInputElement>>('searchInput');
   private readonly queries = new Subject<string>();
@@ -55,16 +68,24 @@ export class GlobalSearch {
   protected readonly failed = signal(false);
   /** Index into hits() for keyboard selection; -1 = nothing highlighted. */
   protected readonly activeIndex = signal(-1);
+  protected readonly categories = signal<Category[]>([]);
 
   protected readonly minLength = SearchService.MIN_QUERY_LENGTH;
   protected readonly tooShort = computed(
-    () => this.query().trim().length > 0 && this.query().trim().length < this.minLength
+    () => this.query().trim().length > 0 && this.query().trim().length < this.minLength,
   );
   protected readonly empty = computed(
-    () => !this.loading() && !this.failed() && this.hits().length === 0 && this.query().trim().length >= this.minLength
+    () =>
+      !this.loading() &&
+      !this.failed() &&
+      this.hits().length === 0 &&
+      this.query().trim().length >= this.minLength,
   );
 
   constructor() {
+    this.categoriesService
+      .list()
+      .subscribe({ next: (categories) => this.categories.set(categories) });
     /**
      * Put the caret in the palette's input when it opens.
      *
@@ -108,10 +129,10 @@ export class GlobalSearch {
             catchError(() => {
               this.failed.set(true);
               return of([] as SearchHit[]);
-            })
-          )
+            }),
+          ),
         ),
-        takeUntilDestroyed(this.destroyRef)
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((hits) => {
         this.loading.set(false);
@@ -176,6 +197,25 @@ export class GlobalSearch {
       this.router.navigate(route);
     }
     this.close();
+  }
+
+  protected openAllResults(): void {
+    const query = this.query().trim();
+    this.close();
+    this.router.navigate(['/info'], { queryParams: { q: query } });
+  }
+
+  protected contextFor(hit: SearchHit): string | null {
+    if (hit.itemType !== 'article') {
+      return hit.context;
+    }
+    const path = categoryPath(this.categories(), hit.categoryId ?? null)
+      .map((category) => category.name)
+      .join(' › ');
+    const departments = (hit.targetDepartments ?? [])
+      .filter((department) => department !== 'All')
+      .join(', ');
+    return [path || hit.context, departments].filter(Boolean).join(' · ') || null;
   }
 
   protected iconFor(hit: SearchHit): string {
