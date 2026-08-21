@@ -192,7 +192,7 @@ public class StatsController {
     /** Port of get_admin_team_stats (routers/stats.py:394-443). */
     @GetMapping("/api/admin/stats/team/{teamId}")
     public ResponseEntity<?> getAdminTeamStats(@PathVariable("teamId") Long teamId, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireSystemAdmin(user);
         if (denial != null) {
             return denial;
         }
@@ -261,16 +261,11 @@ public class StatsController {
     /**
      * Port of get_department_stats (routers/stats.py:675-688).
      *
-     * <p><b>SEC-03 fix:</b> this was the one endpoint in the file with no
-     * MANAGER branch at all, so a manager received the names, positions,
-     * individual percentages and {@code is_critical} flags of every
-     * department's staff -- while getting a 403 from {@link #getGroupUsers}
-     * for those very same groups. Option (a) of the audit's two, chosen by
-     * the user 2026-08-14: the dashboard stays org-wide for managers (that is
-     * its purpose -- see {@link #getCriticalOperators}'s javadoc on its
-     * audience), but the per-person rows are stripped for them, leaving the
-     * aggregates. See {@link DepartmentStatsBuilder#withoutMembers} for why
-     * this redacts the response rather than scoping the query.
+     * <p>Phase-0 access fix: a manager receives only records allowed by
+     * {@link ManagerScope}. Building the tree from that scoped record set and
+     * removing the builder's empty whitelist placeholders means sibling
+     * department/group rows are absent from the wire response, not merely
+     * stripped of named members. SYSTEM_ADMIN keeps the org-wide dashboard.
      */
     @GetMapping("/api/manager/department-stats")
     public ResponseEntity<?> getDepartmentStats(@AuthenticationPrincipal User user) {
@@ -278,12 +273,19 @@ public class StatsController {
         if (denial != null) {
             return denial;
         }
-        List<ComplianceRecord> records = complianceQueryService.computeCompliance();
-        DepartmentDashboard dashboard = DepartmentStatsBuilder.build(records, TbilisiTime.now());
         if (user.getRole() == Role.MANAGER) {
-            dashboard = DepartmentStatsBuilder.withoutMembers(dashboard);
+            List<Long> ids = ManagerScope.visibleActiveUsers(userRepository.findByActiveTrue(), user).stream()
+                    .map(User::getId)
+                    .toList();
+            List<ComplianceRecord> records = complianceQueryService.computeCompliance(ids, null);
+            DepartmentDashboard scoped = DepartmentStatsBuilder.build(records, TbilisiTime.now());
+            return ResponseEntity.ok(new DepartmentDashboard(
+                    scoped.insights(),
+                    scoped.departments().stream().filter(department -> !department.empty()).toList(),
+                    scoped.generatedAt()));
         }
-        return ResponseEntity.ok(dashboard);
+        return ResponseEntity.ok(DepartmentStatsBuilder.build(
+                complianceQueryService.computeCompliance(), TbilisiTime.now()));
     }
 
     /**
@@ -307,8 +309,8 @@ public class StatsController {
      * manager in "ტექნიკური — ჯგუფი 03" saw an overdue operator from
      * "ტექნიკური — ჯგუფი 01". Now hard-pinned to the calling manager's own
      * department via {@link ManagerScope}, the same rule {@link #getTeamStats}
-     * uses. content_admin/system_admin keep the unscoped org-wide view (that
-     * access was never in question).
+     * uses. SYSTEM_ADMIN keeps the unscoped org-wide view; content-admin-only
+     * callers are denied until assignment-backed scoping exists.
      *
      * <p>The pin was originally an exact string match, which under-included a
      * parent-department manager to zero rows -- audit SEC-13, fixed with the
@@ -316,7 +318,7 @@ public class StatsController {
      */
     @GetMapping("/api/admin/critical-operators")
     public ResponseEntity<?> getCriticalOperators(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireManagerOrContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireManagerOrAdmin(user);
         if (denial != null) {
             return denial;
         }
@@ -342,14 +344,15 @@ public class StatsController {
      * own department -- confirmed live: a manager in "ტექნიკური"
      * successfully pulled "ოფისი — ჯგუფი 01"'s user list. A manager is now
      * rejected with 403 unless the requested (department, groupName) pair
-     * resolves to their own department string; content_admin/system_admin
-     * are unaffected.
+     * resolves to their own department string. SYSTEM_ADMIN is unrestricted;
+     * content-admin-only callers are denied until assignment-backed scoping
+     * exists.
      */
     @GetMapping("/api/admin/departments/{department}/groups/{groupName}/users")
     public ResponseEntity<?> getGroupUsers(
             @PathVariable String department, @PathVariable("groupName") String groupName,
             @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireManagerOrContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireManagerOrAdmin(user);
         if (denial != null) {
             return denial;
         }
@@ -505,19 +508,6 @@ public class StatsController {
             return authFailure;
         }
         if (user.getRole() != Role.MANAGER && user.getRole() != Role.SYSTEM_ADMIN) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("detail", "Not enough permissions to perform this action"));
-        }
-        return null;
-    }
-
-    /** Union of {@link #requireManagerOrAdmin} and {@link #requireContentAdmin} -- see {@link #getCriticalOperators}'s javadoc. */
-    private static ResponseEntity<Map<String, String>> requireManagerOrContentAdmin(User user) {
-        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
-        if (authFailure != null) {
-            return authFailure;
-        }
-        if (user.getRole() != Role.MANAGER && !user.getRole().isContentAdmin()) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("detail", "Not enough permissions to perform this action"));
         }

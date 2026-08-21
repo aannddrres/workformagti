@@ -3,6 +3,7 @@ package ge.magti.portal.export;
 import ge.magti.portal.compliance.ComplianceQueryService;
 import ge.magti.portal.domain.ReadStatus;
 import ge.magti.portal.domain.RequiredReading;
+import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.repository.ReadStatusRepository;
 import ge.magti.portal.repository.RequiredReadingRepository;
@@ -38,9 +39,9 @@ import java.util.stream.Collectors;
  * and per-item compliance status of every employee in the company. Both now
  * take the caller and route through {@link #scopedCompliance}, applying the
  * same rule bug #312 already established in
- * {@code StatsController.getCriticalOperators}: unscoped for
- * SYSTEM_ADMIN/CONTENT_ADMIN, hard-pinned to the caller's own department
- * string for MANAGER. The caller argument is mandatory rather than an
+ * {@code StatsController.getCriticalOperators}: unscoped only for
+ * SYSTEM_ADMIN and hard-pinned to the caller's own department for every
+ * other role. The caller argument is mandatory rather than an
  * overload precisely so no unscoped call path can be reintroduced by
  * accident.
  */
@@ -62,10 +63,9 @@ public class ExportQueryService {
     }
 
     /**
-     * True when this caller's exports must be pinned to their own department
-     * (MANAGER), false when they are unrestricted (SYSTEM_ADMIN,
-     * CONTENT_ADMIN) -- the same rule bug #312 established in
-     * {@code StatsController.getCriticalOperators}.
+     * True when this caller's exports must be pinned to their own department,
+     * false only for SYSTEM_ADMIN. Permissions grant the export action; they
+     * never create an org-wide data scope.
      *
      * <p>Deliberately separate from {@link #scopeDepartmentFor} rather than
      * inferred from it being null: a manager whose {@code department} is null
@@ -74,7 +74,7 @@ public class ExportQueryService {
      * the accounts whose scope is least well defined.
      */
     public static boolean isDepartmentScoped(User caller) {
-        return ManagerScope.isDepartmentScoped(caller);
+        return caller != null && caller.getRole() != Role.SYSTEM_ADMIN;
     }
 
     /**
@@ -108,7 +108,10 @@ public class ExportQueryService {
      * zero users -- fail closed, and now explicitly rather than by accident.
      */
     private List<ComplianceRecord> scopedCompliance(User caller) {
-        if (!isDepartmentScoped(caller)) {
+        if (caller == null) {
+            return List.of();
+        }
+        if (caller.getRole() == Role.SYSTEM_ADMIN) {
             return complianceQueryService.computeCompliance();
         }
         List<Long> ids = ManagerScope.visibleActiveUsers(userRepository.findByActiveTrue(), caller).stream()

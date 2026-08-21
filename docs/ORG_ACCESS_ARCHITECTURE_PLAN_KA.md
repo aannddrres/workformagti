@@ -193,11 +193,17 @@ UI-ის დამალვა მონაცემთა უსაფრთ�
 
 1. Flyway expand migration `V36`: departments + სამი canonical bootstrap row,
    ძველი გლობალური `uq_teams_name`-ის მოხსნა, teams-ის nullable extension,
-   leadership assignments, permission/compliance override provenance და sync
-   metadata. Oracle-ში `IF NOT EXISTS` არ გამოიყენება. Backfill-ის წარმატებული
-   ცალკე rollout-ის შემდეგ `V37` ამატებს `NOT NULL`, composite/external-ID
-   uniqueness-ს, one-scope `CHECK`-სა და ორ function-based primary-leader unique
-   index-ს.
+   leadership assignments, permission/compliance override provenance,
+   `users.lock_version NUMBER DEFAULT 0 NOT NULL` (JPA optimistic lock;
+   `token_version`-ისგან დამოუკიდებელი) და sync metadata. Oracle-ში
+   `IF NOT EXISTS` არ გამოიყენება. `POST /api/teams` და ყველა org mutation
+   endpoint იკეტება `V36`-მდე, რათა expand/contract ფანჯარაში ახალი დუბლიკატი ვერ
+   გაჩნდეს. Backfill-ის წარმატებული ცალკე rollout-ის შემდეგ `V37` ამატებს
+   `NOT NULL`, composite/external-ID uniqueness-ს, one-scope `CHECK`-სა და ორ
+   function-based primary-leader unique index-ს. `V37`-ის deployment-ს წინ
+   უძღვის blocking preflight: `(department_id, name)` დუბლიკატები, `NULL`
+   `department_id`, external-ID დუბლიკატები და scope-ზე ერთზე მეტი აქტიური
+   `PRIMARY`; ნებისმიერი დარღვევა contract migration-ს აჩერებს.
 2. გარდამავალი mapper: არსებული `department` ტექსტების უსაფრთხო mapping ახალ
    department/team ID-ებზე; ისტორიული audit არ იცვლება. mapper საერთოდ არ ეხება
    `read_statuses.operator_department_snapshot` და
@@ -224,8 +230,10 @@ UI-ის დამალვა მონაცემთა უსაფრთ�
 9. Manager stats/audit/export paths-იდან `Role.MANAGER`-ის ჩანაცვლება მოქმედი
    leadership assignment-ით.
 10. `/api/me/effective-access`: role, inherited defaults, explicit overrides,
-   effective permissions, leadership scopes,
-   compliance status და UI capabilities ერთ პასუხში.
+   effective permissions, leadership scopes, compliance status და UI capabilities
+   ერთ პასუხში. `SYSTEM_ADMIN`-ზე პასუხი ცალკე `bypass: true` დროშას აბრუნებს და
+   ხელოვნურად შევსებულ „ყველა permission“-ის ნაკრებს არ ქმნის; „რატომ აქვს ეს
+   წვდომა“ ამ bypass-ს ცალკე მიზეზად აჩვენებს.
 11. AD sync contract: stable external IDs, upsert, deactivation, reconciliation,
    dry-run/report და orphan-group alert. რეალური AD connector ცალკე ფაზაა.
 12. audit events: assignment/permission/compliance override ცვლილებები და სხვისი
@@ -277,7 +285,8 @@ UI-ის დამალვა მონაცემთა უსაფრთ�
 
 0. **Security hotfix:** P0 endpoint-ებზე არსებული role-based შესაძლებლობებით
    fail-open წვდომის ჩაკეტვა; leadership schema-მდე non-system-admin-ს scope-ის
-   გარეშე პერსონალური/ორგანიზაციული მონაცემი არ მიეწოდება.
+   გარეშე პერსონალური/ორგანიზაციული მონაცემი არ მიეწოდება. `POST /api/teams` და
+   სხვა org mutation endpoint-ებიც აქვე იკეტება, `V36`-ის deploy-მდე.
 1. **Decision/contract lock:** permission/scope matrix, response-shape contracts,
    export allowlist და external production gates.
 2. **Schema expand + backfill:** Oracle-compatible `V36`, ნორმალიზებული org
@@ -322,6 +331,8 @@ UI-ის დამალვა მონაცემთა უსაფრთ�
 - backfill არ ცვლის `operator_department_snapshot` ისტორიულ სვეტებს;
 - scope/compliance cutover არ იწყება, თუ reconciliation report-ში არის
   დაუდასტურებელი manager, ambiguous primary collision ან authorization diff.
+- `V37` არ ეშვება, სანამ schema preflight-ის duplicate/null/primary-collision
+  ანგარიში სრულად სუფთა არ არის.
 
 ## 9. acceptance criteria
 

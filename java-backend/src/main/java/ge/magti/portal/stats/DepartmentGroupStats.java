@@ -18,14 +18,4 @@ public record DepartmentGroupStats(
         @JsonProperty("output_volume") int outputVolume,
         @JsonProperty("critical_count") int criticalCount,
         List<DepartmentMember> members) {
-
-    /**
-     * The same group with a different member list and every aggregate
-     * untouched -- used by {@link DepartmentStatsBuilder#withoutMembers} to
-     * redact the per-person rows for MANAGER callers (SEC-03).
-     */
-    public DepartmentGroupStats withMembers(List<DepartmentMember> replacement) {
-        return new DepartmentGroupStats(
-                name, fullDepartment, memberCount, compliance, outputVolume, criticalCount, replacement);
-    }
 }

@@ -384,10 +384,14 @@ class UserControllerIntegrationTest {
     // ── teams ────────────────────────────────────────────────────────────
 
     @Test
-    void teamsListIsAuthenticatedAndCreateRequiresAdminAndRejectsDuplicates() throws Exception {
+    void teamsListIsAuthenticatedButInteractiveCreationIsDirectoryOwned() throws Exception {
         User operator = createUser("team-op1@magti.ge", Role.OPERATOR, "All");
         User admin = createUser("team-admin1@magti.ge", Role.SYSTEM_ADMIN, "All");
         String teamName = "სატესტო გუნდი " + System.nanoTime();
+        Team fixture = new Team();
+        fixture.setName(teamName);
+        fixture.setCreatedAt(TbilisiTime.now());
+        teamRepository.saveAndFlush(fixture);
 
         mockMvc.perform(authed(post("/api/teams"), tokenFor(operator))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -397,14 +401,8 @@ class UserControllerIntegrationTest {
         mockMvc.perform(authed(post("/api/teams"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"" + teamName + "\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value(teamName));
-
-        mockMvc.perform(authed(post("/api/teams"), tokenFor(admin))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"" + teamName + "\"}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.detail").value("ამ სახელით ჯგუფი უკვე არსებობს"));
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail").value("ჯგუფების შექმნა იმართება ორგანიზაციის კატალოგიდან"));
 
         String listBody = mockMvc.perform(authed(get("/api/teams"), tokenFor(operator)))
                 .andExpect(status().isOk())

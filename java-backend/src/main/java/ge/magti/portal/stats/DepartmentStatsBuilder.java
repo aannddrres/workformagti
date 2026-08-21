@@ -108,46 +108,6 @@ public final class DepartmentStatsBuilder {
         return new DepartmentDashboard(insights, departments, generatedAt);
     }
 
-    /**
-     * The same dashboard with every group's {@code members} list emptied --
-     * the aggregate view, with no per-person rows.
-     *
-     * <p><b>SEC-03 fix (audit OPUS5-1), option (a), user-decided
-     * 2026-08-14:</b> {@code /api/manager/department-stats} is org-wide for
-     * managers by design (it is the Executive Department Dashboard, and
-     * {@code StatsController.getCriticalOperators}' javadoc records that its
-     * whole audience is managers), but the payload carried
-     * {@link DepartmentMember} rows -- user_id, user_name, position,
-     * percentage, is_critical -- for EVERY department, to any manager. The
-     * decision was to keep the org-wide aggregates and drop the named rows,
-     * rather than scoping the whole computation: the leak is the per-person
-     * list, and a department's overall percentage is not personal data.
-     *
-     * <p>Only the response is redacted, never the computation -- {@code
-     * compliance}, {@code output_volume}, {@code critical_count} and {@code
-     * member_count} are all derived from the full member list in
-     * {@link #build} before this runs, so every number a manager sees stays
-     * exactly what it was. A non-zero {@code member_count} beside an empty
-     * {@code members} is therefore a redaction marker, not an empty group.
-     *
-     * <p>Emptied rather than nulled so the wire shape stays a JSON array and
-     * the Angular {@code DepartmentGroupStats.members: DepartmentMember[]}
-     * type stays honest (the frontend never reads it -- the group drill-down
-     * uses the separately-scoped {@code getGroupUsers} endpoint instead --
-     * but an absent key would make that declared type a lie).
-     */
-    public static DepartmentDashboard withoutMembers(DepartmentDashboard dashboard) {
-        List<DepartmentStats> redacted = dashboard.departments().stream()
-                .map(dept -> new DepartmentStats(
-                        dept.name(), dept.memberCount(), dept.groupCount(), dept.compliance(),
-                        dept.outputVolume(), dept.criticalCount(), dept.empty(),
-                        dept.groups().stream()
-                                .map(group -> group.withMembers(List.of()))
-                                .toList()))
-                .toList();
-        return new DepartmentDashboard(dashboard.insights(), redacted, dashboard.generatedAt());
-    }
-
     private record Rollup(int compliance, int outputVolume, int criticalCount) {
     }
 

@@ -91,12 +91,19 @@ class ExportQueryServiceScopingTest {
     }
 
     @Test
-    void systemAdminAndContentAdminReadingRowsStayOrgWide() {
-        for (Role role : List.of(Role.SYSTEM_ADMIN, Role.CONTENT_ADMIN)) {
-            List<ReadingExportRow> rows = service.eligibleReadingRows(userOf(role, "All"));
+    void onlySystemAdminReadingRowsStayOrgWide() {
+        List<ReadingExportRow> rows = service.eligibleReadingRows(userOf(Role.SYSTEM_ADMIN, "All"));
 
-            assertEquals(List.of(1L, 2L, 3L), rows.stream().map(ReadingExportRow::userId).sorted().toList(),
-                    role + " must keep the unscoped org-wide export");
+        assertEquals(List.of(1L, 2L, 3L), rows.stream().map(ReadingExportRow::userId).sorted().toList());
+    }
+
+    @Test
+    void manuallyGrantedNonAdminExportIsPinnedToItsDepartment() {
+        for (Role role : List.of(Role.CONTENT_ADMIN, Role.OPERATOR)) {
+            List<ReadingExportRow> rows = service.eligibleReadingRows(userOf(role, OWN_DEPT));
+
+            assertEquals(List.of(1L, 2L), rows.stream().map(ReadingExportRow::userId).sorted().toList(),
+                    role + " may receive the export action but never an implicit org-wide scope");
         }
     }
 
@@ -114,6 +121,13 @@ class ExportQueryServiceScopingTest {
         SortedMap<String, int[]> totals = service.departmentComplianceTotals(userOf(Role.SYSTEM_ADMIN, "All"));
 
         assertEquals(List.of(OTHER_DEPT, OWN_DEPT), List.copyOf(totals.keySet()).stream().sorted().toList());
+    }
+
+    @Test
+    void nonAdminWildcardOrMissingCallerFailsClosed() {
+        assertTrue(service.eligibleReadingRows(userOf(Role.CONTENT_ADMIN, "All")).isEmpty());
+        assertTrue(service.departmentComplianceTotals(userOf(Role.OPERATOR, null)).isEmpty());
+        assertTrue(service.eligibleReadingRows(null).isEmpty());
     }
 
     /**
@@ -148,10 +162,10 @@ class ExportQueryServiceScopingTest {
         assertTrue(ExportQueryService.isDepartmentScoped(managerOf(OWN_DEPT)));
         assertEquals(OWN_DEPT, ExportQueryService.scopeDepartmentFor(managerOf(OWN_DEPT)));
 
-        for (Role role : List.of(Role.SYSTEM_ADMIN, Role.CONTENT_ADMIN)) {
-            assertFalse(ExportQueryService.isDepartmentScoped(userOf(role, "All")), role + " must stay unscoped");
-            assertNull(ExportQueryService.scopeDepartmentFor(userOf(role, "All")));
-        }
+        assertFalse(ExportQueryService.isDepartmentScoped(userOf(Role.SYSTEM_ADMIN, "All")));
+        assertNull(ExportQueryService.scopeDepartmentFor(userOf(Role.SYSTEM_ADMIN, "All")));
+        assertTrue(ExportQueryService.isDepartmentScoped(userOf(Role.CONTENT_ADMIN, OWN_DEPT)));
+        assertEquals(OWN_DEPT, ExportQueryService.scopeDepartmentFor(userOf(Role.CONTENT_ADMIN, OWN_DEPT)));
         assertFalse(ExportQueryService.isDepartmentScoped(null));
 
         // A manager with no department is still SCOPED -- its null scope must

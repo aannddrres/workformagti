@@ -33,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.OffsetDateTime;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -258,7 +259,8 @@ class StatsControllerIntegrationTest {
 
     @Test
     void adminTeamStatsScopesByTeamIdAndComputesAverage() throws Exception {
-        User admin = createUser("stats-team-admin@magti.ge", Role.CONTENT_ADMIN, "All");
+        User admin = createUser("stats-team-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
+        User contentAdmin = createUser("stats-team-content@magti.ge", Role.CONTENT_ADMIN, "All");
         Team team = createTeam("სტატისტიკის გუნდი " + System.nanoTime());
         User member = createUser("stats-team-member@magti.ge", Role.OPERATOR, "All");
         member.setTeamId(team.getId());
@@ -272,6 +274,8 @@ class StatsControllerIntegrationTest {
                 .andExpect(jsonPath("$.team_id").value(team.getId().intValue()))
                 .andExpect(jsonPath("$.average_percentage").value("100%"))
                 .andExpect(jsonPath("$.members[0].user_id").value(member.getId().intValue()));
+        mockMvc.perform(authed(get("/api/admin/stats/team/" + team.getId()), tokenFor(contentAdmin)))
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -321,14 +325,9 @@ class StatsControllerIntegrationTest {
                 .andExpect(jsonPath("$.generated_at").exists());
     }
 
-    /**
-     * SEC-03 regression guard, option (a). Before the fix the manager's body
-     * carried a {@code members} array per group for every department, so the
-     * "no named rows anywhere" assertion failed on their own AND the other
-     * department's operator; the aggregate assertions passed either way.
-     */
+    /** Phase-0 guard: sibling rows are absent, while the manager's own group remains useful. */
     @Test
-    void departmentStatsHidesNamedMembersFromManagersButNotFromAdmins() throws Exception {
+    void departmentStatsContainsOnlyManagerScopeButAdminRemainsOrgWide() throws Exception {
         User manager = createUser("stats-sec03-mgr@magti.ge", Role.MANAGER, "ტექნიკური — ჯგუფი 01");
         User admin = createUser("stats-sec03-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
         // createUser gives everyone the same name, which would make the
@@ -344,17 +343,20 @@ class StatsControllerIntegrationTest {
 
         String managerBody = mockMvc.perform(authed(get("/api/manager/department-stats"), tokenFor(manager)))
                 .andExpect(status().isOk())
-                // Aggregates survive -- this must stay a usable dashboard.
-                .andExpect(jsonPath("$.insights.total_members").isNumber())
+                .andExpect(jsonPath("$.insights.total_members")
+                        .value(org.hamcrest.Matchers.greaterThanOrEqualTo(1)))
                 .andExpect(jsonPath("$.departments[?(@.name == 'ტექნიკური')].member_count")
                         .value(org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.greaterThan(0))))
-                // ...and every per-person list is empty, in every department.
-                .andExpect(jsonPath("$..members[*]").isEmpty())
                 .andReturn().getResponse().getContentAsString();
         assertFalse(managerBody.contains(otherOp.getName()),
                 "SEC-03: another department's operator must not be named in a manager's dashboard");
-        assertFalse(managerBody.contains(ownOp.getName()),
-                "the redaction is unconditional -- not even the manager's own department is named here");
+        assertTrue(managerBody.contains(ownOp.getName()),
+                "the manager's own scoped group must remain usable");
+        var managerDepartments = objectMapper.readTree(managerBody).get("departments");
+        assertEquals(1, managerDepartments.size(), "sibling department rows must be absent, not redacted");
+        assertEquals("ტექნიკური", managerDepartments.get(0).get("name").asText());
+        assertEquals(1, managerDepartments.get(0).get("groups").size(), "sibling group rows must be absent");
+        assertEquals("ჯგუფი 01", managerDepartments.get(0).get("groups").get(0).get("name").asText());
 
         // system_admin is unchanged: still the full named tree.
         String adminBody = mockMvc.perform(authed(get("/api/manager/department-stats"), tokenFor(admin)))
@@ -366,7 +368,8 @@ class StatsControllerIntegrationTest {
 
     @Test
     void criticalOperatorsListsUsersBelowThreshold() throws Exception {
-        User admin = createUser("stats-crit-admin@magti.ge", Role.CONTENT_ADMIN, "All");
+        User admin = createUser("stats-crit-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
+        User contentAdmin = createUser("stats-crit-content@magti.ge", Role.CONTENT_ADMIN, "All");
         User laggingOp = createUser("stats-crit-op@magti.ge", Role.OPERATOR, "All");
         Article article = createArticle("კრიტიკული სტატია");
         createReading(article.getId(), "All"); // not read by anyone -> 0%
@@ -375,6 +378,8 @@ class StatsControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.operators[?(@.user_id == " + laggingOp.getId() + ")]").exists())
                 .andExpect(jsonPath("$.generated_at").exists());
+        mockMvc.perform(authed(get("/api/admin/critical-operators"), tokenFor(contentAdmin)))
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -382,7 +387,8 @@ class StatsControllerIntegrationTest {
         // Uses a made-up, unlikely-to-collide group suffix rather than asserting
         // an exact list size, since get_group_users scopes by department bucket
         // + exact group label across ALL active users on this Oracle instance.
-        User admin = createUser("stats-grp-admin@magti.ge", Role.CONTENT_ADMIN, "All");
+        User admin = createUser("stats-grp-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
+        User contentAdmin = createUser("stats-grp-content@magti.ge", Role.CONTENT_ADMIN, "All");
         User groupMember = createUser("stats-grp-member@magti.ge", Role.OPERATOR, "საინფორმაციო — ჯგუფი ტესტ99");
         User outsider = createUser("stats-grp-outsider@magti.ge", Role.OPERATOR, "საინფორმაციო — ჯგუფი ტესტ98");
 
@@ -405,6 +411,11 @@ class StatsControllerIntegrationTest {
         }
         org.junit.jupiter.api.Assertions.assertTrue(containsMember);
         org.junit.jupiter.api.Assertions.assertFalse(containsOutsider, "a different group suffix must not match");
+        mockMvc.perform(authed(
+                        get("/api/admin/departments/{department}/groups/{groupName}/users",
+                                "საინფორმაციო", "ჯგუფი ტესტ99"),
+                        tokenFor(contentAdmin)))
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -432,8 +443,9 @@ class StatsControllerIntegrationTest {
     void managerCriticalOperatorsAndGroupUsersAreScopedToTheirOwnDepartmentOnly() throws Exception {
         // Regression for bug #312: both drill-downs used to be completely unscoped
         // for managers -- confirmed live, a manager in one group received another
-        // group's (even another department's) named operator data. content_admin
-        // keeps the unscoped org-wide view; only managers get hard-pinned.
+        // group's (even another department's) named operator data. SYSTEM_ADMIN
+        // keeps the unscoped org-wide view; managers get hard-pinned and
+        // content-admin-only callers are denied.
         User manager = createUser("stats-mgr-scope@magti.ge", Role.MANAGER, "ტექნიკური — ჯგუფი 03");
         User ownOp = createUser("stats-mgr-scope-own-op@magti.ge", Role.OPERATOR, "ტექნიკური — ჯგუფი 03");
         User otherGroupOp = createUser("stats-mgr-scope-other-op@magti.ge", Role.OPERATOR, "ტექნიკური — ჯგუფი 01");

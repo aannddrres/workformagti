@@ -74,7 +74,7 @@ export class AppShell {
     {
       label: 'ადმინისტრირება',
       links: [
-        { label: 'მიმოხილვა', path: '/admin/overview', icon: 'fa-gauge-high', allowRoles: ['admin', 'content_admin'] },
+        { label: 'მიმოხილვა', path: '/admin/overview', icon: 'fa-gauge-high', allowRoles: ['admin'] },
         { label: 'კონტენტი', path: '/admin/content', icon: 'fa-file-lines', allowRoles: ['admin', 'content_admin'] },
         { label: 'კატეგორიები', path: '/admin/categories', icon: 'fa-folder-tree', allowRoles: ['admin', 'content_admin'] },
         { label: 'მომხმარებლები და წვდომა', path: '/admin/access', icon: 'fa-user-shield', allowRoles: ['admin'] },

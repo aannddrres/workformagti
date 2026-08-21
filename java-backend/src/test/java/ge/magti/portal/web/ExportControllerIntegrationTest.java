@@ -437,6 +437,20 @@ class ExportControllerIntegrationTest {
                 "an unscoped role's export must be audited as org-wide");
     }
 
+    @Test
+    void manuallyGrantedNonAdminExportAuditRecordsItsScopedDepartment() throws Exception {
+        String ownDept = "ტექნიკური — ექსპორტის ჯგუფი " + System.nanoTime();
+        User contentAdmin = createUser("exp-scope-content@magti.ge", Role.CONTENT_ADMIN, ownDept);
+        contentAdmin.getPermissions().add(Permission.REPORTS_EXPORT.value());
+        userRepository.saveAndFlush(contentAdmin);
+
+        mockMvc.perform(authed(get("/api/export/readings"), tokenFor(contentAdmin)))
+                .andExpect(status().isOk());
+
+        assertEquals(ownDept, latestExportScope(contentAdmin.getId()),
+                "a manually granted export action must not be audited as org-wide");
+    }
+
     /** First CSV field of every data row = User ID (see the exportReadingsCsv header). */
     private static Set<String> csvUserIds(String csv) {
         Set<String> ids = new LinkedHashSet<>();

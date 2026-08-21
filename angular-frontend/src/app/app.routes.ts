@@ -94,7 +94,12 @@ export const routes: Routes = [
         canActivate: [roleGuard(ADMIN_OR_CONTENT_ADMIN)],
         children: [
           { path: '', pathMatch: 'full', redirectTo: 'overview' },
-          { path: 'overview', component: AdminStatsPage, data: { title: 'nav.sidebar.admin_stats' } },
+          {
+            path: 'overview',
+            component: AdminStatsPage,
+            data: { title: 'nav.sidebar.admin_stats' },
+            canActivate: [roleGuard(ADMIN_ONLY)]
+          },
           { path: 'main', pathMatch: 'full', redirectTo: 'overview' },
           { path: 'content', component: AdminContentPage, data: { title: 'nav.sidebar.admin_content' } },
           { path: 'categories', component: AdminCategoriesPage, data: { title: 'nav.sidebar.admin_categories' } },

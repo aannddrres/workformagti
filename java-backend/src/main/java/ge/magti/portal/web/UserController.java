@@ -6,7 +6,6 @@ import ge.magti.portal.compliance.ReadingProgress;
 import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
-import ge.magti.portal.domain.Team;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.ReadStatusRepository;
@@ -394,7 +393,12 @@ public class UserController {
         return ResponseEntity.ok(teams);
     }
 
-    /** Port of create_team (routers/users.py:349-362). */
+    /**
+     * Group identity is directory-owned. Read access remains available via
+     * {@link #getTeams}; interactive creation is fail-closed before the V36
+     * expand window so no row can bypass the later department/external-id
+     * uniqueness contracts. Dev fixtures use the explicit seeder instead.
+     */
     @PostMapping("/api/teams")
     @Transactional
     public ResponseEntity<?> createTeam(@Valid @RequestBody TeamRequest request, @AuthenticationPrincipal User admin) {
@@ -402,14 +406,8 @@ public class UserController {
         if (denial != null) {
             return denial;
         }
-        if (teamRepository.findByName(request.name()).isPresent()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("detail", "ამ სახელით ჯგუფი უკვე არსებობს"));
-        }
-        Team team = new Team();
-        team.setName(request.name());
-        team.setCreatedAt(TbilisiTime.now());
-        Team saved = teamRepository.saveAndFlush(team);
-        return ResponseEntity.ok(TeamResponse.from(saved));
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of("detail", "ჯგუფების შექმნა იმართება ორგანიზაციის კატალოგიდან"));
     }
 
     /** Port of create_user_admin (routers/users.py:394-427). */

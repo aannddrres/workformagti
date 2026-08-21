@@ -357,7 +357,7 @@ public class ExportController {
 
     /**
      * {@code {"scope_department": "..."}} -- the literal department string for
-     * a manager, {@link #SCOPE_ALL} for the unscoped roles. Written through
+     * every scoped non-admin caller, {@link #SCOPE_ALL} only for SYSTEM_ADMIN. Written through
      * Jackson rather than string concatenation because {@code department} is
      * free text out of the DB. A serialization failure must not block an
      * export the caller is entitled to, so it degrades to a null
