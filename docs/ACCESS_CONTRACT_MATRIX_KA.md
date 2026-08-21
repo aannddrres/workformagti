@@ -1,6 +1,6 @@
 # წვდომის კონტრაქტის მატრიცა
 
-**სტატუსი:** Phase 1 — decision/contract lock (მიმდინარე; 7 პუნქტი ღიაა)
+**სტატუსი:** Phase 1 — decision/contract lock **დასრულებულია**; 7 გადაწყვეტილება ღიაა (D-1…D-7)
 **ბოლო განახლება:** 2026-08-21
 **წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 112 endpoint
 **გეგმა:** `docs/ORG_ACCESS_ARCHITECTURE_PLAN_KA.md` (ფაზები, §9.1 სავალდებულო მტკიცებულებები)
@@ -301,9 +301,52 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 მდგომარეობა · უსაფრთხოების მოვლენები · IP მისამართი · `hashed_password` ·
 `token_version`.
 
+**აღსრულება:** `ExportColumnAllowlistTest`. სვეტები დამაგრებულია სამივე
+ფორმატზე ცალ-ცალკე, დამატებით კი დამაგრებულია `ReadingExportRow` — ის ერთადერთი
+shape-ია, საიდანაც სამივე readings-export კითხულობს, ე.ი. ველი, რომელიც იქ ვერ
+გაჩნდება, ვერცერთ ფაილში ვერ მოხვდება. ეს განზრახ ორივე დონეზეა: მარტო
+სათაურების დამაგრება არ დაიჭერდა ველს, რომელიც სხვა ეკრანისთვის დაემატა და
+export-მა ავტომატურად აიტაცა.
+
 > csv სათაურები ინგლისურია, xlsx/pdf — ქართული. ეს **დღევანდელი ფაქტია**, არა
 > გადაწყვეტილება; პროდუქტი ქართულენოვანია, ე.ი. csv-ის სათაურები ცალკე,
 > აშკარა UX გადაწყვეტილებას საჭიროებს — allowlist-ის ჩაკეტვამდე ან მის შემდეგ.
+
+---
+
+## Response-shape კონტრაქტები
+
+Status code-ის შემოწმება ადვილია, ველისა — არა, ამიტომ scope-ის ტესტები
+ჩვეულებრივ პირველს ამოწმებენ. SEC-03 ზუსტად ამ ხარვეზში ჩავარდა: gate სწორი
+იყო, პასუხის **ფორმა** — არა. `members` სია დაიფარა, ხოლო sibling ჯგუფების
+`compliance`/`output_volume`/`critical_count` იმავე payload-ით გავიდა.
+
+ქვემოთ დაფიქსირებულია, რა JSON გასაღებები **შეიძლება** ატაროს თითოეულმა
+პასუხმა, რომელიც თანამშრომლის იდენტობას ეხება. აღსრულება:
+`ResponseShapeContractTest` — ველის დამატებაც და გასაღების გადარქმევაც build-ს
+ტეხს.
+
+| response | JSON გასაღებები | სად ჩანს |
+|---|---|---|
+| `DepartmentMember` | `user_id` · `user_name` · `position` · `read_count` · `required_count` · `percentage` · `is_critical` | department-stats, group drill-down |
+| `DepartmentGroupStats` | `name` · `full_department` · `member_count` · `compliance` · `output_volume` · `critical_count` · `members` | department-stats — **SEC-03-ის გაჟონვის ადგილი** |
+| `DepartmentStats` | `name` · `member_count` · `group_count` · `compliance` · `output_volume` · `critical_count` · `is_empty` · `groups` | department-stats |
+| `TeamMemberCompletion` | `user_id` · `user_name` · `read_count` · `required_count` · `percentage` | team-stats |
+| `GroupMemberCompletion` | `user_id` · `first_name` · `last_name` · `completion_percentage` | group users |
+| `CriticalOperator` | `user_id` · `first_name` · `last_name` · `department` · `overdue_count` | critical-operators |
+| `UserProgressItemResponse` | `user_id` · `user_name` · `department` · `read_count` · `required_count` · `percentage` | user-progress (`ORG`) |
+| `ArticleReadReceiptRowResponse` | `operator_id` · `operator_name` · **`operator_email`** · `department` · `read_at` · `article_version` · `has_read` · `is_late` · `deadline` · `status` | read-receipts — **D-2** |
+| `ArticleViewRowResponse` | `operator_id` · `operator_name` · **`operator_email`** · `department` · `article_version` · `viewed_at` | article views — **D-2** |
+| `LeaderboardEntryResponse` | `user_id` · `user_name` · `department` · `score` · `rank` | leaderboard — **D-1** |
+| `GroupLeaderResponse` | `id` · `name` | group-leaders |
+
+**წესი:** ამ ცხრილში ველის დამატება ნიშნავს კითხვას „ვის აქვს მისი ნახვის
+უფლება და რომელ scope-ზე?" — და პასუხი მატრიცაში უნდა ჩაიწეროს **ველის
+გაშვებამდე**, არა მას შემდეგ, რაც ვინმე მას პასუხში შეამჩნევს.
+
+> `LeaderboardEntryResponse` განზრახ არის დამაგრებული, სანამ **D-1** ღიაა:
+> ფორმა თავად არის გადაწყვეტილება. თუ D-1 ანონიმიზაციით დაიხურება, სწორედ ეს
+> ტესტი შეიცვლება — ე.ი. ცვლილება review-ში გამოჩნდება და არა მდუმარედ.
 
 ---
 

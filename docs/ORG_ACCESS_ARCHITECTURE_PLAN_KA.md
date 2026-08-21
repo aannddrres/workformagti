@@ -288,10 +288,12 @@ UI-ის დამალვა მონაცემთა უსაფრთ�
    გარეშე პერსონალური/ორგანიზაციული მონაცემი არ მიეწოდება. `POST /api/teams` და
    სხვა org mutation endpoint-ებიც აქვე იკეტება, `V36`-ის deploy-მდე.
 1. **Decision/contract lock:** permission/scope matrix, response-shape contracts,
-   export allowlist და external production gates. **მიმდინარეობს** —
+   export allowlist და external production gates. **დასრულებულია** —
    `docs/ACCESS_CONTRACT_MATRIX_KA.md` ფარავს სამივე backend surface-ს
    (112 endpoint) და მას `AccessContractCoverageTest` აკავშირებს source-თან;
    7 ღია გადაწყვეტილება (D-1…D-7) და 6 გარე gate (G-1…G-6) იქვეა ჩამოთვლილი.
+   export-ის allowlist-სა და employee-data პასუხების ფორმას აღასრულებს
+   `ExportColumnAllowlistTest` და `ResponseShapeContractTest`.
 2. **Schema expand + backfill:** Oracle-compatible `V36`, ნორმალიზებული org
    tables, format-preserving department mapper, manager→leadership candidate
    backfill და reconciliation report. `V37` მხოლოდ წარმატებული validation-ის
