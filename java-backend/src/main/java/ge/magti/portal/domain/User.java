@@ -82,6 +82,31 @@ public class User {
      * {@code V33__article_optimistic_lock.sql} for the same distinction
      * drawn on Article.
      */
+    /**
+     * A system admin's explicit answer to "is this person subject to mandatory
+     * reading?", overriding whatever the eligibility policy would decide.
+     *
+     * <p>Three-valued on purpose, and {@code null} is the normal case: null
+     * means "follow the policy", TRUE forces the person in, FALSE forces them
+     * out. A two-valued column would have to be initialised to the policy's
+     * current answer for every existing row, which freezes today's rule as
+     * explicit data and makes a later policy change a no-op for everyone who
+     * predates it.
+     *
+     * <p>Nothing reads this yet -- {@code ComplianceEligibilityService}
+     * (Phase 5) does. V36 adds the column so the schema and the policy can
+     * ship in separate releases.
+     */
+    @Column(name = "compliance_override")
+    private Boolean complianceOverride;
+
+    // NOTE: V36 also adds users.lock_version, and it is deliberately NOT
+    // mapped as @Version here. Doing so would turn on optimistic locking for
+    // every User save in the application at once, including paths that save a
+    // detached principal, and Phase 2's contract is "schema expand, behavior
+    // unchanged". Phase 6 maps it, together with the delta-based permissions
+    // endpoint that is the reason it exists.
+
     @Column(name = "token_version", nullable = false)
     private long tokenVersion = 0L;
 
@@ -178,6 +203,14 @@ public class User {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public Boolean getComplianceOverride() {
+        return complianceOverride;
+    }
+
+    public void setComplianceOverride(Boolean complianceOverride) {
+        this.complianceOverride = complianceOverride;
     }
 
     public long getTokenVersion() {

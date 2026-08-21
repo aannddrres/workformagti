@@ -29,11 +29,33 @@ public class Team {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "name", nullable = false, unique = true, length = 200)
+    /**
+     * No longer {@code unique = true}: V36 drops the global
+     * {@code uq_teams_name}, because the target model has five groups per
+     * department and group names repeat between departments by design.
+     * V37 restores uniqueness as {@code (department_id, name)}.
+     */
+    @Column(name = "name", nullable = false, length = 200)
     private String name;
 
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
+
+    /** Nullable until V37; see {@link ge.magti.portal.domain.Department}. */
+    @Column(name = "department_id")
+    private Long departmentId;
+
+    @Column(name = "stable_key", length = 50)
+    private String stableKey;
+
+    @Column(name = "ad_external_id", length = 200)
+    private String adExternalId;
+
+    @Column(name = "is_active", nullable = false)
+    private boolean active = true;
+
+    @Column(name = "synced_at")
+    private OffsetDateTime syncedAt;
 
     public Long getId() {
         return id;
@@ -57,5 +79,45 @@ public class Team {
 
     public void setCreatedAt(OffsetDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Long getDepartmentId() {
+        return departmentId;
+    }
+
+    public void setDepartmentId(Long departmentId) {
+        this.departmentId = departmentId;
+    }
+
+    public String getStableKey() {
+        return stableKey;
+    }
+
+    public void setStableKey(String stableKey) {
+        this.stableKey = stableKey;
+    }
+
+    public String getAdExternalId() {
+        return adExternalId;
+    }
+
+    public void setAdExternalId(String adExternalId) {
+        this.adExternalId = adExternalId;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
+    public OffsetDateTime getSyncedAt() {
+        return syncedAt;
+    }
+
+    public void setSyncedAt(OffsetDateTime syncedAt) {
+        this.syncedAt = syncedAt;
     }
 }

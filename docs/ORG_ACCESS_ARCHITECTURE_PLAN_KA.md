@@ -298,6 +298,11 @@ UI-ის დამალვა მონაცემთა უსაფრთ�
    tables, format-preserving department mapper, manager→leadership candidate
    backfill და reconciliation report. `V37` მხოლოდ წარმატებული validation-ის
    შემდეგ, ცალკე release-ში ამკაცრებს constraints-ს.
+   **კოდი დაწერილია** — `V36__org_structure_expand.sql`, `domain/Department`,
+   `domain/LeadershipAssignment`, `domain/UserPermissionOverride`,
+   `org/OrgBackfillPlanner` და `org/OrgBackfillService`.
+   `V37` განზრახ **ჯერ არ არსებობს** (`V36MigrationShapeTest.v37IsNotShippedYet`).
+   `V36`-ის რეალურ Oracle-ზე გაშვება ჯერ დარჩენილია.
 3. **Policy layer, shadow mode:** `CapabilityService`, fail-closed
    `ScopeResolver`, compliance policy; ძველი და ახალი გადაწყვეტილებების diff
    ითვლება, სანამ enforcement ჩაირთვება.

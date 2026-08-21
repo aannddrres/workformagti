@@ -13,4 +13,9 @@ public interface TeamRepository extends JpaRepository<Team, Long> {
 
     /** Mirrors get_teams' ordering (routers/users.py:346). */
     List<Team> findAllByOrderByName();
+
+    /** Group names repeat between departments since V36 dropped uq_teams_name. */
+    Optional<Team> findByDepartmentIdAndName(Long departmentId, String name);
+
+    List<Team> findByDepartmentId(Long departmentId);
 }
