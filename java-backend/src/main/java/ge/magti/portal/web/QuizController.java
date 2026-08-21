@@ -1,6 +1,5 @@
 package ge.magti.portal.web;
 
-import ge.magti.portal.compliance.ComplianceCalculator;
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.ArticleTargetDepartment;
 import ge.magti.portal.domain.AuditLog;
@@ -18,7 +17,6 @@ import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.QuizAnswerRepository;
 import ge.magti.portal.repository.QuizAttemptRepository;
 import ge.magti.portal.repository.QuizQuestionRepository;
-import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.util.DepartmentMatcher;
 import ge.magti.portal.util.TbilisiTime;
 import org.springframework.http.HttpStatus;
@@ -30,11 +28,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -68,7 +63,6 @@ public class QuizController {
     private final QuizAnswerRepository quizAnswerRepository;
     private final QuizAttemptRepository quizAttemptRepository;
     private final AuditLogRepository auditLogRepository;
-    private final UserRepository userRepository;
     private final KnowledgeScoreService knowledgeScoreService;
 
     public QuizController(
@@ -78,7 +72,6 @@ public class QuizController {
             QuizAnswerRepository quizAnswerRepository,
             QuizAttemptRepository quizAttemptRepository,
             AuditLogRepository auditLogRepository,
-            UserRepository userRepository,
             KnowledgeScoreService knowledgeScoreService) {
         this.articleRepository = articleRepository;
         this.targetDepartmentRepository = targetDepartmentRepository;
@@ -86,7 +79,6 @@ public class QuizController {
         this.quizAnswerRepository = quizAnswerRepository;
         this.quizAttemptRepository = quizAttemptRepository;
         this.auditLogRepository = auditLogRepository;
-        this.userRepository = userRepository;
         this.knowledgeScoreService = knowledgeScoreService;
     }
 
@@ -246,39 +238,25 @@ public class QuizController {
         return ResponseEntity.ok(KnowledgeScoreResponse.from(user.getId(), result));
     }
 
-    @GetMapping("/api/knowledge-leaderboard")
-    public ResponseEntity<?> getKnowledgeLeaderboard(
-            @RequestParam(defaultValue = "department") String scope, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
-        if (denial != null) {
-            return denial;
-        }
-
-        List<User> candidates = ("team".equals(scope) && user.getTeamId() != null)
-                ? userRepository.findByActiveTrueAndTeamId(user.getTeamId())
-                : userRepository.findByActiveTrueAndDepartment(user.getDepartment());
-        List<User> eligible = candidates.stream()
-                .filter(u -> !ComplianceCalculator.MANAGEMENT_ROLES.contains(u.getRole()))
-                .toList();
-
-        List<LeaderboardEntryResponse> entries = new ArrayList<>();
-        for (User candidate : eligible) {
-            KnowledgeScoreResult result = knowledgeScoreService.compute(candidate.getId());
-            if (result.score() == 0) {
-                continue;
-            }
-            entries.add(new LeaderboardEntryResponse(
-                    candidate.getId(), candidate.getName(), candidate.getDepartment(), result.score(), 0));
-        }
-        entries.sort(Comparator.comparingInt(LeaderboardEntryResponse::score).reversed());
-        List<LeaderboardEntryResponse> ranked = new ArrayList<>(entries.size());
-        for (int i = 0; i < entries.size(); i++) {
-            LeaderboardEntryResponse e = entries.get(i);
-            ranked.add(new LeaderboardEntryResponse(e.userId(), e.userName(), e.department(), e.score(), i + 1));
-        }
-
-        return ResponseEntity.ok(new LeaderboardResponse(ranked, TbilisiTime.now()));
-    }
+    // GET /api/knowledge-leaderboard was REMOVED here (access contract D-1,
+    // decided 2026-08-21).
+    //
+    // It returned user_id, user_name, department and knowledge score for every
+    // eligible person in the caller's department to ANY authenticated
+    // operator -- no capability, no leadership assignment. Plan §8 says only a
+    // SYSTEM_ADMIN bypass or an active leadership assignment may produce a
+    // scope over other employees' data, and a colleague's quiz performance is
+    // exactly that. It also appeared in no confirmed product document, so
+    // there was no product decision holding it up.
+    //
+    // Phase 2 forced the question rather than deferring it: the endpoint's
+    // scope="team" branch reads users.team_id, which is populated on zero rows
+    // today and therefore silently falls through to the department branch. The
+    // V36 backfill fills that column, so the branch would have started working
+    // for the first time as a side effect of a schema migration.
+    //
+    // The owner's call was that a leaderboard is not a feature they need. The
+    // personal score above stays -- it is the caller's own data.
 
     private List<QuizQuestion> loadQuestionsWithAnswers(Long articleId) {
         List<QuizQuestion> questions = quizQuestionRepository.findByArticleIdOrderByPosition(articleId);

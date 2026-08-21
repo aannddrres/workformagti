@@ -70,6 +70,17 @@ public class ExportJob {
     @Column(name = "expires_at", nullable = false)
     private double expiresAt;
 
+    /**
+     * Who asked for this export (V36, access contract D-3).
+     *
+     * <p>Nullable: rows built before that migration have no owner recorded.
+     * {@code ExportController} reads an unknown owner as "not yours" for
+     * everyone except SYSTEM_ADMIN, so those rows fail closed and age out on
+     * the existing TTL instead of needing a backfill.
+     */
+    @Column(name = "owner_user_id")
+    private Long ownerUserId;
+
     public String getId() {
         return id;
     }
@@ -108,6 +119,14 @@ public class ExportJob {
 
     public void setFilename(String filename) {
         this.filename = filename;
+    }
+
+    public Long getOwnerUserId() {
+        return ownerUserId;
+    }
+
+    public void setOwnerUserId(Long ownerUserId) {
+        this.ownerUserId = ownerUserId;
     }
 
     public double getExpiresAt() {

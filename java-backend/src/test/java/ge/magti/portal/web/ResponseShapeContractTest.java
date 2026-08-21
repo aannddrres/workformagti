@@ -137,21 +137,11 @@ class ResponseShapeContractTest {
                 wireFieldsOf(ArticleViewRowResponse.class));
     }
 
-    // ---- open decision (matrix decision D-1) ----------------------------
-
-    /**
-     * Every authenticated operator reads this one, with no capability and no
-     * leadership scope -- the matrix's D-1. Pinned deliberately while that
-     * decision is open: the shape is the decision. If D-1 resolves to
-     * anonymisation, this test is what has to change, which makes the change
-     * visible in review instead of silent.
-     */
-    @Test
-    void theKnowledgeLeaderboardStillNamesPeople() {
-        assertEquals(
-                List.of("user_id", "user_name", "department", "score", "rank"),
-                wireFieldsOf(LeaderboardEntryResponse.class));
-    }
+    // D-1 resolved 2026-08-21: /api/knowledge-leaderboard was removed, so
+    // LeaderboardEntryResponse no longer exists and has no shape to pin. The
+    // reason it was pinned in the first place is worth keeping: while a
+    // decision about a response is open, the shape IS the decision, and
+    // freezing it makes resolving it visible in review instead of silent.
 
     @Test
     void groupLeaderRowsCarryNoContactDetails() {

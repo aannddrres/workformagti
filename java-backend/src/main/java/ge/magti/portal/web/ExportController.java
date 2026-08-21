@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.ExportJob;
 import ge.magti.portal.domain.Permission;
+import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.export.CsvExportBuilder;
 import ge.magti.portal.export.ExportJobWorker;
@@ -161,7 +162,7 @@ public class ExportController {
                 "თანამშრომელი", "დეპარტამენტი", "მასალის ტიპი", "მასალის ID", "სტატუსი", "წაკითხვის თარიღი", "ვადა");
         List<List<Object>> tableRows = readingRowsForSpreadsheet(rows);
 
-        String jobId = enqueueJob(tableRows, headers, "Compliance", "xlsx");
+        String jobId = enqueueJob(admin, tableRows, headers, "Compliance", "xlsx");
         return ResponseEntity.ok(new ExportJobResponse(jobId));
     }
 
@@ -184,7 +185,7 @@ public class ExportController {
         List<String> headers = List.of("თანამშრომელი", "დეპარტამენტი", "ტიპი", "ID", "სტატუსი", "წაკითხვა", "ვადა");
         List<List<Object>> tableRows = readingRowsForSpreadsheet(rows);
 
-        String jobId = enqueueJob(tableRows, headers, "სავალდებულოდ გასაცნობი სტატუსი", "pdf");
+        String jobId = enqueueJob(user, tableRows, headers, "სავალდებულოდ გასაცნობი სტატუსი", "pdf");
         return ResponseEntity.ok(new ExportJobResponse(jobId));
     }
 
@@ -206,7 +207,7 @@ public class ExportController {
             tableRows.add(List.of(entry.getKey(), String.valueOf(total), String.valueOf(read), formatPercent(read, total)));
         }
 
-        String jobId = enqueueJob(tableRows, headers, "გუნდის სტატისტიკა — წაკითხვის პროცენტი", "pdf");
+        String jobId = enqueueJob(user, tableRows, headers, "გუნდის სტატისტიკა — წაკითხვის პროცენტი", "pdf");
         return ResponseEntity.ok(new ExportJobResponse(jobId));
     }
 
@@ -218,7 +219,10 @@ public class ExportController {
             return denial;
         }
         Optional<ExportJob> job = exportJobRepository.findById(jobId);
-        if (job.isEmpty()) {
+        // Someone else's job is answered exactly like a job that does not
+        // exist. Distinguishing them would turn this endpoint into an oracle
+        // for which job ids are real.
+        if (job.isEmpty() || !maySeeJob(user, job.get())) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", "საექსპორტო დავალება ვერ მოიძებნა"));
         }
         return ResponseEntity.ok(new ExportStatusResponse(jobId, job.get().getStatus()));
@@ -257,6 +261,13 @@ public class ExportController {
                     .body(Map.of("detail", "ექსპორტის ვადა გავიდა — გთხოვთ, თავიდან შექმნათ", "status", "expired"));
         }
         ExportJob job = jobOpt.get();
+        if (!maySeeJob(user, job)) {
+            // Same 410 the expired and unknown-id cases get, for the same
+            // reason: the response must not reveal that this id belongs to a
+            // real export owned by somebody else.
+            return ResponseEntity.status(HttpStatus.GONE)
+                    .body(Map.of("detail", "ექსპორტის ვადა გავიდა — გთხოვთ, თავიდან შექმნათ", "status", "expired"));
+        }
         if (job.getExpiresAt() < nowEpochSeconds()) {
             return ResponseEntity.status(HttpStatus.GONE)
                     .body(Map.of("detail", "ექსპორტის ვადა გავიდა — გთხოვთ, თავიდან შექმნათ", "status", "expired"));
@@ -324,10 +335,12 @@ public class ExportController {
                 .toList();
     }
 
-    private String enqueueJob(List<List<Object>> rows, List<String> headers, String title, String exportType) {
+    private String enqueueJob(
+            User owner, List<List<Object>> rows, List<String> headers, String title, String exportType) {
         String jobId = UUID.randomUUID().toString();
         ExportJob job = new ExportJob();
         job.setId(jobId);
+        job.setOwnerUserId(owner == null ? null : owner.getId());
         job.setStatus("processing");
         job.setPath(null);
         job.setExpiresAt(System.currentTimeMillis() / 1000.0 + ExportJobWorker.EXPORT_JOB_TTL_SECONDS);
@@ -419,6 +432,27 @@ public class ExportController {
      * that build employee data. Leaving those on the permission alone would
      * make the weaker rule the reachable one.
      */
+    /**
+     * Refuses a job that belongs to somebody else (access contract D-3).
+     *
+     * <p>{@link #requireReportsExport} answers "may this caller export"; it
+     * cannot answer "is this particular file theirs", and the two were
+     * conflated until now -- anyone holding a job id could download anyone
+     * else's export. Phase 0 narrowed who reaches the endpoint at all, which
+     * left the narrower case this closes: a group leader taking the org-wide
+     * file a system admin had just built.
+     *
+     * <p>An unknown owner is refused rather than allowed. Rows built before
+     * V36 have no owner recorded, and "we do not know whose this is" must not
+     * read as "therefore yours".
+     */
+    private static boolean maySeeJob(User caller, ExportJob job) {
+        if (caller.getRole() == Role.SYSTEM_ADMIN) {
+            return true;
+        }
+        return job.getOwnerUserId() != null && job.getOwnerUserId().equals(caller.getId());
+    }
+
     private ResponseEntity<Map<String, String>> requireReportsExport(User user) {
         ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
         if (authFailure != null) {

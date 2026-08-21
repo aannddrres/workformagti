@@ -1,8 +1,8 @@
 # წვდომის კონტრაქტის მატრიცა
 
-**სტატუსი:** Phase 1 — decision/contract lock **დასრულებულია**; 7 გადაწყვეტილება ღიაა (D-1…D-7)
+**სტატუსი:** Phase 1 — decision/contract lock **დასრულებულია**; 5 გადაწყვეტილება ღიაა (D-2, D-4…D-7); D-1 და D-3 დახურულია
 **ბოლო განახლება:** 2026-08-21
-**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 112 endpoint
+**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 111 endpoint
 **გეგმა:** `docs/ORG_ACCESS_ARCHITECTURE_PLAN_KA.md` (ფაზები, §9.1 სავალდებულო მტკიცებულებები)
 
 ეს ფაილი არის ორგანიზაციული წვდომის **კონტრაქტი**: თითოეული backend endpoint-ისთვის
@@ -71,10 +71,10 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 ## ციფრებში
 
-- **112** endpoint;
-- **29** ატარებს თანამშრომლის საიდენტიფიკაციო მონაცემს (`PII = yes`);
+- **111** endpoint (D-1-ის ამოღების შემდეგ);
+- **28** ატარებს თანამშრომლის საიდენტიფიკაციო მონაცემს (`PII = yes`);
 - **11** უკვე leadership-scoped;
-- **7** ღია გადაწყვეტილება.
+- **5** ღია გადაწყვეტილება (2 დახურულია).
 
 ---
 
@@ -204,7 +204,7 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | `GET /api/notifications/summary` | `PlatformController.getNotificationsSummary` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი მონაცემი. |
 | `GET /api/tags` | `PlatformController.getTags` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
 
-### Quiz (6)
+### Quiz (5)
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
@@ -212,7 +212,6 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | `GET /api/articles/{id}/quiz/admin` | `QuizController.getArticleQuizAdmin` | `requireContentAdmin` | content.manage `NEW` | `ORG-CONTENT` | no | დღეს role-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
 | `PUT /api/articles/{id}/quiz/admin` | `QuizController.updateArticleQuizAdmin` | `requireContentAdmin` | content.manage `NEW` | `ORG-CONTENT` | no | დღეს role-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
 | `POST /api/articles/{id}/quiz/attempt` | `QuizController.submitArticleQuizAttempt` | `requireAuthenticated` | AUTH | `SELF` | no | compliance-ის მტკიცებულება; retention purge-იდან გამორიცხული. |
-| `GET /api/knowledge-leaderboard` | `QuizController.getKnowledgeLeaderboard` | `requireAuthenticated` | ⚠ | `⚠` | **yes** | **გადასაწყვეტი.** ნებისმიერი ოპერატორი ხედავს თანაკოლეგების სახელს + knowledge score-ს scope-ის მფლობელობის გარეშე. `scope=team` `team_id`-ს იყენებს, რომელიც 0 row-ზეა შევსებული, ე.ი. დღეს ყოველთვის department-ზე ჩამოდის. |
 | `GET /api/users/me/knowledge-score` | `QuizController.getMyKnowledgeScore` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი მონაცემი. |
 
 ### Search (3)
@@ -337,7 +336,6 @@ Status code-ის შემოწმება ადვილია, ველ�
 | `UserProgressItemResponse` | `user_id` · `user_name` · `department` · `read_count` · `required_count` · `percentage` | user-progress (`ORG`) |
 | `ArticleReadReceiptRowResponse` | `operator_id` · `operator_name` · **`operator_email`** · `department` · `read_at` · `article_version` · `has_read` · `is_late` · `deadline` · `status` | read-receipts — **D-2** |
 | `ArticleViewRowResponse` | `operator_id` · `operator_name` · **`operator_email`** · `department` · `article_version` · `viewed_at` | article views — **D-2** |
-| `LeaderboardEntryResponse` | `user_id` · `user_name` · `department` · `score` · `rank` | leaderboard — **D-1** |
 | `GroupLeaderResponse` | `id` · `name` | group-leaders |
 
 **წესი:** ამ ცხრილში ველის დამატება ნიშნავს კითხვას „ვის აქვს მისი ნახვის
@@ -355,23 +353,22 @@ Status code-ის შემოწმება ადვილია, ველ�
 ეს შვიდი პუნქტი Phase 2-ის დაწყებას **არ** აჩერებს (schema მათზე არ არის
 დამოკიდებული), მაგრამ Phase 4-ის cutover-მდე უნდა დაიხუროს.
 
-### D-1. `GET /api/knowledge-leaderboard` — თანაკოლეგების სახელები scope-ის გარეშე
+### D-1. `GET /api/knowledge-leaderboard` — ✅ გადაწყვეტილია (2026-08-21)
 
-`QuizController` აბრუნებს `userId` · `userName` · `department` · `score`-ს
-მომძახებლის დეპარტამენტის **ყველა** eligible თანამშრომელზე, მხოლოდ
-`requireAuthenticated`-ით. ე.ი. ჩვეულებრივი ოპერატორი კითხულობს კოლეგების
-პერსონალურ შედეგებს — არც capability, არც leadership assignment.
+**გადაწყვეტილება: endpoint ამოღებულია.** მფლობელის პასუხი: leaderboard, როგორც
+ფუნქცია, არ არის საჭირო.
 
-გეგმის §8-ს ეს ეწინააღმდეგება, თუმცა შესაძლოა განზრახ „gamification" იყოს:
-დადასტურებულ product scope-ში (`PRODUCT_UX_REQUIREMENTS_KA.md`) leaderboard არ ფიგურირებს.
+წაიშალა `QuizController`-ის endpoint, `LeaderboardEntryResponse` და
+`LeaderboardResponse`. `GET /api/users/me/knowledge-score` **რჩება** — ის
+მომძახებლის საკუთარი მონაცემია (`SELF`).
 
-*ვარიანტები:* (ა) ამოღება; (ბ) ანონიმიზაცია — მხოლოდ საკუთარი ადგილი + განაწილება;
-(გ) შენარჩუნება აშკარა პროდუქტული და DPO გადაწყვეტილებით.
-**რეკომენდაცია: (ბ)** — ინარჩუნებს მოტივაციურ ფუნქციას პერსონალური მონაცემის გავრცელების გარეშე.
+რატომ ამოვიდა ეს Phase 2-ზე და არა მოგვიანებით: endpoint-ის `scope=team`
+კითხულობდა `users.team_id`-ს, რომელიც 0 row-ზეა შევსებული და მდუმარედ
+department-ზე ჩამოდიოდა. `V36`-ის backfill ამ სვეტს ავსებს, ე.ი. ეს განშტოება
+პირველად ამუშავდებოდა **schema მიგრაციის გვერდით ეფექტად**, პროდუქტული
+გადაწყვეტილების გარეშე.
 
-> დამატებით: `scope=team` ეყრდნობა `user.getTeamId()`-ს, რომელიც დღეს **0 row-ზეა**
-> შევსებული, ე.ი. პარამეტრი მდუმარედ department-ზე ჩამოდის. Phase 2-ის შემდეგ ეს
-> ქცევა შეიცვლება — რაც ნიშნავს, რომ D-1 backfill-ამდე უნდა გადაწყდეს.
+G-3 (DPO gate) ამით იხურება — გასავრცელებელი პერსონალური მონაცემი აღარ არსებობს.
 
 ### D-2. `content.evidence` — read-receipts / views / feedback
 
@@ -389,13 +386,18 @@ Status code-ის შემოწმება ადვილია, ველ�
 **რეკომენდაცია: (გ)** — ავტორს რჩება ის, რაც რეალურად სჭირდება (რამდენმა გაიცნო),
 სახელები კი იმ წესს ემორჩილება, რომელსაც დანარჩენი თანამშრომლის მონაცემი.
 
-### D-3. `GET /api/export/download/{jobId}` — მფლობელი არ მოწმდება
+### D-3. `GET /api/export/download/{jobId}` — ✅ გადაწყვეტილია (2026-08-21)
 
-job id-ის მცოდნე ნებისმიერი უფლებამოსილი მომძახებელი ჩამოტვირთავს **სხვის**
-export-ს. Phase 0-მდე არსებული ხვრელი; ახალმა gate-მა წრე manager/admin-ზე
-დაავიწროვა, მაგრამ manager კვლავ ჩამოტვირთავს admin-ის org-wide ფაილს.
-**რეკომენდაცია:** `export_jobs`-ს დაემატოს `owner_user_id` (`V36`), download კი
-მფლობელზე შემოწმდეს. მცირე ცვლილება, და ბუნებრივად ჯდება `V36`-ში.
+**გადაწყვეტილება: `export_jobs.owner_user_id` დაემატა `V36`-ს**, ხოლო download
+და status მფლობელზე მოწმდება (`SYSTEM_ADMIN` bypass-ით).
+
+სვეტი nullable-ია: `V36`-მდე შექმნილ row-ებს მფლობელი არ აქვთ ჩაწერილი.
+უცნობი მფლობელი იკითხება როგორც „**არა შენი**", არა როგორც „შენი" — ე.ი. ძველი
+row-ები fail-closed რჩება და არსებული TTL-ით ცვივა, backfill-ის გარეშე.
+
+სხვისი job და არარსებული job **ერთნაირად** პასუხობს (`404` status-ზე, `410`
+download-ზე): განსხვავებული პასუხი endpoint-ს აქცევდა oracle-ად იმისთვის,
+რომელი job id არსებობს.
 
 ### D-4. `GET /uploads/{filename}` — ავტორიზაცია არ მოითხოვება
 
@@ -430,7 +432,7 @@ scope-ის მიგრაციას მაინც იღებს — ყ
 |---|---|---|---|
 | G-1 | უფროსის export-ში თანამშრომლის სახელების დაშვება | იურიდიული / DPO | 🔲 ღიაა |
 | G-2 | export-ის statistical სვეტების საბოლოო whitelist | იურიდიული / DPO | 🔲 ღიაა |
-| G-3 | D-1 (leaderboard) — პერსონალური მონაცემის გავრცელება თანაკოლეგებზე | იურიდიული / DPO + product owner | 🔲 ღიაა |
+| G-3 | D-1 (leaderboard) — პერსონალური მონაცემის გავრცელება თანაკოლეგებზე | იურიდიული / DPO + product owner | ✅ ჩაკეტილია — endpoint ამოღებულია |
 | G-4 | departments/groups/users stable external ID-ები | Magti IT | 🔲 ღიაა — `QUESTIONS_FOR_IT.md` §2 |
 | G-5 | ჯგუფის ცვლილებების feed და deactivation semantics | Magti IT | 🔲 ღიაა — `QUESTIONS_FOR_IT.md` §2 |
 | G-6 | დანართის ავტორიზაცია (D-4) | Magti IT + product owner | 🔲 ღიაა — `QUESTIONS_FOR_IT.md` §9 |

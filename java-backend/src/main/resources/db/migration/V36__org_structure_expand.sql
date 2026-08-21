@@ -200,3 +200,26 @@ ALTER TABLE users ADD (
     lock_version        NUMBER DEFAULT 0 NOT NULL,
     CONSTRAINT ck_users_compliance_override CHECK (compliance_override IN (0, 1))
 );
+
+-- ---------------------------------------------------------------------------
+-- 6. export_jobs gains an owner
+-- ---------------------------------------------------------------------------
+-- Access contract D-3, decided 2026-08-21. GET /api/export/download/{jobId}
+-- checked that the caller may export, never that this export was theirs, so
+-- anyone holding a job id could take somebody else's file. Phase 0 narrowed
+-- who can reach the endpoint at all, which left the narrower case: a group
+-- leader downloading the org-wide file a system admin had just built.
+--
+-- Nullable, because rows created before this migration have no owner to
+-- record. That is not a gap -- ExportController treats an unknown owner as
+-- "not yours" for everyone except SYSTEM_ADMIN, so the pre-existing rows fail
+-- closed and age out on the existing TTL rather than needing a backfill.
+--
+-- ON DELETE SET NULL, matching article_read_receipts (V19): deleting a user
+-- must not delete the audit-relevant fact that an export happened.
+ALTER TABLE export_jobs ADD (
+    owner_user_id NUMBER,
+    CONSTRAINT fk_export_jobs_owner FOREIGN KEY (owner_user_id) REFERENCES users (id) ON DELETE SET NULL
+);
+
+CREATE INDEX ix_export_jobs_owner ON export_jobs (owner_user_id);
