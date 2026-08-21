@@ -266,6 +266,27 @@ public class StatsController {
      * removing the builder's empty whitelist placeholders means sibling
      * department/group rows are absent from the wire response, not merely
      * stripped of named members. SYSTEM_ADMIN keeps the org-wide dashboard.
+     *
+     * <p><b>This supersedes the SEC-03 fix (audit OPUS5-1, option (a),
+     * user-decided 2026-08-14)</b> and deliberately gives a manager something
+     * back, so the change is worth reading as a whole rather than as a
+     * loosening. That fix kept the dashboard org-wide and blanked every
+     * group's {@code members} list unconditionally, on the reasoning that the
+     * leak was the per-person rows and that a department's overall percentage
+     * is not personal data. The second half of that reasoning did not hold:
+     * per-group {@code compliance}, {@code output_volume} and
+     * {@code critical_count} for every sibling group in every department
+     * survived the redaction, so a group leader still read across the whole
+     * company. Scoping the query removes those rows at the source, which in
+     * turn makes the blanket redaction unnecessary -- and product rule #13
+     * (ORG_ACCESS_ARCHITECTURE_PLAN_KA.md §2) explicitly grants a group
+     * leader the names and full statistics of their own group's members. So
+     * the named rows return, for that scope only.
+     *
+     * <p>{@code DepartmentStatsBuilder.withoutMembers} and
+     * {@code DepartmentGroupStats.withMembers} were deleted with the branch
+     * that called them; this paragraph is where their decision record now
+     * lives.
      */
     @GetMapping("/api/manager/department-stats")
     public ResponseEntity<?> getDepartmentStats(@AuthenticationPrincipal User user) {

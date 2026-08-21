@@ -374,7 +374,7 @@ class ExportControllerIntegrationTest {
         assertFalse(managerIds.contains(String.valueOf(otherOperator.getId())),
                 "SEC-02: manager's export must not carry another department's operator");
 
-        // content_admin/system_admin behaviour is unchanged: still org-wide.
+        // system_admin behaviour is unchanged: still org-wide.
         Set<String> adminIds = csvUserIds(mockMvc.perform(authed(get("/api/export/readings"), tokenFor(admin)))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString());
@@ -437,18 +437,24 @@ class ExportControllerIntegrationTest {
                 "an unscoped role's export must be audited as org-wide");
     }
 
+    /**
+     * The end-to-end half of {@code ExportControllerScopeGateTest}: over real
+     * HTTP, with the permission genuinely persisted on a real row, granting
+     * {@code reports.export} to someone who leads nobody produces no export
+     * and no audit row -- not a smaller one.
+     */
     @Test
-    void manuallyGrantedNonAdminExportAuditRecordsItsScopedDepartment() throws Exception {
+    void aGrantedExportPermissionWithoutLeadershipIsRefusedAndUnaudited() throws Exception {
         String ownDept = "ტექნიკური — ექსპორტის ჯგუფი " + System.nanoTime();
         User contentAdmin = createUser("exp-scope-content@magti.ge", Role.CONTENT_ADMIN, ownDept);
         contentAdmin.getPermissions().add(Permission.REPORTS_EXPORT.value());
         userRepository.saveAndFlush(contentAdmin);
 
         mockMvc.perform(authed(get("/api/export/readings"), tokenFor(contentAdmin)))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden());
 
-        assertEquals(ownDept, latestExportScope(contentAdmin.getId()),
-                "a manually granted export action must not be audited as org-wide");
+        assertEquals(0L, exportAuditRowCount(contentAdmin.getId()),
+                "a refused export must leave no audit row claiming it happened");
     }
 
     /** First CSV field of every data row = User ID (see the exportReadingsCsv header). */
@@ -462,6 +468,13 @@ class ExportControllerIntegrationTest {
             ids.add(lines[i].split(",")[0].replace("\"", "").strip());
         }
         return ids;
+    }
+
+    private long exportAuditRowCount(Long adminId) {
+        return entityManager.createQuery(
+                        "select count(a) from AuditLog a where a.adminId = :adminId and a.action = 'EXPORT'", Long.class)
+                .setParameter("adminId", adminId)
+                .getSingleResult();
     }
 
     private String latestExportScope(Long adminId) throws Exception {

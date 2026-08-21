@@ -97,13 +97,23 @@ class ExportQueryServiceScopingTest {
         assertEquals(List.of(1L, 2L, 3L), rows.stream().map(ReadingExportRow::userId).sorted().toList());
     }
 
+    /**
+     * The inner of two layers, and not the product rule on its own.
+     *
+     * <p>{@code ExportController.requireReportsExport} refuses these callers
+     * outright ({@code ExportControllerScopeGateTest}), because holding
+     * {@code reports.export} must not produce a readable set of colleagues.
+     * What this pins is the fallback: if a future call path reaches the
+     * service without that gate, it must degrade to one department rather
+     * than to the whole company.
+     */
     @Test
-    void manuallyGrantedNonAdminExportIsPinnedToItsDepartment() {
+    void aNonAdminReachingTheServiceDirectlyStillCannotReadOrgWide() {
         for (Role role : List.of(Role.CONTENT_ADMIN, Role.OPERATOR)) {
             List<ReadingExportRow> rows = service.eligibleReadingRows(userOf(role, OWN_DEPT));
 
             assertEquals(List.of(1L, 2L), rows.stream().map(ReadingExportRow::userId).sorted().toList(),
-                    role + " may receive the export action but never an implicit org-wide scope");
+                    role + " must never fall through to the unscoped branch");
         }
     }
 

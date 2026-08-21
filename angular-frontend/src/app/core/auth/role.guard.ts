@@ -36,3 +36,36 @@ export function roleGuard(allowRoles?: string[], denyRoles?: string[]): CanActiv
     return true;
   };
 }
+
+/**
+ * The gate on `/admin/overview`, which is system-admin-only since the
+ * Phase 0 access fix.
+ *
+ * A plain `roleGuard(['admin'])` here bounced a content admin out of the
+ * admin area altogether: `/admin` and the legacy `/admin/main` both
+ * redirect to `overview`, and a refused roleGuard sends the caller to `/`.
+ * So a content admin opening `/admin` landed on the dashboard rather than
+ * on the content workspace they do have access to -- the plan's stated
+ * behaviour (ORG_ACCESS_ARCHITECTURE_PLAN_KA.md §6).
+ *
+ * Redirecting instead of refusing also fixes the same problem for a
+ * bookmarked `/admin/overview`. Anything other than the two admin roles is
+ * still sent home; the parent route's `roleGuard` has already refused those,
+ * so that branch is defence in depth rather than a reachable path.
+ */
+export const adminOverviewGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  const user = auth.currentUser();
+
+  if (!user) {
+    return router.createUrlTree(['/login']);
+  }
+  if (user.role === 'admin') {
+    return true;
+  }
+  if (user.role === 'content_admin') {
+    return router.createUrlTree(['/admin', 'content']);
+  }
+  return router.createUrlTree(['/']);
+};

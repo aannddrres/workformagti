@@ -67,6 +67,15 @@ public class ExportQueryService {
      * false only for SYSTEM_ADMIN. Permissions grant the export action; they
      * never create an org-wide data scope.
      *
+     * <p><b>This is the inner of two layers, not the whole rule.</b>
+     * {@code ExportController.requireReportsExport} refuses any caller that
+     * does not {@link ManagerScope#holdsEmployeeDataScope} before reaching
+     * this service, so in production the scoped branch below only ever runs
+     * for a MANAGER. Pinning every non-admin caller rather than only MANAGER
+     * is deliberate anyway: it means a future call path that forgets the
+     * controller gate degrades to one department instead of to the whole
+     * company.
+     *
      * <p>Deliberately separate from {@link #scopeDepartmentFor} rather than
      * inferred from it being null: a manager whose {@code department} is null
      * is still department-scoped, and collapsing the two would make that case

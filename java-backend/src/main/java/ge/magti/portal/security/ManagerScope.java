@@ -87,6 +87,38 @@ public final class ManagerScope {
     }
 
     /**
+     * True when this caller may hold a scope over other employees' personal
+     * and statistical data at all -- the Phase 0 stand-in for "has an active
+     * leadership assignment".
+     *
+     * <h2>Why this is not the same question as {@code hasPermission}</h2>
+     *
+     * {@code reports.export} and {@code system.audit} say what a caller may
+     * <i>do</i>. They must never say <i>whose data</i> -- a system admin can
+     * grant {@code reports.export} to anyone, so deriving a scope from the
+     * permission alone lets the grant silently widen who is readable
+     * (ORG_ACCESS_ARCHITECTURE_PLAN_KA.md §8). Deriving it from the caller's
+     * own {@code department} string instead is narrower but still wrong for
+     * the same reason: a content admin's department describes where they sit,
+     * not anybody they lead.
+     *
+     * <p>Until {@code leadership_assignments} exists, {@link Role#MANAGER} is
+     * the only stand-in the schema offers for "leads someone", and
+     * SYSTEM_ADMIN keeps its unconditional bypass. Everyone else holds no
+     * scope, so the export action resolves to nothing readable rather than to
+     * their own colleagues.
+     *
+     * <p><b>Deliberately placed on the class Phase 4 deletes.</b> This whole
+     * class is scheduled for removal when {@code ScopeResolver} lands, so
+     * every call site of this rule has to be revisited then -- which is
+     * exactly what should happen, since the real rule is an assignment lookup
+     * and not a role comparison.
+     */
+    public static boolean holdsEmployeeDataScope(User caller) {
+        return caller != null && (caller.getRole() == Role.SYSTEM_ADMIN || caller.getRole() == Role.MANAGER);
+    }
+
+    /**
      * Filters {@code activeUsers} down to the ones {@code manager} may see.
      *
      * <p>Takes the candidate list rather than a repository so the caller

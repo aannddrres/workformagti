@@ -106,4 +106,22 @@ class ManagerScopeTest {
         assertFalse(ManagerScope.isDepartmentScoped(user("კ", Role.CONTENT_ADMIN, "ტექნიკური")));
         assertFalse(ManagerScope.isDepartmentScoped(null));
     }
+
+    /**
+     * The companion question, and deliberately not the same one:
+     * {@code isDepartmentScoped} asks "must this caller's reads be narrowed",
+     * which is false for a system admin because they read everything.
+     * {@code holdsEmployeeDataScope} asks "may this caller read other
+     * employees at all", which is true for them. Collapsing the two would
+     * either lock the admin out or let every permission holder in.
+     */
+    @Test
+    void onlyManagersAndSystemAdminsHoldAnEmployeeDataScope() {
+        assertTrue(ManagerScope.holdsEmployeeDataScope(user("მ", Role.MANAGER, "ტექნიკური")));
+        assertTrue(ManagerScope.holdsEmployeeDataScope(user("ა", Role.SYSTEM_ADMIN, "All")));
+        assertFalse(ManagerScope.holdsEmployeeDataScope(user("კ", Role.CONTENT_ADMIN, "ტექნიკური")),
+                "a content admin's own department is not a team they lead");
+        assertFalse(ManagerScope.holdsEmployeeDataScope(user("ო", Role.OPERATOR, "ტექნიკური")));
+        assertFalse(ManagerScope.holdsEmployeeDataScope(null));
+    }
 }

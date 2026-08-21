@@ -13,6 +13,7 @@ import ge.magti.portal.export.ExportTooLargeException;
 import ge.magti.portal.export.ReadingExportRow;
 import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.ExportJobRepository;
+import ge.magti.portal.security.ManagerScope;
 import ge.magti.portal.security.PermissionChecker;
 import ge.magti.portal.util.TbilisiTime;
 import org.slf4j.Logger;
@@ -400,12 +401,33 @@ public class ExportController {
         return null;
     }
 
+    /**
+     * Two independent questions, both of which have to pass.
+     *
+     * <p>{@link Permission#REPORTS_EXPORT} answers "may this caller run an
+     * export"; {@link ManagerScope#holdsEmployeeDataScope} answers "may this
+     * caller hold a scope over other employees at all". Before Phase 0 only
+     * the first was asked here, and {@link ExportQueryService} derived the
+     * scope from the caller's role -- so granting the permission to a
+     * non-manager handed them an org-wide export of every employee's name and
+     * compliance status. Scoping that query fixed the org-wide part, but a
+     * grant still produced a readable set (the caller's own department),
+     * which is the same fail-open one step smaller: a permission must never
+     * create a data scope (ORG_ACCESS_ARCHITECTURE_PLAN_KA.md §8).
+     *
+     * <p>Applied to the job status/download endpoints too, not just the four
+     * that build employee data. Leaving those on the permission alone would
+     * make the weaker rule the reachable one.
+     */
     private ResponseEntity<Map<String, String>> requireReportsExport(User user) {
         ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
         if (authFailure != null) {
             return authFailure;
         }
-        if (!permissionChecker.hasPermission(user, Permission.REPORTS_EXPORT)) {
+        // One response for both, deliberately: a caller must not be able to
+        // tell "you lack the permission" from "you lead nobody" by probing.
+        if (!permissionChecker.hasPermission(user, Permission.REPORTS_EXPORT)
+                || !ManagerScope.holdsEmployeeDataScope(user)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
         }

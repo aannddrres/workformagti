@@ -20,7 +20,7 @@ import { AdminAccessPage } from './features/admin-access/admin-access-page';
 import { AccountPage } from './features/account/account-page';
 import { authGuard } from './core/auth/auth.guard';
 import { auditLogGuard } from './core/auth/permission.guard';
-import { roleGuard } from './core/auth/role.guard';
+import { adminOverviewGuard, roleGuard } from './core/auth/role.guard';
 
 const MANAGER_ROLES = ['admin', 'manager'];
 const MANAGEMENT_ROLES = ['admin', 'content_admin', 'manager'];
@@ -98,7 +98,7 @@ export const routes: Routes = [
             path: 'overview',
             component: AdminStatsPage,
             data: { title: 'nav.sidebar.admin_stats' },
-            canActivate: [roleGuard(ADMIN_ONLY)]
+            canActivate: [adminOverviewGuard]
           },
           { path: 'main', pathMatch: 'full', redirectTo: 'overview' },
           { path: 'content', component: AdminContentPage, data: { title: 'nav.sidebar.admin_content' } },
