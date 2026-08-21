@@ -2,7 +2,7 @@
 
 **სტატუსი:** Phase 1 — decision/contract lock **დასრულებულია**; 5 გადაწყვეტილება ღიაა (D-2, D-4…D-7); D-1 და D-3 დახურულია
 **ბოლო განახლება:** 2026-08-21
-**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 111 endpoint
+**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 114 endpoint
 **გეგმა:** `docs/ORG_ACCESS_ARCHITECTURE_PLAN_KA.md` (ფაზები, §9.1 სავალდებულო მტკიცებულებები)
 
 ეს ფაილი არის ორგანიზაციული წვდომის **კონტრაქტი**: თითოეული backend endpoint-ისთვის
@@ -71,8 +71,8 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 ## ციფრებში
 
-- **111** endpoint (D-1-ის ამოღების შემდეგ);
-- **28** ატარებს თანამშრომლის საიდენტიფიკაციო მონაცემს (`PII = yes`);
+- **114** endpoint (111 + Phase 3-ის 3 დიაგნოსტიკური);
+- **30** ატარებს თანამშრომლის საიდენტიფიკაციო მონაცემს (`PII = yes`);
 - **11** უკვე leadership-scoped;
 - **5** ღია გადაწყვეტილება (2 დახურულია).
 
@@ -203,6 +203,14 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 |---|---|---|---|---|---|---|
 | `GET /api/notifications/summary` | `PlatformController.getNotificationsSummary` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი მონაცემი. |
 | `GET /api/tags` | `PlatformController.getTags` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
+
+### PolicyDiagnostics (3)
+
+| endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
+|---|---|---|---|---|---|---|
+| `GET /api/admin/org-backfill/report` | `PolicyDiagnosticsController.getBackfillReport` | `requireSystemAdmin` | org.manage `NEW` | `ORG` | **yes** | dry run. ასახელებს მომხმარებლებს, რომელთა განთავსებაც ვერ მოხერხდა — ე.ი. თანამშრომლის მონაცემია. `blocks_cutover` არის §8-ის gate ერთ ველში. |
+| `POST /api/admin/org-backfill/apply` | `PolicyDiagnosticsController.applyBackfill` | `requireSystemAdmin` | org.manage `NEW` | `ORG` | **yes** | იდემპოტენტური; აუდიტირდება `ORG_BACKFILL_APPLY`-ით. Phase 8 ამას ეკრანს დაადებს, არ შეცვლის ვის შეუძლია. |
+| `GET /api/admin/policy-shadow` | `PolicyDiagnosticsController.getPolicyShadow` | `requireSystemAdmin` | org.manage `NEW` | `NONE` | no | მხოლოდ მრიცხველები decision point-ების მიხედვით; პერსონალურ მონაცემს არ ატარებს. `unexercised` რიცხვებზე ადრე უნდა წაიკითხოთ. |
 
 ### Quiz (5)
 

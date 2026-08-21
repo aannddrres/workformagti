@@ -33,10 +33,14 @@ import java.util.TreeMap;
  * reconciliation list is being worked through -- V37 cannot apply until that
  * list is empty, and getting there takes more than one pass.
  *
- * <p><b>Nothing calls this yet.</b> There is deliberately no endpoint: the
- * backfill is an operator action with a reconciliation report attached, not a
- * button, and the decision about how it is triggered belongs with the
- * system-admin UI in Phase 8.
+ * <p>Triggered by {@code PolicyDiagnosticsController} -- a SYSTEM_ADMIN-only,
+ * audited call, with the reconciliation report as its response. An earlier
+ * version of this note said there would be no endpoint at all, on the grounds
+ * that this is an operator action rather than a button. That was the wrong
+ * conclusion from a right premise: the work still has to be triggered by
+ * somebody, and an audited call only a system admin can make is what "an
+ * operator action" means here. Phase 8 puts a screen in front of it; it does
+ * not change who may run it or what gets recorded.
  */
 @Service
 public class OrgBackfillService {
