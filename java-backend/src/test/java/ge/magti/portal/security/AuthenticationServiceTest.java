@@ -56,6 +56,33 @@ class AuthenticationServiceTest {
     }
 
     @Test
+    void jitOperatorPersonasUseCanonicalGeorgianDepartments() {
+        when(userRepository.findByEmailIgnoreCase("tech@magti.ge")).thenReturn(Optional.empty());
+        when(userRepository.findByEmailIgnoreCase("info@magti.ge")).thenReturn(Optional.empty());
+
+        User tech = service.authenticate("tech@magti.ge", "anything").orElseThrow();
+        User info = service.authenticate("info@magti.ge", "anything").orElseThrow();
+
+        assertEquals("ტექნიკური", tech.getDepartment());
+        assertEquals("საინფორმაციო", info.getDepartment());
+    }
+
+    @Test
+    void existingDevPersonaIsMovedFromLegacyEnglishDepartment() {
+        User existing = new User();
+        existing.setEmail("tech@magti.ge");
+        existing.setRole(Role.OPERATOR);
+        existing.setDepartment("Support");
+        existing.setActive(true);
+        when(userRepository.findByEmailIgnoreCase("tech@magti.ge")).thenReturn(Optional.of(existing));
+
+        User result = service.authenticate("tech@magti.ge", "anything").orElseThrow();
+
+        assertEquals("ტექნიკური", result.getDepartment());
+        verify(userRepository).save(existing);
+    }
+
+    @Test
     void testOperatorPrefixAlsoBypassesPasswordAsGenericOperator() {
         when(userRepository.findByEmailIgnoreCase("test_operator_42@magti.ge")).thenReturn(Optional.empty());
 

@@ -42,10 +42,10 @@ public class AuthenticationService {
     private static final Map<String, JitOverride> JIT_PROVISION_OVERRIDES = Map.of(
             "admin@magti.ge", new JitOverride(Role.SYSTEM_ADMIN, "Administration", "სისტემური ადმინი"),
             "content@magti.ge", new JitOverride(Role.CONTENT_ADMIN, "Content Creation", "კონტენტის ადმინისტრატორი"),
-            "manager@magti.ge", new JitOverride(Role.MANAGER, "Support", "ჯგუფის მენეჯერი"),
+            "manager@magti.ge", new JitOverride(Role.MANAGER, "ტექნიკური", "ჯგუფის მენეჯერი"),
             "nino@magti.ge", new JitOverride(null, null, "ნინო ჩიტიშვილი"),
-            "tech@magti.ge", new JitOverride(null, null, "ტექნიკური ოპერატორი"),
-            "info@magti.ge", new JitOverride(null, "Informational", "საინფორმაციო ოპერატორი"));
+            "tech@magti.ge", new JitOverride(null, "ტექნიკური", "ტექნიკური ოპერატორი"),
+            "info@magti.ge", new JitOverride(null, "საინფორმაციო", "საინფორმაციო ოპერატორი"));
 
     private static final String JIT_DUMMY_PASSWORD = "dummy_password_for_jit_user";
 
@@ -88,6 +88,7 @@ public class AuthenticationService {
             return Optional.empty();
         }
         if (isTestAccount) {
+            synchronizeDevDepartment(lowerEmail, user);
             return Optional.of(user);
         }
         if (user.getHashedPassword() == null || !passwordEncoder.matches(password, user.getHashedPassword())) {
@@ -116,5 +117,23 @@ public class AuthenticationService {
                 .collect(Collectors.toCollection(LinkedHashSet::new)));
 
         return userRepository.save(user);
+    }
+
+    /**
+     * Keeps already-provisioned local personas aligned with the canonical
+     * department values used by article targeting. Older databases contain
+     * {@code Support}/{@code Informational}; those values make every
+     * Georgian-targeted article disappear for the corresponding operator.
+     * This path is reachable only when the explicit development-login bypass
+     * is enabled, so production user profiles are never rewritten here.
+     */
+    private void synchronizeDevDepartment(String lowerEmail, User user) {
+        JitOverride override = JIT_PROVISION_OVERRIDES.get(lowerEmail);
+        if (override == null || override.department() == null
+                || override.department().equals(user.getDepartment())) {
+            return;
+        }
+        user.setDepartment(override.department());
+        userRepository.save(user);
     }
 }
