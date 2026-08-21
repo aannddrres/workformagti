@@ -116,21 +116,26 @@ UI-ის დამალვა მონაცემთა უსაფრთ�
 `departments`
 
 - `id`, უცვლელი AD/stable key, ოფიციალური სახელი, აქტიურობა, sort order;
-- საწყისი seed: ტექნიკური, საინფორმაციო, ოფისი;
+- `V36` ქმნის და bootstrap reference data-დ ამატებს სამ ოფიციალურ დეპარტამენტს:
+  ტექნიკური, საინფორმაციო, ოფისი. AD sync მოგვიანებით მათ stable external ID-ს
+  უკავშირებს და შემდგომ მდგომარეობას მართავს;
 - `All` ამ ცხრილში არ ინახება.
 
 `teams` (UI-ში „ჯგუფი“)
 
 - არსებული ცხრილი გაფართოვდება: `department_id`, AD/stable key, display name,
   active/sync metadata;
-- Oracle migration არის ეტაპობრივი: ჯერ nullable სვეტები, შემდეგ backfill და
-  validation, ბოლოს `NOT NULL`/unique constraints. ადგილობრივ ბაზაში 0 ჯგუფი
-  production მონაცემების არარსებობის გარანტია არ არის;
+- Oracle migration არის ორ release-ად ეტაპობრივი: `V36` ამატებს nullable სვეტებს,
+  შემდეგ აპლიკაციის idempotent backfill/validation სრულდება; მხოლოდ ამის შემდეგ
+  ცალკე release-ში ემატება `V37` `NOT NULL`/unique constraints-ით. `V37` არ უნდა
+  მოხვდეს იმავე deployment-ში, რომელშიც backfill პირველად ეშვება. ადგილობრივ
+  ბაზაში 0 ჯგუფი production მონაცემების არარსებობის გარანტია არ არის;
 - გლობალური `teams.name` unique constraint უქმდება; uniqueness არის
   `(department_id, name)` და ცალკე stable external ID-ზე;
 - display name/stable key უფროსისგან დამოუკიდებელია; leadership ცვლილება ჯგუფის
   იდენტობას არ ცვლის;
-- საწყისი fixture: თითო დეპარტამენტზე 5 ჯგუფი;
+- თითო დეპარტამენტის 5 საწყისი ჯგუფი იქმნება მხოლოდ აშკარა dev/test fixture
+  seeder-ით და არა production Flyway migration-ით;
 - production-ში შექმნა/გაუქმება და წევრობა მოდის AD sync-იდან.
 
 `users`
@@ -146,12 +151,16 @@ UI-ის დამალვა მონაცემთა უსაფრთ�
 `leadership_assignments`
 
 - `user_id`, nullable `department_id`, nullable `team_id` — ორივე რეალური FK;
-- `CHECK` constraint ითხოვს ზუსტად ერთ scope FK-ს: ან დეპარტამენტს, ან ჯგუფს.
-  polymorphic `scope_type + scope_id` არ გამოიყენება, რადგან Oracle FK-ით მის
-  სისწორეს ვერ დაიცავს;
-- `assignment_type` (`PRIMARY`/`ACTING`), active flag, start/end audit metadata;
-- თითო scope-ზე მხოლოდ ერთი მოქმედი `PRIMARY` assignment Oracle function-based
-  unique index-ით კონტროლდება; უბრალო partial index Oracle-ში არ არსებობს;
+- `CHECK` constraint Oracle 19c-compatible `CASE` არითმეტიკით ითხოვს ზუსტად ერთ
+  scope FK-ს:
+  `(CASE WHEN department_id IS NULL THEN 0 ELSE 1 END) +`
+  `(CASE WHEN team_id IS NULL THEN 0 ELSE 1 END) = 1`.
+  `IS NULL` boolean შედეგების ერთმანეთთან `<>` შედარება არ გამოიყენება;
+- `assignment_type` (`PRIMARY`/`ACTING`), `is_active NUMBER(1) DEFAULT 1 NOT NULL`,
+  start/end audit metadata;
+- თითო scope-ზე მხოლოდ ერთი მოქმედი `PRIMARY` assignment ორი ცალკე Oracle
+  function-based unique index-ით კონტროლდება — ერთი `department_id`-ზე, მეორე
+  `team_id`-ზე. უბრალო partial index Oracle-ში არ არსებობს;
 - ერთი მომხმარებელი შეიძლება დროებით რამდენიმე scope-ს ხელმძღვანელობდეს;
 - primary და acting assignment-ს მხოლოდ სისტემური ადმინი ქმნის/თიშავს;
 - მოქმედი assignment-ის ყველა ცვლილება audit-ში ხვდება.
@@ -175,36 +184,62 @@ UI-ის დამალვა მონაცემთა უსაფრთ�
   assignment-იც გამორიცხავს მონაწილეობას. operator + content permission კვლავ
   მონაწილეობს, თუ სისტემურ ადმინს explicit compliance override არ დაუყენებია.
   მხოლოდ role ან მხოლოდ leadership ამ გადაწყვეტილებისთვის საკმარისი არ არის.
+- eligibility-ის ყოველი გადასვლა (`before → during → after`) ინახება effective
+  timestamp-იან მოვლენად: assignment activation/deactivation, role ცვლილება და
+  compliance override. ისტორიულ evidence report-ს უნდა შეეძლოს აჩვენოს, რატომ
+  იყო ადამიანი კონკრეტულ პერიოდში eligibility-ში ან მის გარეთ.
 
 ## 5. backend-ის სამუშაოები
 
-1. Flyway `V36` migration: departments, teams extension, leadership assignments,
-   permission/compliance override provenance, sync metadata და Oracle-compatible
-   constraints/function-based indexes. Oracle-ში `IF NOT EXISTS` არ გამოიყენება.
+1. Flyway expand migration `V36`: departments + სამი canonical bootstrap row,
+   ძველი გლობალური `uq_teams_name`-ის მოხსნა, teams-ის nullable extension,
+   leadership assignments, permission/compliance override provenance და sync
+   metadata. Oracle-ში `IF NOT EXISTS` არ გამოიყენება. Backfill-ის წარმატებული
+   ცალკე rollout-ის შემდეგ `V37` ამატებს `NOT NULL`, composite/external-ID
+   uniqueness-ს, one-scope `CHECK`-სა და ორ function-based primary-leader unique
+   index-ს.
 2. გარდამავალი mapper: არსებული `department` ტექსტების უსაფრთხო mapping ახალ
-   department/team ID-ებზე; ისტორიული audit არ იცვლება.
-3. `CapabilityService`: ცენტრალური permission check.
-4. `ScopeResolver`: ჯგუფის/დეპარტამენტის სტატისტიკისა და პერსონალური მონაცემების
+   department/team ID-ებზე; ისტორიული audit არ იცვლება. mapper საერთოდ არ ეხება
+   `read_statuses.operator_department_snapshot` და
+   `article_read_receipts.operator_department_snapshot` სვეტებს.
+3. Leadership backfill: თითო აქტიური `MANAGER`-ისთვის
+   `DepartmentMatcher.splitGroup()`-ით იქმნება assignment candidate. მხოლოდ
+   ერთმნიშვნელოვანი group match შეიძლება ავტომატურად გადაიქცეს `PRIMARY team_id`
+   assignment-ად. მხოლოდ დეპარტამენტის match ავტომატურად department-head წვდომას
+   არ ქმნის, რადგან ასეთი ხელმძღვანელი პირველ rollout-ში დადასტურებული არ არის;
+   ის, unmapped/ambiguous მნიშვნელობა და ერთ scope-ზე რამდენიმე primary კანდიდატი
+   reconciliation report-ში ხვდება და სისტემური ადმინი cutover-მდე ხელით წყვეტს.
+4. `CapabilityService`: ცენტრალური permission check.
+5. `ScopeResolver`: ჯგუფის/დეპარტამენტის სტატისტიკისა და პერსონალური მონაცემების
    fail-closed scope. მხოლოდ `SYSTEM_ADMIN` არის unscoped; სხვა მომხმარებლისთვის
    მოქმედი assignment-ის არქონა collection endpoint-ზე ცარიელ შედეგს, კონკრეტულ
    უცხო resource-ზე კი `403`-ს იძლევა.
-5. `ComplianceEligibilityService`: default + system-admin override.
-6. Article/category/news/video/upload endpoints-ებიდან `isContentAdmin()`
+6. `ComplianceEligibilityService`: default + system-admin override და
+   effective-dated eligibility transition audit.
+7. `PUT /api/users/{id}/permissions` flat full-replace კონტრაქტი იცვლება
+   override-aware delta კონტრაქტით (`INHERIT`/`ALLOW`/`DENY`, optimistic
+   concurrency). UI/API role defaults-ს explicit override-ებად არ აგზავნის.
+8. Article/category/news/video/upload endpoints-ებიდან `isContentAdmin()`
    role-gate-ის ჩანაცვლება რეალური permission-ებით.
-7. Manager stats/audit/export paths-იდან `Role.MANAGER`-ის ჩანაცვლება მოქმედი
+9. Manager stats/audit/export paths-იდან `Role.MANAGER`-ის ჩანაცვლება მოქმედი
    leadership assignment-ით.
-8. `/api/me/effective-access`: role, permissions, leadership scopes,
+10. `/api/me/effective-access`: role, inherited defaults, explicit overrides,
+   effective permissions, leadership scopes,
    compliance status და UI capabilities ერთ პასუხში.
-9. AD sync contract: stable external IDs, upsert, deactivation, reconciliation,
+11. AD sync contract: stable external IDs, upsert, deactivation, reconciliation,
    dry-run/report და orphan-group alert. რეალური AD connector ცალკე ფაზაა.
-10. audit events: assignment/permission/compliance override ცვლილებები და სხვისი
+12. audit events: assignment/permission/compliance override ცვლილებები და სხვისი
     სტატიის edit-ის ზუსტი actor/version კვალი.
-11. მიმდინარე P0 endpoint-ების server-side შეზღუდვა:
+13. მიმდინარე P0 endpoint-ების server-side შეზღუდვა:
     `department-stats`, `stats/team/{teamId}`, `critical-operators`, group users და
     ყველა report export. response-ის nested aggregates-იც scope-ზე იფილტრება.
-12. `getGroupLeaders` role-იდან leadership assignment-ზე გადადის. AD-managed
+14. `getGroupLeaders` role-იდან leadership assignment-ზე გადადის. AD-managed
     რეჟიმში `POST /api/teams` და სხვა org mutation endpoints `403`-ს აბრუნებს;
     fixture/dev რეჟიმი ცალკე, აშკარად მონიშნული გამონაკლისია.
+15. Leadership cutover-ისას ძველი `ManagerScope` იშლება და stats-ის hardcoded
+    `DepartmentBuckets` იცვლება departments/team repository-ით; გარდამავალ
+    მდგომარეობაში ორი scope resolver ან რამდენიმე department source of truth არ
+    რჩება.
 
 ## 6. Angular/UI სამუშაოები
 
@@ -214,6 +249,9 @@ UI-ის დამალვა მონაცემთა უსაფრთ�
 - AD-owned ველები read-only და წყაროს/ბოლო sync-ის მითითებით;
 - ძირითადი/დროებითი უფროსის assignment;
 - permissions-ის ჩართვა/გათიშვა;
+- permission editor ცალ-ცალკე აჩვენებს role-იდან inherited default-ს და explicit
+  `ALLOW`/`DENY` override-ს; ჩვეულებრივი save inherited default-ს override-ად არ
+  აქცევს;
 - compliance override;
 - effective-access summary და „რატომ აქვს ეს წვდომა“ განმარტება;
 - უფროსის გარეშე დარჩენილი ჯგუფების alert/task list.
@@ -229,6 +267,11 @@ UI-ის დამალვა მონაცემთა უსაფრთ�
 - კონტენტის permission-ის მქონე მომხმარებელი ხედავს კონტენტის workspace-ს;
 - კონტენტის workspace-ის გამოჩენა არ აჩენს stats/audit გვერდებს;
 - role switcher არ გამოიყენება.
+- Phase 0-ში content-admin-only მომხმარებლისთვის `/admin/main`-ის stats ნაწილი
+  აღარ იხსნება (mixed dashboard-ის შემთხვევაში მომხმარებელი content workspace-ზე
+  გადადის). route/navigation capability-ზე იკეტება, ხოლო უკვე გახსნილ stats
+  view-ზე `403` კონტროლირებულ „სტატისტიკის წვდომა არ გაქვთ“ empty state-ად ჩანს
+  და არა რამდენიმე error toast-ად.
 
 ## 7. დანერგვის ფაზები
 
@@ -237,13 +280,15 @@ UI-ის დამალვა მონაცემთა უსაფრთ�
    გარეშე პერსონალური/ორგანიზაციული მონაცემი არ მიეწოდება.
 1. **Decision/contract lock:** permission/scope matrix, response-shape contracts,
    export allowlist და external production gates.
-2. **Schema, behavior unchanged:** Oracle-compatible `V36`, ნორმალიზებული org
-   tables, staged backfill და format-preserving compatibility mapping.
+2. **Schema expand + backfill:** Oracle-compatible `V36`, ნორმალიზებული org
+   tables, format-preserving department mapper, manager→leadership candidate
+   backfill და reconciliation report. `V37` მხოლოდ წარმატებული validation-ის
+   შემდეგ, ცალკე release-ში ამკაცრებს constraints-ს.
 3. **Policy layer, shadow mode:** `CapabilityService`, fail-closed
    `ScopeResolver`, compliance policy; ძველი და ახალი გადაწყვეტილებების diff
    ითვლება, სანამ enforcement ჩაირთვება.
 4. **Leadership scope cutover:** stats/export/audit assignment-ზე გადაყვანა და
-   nested response filtering.
+   nested response filtering; `ManagerScope` და `DepartmentBuckets` იშლება.
 5. **Compliance cutover:** eligibility/override parity, შემდეგ ახალი policy-ის
    enforcement.
 6. **Content gates:** role-იდან permission-ზე გადასვლა.
@@ -274,6 +319,9 @@ UI-ის დამალვა მონაცემთა უსაფრთ�
   filter მომხმარებლის authorization-ს DB-დან ყოველ request-ზე თავიდან კითხულობს;
 - ისტორიული acknowledgment, quiz attempt და audit ჩანაწერები org ცვლილებით არ
   გადაიწერება ან არ იშლება.
+- backfill არ ცვლის `operator_department_snapshot` ისტორიულ სვეტებს;
+- scope/compliance cutover არ იწყება, თუ reconciliation report-ში არის
+  დაუდასტურებელი manager, ambiguous primary collision ან authorization diff.
 
 ## 9. acceptance criteria
 
@@ -285,6 +333,9 @@ UI-ის დამალვა მონაცემთა უსაფრთ�
 - operator + content permission-ის compliance სტატუსი system admin-ის მიერ
   მართვადია და default-ად ჩართულია;
 - content admin ხელმძღვანელობის assignment-ის გარეშე stats-ს ვერ ხსნის;
+- cutover-ის შემდეგ ყველა დღევანდელ manager-ს აქვს დადასტურებული leadership
+  scope; unmapped/collision გამონაკლისების სახელობითი სია cutover-მდე ხელითაა
+  გადაწყვეტილი და არავინ კარგავს წვდომას ჩუმად;
 - ჯგუფის ცვლილება დეპარტამენტის შიგნით readings-ს ინარჩუნებს; დეპარტამენტის
   ცვლილება ძველ მიმდინარე readings-ს წყვეტს, ისტორიას კი ინარჩუნებს;
 - სხვისი სტატიის edit-ში actor და version audit ზუსტად ინახება;
@@ -304,18 +355,27 @@ UI-ის დამალვა მონაცემთა უსაფრთ�
 - CSV/XLSX/PDF export whitelist tests ამტკიცებს, რომ დაშვებული identity/statistic
   სვეტების გარდა audit/view/search/session/security ველი ვერ მოხვდება;
 - compliance parity tests ფარავს operator-ს, operator+content permission-ს,
-  full-time content admin-ს, manager-ს, acting leader-ს და explicit override-ს;
+  full-time content admin-ს, manager-ს და explicit override-ს; acting leader-ზე
+  ტესტი ამოწმებს `before → during → after` eligibility-სა და სამივე transition
+  audit timestamp-ს;
 - department mapping tests ადარებს authorization შედეგს backfill-მდე და შემდეგ
   და ინარჩუნებს legacy ტექსტის ფორმატს;
 - permission coverage test ყველა backend endpoint-ს აკავშირებს capability/scope
   წესთან და არ ტოვებს შემთხვევით role-only gate-ს;
-- Oracle integration test ამოწმებს `V36` migration-ს, FK/check constraints-სა და
-  function-based unique indexes-ს რეალურ Oracle-ზე;
+- Oracle integration test ცალ-ცალკე ამოწმებს `V36` expand-სა და `V37` contract-ს,
+  Oracle 19c-compatible one-scope `CHECK`-ს, `is_active NOT NULL`-ს და department/
+  team primary assignment-ის ორ function-based unique index-ს რეალურ Oracle-ზე;
 - E2E persona: ერთი მომხმარებელი არის group leader + content permission — მას
   შეუძლია გლობალური კონტენტის მართვა, მაგრამ სტატისტიკაში მხოლოდ საკუთარ ჯგუფს
   ხედავს;
 - role-change tests ცალ-ცალკე ფარავს bulk backend update-სა და Angular user-edit
-  გზას: explicit permission overrides არცერთ გზაზე არ უნდა განულდეს.
+  გზას: explicit permission overrides არცერთ გზაზე არ უნდა განულდეს;
+- permission provenance test ამტკიცებს, რომ inherited role default explicit
+  override-ად არ ინახება არც role-change-ისას და არც უცვლელი role-ის ჩვეულებრივი
+  save-ისას; delta endpoint-ის `INHERIT` მდგომარეობა override-ს ნამდვილად შლის;
+- leadership backfill test მოიცავს ზუსტ group match-ს, department-only match-ს,
+  unmapped/ambiguous მნიშვნელობასა და duplicate-primary collision-ს; cutover gate
+  ყველა დაუდასტურებელ გამონაკლისზე იკეტება.
 
 ## 10. production-მდე გარე დადასტურება
 
