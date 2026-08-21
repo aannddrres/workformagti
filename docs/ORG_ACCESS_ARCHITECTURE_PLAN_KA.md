@@ -306,6 +306,17 @@ UI-ის დამალვა მონაცემთა უსაფრთ�
 3. **Policy layer, shadow mode:** `CapabilityService`, fail-closed
    `ScopeResolver`, compliance policy; ძველი და ახალი გადაწყვეტილებების diff
    ითვლება, სანამ enforcement ჩაირთვება.
+   **კოდი დაწერილია** — `security/Scope`, `security/ScopeResolver`,
+   `security/CapabilityService`, `compliance/ComplianceEligibilityService` და
+   `security/PolicyShadowRecorder`. shadow ჩართულია ოთხ გადაწყვეტილების
+   წერტილზე: `scope.team-stats`, `scope.department-stats`,
+   `scope.critical-operators`, `scope.export`, ასევე `capability.*` და
+   `compliance.eligibility`. **არცერთი მათგანი არაფერს წყვეტს** — ყველა
+   call site ძველ პასუხს აბრუნებს.
+   **მოსალოდნელია დიდი diff backfill-მდე:** scope წყვეტს `users.team_id`-ით,
+   რომელიც backfill-მდე 0 row-ზეა შევსებული, ე.ი. ყველა scoped caller
+   ჯერჯერობით „არავის" გამოაქვს. ეს მონაცემის სწორი წაკითხვაა და ამავე დროს
+   შემოწმება, გაშვებულია თუ არა backfill.
 4. **Leadership scope cutover:** stats/export/audit assignment-ზე გადაყვანა და
    nested response filtering; `ManagerScope` და `DepartmentBuckets` იშლება.
 5. **Compliance cutover:** eligibility/override parity, შემდეგ ახალი policy-ის

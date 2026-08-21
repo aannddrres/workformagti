@@ -3,6 +3,7 @@ package ge.magti.portal.security;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
@@ -47,12 +48,38 @@ import org.springframework.stereotype.Service;
 @Service
 public class PermissionChecker {
 
+    /**
+     * Phase 3 shadow only -- nullable, and null means "do not measure".
+     *
+     * <p>The no-argument constructor below is kept so the several unit tests
+     * that build this directly stay unchanged: a measurement being added is
+     * not a reason to touch five test files, and a test that measures nothing
+     * is testing the same rule the application enforces.
+     */
+    private final CapabilityService capabilityService;
+
+    public PermissionChecker() {
+        this(null);
+    }
+
+    @Autowired
+    public PermissionChecker(CapabilityService capabilityService) {
+        this.capabilityService = capabilityService;
+    }
+
     public boolean hasPermission(User user, Permission permission) {
         // See the class javadoc: this line is why a SYSTEM_ADMIN-only
         // permission can never be enforced.
         if (user.getRole() == Role.SYSTEM_ADMIN) {
             return true;
         }
-        return user.hasPermission(permission);
+        boolean granted = user.hasPermission(permission);
+        if (capabilityService != null) {
+            // Records what the composed role-default-plus-override rule would
+            // answer, and returns the stored-list answer regardless. Phase 6
+            // swaps which one decides.
+            return capabilityService.shadowCompare("capability", user, permission, granted);
+        }
+        return granted;
     }
 }

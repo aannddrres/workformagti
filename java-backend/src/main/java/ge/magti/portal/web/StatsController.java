@@ -14,6 +14,7 @@ import ge.magti.portal.repository.SearchLogRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.repository.VideoInstructionRepository;
 import ge.magti.portal.security.ManagerScope;
+import ge.magti.portal.security.ScopeResolver;
 import ge.magti.portal.stats.ComplianceRecord;
 import ge.magti.portal.stats.CriticalOperator;
 import ge.magti.portal.stats.DepartmentBuckets;
@@ -77,6 +78,7 @@ public class StatsController {
     private final VideoInstructionRepository videoInstructionRepository;
     private final AuditLogRepository auditLogRepository;
     private final ArticleViewLogRepository articleViewLogRepository;
+    private final ScopeResolver scopeResolver;
 
     public StatsController(
             ComplianceQueryService complianceQueryService,
@@ -88,6 +90,25 @@ public class StatsController {
             VideoInstructionRepository videoInstructionRepository,
             AuditLogRepository auditLogRepository,
             ArticleViewLogRepository articleViewLogRepository) {
+        this(complianceQueryService, userRepository, searchLogRepository, requiredReadingRepository,
+                readStatusRepository, articleRepository, videoInstructionRepository, auditLogRepository,
+                articleViewLogRepository, null);
+    }
+
+    /** Phase 3 shadow only; the nine-argument constructor above keeps the DB-free tests unchanged. */
+    @org.springframework.beans.factory.annotation.Autowired
+    public StatsController(
+            ComplianceQueryService complianceQueryService,
+            UserRepository userRepository,
+            SearchLogRepository searchLogRepository,
+            RequiredReadingRepository requiredReadingRepository,
+            ReadStatusRepository readStatusRepository,
+            ArticleRepository articleRepository,
+            VideoInstructionRepository videoInstructionRepository,
+            AuditLogRepository auditLogRepository,
+            ArticleViewLogRepository articleViewLogRepository,
+            ScopeResolver scopeResolver) {
+        this.scopeResolver = scopeResolver;
         this.complianceQueryService = complianceQueryService;
         this.userRepository = userRepository;
         this.searchLogRepository = searchLogRepository;
@@ -239,7 +260,9 @@ public class StatsController {
             // parent-department manager sees their sub-groups and a sub-group
             // manager still sees only their own group (SEC-13).
             dept = user.getDepartment();
-            candidates = ManagerScope.visibleActiveUsers(userRepository.findByActiveTrue(), user);
+            List<User> active = userRepository.findByActiveTrue();
+            candidates = shadowScope("scope.team-stats", user, active,
+                    ManagerScope.visibleActiveUsers(active, user));
         }
 
         if (teamId != null) {
@@ -295,7 +318,9 @@ public class StatsController {
             return denial;
         }
         if (user.getRole() == Role.MANAGER) {
-            List<Long> ids = ManagerScope.visibleActiveUsers(userRepository.findByActiveTrue(), user).stream()
+            List<User> active = userRepository.findByActiveTrue();
+            List<Long> ids = shadowScope("scope.department-stats", user, active,
+                    ManagerScope.visibleActiveUsers(active, user)).stream()
                     .map(User::getId)
                     .toList();
             List<ComplianceRecord> records = complianceQueryService.computeCompliance(ids, null);
@@ -345,7 +370,9 @@ public class StatsController {
         }
         List<ComplianceRecord> records;
         if (user.getRole() == Role.MANAGER) {
-            List<Long> ids = ManagerScope.visibleActiveUsers(userRepository.findByActiveTrue(), user).stream()
+            List<User> active = userRepository.findByActiveTrue();
+            List<Long> ids = shadowScope("scope.critical-operators", user, active,
+                    ManagerScope.visibleActiveUsers(active, user)).stream()
                     .map(User::getId)
                     .toList();
             records = complianceQueryService.computeCompliance(ids, null);
@@ -497,6 +524,17 @@ public class StatsController {
 
     private static int parsePercentage(String percentageLabel) {
         return Integer.parseInt(percentageLabel.replace("%", ""));
+    }
+
+    /**
+     * Phase 3: records what leadership-backed scoping would return and serves
+     * the legacy answer. Null-safe so the DB-free controller tests, which
+     * construct this without a resolver, measure nothing rather than fail.
+     */
+    private List<User> shadowScope(String decision, User caller, List<User> candidates, List<User> legacyVisible) {
+        return scopeResolver == null
+                ? legacyVisible
+                : scopeResolver.shadowCompare(decision, caller, candidates, legacyVisible);
     }
 
     private static ResponseEntity<Map<String, String>> requireContentAdmin(User user) {

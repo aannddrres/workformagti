@@ -9,6 +9,7 @@ import ge.magti.portal.repository.ReadStatusRepository;
 import ge.magti.portal.repository.RequiredReadingRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.ManagerScope;
+import ge.magti.portal.security.ScopeResolver;
 import ge.magti.portal.stats.ComplianceRecord;
 import org.springframework.stereotype.Service;
 
@@ -53,13 +54,25 @@ public class ExportQueryService {
     private final UserRepository userRepository;
     private final RequiredReadingRepository requiredReadingRepository;
 
+    /** Phase 3 shadow only; nullable so the DB-free scoping tests stay unchanged. */
+    private final ScopeResolver scopeResolver;
+
     public ExportQueryService(
             ComplianceQueryService complianceQueryService, ReadStatusRepository readStatusRepository,
             UserRepository userRepository, RequiredReadingRepository requiredReadingRepository) {
+        this(complianceQueryService, readStatusRepository, userRepository, requiredReadingRepository, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ExportQueryService(
+            ComplianceQueryService complianceQueryService, ReadStatusRepository readStatusRepository,
+            UserRepository userRepository, RequiredReadingRepository requiredReadingRepository,
+            ScopeResolver scopeResolver) {
         this.complianceQueryService = complianceQueryService;
         this.readStatusRepository = readStatusRepository;
         this.userRepository = userRepository;
         this.requiredReadingRepository = requiredReadingRepository;
+        this.scopeResolver = scopeResolver;
     }
 
     /**
@@ -123,9 +136,14 @@ public class ExportQueryService {
         if (caller.getRole() == Role.SYSTEM_ADMIN) {
             return complianceQueryService.computeCompliance();
         }
-        List<Long> ids = ManagerScope.visibleActiveUsers(userRepository.findByActiveTrue(), caller).stream()
-                .map(User::getId)
-                .toList();
+        List<User> active = userRepository.findByActiveTrue();
+        List<User> visible = ManagerScope.visibleActiveUsers(active, caller);
+        if (scopeResolver != null) {
+            // Phase 3: measures what leadership-backed scoping would export,
+            // and keeps serving the department-string answer.
+            visible = scopeResolver.shadowCompare("scope.export", caller, active, visible);
+        }
+        List<Long> ids = visible.stream().map(User::getId).toList();
         return complianceQueryService.computeCompliance(ids, null);
     }
 

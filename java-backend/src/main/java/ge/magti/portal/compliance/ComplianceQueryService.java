@@ -33,13 +33,26 @@ public class ComplianceQueryService {
     private final RequiredReadingRepository requiredReadingRepository;
     private final ReadStatusRepository readStatusRepository;
 
+    /** Phase 3 shadow only; nullable so the DB-free callers stay unchanged. */
+    private final ComplianceEligibilityService eligibilityService;
+
     public ComplianceQueryService(
             UserRepository userRepository,
             RequiredReadingRepository requiredReadingRepository,
             ReadStatusRepository readStatusRepository) {
+        this(userRepository, requiredReadingRepository, readStatusRepository, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ComplianceQueryService(
+            UserRepository userRepository,
+            RequiredReadingRepository requiredReadingRepository,
+            ReadStatusRepository readStatusRepository,
+            ComplianceEligibilityService eligibilityService) {
         this.userRepository = userRepository;
         this.requiredReadingRepository = requiredReadingRepository;
         this.readStatusRepository = readStatusRepository;
+        this.eligibilityService = eligibilityService;
     }
 
     /** Whole-organisation compliance (every eligible operator). */
@@ -69,7 +82,18 @@ public class ComplianceQueryService {
         } else {
             candidates = userRepository.findByActiveTrue();
         }
-        List<User> users = candidates.stream().filter(ComplianceCalculator::isEligible).toList();
+        List<User> users = candidates.stream()
+                .filter(candidate -> {
+                    boolean legacy = ComplianceCalculator.isEligible(candidate);
+                    // Phase 3: measures the override-and-leadership policy,
+                    // serves the role-only rule. Flipping this rewrites every
+                    // historical percentage at once, so it cuts over on the
+                    // parity report rather than on a code review.
+                    return eligibilityService == null
+                            ? legacy
+                            : eligibilityService.shadowCompare(candidate, legacy);
+                })
+                .toList();
 
         // SQL-side GROUP BY instead of hydrating every RequiredReading row.
         Map<String, Integer> requiredCountsByDept = new HashMap<>();
