@@ -62,6 +62,7 @@ UI-ის ყველა გადაწყვეტილება უნდ�
 | მოთხოვნა | მიმდინარე მდგომარეობა | საჭირო ცვლილება |
 |---|---|---|
 | პასუხისმგებლობების შეთავსება | `users.role` + per-user permissions უკვე არსებობს | ჯერ capability-gap ტესტი; `user_roles` მხოლოდ დამტკიცებული საჭიროების შემთხვევაში |
+| დეპარტამენტი/ჯგუფი/უფროსი | free-text `department`; `teams`, `team_id`, `manager_id` რეალურ მონაცემებში გამოუყენებელია | ნორმალიზებული AD-owned org structure + ადგილობრივი leadership assignment; იხ. `ORG_ACCESS_ARCHITECTURE_PLAN_KA.md` |
 | რამდენიმე კატეგორია სტატიაზე | `articles.category_id` ერთია | `article_categories` many-to-many კავშირი |
 | typo/transliteration search | exact substring + ყველა trigram-ის თანხვედრა | fuzzy ranking, normalisation და transliteration index |
 | მნიშვნელოვანი და მცირე ვერსიები | history/version არსებობს, მაგრამ ორი დონე არა | revision + compliance release მოდელი |
