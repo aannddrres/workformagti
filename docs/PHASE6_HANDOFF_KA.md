@@ -1,6 +1,6 @@
 # Phase 6 — content gates: role → permission
 
-**სტატუსი:** ✅ კოდი დასრულებული; საბოლოო review Claude (2026-08-22, §9) — ერთი blocker ნაპოვნი და გასწორებული; Codex-ს რჩება §10
+**სტატუსი:** ✅ **დასრულებულია** — კოდი, review (§9) და Codex-ის follow-up (§10/§11) დახურულია; merge-ისთვის მზადაა
 **ბოლო განახლება:** 2026-08-22
 **შედგენილია:** 2026-08-21
 **კონტექსტი:** `docs/ORG_ACCESS_ARCHITECTURE_PLAN_KA.md` §5.8, §7.6
@@ -500,9 +500,10 @@ Oracle integration suite და Angular vitest აქ ვერ გავუშ�
 
 ---
 
-## 10. Codex-ისთვის — დარჩენილი სამუშაო
+## 10. Codex-ისთვის — დარჩენილი სამუშაო ✅ **დასრულებულია** (2026-08-22, `e6dff78`)
 
-ახალი ფუნქციონალი არ არის. სამი პუნქტი, პრიორიტეტის მიხედვით.
+შესრულებულია და გადამოწმებული — იხ. §11. ქვემოთ დავალება იმ სახით რჩება,
+როგორც გაიცა, რადგან §11 სწორედ მას პასუხობს.
 
 ### 10.1 `V36.1` ხელახლა გაუშვი ლოკალურ Oracle-ზე
 
@@ -545,3 +546,66 @@ production-ზე ეს პრობლემა არასოდეს გ�
 4. `GET /api/admin/org-backfill/report` → სანამ `blocks_cutover: false`
    არ არის, **გაჩერდი**;
 5. მხოლოდ მერე: backfill apply → `V37` → Phase 4/5.
+
+---
+
+## 11. §10-ის დახურვა — გადამოწმებული (Claude, 2026-08-22)
+
+**HEAD: `e6dff78`.** `9f730ac` მისი წინაპარია. §10-ის შემდეგ ზუსტად **ერთი**
+commit დაემატა, **ერთი** ფაილი, **35 ხაზი** — არც `V37`, არც backfill, არც
+`org/` პაკეტი, არც D-8, არც §9.5. სწორედ ის, რაც დავალებული იყო.
+
+### 11.1 `V36.1` ხელახლა გაშვებული ✅
+
+Flyway `clean` + `migrate` `MAGTI_APP`-ზე (Oracle 19.3, `localhost:1521/orclpdb1`),
+`repair` **არ** გამოყენებულა — ე.ი. გასწორებული SQL მართლა შესრულდა და
+checksum ჩუმად არ გასწორებულა. 37 migration, ვერსია `36.1`, `validate` სუფთა.
+
+**`DENY system.audit` მწკრივების რაოდენობა: 0.** ეს არის §9.1-ის პირდაპირი
+პასუხი — ზუსტად ის რიცხვი, რომელიც გასწორებამდე ყოველი Python-ის დროინდელი
+manager-ისა და content admin-ის ტოლი იქნებოდა.
+
+`V36.1` guard კოდში ადგილზეა (გადამოწმებული `e6dff78`-ზე).
+
+### 11.2 CAS-ის განშტოება — დაფარული ✅
+
+`UserControllerIntegrationTest.permissionOnlyDeltaAdvancesTheOriginalLockExactlyOnce`.
+
+ტესტი მართლა CAS-ის გზას ეხება, არა Case A-ს:
+
+* `role: "operator"` = target-ის role → არ იცვლება;
+* `department: "All"` = შექმნისას მინიჭებული → არ იცვლება;
+* `position: "Operator"` წინასწარ არის `saveAndFlush`-ით ჩაწერილი, სანამ
+  `lockBefore` წაიკითხება → არ იცვლება;
+* `phone`/`team_id` საერთოდ არ იგზავნება → null → `profileFieldsWouldChange`
+  მათ არ ითვლის.
+
+→ `profileFieldsWouldChange = false` → `advanceLockVersion`-ის განშტოება.
+
+მტკიცებულება ნამდვილი Oracle-იდან `JdbcTemplate`-ით: `lockBefore + 1 == lockAfter`
+(**არა +2**), `responseLock == lockAfter`, override შენახული.
+
+ე.ი. §9.3-ის ეჭვი — რომ `@Version` და ხელით CAS ერთ request-ზე ორივე
+შეიძლება შესრულებულიყო — **დახურულია მონაცემით და არა მსჯელობით**.
+
+### 11.3 ვერიფიკაცია
+
+| | Codex (ნამდვილი Oracle) | Claude (ამ container-ში) |
+|---|---|---|
+| backend suite | **612**, 0 failure/error/skip | **612**, 0 failure; 267 error = `ORA-12541` |
+| Angular Vitest | 60/60 | ვერ გავუშვი |
+| Angular prod build | ✅ (მხოლოდ არსებული bundle-budget warning) | ვერ გავუშვი |
+
+ტესტების რაოდენობა ორივე მხარეს ემთხვევა.
+
+### 11.4 სტატუსი
+
+**Phase 6 დასრულებულია და integration/main-ში merge-ისთვის მზადაა.**
+
+დარჩენილი rollout gates უცვლელია — იხ. §10.4, პუნქტი 2-დან:
+pre-flight query → `V36`/`V36.1` staging/production-ზე →
+`GET /api/admin/org-backfill/report` → `blocks_cutover: false` → backfill →
+`V37` → Phase 4/5.
+
+`V36.1` არსად deploy-ული არ არის, ე.ი. §9.1-ის დეფექტი production-ში
+არასოდეს გაჩენილა.
