@@ -54,6 +54,7 @@ describe('effective-access route boundaries', () => {
         ]
       },
       { path: 'admin/broadcasts', component: StubPage, canActivate: child('admin/broadcasts').canActivate },
+      { path: 'admin/exports', component: StubPage, canActivate: child('admin/exports').canActivate },
       { path: 'manager', component: StubPage, canActivate: child('manager').canActivate },
       { path: 'reading', component: StubPage, canActivate: child('reading').canActivate },
       { path: '**', redirectTo: '' }
@@ -153,6 +154,20 @@ describe('effective-access route boundaries', () => {
       await admin.navigateByUrl(url);
       expect(currentUrl()).toBe(url);
     }
+  });
+
+  it('keeps the sensitive export center system-admin-only', async () => {
+    const operator = await harnessFor('operator', {
+      role: 'operator', permissions: ['content.manage', 'reports.export'], bypass: false, can_publish_announcement: true
+    });
+    await operator.navigateByUrl('/admin/exports');
+    expect(currentUrl()).toBe('/');
+
+    const admin = await harnessFor('admin', {
+      role: 'admin', permissions: [], bypass: true, can_publish_announcement: true
+    });
+    await admin.navigateByUrl('/admin/exports');
+    expect(currentUrl()).toBe('/admin/exports');
   });
 
   it('keeps Phase 4 and Phase 5 role gates unchanged', async () => {

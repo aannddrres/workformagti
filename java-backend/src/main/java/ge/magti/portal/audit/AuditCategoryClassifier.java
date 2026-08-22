@@ -38,7 +38,8 @@ public final class AuditCategoryClassifier {
     }
 
     public static AuditCategory classify(String itemType, String action) {
-        if (SECURITY_ACTIONS.contains(action) || (action != null && action.startsWith("UPDATE_STATUS_TO_"))) {
+        if (SECURITY_ACTIONS.contains(action) || (action != null
+                && (action.startsWith("UPDATE_STATUS_TO_") || action.startsWith("EXPORT_ADMIN_")))) {
             return AuditCategory.SECURITY;
         }
         if (USER_ACTIONS.contains(action)) {

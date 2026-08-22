@@ -81,6 +81,8 @@ describe('AppShell effective-access navigation', () => {
     expect(visible(operator, '/admin/org/assignments')).toBe(false);
     expect(visible(admin, '/admin/org')).toBe(true);
     expect(visible(admin, '/admin/org/assignments')).toBe(true);
+    expect(visible(operator, '/admin/exports')).toBe(false);
+    expect(visible(admin, '/admin/exports')).toBe(true);
   });
 
   it('shows broadcasts to a group leader capability without showing content administration', () => {

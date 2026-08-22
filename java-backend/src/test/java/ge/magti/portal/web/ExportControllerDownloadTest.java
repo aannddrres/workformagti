@@ -184,4 +184,21 @@ class ExportControllerDownloadTest {
 
         assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
     }
+
+    @Test
+    void classifiedAdminExportIsOwnerOnlyEvenBetweenSystemAdmins() {
+        User owner = exporter();
+        owner.setId(11L);
+        User otherAdmin = exporter();
+        otherAdmin.setId(12L);
+        ExportJob classified = job("completed", FILE_BYTES, inAnHour());
+        classified.setOwnerUserId(owner.getId());
+        classified.setExportFamily("ADMIN_AUDIT_LEDGER");
+        when(exportJobRepository.findById("job-1")).thenReturn(Optional.of(classified));
+
+        assertEquals(HttpStatus.OK, controller.downloadExport("job-1", owner).getStatusCode());
+        assertEquals(HttpStatus.GONE, controller.downloadExport("job-1", otherAdmin).getStatusCode());
+        assertEquals(HttpStatus.OK, controller.getExportStatus("job-1", owner).getStatusCode());
+        assertEquals(HttpStatus.NOT_FOUND, controller.getExportStatus("job-1", otherAdmin).getStatusCode());
+    }
 }

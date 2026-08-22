@@ -447,6 +447,9 @@ public class ExportController {
      * read as "therefore yours".
      */
     private static boolean maySeeJob(User caller, ExportJob job) {
+        if (job.getExportFamily() != null && job.getExportFamily().startsWith("ADMIN_")) {
+            return job.getOwnerUserId() != null && job.getOwnerUserId().equals(caller.getId());
+        }
         if (caller.getRole() == Role.SYSTEM_ADMIN) {
             return true;
         }

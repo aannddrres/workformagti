@@ -2,7 +2,7 @@
 
 **სტატუსი:** Phase 1 — decision/contract lock **დასრულებულია**; D-1…D-8 დახურულია
 **ბოლო განახლება:** 2026-08-22 (Phase 9A access-diff evidence)
-**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 119 endpoint
+**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 125 endpoint
 **გეგმა:** `docs/ORG_ACCESS_ARCHITECTURE_PLAN_KA.md` (ფაზები, §9.1 სავალდებულო მტკიცებულებები)
 
 ეს ფაილი არის ორგანიზაციული წვდომის **კონტრაქტი**: თითოეული backend endpoint-ისთვის
@@ -72,8 +72,8 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 ## ციფრებში
 
-- **119** endpoint (116 + 3 დამოუკიდებელი reminder endpoint);
-- **33** ატარებს თანამშრომლის საიდენტიფიკაციო მონაცემს (`PII = yes`);
+- **125** endpoint (119 + 6 განცალკევებული SYSTEM_ADMIN export endpoint);
+- **39** ატარებს თანამშრომლის საიდენტიფიკაციო მონაცემს (`PII = yes`);
 - **12** უკვე leadership-scoped;
 - **0** ღია გადაწყვეტილება (D-1…D-8 დახურულია).
 
@@ -153,15 +153,21 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | `DELETE /api/compliance/required-readings/{readingId}` | `ComplianceController.deleteRequiredReading` | `requireComplianceAssign` | compliance.assign | `ORG-CONTENT` | no | წესი #12: target არის დეპარტამენტი ან `All`, არასოდეს ჯგუფი. |
 | `PUT /api/compliance/required-readings/{readingId}` | `ComplianceController.updateRequiredReading` | `requireComplianceAssign` | compliance.assign | `ORG-CONTENT` | no | წესი #12: target არის დეპარტამენტი ან `All`, არასოდეს ჯგუფი. |
 
-### Export (6)
+### Export (12)
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
-| `GET /api/export/download/{jobId}` | `ExportController.downloadExport` | `requireReportsExport` | reports.export + leadership | `SELF` (`SYSTEM_ADMIN`: owner bypass) | **yes** | D-3 განხორციელებულია: `export_jobs.owner_user_id` მოწმდება; unknown owner fail-closed არის და სხვისი/არარსებული job ერთნაირად პასუხობს. |
+| `POST /api/admin/exports/article-views` | `AdminExportController.articleViews` | `requireSystemAdmin` | SYSTEM_ADMIN | `ORG` | **yes** | ცალკე XLSX; optional `from`/`through`; მხოლოდ owner ჩამოტვირთავს; `EXPORT_ADMIN_ARTICLE_VIEWS` audit. |
+| `POST /api/admin/exports/audit-ledger` | `AdminExportController.auditLedger` | `requireSystemAdmin` | SYSTEM_ADMIN | `ORG` | **yes** | audit + integrity/hash-chain metadata; JSON details credential-redaction-ით; `EXPORT_ADMIN_AUDIT_LEDGER` audit. |
+| `POST /api/admin/exports/change-events` | `AdminExportController.changeEvents` | `requireSystemAdmin` | SYSTEM_ADMIN | `ORG` | **yes** | user/content/admin/security მოვლენების ცალკე XLSX და audit action. |
+| `POST /api/admin/exports/quiz-attempts` | `AdminExportController.quizAttempts` | `requireSystemAdmin` | SYSTEM_ADMIN | `ORG` | **yes** | მხოლოდ რეალურად შენახული score/version/result; არჩეული პასუხები schema-ში არ არსებობს და არ იგონება. |
+| `POST /api/admin/exports/read-evidence` | `AdminExportController.readEvidence` | `requireSystemAdmin` | SYSTEM_ADMIN | `ORG` | **yes** | article receipt + required-reading status ერთ explicit allowlist-ში. |
+| `POST /api/admin/exports/search-history` | `AdminExportController.searchHistory` | `requireSystemAdmin` | SYSTEM_ADMIN | `ORG` | **yes** | საძიებო ტექსტი, შედეგის ფაქტი/რაოდენობა და მომხმარებლის snapshot/current identity. |
+| `GET /api/export/download/{jobId}` | `ExportController.downloadExport` | `requireReportsExport` | reports.export + leadership | `SELF` (`SYSTEM_ADMIN`: legacy owner bypass) | **yes** | D-3: classified `ADMIN_*` export ყოველთვის strict owner-only-ია; სხვა job-ზე unknown owner fail-closed, legacy SYSTEM_ADMIN bypass რჩება. |
 | `GET /api/export/readings` | `ExportController.exportReadingsCsv` | `requireReportsExport` | reports.export + leadership | `GROUP/DEPT` | **yes** | PO-13 target allowlist გადაწყვეტილია; DPO validation და implementation pending — იხ. export allowlist. |
 | `GET /api/export/readings.pdf` | `ExportController.exportReadingsPdf` | `requireReportsExport` | reports.export + leadership | `GROUP/DEPT` | **yes** | PO-13 target allowlist გადაწყვეტილია; DPO validation და implementation pending — იხ. export allowlist. |
 | `GET /api/export/readings.xlsx` | `ExportController.exportReadingsXlsx` | `requireReportsExport` | reports.export + leadership | `GROUP/DEPT` | **yes** | PO-13 target allowlist გადაწყვეტილია; DPO validation და implementation pending — იხ. export allowlist. |
-| `GET /api/export/status/{jobId}` | `ExportController.getExportStatus` | `requireReportsExport` | reports.export + leadership | `SELF` (`SYSTEM_ADMIN`: owner bypass) | **yes** | D-3 განხორციელებულია: status მხოლოდ owner-ს ეკუთვნის; unknown owner fail-closed არის. |
+| `GET /api/export/status/{jobId}` | `ExportController.getExportStatus` | `requireReportsExport` | reports.export + leadership | `SELF` (`SYSTEM_ADMIN`: legacy owner bypass) | **yes** | classified `ADMIN_*` job strict owner-only-ია; სხვა job-ზე D-3 owner/legacy SYSTEM_ADMIN წესი მოქმედებს. |
 | `GET /api/export/team-stats.pdf` | `ExportController.exportTeamStatsPdf` | `requireReportsExport` | reports.export + leadership | `GROUP/DEPT` | **yes** | სვეტები allowlist-ით (§ export allowlist). raw log ველი აკრძალულია. |
 
 ### Favorite (3)

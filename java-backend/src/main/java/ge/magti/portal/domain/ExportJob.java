@@ -81,6 +81,10 @@ public class ExportJob {
     @Column(name = "owner_user_id")
     private Long ownerUserId;
 
+    /** Non-null for classified exports; ADMIN_* jobs are always owner-only. */
+    @Column(name = "export_family", length = 50)
+    private String exportFamily;
+
     public String getId() {
         return id;
     }
@@ -127,6 +131,14 @@ public class ExportJob {
 
     public void setOwnerUserId(Long ownerUserId) {
         this.ownerUserId = ownerUserId;
+    }
+
+    public String getExportFamily() {
+        return exportFamily;
+    }
+
+    public void setExportFamily(String exportFamily) {
+        this.exportFamily = exportFamily;
     }
 
     public double getExpiresAt() {

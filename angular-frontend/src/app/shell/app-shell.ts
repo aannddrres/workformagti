@@ -76,6 +76,7 @@ export class AppShell {
         { label: 'მომხმარებლები და წვდომა', path: '/admin/access', icon: 'fa-user-shield', allowRoles: ['admin'] },
         { label: 'ორგანიზაციული სტრუქტურა', path: '/admin/org', icon: 'fa-sitemap', allowRoles: ['admin'] },
         { label: 'ლიდერების დანიშვნა', path: '/admin/org/assignments', icon: 'fa-user-tie', allowRoles: ['admin'] },
+        { label: 'მონაცემების ექსპორტი', path: '/admin/exports', icon: 'fa-file-export', allowRoles: ['admin'] },
         { label: 'აუდიტი და უსაფრთხოება', path: '/admin/audit', icon: 'fa-shield-halved', requiresPermission: 'system.audit' }
       ]
     }

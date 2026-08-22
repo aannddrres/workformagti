@@ -99,6 +99,15 @@ export const routes: Routes = [
         data: { title: 'განცხადებების მართვა' }
       },
       {
+        path: 'admin/exports',
+        loadComponent: () =>
+          import('./features/admin-exports/admin-exports-page').then(
+            ({ AdminExportsPage }) => AdminExportsPage
+          ),
+        canActivate: [roleGuard(ADMIN_ONLY)],
+        data: { title: 'მონაცემების ექსპორტი' }
+      },
+      {
         path: 'admin',
         canActivate: [contentManageGuard],
         children: [

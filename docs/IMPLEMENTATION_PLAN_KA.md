@@ -2,7 +2,7 @@
 
 **მფლობელი:** Product Owner + Engineering
 **განახლებულია:** 2026-08-22
-**სტატუსი:** ეტაპები A–D დასრულებულია; შემდეგია ეტაპი E
+**სტატუსი:** ეტაპები A–E დასრულებულია; შემდეგია ეტაპი F
 
 ## 1. მიზანი და source of truth
 
@@ -120,6 +120,9 @@ rollout-ში fail-closed რჩება. ოფიციალური rows 
 
 ### ეტაპი E — SYSTEM_ADMIN-ის სრული export ცენტრი
 
+**სტატუსი:** ✅ დასრულებულია 2026-08-22; production retention/allowlist-ის
+სამართლებრივი საბოლოო დამტკიცება რჩება Security/DPO/Legal gate-ად.
+
 ჯერ კეთდება data inventory და Security/DPO review, შემდეგ — endpoint-ები.
 
 ცალკე export ოჯახები:
@@ -141,6 +144,14 @@ Secret denylist როგორც DTO-ზე, ისე header/snapshot tests-�
 
 **runtime logs:** Java/Kubernetes/ingress log SIEM-ში რჩება. პორტალში მათი ასლი
 არ იქმნება; IT/SOC უზრუნველყოფს approved search/export flow-ს.
+
+**განხორციელებული კონტრაქტი:** ექვსი ცალკე SYSTEM_ADMIN-only XLSX endpoint და
+Angular export center; optional inclusive date range; 20 000-row fail-closed
+ზღვარი; 1-საათიანი job TTL; classified job-ზე strict owner-only download;
+თითო ოჯახზე საკუთარი `EXPORT_ADMIN_*` audit action. SQL/header allowlist-ში
+credential ველები არ არსებობს, audit JSON details რეკურსიულად იფარება, ხოლო
+არასტრუქტურირებული details raw სახით არ გადის. ზუსტი ინვენტარი აღწერილია
+`SYSTEM_ADMIN_EXPORT_INVENTORY_KA.md`-ში.
 
 ### ეტაპი F — კონტენტის lifecycle და retention
 
@@ -181,6 +192,6 @@ Secret denylist როგორც DTO-ზე, ისე header/snapshot tests-�
 - [x] ეტაპი B — official read evidence scope/aggregate და SYSTEM_ADMIN-only view log;
 - [x] ეტაპი C — Broadcast lifecycle/UI და private messaging removal;
 - [x] ეტაპი D — fixed one-way reminder engine, inbox, scope/cooldown და audit;
-- [ ] ეტაპი E — SYSTEM_ADMIN export center;
+- [x] ეტაპი E — SYSTEM_ADMIN export center, owner-only jobs და secret redaction;
 - [ ] ეტაპი F — lifecycle/retention;
 - [ ] ეტაპი G — production integration/cutover.

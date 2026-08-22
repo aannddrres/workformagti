@@ -48,7 +48,13 @@ const ACTION_LABELS: Record<string, string> = {
   UPLOAD: 'ფაილის ატვირთვა',
   EXPORT: 'ექსპორტი',
   EXPORT_XLSX: 'Excel-ის ექსპორტი',
-  EXPORT_PDF: 'PDF-ის ექსპორტი'
+  EXPORT_PDF: 'PDF-ის ექსპორტი',
+  EXPORT_ADMIN_AUDIT_LEDGER: 'აუდიტის სრული ჟურნალის ექსპორტი',
+  EXPORT_ADMIN_READ_EVIDENCE: 'ოფიციალური გაცნობის მტკიცებულების ექსპორტი',
+  EXPORT_ADMIN_ARTICLE_VIEWS: 'სტატიის გახსნის ისტორიის ექსპორტი',
+  EXPORT_ADMIN_SEARCH_HISTORY: 'ძებნის ისტორიის ექსპორტი',
+  EXPORT_ADMIN_QUIZ_ATTEMPTS: 'Quiz მცდელობების ექსპორტი',
+  EXPORT_ADMIN_CHANGE_EVENTS: 'ცვლილებებისა და უსაფრთხოების მოვლენების ექსპორტი'
 };
 
 const ITEM_TYPE_LABELS: Record<string, string> = {
@@ -65,7 +71,8 @@ const ITEM_TYPE_LABELS: Record<string, string> = {
   audit_log: 'აუდიტის ჩანაწერი',
   team_stats: 'გუნდის სტატისტიკა',
   broadcast: 'საერთო განცხადება',
-  reminder: 'შეხსენება'
+  reminder: 'შეხსენება',
+  admin_export: 'სისტემური ადმინისტრატორის ექსპორტი'
 };
 
 export function formatAuditAction(action: string | null | undefined): string {

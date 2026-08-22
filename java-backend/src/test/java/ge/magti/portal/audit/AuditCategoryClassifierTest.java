@@ -16,6 +16,8 @@ class AuditCategoryClassifierTest {
     @Test
     void updateStatusToPrefixIsSecurity() {
         assertEquals(AuditCategory.SECURITY, AuditCategoryClassifier.classify("article", "UPDATE_STATUS_TO_PUBLISHED"));
+        assertEquals(AuditCategory.SECURITY,
+                AuditCategoryClassifier.classify("admin_export", "EXPORT_ADMIN_SEARCH_HISTORY"));
     }
 
     @Test

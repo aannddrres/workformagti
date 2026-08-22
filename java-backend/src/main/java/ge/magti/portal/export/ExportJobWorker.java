@@ -47,6 +47,19 @@ public class ExportJobWorker {
 
     @Async
     public void buildAndStore(String jobId, String title, List<String> headers, List<List<Object>> rows, String exportType) {
+        buildAndStore(jobId, title, headers, rows, exportType, "export");
+    }
+
+    /** Dedicated filename prefix for classified SYSTEM_ADMIN data exports. */
+    @Async
+    public void buildAdminAndStore(
+            String jobId, String title, List<String> headers, List<List<Object>> rows, String filenamePrefix) {
+        buildAndStore(jobId, title, headers, rows, "xlsx", filenamePrefix);
+    }
+
+    private void buildAndStore(
+            String jobId, String title, List<String> headers, List<List<Object>> rows,
+            String exportType, String filenamePrefix) {
         try {
             byte[] data = "xlsx".equals(exportType)
                     ? XlsxExportBuilder.build(title, headers, rows)
@@ -55,7 +68,7 @@ public class ExportJobWorker {
             exportJobRepository.findById(jobId).ifPresent(job -> {
                 job.setStatus("completed");
                 job.setContent(data);
-                job.setFilename("export_" + jobId + "." + exportType);
+                job.setFilename(filenamePrefix + "_" + jobId + "." + exportType);
                 job.setPath(null);
                 job.setExpiresAt(nowEpochSeconds() + EXPORT_JOB_TTL_SECONDS);
                 exportJobRepository.save(job);
