@@ -1,6 +1,6 @@
 # Phase 7 — effective access + Angular
 
-**სტატუსი:** დასაწყები
+**სტატუსი:** ✅ **დასრულებულია** (2026-08-22, `2b7b0b5`) — review §7, blocker არ არის
 **შედგენილია:** 2026-08-22 (Claude)
 **გეგმა:** `docs/ORG_ACCESS_ARCHITECTURE_PLAN_KA.md` §7, ფაზა 7
 **კონტრაქტი:** `docs/ACCESS_CONTRACT_MATRIX_KA.md`
@@ -214,3 +214,71 @@ base: `codex/phase6-content-gates` (`e6dff78`) ან მისი merge integra
 `claude/dept-groups-architecture-biqtma` = `f1685fb` (Phase 6-ის დოკუმენტაცია).
 
 დაწყებამდე: `git fetch origin && git merge origin/claude/dept-groups-architecture-biqtma`
+
+---
+
+## 7. საბოლოო review (Claude, 2026-08-22) — `2b7b0b5`
+
+**მწვანეა. blocker არ არის, არაფერი გამისწორებია.**
+
+ერთი commit, 18 ფაილი. `514cf92` მისი წინაპარია.
+
+### 7.1 გადამოწმებული პუნქტები
+
+| # | შედეგი |
+|---|---|
+| endpoint-ის კონტრაქტი | ✅ `{role, permissions, bypass}`; `permissions` სორტირებული; gate `requireAuthenticated`; **`scope` არ დამატებულა** |
+| ALLOW / DENY / bypass | ✅ ოთხივე backend ტესტი: operator+ALLOW, content_admin+DENY (`content.manage` ქრება, `articles.edit`/`system.audit` რჩება), admin `bypass: true` + სრული კატალოგი, 401 |
+| ერთი წყარო | ✅ `UserProfileService` — ერთი `_access` signal, single-flight `accessRequest`, `clear()` ორივეს ასუფთავებს. guard და navigation **ერთ** ქეშს კითხულობენ |
+| fail-closed | ✅ `catchError → of(null)`; `permissionGuard`, `adminOverviewGuard` და route-spec ცალკე ამოწმებენ |
+| `/admin/overview`, `/admin/access` | ✅ admin-only; ტესტი `keeps overview and access outside content.manage` |
+| `/manager`, `/reading` | ✅ role-gated; ტესტი `keeps Phase 4 and Phase 5 role gates unchanged` |
+| მატრიცა 115 | ✅ სათაური, „ციფრებში" (112+3), User სექცია 13→14, ახალი მწკრივი სწორი gate/capability/scope/PII-ით |
+| `V37` / backfill / `scope` / `users.permissions` | ✅ არცერთი არ შეხებია |
+
+### 7.2 რაც განსაკუთრებით კარგად გაკეთდა
+
+**`app.routes.spec.ts` ნამდვილ guard-ებს იღებს**, არა ასლს:
+
+```typescript
+canActivate: child('admin').canActivate,
+canActivate: adminChild('overview').canActivate,
+```
+
+ე.ი. `app.routes.ts`-ის შეცვლა ტესტს **მიჰყვება**. კოპირებული guard-ის სია
+პირველივე refactor-ზე ჩუმად მოძველდებოდა.
+
+**Phase 5-ის საზღვარი ორივე მიმართულებით შემოწმდა.** `/reading` არა მხოლოდ
+„არ გაიხსნა", არამედ **გაიხსნა** `content.manage`-ის მქონე ოპერატორისთვის —
+ე.ი. capability-მ ის შემთხვევით „მენეჯმენტად" არ აქცია. ეს უფრო ბასრი ტესტია,
+ვიდრე მარტო უარყოფითი.
+
+**`auditLogGuard` კონსოლიდირდა** `can_view_audit_log`-იდან
+`permissionGuard('system.audit')`-ზე. ქცევა იდენტურია (`hasPermission` და
+`effectivePermissions` ორივე `PermissionChecker`-იდან მოდის), მაგრამ ახლა
+ორივე გადაწყვეტილება **ერთ** წყაროზეა.
+
+### 7.3 ორი შენიშვნა მომავლისთვის (defect არა)
+
+* **`/admin/access` ახლა `contentManageGuard`-ის ქვეშაა.** ეს დღეს სწორად
+  მუშაობს **მხოლოდ იმიტომ**, რომ SYSTEM_ADMIN-ის bypass მას `content.manage`-საც
+  აძლევს. თუ ოდესმე SEC-06-ის ვარიანტი (ა) აირჩა — bypass-ის მოხსნა —
+  user administration ადმინისთვისაც დაიკეტება. `roleGuard(ADMIN_ONLY)` შვილზე
+  ადგილზეა, ე.ი. გაფართოება არ ხდება; ეს მხოლოდ დამოკიდებულებაა, რომელიც
+  უნდა ახსოვდეს.
+* **`CurrentUserProfile.can_view_audit_log` აღარავინ კითხულობს** frontend-ზე.
+  wire-ზე რჩება. მისი მოხსნა response-contract ცვლილებაა — ცალკე
+  გადაწყვეტილება, არა Phase 7-ის ნაწილი.
+
+### 7.4 ვერიფიკაცია
+
+| | Codex | Claude (ამ container-ში) |
+|---|---|---|
+| backend | **617**, 0 failure | **617**, 0 failure; 271 error = `ORA-12541` |
+| Angular Vitest | 72/72 | ვერ გავუშვი (Node 22.22.2 < 22.22.3) |
+| `tsc` main + spec | — | ✅ ორივე სუფთა |
+| prod build | ✅ (bundle-budget warning non-failing) | ვერ გავუშვი |
+
+### 7.5 სტატუსი
+
+**Phase 7 დასრულებულია.** შემდეგი — `docs/PHASE8_HANDOFF_KA.md`.
