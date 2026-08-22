@@ -23,4 +23,5 @@ export interface EffectiveAccess {
   role: string;
   permissions: string[];
   bypass: boolean;
+  can_publish_announcement: boolean;
 }

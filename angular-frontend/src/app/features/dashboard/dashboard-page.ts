@@ -15,6 +15,7 @@ import { RecentlyViewedStrip } from './recently-viewed-strip';
 import { isRecentlyPublished } from '../../shared/category-visuals';
 import { buildRecursiveCategoryCounts, descendantCategoryIds } from '../../shared/category-tree';
 import { isReaderVisibleArticle } from '../../shared/article-visibility';
+import { BroadcastBanner } from '../../shared/broadcast-banner/broadcast-banner';
 
 const MANAGEMENT_ROLES = ['admin', 'content_admin', 'manager'];
 
@@ -37,6 +38,7 @@ const MANAGEMENT_ROLES = ['admin', 'content_admin', 'manager'];
     NewsPreview,
     RecentlyViewedStrip,
     TranslatePipe,
+    BroadcastBanner,
   ],
   templateUrl: './dashboard-page.html',
 })

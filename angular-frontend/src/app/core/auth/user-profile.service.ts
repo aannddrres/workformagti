@@ -71,6 +71,10 @@ export class UserProfileService {
     return access?.bypass === true || access?.permissions.includes(permission) === true;
   }
 
+  canPublishAnnouncement(): boolean {
+    return this._access()?.can_publish_announcement === true;
+  }
+
   private clear(): void {
     this._profile.set(null);
     this._access.set(null);

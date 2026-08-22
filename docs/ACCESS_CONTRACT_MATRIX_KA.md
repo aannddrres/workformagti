@@ -2,7 +2,7 @@
 
 **სტატუსი:** Phase 1 — decision/contract lock **დასრულებულია**; D-1…D-8 დახურულია
 **ბოლო განახლება:** 2026-08-22 (Phase 9A access-diff evidence)
-**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 118 endpoint
+**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 121 endpoint
 **გეგმა:** `docs/ORG_ACCESS_ARCHITECTURE_PLAN_KA.md` (ფაზები, §9.1 სავალდებულო მტკიცებულებები)
 
 ეს ფაილი არის ორგანიზაციული წვდომის **კონტრაქტი**: თითოეული backend endpoint-ისთვის
@@ -43,7 +43,7 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 |---|---|---|
 | `content.manage` | news/video/category CRUD, upload, verify, history restore, quiz admin | წესი #9 ამ უფლებებს **ერთ კონა**დ აღწერს: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატიის რედაქტირება + კატეგორიების მართვა |
 | `content.evidence` | ოფიციალური read-receipts | აგრეგატი შეიძლება `content.manage`-ს დარჩეს; სახელობითი ოფიციალური rows მხოლოდ leadership scope-ით, `SYSTEM_ADMIN` კი org-wide ხედავს. article view არის ცალკე SYSTEM_ADMIN-only log; feedback წაიშალა |
-| `announcement.publish` | საიტის საერთო განცხადების გამოქვეყნება (დღეს `POST /api/broadcast`) | პირადი messaging-ისგან განცალკევებული, ყველა ავტორიზებული თანამშრომლის მთავარ გვერდსა და პროფილში ხილული passive ინფორმაცია; აუდიტორია ფიქსირებულად მთელი კომპანიაა |
+| `announcement.publish` | საიტის საერთო განცხადების გამოქვეყნება (`POST /api/broadcasts`) | პირადი messaging-ისგან განცალკევებული, ყველა ავტორიზებული თანამშრომლის მთავარ გვერდსა და პროფილში ხილული passive ინფორმაცია; აუდიტორია ფიქსირებულად მთელი კომპანიაა |
 | `stats.view` | კომპანიის მასშტაბის აგრეგატული სტატისტიკა, სახელების გარეშე | **D-8 გადაწყვეტილია:** `content.manage`-ისგან დამოუკიდებელი უფლება; SYSTEM_ADMIN ცალკე გასცემს |
 | `org.manage` | user CRUD, role, permissions, group-leaders | SYSTEM_ADMIN-ის სივრცე; AD-owned ნაწილი fail-closed |
 
@@ -72,7 +72,7 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 ## ციფრებში
 
-- **118** endpoint (115 + Phase 3-ის 3 დიაგნოსტიკური);
+- **121** endpoint (118 არსებული − 1 მოძველებული broadcast + 4 დამოუკიდებელი Broadcast endpoint);
 - **34** ატარებს თანამშრომლის საიდენტიფიკაციო მონაცემს (`PII = yes`);
 - **11** უკვე leadership-scoped;
 - **0** ღია გადაწყვეტილება (D-1…D-8 დახურულია).
@@ -178,11 +178,14 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 |---|---|---|---|---|---|---|
 | `GET /api/health` | `HealthController.health` | — | — | `NONE` | no | ინფრასტრუქტურული probe. |
 
-### Messaging (6)
+### Broadcast (4) და მოსაცილებელი Messaging (5)
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
-| `POST /api/broadcast` | `MessagingController.postBroadcast` | `requireContentAdmin` | announcement.publish — refactor pending | `ORG-CONTENT` | no | საერთო განცხადება ყველა ავტორიზებული თანამშრომლის მთავარ გვერდსა და პროფილში ჩანს. სამიზნე publishers: `content.manage`, მოქმედი ძირითადი/დროებითი ჯგუფის უფროსი, `SYSTEM_ADMIN`. აუდიტორია ფიქსირებულად მთელი კომპანიაა; ავტორიზაციის გარეშე არ ჩანს. |
+| `GET /api/broadcasts` | `BroadcastController.getActive` | `requireAuthenticated` | AUTH | `ORG-CONTENT` | no | ყველა ავტორიზებული თანამშრომელი ხედავს მხოლოდ აქტიურ საერთო განცხადებებს; recipient/read/acknowledgment არ არსებობს. |
+| `POST /api/broadcasts` | `BroadcastController.publish` | `requireAnnouncementPublisher` | announcement.publish | `ORG-CONTENT` | no | composite gate საკუთარ თავში ამოწმებს authentication-საც: `content.manage`, მოქმედი ჯგუფის PRIMARY/ACTING ლიდერი ან SYSTEM_ADMIN; აუდიტორია ყოველთვის მთელი კომპანიაა. |
+| `GET /api/broadcasts/history` | `BroadcastController.getHistory` | `requireAnnouncementPublisher` | announcement.publish | `ORG-CONTENT` | no | paginated აქტიური/ვადაგასული/ადრე დასრულებული ისტორია; targeting არ არსებობს. |
+| `POST /api/broadcasts/{broadcastId}/end` | `BroadcastController.endEarly` | `requireAnnouncementPublisher` | announcement.publish | `OWN-CONTENT` | no | დროზე ადრე ასრულებს მხოლოდ გამომქვეყნებელი ან SYSTEM_ADMIN; ოპტიმისტური lock იცავს კონკურენტულ ცვლილებას. |
 | `GET /api/messages` | `MessagingController.getMyMessages` | `requireAuthenticated` | REMOVE — D-7 resolved | — | no | პირადი messaging აღარ არის პროდუქტის ნაწილი; endpoint implementation commit-ზე უნდა წაიშალოს. |
 | `POST /api/messages` | `MessagingController.sendMessage` | `requireManagerOrAdmin` | REMOVE — D-7 resolved | — | **yes** | პირადი messaging აღარ არის პროდუქტის ნაწილი; `DirectMessagePermission`-თან ერთად უნდა წაიშალოს. |
 | `GET /api/messages/sent` | `MessagingController.getSentMessages` | `requireManagerOrAdmin` | REMOVE — D-7 resolved | — | **yes** | პირადი messaging აღარ არის პროდუქტის ნაწილი; endpoint implementation commit-ზე უნდა წაიშალოს. |
@@ -487,12 +490,11 @@ implementation commit-მა export allowlist/header mapping და tests უნ
 არის. `GET/POST /api/messages`, sent/delete/read endpoint-ები,
 `DirectMessagePermission` და შესაბამისი UI უნდა წაიშალოს.
 
-`POST /api/broadcast` **არ იშლება**: მისი პროდუქტული მნიშვნელობა პირადი
-შეტყობინება კი არა, საიტის საერთო განცხადებაა. მაგალითად: ოფისი დაიკეტა ან
-რომელიმე მიმართულებაზე ტექნიკური პრობლემაა. განცხადება ყველა ავტორიზებული
-თანამშრომლის პროფილში ჩანს; ინტერნეტში ან ავტორიზაციის გარეშე საჯარო არ არის.
-implementation commit-ზე ის პირადი messaging domain-ისგან უნდა განცალკევდეს და
-შესაბამის ქართულ ტერმინზე გადავიდეს.
+ძველი `POST /api/broadcast` პირად messaging domain-თან ერთად იცვლება დამოუკიდებელი
+`POST /api/broadcasts` კონტრაქტით: მისი პროდუქტული მნიშვნელობა საიტის საერთო
+განცხადებაა. მაგალითად: ოფისი დაიკეტა ან რომელიმე მიმართულებაზე ტექნიკური
+პრობლემაა. განცხადება ყველა ავტორიზებული თანამშრომლის მთავარ გვერდსა და პროფილში
+ჩანს; ინტერნეტში ან ავტორიზაციის გარეშე საჯარო არ არის.
 
 ### D-8. `/api/statistics/*` — ✅ გადაწყვეტილია (2026-08-22)
 

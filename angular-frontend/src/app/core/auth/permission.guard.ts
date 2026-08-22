@@ -32,3 +32,11 @@ export function permissionGuard(permission: string): CanActivateFn {
 
 export const contentManageGuard = permissionGuard('content.manage');
 export const auditLogGuard = permissionGuard('system.audit');
+
+/** Composite backend decision: content.manage OR active group leadership OR SYSTEM_ADMIN. */
+export const announcementPublisherGuard: CanActivateFn = () => {
+  const profiles = inject(UserProfileService);
+  const router = inject(Router);
+  return profiles.ensureAccessLoaded().pipe(map((access) =>
+    access?.can_publish_announcement === true ? true : router.createUrlTree(['/'])));
+};

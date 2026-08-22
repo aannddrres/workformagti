@@ -49,9 +49,8 @@ import java.util.UUID;
  * and half the JDK throw when <i>server</i> state is wrong. Turning those
  * into 400s would blame the caller for our own bugs, and — worse — silence
  * them, since a 400 carries no correlation id and writes no stack trace. The
- * one call site the audit named is fixed where it lives, in
- * {@code MessagingController.postBroadcast}, next to the three in
- * {@code UserController} that already did it that way.
+ * call sites that parse client enums therefore handle them beside their
+ * request contracts rather than weakening error classification globally.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {

@@ -176,7 +176,18 @@ class ResponseShapeContractTest {
 
     @Test
     void effectiveAccessCarriesOnlyTheDecisionInputsTheUiNeeds() {
-        assertEquals(List.of("role", "permissions", "bypass"), wireFieldsOf(EffectiveAccessResponse.class));
+        assertEquals(List.of("role", "permissions", "bypass", "can_publish_announcement"),
+                wireFieldsOf(EffectiveAccessResponse.class));
+    }
+
+    @Test
+    void broadcastExposesContentLifecycleAndAViewerSpecificEndDecisionButNoRecipientData() {
+        assertEquals(
+                List.of("id", "message", "priority", "published_at", "ends_at", "ended_at",
+                        "publisher_name", "ended_by_name", "status", "can_end_early", "lock_version"),
+                wireFieldsOf(BroadcastResponse.class));
+        assertEquals(List.of("items", "page", "size", "total_items", "total_pages"),
+                wireFieldsOf(BroadcastHistoryResponse.class));
     }
 
     @Test

@@ -2,7 +2,8 @@
 
 **მფლობელი:** Product Owner + Engineering
 **განახლებულია:** 2026-08-22
-**სტატუსი:** მიმდინარეობს — ეტაპები A და B დასრულებულია; შემდეგია ეტაპი C
+**სტატუსი:** მიმდინარეობს — ეტაპები A და B დასრულებულია; ეტაპი C-ის Broadcast
+lifecycle/UI მზადაა, შემდეგია private messaging removal
 
 ## 1. მიზანი და source of truth
 
@@ -87,6 +88,10 @@ rollout-ში fail-closed რჩება. ოფიციალური rows 
 
 ### ეტაპი C — Broadcast-ის დამოუკიდებელი მოდული
 
+**სტატუსი:** მიმდინარეობს — დამოუკიდებელი schema/domain/API/audit/UI და მისი
+regression coverage დასრულებულია; დარჩენილია ძველი private messaging-ის ცალკე
+removal commit.
+
 **მიზანი:** საერთო ინფორმაცია არ იყოს პირადი შეტყობინება.
 
 - აუდიტორია ფიქსირებულად ყველა ავტორიზებული თანამშრომელია;
@@ -166,7 +171,7 @@ Secret denylist როგორც DTO-ზე, ისე header/snapshot tests-�
 - [x] ეტაპი A — access-contract, missing-route `404` regression და სრული
   backend/Angular შემოწმება;
 - [x] ეტაპი B — official read evidence scope/aggregate და SYSTEM_ADMIN-only view log;
-- [ ] ეტაპი C — Broadcast;
+- [ ] ეტაპი C — Broadcast (lifecycle/UI დასრულებულია; private messaging removal დარჩა);
 - [ ] ეტაპი D — reminder;
 - [ ] ეტაპი E — SYSTEM_ADMIN export center;
 - [ ] ეტაპი F — lifecycle/retention;

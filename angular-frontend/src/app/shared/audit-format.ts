@@ -33,7 +33,9 @@ const ACTION_LABELS: Record<string, string> = {
   VIEW: 'მასალის ნახვა',
   MARK_READ: 'წაკითხულად მონიშვნა',
   SEND_MESSAGE: 'შეტყობინების გაგზავნა',
-  BROADCAST: 'საერთო შეტყობინების გაგზავნა',
+  BROADCAST: 'საერთო განცხადების გამოქვეყნება (ძველი)',
+  PUBLISH_BROADCAST: 'საერთო განცხადების გამოქვეყნება',
+  END_BROADCAST_EARLY: 'საერთო განცხადების დროზე ადრე დასრულება',
   ARCHIVE: 'დაარქივება',
   UNARCHIVE: 'არქივიდან აღდგენა',
   RESTORE: 'ვერსიის აღდგენა',
@@ -58,7 +60,8 @@ const ITEM_TYPE_LABELS: Record<string, string> = {
   file: 'ფაილი',
   system: 'სისტემა',
   audit_log: 'აუდიტის ჩანაწერი',
-  team_stats: 'გუნდის სტატისტიკა'
+  team_stats: 'გუნდის სტატისტიკა',
+  broadcast: 'საერთო განცხადება'
 };
 
 export function formatAuditAction(action: string | null | undefined): string {

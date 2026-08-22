@@ -22,7 +22,7 @@ import { AdminAssignmentsPage } from './features/admin-org/admin-assignments-pag
 import { AdminBackfillPage } from './features/admin-org/admin-backfill-page';
 import { AccountPage } from './features/account/account-page';
 import { authGuard } from './core/auth/auth.guard';
-import { auditLogGuard, contentManageGuard } from './core/auth/permission.guard';
+import { announcementPublisherGuard, auditLogGuard, contentManageGuard } from './core/auth/permission.guard';
 import { adminOverviewGuard, roleGuard } from './core/auth/role.guard';
 
 const MANAGER_ROLES = ['admin', 'manager'];
@@ -89,6 +89,15 @@ export const routes: Routes = [
         component: AdminAuditPage,
         canActivate: [auditLogGuard],
         data: { title: 'nav.sidebar.admin_logs' }
+      },
+      {
+        path: 'admin/broadcasts',
+        loadComponent: () =>
+          import('./features/admin-broadcasts/admin-broadcasts-page').then(
+            ({ AdminBroadcastsPage }) => AdminBroadcastsPage
+          ),
+        canActivate: [announcementPublisherGuard],
+        data: { title: 'განცხადებების მართვა' }
       },
       {
         path: 'admin',

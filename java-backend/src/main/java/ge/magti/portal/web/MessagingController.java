@@ -31,7 +31,8 @@ import java.util.stream.Collectors;
 
 /**
  * Mirrors routers/messaging.py's 6 durable, non-real-time endpoints: the
- * operator inbox/manager-sent-messages CRUD and the admin broadcast.
+ * operator inbox/manager-sent-messages CRUD. Broadcasts moved to the
+ * independent {@link BroadcastController} domain and never create Message rows.
  *
  * <p><b>Deliberately not ported: {@code GET /api/stream}</b> (the SSE
  * live-event connection, routers/messaging.py:71-147). Presented to the user
@@ -51,16 +52,8 @@ import java.util.stream.Collectors;
  * {@code @property}s) are resolved here via a small batch lookup rather than
  * per-row, avoiding an N+1 query for a list endpoint.
  *
- * <p><b>Broadcast now persists real {@link Message} rows</b> (2026-08-14
- * fix). The original Python {@code post_broadcast} never did either --
- * it only published an ephemeral SSE event plus an audit-log row, so a
- * recipient saw it live only if connected at that exact instant, and
- * never at all afterward. Dropping SSE (see above) made that gap total:
- * broadcasts had zero observable effect on any user. Recipients are now
- * resolved the same way {@link ge.magti.portal.article.EligibleOperatorsService}
- * resolves article audiences -- exact-match department (or all active
- * users for "All"), optionally narrowed by role -- excluding the sending
- * admin.
+ * <p>This controller remains temporarily only for the legacy direct-message
+ * removal release. No new feature may depend on it.
  */
 @RestController
 public class MessagingController {
@@ -165,67 +158,6 @@ public class MessagingController {
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 
-    /**
-     * Port of post_broadcast (routers/messaging.py:307-333), extended to
-     * actually deliver: see this class's javadoc for why (the original's
-     * SSE-only delivery was already lost the instant a recipient wasn't
-     * connected; dropping SSE entirely made it total). The live SSE
-     * publish ({@code _safe_publish}) itself is still not ported.
-     */
-    @PostMapping("/api/broadcast")
-    @Transactional
-    public ResponseEntity<?> postBroadcast(@RequestBody BroadcastRequest request, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
-        if (denial != null) {
-            return denial;
-        }
-
-        // SEC-15. Parsed BEFORE the candidate query, not after it as this
-        // method used to do: an unknown role is a bad request, and a bad
-        // request should not first load every active user in the company.
-        // The three equivalent calls in UserController (:164-169, :324-329,
-        // :392-397) already return this exact 400; this was the one that
-        // didn't, so a stale client posting target_role "user" got an opaque
-        // 500 and a stack trace that reads like a server fault.
-        String targetRole = request.targetRoleOrDefault();
-        Role roleFilter;
-        try {
-            roleFilter = "All".equals(targetRole) ? null : Role.fromValue(targetRole);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("detail", "უცნობი როლი"));
-        }
-
-        List<User> candidates = "All".equals(request.targetDepartmentOrDefault())
-                ? userRepository.findByActiveTrue()
-                : userRepository.findByActiveTrueAndDepartment(request.targetDepartmentOrDefault());
-
-        List<User> recipients = candidates.stream()
-                .filter(u -> !u.getId().equals(user.getId()))
-                .filter(u -> roleFilter == null || u.getRole() == roleFilter)
-                .toList();
-
-        OffsetDateTime now = TbilisiTime.now();
-        List<Message> messages = recipients.stream().map(recipient -> {
-            Message message = new Message();
-            message.setUserId(recipient.getId());
-            message.setSenderId(user.getId());
-            message.setContent(request.message());
-            message.setCreatedAt(now);
-            return message;
-        }).toList();
-        messageRepository.saveAll(messages);
-
-        AuditLog audit = new AuditLog();
-        audit.setAdminId(user.getId());
-        audit.setAction("BROADCAST");
-        audit.setItemType("system");
-        audit.setItemId(0L);
-        audit.setTimestamp(now);
-        auditLogRepository.save(audit);
-
-        return ResponseEntity.ok(new BroadcastResponse("success", recipients.size()));
-    }
-
     private List<MessageResponse> toResponses(List<Message> messages) {
         Set<Long> userIds = new LinkedHashSet<>();
         for (Message m : messages) {
@@ -262,15 +194,4 @@ public class MessagingController {
         return null;
     }
 
-    private static ResponseEntity<Map<String, String>> requireContentAdmin(User user) {
-        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
-        if (authFailure != null) {
-            return authFailure;
-        }
-        if (!user.getRole().isContentAdmin()) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("detail", "Not enough permissions to perform this action"));
-        }
-        return null;
-    }
 }

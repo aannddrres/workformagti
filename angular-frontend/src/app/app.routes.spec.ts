@@ -53,6 +53,7 @@ describe('effective-access route boundaries', () => {
           { path: 'org/backfill', component: StubPage, canActivate: adminChild('org/backfill').canActivate }
         ]
       },
+      { path: 'admin/broadcasts', component: StubPage, canActivate: child('admin/broadcasts').canActivate },
       { path: 'manager', component: StubPage, canActivate: child('manager').canActivate },
       { path: 'reading', component: StubPage, canActivate: child('reading').canActivate },
       { path: '**', redirectTo: '' }
@@ -66,7 +67,8 @@ describe('effective-access route boundaries', () => {
           useValue: {
             ensureAccessLoaded: () => of(access),
             hasPermission: (permission: string) =>
-              access?.bypass === true || access?.permissions.includes(permission) === true
+              access?.bypass === true || access?.permissions.includes(permission) === true,
+            canPublishAnnouncement: () => access?.can_publish_announcement === true
           }
         }
       ]
@@ -80,7 +82,7 @@ describe('effective-access route boundaries', () => {
 
   it('opens admin content for an operator with content.manage', async () => {
     const harness = await harnessFor('operator', {
-      role: 'operator', permissions: ['content.manage'], bypass: false
+      role: 'operator', permissions: ['content.manage'], bypass: false, can_publish_announcement: true
     });
 
     await harness.navigateByUrl('/admin/content');
@@ -89,7 +91,7 @@ describe('effective-access route boundaries', () => {
   });
 
   it('opens admin content and overview for the explicit system-admin bypass', async () => {
-    const harness = await harnessFor('admin', { role: 'admin', permissions: [], bypass: true });
+    const harness = await harnessFor('admin', { role: 'admin', permissions: [], bypass: true, can_publish_announcement: true });
 
     await harness.navigateByUrl('/admin/content');
     expect(currentUrl()).toBe('/admin/content');
@@ -99,7 +101,7 @@ describe('effective-access route boundaries', () => {
   });
 
   it('closes admin content for an operator without the effective permission', async () => {
-    const harness = await harnessFor('operator', { role: 'operator', permissions: [], bypass: false });
+    const harness = await harnessFor('operator', { role: 'operator', permissions: [], bypass: false, can_publish_announcement: false });
 
     await harness.navigateByUrl('/admin/content');
 
@@ -108,7 +110,7 @@ describe('effective-access route boundaries', () => {
 
   it('closes admin content for a content admin with an effective deny', async () => {
     const harness = await harnessFor('content_admin', {
-      role: 'content_admin', permissions: ['articles.edit'], bypass: false
+      role: 'content_admin', permissions: ['articles.edit'], bypass: false, can_publish_announcement: false
     });
 
     await harness.navigateByUrl('/admin/content');
@@ -126,7 +128,7 @@ describe('effective-access route boundaries', () => {
 
   it('keeps overview and access outside content.manage', async () => {
     const harness = await harnessFor('operator', {
-      role: 'operator', permissions: ['content.manage'], bypass: false
+      role: 'operator', permissions: ['content.manage'], bypass: false, can_publish_announcement: true
     });
 
     await harness.navigateByUrl('/admin/overview');
@@ -138,7 +140,7 @@ describe('effective-access route boundaries', () => {
 
   it('keeps every org administration screen system-admin-only', async () => {
     const operator = await harnessFor('operator', {
-      role: 'operator', permissions: ['content.manage'], bypass: false
+      role: 'operator', permissions: ['content.manage'], bypass: false, can_publish_announcement: true
     });
 
     for (const url of ['/admin/org', '/admin/org/assignments', '/admin/org/backfill']) {
@@ -146,7 +148,7 @@ describe('effective-access route boundaries', () => {
       expect(currentUrl()).toBe('/');
     }
 
-    const admin = await harnessFor('admin', { role: 'admin', permissions: [], bypass: true });
+    const admin = await harnessFor('admin', { role: 'admin', permissions: [], bypass: true, can_publish_announcement: true });
     for (const url of ['/admin/org', '/admin/org/assignments', '/admin/org/backfill']) {
       await admin.navigateByUrl(url);
       expect(currentUrl()).toBe(url);
@@ -155,7 +157,7 @@ describe('effective-access route boundaries', () => {
 
   it('keeps Phase 4 and Phase 5 role gates unchanged', async () => {
     const harness = await harnessFor('operator', {
-      role: 'operator', permissions: ['content.manage'], bypass: false
+      role: 'operator', permissions: ['content.manage'], bypass: false, can_publish_announcement: true
     });
 
     await harness.navigateByUrl('/manager');
@@ -163,5 +165,21 @@ describe('effective-access route boundaries', () => {
 
     await harness.navigateByUrl('/reading');
     expect(currentUrl()).toBe('/reading');
+  });
+
+  it('opens broadcasts from the composite backend capability without widening other admin routes', async () => {
+    const leader = await harnessFor('operator', {
+      role: 'operator', permissions: [], bypass: false, can_publish_announcement: true
+    });
+    await leader.navigateByUrl('/admin/broadcasts');
+    expect(currentUrl()).toBe('/admin/broadcasts');
+    await leader.navigateByUrl('/admin/content');
+    expect(currentUrl()).toBe('/');
+
+    const employee = await harnessFor('operator', {
+      role: 'operator', permissions: [], bypass: false, can_publish_announcement: false
+    });
+    await employee.navigateByUrl('/admin/broadcasts');
+    expect(currentUrl()).toBe('/');
   });
 });

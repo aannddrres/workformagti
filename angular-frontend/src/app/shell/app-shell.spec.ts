@@ -16,7 +16,8 @@ describe('AppShell effective-access navigation', () => {
       profile: () => null,
       ensureLoaded: () => of(null),
       ensureAccessLoaded: () => of(access),
-      hasPermission: (permission: string) => access.bypass || access.permissions.includes(permission)
+      hasPermission: (permission: string) => access.bypass || access.permissions.includes(permission),
+      canPublishAnnouncement: () => access.can_publish_announcement
     };
     TestBed.configureTestingModule({
       providers: [
@@ -43,7 +44,7 @@ describe('AppShell effective-access navigation', () => {
 
   it('shows content navigation from the same permission source as the guard', () => {
     const shell = shellFor('operator', {
-      role: 'operator', permissions: ['content.manage'], bypass: false
+      role: 'operator', permissions: ['content.manage'], bypass: false, can_publish_announcement: true
     });
 
     expect(visible(shell, '/admin/content')).toBe(true);
@@ -54,7 +55,7 @@ describe('AppShell effective-access navigation', () => {
 
   it('hides content navigation after an effective deny', () => {
     const shell = shellFor('content_admin', {
-      role: 'content_admin', permissions: ['articles.edit'], bypass: false
+      role: 'content_admin', permissions: ['articles.edit'], bypass: false, can_publish_announcement: false
     });
 
     expect(visible(shell, '/admin/content')).toBe(false);
@@ -63,7 +64,7 @@ describe('AppShell effective-access navigation', () => {
 
   it('does not let content.manage alter manager or reading navigation eligibility', () => {
     const shell = shellFor('operator', {
-      role: 'operator', permissions: ['content.manage'], bypass: false
+      role: 'operator', permissions: ['content.manage'], bypass: false, can_publish_announcement: true
     });
 
     expect(visible(shell, '/manager')).toBe(false);
@@ -72,13 +73,26 @@ describe('AppShell effective-access navigation', () => {
 
   it('shows org navigation only to the system-admin role', () => {
     const operator = shellFor('operator', {
-      role: 'operator', permissions: ['content.manage'], bypass: false
+      role: 'operator', permissions: ['content.manage'], bypass: false, can_publish_announcement: true
     });
-    const admin = shellFor('admin', { role: 'admin', permissions: [], bypass: true });
+    const admin = shellFor('admin', { role: 'admin', permissions: [], bypass: true, can_publish_announcement: true });
 
     expect(visible(operator, '/admin/org')).toBe(false);
     expect(visible(operator, '/admin/org/assignments')).toBe(false);
     expect(visible(admin, '/admin/org')).toBe(true);
     expect(visible(admin, '/admin/org/assignments')).toBe(true);
+  });
+
+  it('shows broadcasts to a group leader capability without showing content administration', () => {
+    const leader = shellFor('operator', {
+      role: 'operator', permissions: [], bypass: false, can_publish_announcement: true
+    });
+    expect(visible(leader, '/admin/broadcasts')).toBe(true);
+    expect(visible(leader, '/admin/content')).toBe(false);
+
+    const employee = shellFor('operator', {
+      role: 'operator', permissions: [], bypass: false, can_publish_announcement: false
+    });
+    expect(visible(employee, '/admin/broadcasts')).toBe(false);
   });
 });

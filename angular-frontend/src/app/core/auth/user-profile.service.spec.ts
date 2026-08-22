@@ -23,7 +23,7 @@ describe('UserProfileService effective access', () => {
 
   it('shares one effective-access fetch between guard and navigation consumers', async () => {
     const fetch = vi.fn(() => of({
-      role: 'operator', permissions: ['content.manage'], bypass: false
+      role: 'operator', permissions: ['content.manage'], bypass: false, can_publish_announcement: true
     }));
     const service = serviceWith(fetch);
 
@@ -35,6 +35,7 @@ describe('UserProfileService effective access', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(service.hasPermission('content.manage')).toBe(true);
     expect(service.hasPermission('system.audit')).toBe(false);
+    expect(service.canPublishAnnouncement()).toBe(true);
   });
 
   it('fails closed when the effective-access fetch fails', async () => {
@@ -42,5 +43,6 @@ describe('UserProfileService effective access', () => {
 
     expect(await firstValueFrom(service.ensureAccessLoaded())).toBeNull();
     expect(service.hasPermission('content.manage')).toBe(false);
+    expect(service.canPublishAnnouncement()).toBe(false);
   });
 });

@@ -6,13 +6,14 @@ import { ComplianceService } from '../../core/services/compliance.service';
 import { MyProgress, MyReading } from '../../core/models/compliance';
 import { formatKaDateTime } from '../../shared/ka-date';
 import { formatDepartmentLabel } from '../../shared/department-badge';
+import { BroadcastBanner } from '../../shared/broadcast-banner/broadcast-banner';
 
 type AccountTab = 'profile' | 'evidence' | 'notifications' | 'settings';
 
 @Component({
   selector: 'app-account-page',
   standalone: true,
-  imports: [],
+  imports: [BroadcastBanner],
   templateUrl: './account-page.html'
 })
 export class AccountPage {

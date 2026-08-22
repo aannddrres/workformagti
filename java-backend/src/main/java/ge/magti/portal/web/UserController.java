@@ -1,5 +1,6 @@
 package ge.magti.portal.web;
 
+import ge.magti.portal.announcement.BroadcastAuthorizationService;
 import ge.magti.portal.compliance.ComplianceCalculator;
 import ge.magti.portal.compliance.ReadCountKey;
 import ge.magti.portal.compliance.ReadingProgress;
@@ -72,12 +73,14 @@ public class UserController {
     private final PasswordEncoder passwordEncoder;
     private final PermissionChecker permissionChecker;
     private final UserPermissionOverrideRepository permissionOverrideRepository;
+    private final BroadcastAuthorizationService broadcastAuthorizationService;
 
     public UserController(
             UserRepository userRepository, TeamRepository teamRepository, AuditLogRepository auditLogRepository,
             RequiredReadingRepository requiredReadingRepository, ReadStatusRepository readStatusRepository,
             PasswordEncoder passwordEncoder, PermissionChecker permissionChecker,
-            UserPermissionOverrideRepository permissionOverrideRepository) {
+            UserPermissionOverrideRepository permissionOverrideRepository,
+            BroadcastAuthorizationService broadcastAuthorizationService) {
         this.userRepository = userRepository;
         this.teamRepository = teamRepository;
         this.auditLogRepository = auditLogRepository;
@@ -86,6 +89,7 @@ public class UserController {
         this.passwordEncoder = passwordEncoder;
         this.permissionChecker = permissionChecker;
         this.permissionOverrideRepository = permissionOverrideRepository;
+        this.broadcastAuthorizationService = broadcastAuthorizationService;
     }
 
     /** Port of read_users_me (routers/users.py:29-50). */
@@ -112,7 +116,7 @@ public class UserController {
             return denial;
         }
         return ResponseEntity.ok(EffectiveAccessResponse.from(
-                user, permissionChecker.effectivePermissions(user)));
+                user, permissionChecker.effectivePermissions(user), broadcastAuthorizationService.canPublish(user)));
     }
 
     /** Port of update_users_me (routers/users.py:53-69). */

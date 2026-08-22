@@ -16,6 +16,8 @@
     }
   </header>
 
+  <app-broadcast-banner />
+
   <div class="mb-6 flex flex-wrap gap-1 rounded-xl border border-slate-200 bg-white p-1.5 dark:border-slate-700 dark:bg-slate-900" role="tablist" aria-label="პირადი კაბინეტის განყოფილებები">
     <button type="button" role="tab" (click)="selectTab('profile')" [attr.aria-selected]="activeTab() === 'profile'" [class]="activeTab() === 'profile' ? 'rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-bold text-white dark:bg-white dark:text-slate-900' : 'rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800'">პროფილი და წვდომა</button>
     <button type="button" role="tab" (click)="selectTab('evidence')" [attr.aria-selected]="activeTab() === 'evidence'" [class]="activeTab() === 'evidence' ? 'rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-bold text-white dark:bg-white dark:text-slate-900' : 'rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800'">ჩემი გაცნობა</button>
@@ -86,7 +88,7 @@
       <section class="surface-card p-8 text-center">
         <span class="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300"><i class="fa-solid fa-bell" aria-hidden="true"></i></span>
         <h2 class="mt-4 text-lg font-bold text-slate-900 dark:text-slate-100">პორტალის შეტყობინებები</h2>
-        <p class="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500 dark:text-slate-400">აქ გამოჩნდება სავალდებულო მასალის შეხსენებები და მიზნობრივი საერთო განცხადებები. პირადი საუბარი ან თანამშრომლებს შორის მიმოწერა ამ პროდუქტში არ გამოიყენება.</p>
+        <p class="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500 dark:text-slate-400">აქ გამოჩნდება სავალდებულო მასალის შეხსენებები. კომპანიის საერთო განცხადება პირადი შეტყობინება არ არის — ის ზემოთ, პასიურ საინფორმაციო ბანერად ჩანს. თანამშრომლებს შორის მიმოწერა ამ პროდუქტში არ გამოიყენება.</p>
       </section>
     } @else {
       <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">

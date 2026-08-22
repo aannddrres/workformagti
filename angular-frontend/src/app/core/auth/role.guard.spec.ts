@@ -39,18 +39,18 @@ describe('adminOverviewGuard', () => {
   }
 
   it('lets the system-admin bypass through', async () => {
-    expect(await run({ role: 'admin', permissions: [], bypass: true })).toBe(true);
+    expect(await run({ role: 'admin', permissions: [], bypass: true, can_publish_announcement: true })).toBe(true);
   });
 
   it('sends any content manager to the content workspace, not to the overview', async () => {
-    const result = await run({ role: 'operator', permissions: ['content.manage'], bypass: false });
+    const result = await run({ role: 'operator', permissions: ['content.manage'], bypass: false, can_publish_announcement: true });
 
     expect(result).not.toBe(true);
     expect(target(result)).toBe('/admin/content');
   });
 
   it('does not resolve D-8 by opening overview to content.manage', async () => {
-    const result = await run({ role: 'content_admin', permissions: ['content.manage'], bypass: false });
+    const result = await run({ role: 'content_admin', permissions: ['content.manage'], bypass: false, can_publish_announcement: true });
 
     expect(target(result)).toBe('/admin/content');
   });

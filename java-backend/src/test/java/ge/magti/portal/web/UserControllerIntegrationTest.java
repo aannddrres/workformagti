@@ -159,7 +159,8 @@ class UserControllerIntegrationTest {
                 .andExpect(jsonPath("$.permissions").isArray())
                 .andExpect(jsonPath("$.permissions[0]").value("content.manage"))
                 .andExpect(jsonPath("$.permissions.length()").value(1))
-                .andExpect(jsonPath("$.bypass").value(false));
+                .andExpect(jsonPath("$.bypass").value(false))
+                .andExpect(jsonPath("$.can_publish_announcement").value(true));
     }
 
     @Test
@@ -171,6 +172,7 @@ class UserControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.role").value("content_admin"))
                 .andExpect(jsonPath("$.bypass").value(false))
+                .andExpect(jsonPath("$.can_publish_announcement").value(false))
                 .andReturn().getResponse().getContentAsString();
 
         List<String> permissions = StreamSupport.stream(
@@ -194,6 +196,7 @@ class UserControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.role").value("admin"))
                 .andExpect(jsonPath("$.bypass").value(true))
+                .andExpect(jsonPath("$.can_publish_announcement").value(true))
                 .andReturn().getResponse().getContentAsString();
 
         List<String> permissions = StreamSupport.stream(

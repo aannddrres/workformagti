@@ -18,6 +18,7 @@ interface NavLink {
   denyRoles?: string[];
   /** Show this link when the backend's effective-access response allows it. */
   requiresPermission?: string;
+  requiresAnnouncementPublisher?: boolean;
 }
 
 interface NavSection {
@@ -71,6 +72,7 @@ export class AppShell {
         { label: 'მიმოხილვა', path: '/admin/overview', icon: 'fa-gauge-high', allowRoles: ['admin'] },
         { label: 'კონტენტი', path: '/admin/content', icon: 'fa-file-lines', requiresPermission: 'content.manage' },
         { label: 'კატეგორიები', path: '/admin/categories', icon: 'fa-folder-tree', requiresPermission: 'content.manage' },
+        { label: 'განცხადებები', path: '/admin/broadcasts', icon: 'fa-bullhorn', requiresAnnouncementPublisher: true },
         { label: 'მომხმარებლები და წვდომა', path: '/admin/access', icon: 'fa-user-shield', allowRoles: ['admin'] },
         { label: 'ორგანიზაციული სტრუქტურა', path: '/admin/org', icon: 'fa-sitemap', allowRoles: ['admin'] },
         { label: 'ლიდერების დანიშვნა', path: '/admin/org/assignments', icon: 'fa-user-tie', allowRoles: ['admin'] },
@@ -114,6 +116,9 @@ export class AppShell {
       return false;
     }
     if (link.requiresPermission && !this.profiles.hasPermission(link.requiresPermission)) {
+      return false;
+    }
+    if (link.requiresAnnouncementPublisher && !this.profiles.canPublishAnnouncement()) {
       return false;
     }
     return true;
