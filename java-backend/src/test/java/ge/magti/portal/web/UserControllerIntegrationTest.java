@@ -605,6 +605,41 @@ class UserControllerIntegrationTest {
     }
 
     @Test
+    void permissionOnlyDeltaAdvancesTheOriginalLockExactlyOnce() throws Exception {
+        User admin = createUser("atomic-cas-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
+        User target = createUser("atomic-cas-target@magti.ge", Role.OPERATOR, "All");
+        target.setPosition("Operator");
+        target = userRepository.saveAndFlush(target);
+        long lockBefore = jdbcTemplate.queryForObject(
+                "SELECT lock_version FROM users WHERE id = ?", Long.class, target.getId());
+
+        String updated = mockMvc.perform(authed(put("/api/users/" + target.getId()), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role\":\"operator\",\"department\":\"All\","
+                                + "\"position\":\"Operator\",\"lock_version\":" + lockBefore + ",\"overrides\":["
+                                + "{\"permission\":\"content.manage\",\"state\":\"ALLOW\"}]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value("operator"))
+                .andExpect(jsonPath("$.department").value("All"))
+                .andExpect(jsonPath("$.position").value("Operator"))
+                .andExpect(jsonPath("$.permission_overrides[0].permission").value("content.manage"))
+                .andExpect(jsonPath("$.permission_overrides[0].state").value("ALLOW"))
+                .andReturn().getResponse().getContentAsString();
+
+        long responseLock = objectMapper.readTree(updated).get("lock_version").asLong();
+        long lockAfter = jdbcTemplate.queryForObject(
+                "SELECT lock_version FROM users WHERE id = ?", Long.class, target.getId());
+        List<UserPermissionOverride> overrides = permissionOverrideRepository.findByUserId(target.getId());
+
+        assertEquals(lockBefore + 1, lockAfter,
+                "the permission-only CAS path must advance lock_version exactly once");
+        assertEquals(lockAfter, responseLock, "response must carry the exact version stored by Oracle");
+        assertEquals(1, overrides.size());
+        assertEquals(Permission.CONTENT_MANAGE.value(), overrides.getFirst().getPermission());
+        assertEquals(UserPermissionOverride.State.ALLOW, overrides.getFirst().getState());
+    }
+
+    @Test
     void bulkRoleChangePreservesExplicitOverridesAndDoesNotMaterializeDefaults() throws Exception {
         User admin = createUser("perm-role-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
         User target = createUser("perm-role-target@magti.ge", Role.OPERATOR, "All");
