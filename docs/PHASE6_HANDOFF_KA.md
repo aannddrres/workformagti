@@ -1,6 +1,7 @@
 # Phase 6 — content gates: role → permission
 
-**სტატუსი:** ✅ დასრულებული Codex-ის მიერ (2026-08-21); review + fixes Claude (2026-08-22, §8)
+**სტატუსი:** ✅ დასრულებული, review/hardening გაერთიანებული და origin-ზე ატვირთული
+(`3202559`, 2026-08-22; იხ. §8)
 **შედგენილია:** 2026-08-21
 **კონტექსტი:** `docs/ORG_ACCESS_ARCHITECTURE_PLAN_KA.md` §5.8, §7.6
 **კონტრაქტი:** `docs/ACCESS_CONTRACT_MATRIX_KA.md`
@@ -13,7 +14,7 @@
 |---|---|
 | 0 — security hotfix | ✅ დასრულებული |
 | 1 — decision/contract lock | ✅ დასრულებული |
-| 2 — schema expand + backfill | ✅ **კოდი დაწერილია**, ❌ Oracle-ზე არ გაშვებულა |
+| 2 — schema expand + backfill | ✅ `V36`/`V36.1` ადგილობრივ Oracle 19c-ზე; ❌ org backfill ჯერ არ გაშვებულა |
 | 3 — policy layer (shadow) | ✅ დასრულებული |
 | **6 — content gates** | ✅ დასრულებული და Oracle/Angular-ზე გადამოწმებული |
 
@@ -181,21 +182,23 @@ call-ის ჩანაცვლება).
 
 ---
 
-## 5. წინა ფაზებიდან დარჩენილი — **ეს Codex-ის საქმე არ არის**
+## 5. წინა ფაზებიდან დარჩენილი rollout სამუშაო
 
-ქვემოთ ჩამოთვლილი მხოლოდ **რეალურ Oracle-ზე** კეთდება. აქამდე არცერთ
-გარემოში არ შესრულებულა.
+ქვემოთ ჩამოთვლილი მხოლოდ შესაბამის **რეალურ Oracle გარემოში** კეთდება.
+ადგილობრივ development Oracle-ზე schema migration დადასტურებულია; org backfill,
+`V37` და cutover არც ადგილობრივად და არც სხვა გარემოში არ გაშვებულა.
 
-### 5.1 `V36` არსად არ არის გაშვებული
+### 5.1 `V36`/`V36.1` ადგილობრივ Oracle-ზე დადასტურებულია
 
-`V36__org_structure_expand.sql` დაწერილია და სტრუქტურულად შემოწმებული
-(`V36MigrationShapeTest`), მაგრამ **არასოდეს გაშვებულა** — Flyway-ს Oracle
-სჭირდება. სანამ ის არ გაეშვება, `departments`, `leadership_assignments`,
-`user_permission_overrides` და `users.lock_version` **არ არსებობს**.
+ადგილობრივ Oracle 19.3-ზე Flyway schema version არის **`36.1`** და **37 migration**
+წარმატებით validated-ია. `V36__org_structure_expand.sql` და
+`V36_1__legacy_permission_override_backfill.sql` ორივე გამოყენებულია;
+`departments`, `leadership_assignments`, `user_permission_overrides` და
+`users.lock_version` ამ გარემოში არსებობს.
 
-> ⚠️ **Phase 6-ის §2.3 (delta კონტრაქტი) სწორედ ამ ცხრილებს ეყრდნობა.**
-> თუ `V36` ჯერ არ გაშვებულა, Phase 6-ის §2.1/§2.2 (თავად content gates)
-> მაინც შესრულებადია — §2.3 კი მას ელოდება.
+ეს **არ ნიშნავს**, რომ migration სხვა/production გარემოში შესრულებულია. იქ
+deployment-მდე Flyway history და preflight ცალკე უნდა შემოწმდეს; schema migration
+და org backfill ერთმანეთში არ უნდა აირიოს.
 
 ### 5.2 backfill არ გაშვებულა
 
@@ -226,13 +229,15 @@ call-ის ჩანაცვლება).
 > uniqueness **საერთოდ არ არსებობს**. ფანჯარას ორი რამ ხურავს:
 > `POST /api/teams` უკვე `403`-ია, და `V37`-ის preflight.
 
-### 5.4 ტესტები, რომლებიც ამ გარემოში ვერ გავუშვი
+### 5.4 საბოლოო verification ამ გარემოში
 
-- **Oracle integration ტესტები** — 262 error, ყველა `ORA-12541` (ბაზა არ არის);
-- **Angular vitest** — CLI ითხოვს Node ≥ 22.22.3, კონტეინერს აქვს 22.22.2.
-  TypeScript typecheck (`tsconfig.json` + `tsconfig.spec.json`) სუფთაა.
-
-DB-free ტესტები: **597, 0 failure**.
+- backend-ის სრული suite რეალურ Oracle 19.3-ზე: **610 ტესტი**, 0 failure,
+  0 error, 1 განზრახ skipped;
+- `UserControllerIntegrationTest`: **25 ტესტი**, 0 failure/error,
+  1 განზრახ skipped;
+- Angular Vitest: **14 test file / 60 ტესტი**, ყველა passed;
+- Angular production build: წარმატებული. რჩება მანამდეც არსებული budget warning:
+  initial bundle დაახლოებით **1.43 MB**, configured budget **700 KB**.
 
 ---
 
@@ -281,18 +286,23 @@ DB-free ტესტები: **597, 0 failure**.
 codex/phase6-content-gates  (base: claude/dept-groups-architecture-biqtma)
 ```
 
+საბოლოო remote HEAD: **`3202559bf3027ec48ade78a664e23a61d134bd39`**.
+
 ---
 
 ## 8. Phase 6-ის review (Claude, 2026-08-22)
 
-Review გაკეთდა commit **`9ba0677`**-ზე. **Codex-ის სამუშაო handoff-ს ზუსტად
+Review გაკეთდა commit **`9ba0677`**-ზე; Claude-ის fixes არის **`27e2289`**, Codex-ის
+hardening — **`f9c51c0`**, ხოლო ორივე მხარის საბოლოო merge — **`3202559`**.
+**Codex-ის სამუშაო handoff-ს ზუსტად
 მიჰყვება:** 25-ვე endpoint სწორად გადავიდა, `CapabilityService`-ის precedence
 სწორია (explicit გადაწყვეტილება role-ს ორივე მიმართულებით სჯობნის), მატრიცა
 იმავე commit-ში დაიძრა, ხოლო `ContentManageGateIntegrationTest` ხუთივე პერსონას
 ფარავს — `CONTENT_ADMIN + DENY` და `OPERATOR + ALLOW` ჩათვლით. Gate-ების მხრივ
 blocker არ არის.
 
-ქვემოთ ჩამოთვლილი გასწორდა **ამ commit-ში**.
+ქვემოთ ჩამოთვლილი გასწორდა review/hardening commit-ებში და გაერთიანებულია
+`3202559`-ში.
 
 ### 8.1 `@Version`-ის გვერდითი ეფექტი logout-ზე (P1, გასწორებულია)
 
@@ -341,31 +351,45 @@ permission-ის მინიჭება აუდიტდება — მ�
 არა Codex-ის შეცდომა** — Codex მატრიცას ზუსტად მიჰყვა. PII არ ჟონავს, ამიტომ
 blocker არ არის და კოდში არაფერი შემიცვლია; გადაწყვეტილება მფლობელისაა.
 
-### 8.6 დარჩენილი — ლოკალური hardening (ჯერ არ არის დაპუშული)
+### 8.6 hardening და merge (დასრულებულია)
 
-ოთხი hardening fix (`V36_1`, atomic `PUT /api/users/{id}`, nested `@Valid`,
-nullable `lock_version`) **მხოლოდ ლოკალურ working tree-შია** და review-ს ვერ
-გაუკეთდა. ორი რამ, რაც მათ merge-ზე უნდა შემოწმდეს:
+ოთხივე hardening fix (`V36.1`, atomic `PUT /api/users/{id}`, nested `@Valid`,
+nullable/required `lock_version`) commit `f9c51c0`-შია და origin-ზე ატვირთულია.
 
-1. **`@Version` vs `advanceLockVersion`.** თუ atomic `PUT /api/users/{id}`
-   ერთდროულად `save()`-საც აკეთებს (JPA თავად ზრდის `@Version`-ს) და
-   `advanceLockVersion`-საც (ხელით JPQL increment), მაშინ `lock_version` ერთ
-   request-ზე **ორით** გაიზრდება და დაბრუნებული token არასწორი იქნება.
-   ერთი მექანიზმი უნდა დარჩეს, არა ორი.
-2. **Merge-ის კონფლიქტები.** ეს commit ეხება `UserController.java`-ს (`:98`,
-   `:121`, `:272`, `:468`, audit block), `UserResponse.java`-ს,
-   `CurrentUserResponse.java`-ს, `CapabilityService`-ს, `PermissionChecker`-ს,
-   `AuthController`-ს და `UserRepository`-ს. `UserResponse.from(User)` და
-   `from(User, ReadingProgress)` **წაშლილია** — თუ ლოკალური კოდი მათ იყენებს,
-   compile error მიიღებთ და override-ების გადაცემა დაგჭირდებათ.
+- `UserController.adminUpdatePermissions`-ის ერთადერთი merge conflict ორივე
+  მხარის შენარჩუნებით გადაწყდა: atomic/CAS ლოგიკაც დარჩა და Claude-ის
+  `audit.setDetails(transitions)`-იც;
+- `UserResponse.from(User)` და `from(User, ReadingProgress)` overload-ები არ
+  დაბრუნებულა; ყველა callsite override-ების რეალურ სიას გადასცემს;
+- atomic profile+permission PUT-ზე `lock_version` request-ზე მხოლოდ ერთხელ
+  იზრდება: profile row-ის რეალური ცვლილებისას JPA `@Version` მუშაობს, ხოლო
+  permission-only გზაზე — CAS JPQL; ერთ request-ზე ორივე ერთად არ სრულდება;
+- რეალურ Oracle-ზე regression test SQL-ით კითხულობს `lock_version`-ს PUT-მდე და
+  შემდეგ და ამტკიცებს ზუსტად **`+1`** სხვაობას. იგივე კლასი stale token-ზე
+  `409`-სა და transaction-ის atomic rollback-საც ამოწმებს.
 
 ### 8.7 ვერიფიკაცია
 
-- backend: **607 ტესტი, 0 failure**; 264 error — ყველა `ORA-12541`
-  (ამ container-ში Oracle არ არის). ტიპობრივად უცვლელია ცვლილებამდე.
+- backend სრული Oracle suite: **610 ტესტი**, 0 failure/error, 1 skipped;
 - ახალი ტესტები: `PolicyLayerTest` +6 (`effectivePermissions`, legacy სვეტის
   იგნორირება ორივე მიმართულებით, checker↔service თანხმობა),
   `ResponseShapeContractTest` +3 (`UserResponse`/`CurrentUserResponse`-ის
   wire shape — აქამდე **არცერთი მათგანი არ იყო დაფიქსირებული** — და
   effective სიის შიგთავსი).
-- **ვერ გავუშვი აქ:** Oracle integration suite და Angular vitest.
+- Angular: **60/60** Vitest; production build წარმატებული (არსებული bundle-budget
+  warning უცვლელია).
+
+---
+
+## 9. შემდეგი ნაბიჯი
+
+1. Claude-მ საბოლოოდ გადაამოწმოს merge commit `3202559` და ეს handoff;
+2. review-ის შემდეგ `codex/phase6-content-gates` გაერთიანდეს შეთანხმებულ
+   integration/main branch-ში;
+3. შესაბამის Oracle გარემოში შემოწმდეს Flyway history და გაეშვას
+   `GET /api/admin/org-backfill/report`;
+4. `DEPARTMENT_ONLY_MANAGER`, `UNRESOLVED_MANAGER` და `DUPLICATE_PRIMARY`
+   შემთხვევები სახელობითად გადაწყდეს, შემდეგ გაეშვას idempotent backfill;
+5. `policy-shadow`-ის diff და `blocks_cutover` შემოწმდეს;
+6. მხოლოდ `blocks_cutover: false` და სუფთა schema preflight-ის შემდეგ დაიწეროს
+   `V37` და დაიწყოს Phase 4 leadership scope cutover.
