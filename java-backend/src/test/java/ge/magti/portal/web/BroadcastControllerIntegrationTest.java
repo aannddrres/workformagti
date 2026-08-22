@@ -15,7 +15,7 @@ import ge.magti.portal.domain.UserPermissionOverride;
 import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.BroadcastAnnouncementRepository;
 import ge.magti.portal.repository.LeadershipAssignmentRepository;
-import ge.magti.portal.repository.MessageRepository;
+import ge.magti.portal.repository.ReminderRepository;
 import ge.magti.portal.repository.TeamRepository;
 import ge.magti.portal.repository.UserPermissionOverrideRepository;
 import ge.magti.portal.repository.UserRepository;
@@ -55,7 +55,7 @@ class BroadcastControllerIntegrationTest {
     @Autowired LeadershipAssignmentRepository leadershipRepository;
     @Autowired UserPermissionOverrideRepository overrideRepository;
     @Autowired BroadcastAnnouncementRepository broadcastRepository;
-    @Autowired MessageRepository messageRepository;
+    @Autowired ReminderRepository reminderRepository;
     @Autowired AuditLogRepository auditLogRepository;
     @Autowired JwtService jwtService;
     @Autowired PasswordEncoder passwordEncoder;
@@ -204,7 +204,7 @@ class BroadcastControllerIntegrationTest {
     @Test
     void publishCreatesOneBroadcastNoRecipientMessagesAndACompleteAuditSnapshot() throws Exception {
         User admin = createUser("broadcast-audit", Role.SYSTEM_ADMIN);
-        long messageCount = messageRepository.count();
+        long reminderCount = reminderRepository.count();
 
         String body = mockMvc.perform(authed(post("/api/broadcasts"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -215,7 +215,7 @@ class BroadcastControllerIntegrationTest {
                 .andReturn().getResponse().getContentAsString();
 
         long id = objectMapper.readTree(body).get("id").asLong();
-        assertEquals(messageCount, messageRepository.count(), "broadcast must never fan out into personal messages");
+        assertEquals(reminderCount, reminderRepository.count(), "broadcast must never fan out into personal reminders");
         var audit = auditLogRepository.findAll().stream()
                 .filter(row -> "PUBLISH_BROADCAST".equals(row.getAction()) && id == row.getItemId())
                 .findFirst().orElseThrow();

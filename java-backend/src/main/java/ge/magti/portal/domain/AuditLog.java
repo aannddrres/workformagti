@@ -41,7 +41,7 @@ public class AuditLog {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "admin_id", nullable = false)
+    @Column(name = "admin_id")
     private Long adminId;
 
     @Column(name = "action", nullable = false, length = 50)

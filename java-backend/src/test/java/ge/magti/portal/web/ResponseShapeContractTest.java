@@ -191,6 +191,19 @@ class ResponseShapeContractTest {
     }
 
     @Test
+    void reminderExposesFixedDeliveryContextWithoutReplyOrFreeTextFields() {
+        assertEquals(
+                List.of("id", "recipient_name", "type", "content", "required_reading_id",
+                        "item_type", "item_id", "item_title", "due_at", "triggered_by_name",
+                        "created_at", "read_at", "lock_version"),
+                wireFieldsOf(ReminderResponse.class));
+        assertEquals(List.of("items", "page", "size", "total_elements", "total_pages"),
+                wireFieldsOf(ReminderPageResponse.class));
+        assertEquals(List.of("unread_readings", "recent_news", "unread_reminders_count"),
+                wireFieldsOf(NotificationsSummaryResponse.class));
+    }
+
+    @Test
     void orgStructureCarriesOnlyDirectoryIdentityAndMemberCounts() {
         assertEquals(List.of("departments"), wireFieldsOf(OrgStructureResponse.class));
         assertEquals(List.of("id", "stable_key", "name", "is_active", "teams"),

@@ -2,7 +2,7 @@
 
 **მფლობელი:** Product Owner + Engineering
 **განახლებულია:** 2026-08-22
-**სტატუსი:** ეტაპები A, B და C დასრულებულია; შემდეგია ეტაპი D
+**სტატუსი:** ეტაპები A–D დასრულებულია; შემდეგია ეტაპი E
 
 ## 1. მიზანი და source of truth
 
@@ -102,10 +102,21 @@ rollout-ში fail-closed რჩება. ოფიციალური rows 
 
 ### ეტაპი D — reminder-ის ზუსტი ქცევა
 
+**სტატუსი:** ✅ დასრულებულია 2026-08-22
+
 - ავტომატური: მინიჭებისას, ვადამდე 24 საათით ადრე, overdue-ის შემდეგ ერთხელ;
 - ჯგუფის მოქმედ უფროსს შეუძლია საკუთარ წევრს ფიქსირებული reminder გაუგზავნოს;
 - თავისუფალი ტექსტი/reply/chat არ არსებობს;
 - duplicate/cooldown, scope და audit tests სავალდებულოა.
+
+**განხორციელებული კონტრაქტი:** reminder მხოლოდ პორტალის შიგნით ჩანს და ცალკე,
+ერთმხრივ ledger-ში ინახება. ახალი სავალდებულო მასალის მინიჭების reminder იმავე
+ტრანზაქციაში იქმნება; 24-საათიანი და ვადაგადაცილების sweep თითო მიმღებზე მხოლოდ
+ერთხელ აგზავნის. ისტორიულ მასალებზე/ძველ `messages` rows-ზე ავტომატური backfill
+არ კეთდება. მოქმედ `PRIMARY`/`ACTING` ჯგუფის უფროსსა და `SYSTEM_ADMIN`-ს შეუძლია
+ფიქსირებული ხელით reminder; ერთ მიმღებზე მოქმედებს მოძრავი 24-საათიანი cooldown.
+თავისუფალი ტექსტი, პასუხი, email და chat არ არსებობს. მომხმარებელი reminder-ს
+კითხულად მონიშნავს, ხოლო ყველა გაგზავნა/წაკითხვა audit-ში ფიქსირდება.
 
 ### ეტაპი E — SYSTEM_ADMIN-ის სრული export ცენტრი
 
@@ -169,7 +180,7 @@ Secret denylist როგორც DTO-ზე, ისე header/snapshot tests-�
   backend/Angular შემოწმება;
 - [x] ეტაპი B — official read evidence scope/aggregate და SYSTEM_ADMIN-only view log;
 - [x] ეტაპი C — Broadcast lifecycle/UI და private messaging removal;
-- [ ] ეტაპი D — reminder;
+- [x] ეტაპი D — fixed one-way reminder engine, inbox, scope/cooldown და audit;
 - [ ] ეტაპი E — SYSTEM_ADMIN export center;
 - [ ] ეტაპი F — lifecycle/retention;
 - [ ] ეტაპი G — production integration/cutover.

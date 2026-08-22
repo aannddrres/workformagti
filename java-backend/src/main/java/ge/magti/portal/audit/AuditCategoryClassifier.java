@@ -18,7 +18,8 @@ public final class AuditCategoryClassifier {
             "PASSWORD_RESET_REQUEST", "CREATE_USER", "UPDATE_PERMISSIONS",
             "VIEW_AUDIT_LOG", "EXPORT_AUDIT_LOG");
 
-    private static final Set<String> USER_ACTIONS = Set.of("VIEW", "MARK_READ", "SEND_MESSAGE");
+    private static final Set<String> USER_ACTIONS = Set.of(
+            "VIEW", "MARK_READ", "SEND_MESSAGE", "SEND_MANUAL_REMINDER", "READ_REMINDER");
 
     private static final Map<String, AuditCategory> CATEGORY_BY_ITEM_TYPE = Map.ofEntries(
             Map.entry("news", AuditCategory.CONTENT),

@@ -277,6 +277,7 @@
               <tr class="border-b border-gray-100 text-xs font-semibold uppercase text-gray-400 dark:border-zinc-700 dark:text-zinc-500">
                 <th class="pb-2 pr-3">{{ 'manager.page.col_name' | translate }}</th>
                 <th class="pb-2 text-right">{{ 'manager.page.col_completion' | translate }}</th>
+                <th class="pb-2 text-right">შეხსენება</th>
               </tr>
             </thead>
             <tbody>
@@ -290,6 +291,15 @@
                       </div>
                       <span class="text-sm font-semibold tabular-nums" [class]="pctColorClass(u.completion_percentage)">{{ u.completion_percentage }}%</span>
                     </div>
+                  </td>
+                  <td class="py-2.5 text-right">
+                    <button type="button" class="secondary-button px-3 py-2 text-xs" (click)="sendReminder(u.user_id, $event)" [disabled]="reminderSendingUserId() !== null">
+                      @if (reminderSendingUserId() === u.user_id) { <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> }
+                      გაგზავნა
+                    </button>
+                    @if (reminderFeedback()[u.user_id]; as feedback) {
+                      <p class="mt-1 max-w-48 text-xs" [class]="feedback.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'">{{ feedback.message }}</p>
+                    }
                   </td>
                 </tr>
               }

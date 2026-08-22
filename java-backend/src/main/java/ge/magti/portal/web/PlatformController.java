@@ -9,7 +9,7 @@ import ge.magti.portal.domain.ReadStatus;
 import ge.magti.portal.domain.RequiredReading;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
-import ge.magti.portal.repository.MessageRepository;
+import ge.magti.portal.repository.ReminderRepository;
 import ge.magti.portal.repository.NewsRepository;
 import ge.magti.portal.repository.ReadStatusRepository;
 import ge.magti.portal.repository.RequiredReadingRepository;
@@ -49,7 +49,7 @@ public class PlatformController {
     private final RequiredReadingRepository requiredReadingRepository;
     private final ReadStatusRepository readStatusRepository;
     private final NewsRepository newsRepository;
-    private final MessageRepository messageRepository;
+    private final ReminderRepository reminderRepository;
     private final ItemTitleResolver itemTitleResolver;
 
     public PlatformController(
@@ -57,13 +57,13 @@ public class PlatformController {
             RequiredReadingRepository requiredReadingRepository,
             ReadStatusRepository readStatusRepository,
             NewsRepository newsRepository,
-            MessageRepository messageRepository,
+            ReminderRepository reminderRepository,
             ItemTitleResolver itemTitleResolver) {
         this.tagRepository = tagRepository;
         this.requiredReadingRepository = requiredReadingRepository;
         this.readStatusRepository = readStatusRepository;
         this.newsRepository = newsRepository;
-        this.messageRepository = messageRepository;
+        this.reminderRepository = reminderRepository;
         this.itemTitleResolver = itemTitleResolver;
     }
 
@@ -130,9 +130,9 @@ public class PlatformController {
                 .map(n -> new RecentNewsSummaryItem(n.getId(), n.getTitle(), n.getTargetDepartment(), n.getCreatedAt()))
                 .toList();
 
-        long unreadMessages = messageRepository.countByUserIdAndReadFalse(user.getId());
+        long unreadReminders = reminderRepository.countByRecipientUserIdAndReadAtIsNull(user.getId());
 
-        return ResponseEntity.ok(new NotificationsSummaryResponse(unreadReadings, recentNews, (int) unreadMessages));
+        return ResponseEntity.ok(new NotificationsSummaryResponse(unreadReadings, recentNews, (int) unreadReminders));
     }
 
     private static ResponseEntity<Map<String, String>> requireAuthenticated(User user) {

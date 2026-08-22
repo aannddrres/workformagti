@@ -8,8 +8,9 @@ import ge.magti.portal.domain.RequiredReading;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.Tag;
 import ge.magti.portal.domain.User;
-import ge.magti.portal.domain.Message;
-import ge.magti.portal.repository.MessageRepository;
+import ge.magti.portal.domain.Reminder;
+import ge.magti.portal.domain.ReminderType;
+import ge.magti.portal.repository.ReminderRepository;
 import ge.magti.portal.repository.NewsRepository;
 import ge.magti.portal.repository.ReadStatusRepository;
 import ge.magti.portal.repository.RequiredReadingRepository;
@@ -60,7 +61,7 @@ class PlatformControllerIntegrationTest {
     @Autowired
     private NewsRepository newsRepository;
     @Autowired
-    private MessageRepository messageRepository;
+    private ReminderRepository reminderRepository;
     @Autowired
     private JwtService jwtService;
     @Autowired
@@ -193,25 +194,30 @@ class PlatformControllerIntegrationTest {
     }
 
     @Test
-    void notificationsSummaryCountsUnreadMessages() throws Exception {
+    void notificationsSummaryCountsUnreadReminders() throws Exception {
         User operator = createUser("plat-op4@magti.ge", Role.OPERATOR, "All");
-        Message unread = new Message();
-        unread.setUserId(operator.getId());
-        unread.setContent("წაუკითხავი შეტყობინება");
-        unread.setRead(false);
+        Reminder unread = reminder(operator, "წაუკითხავი შეხსენება");
         unread.setCreatedAt(TbilisiTime.now());
-        messageRepository.saveAndFlush(unread);
+        reminderRepository.saveAndFlush(unread);
 
-        Message read = new Message();
-        read.setUserId(operator.getId());
-        read.setContent("წაკითხული შეტყობინება");
-        read.setRead(true);
+        Reminder read = reminder(operator, "წაკითხული შეხსენება");
         read.setCreatedAt(TbilisiTime.now());
-        messageRepository.saveAndFlush(read);
+        read.setReadAt(TbilisiTime.now());
+        reminderRepository.saveAndFlush(read);
 
         mockMvc.perform(authed(get("/api/notifications/summary"), tokenFor(operator)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.unread_messages_count").value(1));
+                .andExpect(jsonPath("$.unread_reminders_count").value(1));
+    }
+
+    private Reminder reminder(User recipient, String content) {
+        Reminder reminder = new Reminder();
+        reminder.setRecipientUserId(recipient.getId());
+        reminder.setRecipientNameSnapshot(recipient.getName());
+        reminder.setType(ReminderType.MANUAL);
+        reminder.setContentSnapshot(content);
+        reminder.setTriggeredByNameSnapshot("სისტემა");
+        return reminder;
     }
 
     @Test

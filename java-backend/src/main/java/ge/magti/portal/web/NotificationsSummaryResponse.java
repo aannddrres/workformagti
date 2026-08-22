@@ -8,6 +8,6 @@ import java.util.List;
 public record NotificationsSummaryResponse(
         @JsonProperty("unread_readings") List<UnreadReadingSummaryItem> unreadReadings,
         @JsonProperty("recent_news") List<RecentNewsSummaryItem> recentNews,
-        @JsonProperty("unread_messages_count") int unreadMessagesCount
+        @JsonProperty("unread_reminders_count") int unreadRemindersCount
 ) {
 }

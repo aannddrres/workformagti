@@ -21,7 +21,7 @@
   <div class="mb-6 flex flex-wrap gap-1 rounded-xl border border-slate-200 bg-white p-1.5 dark:border-slate-700 dark:bg-slate-900" role="tablist" aria-label="პირადი კაბინეტის განყოფილებები">
     <button type="button" role="tab" (click)="selectTab('profile')" [attr.aria-selected]="activeTab() === 'profile'" [class]="activeTab() === 'profile' ? 'rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-bold text-white dark:bg-white dark:text-slate-900' : 'rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800'">პროფილი და წვდომა</button>
     <button type="button" role="tab" (click)="selectTab('evidence')" [attr.aria-selected]="activeTab() === 'evidence'" [class]="activeTab() === 'evidence' ? 'rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-bold text-white dark:bg-white dark:text-slate-900' : 'rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800'">ჩემი გაცნობა</button>
-    <button type="button" role="tab" (click)="selectTab('notifications')" [attr.aria-selected]="activeTab() === 'notifications'" [class]="activeTab() === 'notifications' ? 'rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-bold text-white dark:bg-white dark:text-slate-900' : 'rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800'">შეტყობინებები</button>
+    <button type="button" role="tab" (click)="selectTab('notifications')" [attr.aria-selected]="activeTab() === 'notifications'" [class]="activeTab() === 'notifications' ? 'rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-bold text-white dark:bg-white dark:text-slate-900' : 'rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800'">შეხსენებები @if (unreadReminderCount() > 0) { <span class="ml-1 rounded-full bg-brand px-1.5 py-0.5 text-[10px] font-bold text-white">{{ unreadReminderCount() }}</span> }</button>
     <button type="button" role="tab" (click)="selectTab('settings')" [attr.aria-selected]="activeTab() === 'settings'" [class]="activeTab() === 'settings' ? 'rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-bold text-white dark:bg-white dark:text-slate-900' : 'rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800'">გარემო და უსაფრთხოება</button>
   </div>
 
@@ -85,10 +85,36 @@
         }
       </section>
     } @else if (activeTab() === 'notifications') {
-      <section class="surface-card p-8 text-center">
-        <span class="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300"><i class="fa-solid fa-bell" aria-hidden="true"></i></span>
-        <h2 class="mt-4 text-lg font-bold text-slate-900 dark:text-slate-100">პორტალის შეტყობინებები</h2>
-        <p class="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500 dark:text-slate-400">აქ გამოჩნდება სავალდებულო მასალის შეხსენებები. კომპანიის საერთო განცხადება პირადი შეტყობინება არ არის — ის ზემოთ, პასიურ საინფორმაციო ბანერად ჩანს. თანამშრომლებს შორის მიმოწერა ამ პროდუქტში არ გამოიყენება.</p>
+      <section class="surface-card overflow-hidden">
+        <div class="border-b border-slate-100 px-5 py-4 dark:border-slate-800">
+          <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100">სავალდებულო მასალის შეხსენებები</h2>
+          <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">ეს არის სისტემის ფიქსირებული, ერთმხრივი შეხსენებები — პასუხი და პირადი მიმოწერა არ არსებობს.</p>
+        </div>
+        @if (loadingReminders() && reminders().length === 0) {
+          <div class="m-5 h-36 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800"></div>
+        } @else if (reminderError() && reminders().length === 0) {
+          <div class="p-8 text-center"><p class="text-sm text-red-600 dark:text-red-400">{{ reminderError() }}</p></div>
+        } @else if (reminders().length === 0) {
+          <div class="p-10 text-center"><i class="fa-regular fa-bell-slash text-3xl text-slate-300" aria-hidden="true"></i><p class="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300">შეხსენებები არ არის.</p></div>
+        } @else {
+          <div class="divide-y divide-slate-100 dark:divide-slate-800">
+            @for (reminder of reminders(); track reminder.id) {
+              <article class="flex flex-wrap items-center gap-4 px-5 py-4" [class.bg-brand-50]="reminder.read_at === null">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" [class]="reminder.type === 'OVERDUE' ? 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300' : reminder.type === 'DUE_SOON' ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300'"><i class="fa-solid" [class.fa-triangle-exclamation]="reminder.type === 'OVERDUE'" [class.fa-clock]="reminder.type === 'DUE_SOON'" [class.fa-book-open]="reminder.type === 'ASSIGNMENT'" [class.fa-user-group]="reminder.type === 'MANUAL'" aria-hidden="true"></i></span>
+                <div class="min-w-0 flex-1">
+                  <div class="flex flex-wrap items-center gap-2"><p class="text-sm font-bold text-slate-800 dark:text-slate-200">{{ reminderTypeLabel(reminder.type) }}</p>@if (reminder.read_at === null) { <span class="status-pill bg-brand/10 text-brand">ახალი</span> }</div>
+                  <p class="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">{{ reminder.content }}</p>
+                  <p class="mt-1 text-xs text-slate-400">{{ dateTime(reminder.created_at) }} · {{ reminder.triggered_by_name }}</p>
+                </div>
+                <button type="button" class="secondary-button" (click)="openReminder(reminder)" [disabled]="readingReminderId() !== null">@if (readingReminderId() === reminder.id) { <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> } {{ reminder.item_id !== null ? 'მასალის გახსნა' : reminder.read_at === null ? 'წაკითხულად მონიშვნა' : 'წაკითხულია' }}</button>
+              </article>
+            }
+          </div>
+          @if (reminderPage() + 1 < reminderTotalPages()) {
+            <div class="border-t border-slate-100 p-4 text-center dark:border-slate-800"><button type="button" class="secondary-button" (click)="loadMoreReminders()" [disabled]="loadingReminders()">{{ loadingReminders() ? 'იტვირთება…' : 'მეტის ჩატვირთვა' }}</button></div>
+          }
+          @if (reminderError()) { <p class="p-4 text-center text-sm text-red-600 dark:text-red-400">{{ reminderError() }}</p> }
+        }
       </section>
     } @else {
       <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">

@@ -5,13 +5,20 @@ import ge.magti.portal.domain.Role;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import jakarta.persistence.LockModeType;
 
 public interface RequiredReadingRepository extends JpaRepository<RequiredReading, Long> {
+
+    /** Serializes scheduled delivery for one reading across app replicas. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT rr FROM RequiredReading rr WHERE rr.id = :readingId")
+    Optional<RequiredReading> findByIdForUpdate(@Param("readingId") Long readingId);
 
     /** Mirrors get_article_read_receipts' single-row lookup (routers/articles.py:1042-1045). */
     Optional<RequiredReading> findFirstByItemTypeAndItemId(String itemType, Long itemId);

@@ -33,6 +33,9 @@ const ACTION_LABELS: Record<string, string> = {
   VIEW: 'მასალის ნახვა',
   MARK_READ: 'წაკითხულად მონიშვნა',
   SEND_MESSAGE: 'შეტყობინების გაგზავნა',
+  SEND_AUTOMATIC_REMINDER: 'ავტომატური შეხსენების გაგზავნა',
+  SEND_MANUAL_REMINDER: 'ჯგუფის უფროსის შეხსენების გაგზავნა',
+  READ_REMINDER: 'შეხსენების წაკითხვა',
   BROADCAST: 'საერთო განცხადების გამოქვეყნება (ძველი)',
   PUBLISH_BROADCAST: 'საერთო განცხადების გამოქვეყნება',
   END_BROADCAST_EARLY: 'საერთო განცხადების დროზე ადრე დასრულება',
@@ -61,7 +64,8 @@ const ITEM_TYPE_LABELS: Record<string, string> = {
   system: 'სისტემა',
   audit_log: 'აუდიტის ჩანაწერი',
   team_stats: 'გუნდის სტატისტიკა',
-  broadcast: 'საერთო განცხადება'
+  broadcast: 'საერთო განცხადება',
+  reminder: 'შეხსენება'
 };
 
 export function formatAuditAction(action: string | null | undefined): string {

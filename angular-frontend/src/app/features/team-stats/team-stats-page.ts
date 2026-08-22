@@ -7,6 +7,7 @@ import { StatsService } from '../../core/services/stats.service';
 import { ExportPollTimeoutError, ExportService } from '../../core/services/export.service';
 import { CriticalOperator, DepartmentDashboard, DepartmentGroupStats, DepartmentStats, GroupMemberCompletion } from '../../core/models/stats';
 import { ExportJobResponse } from '../../core/models/export';
+import { ReminderService } from '../../core/services/reminder.service';
 
 type SortMode = 'name' | 'compliance';
 type Tier = { bar: string; text: string };
@@ -48,6 +49,7 @@ type ExportKind = 'xlsx' | 'pdf' | 'team_stats_pdf';
 export class TeamStatsPage {
   private readonly statsService = inject(StatsService);
   private readonly exportService = inject(ExportService);
+  private readonly reminderService = inject(ReminderService);
   private readonly translate = inject(TranslateService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -67,6 +69,8 @@ export class TeamStatsPage {
   protected readonly groupLoading = signal(false);
   protected readonly groupError = signal(false);
   protected readonly groupUsers = signal<GroupMemberCompletion[]>([]);
+  protected readonly reminderSendingUserId = signal<number | null>(null);
+  protected readonly reminderFeedback = signal<Record<number, { ok: boolean; message: string }>>({});
 
   protected readonly exportingCsv = signal(false);
   protected readonly csvError = signal<string | null>(null);
@@ -180,6 +184,32 @@ export class TeamStatsPage {
 
   closeGroupModal(): void {
     this.groupModalOpen.set(false);
+  }
+
+  sendReminder(userId: number, event: Event): void {
+    event.stopPropagation();
+    if (this.reminderSendingUserId() !== null) return;
+    this.reminderSendingUserId.set(userId);
+    this.reminderFeedback.update((value) => {
+      const next = { ...value };
+      delete next[userId];
+      return next;
+    });
+    this.reminderService.sendManual(userId).subscribe({
+      next: () => {
+        this.reminderSendingUserId.set(null);
+        this.reminderFeedback.update((value) => ({
+          ...value, [userId]: { ok: true, message: 'ფიქსირებული შეხსენება გაიგზავნა.' }
+        }));
+      },
+      error: (err: HttpErrorResponse) => {
+        this.reminderSendingUserId.set(null);
+        this.reminderFeedback.update((value) => ({
+          ...value,
+          [userId]: { ok: false, message: err.error?.detail ?? 'შეხსენების გაგზავნა ვერ მოხერხდა.' }
+        }));
+      }
+    });
   }
 
   exportCsv(): void {

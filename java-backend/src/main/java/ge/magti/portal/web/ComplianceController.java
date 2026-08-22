@@ -2,7 +2,7 @@ package ge.magti.portal.web;
 
 import ge.magti.portal.compliance.ComplianceCalculator;
 import ge.magti.portal.compliance.ComplianceQueryService;
-import ge.magti.portal.compliance.RequiredReadingNotifier;
+import ge.magti.portal.reminder.ReminderService;
 import ge.magti.portal.content.ItemDetail;
 import ge.magti.portal.content.ItemKey;
 import ge.magti.portal.content.ItemTitleResolver;
@@ -22,8 +22,6 @@ import ge.magti.portal.security.PermissionChecker;
 import ge.magti.portal.stats.ComplianceRecord;
 import ge.magti.portal.util.DepartmentMatcher;
 import ge.magti.portal.util.TbilisiTime;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -56,17 +54,13 @@ import java.util.Optional;
  * required-readings management endpoints are {@code get_current_admin_user}
  * (content_admin / system_admin).
  *
- * <p><b>Deliberate gaps, consistent with every Content controller:</b> no
- * automatic audit row on mark-read (Python's {@code log_audit MARK_READ},
- * compliance.py:186 -- the Audit domain's own write surface isn't wired
- * here yet); the create-notification fan-out writes the durable inbox
- * {@link ge.magti.portal.domain.Message} rows but not the SSE real-time
- * events (see {@link RequiredReadingNotifier}).
+ * <p>PO-16 reminder delivery is durable, fixed-template and portal-only. It
+ * commits atomically with a new assignment; no private message or SSE chat
+ * path is involved.
  */
 @RestController
 public class ComplianceController {
 
-    private static final Logger log = LoggerFactory.getLogger(ComplianceController.class);
     private static final String READING_NOT_FOUND = "სავალდებულო მასალა ვერ მოიძებნა";
     private static final String READING_HAS_READ_RECEIPTS =
             "სავალდებულო მასალის წაშლა ვერ ხერხდება -- მომხმარებლებმა უკვე გაიცნეს იგი";
@@ -77,7 +71,7 @@ public class ComplianceController {
     private final ArticleRepository articleRepository;
     private final ArticleReadReceiptRepository articleReadReceiptRepository;
     private final QuizGateChecker quizGateChecker;
-    private final RequiredReadingNotifier requiredReadingNotifier;
+    private final ReminderService reminderService;
     private final ItemTitleResolver itemTitleResolver;
     private final PermissionChecker permissionChecker;
     private final AuditLogRepository auditLogRepository;
@@ -89,7 +83,7 @@ public class ComplianceController {
             ArticleRepository articleRepository,
             ArticleReadReceiptRepository articleReadReceiptRepository,
             QuizGateChecker quizGateChecker,
-            RequiredReadingNotifier requiredReadingNotifier,
+            ReminderService reminderService,
             ItemTitleResolver itemTitleResolver,
             PermissionChecker permissionChecker,
             AuditLogRepository auditLogRepository) {
@@ -99,7 +93,7 @@ public class ComplianceController {
         this.articleRepository = articleRepository;
         this.articleReadReceiptRepository = articleReadReceiptRepository;
         this.quizGateChecker = quizGateChecker;
-        this.requiredReadingNotifier = requiredReadingNotifier;
+        this.reminderService = reminderService;
         this.itemTitleResolver = itemTitleResolver;
         this.permissionChecker = permissionChecker;
         this.auditLogRepository = auditLogRepository;
@@ -243,13 +237,9 @@ public class ComplianceController {
         reading.setPriority(request.priorityOrDefault());
         RequiredReading saved = requiredReadingRepository.saveAndFlush(reading);
 
-        // Best-effort, matching Python's try/except (compliance.py:309-313): a
-        // notification failure must not fail the reading creation itself.
-        try {
-            requiredReadingNotifier.notifyAffectedUsers(saved, user.getId());
-        } catch (Exception e) {
-            log.warn("Error auto-generating mandatory-reading notifications for reading {}: {}", saved.getId(), e.toString());
-        }
+        // PO-16 makes assignment delivery part of the durable contract. The
+        // reading and its fixed reminders therefore commit atomically.
+        reminderService.deliverAssignment(saved, user);
 
         return ResponseEntity.ok(RequiredReadingResponse.from(saved));
     }

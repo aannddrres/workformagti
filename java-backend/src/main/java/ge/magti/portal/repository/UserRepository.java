@@ -4,13 +4,20 @@ import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import jakarta.persistence.LockModeType;
 
 public interface UserRepository extends JpaRepository<User, Long> {
+
+    /** Serializes manual-reminder cooldown checks for the same recipient. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT u FROM User u WHERE u.id = :userId")
+    Optional<User> findByIdForUpdate(@Param("userId") Long userId);
 
     /** Compare-and-swap used only when permission changes do not dirty the User row. */
     @Modifying(clearAutomatically = true, flushAutomatically = true)

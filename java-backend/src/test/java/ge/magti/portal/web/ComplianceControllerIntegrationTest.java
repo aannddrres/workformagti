@@ -3,7 +3,7 @@ package ge.magti.portal.web;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.Article;
-import ge.magti.portal.domain.Message;
+import ge.magti.portal.domain.Reminder;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.QuizAttempt;
 import ge.magti.portal.domain.ReadStatus;
@@ -15,7 +15,7 @@ import ge.magti.portal.domain.VideoInstruction;
 import ge.magti.portal.repository.ArticleReadReceiptRepository;
 import ge.magti.portal.repository.ArticleRepository;
 import ge.magti.portal.repository.AuditLogRepository;
-import ge.magti.portal.repository.MessageRepository;
+import ge.magti.portal.repository.ReminderRepository;
 import ge.magti.portal.repository.QuizAttemptRepository;
 import ge.magti.portal.repository.ReadStatusRepository;
 import ge.magti.portal.repository.RequiredReadingRepository;
@@ -81,7 +81,7 @@ class ComplianceControllerIntegrationTest {
     @Autowired
     private QuizAttemptRepository quizAttemptRepository;
     @Autowired
-    private MessageRepository messageRepository;
+    private ReminderRepository reminderRepository;
     @Autowired
     private AuditLogRepository auditLogRepository;
     @Autowired
@@ -349,7 +349,7 @@ class ComplianceControllerIntegrationTest {
     }
 
     @Test
-    void creatingRequiredReadingFansOutInboxMessages() throws Exception {
+    void creatingRequiredReadingFansOutFixedAssignmentReminders() throws Exception {
         User admin = createUser("comp-fanout-admin@magti.ge", Role.CONTENT_ADMIN, "All");
         User op1 = createUser("comp-fanout-op1@magti.ge", Role.OPERATOR, "ოფისი");
         User op2 = createUser("comp-fanout-op2@magti.ge", Role.OPERATOR, "ტექნიკური — ჯგუფი 02");
@@ -360,14 +360,14 @@ class ComplianceControllerIntegrationTest {
                         .content(requiredReadingJson("article", article.getId(), "All", "2030-09-01T00:00:00+04:00")))
                 .andExpect(status().isOk());
 
-        List<Message> op1Inbox = messageRepository.findByUserId(op1.getId());
-        List<Message> op2Inbox = messageRepository.findByUserId(op2.getId());
-        List<Message> adminInbox = messageRepository.findByUserId(admin.getId());
+        List<Reminder> op1Inbox = reminderRepository.findByRecipientUserIdOrderByCreatedAtDesc(op1.getId());
+        List<Reminder> op2Inbox = reminderRepository.findByRecipientUserIdOrderByCreatedAtDesc(op2.getId());
+        List<Reminder> adminInbox = reminderRepository.findByRecipientUserIdOrderByCreatedAtDesc(admin.getId());
 
         assertEquals(1, op1Inbox.size());
         assertEquals(1, op2Inbox.size());
-        assertTrue(op1Inbox.get(0).getContent().contains("გასაცნობი მასალა"));
-        assertTrue(op1Inbox.get(0).getContent().contains("2030-09-01"));
+        assertTrue(op1Inbox.get(0).getContentSnapshot().contains("გასაცნობი მასალა"));
+        assertTrue(op1Inbox.get(0).getContentSnapshot().contains("2030-09-01"));
         assertTrue(adminInbox.isEmpty(), "the admin who created the reading must not notify themselves");
     }
 
@@ -392,11 +392,11 @@ class ComplianceControllerIntegrationTest {
                         .content(requiredReadingJson("article", article.getId(), "ოფისი", "2030-09-01T00:00:00+04:00")))
                 .andExpect(status().isOk());
 
-        assertEquals(1, messageRepository.findByUserId(operator.getId()).size(),
+        assertEquals(1, reminderRepository.findByRecipientUserIdOrderByCreatedAtDesc(operator.getId()).size(),
                 "the eligible operator must still be notified");
-        assertTrue(messageRepository.findByUserId(manager.getId()).isEmpty(),
+        assertTrue(reminderRepository.findByRecipientUserIdOrderByCreatedAtDesc(manager.getId()).isEmpty(),
                 "a manager is excluded from required reading everywhere else -- notifying them is a message with no matching task");
-        assertTrue(messageRepository.findByUserId(otherContentAdmin.getId()).isEmpty(),
+        assertTrue(reminderRepository.findByRecipientUserIdOrderByCreatedAtDesc(otherContentAdmin.getId()).isEmpty(),
                 "same for content admins, who are also a management role here");
     }
 
