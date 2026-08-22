@@ -41,6 +41,10 @@ class V36MigrationShapeTest {
         return v36().replaceAll("--[^\n]*", "");
     }
 
+    private static String permissionBackfill() throws IOException {
+        return Files.readString(MIGRATIONS.resolve("V36_1__legacy_permission_override_backfill.sql"));
+    }
+
     /**
      * Oracle 19c has no SQL boolean type, so {@code (a IS NULL) <> (b IS NULL)}
      * -- the natural PostgreSQL spelling of "exactly one of these" -- does not
@@ -143,6 +147,19 @@ class V36MigrationShapeTest {
                     "V37 tightens constraints the backfill has not satisfied yet; shipping both at once is the "
                             + "failure the two-release split exists to prevent");
         }
+    }
+
+    @Test
+    void legacyPermissionBackfillStoresOnlyDifferencesFromRoleDefaults() throws IOException {
+        String sql = permissionBackfill();
+
+        assertTrue(sql.contains("legacy_grants <> role_grants"));
+        assertTrue(sql.contains("WHEN legacy_grants = 1 THEN 'ALLOW' ELSE 'DENY'"));
+        assertTrue(sql.contains("MERGE INTO user_permission_overrides"));
+        assertTrue(sql.contains("WHEN NOT MATCHED THEN INSERT"), "an existing explicit override must win");
+        assertFalse(sql.contains("SELECT 'content.manage'"), "content.manage had no legacy decision to migrate");
+        assertFalse(sql.contains("SELECT 'articles.view'"), "removed no-op permissions must stay removed");
+        assertFalse(sql.contains("SELECT 'users.manage'"), "removed no-op permissions must stay removed");
     }
 
     /** Crude but sufficient: the two ALTER ... ADD blocks are the only places existing tables gain columns. */

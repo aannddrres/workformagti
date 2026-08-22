@@ -17,9 +17,12 @@
 | 3 — policy layer (shadow) | ✅ დასრულებული |
 | **6 — content gates** | ✅ დასრულებული და Oracle/Angular-ზე გადამოწმებული |
 
-დასრულების შემოწმება: backend-ის სრული suite — 610 ტესტი, 0 failure/error
+დასრულების შემოწმება: backend-ის სრული suite — 613 ტესტი, 0 failure/error
 (1 განზრახ skipped); Angular — 60 ტესტი, 0 failure; production build — წარმატებული.
 Oracle 19c-ზე `V36` გამოყენებულია, ხოლო აკრძალული backfill/`V37` არ გაშვებულა.
+`V36.1` ძველი `users.permissions` გადაწყვეტილებებს role defaults-თან ადარებს და
+მხოლოდ რეალურ განსხვავებებს ინახავს `ALLOW`/`DENY` override-ებად; removed no-op
+permission-ები და ახალი `content.manage` განზრახ არ მიგრირდება.
 
 Phase 4 (leadership scope cutover) და 5 (compliance cutover) **დაბლოკილია** — იხ. §5.
 Phase 6 მათზე დამოკიდებული **არ არის**: content permission-ები ჯგუფებს, scope-ს და
@@ -114,6 +117,9 @@ private ResponseEntity<Map<String, String>> requireArticlesEditPermission(User u
   `Permission.defaultsFor`-ისგან ვერასოდეს დაშორდეს;
 - `ALLOW`/`DENY` role-ს ორივე მიმართულებით სჯობს;
 - optimistic concurrency — `users.lock_version` (V36-ში უკვე არის);
+- Angular-ის profile/role/permission save ერთ atomic `PUT /api/users/{id}`
+  transaction-ში იყენებს drawer-ის თავდაპირველ `lock_version`-ს; ცალკე profile
+  write-ით token-ის „განახლება“ აკრძალულია, რადგან stale drawer-ს გაატარებდა;
 - **`@Version`-ის მიბმა `User`-ზე სწორედ ამ ფაზის საქმეა.** Phase 2-მა სვეტი
   განზრახ არ მიაბა: მიბმა ერთბაშად ჩართავს optimistic locking-ს ყველა `User`
   save-ზე, მათ შორის იმ გზებზე, სადაც detached principal ინახება. ეს ცალკე

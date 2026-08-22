@@ -1,6 +1,7 @@
 package ge.magti.portal.web;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 
@@ -12,6 +13,6 @@ import java.util.List;
  * silently overwriting one another.
  */
 public record PermissionsUpdateRequest(
-        @JsonProperty("lock_version") @PositiveOrZero long lockVersion,
-        @NotNull List<@NotNull PermissionOverrideDelta> overrides) {
+        @JsonProperty("lock_version") @NotNull @PositiveOrZero Long lockVersion,
+        @NotNull List<@NotNull @Valid PermissionOverrideDelta> overrides) {
 }

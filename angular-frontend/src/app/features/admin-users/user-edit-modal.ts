@@ -135,28 +135,18 @@ export class UserEditModal {
       .update(user.id, {
         role: this.editRole(),
         department: this.editDepartment() === 'All' ? null : this.editDepartment(),
-        position: this.editPosition() || null
+        position: this.editPosition() || null,
+        // Profile, role and permission decisions share the drawer's original
+        // token and are committed by one backend transaction. Never replace
+        // this with a token returned by a preliminary profile write: doing so
+        // would make a stale drawer look current and defeat concurrency.
+        lock_version: user.lock_version,
+        overrides: deltas
       })
       .subscribe({
-        next: (updatedUser) => {
-          if (deltas.length === 0) {
-            this.saving.set(false);
-            this.saved.emit();
-            return;
-          }
-          this.usersService.updatePermissions(user.id, {
-            lock_version: updatedUser.lock_version,
-            overrides: deltas
-          }).subscribe({
-            next: () => {
-              this.saving.set(false);
-              this.saved.emit();
-            },
-            error: (err) => {
-              this.saving.set(false);
-              this.saveError.set(err?.error?.detail ?? null);
-            }
-          });
+        next: () => {
+          this.saving.set(false);
+          this.saved.emit();
         },
         error: (err) => {
           this.saving.set(false);

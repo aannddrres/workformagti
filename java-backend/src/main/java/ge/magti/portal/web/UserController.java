@@ -361,6 +361,26 @@ public class UserController {
             return lastAdminFailure;
         }
 
+        List<PermissionOverrideDelta> deltas = request.overrides();
+        if (deltas != null) {
+            if (request.lockVersion() == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("detail", "lock_version სავალდებულოა უფლებების ცვლილებისთვის"));
+            }
+            String validationError = permissionDeltaValidationError(deltas);
+            if (validationError != null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("detail", validationError));
+            }
+            ResponseEntity<?> conflict = advanceUserLock(user, request.lockVersion());
+            if (conflict != null) {
+                return conflict;
+            }
+            // advanceUserLock uses a clearing bulk CAS so no stale managed
+            // User survives. From here profile fields and override rows are
+            // written in this one transaction against the same winning token.
+            user = userRepository.findById(userId).orElseThrow();
+        }
+
         user.setRole(role);
         // Unlike phone/teamId below, department and position were assigned
         // with no null check, so an update omitting either silently blanked
@@ -380,7 +400,14 @@ public class UserController {
             user.setTeamId(request.teamId());
         }
 
-        User saved = userRepository.save(user);
+        User saved = userRepository.saveAndFlush(user);
+        if (deltas != null) {
+            applyPermissionDeltas(userId, deltas, admin.getId());
+            if (!deltas.isEmpty()) {
+                auditPermissionUpdate(userId, admin.getId());
+            }
+            permissionOverrideRepository.flush();
+        }
         return ResponseEntity.ok(UserResponse.from(saved, permissionOverrideRepository.findByUserId(saved.getId())));
     }
 
@@ -513,10 +540,33 @@ public class UserController {
         if (denial != null) {
             return denial;
         }
+        String validationError = permissionDeltaValidationError(request.overrides());
+        if (validationError != null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("detail", validationError));
+        }
+        Optional<User> found = userRepository.findById(userId);
+        if (found.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", "მომხმარებელი ვერ მოიძებნა"));
+        }
+        User user = found.get();
+        ResponseEntity<?> conflict = advanceUserLock(user, request.lockVersion());
+        if (conflict != null) {
+            return conflict;
+        }
+        user = userRepository.findById(userId).orElseThrow();
+
+        applyPermissionDeltas(userId, request.overrides(), admin.getId());
+        auditPermissionUpdate(userId, admin.getId());
+
+        permissionOverrideRepository.flush();
+        return ResponseEntity.ok(UserResponse.from(user, permissionOverrideRepository.findByUserId(userId)));
+    }
+
+    private String permissionDeltaValidationError(List<PermissionOverrideDelta> deltas) {
         List<String> unknown = new ArrayList<>();
         Set<String> seen = new LinkedHashSet<>();
         List<String> duplicates = new ArrayList<>();
-        for (PermissionOverrideDelta delta : request.overrides()) {
+        for (PermissionOverrideDelta delta : deltas) {
             try {
                 Permission.fromValue(delta.permission());
             } catch (IllegalArgumentException e) {
@@ -527,36 +577,34 @@ public class UserController {
             }
         }
         if (!unknown.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("detail", "უცნობი უფლება(ები): " + String.join(", ", unknown)));
+            return "უცნობი უფლება(ები): " + String.join(", ", unknown);
         }
         if (!duplicates.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("detail", "დუბლირებული უფლება(ები): " + String.join(", ", duplicates)));
+            return "დუბლირებული უფლება(ები): " + String.join(", ", duplicates);
         }
-        Optional<User> found = userRepository.findById(userId);
-        if (found.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", "მომხმარებელი ვერ მოიძებნა"));
-        }
-        User user = found.get();
-        if (user.getLockVersion() != request.lockVersion()) {
+        return null;
+    }
+
+    private ResponseEntity<?> advanceUserLock(User user, long expectedVersion) {
+        if (user.getLockVersion() != expectedVersion) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
                     "detail", "მომხმარებლის მონაცემები შეიცვალა. განაახლეთ გვერდი და სცადეთ თავიდან.",
                     "lock_version", user.getLockVersion()));
         }
-
-        if (userRepository.advanceLockVersion(userId, request.lockVersion()) != 1) {
+        if (userRepository.advanceLockVersion(user.getId(), expectedVersion) != 1) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
                     "detail", "მომხმარებლის მონაცემები შეიცვალა. განაახლეთ გვერდი და სცადეთ თავიდან."));
         }
-        user = userRepository.findById(userId).orElseThrow();
+        return null;
+    }
 
+    private void applyPermissionDeltas(Long userId, List<PermissionOverrideDelta> deltas, Long actorId) {
         Map<String, UserPermissionOverride> existing = new HashMap<>();
         for (UserPermissionOverride override : permissionOverrideRepository.findByUserId(userId)) {
             existing.put(override.getPermission(), override);
         }
         OffsetDateTime now = TbilisiTime.now();
-        for (PermissionOverrideDelta delta : request.overrides()) {
+        for (PermissionOverrideDelta delta : deltas) {
             UserPermissionOverride current = existing.get(delta.permission());
             if (delta.state() == PermissionOverrideDelta.State.INHERIT) {
                 if (current != null) {
@@ -569,20 +617,19 @@ public class UserController {
             override.setPermission(delta.permission());
             override.setState(UserPermissionOverride.State.valueOf(delta.state().name()));
             override.setUpdatedAt(now);
-            override.setUpdatedBy(admin.getId());
+            override.setUpdatedBy(actorId);
             permissionOverrideRepository.save(override);
         }
+    }
 
+    private void auditPermissionUpdate(Long userId, Long actorId) {
         AuditLog audit = new AuditLog();
-        audit.setAdminId(admin.getId());
+        audit.setAdminId(actorId);
         audit.setAction("UPDATE_PERMISSIONS");
         audit.setItemType("user");
         audit.setItemId(userId);
         audit.setTimestamp(TbilisiTime.now());
         auditLogRepository.save(audit);
-
-        permissionOverrideRepository.flush();
-        return ResponseEntity.ok(UserResponse.from(user, permissionOverrideRepository.findByUserId(userId)));
     }
 
     private Map<Long, List<UserPermissionOverride>> overridesByUser(List<User> users) {

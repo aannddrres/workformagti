@@ -62,6 +62,8 @@ export interface UserAdminUpdateRequest {
   phone?: string | null;
   position: string | null;
   team_id?: number | null;
+  lock_version: number;
+  overrides: PermissionOverrideDelta[];
 }
 
 /** Mirrors web.BulkRoleReassignResponse -- POST /api/admin/roles/bulk-reassign. */

@@ -114,27 +114,32 @@ describe('UserEditModal permission lock reasons', () => {
   it('does not persist inherited role defaults as explicit overrides on ordinary save', () => {
     const service = TestBed.inject(AdminUsersService);
     const component = modalFor('content_admin');
-    vi.spyOn(service, 'update').mockReturnValue(of({ ...component.user(), lock_version: 1 }));
+    const updateSpy = vi.spyOn(service, 'update').mockReturnValue(of({ ...component.user(), lock_version: 1 }));
     const permissionSpy = vi.spyOn(service, 'updatePermissions');
 
     component.submitEdit(new Event('submit'));
 
     expect(permissionSpy).not.toHaveBeenCalled();
+    expect(updateSpy).toHaveBeenCalledWith(1, expect.objectContaining({
+      lock_version: 0,
+      overrides: []
+    }));
   });
 
-  it('sends only the changed override and uses the post-profile-update lock version', () => {
+  it('atomically sends profile and only the changed override with the original lock version', () => {
     const service = TestBed.inject(AdminUsersService);
     const component = modalFor('operator');
-    vi.spyOn(service, 'update').mockReturnValue(of({ ...component.user(), lock_version: 7 }));
-    const permissionSpy = vi.spyOn(service, 'updatePermissions')
-      .mockReturnValue(of({ ...component.user(), lock_version: 8 }));
+    const updateSpy = vi.spyOn(service, 'update')
+      .mockReturnValue(of({ ...component.user(), lock_version: 1 }));
+    const permissionSpy = vi.spyOn(service, 'updatePermissions');
     component.setPermissionOverride('content.manage', 'ALLOW');
 
     component.submitEdit(new Event('submit'));
 
-    expect(permissionSpy).toHaveBeenCalledWith(1, {
-      lock_version: 7,
+    expect(permissionSpy).not.toHaveBeenCalled();
+    expect(updateSpy).toHaveBeenCalledWith(1, expect.objectContaining({
+      lock_version: 0,
       overrides: [{ permission: 'content.manage', state: 'ALLOW' }]
-    });
+    }));
   });
 });

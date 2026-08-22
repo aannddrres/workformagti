@@ -534,6 +534,69 @@ class UserControllerIntegrationTest {
     }
 
     @Test
+    void permissionDeltaRequiresTheLockTokenAndValidatesNestedFields() throws Exception {
+        User admin = createUser("perm-validation-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
+        User target = createUser("perm-validation-target@magti.ge", Role.OPERATOR, "All");
+
+        mockMvc.perform(authed(put("/api/users/" + target.getId() + "/permissions"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"overrides\":[]}"))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(authed(put("/api/users/" + target.getId() + "/permissions"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"lock_version\":0,\"overrides\":["
+                                + "{\"permission\":\"content.manage\",\"state\":null}]}"))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(authed(put("/api/users/" + target.getId() + "/permissions"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"lock_version\":0,\"overrides\":["
+                                + "{\"permission\":\"\",\"state\":\"ALLOW\"}]}"))
+                .andExpect(status().isBadRequest());
+
+        assertEquals(0, userRepository.findById(target.getId()).orElseThrow().getLockVersion());
+        assertTrue(permissionOverrideRepository.findByUserId(target.getId()).isEmpty());
+    }
+
+    @Test
+    void profileRoleAndPermissionDeltasCommitAtomicallyAgainstTheOriginalLock() throws Exception {
+        User admin = createUser("atomic-profile-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
+        User target = createUser("atomic-profile-target@magti.ge", Role.OPERATOR, "All");
+
+        String updated = mockMvc.perform(authed(put("/api/users/" + target.getId()), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role\":\"manager\",\"department\":\"Technical\","
+                                + "\"position\":\"Lead\",\"lock_version\":0,\"overrides\":["
+                                + "{\"permission\":\"content.manage\",\"state\":\"ALLOW\"}]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value("manager"))
+                .andExpect(jsonPath("$.permission_overrides[0].permission").value("content.manage"))
+                .andExpect(jsonPath("$.permission_overrides[0].state").value("ALLOW"))
+                .andReturn().getResponse().getContentAsString();
+
+        long responseLock = objectMapper.readTree(updated).get("lock_version").asLong();
+        User reloaded = userRepository.findById(target.getId()).orElseThrow();
+        assertEquals(Role.MANAGER, reloaded.getRole());
+        assertEquals("Lead", reloaded.getPosition());
+        assertEquals(responseLock, reloaded.getLockVersion(), "response must carry the committed JPA version");
+        assertTrue(responseLock > 0);
+
+        mockMvc.perform(authed(put("/api/users/" + target.getId()), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role\":\"operator\",\"department\":\"Office\","
+                                + "\"position\":\"Stale\",\"lock_version\":0,\"overrides\":["
+                                + "{\"permission\":\"content.manage\",\"state\":\"DENY\"}]}"))
+                .andExpect(status().isConflict());
+
+        User afterConflict = userRepository.findById(target.getId()).orElseThrow();
+        assertEquals(Role.MANAGER, afterConflict.getRole());
+        assertEquals("Lead", afterConflict.getPosition());
+        assertEquals(UserPermissionOverride.State.ALLOW, permissionOverrideRepository
+                .findByUserId(target.getId()).getFirst().getState());
+    }
+
+    @Test
     void bulkRoleChangePreservesExplicitOverridesAndDoesNotMaterializeDefaults() throws Exception {
         User admin = createUser("perm-role-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
         User target = createUser("perm-role-target@magti.ge", Role.OPERATOR, "All");

@@ -6,6 +6,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -85,6 +87,13 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
                 "detail", "ამ ჩანაწერს სხვამ თქვენზე ადრე შეცვალა. "
                         + "გთხოვთ, გადატვირთოთ გვერდი და ცვლილება თავიდან შეიტანოთ."));
+    }
+
+    /** Malformed or Bean-Validation-rejected request bodies are client errors. */
+    @ExceptionHandler({MethodArgumentNotValidException.class, HttpMessageNotReadableException.class})
+    public ResponseEntity<Map<String, String>> handleInvalidRequestBody(Exception exception) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                "detail", "მოთხოვნის მონაცემები არასწორია"));
     }
 
     @ExceptionHandler(Exception.class)
