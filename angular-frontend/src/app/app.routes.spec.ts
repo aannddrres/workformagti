@@ -43,7 +43,14 @@ describe('effective-access route boundaries', () => {
           { path: 'content', component: StubPage },
           { path: 'categories', component: StubPage },
           { path: 'overview', component: StubPage, canActivate: adminChild('overview').canActivate },
-          { path: 'access', component: StubPage, canActivate: adminChild('access').canActivate }
+          { path: 'access', component: StubPage, canActivate: adminChild('access').canActivate },
+          { path: 'org', component: StubPage, canActivate: adminChild('org').canActivate },
+          {
+            path: 'org/assignments',
+            component: StubPage,
+            canActivate: adminChild('org/assignments').canActivate
+          },
+          { path: 'org/backfill', component: StubPage, canActivate: adminChild('org/backfill').canActivate }
         ]
       },
       { path: 'manager', component: StubPage, canActivate: child('manager').canActivate },
@@ -127,6 +134,23 @@ describe('effective-access route boundaries', () => {
 
     await harness.navigateByUrl('/admin/access');
     expect(currentUrl()).toBe('/');
+  });
+
+  it('keeps every org administration screen system-admin-only', async () => {
+    const operator = await harnessFor('operator', {
+      role: 'operator', permissions: ['content.manage'], bypass: false
+    });
+
+    for (const url of ['/admin/org', '/admin/org/assignments', '/admin/org/backfill']) {
+      await operator.navigateByUrl(url);
+      expect(currentUrl()).toBe('/');
+    }
+
+    const admin = await harnessFor('admin', { role: 'admin', permissions: [], bypass: true });
+    for (const url of ['/admin/org', '/admin/org/assignments', '/admin/org/backfill']) {
+      await admin.navigateByUrl(url);
+      expect(currentUrl()).toBe(url);
+    }
   });
 
   it('keeps Phase 4 and Phase 5 role gates unchanged', async () => {

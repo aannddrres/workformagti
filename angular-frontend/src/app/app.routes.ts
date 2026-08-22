@@ -17,6 +17,9 @@ import { AdminAuditPage } from './features/admin-audit/admin-audit-page';
 import { AdminContentPage } from './features/admin-content/admin-content-page';
 import { AdminCategoriesPage } from './features/admin-categories/admin-categories-page';
 import { AdminAccessPage } from './features/admin-access/admin-access-page';
+import { AdminOrgPage } from './features/admin-org/admin-org-page';
+import { AdminAssignmentsPage } from './features/admin-org/admin-assignments-page';
+import { AdminBackfillPage } from './features/admin-org/admin-backfill-page';
 import { AccountPage } from './features/account/account-page';
 import { authGuard } from './core/auth/auth.guard';
 import { auditLogGuard, contentManageGuard } from './core/auth/permission.guard';
@@ -105,6 +108,24 @@ export const routes: Routes = [
             path: 'access',
             component: AdminAccessPage,
             data: { title: 'nav.sidebar.admin_users' },
+            canActivate: [roleGuard(ADMIN_ONLY)]
+          },
+          {
+            path: 'org/assignments',
+            component: AdminAssignmentsPage,
+            data: { title: 'ლიდერების დანიშვნა' },
+            canActivate: [roleGuard(ADMIN_ONLY)]
+          },
+          {
+            path: 'org/backfill',
+            component: AdminBackfillPage,
+            data: { title: 'Backfill კონტროლი' },
+            canActivate: [roleGuard(ADMIN_ONLY)]
+          },
+          {
+            path: 'org',
+            component: AdminOrgPage,
+            data: { title: 'ორგანიზაციული სტრუქტურა' },
             canActivate: [roleGuard(ADMIN_ONLY)]
           },
           {

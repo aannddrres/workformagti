@@ -1,5 +1,6 @@
 package ge.magti.portal.repository;
 
+import ge.magti.portal.domain.AssignmentType;
 import ge.magti.portal.domain.LeadershipAssignment;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -14,4 +15,8 @@ public interface LeadershipAssignmentRepository extends JpaRepository<Leadership
     List<LeadershipAssignment> findByTeamIdAndActiveTrue(Long teamId);
 
     List<LeadershipAssignment> findByDepartmentIdAndActiveTrue(Long departmentId);
+
+    boolean existsByTeamIdAndAssignmentTypeAndActiveTrue(Long teamId, AssignmentType assignmentType);
+
+    boolean existsByDepartmentIdAndAssignmentTypeAndActiveTrue(Long departmentId, AssignmentType assignmentType);
 }

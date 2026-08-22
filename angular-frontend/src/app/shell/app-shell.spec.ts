@@ -69,4 +69,16 @@ describe('AppShell effective-access navigation', () => {
     expect(visible(shell, '/manager')).toBe(false);
     expect(visible(shell, '/reading')).toBe(true);
   });
+
+  it('shows org navigation only to the system-admin role', () => {
+    const operator = shellFor('operator', {
+      role: 'operator', permissions: ['content.manage'], bypass: false
+    });
+    const admin = shellFor('admin', { role: 'admin', permissions: [], bypass: true });
+
+    expect(visible(operator, '/admin/org')).toBe(false);
+    expect(visible(operator, '/admin/org/assignments')).toBe(false);
+    expect(visible(admin, '/admin/org')).toBe(true);
+    expect(visible(admin, '/admin/org/assignments')).toBe(true);
+  });
 });

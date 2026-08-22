@@ -219,3 +219,19 @@ base: `codex/phase6-content-gates` (`2b7b0b5`)
 `claude/dept-groups-architecture-biqtma` ატარებს Phase 7-ის review-ს და ამ დოკუმენტს.
 
 დაწყებამდე: `git fetch origin && git merge origin/claude/dept-groups-architecture-biqtma`
+
+---
+
+## 8. შესრულების სტატუსი — 2026-08-22
+
+Phase 8-ის fixture seeder და system-admin ეკრანები აშენებულია. Seeder-ის
+იდემპოტენტურობა local Oracle-ზე ერთ ტრანზაქციაში ორჯერ გაშვებით შემოწმდა
+(`3` დეპარტამენტი, `15` ჯგუფი, `45` fixture მომხმარებელი და `15` აქტიური
+PRIMARY დანიშვნა) და ტესტის ბოლოს rollback შესრულდა.
+
+**Seeder ≠ backfill.** Seeder backfill endpoint-ს არ იძახებს; org backfill არც
+local-ის გარეთ და არც production-ის მსგავს გარემოზე არ გაშვებულა. შესაბამისად,
+სრული persona QA კვლავ **დაბლოკილია**: `leadership_assignments`-ის ნამდვილი
+ორგანიზაციული backfill, `users.team_id`-ის production-shape შევსება,
+`blocks_cutover: false` და Phase 4/5 cutover ჯერ არ არსებობს. ამ ფაზის შედეგია
+„აშენებულია და fixture-ებზე შემოწმებულია“, არა „სრული persona QA გავიდა“.

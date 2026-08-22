@@ -181,6 +181,24 @@ class ResponseShapeContractTest {
         assertEquals(List.of("role", "permissions", "bypass"), wireFieldsOf(EffectiveAccessResponse.class));
     }
 
+    @Test
+    void orgStructureCarriesOnlyDirectoryIdentityAndMemberCounts() {
+        assertEquals(List.of("departments"), wireFieldsOf(OrgStructureResponse.class));
+        assertEquals(List.of("id", "stable_key", "name", "is_active", "teams"),
+                wireFieldsOf(OrgDepartmentResponse.class));
+        assertEquals(List.of("id", "stable_key", "name", "is_active", "member_count"),
+                wireFieldsOf(OrgTeamResponse.class));
+    }
+
+    @Test
+    void leadershipAssignmentsCarryOnlyTheActorTraceAndResolvedScopeNames() {
+        assertEquals(
+                List.of("id", "user_id", "user_name", "user_email", "scope", "department_id",
+                        "department_name", "team_id", "team_name", "assignment_type", "is_active",
+                        "started_at", "ended_at", "created_by", "source"),
+                wireFieldsOf(LeadershipAssignmentResponse.class));
+    }
+
     /**
      * {@code permissions} must be what the gates answer, not what
      * {@code users.permissions} still holds.

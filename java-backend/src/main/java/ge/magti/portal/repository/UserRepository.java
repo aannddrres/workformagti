@@ -66,6 +66,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     List<User> findByActiveTrue();
 
+    /** Active directory membership counts for the Phase 8 read-only org tree. */
+    @Query("SELECT u.teamId, COUNT(u.id) FROM User u "
+            + "WHERE u.active = true AND u.teamId IS NOT NULL GROUP BY u.teamId")
+    List<Object[]> countActiveGroupedByTeam();
+
     /** Mirrors _get_eligible_operators' non-"All" branch (routers/articles.py:992-993), exact match only -- no prefix expansion. */
     List<User> findByActiveTrueAndDepartmentIn(List<String> departments);
 

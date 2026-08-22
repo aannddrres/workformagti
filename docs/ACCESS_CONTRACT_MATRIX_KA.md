@@ -1,8 +1,8 @@
 # წვდომის კონტრაქტის მატრიცა
 
 **სტატუსი:** Phase 1 — decision/contract lock **დასრულებულია**; 6 გადაწყვეტილება ღიაა (D-2, D-4…D-8); D-1 და D-3 დახურულია
-**ბოლო განახლება:** 2026-08-22 (Phase 7 effective access)
-**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 115 endpoint
+**ბოლო განახლება:** 2026-08-22 (Phase 8 system-admin org UI)
+**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 119 endpoint
 **გეგმა:** `docs/ORG_ACCESS_ARCHITECTURE_PLAN_KA.md` (ფაზები, §9.1 სავალდებულო მტკიცებულებები)
 
 ეს ფაილი არის ორგანიზაციული წვდომის **კონტრაქტი**: თითოეული backend endpoint-ისთვის
@@ -71,8 +71,8 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 ## ციფრებში
 
-- **115** endpoint (112 + Phase 3-ის 3 დიაგნოსტიკური);
-- **30** ატარებს თანამშრომლის საიდენტიფიკაციო მონაცემს (`PII = yes`);
+- **119** endpoint (116 + Phase 3-ის 3 დიაგნოსტიკური);
+- **34** ატარებს თანამშრომლის საიდენტიფიკაციო მონაცემს (`PII = yes`);
 - **11** უკვე leadership-scoped;
 - **6** ღია გადაწყვეტილება (2 დახურულია; D-8 დაემატა Phase 6-ის review-ზე).
 
@@ -196,6 +196,15 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | `PATCH /api/news/{id}/autosave` | `NewsController.autosaveNews` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
 | `GET /api/news/{id}/history` | `NewsController.getNewsHistory` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
 | `POST /api/news/{id}/history/{historyId}/restore` | `NewsController.restoreNewsVersion` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+
+### Org (4)
+
+| endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
+|---|---|---|---|---|---|---|
+| `DELETE /api/admin/org/assignments/{assignmentId}` | `OrgAdminController.deactivateAssignment` | `requireSystemAdmin` | — | `ORG` | **yes** | Phase 8. soft deactivate; ისტორიული მწკრივი რჩება და actor-ით აუდიტდება. `org.manage` განზრახ არ გამოიყენება (SEC-06). |
+| `GET /api/admin/org/assignments` | `OrgAdminController.getAssignments` | `requireSystemAdmin` | — | `ORG` | **yes** | Phase 8. მოქმედი და ისტორიული PRIMARY/ACTING დანიშვნები resolved employee/scope სახელებით. |
+| `GET /api/admin/org/structure` | `OrgAdminController.getStructure` | `requireSystemAdmin` | — | `ORG` | **yes** | Phase 8. AD-owned დეპარტამენტები → ჯგუფები → აქტიური წევრების რაოდენობა; read-only. |
+| `POST /api/admin/org/assignments` | `OrgAdminController.createAssignment` | `requireSystemAdmin` | — | `ORG` | **yes** | Phase 8. ჯგუფის ან დეპარტამენტის PRIMARY/ACTING ლიდერი; PRIMARY collision გასაგები conflict-ით უარყოფილია და ცვლილება აუდიტდება. |
 
 ### Platform (2)
 
