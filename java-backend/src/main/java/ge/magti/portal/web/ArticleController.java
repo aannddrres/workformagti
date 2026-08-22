@@ -16,6 +16,7 @@ import ge.magti.portal.domain.Category;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.ReadStatus;
 import ge.magti.portal.domain.RequiredReading;
+import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.domain.UserNote;
 import ge.magti.portal.repository.ArticleHistoryRepository;
@@ -32,6 +33,8 @@ import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.quiz.QuizGateChecker;
 import ge.magti.portal.search.SearchReindexService;
 import ge.magti.portal.security.PermissionChecker;
+import ge.magti.portal.security.Scope;
+import ge.magti.portal.security.ScopeResolver;
 import ge.magti.portal.util.DepartmentMatcher;
 import ge.magti.portal.util.TbilisiTime;
 import ge.magti.portal.video.TagSyncService;
@@ -117,6 +120,7 @@ public class ArticleController {
     private final ReadStatusRepository readStatusRepository;
     private final QuizGateChecker quizGateChecker;
     private final PermissionChecker permissionChecker;
+    private final ScopeResolver scopeResolver;
     private final TagSyncService tagSyncService;
     private final ArticleQueryService articleQueryService;
     private final EligibleOperatorsService eligibleOperatorsService;
@@ -137,6 +141,7 @@ public class ArticleController {
             ReadStatusRepository readStatusRepository,
             QuizGateChecker quizGateChecker,
             PermissionChecker permissionChecker,
+            ScopeResolver scopeResolver,
             TagSyncService tagSyncService,
             ArticleQueryService articleQueryService,
             EligibleOperatorsService eligibleOperatorsService,
@@ -155,6 +160,7 @@ public class ArticleController {
         this.readStatusRepository = readStatusRepository;
         this.quizGateChecker = quizGateChecker;
         this.permissionChecker = permissionChecker;
+        this.scopeResolver = scopeResolver;
         this.tagSyncService = tagSyncService;
         this.articleQueryService = articleQueryService;
         this.eligibleOperatorsService = eligibleOperatorsService;
@@ -984,7 +990,7 @@ public class ArticleController {
     @GetMapping("/api/articles/{id}/read-receipts")
     public ResponseEntity<?> getArticleReadReceipts(
             @PathVariable Long id, @RequestParam(required = false) Integer version, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireReadEvidenceAccess(user);
         if (denial != null) {
             return denial;
         }
@@ -999,33 +1005,56 @@ public class ArticleController {
                 .map(RequiredReading::getDueDate).orElse(null);
         int targetVersion = version != null ? version : article.getVersion();
         List<User> eligibleUsers = eligibleOperatorsService.forArticle(article, resolveTargetDepartments(id));
+        Scope namedScope = scopeResolver.resolveGroupLeadership(user);
+        boolean hasOrganisationAggregate = permissionChecker.hasPermission(user, Permission.CONTENT_MANAGE);
+        List<User> aggregateUsers = hasOrganisationAggregate || namedScope.unscoped()
+                ? eligibleUsers
+                : eligibleUsers.stream().filter(candidate -> namedScope.includesTeam(candidate.getTeamId())).toList();
+        List<User> namedUsers = namedScope.unscoped()
+                ? eligibleUsers
+                : eligibleUsers.stream().filter(candidate -> namedScope.includesTeam(candidate.getTeamId())).toList();
+
         List<ArticleReadReceipt> receipts = articleReadReceiptRepository.findByArticleIdSnapshotAndArticleVersion(id, targetVersion);
         Map<Long, ArticleReadReceipt> receiptByOperator = receipts.stream()
                 .filter(r -> r.getOperatorId() != null)
                 .collect(Collectors.toMap(ArticleReadReceipt::getOperatorId, r -> r, (a, b) -> a));
 
+        Set<Long> aggregateUserIds = aggregateUsers.stream().map(User::getId).collect(Collectors.toSet());
+        int eligibleCount = aggregateUsers.size();
+        int readCount = (int) aggregateUserIds.stream().filter(receiptByOperator::containsKey).count();
+        int lateReadCount = dueDate == null ? 0 : (int) aggregateUserIds.stream()
+                .map(receiptByOperator::get)
+                .filter(Objects::nonNull)
+                .filter(receipt -> receipt.getReadAt() != null && receipt.getReadAt().isAfter(dueDate))
+                .count();
+
         Set<Long> processedOperatorIds = new HashSet<>();
         List<ArticleReadReceiptRowResponse> rows = new ArrayList<>();
-        for (User u : eligibleUsers) {
+        for (User u : namedUsers) {
             processedOperatorIds.add(u.getId());
             ArticleReadReceipt receipt = receiptByOperator.get(u.getId());
             if (receipt != null) {
                 rows.add(buildReceiptRow(receipt, dueDate));
             } else {
-                rows.add(new ArticleReadReceiptRowResponse(u.getId(), u.getName(), u.getEmail(), u.getDepartment(),
+                rows.add(new ArticleReadReceiptRowResponse(u.getId(), u.getName(), u.getDepartment(),
                         null, null, false, false, TbilisiTime.format(dueDate), "unread"));
             }
         }
+        Set<Long> visibleDetachedOperatorIds = visibleDetachedOperatorIds(
+                receipts, processedOperatorIds, namedScope);
         // Detached/orphaned snapshot rows: a receipt whose operator is no
         // longer eligible (left the department, deactivated, ...) still
         // shows, from its own frozen snapshot -- routers/articles.py:1100-1122.
         for (ArticleReadReceipt receipt : receipts) {
-            if (receipt.getOperatorId() == null || !processedOperatorIds.contains(receipt.getOperatorId())) {
+            if (!processedOperatorIds.contains(receipt.getOperatorId())
+                    && (namedScope.unscoped() || visibleDetachedOperatorIds.contains(receipt.getOperatorId()))) {
                 rows.add(buildReceiptRow(receipt, dueDate));
             }
         }
 
-        return ResponseEntity.ok(new ArticleReadReceiptResponse(id, article.getTitle(), targetVersion, rows));
+        return ResponseEntity.ok(new ArticleReadReceiptResponse(
+                id, article.getTitle(), targetVersion, eligibleCount, readCount,
+                eligibleCount - readCount, lateReadCount, rows));
     }
 
     @PostMapping("/api/articles/{id}/read-receipt")
@@ -1118,14 +1147,15 @@ public class ArticleController {
             return denial;
         }
 
-        // No visibility check here, matching routers/articles.py:1274-1305
-        // exactly: passive view-tracking doesn't gate on department/draft/
-        // status the way nearly every other article endpoint does.
         Optional<Article> found = articleRepository.findById(id);
         if (found.isEmpty()) {
             return notFound();
         }
         Article article = found.get();
+        ResponseEntity<Map<String, String>> visibility = assertArticleVisible(article, resolveTargetDepartments(id), user);
+        if (visibility != null) {
+            return visibility;
+        }
 
         ArticleViewLog log = new ArticleViewLog();
         log.setArticleId(article.getId());
@@ -1149,7 +1179,7 @@ public class ArticleController {
             @PathVariable Long id, @RequestParam(required = false) Integer version,
             @RequestParam(defaultValue = "50") int limit, @RequestParam(defaultValue = "0") int offset,
             @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
+        ResponseEntity<Map<String, String>> denial = requireSystemAdmin(user);
         if (denial != null) {
             return denial;
         }
@@ -1219,9 +1249,26 @@ public class ArticleController {
             status = "late_read";
         }
         return new ArticleReadReceiptRowResponse(
-                receipt.getOperatorId(), receipt.getOperatorNameSnapshot(), receipt.getOperatorEmailSnapshot(),
-                receipt.getOperatorDepartmentSnapshot(), TbilisiTime.format(receipt.getReadAt()), receipt.getArticleVersion(),
+                receipt.getOperatorId(), receipt.getOperatorNameSnapshot(), receipt.getOperatorDepartmentSnapshot(),
+                TbilisiTime.format(receipt.getReadAt()), receipt.getArticleVersion(),
                 true, isLate, TbilisiTime.format(dueDate), status);
+    }
+
+    private Set<Long> visibleDetachedOperatorIds(
+            List<ArticleReadReceipt> receipts, Set<Long> processedOperatorIds, Scope namedScope) {
+        if (namedScope.unscoped() || namedScope.readsNobody()) {
+            return Set.of();
+        }
+        List<Long> detachedIds = receipts.stream()
+                .map(ArticleReadReceipt::getOperatorId)
+                .filter(Objects::nonNull)
+                .filter(operatorId -> !processedOperatorIds.contains(operatorId))
+                .distinct()
+                .toList();
+        return userRepository.findAllById(detachedIds).stream()
+                .filter(operator -> namedScope.includesTeam(operator.getTeamId()))
+                .map(User::getId)
+                .collect(Collectors.toSet());
     }
 
     /** Port of _check_quiz_gate -- now delegated to the shared {@link QuizGateChecker}, which ComplianceController's mark-read reuses too. */
@@ -1338,6 +1385,31 @@ public class ArticleController {
             return authFailure;
         }
         if (!user.getRole().isContentAdmin()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("detail", "Not enough permissions to perform this action"));
+        }
+        return null;
+    }
+
+    private ResponseEntity<Map<String, String>> requireReadEvidenceAccess(User user) {
+        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
+        if (authFailure != null) {
+            return authFailure;
+        }
+        if (permissionChecker.hasPermission(user, Permission.CONTENT_MANAGE)
+                || !scopeResolver.resolveGroupLeadership(user).readsNobody()) {
+            return null;
+        }
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of("detail", "წვდომა უარყოფილია: ოფიციალური წაკითხვის მონაცემები თქვენს ჯგუფს არ ეკუთვნის"));
+    }
+
+    private static ResponseEntity<Map<String, String>> requireSystemAdmin(User user) {
+        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
+        if (authFailure != null) {
+            return authFailure;
+        }
+        if (user.getRole() != Role.SYSTEM_ADMIN) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("detail", "Not enough permissions to perform this action"));
         }

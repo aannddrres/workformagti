@@ -107,13 +107,13 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | `PUT /api/articles/{id}/note` | `ArticleController.putUserNote` | `requireAuthenticated`, `requireVisibleArticle` | AUTH | `SELF` | no | საკუთარი ჩანაწერი ხილულ კონტენტზე. |
 | `POST /api/articles/{id}/read-receipt` | `ArticleController.createArticleReadReceipt` | `requireAuthenticated`, `requireQuizPassed` | AUTH | `SELF` | no | compliance-ის მტკიცებულება; retention purge-იდან გამორიცხული. |
 | `GET /api/articles/{id}/read-receipt/me` | `ArticleController.getMyArticleReadReceiptStatus` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი მონაცემი. |
-| `GET /api/articles/{id}/read-receipts` | `ArticleController.getArticleReadReceipts` | `requireContentAdmin` | content.evidence — D-2 resolved, implementation pending | `GROUP/DEPT` (`SYSTEM_ADMIN`: `ORG`) | **yes** | **სამიზნე:** სახელობითი rows scope-პირამიდით; `content.manage` მარტო მხოლოდ აგრეგატს იძლევა; email უნდა ამოიღოს. მიმდინარე კოდი ჯერ org-wide/role-gated არის. |
+| `GET /api/articles/{id}/read-receipts` | `ArticleController.getArticleReadReceipts` | `requireReadEvidenceAccess` | content.evidence | `GROUP` (`SYSTEM_ADMIN`: `ORG`; `content.manage`: aggregate-only) | **yes** | პირველი rollout: მოქმედი ჯგუფის assignment სახელობით rows-ს მხოლოდ საკუთარ ჯგუფზე ხსნის; `content.manage` org-wide საერთო რაოდენობებს, მაგრამ არა სახელებს; `SYSTEM_ADMIN` org-wide სახელობით rows-ს. დეპარტამენტის assignment ჯერ არააქტიურია. email response-ში არ შედის. |
 | `GET /api/articles/{id}/related` | `ArticleController.getRelatedArticles` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
 | `POST /api/articles/{id}/unarchive` | `ArticleController.unarchiveArticle` | `requireArticlesArchivePermission` | articles.archive | `ORG-CONTENT` | no | უკვე permission-ზეა. |
 | `POST /api/articles/{id}/verify` | `ArticleController.verifyArticle` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
 | `GET /api/articles/{id}/versions` | `ArticleController.getArticleVersions` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
 | `POST /api/articles/{id}/view` | `ArticleController.trackArticleView` | `requireAuthenticated` | AUTH | `SELF` | no | საკუთარი ჩანაწერი ხილულ კონტენტზე. |
-| `GET /api/articles/{id}/views` | `ArticleController.getArticleViews` | `requireContentAdmin` | SYSTEM_ADMIN-only log — implementation pending | `ORG` | **yes** | სტატიის უბრალო გახსნა ოფიციალური წაკითხვა არ არის და leadership evidence-ში არ ჩანს. სამიზნე gate არის `requireSystemAdmin`; export ცალკე SYSTEM_ADMIN-only log surface-ზე კეთდება. |
+| `GET /api/articles/{id}/views` | `ArticleController.getArticleViews` | `requireSystemAdmin` | SYSTEM_ADMIN-only log | `ORG` | **yes** | სტატიის უბრალო გახსნა ოფიციალური წაკითხვა არ არის და leadership evidence-ში არ ჩანს. export ცალკე SYSTEM_ADMIN-only log surface-ზე კეთდება. |
 | `GET /api/me/recently-viewed` | `ArticleController.getMyRecentlyViewed` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი მონაცემი. |
 
 ### AuditLog (4)
@@ -370,7 +370,8 @@ Status code-ის შემოწმება ადვილია, ველ�
 | `GroupMemberCompletion` | `user_id` · `first_name` · `last_name` · `completion_percentage` | group users |
 | `CriticalOperator` | `user_id` · `first_name` · `last_name` · `department` · `overdue_count` | critical-operators |
 | `UserProgressItemResponse` | `user_id` · `user_name` · `department` · `read_count` · `required_count` · `percentage` | user-progress (`ORG`) |
-| `ArticleReadReceiptRowResponse` | `operator_id` · `operator_name` · **`operator_email` (current; remove on D-2 implementation)** · `department` · `read_at` · `article_version` · `has_read` · `is_late` · `deadline` · `status` | read-receipts — **D-2 resolved** |
+| `ArticleReadReceiptResponse` | `article_id` · `article_title` · `current_version` · `eligible_count` · `read_count` · `unread_count` · `late_read_count` · `receipts` | per-material aggregate + access-scoped named rows |
+| `ArticleReadReceiptRowResponse` | `operator_id` · `operator_name` · `department` · `read_at` · `article_version` · `has_read` · `is_late` · `deadline` · `status` | ოფიციალური read evidence; email მიზანმიმართულად არ შედის |
 | `ArticleViewRowResponse` | `operator_id` · `operator_name` · `operator_email` · `department` · `article_version` · `viewed_at` | article views — მიმდინარე shape; სამიზნე მხოლოდ SYSTEM_ADMIN-only log surface-ია |
 | `GroupLeaderResponse` | `id` · `name` | group-leaders |
 
@@ -421,15 +422,15 @@ leadership scope-ის გარეშე კონტენტის მმა
 ითვლება და leadership სიაში არ ჩანს — მას მხოლოდ `SYSTEM_ADMIN` ხედავს/გამოაქვს.
 თანამშრომლის feedback ფუნქცია მთლიანად ამოღებულია.
 
-სახელობით rows-ში `operator_name` საკმარისია; `operator_email` უნდა ამოიღოს D-2-ის
-განხორციელების commit-მა და response-shape contract შესაბამისად განაახლოს.
+სახელობით rows-ში `operator_name` საკმარისია; `operator_email` ამოღებულია და
+response-shape contract ამ საზღვარს იცავს.
 
 #### წინა მდგომარეობა და განხილული ვარიანტები
 
-`GET /api/articles/{id}/read-receipts` აბრუნებს `operator_id` · `operator_name` ·
-`operator_email` · `department` · `read_at` · `is_late` · `status`-ს **org-wide**,
-მხოლოდ `requireContentAdmin`-ით. `/views`-იც ჯერ იგივე ძველ role-gate-ზეა, თუმცა
-მისი სამიზნე უკვე SYSTEM_ADMIN-only log-ია. feedback endpoint-ები ამოღებულია.
+ცვლილებამდე `GET /api/articles/{id}/read-receipts` `operator_email`-იან სახელობით
+rows-ს **org-wide**, მხოლოდ `requireContentAdmin`-ით აბრუნებდა, ხოლო `/views`-საც
+იგივე ძველი role-gate ჰქონდა. ახლა read evidence aggregate/scope კონტრაქტზეა,
+`/views` კი SYSTEM_ADMIN-only-ია. feedback endpoint-ები ამოღებულია.
 
 წესი #15: content permission თანამშრომლის სტატისტიკას არ ხსნის. მაგრამ „ვინ
 გაეცნო ამ სტატიის ამ ვერსიას" კონტენტის lifecycle-ის ნაწილიცაა და ავტორს

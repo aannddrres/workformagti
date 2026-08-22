@@ -5,6 +5,7 @@ import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.ArticleHistory;
 import ge.magti.portal.domain.ArticleReadReceipt;
 import ge.magti.portal.domain.ArticleViewLog;
+import ge.magti.portal.domain.AssignmentType;
 import ge.magti.portal.domain.Category;
 import ge.magti.portal.domain.Favorite;
 import ge.magti.portal.domain.Permission;
@@ -14,9 +15,11 @@ import ge.magti.portal.domain.RequiredReading;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.Tag;
 import ge.magti.portal.domain.TagMapping;
+import ge.magti.portal.domain.Team;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.domain.UserNote;
 import ge.magti.portal.domain.UserPermissionOverride;
+import ge.magti.portal.domain.LeadershipAssignment;
 import ge.magti.portal.repository.ArticleHistoryRepository;
 import ge.magti.portal.repository.ArticleReadReceiptRepository;
 import ge.magti.portal.repository.ArticleRepository;
@@ -25,11 +28,13 @@ import ge.magti.portal.repository.ArticleViewLogRepository;
 import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.CategoryRepository;
 import ge.magti.portal.repository.FavoriteRepository;
+import ge.magti.portal.repository.LeadershipAssignmentRepository;
 import ge.magti.portal.repository.QuizAttemptRepository;
 import ge.magti.portal.repository.ReadStatusRepository;
 import ge.magti.portal.repository.RequiredReadingRepository;
 import ge.magti.portal.repository.TagMappingRepository;
 import ge.magti.portal.repository.TagRepository;
+import ge.magti.portal.repository.TeamRepository;
 import ge.magti.portal.repository.UserNoteRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.repository.UserPermissionOverrideRepository;
@@ -109,6 +114,10 @@ class ArticleControllerIntegrationTest {
     private ReadStatusRepository readStatusRepository;
     @Autowired
     private QuizAttemptRepository quizAttemptRepository;
+    @Autowired
+    private LeadershipAssignmentRepository leadershipAssignmentRepository;
+    @Autowired
+    private TeamRepository teamRepository;
     @Autowired
     private FavoriteRepository favoriteRepository;
     @Autowired
@@ -850,6 +859,25 @@ class ArticleControllerIntegrationTest {
                 .andExpect(status().isForbidden());
     }
 
+    private Team createTeam(String name) {
+        Team team = new Team();
+        team.setName(name);
+        team.setActive(true);
+        team.setCreatedAt(TbilisiTime.now());
+        return teamRepository.saveAndFlush(team);
+    }
+
+    private LeadershipAssignment leadTeam(User leader, Team team, AssignmentType type) {
+        LeadershipAssignment assignment = new LeadershipAssignment();
+        assignment.setUserId(leader.getId());
+        assignment.setTeamId(team.getId());
+        assignment.setAssignmentType(type);
+        assignment.setActive(true);
+        assignment.setStartedAt(TbilisiTime.now());
+        assignment.setSource(LeadershipAssignment.Source.MANUAL);
+        return leadershipAssignmentRepository.saveAndFlush(assignment);
+    }
+
     @Test
     void removedFeedbackEndpointsAreNotExposed() throws Exception {
         User operator = createUser("aa20@magti.ge", Role.OPERATOR, "All");
@@ -1302,7 +1330,7 @@ class ArticleControllerIntegrationTest {
 
     @Test
     void readReceiptsShowsEligibleOperatorsAndOrphanedSnapshots() throws Exception {
-        User admin = createUser("aa40@magti.ge", Role.CONTENT_ADMIN, "All");
+        User admin = createUser("aa40@magti.ge", Role.SYSTEM_ADMIN, "All");
         Category cat = createCategory("კატ-33");
         long articleId = createArticleViaApi(tokenFor(admin), "წასაკითხი სტატია", "შინაარსი", cat.getId());
 
@@ -1325,23 +1353,21 @@ class ArticleControllerIntegrationTest {
                 .andReturn().getResponse().getContentAsString();
         com.fasterxml.jackson.databind.JsonNode receipts =
                 new com.fasterxml.jackson.databind.ObjectMapper().readTree(body).get("receipts");
-        // Keyed by email, not operator_name: this file's createUser gives
-        // every test user the identical fixed display name, unlike
-        // QuizControllerIntegrationTest's helper (which interpolates the
-        // email) -- keying by name here would collapse all three rows onto
-        // one map entry.
-        Map<String, com.fasterxml.jackson.databind.JsonNode> byEmail = new java.util.HashMap<>();
-        receipts.forEach(r -> byEmail.put(r.get("operator_email").asText(), r));
+        Map<Long, com.fasterxml.jackson.databind.JsonNode> byId = new java.util.HashMap<>();
+        receipts.forEach(r -> {
+            assertFalse(r.has("operator_email"), "official evidence must not expose employee email");
+            byId.put(r.get("operator_id").asLong(), r);
+        });
 
-        assertTrue(byEmail.get(reader.getEmail()).get("has_read").asBoolean());
-        assertFalse(byEmail.get(nonReader.getEmail()).get("has_read").asBoolean());
-        assertTrue(byEmail.get(formerReader.getEmail()).get("has_read").asBoolean(),
+        assertTrue(byId.get(reader.getId()).get("has_read").asBoolean());
+        assertFalse(byId.get(nonReader.getId()).get("has_read").asBoolean());
+        assertTrue(byId.get(formerReader.getId()).get("has_read").asBoolean(),
                 "an orphaned/detached snapshot row must still show as read");
     }
 
     @Test
     void readReceiptsMarksLateReadsPastTheDueDate() throws Exception {
-        User admin = createUser("aa44@magti.ge", Role.CONTENT_ADMIN, "All");
+        User admin = createUser("aa44@magti.ge", Role.SYSTEM_ADMIN, "All");
         Category cat = createCategory("კატ-34");
         long articleId = createArticleViaApi(tokenFor(admin), "ვადაგადაცილებული", "შინაარსი", cat.getId());
 
@@ -1444,7 +1470,7 @@ class ArticleControllerIntegrationTest {
     }
 
     @Test
-    void viewTrackingHasNoVisibilityGateUnlikeMostEndpoints() throws Exception {
+    void viewTrackingRejectsAnArticleTheCallerCannotSee() throws Exception {
         User admin = createUser("aa52@magti.ge", Role.CONTENT_ADMIN, "All");
         Category cat = createCategory("კატ-39");
         long articleId = createArticleViaApiWithDept(
@@ -1455,11 +1481,12 @@ class ArticleControllerIntegrationTest {
         mockMvc.perform(authed(get("/api/articles/" + articleId), tokenFor(unrelatedOperator)))
                 .andExpect(status().isNotFound());
 
-        // ...but view-tracking still succeeds anyway.
+        // Logging an inaccessible article would manufacture a false "open"
+        // record for content the caller could not actually see.
         mockMvc.perform(authed(post("/api/articles/" + articleId + "/view"), tokenFor(unrelatedOperator)))
-                .andExpect(status().isOk());
+                .andExpect(status().isNotFound());
 
-        assertEquals(1, articleViewLogRepository.findByArticleIdSnapshotOrderByViewedAtDesc(articleId).size());
+        assertEquals(0, articleViewLogRepository.findByArticleIdSnapshotOrderByViewedAtDesc(articleId).size());
     }
 
     /**
@@ -1507,7 +1534,7 @@ class ArticleControllerIntegrationTest {
 
     @Test
     void viewsReportsTotalAndUniqueCountsWithPagination() throws Exception {
-        User admin = createUser("aa54@magti.ge", Role.CONTENT_ADMIN, "All");
+        User admin = createUser("aa54@magti.ge", Role.SYSTEM_ADMIN, "All");
         Category cat = createCategory("კატ-40");
         long articleId = createArticleViaApi(tokenFor(admin), "ნანახი სტატია", "შინაარსი", cat.getId());
         User viewer1 = createUser("aa55@magti.ge", Role.OPERATOR, "All");
@@ -1526,6 +1553,77 @@ class ArticleControllerIntegrationTest {
         mockMvc.perform(authed(get("/api/articles/" + articleId + "/views").param("limit", "1"), tokenFor(admin)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.views.length()").value(1));
+    }
+
+    @Test
+    void contentManagerGetsOnlyArticleAggregateWithoutNamedReceipts() throws Exception {
+        String department = "აგრეგატი-" + System.nanoTime();
+        User contentManager = createUser("evidence-aggregate@magti.ge", Role.CONTENT_ADMIN, department);
+        Category category = createCategory("აგრეგატი-კატეგორია");
+        long articleId = createArticleViaApiWithDept(
+                tokenFor(contentManager), "აგრეგატული მტკიცებულება", "შინაარსი", category.getId(), department);
+        User reader = createUser("evidence-reader@magti.ge", Role.OPERATOR, department);
+        createUser("evidence-unread@magti.ge", Role.OPERATOR, department);
+
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/read-receipt"), tokenFor(reader)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/read-receipts"), tokenFor(contentManager)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.eligible_count").value(2))
+                .andExpect(jsonPath("$.read_count").value(1))
+                .andExpect(jsonPath("$.unread_count").value(1))
+                .andExpect(jsonPath("$.receipts.length()").value(0));
+    }
+
+    @Test
+    void groupLeaderSeesNamedOfficialReadsOnlyForAssignedTeam() throws Exception {
+        String department = "ლიდერის-scope-" + System.nanoTime();
+        User publisher = createUser("evidence-publisher@magti.ge", Role.CONTENT_ADMIN, department);
+        Category category = createCategory("scope-კატეგორია");
+        long articleId = createArticleViaApiWithDept(
+                tokenFor(publisher), "scope მტკიცებულება", "შინაარსი", category.getId(), department);
+
+        Team ownTeam = createTeam("scope-own-" + System.nanoTime());
+        Team siblingTeam = createTeam("scope-sibling-" + System.nanoTime());
+        User leader = createUser("evidence-leader@magti.ge", Role.MANAGER, department);
+        leader.setTeamId(ownTeam.getId());
+        leader = userRepository.saveAndFlush(leader);
+        leadTeam(leader, ownTeam, AssignmentType.ACTING);
+
+        User ownReader = createUser("evidence-own@magti.ge", Role.OPERATOR, department);
+        ownReader.setTeamId(ownTeam.getId());
+        ownReader = userRepository.saveAndFlush(ownReader);
+        User siblingReader = createUser("evidence-sibling@magti.ge", Role.OPERATOR, department);
+        siblingReader.setTeamId(siblingTeam.getId());
+        siblingReader = userRepository.saveAndFlush(siblingReader);
+
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/read-receipt"), tokenFor(ownReader)))
+                .andExpect(status().isOk());
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/read-receipt"), tokenFor(siblingReader)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/read-receipts"), tokenFor(leader)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.eligible_count").value(1))
+                .andExpect(jsonPath("$.read_count").value(1))
+                .andExpect(jsonPath("$.receipts.length()").value(1))
+                .andExpect(jsonPath("$.receipts[0].operator_id").value(ownReader.getId()))
+                .andExpect(jsonPath("$.receipts[0].operator_email").doesNotExist());
+    }
+
+    @Test
+    void unassignedCallerCannotReadNamedEvidenceAndContentAdminCannotReadViewLogs() throws Exception {
+        User publisher = createUser("evidence-denied-publisher@magti.ge", Role.CONTENT_ADMIN, "All");
+        User unassigned = createUser("evidence-denied-user@magti.ge", Role.OPERATOR, "All");
+        Category category = createCategory("უარყოფილი-evidence");
+        long articleId = createArticleViaApi(
+                tokenFor(publisher), "დაცული მტკიცებულება", "შინაარსი", category.getId());
+
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/read-receipts"), tokenFor(unassigned)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/views"), tokenFor(publisher)))
+                .andExpect(status().isForbidden());
     }
 
     @Test

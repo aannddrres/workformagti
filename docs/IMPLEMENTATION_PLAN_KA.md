@@ -2,7 +2,7 @@
 
 **მფლობელი:** Product Owner + Engineering
 **განახლებულია:** 2026-08-22
-**სტატუსი:** მიმდინარეობს — ეტაპი A დასრულებულია; შემდეგია ეტაპი B
+**სტატუსი:** მიმდინარეობს — ეტაპები A და B დასრულებულია; შემდეგია ეტაპი C
 
 ## 1. მიზანი და source of truth
 
@@ -28,6 +28,27 @@
 
 ## 3. ეტაპები
 
+### შესრულების სტრატეგია
+
+სამუშაო იყოფა დამოუკიდებელ release-ებად. თითო release ერთ სრულ vertical slice-ს
+ასრულებს: Oracle schema → Java domain/service/API → authorization/audit → Angular
+UI → regression tests → სრული quality gate → commit/push. ნახევრად აშენებული
+endpoint ან UI მთავარ branch-ზე არ იგზავნება.
+
+| release | შედეგი | გარე დამოკიდებულება |
+|---|---|---|
+| R1 | A–B: feedback removal და read/view evidence boundary | არა |
+| R2 | C: Broadcast-ის სრული lifecycle და UI | არა |
+| R3 | D: ფიქსირებული reminder engine | notification transport-ის production არჩევანი — IT; in-app ნაწილი დამოუკიდებლად კეთდება |
+| R4 | E: SYSTEM_ADMIN export center | საბოლოო fields/retention — Security/DPO validation |
+| R5 | F: archive/trash/recovery/purge | object storage purge contract — IT/Platform |
+| R6 | G: SSO/AD/cutover | კომპანიის IdP/AD/infra პასუხები აუცილებელია |
+
+R2–R5-ში IT-ზე დამოკიდებული adapter/config seam წინასწარ მზადდება, მაგრამ უცნობი
+კომპანიის ინფრასტრუქტურა არ გამოიგონება. R6-ის local implementation იმდენად
+სრულდება, რამდენადაც mock/contract adapter-ით შეიძლება; production activation
+მხოლოდ IT-ის რეალური პასუხებით ხდება.
+
 ### ეტაპი A — feedback ფუნქციის საბოლოო ამოღება — დასრულებულია
 
 **მიზანი:** პროდუქტში საერთოდ აღარ არსებობდეს თანამშრომლის feedback.
@@ -44,6 +65,8 @@
 
 ### ეტაპი B — ოფიციალური წაკითხვა და გახსნის log-ის საზღვარი
 
+**სტატუსი:** ✅ დასრულებულია 2026-08-22
+
 **მიზანი:** ლიდერი ხედავდეს მხოლოდ ოფიციალურ read evidence-ს; უბრალო გახსნა
 იყოს მხოლოდ SYSTEM_ADMIN-ის log.
 
@@ -55,6 +78,12 @@
 - article-view rows გახდეს SYSTEM_ADMIN-only და leadership endpoint/UI-ში არ
   გამოჩნდეს;
 - response-shape, direct API negative და scope regression tests დაემატოს.
+
+**განხორციელებული კონტრაქტი:** `content.manage` აბრუნებს მხოლოდ მასალის საერთო
+რაოდენობებს; მოქმედი პირდაპირი ჯგუფის assignment ხსნის სახელობით rows-ს მხოლოდ
+იმ ჯგუფზე; `SYSTEM_ADMIN` ხედავს ორგანიზაციას. დეპარტამენტის assignment პირველ
+rollout-ში fail-closed რჩება. ოფიციალური rows email-ს აღარ შეიცავს, ხოლო
+`article_view_logs`-ის დეტალური rows მხოლოდ `SYSTEM_ADMIN`-ს გაეცემა.
 
 ### ეტაპი C — Broadcast-ის დამოუკიდებელი მოდული
 
@@ -136,4 +165,9 @@ Secret denylist როგორც DTO-ზე, ისე header/snapshot tests-�
 - [x] ეტაპი A — feedback endpoint/runtime code removal;
 - [x] ეტაპი A — access-contract, missing-route `404` regression და სრული
   backend/Angular შემოწმება;
-- [ ] ეტაპები B–G.
+- [x] ეტაპი B — official read evidence scope/aggregate და SYSTEM_ADMIN-only view log;
+- [ ] ეტაპი C — Broadcast;
+- [ ] ეტაპი D — reminder;
+- [ ] ეტაპი E — SYSTEM_ADMIN export center;
+- [ ] ეტაპი F — lifecycle/retention;
+- [ ] ეტაპი G — production integration/cutover.

@@ -124,19 +124,17 @@ class ResponseShapeContractTest {
 
     // ---- content evidence (matrix decision D-2) -------------------------
 
-    /**
-     * Behind a content-admin role gate today, and org-wide. Both rows carry
-     * {@code operator_email}, which is why the matrix splits
-     * {@code content.evidence} out from {@code content.manage} rather than
-     * letting one capability cover both. Pinned so the shape cannot grow
-     * while D-2 is still open.
-     */
+    /** Official evidence deliberately omits contact details; view logs remain a separate SYSTEM_ADMIN surface. */
     @Test
     void articleEvidenceRowsCarryOnlyTheOperatorAndTheirReadingFacts() {
         assertEquals(
-                List.of("operator_id", "operator_name", "operator_email", "department",
+                List.of("operator_id", "operator_name", "department",
                         "read_at", "article_version", "has_read", "is_late", "deadline", "status"),
                 wireFieldsOf(ArticleReadReceiptRowResponse.class));
+        assertEquals(
+                List.of("article_id", "article_title", "current_version", "eligible_count",
+                        "read_count", "unread_count", "late_read_count", "receipts"),
+                wireFieldsOf(ArticleReadReceiptResponse.class));
         assertEquals(
                 List.of("operator_id", "operator_name", "operator_email", "department",
                         "article_version", "viewed_at"),

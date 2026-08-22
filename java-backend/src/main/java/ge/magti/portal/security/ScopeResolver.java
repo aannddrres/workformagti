@@ -82,6 +82,30 @@ public class ScopeResolver {
     }
 
     /**
+     * Named employee evidence enabled for the first leadership rollout.
+     *
+     * <p>Only direct team assignments participate here. Department leadership
+     * remains represented by {@link #resolve(User)} for the later pyramid
+     * rollout, but it must not silently become a live named-data gate merely
+     * because an administrator can already create the assignment. SYSTEM_ADMIN
+     * keeps the explicit organisation-wide bypass.
+     */
+    public Scope resolveGroupLeadership(User caller) {
+        if (caller == null || !caller.isActive()) {
+            return Scope.none();
+        }
+        if (caller.getRole() == Role.SYSTEM_ADMIN) {
+            return Scope.all();
+        }
+
+        Set<Long> directTeamIds = leadershipAssignmentRepository.findByUserIdAndActiveTrue(caller.getId()).stream()
+                .map(LeadershipAssignment::getTeamId)
+                .filter(Objects::nonNull)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        return Scope.of(directTeamIds, Set.of());
+    }
+
+    /**
      * Resolves the canonical policy from a read-only snapshot.
      *
      * <p>The access-diff report evaluates every stored user. Supplying one

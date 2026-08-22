@@ -6,7 +6,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public record ArticleReadReceiptRowResponse(
         @JsonProperty("operator_id") Long operatorId,
         @JsonProperty("operator_name") String operatorName,
-        @JsonProperty("operator_email") String operatorEmail,
         String department,
         @JsonProperty("read_at") String readAt,
         @JsonProperty("article_version") Integer articleVersion,

@@ -139,6 +139,19 @@ class PolicyLayerTest {
         assertFalse(scope.includesTeam(12L), "another department's group stays out");
     }
 
+    @Test
+    void firstEvidenceRolloutUsesDirectGroupAssignmentsButNotDepartmentAssignments() {
+        when(assignments.findByUserIdAndActiveTrue(1L)).thenReturn(List.of(
+                leads(1L, 10L, null),
+                leads(1L, null, 5L)));
+
+        Scope scope = scopeResolver.resolveGroupLeadership(user(1L, Role.MANAGER));
+
+        assertEquals(Set.of(10L), scope.teamIds());
+        assertTrue(scope.departmentIds().isEmpty());
+        verifyNoInteractions(teams);
+    }
+
     /** An unplaced person belongs to nobody's scope -- never to everybody's. */
     @Test
     void aUserWithNoTeamIsNeverInScope() {
