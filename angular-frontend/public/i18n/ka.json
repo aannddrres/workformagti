@@ -657,46 +657,5 @@
     "color_service": "ზურმუხტისფერი (Service/Emerald)",
     "color_loyalty": "ვარდისფერი (Loyalty/Pink)",
     "color_technical": "ნარინჯისფერი (Tech/Orange)"
-  },
-  "messaging": {
-    "inbox": {
-      "heading": "შეტყობინებები",
-      "tab_inbox": "შემოსული",
-      "tab_sent": "გაგზავნილი",
-      "compose": "ახალი შეტყობინება",
-      "broadcast": "მასობრივი შეტყობინება",
-      "empty_inbox": "შეტყობინებები არ არის.",
-      "empty_sent": "გაგზავნილი შეტყობინებები არ არის.",
-      "load_error": "შეტყობინებების ჩატვირთვა ვერ მოხერხდა.",
-      "unread_badge": "წაუკითხავი",
-      "read_badge": "წაკითხულია",
-      "delete": "წაშლა",
-      "unknown_user": "წაშლილი მომხმარებელი"
-    },
-    "compose": {
-      "heading": "ახალი შეტყობინება",
-      "recipient_label": "მიმღები",
-      "recipient_search_placeholder": "ძიება სახელით ან დეპარტამენტით...",
-      "change": "შეცვლა",
-      "content_label": "ტექსტი",
-      "content_placeholder": "დაწერეთ შეტყობინება...",
-      "send": "გაგზავნა",
-      "cancel": "გაუქმება",
-      "load_error": "მიმღებების სიის ჩატვირთვა ვერ მოხერხდა.",
-      "send_error": "შეტყობინების გაგზავნა ვერ მოხერხდა.",
-      "no_recipients": "მიმღები ვერ მოიძებნა."
-    },
-    "broadcast": {
-      "heading": "მასობრივი შეტყობინება",
-      "department_label": "დეპარტამენტი",
-      "role_label": "როლი",
-      "all_option": "ყველა",
-      "message_label": "ტექსტი",
-      "message_placeholder": "დაწერეთ განცხადება...",
-      "send": "გაგზავნა",
-      "cancel": "გაუქმება",
-      "success": "გაიგზავნა {{count}} მიმღებთან.",
-      "send_error": "გაგზავნა ვერ მოხერხდა."
-    }
   }
 }

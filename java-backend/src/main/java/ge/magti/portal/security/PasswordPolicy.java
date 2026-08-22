@@ -8,8 +8,7 @@ import java.util.List;
  * Returns the list of Georgian-language failure fragments (empty = valid)
  * rather than throwing, matching this port's established pattern of
  * controllers building their own {@code ResponseEntity} 400s instead of a
- * global exception handler (see e.g. {@code MessagingController}'s
- * requireX helpers).
+ * global exception handler.
  */
 public final class PasswordPolicy {
 

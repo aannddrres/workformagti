@@ -182,4 +182,8 @@ describe('effective-access route boundaries', () => {
     await employee.navigateByUrl('/admin/broadcasts');
     expect(currentUrl()).toBe('/');
   });
+
+  it('does not expose a private-messaging profile route', () => {
+    expect(child('profile').children?.some((route) => route.path === 'messages')).toBe(false);
+  });
 });

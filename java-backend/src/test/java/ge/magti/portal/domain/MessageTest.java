@@ -13,7 +13,5 @@ class MessageTest {
 
         assertFalse(message.isRead());
         assertNull(message.getSenderId());
-        assertNull(message.getSenderName());
-        assertNull(message.getRecipientName());
     }
 }

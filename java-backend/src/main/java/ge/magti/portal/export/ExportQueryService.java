@@ -24,8 +24,8 @@ import java.util.stream.Collectors;
  * DB-query half of the readings exports (routers/exports.py's
  * export_readings/export_readings_xlsx/export_readings_pdf, lines
  * 93-98,144-150,264-270). Batch-fetches User/RequiredReading rather than a
- * multi-entity JPQL join, same N+1-avoidance-via-map idiom used throughout
- * this port (e.g. MessagingController).
+ * multi-entity JPQL join, using the same N+1-avoidance-via-map idiom used
+ * throughout this port.
  *
  * <p><b>User-approved fix, 2026-08-06:</b> Python's CSV export scopes to
  * {@code compute_compliance()}'s eligible user ids (active, non-management)

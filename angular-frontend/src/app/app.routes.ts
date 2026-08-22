@@ -68,7 +68,6 @@ export const routes: Routes = [
         children: [
           { path: '', component: AccountPage, data: { title: 'users.profile.tab_profile' } },
           { path: 'favorites', pathMatch: 'full', redirectTo: '/favorites' },
-          { path: 'messages', pathMatch: 'full', redirectTo: '' },
           { path: 'settings', pathMatch: 'full', redirectTo: '' },
           { path: 'search-history', pathMatch: 'full', redirectTo: '' }
         ]

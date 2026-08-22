@@ -7,19 +7,13 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
-import jakarta.persistence.Transient;
 
 import java.time.OffsetDateTime;
 
 /**
- * Mirrors models.py's Message (models.py:311-333, table {@code messages}) --
- * a direct manager-to-operator message, distinct from the SSE broadcast
- * events in {@link ge.magti.portal.messaging.SseEventVisibility}.
- *
- * <p>{@link #senderName}/{@link #recipientName} mirror the Python
- * {@code @property} accessors backed by the {@code sender}/{@code recipient}
- * relationships (models.py:327-333) -- plain fields here, not recomputed,
- * same rule already used for {@code Article.categoryName}.
+ * Interim persistence for mandatory-reading reminders in the legacy
+ * {@code messages} table. Private messaging is not exposed by the product;
+ * R3 replaces this compatibility entity with the dedicated reminder model.
  */
 @Entity
 @Table(name = "messages")
@@ -45,13 +39,6 @@ public class Message {
 
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
-
-    // @Transient: joined from users.name via sender_id/user_id at query
-    // time in Python (models.py:327-333), not stored columns.
-    @Transient
-    private String senderName;
-    @Transient
-    private String recipientName;
 
     public Long getId() {
         return id;
@@ -101,19 +88,4 @@ public class Message {
         this.createdAt = createdAt;
     }
 
-    public String getSenderName() {
-        return senderName;
-    }
-
-    public void setSenderName(String senderName) {
-        this.senderName = senderName;
-    }
-
-    public String getRecipientName() {
-        return recipientName;
-    }
-
-    public void setRecipientName(String recipientName) {
-        this.recipientName = recipientName;
-    }
 }

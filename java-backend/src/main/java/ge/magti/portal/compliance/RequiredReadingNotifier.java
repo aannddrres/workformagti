@@ -17,17 +17,15 @@ import java.util.List;
 /**
  * Port of auto_generate_notifications_for_mandatory (routers/compliance.py:
  * 200-282) -- when a required reading is created, every affected active
- * operator gets one inbox {@link Message} (which drives the unread-envelope
- * badge).
+ * operator gets one interim durable reminder {@link Message} row (which
+ * drives the unread reminder count).
  *
  * <p><b>Deliberate, documented gap:</b> Python also fires SSE broadcast +
  * per-user real-time events here ({@code _safe_publish}, lines 258-282) so
  * open sessions get a live toast/refresh. The SSE broker isn't built in the
- * Java port yet (Messaging domain), so only the durable half -- the Message
- * rows -- is written. A user sees the notification on their next page load
- * (when the badge count is fetched) rather than in real time; graceful
- * degradation, identical to how every other SSE call site has been handled
- * so far. The Message rows themselves are the meaningful, persistent part.
+ * Java port yet, so only the durable reminder half is written. Private
+ * messaging endpoints and UI do not expose these rows. R3 replaces this
+ * interim persistence with the dedicated fixed-template reminder engine.
  *
  * <p>Department matching is prefix-aware ({@link DepartmentMatcher}) so a
  * reading targeted at "ტექნიკური" also notifies users in "ტექნიკური —
@@ -69,7 +67,7 @@ public class RequiredReadingNotifier {
             // an empty list for them -- but they were still messaged about
             // every new obligation. A manager got an inbox item telling them
             // to read something that does not appear in their reading list
-            // and that they are not measured on, with no way to clear it.
+            // and that they are not measured on.
             if (!ComplianceCalculator.isEligible(u)) {
                 continue;
             }

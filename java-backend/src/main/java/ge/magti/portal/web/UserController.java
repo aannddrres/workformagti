@@ -49,10 +49,10 @@ import java.time.OffsetDateTime;
  * pure SSE publish with no DB write, unlike everything else deferred so
  * far in this port (which all kept a durable half). Presented to the user
  * concretely: the alternative was faking success with no real delivery, or
- * silently rerouting it through the {@link ge.magti.portal.domain.Message}
+ * silently rerouting it through the legacy {@link ge.magti.portal.domain.Message}
  * table (a real behavior change, not a straight port). User chose to defer
- * it outright, same rationale as {@code GET /api/stream}
- * ({@link MessagingController}) -- it rides the exact same SSE broker.
+ * it outright, same rationale as {@code GET /api/stream}: it rides the exact
+ * same SSE broker.
  * Today the frontend's nudge button will get a 404 (a real failure, shown
  * to the manager), not a misleading fake success.
  *

@@ -22,16 +22,15 @@ import java.util.List;
  * team", not as an error.
  *
  * <p>The codebase already had the right rule and was already using it for
- * content visibility, compliance eligibility, required-reading notification
- * and direct messaging: {@link DepartmentMatcher#matches}, whose javadoc and
- * {@link ge.magti.portal.messaging.DirectMessagePermission}'s both document
- * this exact parent/child situation as real. Only the read-scoping paths had
- * been left on string equality.
+ * content visibility, compliance eligibility and required-reading delivery:
+ * {@link DepartmentMatcher#matches}, whose javadoc documents this exact
+ * parent/child situation as real. Only the read-scoping paths had been left
+ * on string equality.
  *
  * <h2>The direction of the match, and why it is safe to widen</h2>
  *
  * {@code matches(candidateDepartment, List.of(managerDepartment))} is
- * deliberately asymmetric, the same way messaging is:
+ * deliberately asymmetric:
  *
  * <ul>
  *   <li>a manager at {@code "ტექნიკური"} matches every
@@ -64,14 +63,9 @@ import java.util.List;
  *       class existed, so nobody's reach changes.
  * </ol>
  *
- * <p>Note the deliberate difference from
- * {@link ge.magti.portal.messaging.DirectMessagePermission#canSend}, which
- * keeps "All" as a wildcard. Messaging is about who you may talk to and has
- * treated "All" that way since it was written; this class is about whose
- * personal data you may read, where an ambiguous value must not mean
- * "everyone's". The null case is fail-closed in both -- that one was a real
- * fail-open in messaging, where a null sender department was mapped to the
- * "All" wildcard and let an unassigned manager message the whole company.
+ * <p>This class is about whose personal data may be read, so the ambiguous
+ * "All" value must not mean "everyone's". The null case is also explicitly
+ * fail-closed.
  */
 public final class ManagerScope {
 

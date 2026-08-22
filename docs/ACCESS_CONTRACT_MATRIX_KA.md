@@ -2,7 +2,7 @@
 
 **სტატუსი:** Phase 1 — decision/contract lock **დასრულებულია**; D-1…D-8 დახურულია
 **ბოლო განახლება:** 2026-08-22 (Phase 9A access-diff evidence)
-**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 121 endpoint
+**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 116 endpoint
 **გეგმა:** `docs/ORG_ACCESS_ARCHITECTURE_PLAN_KA.md` (ფაზები, §9.1 სავალდებულო მტკიცებულებები)
 
 ეს ფაილი არის ორგანიზაციული წვდომის **კონტრაქტი**: თითოეული backend endpoint-ისთვის
@@ -72,8 +72,8 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 ## ციფრებში
 
-- **121** endpoint (118 არსებული − 1 მოძველებული broadcast + 4 დამოუკიდებელი Broadcast endpoint);
-- **34** ატარებს თანამშრომლის საიდენტიფიკაციო მონაცემს (`PII = yes`);
+- **116** endpoint (121 − 5 ამოღებული private messaging endpoint);
+- **32** ატარებს თანამშრომლის საიდენტიფიკაციო მონაცემს (`PII = yes`);
 - **11** უკვე leadership-scoped;
 - **0** ღია გადაწყვეტილება (D-1…D-8 დახურულია).
 
@@ -178,7 +178,7 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 |---|---|---|---|---|---|---|
 | `GET /api/health` | `HealthController.health` | — | — | `NONE` | no | ინფრასტრუქტურული probe. |
 
-### Broadcast (4) და მოსაცილებელი Messaging (5)
+### Broadcast (4)
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
@@ -186,11 +186,6 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | `POST /api/broadcasts` | `BroadcastController.publish` | `requireAnnouncementPublisher` | announcement.publish | `ORG-CONTENT` | no | composite gate საკუთარ თავში ამოწმებს authentication-საც: `content.manage`, მოქმედი ჯგუფის PRIMARY/ACTING ლიდერი ან SYSTEM_ADMIN; აუდიტორია ყოველთვის მთელი კომპანიაა. |
 | `GET /api/broadcasts/history` | `BroadcastController.getHistory` | `requireAnnouncementPublisher` | announcement.publish | `ORG-CONTENT` | no | paginated აქტიური/ვადაგასული/ადრე დასრულებული ისტორია; targeting არ არსებობს. |
 | `POST /api/broadcasts/{broadcastId}/end` | `BroadcastController.endEarly` | `requireAnnouncementPublisher` | announcement.publish | `OWN-CONTENT` | no | დროზე ადრე ასრულებს მხოლოდ გამომქვეყნებელი ან SYSTEM_ADMIN; ოპტიმისტური lock იცავს კონკურენტულ ცვლილებას. |
-| `GET /api/messages` | `MessagingController.getMyMessages` | `requireAuthenticated` | REMOVE — D-7 resolved | — | no | პირადი messaging აღარ არის პროდუქტის ნაწილი; endpoint implementation commit-ზე უნდა წაიშალოს. |
-| `POST /api/messages` | `MessagingController.sendMessage` | `requireManagerOrAdmin` | REMOVE — D-7 resolved | — | **yes** | პირადი messaging აღარ არის პროდუქტის ნაწილი; `DirectMessagePermission`-თან ერთად უნდა წაიშალოს. |
-| `GET /api/messages/sent` | `MessagingController.getSentMessages` | `requireManagerOrAdmin` | REMOVE — D-7 resolved | — | **yes** | პირადი messaging აღარ არის პროდუქტის ნაწილი; endpoint implementation commit-ზე უნდა წაიშალოს. |
-| `DELETE /api/messages/{messageId}` | `MessagingController.deleteMessage` | `requireAuthenticated` | REMOVE — D-7 resolved | — | no | პირადი messaging აღარ არის პროდუქტის ნაწილი; endpoint implementation commit-ზე უნდა წაიშალოს. |
-| `POST /api/messages/{messageId}/read` | `MessagingController.markMessageRead` | `requireAuthenticated` | REMOVE — D-7 resolved | — | no | პირადი messaging აღარ არის პროდუქტის ნაწილი; endpoint implementation commit-ზე უნდა წაიშალოს. |
 
 ### News (8)
 
@@ -488,7 +483,10 @@ implementation commit-მა export allowlist/header mapping და tests უნ
 
 **გადაწყვეტილება:** თანამშრომლებს შორის პირადი messaging პროდუქტის ნაწილი არ
 არის. `GET/POST /api/messages`, sent/delete/read endpoint-ები,
-`DirectMessagePermission` და შესაბამისი UI უნდა წაიშალოს.
+`DirectMessagePermission` და შესაბამისი UI ამოღებულია; missing-route regression
+ხუთივე ძველ მისამართზე `404`-ს კეტავს. legacy `messages` ცხრილის Java entity
+დროებით მხოლოდ mandatory-reading reminder-ის შიდა persistence-ად რჩება და API/UI
+არ აქვს; R3 მას სპეციალიზებული reminder მოდულით ჩაანაცვლებს.
 
 ძველი `POST /api/broadcast` პირად messaging domain-თან ერთად იცვლება დამოუკიდებელი
 `POST /api/broadcasts` კონტრაქტით: მისი პროდუქტული მნიშვნელობა საიტის საერთო

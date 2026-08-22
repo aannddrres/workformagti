@@ -657,46 +657,5 @@
     "color_service": "Emerald (Service)",
     "color_loyalty": "Pink (Loyalty)",
     "color_technical": "Orange (Technical)"
-  },
-  "messaging": {
-    "inbox": {
-      "heading": "Messages",
-      "tab_inbox": "Inbox",
-      "tab_sent": "Sent",
-      "compose": "New message",
-      "broadcast": "Broadcast",
-      "empty_inbox": "No messages.",
-      "empty_sent": "No sent messages.",
-      "load_error": "Could not load messages.",
-      "unread_badge": "Unread",
-      "read_badge": "Read",
-      "delete": "Delete",
-      "unknown_user": "Deleted user"
-    },
-    "compose": {
-      "heading": "New message",
-      "recipient_label": "Recipient",
-      "recipient_search_placeholder": "Search by name or department...",
-      "change": "Change",
-      "content_label": "Message",
-      "content_placeholder": "Write a message...",
-      "send": "Send",
-      "cancel": "Cancel",
-      "load_error": "Could not load the recipient list.",
-      "send_error": "Could not send the message.",
-      "no_recipients": "No recipients found."
-    },
-    "broadcast": {
-      "heading": "Broadcast message",
-      "department_label": "Department",
-      "role_label": "Role",
-      "all_option": "All",
-      "message_label": "Message",
-      "message_placeholder": "Write an announcement...",
-      "send": "Send",
-      "cancel": "Cancel",
-      "success": "Sent to {{count}} recipient(s).",
-      "send_error": "Could not send."
-    }
   }
 }
