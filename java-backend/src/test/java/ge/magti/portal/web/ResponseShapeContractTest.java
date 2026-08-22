@@ -199,6 +199,18 @@ class ResponseShapeContractTest {
                 wireFieldsOf(LeadershipAssignmentResponse.class));
     }
 
+    @Test
+    void accessDiffNamesTheSubjectButExposesOnlyCountsForTheirScope() {
+        assertEquals(List.of("generated_at", "totals", "rows"), wireFieldsOf(AccessDiffResponse.class));
+        assertEquals(List.of("users", "gains", "losses", "unchanged"),
+                wireFieldsOf(AccessDiffTotalsResponse.class));
+        assertEquals(List.of("user_id", "user_name", "role", "compliance", "scope"),
+                wireFieldsOf(AccessDiffRowResponse.class));
+        assertEquals(List.of("legacy", "proposed"), wireFieldsOf(AccessDiffComplianceResponse.class));
+        assertEquals(List.of("legacy_user_count", "proposed_user_count"),
+                wireFieldsOf(AccessDiffScopeResponse.class));
+    }
+
     /**
      * {@code permissions} must be what the gates answer, not what
      * {@code users.permissions} still holds.

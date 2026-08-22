@@ -40,6 +40,8 @@ public class PortalProperties {
 
 	@NestedConfigurationProperty
 	private final Security security = new Security();
+	@NestedConfigurationProperty
+	private final Rollout rollout = new Rollout();
 
 	public String getAppEnv() {
 		return appEnv;
@@ -63,6 +65,38 @@ public class PortalProperties {
 
 	public Security getSecurity() {
 		return security;
+	}
+
+	public Rollout getRollout() {
+		return rollout;
+	}
+
+	/**
+	 * Reversible Phase 4/5 cutover infrastructure.
+	 *
+	 * <p>Both switches deliberately default to the legacy behaviour and are
+	 * independent so one policy can be rolled back without moving the other.
+	 * Phase 9A only binds these values; no decision call site reads them yet.
+	 */
+	public static class Rollout {
+		private boolean leadershipScopeEnabled = false;
+		private boolean complianceEligibilityEnabled = false;
+
+		public boolean isLeadershipScopeEnabled() {
+			return leadershipScopeEnabled;
+		}
+
+		public void setLeadershipScopeEnabled(boolean leadershipScopeEnabled) {
+			this.leadershipScopeEnabled = leadershipScopeEnabled;
+		}
+
+		public boolean isComplianceEligibilityEnabled() {
+			return complianceEligibilityEnabled;
+		}
+
+		public void setComplianceEligibilityEnabled(boolean complianceEligibilityEnabled) {
+			this.complianceEligibilityEnabled = complianceEligibilityEnabled;
+		}
 	}
 
 	public static class Security {

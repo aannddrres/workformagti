@@ -84,6 +84,13 @@ portal:
   # the process starts) -- the Exports domain writes generated xlsx/pdf
   # files under <uploads-dir>/exports.
   uploads-dir: ${UPLOAD_DIR:uploads}
+  rollout:
+    # Phase 4 infrastructure only. Phase 9A binds the switch but does not
+    # change ScopeResolver shadow call sites or enforce the proposed scope.
+    leadership-scope-enabled: ${ROLLOUT_LEADERSHIP_SCOPE:false}
+    # Separate Phase 5 rollback boundary. The proposed compliance rule stays
+    # in shadow mode until the gated cutover explicitly wires this switch.
+    compliance-eligibility-enabled: ${ROLLOUT_COMPLIANCE_ELIGIBILITY:false}
   security:
     # Password-less dev login. OFF unless asked for by name; ProductionSafetyGuard
     # refuses to boot if this is true while app-env is production.

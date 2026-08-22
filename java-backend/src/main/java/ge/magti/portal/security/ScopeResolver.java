@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -74,9 +75,34 @@ public class ScopeResolver {
             return Scope.none();
         }
 
+        boolean hasDepartmentAssignment = assignments.stream()
+                .anyMatch(assignment -> assignment.getDepartmentId() != null);
+        List<Team> teams = hasDepartmentAssignment ? teamRepository.findAll() : List.of();
+        return resolveFromSnapshot(caller, assignments, teams);
+    }
+
+    /**
+     * Resolves the canonical policy from a read-only snapshot.
+     *
+     * <p>The access-diff report evaluates every stored user. Supplying one
+     * snapshot avoids two repository queries per user while keeping this
+     * method's answer byte-for-byte aligned with {@link #resolve(User)}.
+     */
+    public static Scope resolveFromSnapshot(
+            User caller, List<LeadershipAssignment> activeAssignments, List<Team> teams) {
+        if (caller == null || !caller.isActive()) {
+            return Scope.none();
+        }
+        if (caller.getRole() == Role.SYSTEM_ADMIN) {
+            return Scope.all();
+        }
+
         Set<Long> teamIds = new LinkedHashSet<>();
         Set<Long> departmentIds = new LinkedHashSet<>();
-        for (LeadershipAssignment assignment : assignments) {
+        for (LeadershipAssignment assignment : activeAssignments) {
+            if (!assignment.isActive() || !Objects.equals(assignment.getUserId(), caller.getId())) {
+                continue;
+            }
             if (assignment.getTeamId() != null) {
                 teamIds.add(assignment.getTeamId());
             } else if (assignment.getDepartmentId() != null) {
@@ -89,7 +115,7 @@ public class ScopeResolver {
         // at each call site is how five places came to answer the same question
         // five ways (SEC-13).
         if (!departmentIds.isEmpty()) {
-            for (Team team : teamRepository.findAll()) {
+            for (Team team : teams) {
                 if (team.getDepartmentId() != null && departmentIds.contains(team.getDepartmentId())) {
                     teamIds.add(team.getId());
                 }

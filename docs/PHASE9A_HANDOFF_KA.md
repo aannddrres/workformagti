@@ -209,3 +209,15 @@ base: `codex/phase6-content-gates` (`9ec1108`)
 `claude/dept-groups-architecture-biqtma` იმავე commit-ზეა + ეს დოკუმენტი.
 
 დაწყებამდე: `git fetch origin && git merge origin/claude/dept-groups-architecture-biqtma`
+
+---
+
+## 8. განხორციელების ჩანაწერი
+
+Rollback-ის ოპერაციული პროცედურა აღწერილია
+`docs/ROLLOUT_ROLLBACK_KA.md`-ში. Phase 9A მხოლოდ ორი fail-safe flag-ის
+configuration-სა და read-only access-diff evidence-ს ამატებს:
+`shadowCompare` call site-ები legacy პასუხს კვლავ უცვლელად აბრუნებს.
+
+AD sync adapter კვლავ დაბლოკილია `QUESTIONS_FOR_IT.md` §10-ზე; `V37`, org
+backfill და Phase 4/5 enforcement ამ დავალებაში არ შესრულებულა.

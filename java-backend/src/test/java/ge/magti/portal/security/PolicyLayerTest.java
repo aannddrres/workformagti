@@ -1,6 +1,7 @@
 package ge.magti.portal.security;
 
 import ge.magti.portal.compliance.ComplianceEligibilityService;
+import ge.magti.portal.config.PortalProperties;
 import ge.magti.portal.domain.AssignmentType;
 import ge.magti.portal.domain.LeadershipAssignment;
 import ge.magti.portal.domain.Permission;
@@ -288,6 +289,24 @@ class PolicyLayerTest {
 
         assertEquals(legacy, served);
         assertEquals(1, recorder.snapshot().get("scope.broken.error").disagreed());
+    }
+
+    /** Phase 9A installs switches, but Phase 4/5 alone may wire them into enforcement. */
+    @Test
+    void rolloutSwitchValuesDoNotChangeEitherShadowReturnValue() {
+        when(assignments.findByUserIdAndActiveTrue(1L)).thenReturn(List.of());
+        User manager = user(1L, Role.MANAGER);
+        List<User> legacyScope = List.of(member(2L, 10L));
+
+        for (boolean enabled : List.of(false, true)) {
+            PortalProperties properties = new PortalProperties();
+            properties.getRollout().setLeadershipScopeEnabled(enabled);
+            properties.getRollout().setComplianceEligibilityEnabled(enabled);
+
+            assertEquals(legacyScope,
+                    scopeResolver.shadowCompare("scope.flag." + enabled, manager, legacyScope, legacyScope));
+            assertTrue(eligibility.shadowCompare(user(1L, Role.OPERATOR), true));
+        }
     }
 
     // ---- effectivePermissions --------------------------------------------

@@ -1,8 +1,8 @@
 # წვდომის კონტრაქტის მატრიცა
 
 **სტატუსი:** Phase 1 — decision/contract lock **დასრულებულია**; 6 გადაწყვეტილება ღიაა (D-2, D-4…D-8); D-1 და D-3 დახურულია
-**ბოლო განახლება:** 2026-08-22 (Phase 8 system-admin org UI)
-**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 119 endpoint
+**ბოლო განახლება:** 2026-08-22 (Phase 9A access-diff evidence)
+**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 120 endpoint
 **გეგმა:** `docs/ORG_ACCESS_ARCHITECTURE_PLAN_KA.md` (ფაზები, §9.1 სავალდებულო მტკიცებულებები)
 
 ეს ფაილი არის ორგანიზაციული წვდომის **კონტრაქტი**: თითოეული backend endpoint-ისთვის
@@ -71,14 +71,20 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 ## ციფრებში
 
-- **119** endpoint (116 + Phase 3-ის 3 დიაგნოსტიკური);
-- **34** ატარებს თანამშრომლის საიდენტიფიკაციო მონაცემს (`PII = yes`);
+- **120** endpoint (117 + Phase 3-ის 3 დიაგნოსტიკური);
+- **35** ატარებს თანამშრომლის საიდენტიფიკაციო მონაცემს (`PII = yes`);
 - **11** უკვე leadership-scoped;
 - **6** ღია გადაწყვეტილება (2 დახურულია; D-8 დაემატა Phase 6-ის review-ზე).
 
 ---
 
 ## მატრიცა
+
+### AccessDiff (1)
+
+| endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
+|---|---|---|---|---|---|---|
+| `GET /api/admin/access-diff` | `AccessDiffController.getAccessDiff` | `requireSystemAdmin` | — | `ORG` | **yes** | Phase 9A. read-only cutover evidence: თითო განსხვავებული მომხმარებლის სახელი, legacy/proposed compliance და scope-ში მხოლოდ მომხმარებელთა რაოდენობები; არც apply და არც scope-ის წევრთა სახელები. |
 
 ### Article (26)
 
