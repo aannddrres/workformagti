@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -287,5 +288,85 @@ class PolicyLayerTest {
 
         assertEquals(legacy, served);
         assertEquals(1, recorder.snapshot().get("scope.broken.error").disagreed());
+    }
+
+    // ---- effectivePermissions --------------------------------------------
+    //
+    // The list a response ships has to be the list the gates use. Before the
+    // Phase 6 cutover those were the same object; afterwards users.permissions
+    // decides nothing, so a response built from it can disagree in both
+    // directions -- and an administrator reading a permission screen has no
+    // way to tell which of the two they are looking at.
+
+    private static UserPermissionOverride override(String permission, UserPermissionOverride.State state) {
+        UserPermissionOverride row = new UserPermissionOverride();
+        row.setPermission(permission);
+        row.setState(state);
+        return row;
+    }
+
+    @Test
+    void theEffectiveSetIsTheRoleDefaultWhenNothingIsOverridden() {
+        assertEquals(
+                Permission.defaultsFor(Role.CONTENT_ADMIN),
+                CapabilityService.effectivePermissions(user(1L, Role.CONTENT_ADMIN), List.of()));
+        assertTrue(CapabilityService.effectivePermissions(user(2L, Role.OPERATOR), List.of()).isEmpty());
+    }
+
+    @Test
+    void anExplicitAllowAppearsAndAnExplicitDenyDisappears() {
+        Set<Permission> granted = CapabilityService.effectivePermissions(
+                user(1L, Role.OPERATOR), List.of(override("content.manage", UserPermissionOverride.State.ALLOW)));
+        assertEquals(Set.of(Permission.CONTENT_MANAGE), granted);
+
+        Set<Permission> denied = CapabilityService.effectivePermissions(
+                user(2L, Role.CONTENT_ADMIN), List.of(override("content.manage", UserPermissionOverride.State.DENY)));
+        assertFalse(denied.contains(Permission.CONTENT_MANAGE));
+        assertTrue(denied.contains(Permission.ARTICLES_EDIT), "a DENY takes away one permission, not the role");
+    }
+
+    /**
+     * The regression this exists for. A role change no longer rewrites
+     * {@code users.permissions}, so the column outlives the role that filled
+     * it; and an explicit grant was never written there at all.
+     */
+    @Test
+    void theLegacyColumnIsIgnoredInBothDirections() {
+        User staleGrant = user(1L, Role.OPERATOR);
+        staleGrant.setPermissions(new java.util.LinkedHashSet<>(List.of("articles.edit", "content.manage")));
+        assertTrue(CapabilityService.effectivePermissions(staleGrant, List.of()).isEmpty(),
+                "a leftover row from a previous role must not read as a permission");
+
+        User quietGrant = user(2L, Role.OPERATOR);
+        assertEquals(
+                Set.of(Permission.ARTICLES_EDIT),
+                CapabilityService.effectivePermissions(
+                        quietGrant, List.of(override("articles.edit", UserPermissionOverride.State.ALLOW))),
+                "an explicit ALLOW never reaches the legacy column, so it must not be read from there");
+    }
+
+    @Test
+    void aSystemAdminHoldsEverythingWithoutTouchingTheDatabase() {
+        assertEquals(
+                Set.copyOf(List.of(Permission.values())),
+                capabilities.effectivePermissions(user(1L, Role.SYSTEM_ADMIN)));
+        verifyNoInteractions(overrides);
+    }
+
+    /** The checker must answer the same as the service, including the bypass. */
+    @Test
+    void theCheckerAndTheServiceAgree() {
+        PermissionChecker checker = new PermissionChecker(capabilities);
+        User operator = user(1L, Role.OPERATOR);
+        when(overrides.findByUserId(1L))
+                .thenReturn(List.of(override("content.manage", UserPermissionOverride.State.ALLOW)));
+
+        Set<Permission> effective = checker.effectivePermissions(operator);
+
+        assertEquals(Set.of(Permission.CONTENT_MANAGE), effective);
+        for (Permission permission : Permission.values()) {
+            assertEquals(effective.contains(permission), checker.hasPermission(operator, permission),
+                    permission.value() + " must be listed exactly when the gate would let it through");
+        }
     }
 }

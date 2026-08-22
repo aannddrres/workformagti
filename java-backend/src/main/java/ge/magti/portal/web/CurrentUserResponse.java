@@ -1,11 +1,13 @@
 package ge.magti.portal.web;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.User;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Mirrors schemas.py's CurrentUserResponse (schemas.py:52-57) -- UserResponse
@@ -32,11 +34,25 @@ public record CurrentUserResponse(
         List<String> permissions,
         @JsonProperty("can_view_audit_log") boolean canViewAuditLog
 ) {
-    public static CurrentUserResponse from(User user, boolean canViewAuditLog) {
+    /**
+     * @param effectivePermissions what the caller may actually do, as
+     *     {@code PermissionChecker.effectivePermissions} resolves it. Passed
+     *     in rather than read off {@code user.getPermissions()}: since the
+     *     Phase 6 cutover that column no longer decides anything, so it can
+     *     disagree with the gates in both directions -- listing a permission
+     *     an explicit DENY has taken away, and omitting one an explicit ALLOW
+     *     granted.
+     */
+    public static CurrentUserResponse from(
+            User user, boolean canViewAuditLog, Set<Permission> effectivePermissions) {
+        List<String> permissions = new ArrayList<>();
+        for (Permission permission : effectivePermissions) {
+            permissions.add(permission.value());
+        }
         return new CurrentUserResponse(
                 user.getId(), user.getEmail(), user.getName(), user.getDepartment(), user.getPosition(),
                 user.getPhone(), user.getRole().value(), user.getTeamId(), user.isActive(), user.getLastActive(),
                 null, null, null,
-                user.getCardStyle(), new ArrayList<>(user.getPermissions()), canViewAuditLog);
+                user.getCardStyle(), permissions, canViewAuditLog);
     }
 }

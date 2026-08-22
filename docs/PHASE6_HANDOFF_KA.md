@@ -1,6 +1,6 @@
 # Phase 6 — content gates: role → permission
 
-**სტატუსი:** ✅ დასრულებული Codex-ის მიერ (2026-08-21)
+**სტატუსი:** ✅ დასრულებული Codex-ის მიერ (2026-08-21); review + fixes Claude (2026-08-22, §8)
 **შედგენილია:** 2026-08-21
 **კონტექსტი:** `docs/ORG_ACCESS_ARCHITECTURE_PLAN_KA.md` §5.8, §7.6
 **კონტრაქტი:** `docs/ACCESS_CONTRACT_MATRIX_KA.md`
@@ -274,3 +274,92 @@ DB-free ტესტები: **597, 0 failure**.
 ```
 codex/phase6-content-gates  (base: claude/dept-groups-architecture-biqtma)
 ```
+
+---
+
+## 8. Phase 6-ის review (Claude, 2026-08-22)
+
+Review გაკეთდა commit **`9ba0677`**-ზე. **Codex-ის სამუშაო handoff-ს ზუსტად
+მიჰყვება:** 25-ვე endpoint სწორად გადავიდა, `CapabilityService`-ის precedence
+სწორია (explicit გადაწყვეტილება role-ს ორივე მიმართულებით სჯობნის), მატრიცა
+იმავე commit-ში დაიძრა, ხოლო `ContentManageGateIntegrationTest` ხუთივე პერსონას
+ფარავს — `CONTENT_ADMIN + DENY` და `OPERATOR + ALLOW` ჩათვლით. Gate-ების მხრივ
+blocker არ არის.
+
+ქვემოთ ჩამოთვლილი გასწორდა **ამ commit-ში**.
+
+### 8.1 `@Version`-ის გვერდითი ეფექტი logout-ზე (P1, გასწორებულია)
+
+`User.lockVersion` `@Version`-ად აისახა, რაც optimistic locking-ს **მთელ**
+აპლიკაციაში რთავს, SEC-14-ის revocation გზებზეც. `POST /api/auth/logout` ინახავდა
+detached `@AuthenticationPrincipal`-ს, რომლის ვერსია `JwtAuthenticationFilter`-მა
+request-ის დასაწყისში წაიკითხა — ამ ფანჯარაში იმავე მწკრივზე ნებისმიერი ჩაწერა
+logout-ს 409-ად აქცევდა და **token ცოცხალი რჩებოდა**.
+
+Token-ის გაუქმება არ არის ჩაწერა, რომელსაც race წაგება შეუძლია: ის მონოტონურია —
+ზედმეტი increment უვნებელია, გამოტოვებული კი ცოცხალი სესიაა, რომელიც დახურულად
+ითვლება. ამიტომ `UserRepository.revokeIssuedTokens` JPQL increment-ია, CAS-ის
+მიღმა.
+
+### 8.2 `permission_overrides: []` სამ პასუხში (P1, გასწორებულია)
+
+`updateCurrentUser`, status toggle და `createUser` `UserResponse.from(saved)`-ს
+იძახდნენ, რომელიც override-ებს ჩუმად `List.of()`-ად აყენებდა. `[]` ყველგან
+სხვაგან ნიშნავს „explicit ALLOW/DENY არ აქვს" — ე.ი. ეს **მტკიცება იყო და არა
+გამოტოვება**. `user-edit-modal.ts:96` სწორედ ამ ველს კითხულობს, ამიტომ
+status toggle-ის შემდეგ drawer ყველაფერს `INHERIT`-ად აჩვენებდა.
+
+ორივე defaulting overload წაიშალა, რომ იგივე შეცდომა ხელახლა ვერ მოხდეს.
+
+### 8.3 `permissions` სია აღარ ემთხვევა gate-ებს (P1, გასწორებულია)
+
+`GET /api/users/me` და `GET /api/users` `users.permissions`-ს აგზავნიდნენ —
+სვეტს, რომელიც cutover-ის შემდეგ **აღარაფერს წყვეტს**. `bulkUpdateRole`-მა
+სწორად შეწყვიტა მისი გადაწერა, ამიტომ სვეტი ძველი role-ის მწკრივებს ინარჩუნებს;
+explicit ALLOW კი იქ არასოდეს ეწერება. სია ორივე მიმართულებით ცდებოდა.
+
+`CapabilityService.effectivePermissions` დაემატა (ერთი query, არა ერთი
+permission-ზე) და ორივე პასუხი ახლა იმას აგზავნის, რასაც gate პასუხობს.
+
+### 8.4 permission-ის audit არ წერდა რას ცვლიდა (P2, გასწორებულია)
+
+`action = "UPDATE_PERMISSIONS"` დეტალების გარეშე. წესი #9 ამბობს, რომ content
+permission-ის მინიჭება აუდიტდება — მაგრამ „რომელი permission, ვისთვის, რისგან"
+არსად ეწერებოდა. `audit.details` ახლა რეალურ გადასვლებს წერს
+(`content.manage INHERIT->ALLOW`), ხოლო უცვლელი delta ჩაიწერება როგორც
+`no change`, და არა როგორც განურჩეველი `UPDATE_PERMISSIONS`.
+
+### 8.5 D-8 — `/api/statistics/*` vs. წესი #8 (ღიაა, კოდი არ შეხებია)
+
+იხ. `ACCESS_CONTRACT_MATRIX_KA.md` § D-8. **ეს ჩემი ადრინდელი გადაწყვეტილებაა და
+არა Codex-ის შეცდომა** — Codex მატრიცას ზუსტად მიჰყვა. PII არ ჟონავს, ამიტომ
+blocker არ არის და კოდში არაფერი შემიცვლია; გადაწყვეტილება მფლობელისაა.
+
+### 8.6 დარჩენილი — ლოკალური hardening (ჯერ არ არის დაპუშული)
+
+ოთხი hardening fix (`V36_1`, atomic `PUT /api/users/{id}`, nested `@Valid`,
+nullable `lock_version`) **მხოლოდ ლოკალურ working tree-შია** და review-ს ვერ
+გაუკეთდა. ორი რამ, რაც მათ merge-ზე უნდა შემოწმდეს:
+
+1. **`@Version` vs `advanceLockVersion`.** თუ atomic `PUT /api/users/{id}`
+   ერთდროულად `save()`-საც აკეთებს (JPA თავად ზრდის `@Version`-ს) და
+   `advanceLockVersion`-საც (ხელით JPQL increment), მაშინ `lock_version` ერთ
+   request-ზე **ორით** გაიზრდება და დაბრუნებული token არასწორი იქნება.
+   ერთი მექანიზმი უნდა დარჩეს, არა ორი.
+2. **Merge-ის კონფლიქტები.** ეს commit ეხება `UserController.java`-ს (`:98`,
+   `:121`, `:272`, `:468`, audit block), `UserResponse.java`-ს,
+   `CurrentUserResponse.java`-ს, `CapabilityService`-ს, `PermissionChecker`-ს,
+   `AuthController`-ს და `UserRepository`-ს. `UserResponse.from(User)` და
+   `from(User, ReadingProgress)` **წაშლილია** — თუ ლოკალური კოდი მათ იყენებს,
+   compile error მიიღებთ და override-ების გადაცემა დაგჭირდებათ.
+
+### 8.7 ვერიფიკაცია
+
+- backend: **607 ტესტი, 0 failure**; 264 error — ყველა `ORA-12541`
+  (ამ container-ში Oracle არ არის). ტიპობრივად უცვლელია ცვლილებამდე.
+- ახალი ტესტები: `PolicyLayerTest` +6 (`effectivePermissions`, legacy სვეტის
+  იგნორირება ორივე მიმართულებით, checker↔service თანხმობა),
+  `ResponseShapeContractTest` +3 (`UserResponse`/`CurrentUserResponse`-ის
+  wire shape — აქამდე **არცერთი მათგანი არ იყო დაფიქსირებული** — და
+  effective სიის შიგთავსი).
+- **ვერ გავუშვი აქ:** Oracle integration suite და Angular vitest.

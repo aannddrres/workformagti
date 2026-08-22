@@ -95,7 +95,12 @@ public class UserController {
             return denial;
         }
         boolean canViewAuditLog = permissionChecker.hasPermission(user, Permission.SYSTEM_AUDIT);
-        return ResponseEntity.ok(CurrentUserResponse.from(user, canViewAuditLog));
+        // The permission list has to be the one the gates use. Since the
+        // Phase 6 cutover users.permissions decides nothing, so shipping it
+        // here would show the account page a set of abilities that no longer
+        // matches what the caller can actually do.
+        return ResponseEntity.ok(CurrentUserResponse.from(
+                user, canViewAuditLog, permissionChecker.effectivePermissions(user)));
     }
 
     /** Port of update_users_me (routers/users.py:53-69). */
@@ -118,7 +123,7 @@ public class UserController {
             user.setCardStyle(request.cardStyle());
         }
         User saved = userRepository.save(user);
-        return ResponseEntity.ok(UserResponse.from(saved));
+        return ResponseEntity.ok(UserResponse.from(saved, permissionOverrideRepository.findByUserId(saved.getId())));
     }
 
     /** Port of change_own_password (routers/users.py:73-97). */
@@ -269,7 +274,7 @@ public class UserController {
         auditLogRepository.save(audit);
 
         User saved = userRepository.save(user);
-        return ResponseEntity.ok(UserResponse.from(saved));
+        return ResponseEntity.ok(UserResponse.from(saved, permissionOverrideRepository.findByUserId(userId)));
     }
 
     /** Port of get_group_leaders (routers/users.py:235-251). */
@@ -462,7 +467,10 @@ public class UserController {
         audit.setTimestamp(TbilisiTime.now());
         auditLogRepository.save(audit);
 
-        return ResponseEntity.ok(UserResponse.from(saved));
+        // Empty overrides here are the truth, not an omission: a user created
+        // one statement ago has none, and everything they can do comes from
+        // the role default.
+        return ResponseEntity.ok(UserResponse.from(saved, List.<UserPermissionOverride>of()));
     }
 
     /** Port of admin_reset_password (routers/users.py:431-444). */
@@ -556,12 +564,17 @@ public class UserController {
             existing.put(override.getPermission(), override);
         }
         OffsetDateTime now = TbilisiTime.now();
+        List<String> transitions = new ArrayList<>();
         for (PermissionOverrideDelta delta : request.overrides()) {
             UserPermissionOverride current = existing.get(delta.permission());
+            String before = current == null ? "INHERIT" : current.getState().name();
+            String after = delta.state().name();
+            if (before.equals(after)) {
+                continue;
+            }
+            transitions.add(delta.permission() + " " + before + "->" + after);
             if (delta.state() == PermissionOverrideDelta.State.INHERIT) {
-                if (current != null) {
-                    permissionOverrideRepository.delete(current);
-                }
+                permissionOverrideRepository.delete(current);
                 continue;
             }
             UserPermissionOverride override = current == null ? new UserPermissionOverride() : current;
@@ -578,6 +591,13 @@ public class UserController {
         audit.setAction("UPDATE_PERMISSIONS");
         audit.setItemType("user");
         audit.setItemId(userId);
+        // Rule #9 is that granting a content permission is audited. An action
+        // name alone does not say what was granted, to whom it already
+        // belonged, or whether anything moved at all -- and "which permissions
+        // did this person hold on the day they published that article" is the
+        // question the record has to answer later. A no-op delta is recorded
+        // as a no-op rather than as an indistinguishable UPDATE_PERMISSIONS.
+        audit.setDetails(transitions.isEmpty() ? "no change" : String.join(", ", transitions));
         audit.setTimestamp(TbilisiTime.now());
         auditLogRepository.save(audit);
 
