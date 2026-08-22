@@ -1,7 +1,7 @@
 # Phase 6 — content gates: role → permission
 
-**სტატუსი:** ✅ დასრულებული, review/hardening გაერთიანებული და origin-ზე ატვირთული
-(`3202559`, 2026-08-22; იხ. §8)
+**სტატუსი:** ✅ კოდი დასრულებული; საბოლოო review Claude (2026-08-22, §9) — ერთი blocker ნაპოვნი და გასწორებული; Codex-ს რჩება §10
+**ბოლო განახლება:** 2026-08-22
 **შედგენილია:** 2026-08-21
 **კონტექსტი:** `docs/ORG_ACCESS_ARCHITECTURE_PLAN_KA.md` §5.8, §7.6
 **კონტრაქტი:** `docs/ACCESS_CONTRACT_MATRIX_KA.md`
@@ -393,3 +393,155 @@ nullable/required `lock_version`) commit `f9c51c0`-შია და origin-ზ�
 5. `policy-shadow`-ის diff და `blocks_cutover` შემოწმდეს;
 6. მხოლოდ `blocks_cutover: false` და სუფთა schema preflight-ის შემდეგ დაიწეროს
    `V37` და დაიწყოს Phase 4 leadership scope cutover.
+
+---
+
+## 9. საბოლოო review (Claude, 2026-08-22) — `a991915`
+
+გადამოწმდა ხუთივე პუნქტი. **ოთხი სუფთაა, ერთმა blocker გამოავლინა**, რომელიც
+ქვემოთვე გასწორდა.
+
+### 9.1 🔴 `V36.1` audit log-ს დაუკეტავდა (გასწორებულია)
+
+`legacy_catalog` შეიცავდა `'system.audit'`-ს, მაგრამ ეს string **არასოდეს
+ეწერებოდა** `users.permissions`-ში. Python-ის ორიგინალი მას განზრახ
+`"system:audit"`-ად ორწერტილით წერდა, რომ ცალკე colon-named
+`role_permissions` catalog-ში მოხვედრილიყო (`security.py:376-381`), ხოლო
+`DEFAULT_PERMISSIONS_BY_ROLE` (`security.py:385-405`) წერტილიან ვარიანტს
+**არცერთ role-ს** არ აძლევდა. Java-ს port-მა ის catalog გააუქმა და permission
+role default-ებში ჩადო — სწორად, რადგან manager-ს ის მართლაც ჰქონდა.
+
+შედეგი იქნებოდა: ყოველი Python-ის დროინდელი manager-ისა და content admin-ისთვის
+`legacy_grants = 0`, `role_grants = 1` → **`DENY system.audit`**. explicit `DENY`
+role default-ს სამუდამოდ ჯობნის, ე.ი. `/api/audit-logs`, მისი `export`,
+`verify`, `chain-health` და `can_view_audit_log` **სამუდამოდ** დაიკეტებოდა
+ზუსტად იმ ხალხისთვის, ვისაც role აძლევს.
+
+**რატომ ვერ დაინახა ლოკალურმა Oracle-მა:** ლოკალური ბაზა Java-ს seed-ით ივსება,
+Java კი წერტილიან `system.audit`-ს **წერს** — `legacy_grants = 1`, თანხმობა,
+მწკრივი არ ჩნდება. production კი შერეულია: Python-ის დროინდელი მწკრივები
+`DENY`-ს მიიღებდნენ, Java-ს დროინდელები — არა.
+
+**გასწორება.** მხოლოდ `DENY` მიმართულება ითიშება, `ALLOW` რჩება:
+
+```sql
+WHERE legacy_grants <> role_grants
+  AND NOT (permission = 'system.audit' AND legacy_grants = 0)
+```
+
+არყოფნა მტკიცებულება არ არის; **ყოფნა კი არის** — operator, რომელსაც
+Phase 6-მდე flat endpoint-ით `system.audit` მიენიჭა, `ALLOW`-ს ინარჩუნებს.
+
+`system.audit` **ერთადერთი** განსხვავებაა ორ role ცხრილს შორის — დანარჩენი
+ექვსივე catalog-ის მნიშვნელობა Python-სა და Java-ში იდენტურად ენიჭება, ე.ი.
+მათთვის ორივე მიმართულება უსაფრთხოა.
+
+დაფიქსირებულია `V36MigrationShapeTest.theBackfillMigratesOnlyTheAllowDirectionOfSystemAudit`-ით.
+mutation-ით შემოწმებული: `AND NOT (...)` ხაზის მოხსნა ტესტს ტეხს.
+
+### 9.2 Pre-flight query — deploy-ამდე ყოველ გარემოზე
+
+```sql
+SELECT u.role, COUNT(*) AS would_get_deny
+FROM users u
+WHERE u.role IN ('manager','content_admin','admin')
+  AND NOT EXISTS (
+      SELECT 1 FROM JSON_TABLE(NVL(u.permissions, TO_CLOB('[]')),
+          '$[*]' COLUMNS (p VARCHAR2(50 CHAR) PATH '$')) t
+      WHERE t.p = 'system.audit')
+GROUP BY u.role;
+```
+
+გასწორებული `V36.1`-ით ეს მწკრივები **მწკრივს აღარ წერენ**. query მაინც უნდა
+გაეშვას: ის ზუსტად იმ ხალხს ითვლის, ვისზეც ძველი ვერსია იმოქმედებდა, და
+ადასტურებს, რომ გასწორებული ვერსია მართლაც გაშვებულია.
+
+### 9.3 დაუფარავი განშტოება — `updateUserAdmin`-ის CAS გზა
+
+`profileRoleAndPermissionDeltasCommitAtomicallyAgainstTheOriginalLock` role-ს
+`operator → manager` ცვლის, ე.ი. `profileFieldsWouldChange = true` და
+`advanceLockVersion` **საერთოდ არ იძახება**. CAS-ის განშტოება — delta არის,
+პროფილი უცვლელი — ტესტით არ არის დაფარული, თუმცა სწორედ ის არის ყველაზე ხშირი
+რეალური სცენარი (ადმინი მხოლოდ permission-ს რთავს; drawer role/department/
+position-ს უცვლელად აგზავნის).
+
+კოდის კითხვით `+1` გამოდის და კონსტრუქცია სწორია, მაგრამ ეს Hibernate-ის
+dirty-check-ის `profileFieldsWouldChange`-თან ველ-ველ დამთხვევაზეა
+დამოკიდებული. **ეს ტესტით უნდა დაფიქსირდეს და არა მსჯელობით** — იხ. §10.
+
+### 9.4 დანარჩენი ოთხი პუნქტი — სუფთა
+
+| # | შედეგი |
+|---|---|
+| 1 — merge resolution | ✅ atomic ლოგიკა, `audit.details` transitions და `no change` შენარჩუნებულია |
+| 2 — `lock_version` | ✅ ორი მექანიზმი ურთიერთგამომრიცხავია; `+1` ნამდვილ Oracle-ზე `JdbcTemplate`-ით დამტკიცებული; stale → 409 ნაწილობრივი ჩაწერის გარეშე. **გარდა §9.3-ისა** |
+| 3 — `UserResponse` | ✅ overload-ები არ დაბრუნებულა; შვიდივე callsite რეალურ სიას გადასცემს; `permissions` = effective access |
+| 4 — `V36.1` | ✅ role default-ები Java-ს value-by-value ემთხვევა; `WHEN NOT MATCHED` მხოლოდ; `content.manage`/`articles.view`/`users.manage` არ მიგრირდება. **გარდა §9.1-ისა** |
+| 5 — Angular | ✅ drawer-ის თავდაპირველი token; ერთი request; inherited default არ მატერიალიზდება — spec-ით დამტკიცებული |
+
+### 9.5 წვრილმანები (blocker არა)
+
+- **`GlobalExceptionHandler:92-97` მთელ აპლიკაციას ეხება.**
+  `MethodArgumentNotValidException` ახლა **ყველა** `@Valid` endpoint-ზე იჭერს
+  და Spring-ის ველ-დონის body-ს ერთი ზოგადი ტექსტით ცვლის. UX-ისთვის უკეთესი,
+  მაგრამ app-wide ცვლილებაა Phase 6-ის commit-ში.
+- `updateUserAdmin` + `overrides: []` + უცვლელი პროფილი → `lock_version` +1,
+  ჩანაწერი არცერთი. drawer-ის token უმიზეზოდ ბათილდება.
+- `deltas == null` + stale `lock_version` → ჩუმად იგნორირდება, 409 არ არის.
+- `V36MigrationShapeTest.permissionBackfill()` კომენტარებს არ ჭრის,
+  `v36Sql()`-ისგან განსხვავებით. აქ უსაფრთხოა, მაგრამ ეს ის ხაფანგია,
+  რომელმაც `V36`-ზე ერთხელ უკვე იმუშავა.
+
+### 9.6 ვერიფიკაცია
+
+backend: **611 ტესტი, 0 failure**; 266 error — ყველა `ORA-12541` (ამ
+container-ში Oracle არ არის). `AccessContractCoverageTest` გადის.
+Oracle integration suite და Angular vitest აქ ვერ გავუშვი.
+
+---
+
+## 10. Codex-ისთვის — დარჩენილი სამუშაო
+
+ახალი ფუნქციონალი არ არის. სამი პუნქტი, პრიორიტეტის მიხედვით.
+
+### 10.1 `V36.1` ხელახლა გაუშვი ლოკალურ Oracle-ზე
+
+`V36.1` შეიცვალა (§9.1). Flyway-ს ის უკვე გამოყენებულად აქვს ჩაწერილი
+`36.1` ვერსიით, ე.ი. checksum შეუსაბამობას მოგცემს. **ეს მოსალოდნელია.**
+
+ლოკალურ development ბაზაზე: schema თავიდან ააწყვე (`flyway clean` + `migrate`,
+ან ბაზის ხელახალი შექმნა). `repair` **არ** გამოიყენო — ის checksum-ს ჩუმად
+გაასწორებს ისე, რომ SQL-ს არ გაუშვებს, და ძველი `DENY` მწკრივები დარჩება.
+
+**არცერთ სხვა გარემოში არ გაუშვა.** `V36.1` არსად deploy-ული არ არის, ე.ი.
+production-ზე ეს პრობლემა არასოდეს გაჩენილა.
+
+### 10.2 CAS-ის განშტოების ტესტი (§9.3)
+
+`UserControllerIntegrationTest`-ს დაამატე არსებული atomic ტესტის ტყუპი,
+სადაც პროფილი **უცვლელია**:
+
+* target შექმენი, წაიკითხე `lock_version` `JdbcTemplate`-ით;
+* გააგზავნე `PUT /api/users/{id}` სადაც `role`, `department`, `position`
+  **ზუსტად იგივეა**, რაც ბაზაშია, ხოლო `overrides` ერთ რეალურ ცვლილებას
+  შეიცავს;
+* დაადასტურე: `lockAfter == lockBefore + 1` (**არა +2**), პასუხის
+  `lock_version == lockAfter`, override შენახულია.
+
+ეს `advanceLockVersion`-ის გზას ფარავს, რომელსაც არსებული ტესტი ვერ აღწევს.
+
+### 10.3 არაფერი სხვა
+
+* `V37` **არ** დაწერო;
+* org backfill **არ** გაუშვა;
+* D-8 პროდუქტული გადაწყვეტილებაა — კოდით არ გადაწყვიტო;
+* §9.5-ის წვრილმანები Phase 6-ის ნაწილი არ არის.
+
+### 10.4 rollout gates (თანმიმდევრობით)
+
+1. §10.1 და §10.2 დასრულებული, სრული suite მწვანე;
+2. **pre-flight query** (§9.2) იმ გარემოზე, სადაც deploy ხდება;
+3. `V36` + `V36.1` staging/production Oracle-ზე;
+4. `GET /api/admin/org-backfill/report` → სანამ `blocks_cutover: false`
+   არ არის, **გაჩერდი**;
+5. მხოლოდ მერე: backfill apply → `V37` → Phase 4/5.

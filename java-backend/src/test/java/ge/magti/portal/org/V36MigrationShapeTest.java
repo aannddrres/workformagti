@@ -162,6 +162,32 @@ class V36MigrationShapeTest {
         assertFalse(sql.contains("SELECT 'users.manage'"), "removed no-op permissions must stay removed");
     }
 
+    /**
+     * The one permission whose absence from {@code users.permissions} means
+     * "this column never carried the decision", not "it was denied".
+     *
+     * <p>Python spelled it {@code system:audit} with a colon so it would live
+     * in the separate role_permissions catalog (security.py:376-381), so
+     * DEFAULT_PERMISSIONS_BY_ROLE never wrote the dotted string here for any
+     * role. Migrating the DENY direction would close /api/audit-logs and
+     * can_view_audit_log for every manager and content admin carrying
+     * Python-era defaults -- permanently, since an explicit DENY outranks the
+     * role default.
+     *
+     * <p>Asserted against the SQL rather than a database on purpose: a local
+     * Oracle seeded by the Java app carries the dotted string and agrees, so
+     * running the migration there proves nothing about this case.
+     */
+    @Test
+    void theBackfillMigratesOnlyTheAllowDirectionOfSystemAudit() throws IOException {
+        String sql = permissionBackfill();
+
+        assertTrue(sql.contains("SELECT 'system.audit'"),
+                "an explicit pre-Phase-6 grant of system.audit is still evidence, and must survive as ALLOW");
+        assertTrue(sql.contains("AND NOT (permission = 'system.audit' AND legacy_grants = 0)"),
+                "absence of system.audit predates the column carrying it, so it must not become a DENY");
+    }
+
     /** Crude but sufficient: the two ALTER ... ADD blocks are the only places existing tables gain columns. */
     private static boolean isInsideAlterTable(String sql, String line) {
         int at = sql.indexOf(line);
