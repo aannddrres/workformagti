@@ -1,21 +1,17 @@
-import { Injectable, computed, effect, inject, signal } from '@angular/core';
+import { Injectable, effect, inject, signal } from '@angular/core';
 import { Observable, of, shareReplay, tap, catchError } from 'rxjs';
 import { UsersService } from '../services/users.service';
-import { CurrentUserProfile } from '../models/user';
+import { CurrentUserProfile, EffectiveAccess } from '../models/user';
 import { AuthService } from './auth.service';
 
 /**
- * The signed-in user's server-side profile, fetched once and shared.
+ * The signed-in user's server-side profile and effective access, each fetched
+ * once and shared by every consumer of that concern.
  *
- * AuthService only knows what the JWT carries — `sub` and `role`. Permissions
- * live on the profile (GET /api/users/me), and one of them,
- * `can_view_audit_log`, is shipped by the backend specifically so the UI can
- * decide what to show (UserController.java:92). Nothing in the app read it,
- * so it travelled on every profile response and changed nothing.
- *
- * role.guard.ts:15-19 documented the gap directly: the audit panel's
- * permission-based exception "isn't modeled here yet -- that needs a real
- * user-profile fetch beyond the JWT's `role` claim". This is that fetch.
+ * AuthService only knows the JWT claims. Authorization comes from
+ * GET /api/me/effective-access, and both guards and navigation read this
+ * service's one cache so they cannot disagree. GET /api/users/me remains the
+ * display/profile source and does not make UI access decisions.
  */
 @Injectable({ providedIn: 'root' })
 export class UserProfileService {
@@ -24,17 +20,12 @@ export class UserProfileService {
 
   private readonly _profile = signal<CurrentUserProfile | null>(null);
   readonly profile = this._profile.asReadonly();
-
-  /**
-   * Backend-granted permission to read the audit trail. MANAGER holds
-   * `system.audit` by default (Permission.java:45) and gets a
-   * department-scoped view (AuditLogController:205-207); this flag is the
-   * server's own answer, so the UI does not have to re-derive it from roles.
-   */
-  readonly canViewAuditLog = computed(() => this._profile()?.can_view_audit_log === true);
+  private readonly _access = signal<EffectiveAccess | null>(null);
+  readonly access = this._access.asReadonly();
 
   /** Single-flight: a guard and the shell may both ask before the first resolves. */
   private request?: Observable<CurrentUserProfile | null>;
+  private accessRequest?: Observable<EffectiveAccess | null>;
 
   constructor() {
     // Signing out must not leave the next user looking at the previous one's
@@ -62,8 +53,28 @@ export class UserProfileService {
     return this.request;
   }
 
+  ensureAccessLoaded(): Observable<EffectiveAccess | null> {
+    const loaded = this._access();
+    if (loaded) {
+      return of(loaded);
+    }
+    this.accessRequest ??= this.usersService.effectiveAccess().pipe(
+      tap((access) => this._access.set(access)),
+      catchError(() => of(null)),
+      shareReplay({ bufferSize: 1, refCount: false })
+    );
+    return this.accessRequest;
+  }
+
+  hasPermission(permission: string): boolean {
+    const access = this._access();
+    return access?.bypass === true || access?.permissions.includes(permission) === true;
+  }
+
   private clear(): void {
     this._profile.set(null);
+    this._access.set(null);
     this.request = undefined;
+    this.accessRequest = undefined;
   }
 }

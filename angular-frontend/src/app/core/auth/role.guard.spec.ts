@@ -1,7 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router, UrlTree } from '@angular/router';
-import { AuthService } from './auth.service';
+import { firstValueFrom, Observable, of } from 'rxjs';
+import { EffectiveAccess } from '../models/user';
 import { adminOverviewGuard } from './role.guard';
+import { UserProfileService } from './user-profile.service';
 
 /**
  * `/admin/overview` became system-admin-only in the Phase 0 access fix, but
@@ -10,17 +12,25 @@ import { adminOverviewGuard } from './role.guard';
  * area entirely, rather than to the content workspace they do have.
  */
 describe('adminOverviewGuard', () => {
-  function run(user: { role: string } | null): boolean | UrlTree {
+  async function run(access: EffectiveAccess | null): Promise<boolean | UrlTree> {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
-        { provide: AuthService, useValue: { currentUser: () => user } }
+        {
+          provide: UserProfileService,
+          useValue: {
+            ensureAccessLoaded: () => of(access),
+            hasPermission: (permission: string) =>
+              access?.bypass === true || access?.permissions.includes(permission) === true
+          }
+        }
       ]
     });
-    return TestBed.runInInjectionContext(() => adminOverviewGuard({} as never, {} as never)) as
-      | boolean
-      | UrlTree;
+    const result = TestBed.runInInjectionContext(
+      () => adminOverviewGuard({} as never, {} as never)
+    ) as Observable<boolean | UrlTree>;
+    return firstValueFrom(result);
   }
 
   function target(result: boolean | UrlTree): string {
@@ -28,23 +38,24 @@ describe('adminOverviewGuard', () => {
     return router.serializeUrl(result as UrlTree);
   }
 
-  it('lets a system admin through', () => {
-    expect(run({ role: 'admin' })).toBe(true);
+  it('lets the system-admin bypass through', async () => {
+    expect(await run({ role: 'admin', permissions: [], bypass: true })).toBe(true);
   });
 
-  it('sends a content admin to the content workspace, not to the dashboard', () => {
-    const result = run({ role: 'content_admin' });
+  it('sends any content manager to the content workspace, not to the overview', async () => {
+    const result = await run({ role: 'operator', permissions: ['content.manage'], bypass: false });
 
     expect(result).not.toBe(true);
     expect(target(result)).toBe('/admin/content');
   });
 
-  it('sends anyone else home', () => {
-    expect(target(run({ role: 'operator' }))).toBe('/');
-    expect(target(run({ role: 'manager' }))).toBe('/');
+  it('does not resolve D-8 by opening overview to content.manage', async () => {
+    const result = await run({ role: 'content_admin', permissions: ['content.manage'], bypass: false });
+
+    expect(target(result)).toBe('/admin/content');
   });
 
-  it('sends an unauthenticated caller to login', () => {
-    expect(target(run(null))).toBe('/login');
+  it('fails closed when effective access cannot be loaded', async () => {
+    expect(target(await run(null))).toBe('/');
   });
 });

@@ -1,6 +1,8 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
+import { map } from 'rxjs';
 import { AuthService } from './auth.service';
+import { UserProfileService } from './user-profile.service';
 
 /**
  * Route-data-driven role gate, mirroring the inline role checks in
@@ -12,11 +14,8 @@ import { AuthService } from './auth.service';
  *
  * Route data example: `data: { allowRoles: ['admin', 'manager'] }`.
  *
- * NOTE: the audit sub-panel's extra `can_view_audit_log` permission-based
- * exception (content_admin reaches it via a DB-backed permission, not just
- * role) isn't modeled here yet -- that needs a real user-profile fetch
- * beyond the JWT's `role` claim, which belongs with the Audit domain's
- * actual page build in Phase 3c, not this generic shell-level guard.
+ * Capability checks deliberately live in permission.guard.ts. This helper
+ * remains for the Phase 4/5 role boundaries and admin-only screens.
  */
 export function roleGuard(allowRoles?: string[], denyRoles?: string[]): CanActivateFn {
   return () => {
@@ -38,34 +37,25 @@ export function roleGuard(allowRoles?: string[], denyRoles?: string[]): CanActiv
 }
 
 /**
- * The gate on `/admin/overview`, which is system-admin-only since the
- * Phase 0 access fix.
+ * `/admin/overview` remains system-admin-only while D-8 is open.
  *
- * A plain `roleGuard(['admin'])` here bounced a content admin out of the
- * admin area altogether: `/admin` and the legacy `/admin/main` both
- * redirect to `overview`, and a refused roleGuard sends the caller to `/`.
- * So a content admin opening `/admin` landed on the dashboard rather than
- * on the content workspace they do have access to -- the plan's stated
- * behaviour (ORG_ACCESS_ARCHITECTURE_PLAN_KA.md §6).
- *
- * Redirecting instead of refusing also fixes the same problem for a
- * bookmarked `/admin/overview`. Anything other than the two admin roles is
- * still sent home; the parent route's `roleGuard` has already refused those,
- * so that branch is defence in depth rather than a reachable path.
+ * SYSTEM_ADMIN bypass enters overview. Any caller with `content.manage`
+ * (including an explicitly granted operator) is redirected to the content
+ * workspace. Everyone else fails closed at home. This redirect preserves the
+ * capability boundary without deciding whether content managers may see the
+ * statistics overview.
  */
 export const adminOverviewGuard: CanActivateFn = () => {
-  const auth = inject(AuthService);
+  const profiles = inject(UserProfileService);
   const router = inject(Router);
-  const user = auth.currentUser();
 
-  if (!user) {
-    return router.createUrlTree(['/login']);
-  }
-  if (user.role === 'admin') {
-    return true;
-  }
-  if (user.role === 'content_admin') {
-    return router.createUrlTree(['/admin', 'content']);
-  }
-  return router.createUrlTree(['/']);
+  return profiles.ensureAccessLoaded().pipe(map((access) => {
+    if (access?.bypass) {
+      return true;
+    }
+    if (profiles.hasPermission('content.manage')) {
+      return router.createUrlTree(['/admin', 'content']);
+    }
+    return router.createUrlTree(['/']);
+  }));
 };

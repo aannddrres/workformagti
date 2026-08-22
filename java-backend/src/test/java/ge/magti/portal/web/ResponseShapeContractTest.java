@@ -176,6 +176,11 @@ class ResponseShapeContractTest {
         assertEquals(List.of("permission", "state"), wireFieldsOf(PermissionOverrideResponse.class));
     }
 
+    @Test
+    void effectiveAccessCarriesOnlyTheDecisionInputsTheUiNeeds() {
+        assertEquals(List.of("role", "permissions", "bypass"), wireFieldsOf(EffectiveAccessResponse.class));
+    }
+
     /**
      * {@code permissions} must be what the gates answer, not what
      * {@code users.permissions} still holds.

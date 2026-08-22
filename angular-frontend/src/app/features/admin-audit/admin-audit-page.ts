@@ -44,10 +44,9 @@ function isoDate(d: Date): string {
  *   "ადმინისტრირება" sidebar section is gated
  *   `data-required-role="admin,content_admin"` at its wrapping `<div>`,
  *   which hides all descendants regardless of the per-item re-show logic
- *   audit-dashboard.js layers on top. This route is gated the same way
- *   (`ADMIN_OR_CONTENT_ADMIN` on the parent `/admin` route), so those
- *   manager-only branches have no reachable caller here either -- not
- *   ported, matching actual live behavior rather than dead defensive code.
+ *   audit-dashboard.js layers on top. Phase 6/7 made that branch reachable
+ *   through the backend's effective `system.audit` decision, so the scoped
+ *   manager behavior below is part of the live Angular page.
  * - The CSV export button (`#btn-export-audit-csv`) has no click handler
  *   anywhere in static/js -- a dead control in the Python original. The
  *   backend endpoint it's unambiguously labeled for (`GET

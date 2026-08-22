@@ -1,8 +1,8 @@
 # წვდომის კონტრაქტის მატრიცა
 
 **სტატუსი:** Phase 1 — decision/contract lock **დასრულებულია**; 6 გადაწყვეტილება ღიაა (D-2, D-4…D-8); D-1 და D-3 დახურულია
-**ბოლო განახლება:** 2026-08-22 (Phase 6-ის review)
-**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 114 endpoint
+**ბოლო განახლება:** 2026-08-22 (Phase 7 effective access)
+**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 115 endpoint
 **გეგმა:** `docs/ORG_ACCESS_ARCHITECTURE_PLAN_KA.md` (ფაზები, §9.1 სავალდებულო მტკიცებულებები)
 
 ეს ფაილი არის ორგანიზაციული წვდომის **კონტრაქტი**: თითოეული backend endpoint-ისთვის
@@ -71,7 +71,7 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 ## ციფრებში
 
-- **114** endpoint (111 + Phase 3-ის 3 დიაგნოსტიკური);
+- **115** endpoint (112 + Phase 3-ის 3 დიაგნოსტიკური);
 - **30** ატარებს თანამშრომლის საიდენტიფიკაციო მონაცემს (`PII = yes`);
 - **11** უკვე leadership-scoped;
 - **6** ღია გადაწყვეტილება (2 დახურულია; D-8 დაემატა Phase 6-ის review-ზე).
@@ -259,7 +259,7 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 |---|---|---|---|---|---|---|
 | `GET /uploads/{filename}` | `UploadedFileController.serve` | — | ⚠ | `⚠` | ⚠ | **გადასაწყვეტი:** დანართი ავტორიზაციას არ ითხოვს. იხ. `QUESTIONS_FOR_IT.md` §9. |
 
-### User (13)
+### User (14)
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
@@ -267,9 +267,10 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | `POST /api/admin/roles/bulk-reassign` | `UserController.bulkReassignRoles` | `requireSystemAdmin` | org.manage `NEW` | `ORG` | **yes** | SYSTEM_ADMIN. `bulk-reassign` permission override-ს არ შლის (Phase 6). |
 | `GET /api/teams` | `UserController.getTeams` | `requireAuthenticated` | AUTH | `NONE` | no | ორგანიზაციული სტრუქტურა კითხვადია; AD-owned, mutation fail-closed. |
 | `POST /api/teams` | `UserController.createTeam` | `requireSystemAdmin` | — | `NONE` | no | AD-owned: fail-closed `403` (Phase 0). dev fixture მხოლოდ seeder-ით. |
+| `GET /api/me/effective-access` | `UserController.getEffectiveAccess` | `requireAuthenticated` | AUTH | `SELF` | no | Phase 7. მომძახებლის საკუთარი effective permission-ები; `bypass` სისტემური ადმინის შემოვლას აშკარას ხდის. |
 | `GET /api/users` | `UserController.listUsers` | `requireSystemAdmin` | org.manage `NEW` | `ORG` | **yes** | SYSTEM_ADMIN. `bulk-reassign` permission override-ს არ შლის (Phase 6). |
 | `POST /api/users` | `UserController.createUserAdmin` | `requireSystemAdmin` | org.manage `NEW` | `ORG` | **yes** | SYSTEM_ADMIN. `bulk-reassign` permission override-ს არ შლის (Phase 6). |
-| `GET /api/users/me` | `UserController.getCurrentUser` | `requireAuthenticated` | AUTH | `SELF` | no | `/api/me/effective-access` ამას ცვლის Phase 7-ზე; `bypass: true` აშკარად უნდა ჩანდეს. |
+| `GET /api/users/me` | `UserController.getCurrentUser` | `requireAuthenticated` | AUTH | `SELF` | no | პროფილის endpoint რჩება; Phase 7-ის `/api/me/effective-access` UI authorization-ის ცალკე, `bypass`-ით გამჭვირვალე წყაროა. |
 | `PUT /api/users/me` | `UserController.updateCurrentUser` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი მონაცემი. |
 | `POST /api/users/me/password` | `UserController.changeOwnPassword` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი მონაცემი. |
 | `PUT /api/users/{userId}` | `UserController.updateUserAdmin` | `requireSystemAdmin` | org.manage `NEW` | `ORG` | **yes** | SYSTEM_ADMIN. Phase 6: profile/role/permission delta ერთ atomic transaction-ში ინახება drawer-ის თავდაპირველი `lock_version`-ით; `bulk-reassign` override-ს არ შლის. |

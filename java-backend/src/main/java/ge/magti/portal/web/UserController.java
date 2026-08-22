@@ -104,6 +104,17 @@ public class UserController {
                 user, canViewAuditLog, permissionChecker.effectivePermissions(user)));
     }
 
+    /** The authenticated caller's effective capabilities for client-side access decisions. */
+    @GetMapping("/api/me/effective-access")
+    public ResponseEntity<?> getEffectiveAccess(@AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        if (denial != null) {
+            return denial;
+        }
+        return ResponseEntity.ok(EffectiveAccessResponse.from(
+                user, permissionChecker.effectivePermissions(user)));
+    }
+
     /** Port of update_users_me (routers/users.py:53-69). */
     @PutMapping("/api/users/me")
     @Transactional

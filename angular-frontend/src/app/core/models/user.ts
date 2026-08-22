@@ -17,3 +17,10 @@ export interface CurrentUserProfile {
   permissions: string[];
   can_view_audit_log: boolean;
 }
+
+/** Mirrors web.EffectiveAccessResponse -- GET /api/me/effective-access. */
+export interface EffectiveAccess {
+  role: string;
+  permissions: string[];
+  bypass: boolean;
+}

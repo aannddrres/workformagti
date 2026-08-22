@@ -30,8 +30,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -102,6 +103,15 @@ class UserControllerIntegrationTest {
         return builder.header("Authorization", "Bearer " + token);
     }
 
+    private void saveOverride(User user, Permission permission, UserPermissionOverride.State state) {
+        UserPermissionOverride override = new UserPermissionOverride();
+        override.setUserId(user.getId());
+        override.setPermission(permission.value());
+        override.setState(state);
+        override.setUpdatedAt(TbilisiTime.now());
+        permissionOverrideRepository.saveAndFlush(override);
+    }
+
     private Article createArticle(String title) {
         Article article = new Article();
         article.setTitle(title);
@@ -128,6 +138,69 @@ class UserControllerIntegrationTest {
         stat.setReadAt(TbilisiTime.now());
         stat.setOperatorDepartmentSnapshot(user.getDepartment());
         readStatusRepository.saveAndFlush(stat);
+    }
+
+    // ── /api/me/effective-access ────────────────────────────────────────
+
+    @Test
+    void effectiveAccessRequiresAuthentication() throws Exception {
+        mockMvc.perform(get("/api/me/effective-access"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void effectiveAccessIncludesAnOperatorsExplicitContentGrant() throws Exception {
+        User operator = createUser("access-op@magti.ge", Role.OPERATOR, "All");
+        saveOverride(operator, Permission.CONTENT_MANAGE, UserPermissionOverride.State.ALLOW);
+
+        mockMvc.perform(authed(get("/api/me/effective-access"), tokenFor(operator)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value("operator"))
+                .andExpect(jsonPath("$.permissions").isArray())
+                .andExpect(jsonPath("$.permissions[0]").value("content.manage"))
+                .andExpect(jsonPath("$.permissions.length()").value(1))
+                .andExpect(jsonPath("$.bypass").value(false));
+    }
+
+    @Test
+    void effectiveAccessRemovesADeniedContentAdminDefaultButKeepsTheOthers() throws Exception {
+        User contentAdmin = createUser("access-content-admin@magti.ge", Role.CONTENT_ADMIN, "All");
+        saveOverride(contentAdmin, Permission.CONTENT_MANAGE, UserPermissionOverride.State.DENY);
+
+        String body = mockMvc.perform(authed(get("/api/me/effective-access"), tokenFor(contentAdmin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value("content_admin"))
+                .andExpect(jsonPath("$.bypass").value(false))
+                .andReturn().getResponse().getContentAsString();
+
+        List<String> permissions = StreamSupport.stream(
+                        objectMapper.readTree(body).get("permissions").spliterator(), false)
+                .map(JsonNode::asText)
+                .toList();
+        assertFalse(permissions.contains(Permission.CONTENT_MANAGE.value()));
+        assertTrue(permissions.contains(Permission.ARTICLES_EDIT.value()));
+        assertTrue(permissions.contains(Permission.SYSTEM_AUDIT.value()));
+    }
+
+    @Test
+    void effectiveAccessMakesTheSystemAdminBypassAndFullCatalogExplicit() throws Exception {
+        User admin = createUser("access-system-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
+        List<String> expected = Arrays.stream(Permission.values())
+                .map(Permission::value)
+                .sorted()
+                .toList();
+
+        String body = mockMvc.perform(authed(get("/api/me/effective-access"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value("admin"))
+                .andExpect(jsonPath("$.bypass").value(true))
+                .andReturn().getResponse().getContentAsString();
+
+        List<String> permissions = StreamSupport.stream(
+                        objectMapper.readTree(body).get("permissions").spliterator(), false)
+                .map(JsonNode::asText)
+                .toList();
+        assertEquals(expected, permissions, "effective permissions must be stable and sorted on the wire");
     }
 
     // ── /api/users/me ───────────────────────────────────────────────────

@@ -16,14 +16,8 @@ interface NavLink {
   icon: string;
   allowRoles?: string[];
   denyRoles?: string[];
-  /**
-   * Show this link when the backend says the user holds the permission,
-   * regardless of role. Roles cannot express the audit trail's real rule —
-   * MANAGER holds `system.audit` and gets a department-scoped view — and a
-   * role list here would be a second, drifting copy of a decision the server
-   * already makes.
-   */
-  requiresAuditLog?: boolean;
+  /** Show this link when the backend's effective-access response allows it. */
+  requiresPermission?: string;
 }
 
 interface NavSection {
@@ -75,10 +69,10 @@ export class AppShell {
       label: 'ადმინისტრირება',
       links: [
         { label: 'მიმოხილვა', path: '/admin/overview', icon: 'fa-gauge-high', allowRoles: ['admin'] },
-        { label: 'კონტენტი', path: '/admin/content', icon: 'fa-file-lines', allowRoles: ['admin', 'content_admin'] },
-        { label: 'კატეგორიები', path: '/admin/categories', icon: 'fa-folder-tree', allowRoles: ['admin', 'content_admin'] },
+        { label: 'კონტენტი', path: '/admin/content', icon: 'fa-file-lines', requiresPermission: 'content.manage' },
+        { label: 'კატეგორიები', path: '/admin/categories', icon: 'fa-folder-tree', requiresPermission: 'content.manage' },
         { label: 'მომხმარებლები და წვდომა', path: '/admin/access', icon: 'fa-user-shield', allowRoles: ['admin'] },
-        { label: 'აუდიტი და უსაფრთხოება', path: '/admin/audit', icon: 'fa-shield-halved', requiresAuditLog: true }
+        { label: 'აუდიტი და უსაფრთხოება', path: '/admin/audit', icon: 'fa-shield-halved', requiresPermission: 'system.audit' }
       ]
     }
   ];
@@ -90,11 +84,11 @@ export class AppShell {
       this.updatePageTitle();
     });
 
-    // Warm the profile so the sidebar can decide about permission-driven links
-    // on first paint. Without it the audit entry would appear only once
-    // something else happened to fetch the profile — exactly the kind of
-    // order-dependent visibility that let FE-06 sit unnoticed.
+    // Warm both display profile and effective access on first paint. Without
+    // the latter, permission-driven links would depend on which guard happened
+    // to fetch authorization first.
     this.profiles.ensureLoaded().subscribe();
+    this.profiles.ensureAccessLoaded().subscribe();
     this.updatePageTitle();
   }
 
@@ -117,7 +111,7 @@ export class AppShell {
     if (link.denyRoles && link.denyRoles.includes(role)) {
       return false;
     }
-    if (link.requiresAuditLog && !this.profiles.canViewAuditLog()) {
+    if (link.requiresPermission && !this.profiles.hasPermission(link.requiresPermission)) {
       return false;
     }
     return true;

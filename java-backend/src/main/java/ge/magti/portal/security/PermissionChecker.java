@@ -17,8 +17,9 @@ import java.util.Set;
  * retired, not ported. Since Phase 6, the effective decision is composed by
  * {@link CapabilityService} from role defaults plus explicit
  * {@code ALLOW}/{@code DENY} overrides. The legacy
- * {@link User#getPermissions()} list remains only for compatibility until the
- * Phase 7 response-contract cleanup.
+ * {@link User#getPermissions()} list remains only for migration compatibility;
+ * removing the column requires a later migration after V36.1 reaches every
+ * environment and is outside Phase 7.
  *
  * <h2>SYSTEM_ADMIN bypasses every permission check. Read this before adding one.</h2>
  *
@@ -78,7 +79,7 @@ public class PermissionChecker {
         if (capabilityService != null) {
             // Phase 6 cutover: role defaults plus explicit ALLOW/DENY now
             // decide. users.permissions remains only as a compatibility
-            // column until the Phase 7 response-contract cleanup.
+            // column until a later post-V36.1 migration.
             return capabilityService.hasCapability(user, permission);
         }
         // DB-free legacy unit tests construct this service directly. The
