@@ -1,9 +1,11 @@
 package ge.magti.portal.web;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.HashSet;
 import java.util.Map;
@@ -60,5 +62,16 @@ class GlobalExceptionHandlerTest {
         }
 
         assertTrue(ids.size() > 490, "correlation ids collided far too often: " + ids.size() + "/500");
+    }
+
+    @Test
+    void missingResourceRemainsA404WithoutCorrelationId() {
+        ResponseEntity<Map<String, String>> response = handler.handleMissingResource(
+                new NoResourceFoundException(HttpMethod.GET, "/api/removed", "/api/removed"));
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("მისამართი ვერ მოიძებნა", response.getBody().get("detail"));
+        assertFalse(response.getBody().containsKey("correlation_id"));
     }
 }

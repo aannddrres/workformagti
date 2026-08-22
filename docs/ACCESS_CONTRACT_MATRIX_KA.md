@@ -1,8 +1,8 @@
 # წვდომის კონტრაქტის მატრიცა
 
-**სტატუსი:** Phase 1 — decision/contract lock **დასრულებულია**; 6 გადაწყვეტილება ღიაა (D-2, D-4…D-8); D-1 და D-3 დახურულია
+**სტატუსი:** Phase 1 — decision/contract lock **დასრულებულია**; D-1…D-8 დახურულია
 **ბოლო განახლება:** 2026-08-22 (Phase 9A access-diff evidence)
-**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 120 endpoint
+**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 118 endpoint
 **გეგმა:** `docs/ORG_ACCESS_ARCHITECTURE_PLAN_KA.md` (ფაზები, §9.1 სავალდებულო მტკიცებულებები)
 
 ეს ფაილი არის ორგანიზაციული წვდომის **კონტრაქტი**: თითოეული backend endpoint-ისთვის
@@ -41,9 +41,10 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 | capability | ფარავს | დასაბუთება |
 |---|---|---|
-| `content.manage` | news/video/category CRUD, upload, verify, history restore, quiz admin, აგრეგატული სტატისტიკა | წესი #9 ამ უფლებებს **ერთ კონა**დ აღწერს: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატიის რედაქტირება + კატეგორიების მართვა |
-| `content.evidence` ⚠ | read-receipts, article views, feedback სია | **ცალკეა `content.manage`-ისგან განზრახ**, რადგან თანამშრომლის იდენტობას ატარებს — წესი #15 კრძალავს content permission-ით სტატისტიკის ხილვას |
-| `messaging.broadcast` | `POST /api/broadcast` | Broadcast დამოუკიდებელი მოდულია (UI გეგმა §2), არა კონტენტის ქვესახეობა |
+| `content.manage` | news/video/category CRUD, upload, verify, history restore, quiz admin | წესი #9 ამ უფლებებს **ერთ კონა**დ აღწერს: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატიის რედაქტირება + კატეგორიების მართვა |
+| `content.evidence` | ოფიციალური read-receipts | აგრეგატი შეიძლება `content.manage`-ს დარჩეს; სახელობითი ოფიციალური rows მხოლოდ leadership scope-ით, `SYSTEM_ADMIN` კი org-wide ხედავს. article view არის ცალკე SYSTEM_ADMIN-only log; feedback წაიშალა |
+| `announcement.publish` | საიტის საერთო განცხადების გამოქვეყნება (დღეს `POST /api/broadcast`) | პირადი messaging-ისგან განცალკევებული, ყველა ავტორიზებული თანამშრომლის მთავარ გვერდსა და პროფილში ხილული passive ინფორმაცია; აუდიტორია ფიქსირებულად მთელი კომპანიაა |
+| `stats.view` | კომპანიის მასშტაბის აგრეგატული სტატისტიკა, სახელების გარეშე | **D-8 გადაწყვეტილია:** `content.manage`-ისგან დამოუკიდებელი უფლება; SYSTEM_ADMIN ცალკე გასცემს |
 | `org.manage` | user CRUD, role, permissions, group-leaders | SYSTEM_ADMIN-ის სივრცე; AD-owned ნაწილი fail-closed |
 
 > `content.manage`-ის დაშლა `news.edit`/`categories.manage`/`content.upload`-ად
@@ -63,7 +64,7 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | `ORG-AGG` | ორგანიზაციის მასშტაბის აგრეგატი, იდენტობის გარეშე |
 | `GROUP/DEPT` | მოქმედი leadership assignment-ით შემოსაზღვრული |
 | `ORG` | მხოლოდ `SYSTEM_ADMIN` |
-| `⚠` | გადასაწყვეტია — იხ. „ღია გადაწყვეტილებები" |
+| `⚠` | კონტრაქტის ხარვეზია; 0 ღია პროდუქტული გადაწყვეტილების პირობებში მატრიცაში არ უნდა დარჩეს |
 
 **უცვლელი წესი (გეგმის §8):** `ORG-CONTENT` და `ORG-AGG` **არასოდეს** გადადის
 `GROUP/DEPT`-ში. კონტენტის ან export-ის permission თანამშრომლის მონაცემზე scope-ს
@@ -71,10 +72,10 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 ## ციფრებში
 
-- **120** endpoint (117 + Phase 3-ის 3 დიაგნოსტიკური);
-- **35** ატარებს თანამშრომლის საიდენტიფიკაციო მონაცემს (`PII = yes`);
+- **118** endpoint (115 + Phase 3-ის 3 დიაგნოსტიკური);
+- **34** ატარებს თანამშრომლის საიდენტიფიკაციო მონაცემს (`PII = yes`);
 - **11** უკვე leadership-scoped;
-- **6** ღია გადაწყვეტილება (2 დახურულია; D-8 დაემატა Phase 6-ის review-ზე).
+- **0** ღია გადაწყვეტილება (D-1…D-8 დახურულია).
 
 ---
 
@@ -86,12 +87,11 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 |---|---|---|---|---|---|---|
 | `GET /api/admin/access-diff` | `AccessDiffController.getAccessDiff` | `requireSystemAdmin` | — | `ORG` | **yes** | Phase 9A. read-only cutover evidence: თითო განსხვავებული მომხმარებლის სახელი, legacy/proposed compliance და scope-ში მხოლოდ მომხმარებელთა რაოდენობები; არც apply და არც scope-ის წევრთა სახელები. |
 
-### Article (26)
+### Article (24)
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
 | `GET /api/admin/articles/stale` | `ArticleController.getStaleArticles` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
-| `GET /api/admin/feedback` | `ArticleController.getAdminFeedback` | `requireContentAdmin` | content.evidence `NEW` ⚠ | `⚠` | **yes** | **გადასაწყვეტი.** აბრუნებს operator-ის სახელს/email-ს/დეპარტამენტს/დაგვიანებას org-wide, მხოლოდ `requireContentAdmin`-ით. წესი #15 კრძალავს content permission-ით თანამშრომლის სტატისტიკას; მაგრამ per-article გაცნობის მტკიცებულება კონტენტის lifecycle-იცაა. |
 | `GET /api/articles` | `ArticleController.getArticles` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
 | `POST /api/articles` | `ArticleController.createArticle` | `requireArticlesEditPermission`, `requireArticlesPublishPermission` | articles.edit + articles.publish | `ORG-CONTENT` | no | Phase 6: redundant content-admin role-gate მოიხსნა; explicit permission override მუშაობს. |
 | `POST /api/articles/bulk-archive` | `ArticleController.bulkArchiveArticles` | `requireArticlesArchivePermission` | articles.archive | `ORG-CONTENT` | no | უკვე permission-ზეა. |
@@ -100,7 +100,6 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | `PUT /api/articles/{id}` | `ArticleController.updateArticle` | `requireArticlesEditPermission`, `requireArticlesPublishPermission` | articles.edit + articles.publish | `ORG-CONTENT` | no | Phase 6: redundant content-admin role-gate მოიხსნა; explicit permission override მუშაობს. |
 | `POST /api/articles/{id}/archive` | `ArticleController.archiveArticle` | `requireArticlesArchivePermission` | articles.archive | `ORG-CONTENT` | no | უკვე permission-ზეა. |
 | `PATCH /api/articles/{id}/autosave` | `ArticleController.autosaveArticle` | `requireArticlesEditPermission`, `requireArticlesPublishPermission` | articles.edit + articles.publish | `ORG-CONTENT` | no | Phase 6: redundant content-admin role-gate მოიხსნა; explicit permission override მუშაობს. |
-| `POST /api/articles/{id}/feedback` | `ArticleController.createArticleFeedback` | `requireAuthenticated` | AUTH | `SELF` | no | საკუთარი ჩანაწერი ხილულ კონტენტზე. |
 | `GET /api/articles/{id}/history` | `ArticleController.getArticleHistory` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
 | `GET /api/articles/{id}/history/{historyId}/diff` | `ArticleController.getArticleDiff` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
 | `POST /api/articles/{id}/history/{historyId}/restore` | `ArticleController.restoreArticleVersion` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
@@ -108,13 +107,13 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | `PUT /api/articles/{id}/note` | `ArticleController.putUserNote` | `requireAuthenticated`, `requireVisibleArticle` | AUTH | `SELF` | no | საკუთარი ჩანაწერი ხილულ კონტენტზე. |
 | `POST /api/articles/{id}/read-receipt` | `ArticleController.createArticleReadReceipt` | `requireAuthenticated`, `requireQuizPassed` | AUTH | `SELF` | no | compliance-ის მტკიცებულება; retention purge-იდან გამორიცხული. |
 | `GET /api/articles/{id}/read-receipt/me` | `ArticleController.getMyArticleReadReceiptStatus` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი მონაცემი. |
-| `GET /api/articles/{id}/read-receipts` | `ArticleController.getArticleReadReceipts` | `requireContentAdmin` | content.evidence `NEW` ⚠ | `⚠` | **yes** | **გადასაწყვეტი.** აბრუნებს operator-ის სახელს/email-ს/დეპარტამენტს/დაგვიანებას org-wide, მხოლოდ `requireContentAdmin`-ით. წესი #15 კრძალავს content permission-ით თანამშრომლის სტატისტიკას; მაგრამ per-article გაცნობის მტკიცებულება კონტენტის lifecycle-იცაა. |
+| `GET /api/articles/{id}/read-receipts` | `ArticleController.getArticleReadReceipts` | `requireContentAdmin` | content.evidence — D-2 resolved, implementation pending | `GROUP/DEPT` (`SYSTEM_ADMIN`: `ORG`) | **yes** | **სამიზნე:** სახელობითი rows scope-პირამიდით; `content.manage` მარტო მხოლოდ აგრეგატს იძლევა; email უნდა ამოიღოს. მიმდინარე კოდი ჯერ org-wide/role-gated არის. |
 | `GET /api/articles/{id}/related` | `ArticleController.getRelatedArticles` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
 | `POST /api/articles/{id}/unarchive` | `ArticleController.unarchiveArticle` | `requireArticlesArchivePermission` | articles.archive | `ORG-CONTENT` | no | უკვე permission-ზეა. |
 | `POST /api/articles/{id}/verify` | `ArticleController.verifyArticle` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
 | `GET /api/articles/{id}/versions` | `ArticleController.getArticleVersions` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
 | `POST /api/articles/{id}/view` | `ArticleController.trackArticleView` | `requireAuthenticated` | AUTH | `SELF` | no | საკუთარი ჩანაწერი ხილულ კონტენტზე. |
-| `GET /api/articles/{id}/views` | `ArticleController.getArticleViews` | `requireContentAdmin` | content.evidence `NEW` ⚠ | `⚠` | **yes** | **გადასაწყვეტი.** აბრუნებს operator-ის სახელს/email-ს/დეპარტამენტს/დაგვიანებას org-wide, მხოლოდ `requireContentAdmin`-ით. წესი #15 კრძალავს content permission-ით თანამშრომლის სტატისტიკას; მაგრამ per-article გაცნობის მტკიცებულება კონტენტის lifecycle-იცაა. |
+| `GET /api/articles/{id}/views` | `ArticleController.getArticleViews` | `requireContentAdmin` | SYSTEM_ADMIN-only log — implementation pending | `ORG` | **yes** | სტატიის უბრალო გახსნა ოფიციალური წაკითხვა არ არის და leadership evidence-ში არ ჩანს. სამიზნე gate არის `requireSystemAdmin`; export ცალკე SYSTEM_ADMIN-only log surface-ზე კეთდება. |
 | `GET /api/me/recently-viewed` | `ArticleController.getMyRecentlyViewed` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი მონაცემი. |
 
 ### AuditLog (4)
@@ -158,11 +157,11 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
-| `GET /api/export/download/{jobId}` | `ExportController.downloadExport` | `requireReportsExport` | reports.export + leadership | `⚠` | **yes** | **გადასაწყვეტი.** job-ის მფლობელი არ მოწმდება — id-ის მცოდნე სხვისი export-ს ჩამოტვირთავს. |
-| `GET /api/export/readings` | `ExportController.exportReadingsCsv` | `requireReportsExport` | reports.export + leadership | `GROUP/DEPT` | **yes** | სვეტები allowlist-ით (§ export allowlist). raw log ველი აკრძალულია. |
-| `GET /api/export/readings.pdf` | `ExportController.exportReadingsPdf` | `requireReportsExport` | reports.export + leadership | `GROUP/DEPT` | **yes** | სვეტები allowlist-ით (§ export allowlist). raw log ველი აკრძალულია. |
-| `GET /api/export/readings.xlsx` | `ExportController.exportReadingsXlsx` | `requireReportsExport` | reports.export + leadership | `GROUP/DEPT` | **yes** | სვეტები allowlist-ით (§ export allowlist). raw log ველი აკრძალულია. |
-| `GET /api/export/status/{jobId}` | `ExportController.getExportStatus` | `requireReportsExport` | reports.export + leadership | `⚠` | **yes** | **გადასაწყვეტი.** job-ის მფლობელი არ მოწმდება — id-ის მცოდნე სხვისი export-ს ჩამოტვირთავს. |
+| `GET /api/export/download/{jobId}` | `ExportController.downloadExport` | `requireReportsExport` | reports.export + leadership | `SELF` (`SYSTEM_ADMIN`: owner bypass) | **yes** | D-3 განხორციელებულია: `export_jobs.owner_user_id` მოწმდება; unknown owner fail-closed არის და სხვისი/არარსებული job ერთნაირად პასუხობს. |
+| `GET /api/export/readings` | `ExportController.exportReadingsCsv` | `requireReportsExport` | reports.export + leadership | `GROUP/DEPT` | **yes** | PO-13 target allowlist გადაწყვეტილია; DPO validation და implementation pending — იხ. export allowlist. |
+| `GET /api/export/readings.pdf` | `ExportController.exportReadingsPdf` | `requireReportsExport` | reports.export + leadership | `GROUP/DEPT` | **yes** | PO-13 target allowlist გადაწყვეტილია; DPO validation და implementation pending — იხ. export allowlist. |
+| `GET /api/export/readings.xlsx` | `ExportController.exportReadingsXlsx` | `requireReportsExport` | reports.export + leadership | `GROUP/DEPT` | **yes** | PO-13 target allowlist გადაწყვეტილია; DPO validation და implementation pending — იხ. export allowlist. |
+| `GET /api/export/status/{jobId}` | `ExportController.getExportStatus` | `requireReportsExport` | reports.export + leadership | `SELF` (`SYSTEM_ADMIN`: owner bypass) | **yes** | D-3 განხორციელებულია: status მხოლოდ owner-ს ეკუთვნის; unknown owner fail-closed არის. |
 | `GET /api/export/team-stats.pdf` | `ExportController.exportTeamStatsPdf` | `requireReportsExport` | reports.export + leadership | `GROUP/DEPT` | **yes** | სვეტები allowlist-ით (§ export allowlist). raw log ველი აკრძალულია. |
 
 ### Favorite (3)
@@ -183,12 +182,12 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
-| `POST /api/broadcast` | `MessagingController.postBroadcast` | `requireContentAdmin` | messaging.broadcast `NEW` | `ORG-CONTENT` | no | დღეს role-gate. Broadcast დამოუკიდებელი მოდულია (UI გეგმა §2). |
-| `GET /api/messages` | `MessagingController.getMyMessages` | `requireAuthenticated` | AUTH | `SELF` | no | პირადი messaging დადასტურებული scope-იდან ამოღებულია (UI გეგმა §2) — ახალ წესს არ იღებს. |
-| `POST /api/messages` | `MessagingController.sendMessage` | `requireManagerOrAdmin` | AUTH + leadership | `GROUP/DEPT` | **yes** | იგივე — scope-იდან ამოღებული. `DirectMessagePermission` „All"-ს wildcard-ად ინარჩუნებს. |
-| `GET /api/messages/sent` | `MessagingController.getSentMessages` | `requireManagerOrAdmin` | AUTH + leadership | `GROUP/DEPT` | **yes** | იგივე — scope-იდან ამოღებული. `DirectMessagePermission` „All"-ს wildcard-ად ინარჩუნებს. |
-| `DELETE /api/messages/{messageId}` | `MessagingController.deleteMessage` | `requireAuthenticated` | AUTH | `SELF` | no | პირადი messaging დადასტურებული scope-იდან ამოღებულია (UI გეგმა §2) — ახალ წესს არ იღებს. |
-| `POST /api/messages/{messageId}/read` | `MessagingController.markMessageRead` | `requireAuthenticated` | AUTH | `SELF` | no | პირადი messaging დადასტურებული scope-იდან ამოღებულია (UI გეგმა §2) — ახალ წესს არ იღებს. |
+| `POST /api/broadcast` | `MessagingController.postBroadcast` | `requireContentAdmin` | announcement.publish — refactor pending | `ORG-CONTENT` | no | საერთო განცხადება ყველა ავტორიზებული თანამშრომლის მთავარ გვერდსა და პროფილში ჩანს. სამიზნე publishers: `content.manage`, მოქმედი ძირითადი/დროებითი ჯგუფის უფროსი, `SYSTEM_ADMIN`. აუდიტორია ფიქსირებულად მთელი კომპანიაა; ავტორიზაციის გარეშე არ ჩანს. |
+| `GET /api/messages` | `MessagingController.getMyMessages` | `requireAuthenticated` | REMOVE — D-7 resolved | — | no | პირადი messaging აღარ არის პროდუქტის ნაწილი; endpoint implementation commit-ზე უნდა წაიშალოს. |
+| `POST /api/messages` | `MessagingController.sendMessage` | `requireManagerOrAdmin` | REMOVE — D-7 resolved | — | **yes** | პირადი messaging აღარ არის პროდუქტის ნაწილი; `DirectMessagePermission`-თან ერთად უნდა წაიშალოს. |
+| `GET /api/messages/sent` | `MessagingController.getSentMessages` | `requireManagerOrAdmin` | REMOVE — D-7 resolved | — | **yes** | პირადი messaging აღარ არის პროდუქტის ნაწილი; endpoint implementation commit-ზე უნდა წაიშალოს. |
+| `DELETE /api/messages/{messageId}` | `MessagingController.deleteMessage` | `requireAuthenticated` | REMOVE — D-7 resolved | — | no | პირადი messaging აღარ არის პროდუქტის ნაწილი; endpoint implementation commit-ზე უნდა წაიშალოს. |
+| `POST /api/messages/{messageId}/read` | `MessagingController.markMessageRead` | `requireAuthenticated` | REMOVE — D-7 resolved | — | no | პირადი messaging აღარ არის პროდუქტის ნაწილი; endpoint implementation commit-ზე უნდა წაიშალოს. |
 
 ### News (8)
 
@@ -254,12 +253,12 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | `GET /api/admin/stats/team/{teamId}` | `StatsController.getAdminTeamStats` | `requireSystemAdmin` | AUTH + leadership | `ORG` | **yes** | Phase 0: SYSTEM_ADMIN-only. Phase 4: `{teamId}` scope-ზე უნდა შემოწმდეს, არა role-ზე. |
 | `GET /api/manager/department-stats` | `StatsController.getDepartmentStats` | `requireManagerOrAdmin` | AUTH + leadership | `GROUP/DEPT` | **yes** | Phase 0: `ManagerScope`. Phase 4: `ScopeResolver`; nested group/department row-ებიც იფილტრება. |
 | `GET /api/manager/team-stats` | `StatsController.getTeamStats` | `requireManagerOrAdmin` | AUTH + leadership | `GROUP/DEPT` | **yes** | Phase 0: `ManagerScope`. Phase 4: `ScopeResolver`; nested group/department row-ებიც იფილტრება. |
-| `GET /api/statistics/activity` | `StatsController.getActivityTrend` | `requireContentManage` | content.manage | `ORG-AGG` | no | მხოლოდ აგრეგატები; იდენტობა არ ჟონავს. |
-| `GET /api/statistics/breakdown` | `StatsController.getStatisticsBreakdown` | `requireContentManage` | content.manage | `ORG-AGG` | no | დაშვებული dimension: department/role/status — `COUNT`, სახელების გარეშე. |
-| `GET /api/statistics/compliance` | `StatsController.getComplianceStatistics` | `requireContentManage` | content.manage | `ORG-AGG` | no | მხოლოდ აგრეგატები; იდენტობა არ ჟონავს. |
-| `GET /api/statistics/failed-searches` | `StatsController.getFailedSearches` | `requireContentManage` | content.manage | `ORG-AGG` | no | მხოლოდ აგრეგატები; იდენტობა არ ჟონავს. |
-| `GET /api/statistics/kpi` | `StatsController.getKpiCounts` | `requireContentManage` | content.manage | `ORG-AGG` | no | მხოლოდ აგრეგატები; იდენტობა არ ჟონავს. |
-| `GET /api/statistics/popular-searches` | `StatsController.getPopularSearches` | `requireContentManage` | content.manage | `ORG-AGG` | no | მხოლოდ აგრეგატები; იდენტობა არ ჟონავს. |
+| `GET /api/statistics/activity` | `StatsController.getActivityTrend` | `requireContentManage` | stats.view — D-8 resolved, implementation pending | `ORG-AGG` | no | მხოლოდ აგრეგატები; `content.manage`-ისგან უნდა განცალკევდეს. |
+| `GET /api/statistics/breakdown` | `StatsController.getStatisticsBreakdown` | `requireContentManage` | stats.view — D-8 resolved, implementation pending | `ORG-AGG` | no | დაშვებული dimension: department/role/status — `COUNT`, სახელების გარეშე. |
+| `GET /api/statistics/compliance` | `StatsController.getComplianceStatistics` | `requireContentManage` | stats.view — D-8 resolved, implementation pending | `ORG-AGG` | no | მხოლოდ აგრეგატები; `content.manage`-ისგან უნდა განცალკევდეს. |
+| `GET /api/statistics/failed-searches` | `StatsController.getFailedSearches` | `requireContentManage` | stats.view — D-8 resolved, implementation pending | `ORG-AGG` | no | მხოლოდ აგრეგატები; `content.manage`-ისგან უნდა განცალკევდეს. |
+| `GET /api/statistics/kpi` | `StatsController.getKpiCounts` | `requireContentManage` | stats.view — D-8 resolved, implementation pending | `ORG-AGG` | no | მხოლოდ აგრეგატები; `content.manage`-ისგან უნდა განცალკევდეს. |
+| `GET /api/statistics/popular-searches` | `StatsController.getPopularSearches` | `requireContentManage` | stats.view — D-8 resolved, implementation pending | `ORG-AGG` | no | მხოლოდ აგრეგატები; `content.manage`-ისგან უნდა განცალკევდეს. |
 | `GET /api/statistics/user-progress` | `StatsController.getUserProgress` | `requireSystemAdmin` | AUTH + leadership | `ORG` | **yes** | ყველა თანამშრომლის სახელი + დეპარტამენტი + პროცენტი. სწორად SYSTEM_ADMIN-only; Phase 4-ზე scope-ით უნდა გაიხსნას leadership-ისთვის, არა role-ით. |
 
 ### Upload (1)
@@ -272,7 +271,7 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
-| `GET /uploads/{filename}` | `UploadedFileController.serve` | — | ⚠ | `⚠` | ⚠ | **გადასაწყვეტი:** დანართი ავტორიზაციას არ ითხოვს. იხ. `QUESTIONS_FOR_IT.md` §9. |
+| `GET /uploads/{filename}` | `UploadedFileController.serve` | — | AUTH — D-4 resolved, implementation pending | `AUTH` | content-dependent | **სამიზნე:** მხოლოდ ავტორიზებულ თანამშრომელს; დაკოპირებული URL login-ის გარეშე არ იხსნება. მიმდინარე კოდში gate ჯერ არ არის. ინფრასტრუქტურული წინაპირობები: `QUESTIONS_FOR_IT.md` §9. |
 
 ### User (14)
 
@@ -319,10 +318,23 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | `GET /api/export/readings.pdf` | `თანამშრომელი` · `დეპარტამენტი` · `ტიპი` · `ID` · `სტატუსი` · `წაკითხვა` · `ვადა` |
 | `GET /api/export/team-stats.pdf` | `დეპარტამენტი` · `სულ მიკუთვნებული` · `წაკითხული` · `%` |
 
-**აკრძალული კატეგორიები (წესი #14).** არცერთ export-ში არ დაიშვება ველი, რომელიც
-წარმოიშობა: `audit_logs` · `article_view_logs` · `search_logs` · session/token
-მდგომარეობა · უსაფრთხოების მოვლენები · IP მისამართი · `hashed_password` ·
-`token_version`.
+**სამიზნე readings allowlist — PO-13 გადაწყვეტილია, DPO validation და
+implementation pending:** სამივე ფორმატს ექნება ერთი და იგივე ქართული სვეტები:
+`თანამშრომელი` · `დეპარტამენტი` · `ჯგუფი` · `მასალის სათაური` · `მასალის ტიპი` ·
+`სტატუსი` · `წაკითხვის დრო` · `ვადა`. `email`, employee/user ID და material/item
+ID სამიზნე export-იდან ამოსაღებია. მიმდინარე factual ცხრილი ზემოთ უცვლელად რჩება,
+სანამ კოდი და snapshot tests არ შეიცვლება.
+
+**ხელმძღვანელის export-ში აკრძალული კატეგორიები (წესი #14).** readings/team
+export-ში არ დაიშვება ველი, რომელიც წარმოიშობა: `audit_logs` ·
+`article_view_logs` · `search_logs` · session/token მდგომარეობა · უსაფრთხოების
+მოვლენები · IP მისამართი · `hashed_password` · `token_version`.
+
+SYSTEM_ADMIN-ის სრული log/data export არის ცალკე surface და შეიძლება შეიცავდეს
+audit/view/search/security/IP მონაცემებს, მაგრამ არასოდეს password-ს,
+`hashed_password`-ს, access/refresh token-ს, session credential-ს, private key-ს,
+database password-ს ან სხვა secret-ს. მისი DTO-ები და tests ხელმძღვანელის
+`ReadingExportRow`-ისგან განცალკევებულია.
 
 **აღსრულება:** `ExportColumnAllowlistTest`. სვეტები დამაგრებულია სამივე
 ფორმატზე ცალ-ცალკე, დამატებით კი დამაგრებულია `ReadingExportRow` — ის ერთადერთი
@@ -331,9 +343,9 @@ shape-ია, საიდანაც სამივე readings-export კი
 სათაურების დამაგრება არ დაიჭერდა ველს, რომელიც სხვა ეკრანისთვის დაემატა და
 export-მა ავტომატურად აიტაცა.
 
-> csv სათაურები ინგლისურია, xlsx/pdf — ქართული. ეს **დღევანდელი ფაქტია**, არა
-> გადაწყვეტილება; პროდუქტი ქართულენოვანია, ე.ი. csv-ის სათაურები ცალკე,
-> აშკარა UX გადაწყვეტილებას საჭიროებს — allowlist-ის ჩაკეტვამდე ან მის შემდეგ.
+> csv სათაურები დღეს ინგლისურია, xlsx/pdf — ქართული. პროდუქტის გადაწყვეტილებით
+> სამივე ფორმატის მომხმარებლისთვის ხილული სათაურები ქართულად უნდა გახდეს;
+> implementation და snapshot tests ჯერ დარჩენილია.
 
 ---
 
@@ -358,24 +370,24 @@ Status code-ის შემოწმება ადვილია, ველ�
 | `GroupMemberCompletion` | `user_id` · `first_name` · `last_name` · `completion_percentage` | group users |
 | `CriticalOperator` | `user_id` · `first_name` · `last_name` · `department` · `overdue_count` | critical-operators |
 | `UserProgressItemResponse` | `user_id` · `user_name` · `department` · `read_count` · `required_count` · `percentage` | user-progress (`ORG`) |
-| `ArticleReadReceiptRowResponse` | `operator_id` · `operator_name` · **`operator_email`** · `department` · `read_at` · `article_version` · `has_read` · `is_late` · `deadline` · `status` | read-receipts — **D-2** |
-| `ArticleViewRowResponse` | `operator_id` · `operator_name` · **`operator_email`** · `department` · `article_version` · `viewed_at` | article views — **D-2** |
+| `ArticleReadReceiptRowResponse` | `operator_id` · `operator_name` · **`operator_email` (current; remove on D-2 implementation)** · `department` · `read_at` · `article_version` · `has_read` · `is_late` · `deadline` · `status` | read-receipts — **D-2 resolved** |
+| `ArticleViewRowResponse` | `operator_id` · `operator_name` · `operator_email` · `department` · `article_version` · `viewed_at` | article views — მიმდინარე shape; სამიზნე მხოლოდ SYSTEM_ADMIN-only log surface-ია |
 | `GroupLeaderResponse` | `id` · `name` | group-leaders |
 
 **წესი:** ამ ცხრილში ველის დამატება ნიშნავს კითხვას „ვის აქვს მისი ნახვის
 უფლება და რომელ scope-ზე?" — და პასუხი მატრიცაში უნდა ჩაიწეროს **ველის
 გაშვებამდე**, არა მას შემდეგ, რაც ვინმე მას პასუხში შეამჩნევს.
 
-> `LeaderboardEntryResponse` განზრახ არის დამაგრებული, სანამ **D-1** ღიაა:
-> ფორმა თავად არის გადაწყვეტილება. თუ D-1 ანონიმიზაციით დაიხურება, სწორედ ეს
-> ტესტი შეიცვლება — ე.ი. ცვლილება review-ში გამოჩნდება და არა მდუმარედ.
+> `LeaderboardEntryResponse` D-1-ის გადაწყვეტისას endpoint-თან ერთად ამოღებულია;
+> მისი ხელახალი დამატება ახალი პროდუქტული გადაწყვეტილებისა და contract test-ის
+> გარეშე დაუშვებელია.
 
 ---
 
-## ღია გადაწყვეტილებები
+## პროდუქტული გადაწყვეტილებები
 
-ეს რვა პუნქტი Phase 2-ის დაწყებას **არ** აჩერებს (schema მათზე არ არის
-დამოკიდებული), მაგრამ Phase 4-ის cutover-მდე უნდა დაიხუროს.
+D-1…D-8 დახურულია. ქვემოთ თითოეული გადაწყვეტილება და მისი განხორციელების
+სტატუსია დაფიქსირებული.
 
 ### D-1. `GET /api/knowledge-leaderboard` — ✅ გადაწყვეტილია (2026-08-21)
 
@@ -394,11 +406,30 @@ department-ზე ჩამოდიოდა. `V36`-ის backfill ამ ს�
 
 G-3 (DPO gate) ამით იხურება — გასავრცელებელი პერსონალური მონაცემი აღარ არსებობს.
 
-### D-2. `content.evidence` — read-receipts / views / feedback
+### D-2. ოფიციალური read evidence და view log — ✅ გადაწყვეტილია (2026-08-22)
+
+**გადაწყვეტილება:** სახელობითი ოფიციალური read evidence leadership scope-ით
+იზღუდება. ჯგუფის
+უფროსი ხედავს მხოლოდ საკუთარი ჯგუფის თანამშრომლებს; დეპარტამენტის ხელმძღვანელი
+ხედავს დეპარტამენტის ყველა ჯგუფს; `SYSTEM_ADMIN` ხედავს ყველას. ეს არის მარტივი
+scope-პირამიდა. მარტო `content.manage` სახელობით წვდომას არ იძლევა — შესაბამისი
+leadership scope-ის გარეშე კონტენტის მმართველს მხოლოდ საერთო რაოდენობები რჩება.
+
+პირველ production rollout-ში აქტიურია მხოლოდ ჯგუფის უფროსი + `SYSTEM_ADMIN`;
+დეპარტამენტის ხელმძღვანელის დონე target architecture-ში რჩება, მაგრამ ჯერ არ
+ირთვება. სტატიის უბრალოდ გახსნა (`article_view_logs`) ოფიციალურ წაკითხვად არ
+ითვლება და leadership სიაში არ ჩანს — მას მხოლოდ `SYSTEM_ADMIN` ხედავს/გამოაქვს.
+თანამშრომლის feedback ფუნქცია მთლიანად ამოღებულია.
+
+სახელობით rows-ში `operator_name` საკმარისია; `operator_email` უნდა ამოიღოს D-2-ის
+განხორციელების commit-მა და response-shape contract შესაბამისად განაახლოს.
+
+#### წინა მდგომარეობა და განხილული ვარიანტები
 
 `GET /api/articles/{id}/read-receipts` აბრუნებს `operator_id` · `operator_name` ·
 `operator_email` · `department` · `read_at` · `is_late` · `status`-ს **org-wide**,
-მხოლოდ `requireContentAdmin`-ით. იგივე ეხება `/views`-ს და `/api/admin/feedback`-ს.
+მხოლოდ `requireContentAdmin`-ით. `/views`-იც ჯერ იგივე ძველ role-gate-ზეა, თუმცა
+მისი სამიზნე უკვე SYSTEM_ADMIN-only log-ია. feedback endpoint-ები ამოღებულია.
 
 წესი #15: content permission თანამშრომლის სტატისტიკას არ ხსნის. მაგრამ „ვინ
 გაეცნო ამ სტატიის ამ ვერსიას" კონტენტის lifecycle-ის ნაწილიცაა და ავტორს
@@ -423,59 +454,56 @@ row-ები fail-closed რჩება და არსებული TTL-�
 download-ზე): განსხვავებული პასუხი endpoint-ს აქცევდა oracle-ად იმისთვის,
 რომელი job id არსებობს.
 
-### D-4. `GET /uploads/{filename}` — ავტორიზაცია არ მოითხოვება
+### D-4. `GET /uploads/{filename}` — ✅ გადაწყვეტილია (2026-08-22)
 
-`QUESTIONS_FOR_IT.md` §9-ის ღია კითხვა. მატრიცაში ერთადერთი `⚠` scope, რომელიც
-პროდუქტულ და არა ტექნიკურ პასუხს ელოდება.
+**გადაწყვეტილება:** ყველა ატვირთული სურათი, PDF და სხვა დანართი მხოლოდ პორტალში
+ავტორიზებულ თანამშრომელს გაეხსნება. დაკოპირებული `/uploads/<uuid>` URL login-ის
+გარეშე არ მუშაობს; საჯარო/დაცული ტიპების არჩევანი არ ემატება.
 
-### D-5. `content.manage`-ის მარცვლოვნება
+მიმდინარე `UploadedFileController.serve` ჯერ საჯაროა. განხორციელების commit-მა
+უნდა დაამატოს authentication gate, Angular-ის image/download ქცევა და regression
+tests. `QUESTIONS_FOR_IT.md` §9-ში ღია რჩება მხოლოდ ingress/cache/scanning-ის
+ინფრასტრუქტურული ნაწილი.
 
-დაფიქსირებულია ერთი capability (იხ. ლექსიკონი). თუ პროდუქტს სჭირდება „კატეგორიების
-მართვა კონტენტის შექმნის გარეშე", მაშინ ეს დაშლა **ახლა** უნდა მოხდეს, არა Phase 6-ზე.
+### D-5. `content.manage`-ის მარცვლოვნება — ✅ გადაწყვეტილია (2026-08-22)
 
-### D-6. csv-ის ინგლისური სათაურები
+**გადაწყვეტილება:** რჩება ერთი საერთო capability. `content.manage` ერთად რთავს
+კონტენტის შექმნას, გამოქვეყნებას, სხვისი მასალის რედაქტირებასა და კატეგორიების
+მართვას. ცალკე `content.create` / `content.publish` / `content.edit_any` /
+`categories.manage` permission-ები და UI ჩამრთველები არ ემატება.
 
-იხ. export-ის allowlist. მცირე, მაგრამ allowlist-ის ჩაკეტვამდე გადასაწყვეტი.
+### D-6. csv-ის ინგლისური სათაურები — ✅ გადაწყვეტილია (2026-08-22)
 
-### D-7. `messaging` — scope-იდან ამოღებული, კოდში დარჩენილი
+**გადაწყვეტილება:** პროექტი მხოლოდ ქართულ ენაზეა. CSV/Excel export-ის ყველა
+მომხმარებლისთვის ხილული სვეტის სათაური ქართულად იქნება; ენის არჩევანი არ
+ემატება. ტექნიკური API field-ები/კოდის identifier-ები ინგლისურად შეიძლება
+დარჩეს, რადგან მომხმარებლის ინტერფეისის ნაწილი არ არის. შესაბამისმა
+implementation commit-მა export allowlist/header mapping და tests უნდა განაახლოს.
 
-6 endpoint. UI გეგმა §2 პირადი messaging-ს დადასტურებული scope-იდან ხსნის, მაგრამ
-`POST /api/messages` და `/api/messages/sent` თანამშრომლის მონაცემს ატარებს და
-`DirectMessagePermission` „All"-ს wildcard-ად ინარჩუნებს.
-**რეკომენდაცია:** მოდულს ახალი scope წესი **არ** მიეცეს; ის ან წაიშალოს Phase 6-ზე,
-ან აშკარად გამოცხადდეს legacy-დ. შუალედური მდგომარეობა — ამოღებული მოდული, რომელიც
-scope-ის მიგრაციას მაინც იღებს — ყველაზე ცუდი ვარიანტია.
+### D-7. `messaging` — ✅ გადაწყვეტილია (2026-08-22)
 
-### D-8. `/api/statistics/*` `content.manage`-ის ქვეშ vs. სამიზნე მოდელის წესი #8
+**გადაწყვეტილება:** თანამშრომლებს შორის პირადი messaging პროდუქტის ნაწილი არ
+არის. `GET/POST /api/messages`, sent/delete/read endpoint-ები,
+`DirectMessagePermission` და შესაბამისი UI უნდა წაიშალოს.
 
-**ეს გადაწყვეტილება ჩემი (Claude) იყო და Phase 6-ზე უკვე იმპლემენტირდა — ამიტომ
-`⚠` არ დამიწერია არცერთ მწკრივზე. მაგრამ ის ეწინააღმდეგება წესს, რომელიც
-პროდუქტის მფლობელმა დაადასტურა, და ამიტომ ღიად უნდა იდგეს.**
+`POST /api/broadcast` **არ იშლება**: მისი პროდუქტული მნიშვნელობა პირადი
+შეტყობინება კი არა, საიტის საერთო განცხადებაა. მაგალითად: ოფისი დაიკეტა ან
+რომელიმე მიმართულებაზე ტექნიკური პრობლემაა. განცხადება ყველა ავტორიზებული
+თანამშრომლის პროფილში ჩანს; ინტერნეტში ან ავტორიზაციის გარეშე საჯარო არ არის.
+implementation commit-ზე ის პირადი messaging domain-ისგან უნდა განცალკევდეს და
+შესაბამის ქართულ ტერმინზე გადავიდეს.
 
-ექვსი აგრეგატული endpoint (`activity`, `breakdown`, `compliance`,
-`failed-searches`, `kpi`, `popular-searches`) `requireContentAdmin`-იდან
-`requireContentManage`-ზე გადავიდა. მათი scope `ORG-AGG`-ია: მხოლოდ `COUNT`-ები,
-სახელების და იდენტობის გარეშე.
+### D-8. `/api/statistics/*` — ✅ გადაწყვეტილია (2026-08-22)
 
-**კონფლიქტი.** სამიზნე მოდელის წესი #8 ამბობს: *ჯგუფის ლიდერს შეუძლია
-content permission-ების ქონა სტატისტიკის ხილვადობის გაფართოების გარეშე*.
-დღეს `MANAGER`, რომელსაც `content.manage` **ALLOW** მიენიჭება იმისთვის, რომ
-სტატია გამოაქვეყნოს, ავტომატურად იღებს კომპანიის მასშტაბის აგრეგატულ
-სტატისტიკასაც. ეს სწორედ ის გაფართოებაა, რომელსაც წესი #8 კრძალავს.
+**მფლობელის გადაწყვეტილება:** ექვსი კომპანიის მასშტაბის აგრეგატული endpoint
+(`activity`, `breakdown`, `compliance`, `failed-searches`, `kpi`,
+`popular-searches`) გადავა ცალკე `stats.view` capability-ზე. `content.manage`
+მხოლოდ კონტენტის მართვას ეხება და სტატისტიკის წვდომას ავტომატურად აღარ გახსნის.
+SYSTEM_ADMIN ამ ორ უფლებას ერთმანეთისგან დამოუკიდებლად გასცემს.
 
-PII არ ჟონავს — ამიტომ ეს არ არის Phase 6-ის blocker და არაფერი გამისწორებია
-კოდში. მაგრამ არჩევანი ორია და მფლობელისაა:
-
-* **(ა)** `ORG-AGG` მისაღებია: აგრეგატი არ არის „სტატისტიკის ხილვადობა" წესი #8-ის
-  გაგებით, რომელიც სახელობით მონაცემებზეა. მაშინ წესი #8-ის ფორმულირება უნდა
-  დაზუსტდეს `PRODUCT_UX`-ში, თორემ შემდეგი მკითხველი იმავე კითხვას დასვამს.
-* **(ბ)** ცალკე `stats.view` capability გამოიყოს და ეს ექვსი მასზე გადავიდეს.
-  `content.manage` მაშინ მხოლოდ კონტენტს ეხება და წესი #8 ლიტერალურად სრულდება.
-
-**ჩემი რეკომენდაცია: (ბ).** არა იმიტომ, რომ დღეს რამე ჟონავს, არამედ იმიტომ, რომ
-`content.manage` სახელი უკვე ორ სხვადასხვა რამეს ნიშნავს, და capability, რომელიც
-თავის სახელს არ შეესაბამება, ზუსტად ის მექანიზმია, რომლითაც მომდევნო ფაზაზე
-სტატისტიკა ვიღაცას შემთხვევით გაუხსნება.
+მიმდინარე კოდში endpoint-ები ჯერ `requireContentManage`-ითაა დაცული. ცვლილება
+ცალკე implementation commit-ში უნდა გაკეთდეს backend/Angular regression
+ტესტებთან ერთად.
 
 ---
 
@@ -485,12 +513,12 @@ PII არ ჟონავს — ამიტომ ეს არ არის 
 
 | # | gate | ვისგან | სტატუსი |
 |---|---|---|---|
-| G-1 | უფროსის export-ში თანამშრომლის სახელების დაშვება | იურიდიული / DPO | 🔲 ღიაა |
-| G-2 | export-ის statistical სვეტების საბოლოო whitelist | იურიდიული / DPO | 🔲 ღიაა |
+| G-1 | უფროსის export-ში თანამშრომლის სახელების დაშვება | იურიდიული / DPO | 🟡 product target გადაწყვეტილია; DPO validation ღიაა |
+| G-2 | export-ის საბოლოო სვეტების whitelist | იურიდიული / DPO | 🟡 PO-13 allowlist გადაწყვეტილია; DPO validation ღიაა |
 | G-3 | D-1 (leaderboard) — პერსონალური მონაცემის გავრცელება თანაკოლეგებზე | იურიდიული / DPO + product owner | ✅ ჩაკეტილია — endpoint ამოღებულია |
 | G-4 | departments/groups/users stable external ID-ები | Magti IT | 🔲 ღიაა — `QUESTIONS_FOR_IT.md` §2 |
 | G-5 | ჯგუფის ცვლილებების feed და deactivation semantics | Magti IT | 🔲 ღიაა — `QUESTIONS_FOR_IT.md` §2 |
-| G-6 | დანართის ავტორიზაცია (D-4) | Magti IT + product owner | 🔲 ღიაა — `QUESTIONS_FOR_IT.md` §9 |
+| G-6 | დაცული დანართის ინფრასტრუქტურული წინაპირობები | Magti IT | 🔲 ტექნიკური ნაწილი ღიაა — D-4 გადაწყვეტილია; `QUESTIONS_FOR_IT.md` §9 |
 
 G-1…G-3 **product/DPO** gate-ებია და ამ ფაილში ცხოვრობენ; G-4…G-6 IT-ის
 კომპეტენციაა და `QUESTIONS_FOR_IT.md`-ში, რომელსაც მფლობელი IT-სთან ერთად

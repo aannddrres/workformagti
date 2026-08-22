@@ -34,6 +34,13 @@
 - არქიტექტურა ითვალისწინებს დეპარტამენტის ხელმძღვანელსაც, თუმცა პირველი rollout
   მის გარეშე მუშაობს. ხელმძღვანელი ხედავს დეპარტამენტის ყველა ჯგუფის
   სტატისტიკას, ხოლო კონტენტს მხოლოდ დამატებითი permission-ით მართავს.
+- სახელობით content evidence-საც იგივე მარტივი scope-პირამიდა მართავს: ჯგუფის
+  უფროსი ხედავს მხოლოდ საკუთარ ჯგუფს, დეპარტამენტის ხელმძღვანელი — თავისი
+  დეპარტამენტის ყველა ჯგუფს, `SYSTEM_ADMIN` — ყველას. სახელობით სიაში სახელი
+  საკმარისია და email არ შედის; მხოლოდ content permission აგრეგატს იძლევა.
+- ატვირთული სურათი, PDF ან სხვა დანართი მხოლოდ პორტალში ავტორიზებულ
+  თანამშრომელს გაეხსნება; დაკოპირებული `/uploads/<uuid>` URL login-ის გარეშე არ
+  მუშაობს და საჯარო/დაცული ტიპების არჩევანი არ ემატება.
 - ჯგუფის უფროსი სავალდებულო გაცნობის მონაწილე არ არის.
 - ოპერატორს შეიძლება დაემატოს კონტენტის შექმნის permission; default-ად ის
   compliance-ში რჩება, ხოლო სისტემურ ადმინს შეუძლია ეს სტატუსი შეცვალოს.
@@ -41,8 +48,19 @@
   გამოაქვეყნოს მთელი კომპანიისთვის, მათ შორის თუ თვითონ ჯგუფის უფროსია.
 - კონტენტის ავტორს/რედაქტორს შეუძლია სხვისი სტატიის შეცვლა და კატეგორიების
   მართვა; audit ინახავს ვინ, როდის და რა შეცვალა.
-- კონტენტ-ადმინი სტატისტიკას მხოლოდ ჯგუფის უფროსობის assignment-ის არსებობისას
-  ხედავს და მხოლოდ საკუთარ ჯგუფზე.
+- `content.manage` ერთი საერთო უფლებაა: შექმნა, გამოქვეყნება, სხვისი მასალის
+  რედაქტირება და კატეგორიების მართვა ერთად ირთვება; ცალკე permission-ებად არ
+  იყოფა.
+- კომპანიის საერთო აგრეგატულ სტატისტიკას ცალკე `stats.view` უფლება ხსნის;
+  `content.manage` ამ წვდომას ავტომატურად არ იძლევა.
+- თანამშრომლებს შორის პირადი messaging პორტალის ნაწილი არ არის და ძველი
+  endpoint-ები უნდა წაიშალოს. Broadcast რჩება ცალკე საიტის საერთო განცხადებად:
+  ყველა ავტორიზებულ თანამშრომელს მთავარ გვერდსა და პროფილში უჩანს, მაგალითად
+  ოფისის დაკეტვის ან ტექნიკური პრობლემის შესახებ. ის პასიურია, არ იხურება, მაგრამ
+  პორტალის გამოყენებას არ ბლოკავს. აუდიტორია ყოველთვის მთელი კომპანიაა.
+- თანამშრომლის feedback პროდუქტის ნაწილი არ არის. სახელობით ოფიციალურ
+  წაკითხვას ხელმძღვანელი მხოლოდ მოქმედი assignment-ის scope-ში ხედავს; სტატიის
+  უბრალო გახსნა არის SYSTEM_ADMIN-only log და leadership evidence-ში არ შედის.
 - permissions-სა და ხელმძღვანელობის assignment-ებს მხოლოდ სისტემური ადმინი
   მართავს.
 - დროებითი permission-ის expiry არ გვჭირდება; დროებითი უფროსის assignment და
@@ -56,12 +74,19 @@
   სისტემური ადმინი ამ ორგანიზაციულ მონაცემებს ხელით არ ცვლის.
 - UI ტერმინია **„ჯგუფი“**. `All` არის მხოლოდ აუდიტორიის wildcard და არა
   მომხმარებლის ორგანიზაციული ერთეული.
+- პროექტი მომხმარებლისთვის მხოლოდ ქართულ ენაზეა: UI, შეტყობინებები და CSV/Excel
+  export-ის ხილული სათაურები ქართულადაა; ენის არჩევანი არ ემატება. ტექნიკური API
+  field-ები და კოდის identifier-ები შეიძლება ინგლისურად დარჩეს.
 - სისტემურ ადმინს რჩება უპირობო სრული ფუნქციური წვდომა, გარდა AD-ით მართული
   ორგანიზაციული ფაქტების ხელით გადაწერისა.
 - ჯგუფის უფროსის export მოიცავს საკუთარი ჯგუფის წევრების სახელებს და ყველა
   დაშვებულ სტატისტიკურ ფორმას/მაჩვენებელს. raw audit/view/search/session/security
   log-ების export აკრძალულია. სახელების export საჭიროებს production-მდე
   იურიდიულ/DPO დადასტურებას.
+- `SYSTEM_ADMIN`-ის სრული log/data export ცალკე surface-ია: მოიცავს კანონიერად
+  შენახულ audit/search/view/read/quiz/security მონაცემებს, სრულად აუდიტირდება და
+  არასოდეს შეიცავს password/hash/token/session credential/private key/secret-ს.
+  Java/Kubernetes runtime log-ზე წვდომას SIEM-იდან IT/SOC უზრუნველყოფს.
 
 ## 3. მიმდინარე სისტემის დადასტურებული მდგომარეობა
 
@@ -100,10 +125,10 @@ UI-ის დამალვა მონაცემთა უსაფრთ�
    role-ს scope-ის გარეშე აძლევს თანამშრომელთა სახელებსა და სტატისტიკას.
    leadership assignment-ის cutover-მდე non-system-admin წვდომა უნდა დაიკეტოს;
    შემდეგ კი მხოლოდ `ScopeResolver`-ის შედეგით გაიხსნას.
-4. report export-ის კონტრაქტი ჯერ არ კრძალავს ტექნიკურად audit/view/search/
-   session/security log-ების სამომავლო დამატებას. საჭიროა server-side allowlist
-   და ცალკე სისტემურ-ადმინისტრატორული audit-export capability; `SYSTEM_AUDIT`
-   permission report export-ის გაფართოების უფლება არ არის.
+4. ხელმძღვანელის report export server-side allowlist-ით უნდა დარჩეს და ვერ
+   მიიღებს audit/view/search/session/security ველებს. სრული log export კეთდება
+   ცალკე SYSTEM_ADMIN-only endpoint-ებითა და განცალკევებული DTO-ებით;
+   `SYSTEM_AUDIT` ან `REPORTS_EXPORT` ამ წვდომას არ იძლევა.
 5. `teams.name`-ზე არსებული გლობალური unique constraint ეწინააღმდეგება ერთნაირი
    სახელის (მაგ. „ჯგუფი 1“) სხვადასხვა დეპარტამენტში გამოყენებას. შემდეგ Oracle
    migration-ში ის უნდა ჩანაცვლდეს `(department_id, name)` უნიკალურობით და
@@ -290,8 +315,8 @@ UI-ის დამალვა მონაცემთა უსაფრთ�
 1. **Decision/contract lock:** permission/scope matrix, response-shape contracts,
    export allowlist და external production gates. **დასრულებულია** —
    `docs/ACCESS_CONTRACT_MATRIX_KA.md` ფარავს სამივე backend surface-ს
-   (112 endpoint) და მას `AccessContractCoverageTest` აკავშირებს source-თან;
-   7 ღია გადაწყვეტილება (D-1…D-7) და 6 გარე gate (G-1…G-6) იქვეა ჩამოთვლილი.
+   და მას `AccessContractCoverageTest` აკავშირებს source-თან. D-1…D-8
+   გადაწყვეტილია; G-1…G-6 რჩება მხოლოდ production-მდე გარე validation gate-ებად.
    export-ის allowlist-სა და employee-data პასუხების ფორმას აღასრულებს
    `ExportColumnAllowlistTest` და `ResponseShapeContractTest`.
 2. **Schema expand + backfill:** Oracle-compatible `V36`, ნორმალიზებული org
@@ -342,8 +367,9 @@ UI-ის დამალვა მონაცემთა უსაფრთ�
 - content permission არასოდეს იძლევა employee stats/audit/export წვდომას;
 - stats export server-side whitelist-ით უშვებს identity + statistical ველებს და
   კრძალავს raw audit/view/search/session/security log-ებს;
-- audit/log export, თუ მომავალში დაემატა, იქნება ცალკე system-admin-only endpoint,
-  ცალკე capability-ით და report export-ის მოდელებისგან განცალკევებული DTO-ებით;
+- audit/log export არის დამტკიცებული სამიზნე: ცალკე SYSTEM_ADMIN-only endpoint-ები,
+  report export-ის მოდელებისგან განცალკევებული DTO-ები, ცალკე ფაილები და ყოველი
+  export-ის audit. secrets არასოდეს გადის;
 - AD-owned org mutation fail-closed არის;
 - ლიდერის/permission-ის გაუქმება მოქმედებს მომდევნო მოთხოვნიდან, რადგან JWT
   filter მომხმარებლის authorization-ს DB-დან ყოველ request-ზე თავიდან კითხულობს;

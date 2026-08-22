@@ -1,10 +1,17 @@
 # Magti შიდა პორტალი — არქიტექტურის დოკუმენტი
 
+> ⚠️ **Legacy snapshot:** ეს ფაილი აღწერს Python/FastAPI/PostgreSQL არქიტექტურას
+> და აღარ არის მიმდინარე სისტემის source of truth. აქტიური სამიზნეა
+> `angular-frontend/` + `java-backend/` (Angular, Spring Boot, Flyway, Oracle).
+> მიმდინარე გადაწყვეტილებები და ეტაპები იხილეთ
+> `PRODUCT_OWNER_DECISIONS_KA.md`, `ACCESS_CONTRACT_MATRIX_KA.md` და
+> `IMPLEMENTATION_PLAN_KA.md` ფაილებში.
+
 | | |
 |---|---|
 | **დოკუმენტის მფლობელი** | Engineering |
 | **აუდიტორია** | IT დეპარტამენტი / DevOps |
-| **სტატუსი** | Living — მიჰყვება კოდის ცვლილებებს |
+| **სტატუსი** | Legacy snapshot — ისტორიული reference |
 | **სტანდარტი** | სტრუქტურა [arc42](https://arc42.org)-ის მოკლე ვერსიაზეა აგებული, დიაგრამები — [C4 model](https://c4model.com)-ის კონტექსტი/კონტეინერის დონეები |
 | **ბოლო განახლება** | 2026-07-20 |
 

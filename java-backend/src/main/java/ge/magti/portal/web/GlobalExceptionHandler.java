@@ -10,6 +10,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.Map;
 import java.util.UUID;
@@ -94,6 +95,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleInvalidRequestBody(Exception exception) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
                 "detail", "მოთხოვნის მონაცემები არასწორია"));
+    }
+
+    /** Missing API/static routes are ordinary 404s, not unexpected server failures. */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, String>> handleMissingResource(NoResourceFoundException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                "detail", "მისამართი ვერ მოიძებნა"));
     }
 
     @ExceptionHandler(Exception.class)

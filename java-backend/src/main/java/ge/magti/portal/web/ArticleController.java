@@ -69,8 +69,8 @@ import java.util.stream.Collectors;
  * Mirrors routers/articles.py -- core CRUD + lifecycle only (list, get,
  * create, update, autosave, delete, archive, unarchive, bulk-archive). The
  * remaining 23 endpoints (history/diff/restore, quiz, knowledge-score/
- * leaderboard, read-receipts/views, notes/verify/stale/related/deprecated-
- * feedback) are later, separate slices -- this domain is too large to port
+ * leaderboard, read-receipts/views, notes/verify/stale/related) are later,
+ * separate slices -- this domain is too large to port
  * in one HTTP surface the way Videos/Categories were.
  *
  * <p>Same two-gate shape as {@link VideoController}/{@link
@@ -86,8 +86,8 @@ import java.util.stream.Collectors;
  * status=published}), on top of the role gate -- see {@link
  * #requireArticlesEditPermission}'s javadoc for why. Deliberately NOT
  * extended to {@code articles.view}: that would mean threading a permission
- * check through {@code assertArticleVisible}, reused by every note/quiz/
- * feedback child-route in this file (a much larger, harder-to-verify
+ * check through {@code assertArticleVisible}, reused by every note/quiz
+ * child-route in this file (a much larger, harder-to-verify
  * surface than the 4 mutating endpoints this fix actually targets) --
  * left as a known, documented remaining gap rather than widened
  * opportunistically.
@@ -614,24 +614,6 @@ public class ArticleController {
         }
 
         return ResponseEntity.ok(new ArticleBulkArchiveResponse(updated, target, skipped));
-    }
-
-    @PostMapping("/api/articles/{id}/feedback")
-    public ResponseEntity<?> createArticleFeedback(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
-        if (denial != null) {
-            return denial;
-        }
-        return ResponseEntity.status(HttpStatus.GONE).body(Map.of("detail", "ხარვეზის რეპორტირება დეპრეკირებულია"));
-    }
-
-    @GetMapping("/api/admin/feedback")
-    public ResponseEntity<?> getAdminFeedback(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentAdmin(user);
-        if (denial != null) {
-            return denial;
-        }
-        return ResponseEntity.status(HttpStatus.GONE).body(Map.of("detail", "უკუკავშირის ნახვა დეპრეკირებულია"));
     }
 
     @GetMapping("/api/articles/{id}/note")

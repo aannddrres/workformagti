@@ -1,10 +1,16 @@
 # Magti Internal Portal — Production Handover Document
 
+> ⚠️ **DO NOT USE FOR THE NEW PRODUCTION DEPLOYMENT.** This document describes
+> the legacy FastAPI/PostgreSQL service. The active target is Angular + Spring
+> Boot + Flyway + Oracle under `angular-frontend/` and `java-backend/`. A new
+> production handover must be produced after the IT discovery answers and the
+> implementation gates in `IMPLEMENTATION_PLAN_KA.md` are complete.
+
 | | |
 |---|---|
 | **Document Owner** | Engineering Team |
 | **Audience** | Enterprise IT / DevOps |
-| **Status** | Pre-Production Handover |
+| **Status** | Legacy snapshot — not deployable as the target portal |
 | **Last Updated** | 2026-07-19 |
 
 > ⚠️ **Read [Section 7 — Outstanding Risks Before Go-Live](#7-outstanding-risks-before-go-live) before deploying.** Several items in the current `docker-compose.yml` are development-grade defaults that **must** be remediated prior to any production cutover.

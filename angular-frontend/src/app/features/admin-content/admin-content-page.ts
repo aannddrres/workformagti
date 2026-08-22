@@ -23,12 +23,8 @@ const STATUS_BADGE: Record<string, string> = {
 
 /**
  * Port of #admin-content (base-layout.html:1758-2089) -- the largest of the
- * admin screens. 4 sub-tabs in Python (Articles/News/Videos/Feedback); the
- * Feedback tab is deliberately NOT ported here -- both its endpoints
- * (POST .../feedback, GET /api/admin/feedback) return a hard 410 Gone on
- * both the live Python app and this Java backend (never built), so the tab
- * has been permanently non-functional in production; user sign-off to drop
- * it rather than port a dead screen.
+ * admin screens. The old Python screen had a Feedback tab; feedback is not a
+ * product feature in the Angular/Java portal and neither UI nor API is exposed.
  *
  * <p>Articles table: fetch-everything-then-paginate-client-side (mirrors
  * fetchAndRenderAdminContent's `limit=1000` + renderArticlePage), search +

@@ -1,5 +1,12 @@
 # AI Context: Magti Internal Portal
 
+> ⚠️ **Legacy context:** most of this file describes the old Python/FastAPI
+> application. The active implementation is Angular in `angular-frontend/` and
+> Spring Boot/Flyway/Oracle in `java-backend/`. For current decisions use
+> `docs/PRODUCT_OWNER_DECISIONS_KA.md`, `docs/ACCESS_CONTRACT_MATRIX_KA.md` and
+> `docs/IMPLEMENTATION_PLAN_KA.md`. Do not infer current behavior from Python
+> route descriptions below.
+
 > **This file was previously stale and self-contradictory** — it described a
 > `main.py` → `app/routers/*.py` extraction as successfully completed. That
 > extraction was rolled back (see git history); `main.py` is the single
@@ -9,8 +16,9 @@
 > 2026-07-11 after a full code audit (`docs/CODE_AUDIT_2026-07-11.md`) — see
 > that document for the current, detailed state of the codebase.
 
-**Read `CLAUDE.md` first** — it's the authoritative, checked-in source for
-stack, architecture, and rules. `.agents/AGENTS.md` documents a few specific
+**Read `CLAUDE.md` first for repository working rules**, then use the current
+decision/contract documents named above for product and architecture facts.
+`.agents/AGENTS.md` documents a few specific
 behavioral constraints (monolith-only, health-check semantics, real-time
 broadcast rules) that remain accurate. This file only adds a couple of
 still-useful engineering notes that don't live elsewhere.

@@ -70,8 +70,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * infrastructure as {@link VideoControllerIntegrationTest}/{@link
  * CategoryControllerIntegrationTest}. Covers core CRUD + lifecycle
  * (list/get/create/update/autosave/delete/archive/unarchive/bulk-archive)
- * and the small standalone endpoints (deprecated feedback stubs, notes,
- * verify, stale report, related); history/diff/restore, quiz (its own
+ * and the small standalone endpoints (notes, verify, stale report, related);
+ * history/diff/restore, quiz (its own
  * {@link QuizControllerIntegrationTest}), and read-receipts/views are
  * later slices with their own tests.
  */
@@ -850,25 +850,16 @@ class ArticleControllerIntegrationTest {
                 .andExpect(status().isForbidden());
     }
 
-    // ── deprecated feedback stubs ─────────────────────────────────────
-
     @Test
-    void feedbackEndpointsAreGoneButStillGateOnAuth() throws Exception {
-        mockMvc.perform(post("/api/articles/1/feedback"))
-                .andExpect(status().isUnauthorized());
-
+    void removedFeedbackEndpointsAreNotExposed() throws Exception {
         User operator = createUser("aa20@magti.ge", Role.OPERATOR, "All");
+        User contentAdmin = createUser("aa21@magti.ge", Role.CONTENT_ADMIN, "All");
+
         mockMvc.perform(authed(post("/api/articles/1/feedback"), tokenFor(operator)))
-                .andExpect(status().isGone())
-                .andExpect(jsonPath("$.detail").value("ხარვეზის რეპორტირება დეპრეკირებულია"));
+                .andExpect(status().isNotFound());
 
-        mockMvc.perform(authed(get("/api/admin/feedback"), tokenFor(operator)))
-                .andExpect(status().isForbidden());
-
-        User admin = createUser("aa21@magti.ge", Role.CONTENT_ADMIN, "All");
-        mockMvc.perform(authed(get("/api/admin/feedback"), tokenFor(admin)))
-                .andExpect(status().isGone())
-                .andExpect(jsonPath("$.detail").value("უკუკავშირის ნახვა დეპრეკირებულია"));
+        mockMvc.perform(authed(get("/api/admin/feedback"), tokenFor(contentAdmin)))
+                .andExpect(status().isNotFound());
     }
 
     // ── notes ─────────────────────────────────────────────────────────

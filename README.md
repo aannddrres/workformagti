@@ -1,5 +1,13 @@
 # Magti Call Center Portal — Developer Handoff Guide
 
+> ⚠️ **Legacy guide:** this file mainly describes the retired Python/FastAPI +
+> PostgreSQL implementation. The active target and primary implementation are
+> `angular-frontend/` + `java-backend/` (Angular, Spring Boot, Flyway, Oracle).
+> Do not use the Python setup below for new production work. Current product
+> decisions live in `docs/PRODUCT_OWNER_DECISIONS_KA.md`; current access rules
+> live in `docs/ACCESS_CONTRACT_MATRIX_KA.md`. A full README rewrite is tracked
+> in `docs/IMPLEMENTATION_PLAN_KA.md`.
+
 Welcome to the Magti Call Center Portal! This repository contains a fully functional, lightweight, secure, and performant knowledge management and compliance tracking system designed for call center environments.
 
 This guide provides a comprehensive overview of the architecture, data models, Role-Based Access Control (RBAC) rules, and local setup steps required for a seamless onboarding experience.
@@ -16,8 +24,8 @@ prevent.
 | Doc | Kind | Audience |
 |---|---|---|
 | [`CLAUDE.md`](CLAUDE.md) | **Authoritative rules — read first** | Anyone (human or AI) making a change |
-| `README.md` (this file) | Living — architecture + local setup | Developers |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Living — system architecture (arc42-lite + C4 diagrams): why it's built this way, not how to run it | IT / Engineering, architecture-level questions |
+| `README.md` (this file) | **Legacy Python** architecture + local setup | Developers maintaining the temporary legacy service |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | **Legacy Python snapshot** (arc42-lite + C4 diagrams) | Historical reference only |
 | [`docs/admin-guide.md`](docs/admin-guide.md) | Living — day-to-day operations | Content/system admins, not developers |
 | [`docs/SEED_GUIDE.md`](docs/SEED_GUIDE.md), [`TEST_LOGINS.md`](TEST_LOGINS.md) | Living — quick reference | Anyone seeding/testing locally |
 | [`docs/PRODUCTION_HANDOVER.md`](docs/PRODUCTION_HANDOVER.md) | Living — read before any real deploy | DevOps / whoever hosts this for real |

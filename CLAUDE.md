@@ -1,10 +1,14 @@
 # Magti Portal — Internal Call Center Portal
 
-> NOTE: Despite earlier assumptions of "frontend only", this repo is a **full
-> FastAPI backend + server-rendered templates**, not a static front end. The
-> notes below reflect the actual code.
+> ⚠️ **Stack transition notice (2026-08-22):** the active target and primary
+> implementation are `angular-frontend/` + `java-backend/` — Angular, Spring
+> Boot, Flyway and Oracle. The FastAPI/PostgreSQL/template material below is a
+> legacy snapshot kept for the 30-day read-only cutover window and historical
+> comparison. New production behavior must follow
+> `docs/PRODUCT_OWNER_DECISIONS_KA.md`, `docs/ACCESS_CONTRACT_MATRIX_KA.md` and
+> `docs/IMPLEMENTATION_PLAN_KA.md`.
 
-## Stack
+## Legacy Python stack (historical; not the target architecture)
 - **Backend:** FastAPI + Uvicorn (local dev) / Gunicorn 4 workers (Docker prod)
 - **ORM:** SQLAlchemy (`models.py`); **validation:** Pydantic v2 (`schemas.py`, `pydantic[email]`)
 - **Auth:** JWT via python-jose + passlib + `bcrypt==4.0.1` (`security.py`)
