@@ -1,6 +1,10 @@
 package ge.magti.portal.web;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import ge.magti.portal.domain.Permission;
+import ge.magti.portal.domain.Role;
+import ge.magti.portal.domain.User;
+import ge.magti.portal.domain.UserPermissionOverride;
 import ge.magti.portal.stats.CriticalOperator;
 import ge.magti.portal.stats.DepartmentGroupStats;
 import ge.magti.portal.stats.DepartmentMember;
@@ -11,7 +15,9 @@ import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.RecordComponent;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -146,5 +152,69 @@ class ResponseShapeContractTest {
     @Test
     void groupLeaderRowsCarryNoContactDetails() {
         assertEquals(List.of("id", "name"), wireFieldsOf(GroupLeaderResponse.class));
+    }
+
+    // ---- the two user responses (Phase 6) --------------------------------
+
+    /**
+     * These two were the gap: both carry employee identity and both grew two
+     * fields at the Phase 6 cutover without anything in the build asking who
+     * may see them.
+     */
+    @Test
+    void theUserResponsesCarryIdentityProgressAndPermissionStateOnly() {
+        assertEquals(
+                List.of("id", "email", "name", "department", "position", "phone", "role", "team_id",
+                        "is_active", "last_active", "read_count", "required_count", "progress_percentage",
+                        "card_style", "permissions", "permission_overrides", "lock_version"),
+                wireFieldsOf(UserResponse.class));
+        assertEquals(
+                List.of("id", "email", "name", "department", "position", "phone", "role", "team_id",
+                        "is_active", "last_active", "read_count", "required_count", "progress_percentage",
+                        "card_style", "permissions", "can_view_audit_log"),
+                wireFieldsOf(CurrentUserResponse.class));
+        assertEquals(List.of("permission", "state"), wireFieldsOf(PermissionOverrideResponse.class));
+    }
+
+    /**
+     * {@code permissions} must be what the gates answer, not what
+     * {@code users.permissions} still holds.
+     *
+     * <p>Since the cutover the two diverge silently: a role change leaves the
+     * old role's rows behind, and an explicit ALLOW is never written there at
+     * all. Both directions are checked, because a permission screen that
+     * over-reports is a support ticket and one that under-reports is an
+     * administrator granting the same thing twice.
+     */
+    @Test
+    void theUserResponsePermissionListIsTheEffectiveOneNotTheStoredColumn() {
+        User operator = new User();
+        operator.setId(1L);
+        operator.setRole(Role.OPERATOR);
+        operator.setActive(true);
+        operator.setPermissions(new LinkedHashSet<>(List.of("articles.edit")));
+
+        UserPermissionOverride allow = new UserPermissionOverride();
+        allow.setPermission("content.manage");
+        allow.setState(UserPermissionOverride.State.ALLOW);
+
+        UserResponse response = UserResponse.from(operator, List.of(allow));
+
+        assertEquals(List.of("content.manage"), response.permissions());
+        assertEquals(1, response.permissionOverrides().size());
+    }
+
+    @Test
+    void theCurrentUserResponseShipsTheSetItIsGivenRatherThanTheStoredColumn() {
+        User admin = new User();
+        admin.setId(2L);
+        admin.setRole(Role.CONTENT_ADMIN);
+        admin.setActive(true);
+        admin.setPermissions(new LinkedHashSet<>(List.of("reports.export")));
+
+        CurrentUserResponse response =
+                CurrentUserResponse.from(admin, false, Set.of(Permission.CONTENT_MANAGE));
+
+        assertEquals(List.of("content.manage"), response.permissions());
     }
 }

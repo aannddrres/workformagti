@@ -12,11 +12,32 @@ import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    /** Immediate compare-and-swap used by the permission delta endpoint. */
+    /** Compare-and-swap used only when permission changes do not dirty the User row. */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE User u SET u.lockVersion = u.lockVersion + 1 "
             + "WHERE u.id = :userId AND u.lockVersion = :expected")
     int advanceLockVersion(@Param("userId") Long userId, @Param("expected") long expected);
+
+    /**
+     * Revokes every token already issued to this user, without consulting
+     * {@code lock_version}.
+     *
+     * <p>Phase 6 mapped {@code lock_version} as {@code @Version}, which turns
+     * optimistic locking on for every {@code save(User)} in the application --
+     * SEC-14's revocation paths included. {@code POST /api/auth/logout} saves
+     * the detached {@code @AuthenticationPrincipal}, whose version was read by
+     * {@code JwtAuthenticationFilter} at the start of the request; anything
+     * that touches the same row inside that window turns the logout into a
+     * 409 and leaves the token alive for the rest of its hour.
+     *
+     * <p>Revoking a token is not a write that may lose a race. It is
+     * monotonic -- a second increment is harmless, a skipped one is a live
+     * session someone believes they closed -- so it deliberately does not
+     * take part in the optimistic-lock compare-and-swap above.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE User u SET u.tokenVersion = u.tokenVersion + 1 WHERE u.id = :userId")
+    int revokeIssuedTokens(@Param("userId") Long userId);
 
     /** Case-sensitive -- mirrors get_current_user's exact-match lookup (security.py:299). */
     Optional<User> findByEmail(String email);

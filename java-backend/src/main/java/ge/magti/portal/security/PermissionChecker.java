@@ -6,6 +6,9 @@ import ge.magti.portal.domain.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.EnumSet;
+import java.util.Set;
+
 /**
  * Mirrors security.py's {@code role_has_permission} (security.py:408-443),
  * simplified per the 2026-07-30 RBAC-catalog decision (migration doc §5,
@@ -81,5 +84,33 @@ public class PermissionChecker {
         // DB-free legacy unit tests construct this service directly. The
         // Spring application always injects CapabilityService above.
         return user.hasPermission(permission);
+    }
+
+    /**
+     * The same answer as {@link #hasPermission} for every permission at once,
+     * for the responses that ship a permission list to the frontend.
+     *
+     * <p>Kept here rather than making callers inject {@link CapabilityService}
+     * directly, so that "what does this user hold" has exactly one answer and
+     * the null-capability fallback above cannot be forgotten by a second
+     * caller.
+     */
+    public Set<Permission> effectivePermissions(User user) {
+        if (user == null) {
+            return Set.of();
+        }
+        if (capabilityService != null) {
+            return capabilityService.effectivePermissions(user);
+        }
+        if (user.getRole() == Role.SYSTEM_ADMIN) {
+            return EnumSet.allOf(Permission.class);
+        }
+        EnumSet<Permission> legacy = EnumSet.noneOf(Permission.class);
+        for (Permission permission : Permission.values()) {
+            if (user.hasPermission(permission)) {
+                legacy.add(permission);
+            }
+        }
+        return legacy;
     }
 }

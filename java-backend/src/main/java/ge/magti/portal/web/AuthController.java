@@ -144,8 +144,11 @@ public class AuthController {
     public ResponseEntity<Map<String, String>> logout(
             @AuthenticationPrincipal User user, HttpServletResponse httpResponse) {
         if (user != null) {
-            user.invalidateIssuedTokens();
-            userRepository.save(user);
+            // Not save(user): the principal is detached and Phase 6 made
+            // User.lockVersion an @Version, so a concurrent edit to the same
+            // row would answer a logout with 409 and leave the token valid.
+            // See UserRepository.revokeIssuedTokens.
+            userRepository.revokeIssuedTokens(user.getId());
         }
         ResponseCookie cleared = ResponseCookie.from("access_token", "")
                 .httpOnly(true)

@@ -24,6 +24,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -74,6 +75,8 @@ class UserControllerIntegrationTest {
     private JwtService jwtService;
     @Autowired
     private PasswordEncoder passwordEncoder;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -563,11 +566,13 @@ class UserControllerIntegrationTest {
     void profileRoleAndPermissionDeltasCommitAtomicallyAgainstTheOriginalLock() throws Exception {
         User admin = createUser("atomic-profile-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
         User target = createUser("atomic-profile-target@magti.ge", Role.OPERATOR, "All");
+        long lockBefore = jdbcTemplate.queryForObject(
+                "SELECT lock_version FROM users WHERE id = ?", Long.class, target.getId());
 
         String updated = mockMvc.perform(authed(put("/api/users/" + target.getId()), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"role\":\"manager\",\"department\":\"Technical\","
-                                + "\"position\":\"Lead\",\"lock_version\":0,\"overrides\":["
+                                + "\"position\":\"Lead\",\"lock_version\":" + lockBefore + ",\"overrides\":["
                                 + "{\"permission\":\"content.manage\",\"state\":\"ALLOW\"}]}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.role").value("manager"))
@@ -576,16 +581,19 @@ class UserControllerIntegrationTest {
                 .andReturn().getResponse().getContentAsString();
 
         long responseLock = objectMapper.readTree(updated).get("lock_version").asLong();
+        long lockAfter = jdbcTemplate.queryForObject(
+                "SELECT lock_version FROM users WHERE id = ?", Long.class, target.getId());
         User reloaded = userRepository.findById(target.getId()).orElseThrow();
         assertEquals(Role.MANAGER, reloaded.getRole());
         assertEquals("Lead", reloaded.getPosition());
         assertEquals(responseLock, reloaded.getLockVersion(), "response must carry the committed JPA version");
-        assertTrue(responseLock > 0);
+        assertEquals(lockBefore + 1, lockAfter, "one successful atomic PUT must advance lock_version exactly once");
+        assertEquals(lockAfter, responseLock, "response must carry the exact version stored by Oracle");
 
         mockMvc.perform(authed(put("/api/users/" + target.getId()), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"role\":\"operator\",\"department\":\"Office\","
-                                + "\"position\":\"Stale\",\"lock_version\":0,\"overrides\":["
+                                + "\"position\":\"Stale\",\"lock_version\":" + lockBefore + ",\"overrides\":["
                                 + "{\"permission\":\"content.manage\",\"state\":\"DENY\"}]}"))
                 .andExpect(status().isConflict());
 

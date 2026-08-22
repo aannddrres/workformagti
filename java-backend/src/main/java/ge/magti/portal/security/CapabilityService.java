@@ -7,7 +7,9 @@ import ge.magti.portal.domain.UserPermissionOverride;
 import ge.magti.portal.repository.UserPermissionOverrideRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * The central "what may this caller do" check (plan §5.4), computed from the
@@ -63,6 +65,52 @@ public class CapabilityService {
             return true;
         }
         return resolve(user, permission, overrideRepository.findByUserId(user.getId()));
+    }
+
+    /**
+     * Every permission this user actually holds, resolved the same way a gate
+     * resolves one.
+     *
+     * <p>Exists because {@code users.permissions} stopped deciding anything at
+     * the Phase 6 cutover but is still what {@code /api/users/me} and the
+     * admin user list ship to the frontend. A list that no longer matches the
+     * rules in force is worse than no list: it tells someone they hold a
+     * permission that has been denied them, or hides one they were granted.
+     *
+     * <p>One query rather than one per permission -- this is on the SPA's
+     * bootstrap path.
+     */
+    public Set<Permission> effectivePermissions(User user) {
+        if (user == null) {
+            return Set.of();
+        }
+        if (user.getRole() == Role.SYSTEM_ADMIN) {
+            // Truthful rather than tidy: hasCapability short-circuits to true
+            // for this role, so anything less would understate it.
+            return EnumSet.allOf(Permission.class);
+        }
+        return effectivePermissions(user, overrideRepository.findByUserId(user.getId()));
+    }
+
+    /**
+     * The same set with the overrides already in hand, for callers rendering a
+     * page of users that batch-loaded them -- {@code GET /api/users} would
+     * otherwise issue one query per row.
+     */
+    public static Set<Permission> effectivePermissions(User user, List<UserPermissionOverride> overrides) {
+        if (user == null) {
+            return Set.of();
+        }
+        if (user.getRole() == Role.SYSTEM_ADMIN) {
+            return EnumSet.allOf(Permission.class);
+        }
+        EnumSet<Permission> effective = EnumSet.noneOf(Permission.class);
+        for (Permission permission : Permission.values()) {
+            if (resolve(user, permission, overrides)) {
+                effective.add(permission);
+            }
+        }
+        return effective;
     }
 
     /**
