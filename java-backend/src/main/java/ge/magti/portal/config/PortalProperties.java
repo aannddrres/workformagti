@@ -76,7 +76,17 @@ public class PortalProperties {
 	 *
 	 * <p>Both switches deliberately default to the legacy behaviour and are
 	 * independent so one policy can be rolled back without moving the other.
-	 * Phase 9A only binds these values; no decision call site reads them yet.
+	 *
+	 * <p>{@code leadershipScopeEnabled} is wired: {@code ScopeResolver.decide}
+	 * reads it, and with it on, scoped statistics and exports are answered from
+	 * leadership assignments instead of the department string. Enabling it
+	 * against a database with no assignments would close access for everyone at
+	 * once, so {@link LeadershipRolloutGuard} refuses to boot that combination.
+	 *
+	 * <p>{@code complianceEligibilityEnabled} is still measurement only --
+	 * {@code ComplianceEligibilityService.shadowCompare} records the difference
+	 * and keeps serving the legacy answer. Phase 5 wires it, separately and on
+	 * its own evidence.
 	 */
 	public static class Rollout {
 		private boolean leadershipScopeEnabled = false;

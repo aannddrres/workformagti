@@ -43,7 +43,9 @@ class PolicyLayerTest {
     private final UserPermissionOverrideRepository overrides = mock(UserPermissionOverrideRepository.class);
     private final PolicyShadowRecorder recorder = new PolicyShadowRecorder();
 
-    private final ScopeResolver scopeResolver = new ScopeResolver(assignments, teams, recorder);
+    private final PortalProperties properties = new PortalProperties();
+    private final ScopeResolver scopeResolver =
+            new ScopeResolver(assignments, teams, recorder, properties);
     private final CapabilityService capabilities = new CapabilityService(overrides, recorder);
     private final ComplianceEligibilityService eligibility =
             new ComplianceEligibilityService(assignments, recorder);
@@ -261,16 +263,16 @@ class PolicyLayerTest {
     // ---- the shadow harness ----------------------------------------------
 
     /**
-     * The property that makes shadow mode safe: the caller always receives the
-     * legacy answer, however loudly the new rule disagrees.
+     * With the switch off -- the default -- the caller receives the legacy
+     * answer however loudly the new rule disagrees.
      */
     @Test
-    void shadowComparisonNeverChangesTheAnswerItReturns() {
+    void withTheSwitchOffTheLegacyAnswerIsServedAndTheDifferenceIsRecorded() {
         when(assignments.findByUserIdAndActiveTrue(1L)).thenReturn(List.of());
         User manager = user(1L, Role.MANAGER);
         List<User> legacy = List.of(member(2L, 10L));
 
-        List<User> served = scopeResolver.shadowCompare("scope.test", manager, legacy, legacy);
+        List<User> served = scopeResolver.decide("scope.test", manager, legacy, legacy);
 
         assertEquals(legacy, served);
         assertEquals(1, recorder.snapshot().get("scope.test").disagreed(),
@@ -282,7 +284,7 @@ class PolicyLayerTest {
         when(assignments.findByUserIdAndActiveTrue(1L)).thenReturn(List.of(leads(1L, 10L, null)));
         List<User> both = List.of(member(2L, 10L));
 
-        scopeResolver.shadowCompare("scope.agreeing", user(1L, Role.MANAGER), both, both);
+        scopeResolver.decide("scope.agreeing", user(1L, Role.MANAGER), both, both);
 
         PolicyShadowRecorder.Counts counts = recorder.snapshot().get("scope.agreeing");
         assertEquals(new PolicyShadowRecorder.Counts(1, 0), counts);
@@ -291,33 +293,90 @@ class PolicyLayerTest {
                 "zero of both is unexercised, which is not the same as clean");
     }
 
-    /** A measurement must not be able to take down the request it measures. */
+    /** A resolver failure must not be able to take down the request it scopes. */
     @Test
-    void aFailingShadowComparisonStillServesTheLegacyAnswer() {
+    void aFailingComparisonStillServesTheLegacyAnswer() {
         when(assignments.findByUserIdAndActiveTrue(any()))
                 .thenThrow(new IllegalStateException("repository is down"));
         List<User> legacy = List.of(member(2L, 10L));
 
-        List<User> served = scopeResolver.shadowCompare("scope.broken", user(1L, Role.MANAGER), legacy, legacy);
+        List<User> served = scopeResolver.decide("scope.broken", user(1L, Role.MANAGER), legacy, legacy);
 
         assertEquals(legacy, served);
         assertEquals(1, recorder.snapshot().get("scope.broken.error").disagreed());
     }
 
-    /** Phase 9A installs switches, but Phase 4/5 alone may wire them into enforcement. */
+    /** The switch is the only thing that decides which rule is served. */
     @Test
-    void rolloutSwitchValuesDoNotChangeEitherShadowReturnValue() {
-        when(assignments.findByUserIdAndActiveTrue(1L)).thenReturn(List.of());
+    void theSwitchSelectsWhichRuleAnswers() {
+        when(assignments.findByUserIdAndActiveTrue(1L)).thenReturn(List.of(leads(1L, 10L, null)));
         User manager = user(1L, Role.MANAGER);
-        List<User> legacyScope = List.of(member(2L, 10L));
+        User ownGroup = member(2L, 10L);
+        User otherGroup = member(3L, 99L);
+        List<User> candidates = List.of(ownGroup, otherGroup);
+        List<User> legacyAnswer = List.of(ownGroup, otherGroup);  // the department string was wider
 
+        properties.getRollout().setLeadershipScopeEnabled(false);
+        assertEquals(legacyAnswer, scopeResolver.decide("scope.off", manager, candidates, legacyAnswer));
+
+        properties.getRollout().setLeadershipScopeEnabled(true);
+        assertEquals(List.of(ownGroup), scopeResolver.decide("scope.on", manager, candidates, legacyAnswer),
+                "enforcing, the caller sees only the group they actually lead");
+    }
+
+    /**
+     * The case that makes this switch dangerous, asserted rather than implied:
+     * enforcing against a database with no backfill closes access completely.
+     * LeadershipRolloutGuard exists because of exactly this behaviour.
+     */
+    @Test
+    void enforcingWithoutAnyAssignmentReadsNobody() {
+        when(assignments.findByUserIdAndActiveTrue(1L)).thenReturn(List.of());
+        properties.getRollout().setLeadershipScopeEnabled(true);
+        List<User> everyone = List.of(member(2L, 10L), member(3L, 11L));
+
+        assertEquals(List.of(), scopeResolver.decide("scope.unbackfilled", user(1L, Role.MANAGER), everyone, everyone));
+    }
+
+    /** Enforcing does not change who is unscoped: still SYSTEM_ADMIN and nobody else. */
+    @Test
+    void enforcingLeavesTheSystemAdminUnscoped() {
+        properties.getRollout().setLeadershipScopeEnabled(true);
+        List<User> everyone = List.of(member(2L, 10L), member(3L, 11L));
+
+        assertEquals(everyone,
+                scopeResolver.decide("scope.admin", user(1L, Role.SYSTEM_ADMIN), everyone, everyone));
+    }
+
+    /** Both rules are counted after the cutover too -- that is what a rollback decision reads. */
+    @Test
+    void theComparisonIsRecordedWhileEnforcingAsWell() {
+        when(assignments.findByUserIdAndActiveTrue(1L)).thenReturn(List.of());
+        properties.getRollout().setLeadershipScopeEnabled(true);
+        List<User> legacy = List.of(member(2L, 10L));
+
+        scopeResolver.decide("scope.recorded", user(1L, Role.MANAGER), legacy, legacy);
+
+        assertEquals(1, recorder.snapshot().get("scope.recorded").disagreed());
+    }
+
+    /** A resolver failure while enforcing serves the legacy answer, and is counted. */
+    @Test
+    void aFailureWhileEnforcingFallsBackToTheLegacyAnswer() {
+        when(assignments.findByUserIdAndActiveTrue(any()))
+                .thenThrow(new IllegalStateException("repository is down"));
+        properties.getRollout().setLeadershipScopeEnabled(true);
+        List<User> legacy = List.of(member(2L, 10L));
+
+        assertEquals(legacy, scopeResolver.decide("scope.enforcing-broken", user(1L, Role.MANAGER), legacy, legacy));
+        assertEquals(1, recorder.snapshot().get("scope.enforcing-broken.error").disagreed());
+    }
+
+    /** The compliance switch is a separate policy and is still measurement only. */
+    @Test
+    void theComplianceSwitchDoesNotDecideAnythingYet() {
         for (boolean enabled : List.of(false, true)) {
-            PortalProperties properties = new PortalProperties();
-            properties.getRollout().setLeadershipScopeEnabled(enabled);
             properties.getRollout().setComplianceEligibilityEnabled(enabled);
-
-            assertEquals(legacyScope,
-                    scopeResolver.shadowCompare("scope.flag." + enabled, manager, legacyScope, legacyScope));
             assertTrue(eligibility.shadowCompare(user(1L, Role.OPERATOR), true));
         }
     }

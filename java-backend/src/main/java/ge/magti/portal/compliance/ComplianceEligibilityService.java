@@ -98,7 +98,7 @@ public class ComplianceEligibilityService {
 
     /**
      * Records what this service would answer and returns the legacy answer
-     * unchanged -- see {@code ScopeResolver.shadowCompare} for the reasoning
+     * unchanged -- see {@code ScopeResolver.decide} for the reasoning
      * behind the return value.
      */
     public boolean shadowCompare(User user, boolean legacy) {

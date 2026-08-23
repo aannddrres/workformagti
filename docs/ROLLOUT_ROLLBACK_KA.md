@@ -1,7 +1,8 @@
 # Phase 4/5 rollout-ის rollback
 
-**სტატუსი:** Phase 9A ინფრასტრუქტურა — გადამრთველები დამატებულია, enforcement ჯერ shadow mode-შია
-**განახლებულია:** 2026-08-22
+**სტატუსი:** `ROLLOUT_LEADERSHIP_SCOPE` **მიერთებულია enforcement-თან**
+(default `false`); `ROLLOUT_COMPLIANCE_ELIGIBILITY` კვლავ shadow mode-შია
+**განახლებულია:** 2026-08-23
 
 ## გადამრთველები
 
@@ -15,9 +16,42 @@
 პირიქით. მნიშვნელობა startup-ზე იკითხება, ამიტომ env-ის ცვლილების შემდეგ
 application instance-ები ჩვეულებრივი rollout/restart-ით უნდა განახლდეს.
 
-> Phase 9A-ში flags მხოლოდ configuration-ად არსებობს. არცერთი
-> `shadowCompare` call site მათ ჯერ არ კითხულობს და `true` დღესაც legacy პასუხს
-> აბრუნებს. enforcement-ის wiring მხოლოდ Phase 4/5-ის gated დავალებაა.
+### რა შეიცვალა 2026-08-23-ს
+
+`ROLLOUT_LEADERSHIP_SCOPE` აღარ არის მხოლოდ კონფიგურაცია. `ScopeResolver.decide`
+კითხულობს მას ოთხივე scope-გადაწყვეტილების წერტილში:
+
+| decision | endpoint |
+|---|---|
+| `scope.team-stats` | `GET /api/manager/team-stats` |
+| `scope.department-stats` | `GET /api/manager/department-stats` |
+| `scope.critical-operators` | `GET /api/admin/critical-operators` |
+| `scope.export` | compliance/reading export-ები |
+
+- `false` (default) — ძველი `ManagerScope` (დეპარტამენტის ტექსტი);
+- `true` — `ScopeResolver` (leadership assignment-ები).
+
+**ორივე შემთხვევაში შედარება ჩაიწერება.** ეს განზრახაა: cutover-ის შემდეგაც
+ვხედავთ, რას აჩვენებდა ძველი წესი — სწორედ ეს არის rollback-ის გადაწყვეტილების
+მტკიცებულება, და არა შეგრძნება.
+
+`ROLLOUT_COMPLIANCE_ELIGIBILITY` კვლავ **მხოლოდ იზომება** — Phase 5 მას ცალკე,
+საკუთარი მტკიცებულებით ჩართავს.
+
+### ⚠️ ჩართვის წინაპირობა — backfill
+
+scope მოდის `leadership_assignments`-იდან. თუ backfill არ გაშვებულა,
+**ყოველი არა-ადმინი ვერავის ხედავს**: მენეჯერის ყველა ეკრანი და ყველა export
+ერთდროულად ცარიელდება — შეცდომის გარეშე, წარმატებული პასუხით. სიმპტომი
+მონაცემების დაკარგვას ჰგავს და ისე იქნებოდა გამოძიებული.
+
+ამიტომ `LeadershipRolloutGuard` **არ უშვებს აპლიკაციას**, თუ flag ჩართულია და
+`leadership_assignments`-ში ერთი აქტიური ჩანაწერიც არ არის.
+
+მაგრამ guard მხოლოდ უხეშ შემთხვევას იჭერს — 3 assignment 30 ჯგუფზე მას
+გაივლის და მაინც 27 ჯგუფს დაუკეტავს წვდომას. **ნამდვილი gate არის**
+`GET /api/admin/access-diff` — per-user ანგარიში, რომელიც ჩამოთვლის ვინ რას
+დაკარგავს და ვინ რას მოიპოვებს. ის **ადამიანმა უნდა წაიკითხოს** ჩართვამდე.
 
 ## ქცევის rollback-ის პროცედურა
 

@@ -135,7 +135,7 @@ public class CapabilityService {
 
     /**
      * Records what this service would answer and returns the legacy answer
-     * unchanged. See {@link ScopeResolver#shadowCompare} for why this returns
+     * unchanged. See {@link ScopeResolver#decide} for why this returns
      * the legacy value rather than {@code void}.
      */
     public boolean shadowCompare(String decision, User user, Permission permission, boolean legacy) {

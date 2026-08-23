@@ -139,9 +139,10 @@ public class ExportQueryService {
         List<User> active = userRepository.findByActiveTrue();
         List<User> visible = ManagerScope.visibleActiveUsers(active, caller);
         if (scopeResolver != null) {
-            // Phase 3: measures what leadership-backed scoping would export,
-            // and keeps serving the department-string answer.
-            visible = scopeResolver.shadowCompare("scope.export", caller, active, visible);
+            // Serves whichever rule the rollout switch selects, and records the
+            // other one either way. An export is the widest read in the app, so
+            // it moves with the same switch as the screens rather than on its own.
+            visible = scopeResolver.decide("scope.export", caller, active, visible);
         }
         List<Long> ids = visible.stream().map(User::getId).toList();
         return complianceQueryService.computeCompliance(ids, null);

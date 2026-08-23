@@ -4,6 +4,7 @@ import ge.magti.portal.domain.LeadershipAssignment;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.Team;
 import ge.magti.portal.domain.User;
+import ge.magti.portal.config.PortalProperties;
 import ge.magti.portal.repository.LeadershipAssignmentRepository;
 import ge.magti.portal.repository.TeamRepository;
 import org.springframework.stereotype.Service;
@@ -37,12 +38,21 @@ import java.util.Set;
  * fail-closed only behaves well if somebody has looked at the list of people
  * it will close on.
  *
- * <h2>Shadow mode</h2>
+ * <h2>Enforcement is a switch, and the switch has a precondition</h2>
  *
- * Nothing enforces this yet. {@link #shadowCompare} exists so the call sites
- * that still run {@link ManagerScope} can record what would have changed,
- * which is what Phase 4 needs to cut over on evidence instead of on
- * confidence.
+ * {@link #decide} serves the leadership answer when
+ * {@code ROLLOUT_LEADERSHIP_SCOPE} is on and the {@link ManagerScope} answer
+ * when it is off, and records the comparison either way. The flag defaults to
+ * off.
+ *
+ * <p>Turning it on against a database whose Phase 2 backfill has not run is a
+ * company-wide access outage, not a partial one: scope comes from
+ * {@code leadership_assignments} and {@code users.team_id}, so with no
+ * assignments every non-admin resolves to {@link Scope#none()} and every
+ * manager screen goes empty at once. {@code LeadershipRolloutGuard} refuses to
+ * start an application configured that way, but a guard only catches the crude
+ * case -- an incomplete backfill still needs the access-diff report read by a
+ * human before the switch moves.
  */
 @Service
 public class ScopeResolver {
@@ -50,14 +60,22 @@ public class ScopeResolver {
     private final LeadershipAssignmentRepository leadershipAssignmentRepository;
     private final TeamRepository teamRepository;
     private final PolicyShadowRecorder shadowRecorder;
+    private final PortalProperties properties;
 
     public ScopeResolver(
             LeadershipAssignmentRepository leadershipAssignmentRepository,
             TeamRepository teamRepository,
-            PolicyShadowRecorder shadowRecorder) {
+            PolicyShadowRecorder shadowRecorder,
+            PortalProperties properties) {
         this.leadershipAssignmentRepository = leadershipAssignmentRepository;
         this.teamRepository = teamRepository;
         this.shadowRecorder = shadowRecorder;
+        this.properties = properties;
+    }
+
+    /** Whether {@link #decide} serves the leadership answer or the legacy one. */
+    public boolean enforcing() {
+        return properties != null && properties.getRollout().isLeadershipScopeEnabled();
     }
 
     /** The caller's scope over other employees' personal and statistical data. */
@@ -161,29 +179,33 @@ public class ScopeResolver {
     }
 
     /**
-     * Records what this resolver would have returned, and returns the legacy
-     * answer unchanged.
+     * The one place a scoped call site asks "whose data may this caller read",
+     * and the one place the rollout switch is read.
      *
-     * <p>Returning {@code legacyVisible} rather than {@code void} is the point:
-     * a call site written as {@code return resolver.shadowCompare(...)} cannot
-     * accidentally start enforcing the new rule, and cannot forget to record
-     * either. The two are the same expression.
+     * <p>Records the comparison on every call, whichever rule is serving. That
+     * outlives the cutover: after the switch moves, the same counter says what
+     * the retired rule would still have shown, which is what makes a rollback
+     * decision evidence rather than a hunch.
      *
      * <p>Compares the id sets, not the lists -- ordering differences between
      * the two rules are not access differences and would drown the real signal.
+     *
+     * <p>If resolving the new scope throws, the caller gets the legacy answer
+     * even while enforcing. That is deliberate: the alternative is a manager
+     * screen that errors, and the legacy answer is the one this portal served
+     * for a year. The failure is counted under {@code <decision>.error} so it
+     * cannot pass unnoticed.
      */
-    public List<User> shadowCompare(String decision, User caller, List<User> candidates, List<User> legacyVisible) {
+    public List<User> decide(String decision, User caller, List<User> candidates, List<User> legacyVisible) {
         try {
-            Set<Long> legacyIds = idsOf(legacyVisible);
-            Set<Long> proposedIds = idsOf(visibleUsers(candidates, caller));
-            shadowRecorder.record(decision, caller == null ? null : caller.getId(), legacyIds, proposedIds);
+            List<User> proposed = visibleUsers(candidates, caller);
+            shadowRecorder.record(
+                    decision, caller == null ? null : caller.getId(), idsOf(legacyVisible), idsOf(proposed));
+            return enforcing() ? proposed : legacyVisible;
         } catch (RuntimeException e) {
-            // A measurement must never take down the request it measures.
-            // Phase 4 makes this path decide things; until then a failure here
-            // costs one data point.
             shadowRecorder.record(decision + ".error", caller == null ? null : caller.getId(), "ok", e.getClass().getSimpleName());
+            return legacyVisible;
         }
-        return legacyVisible;
     }
 
     private static Set<Long> idsOf(List<User> users) {

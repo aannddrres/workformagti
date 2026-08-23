@@ -266,7 +266,7 @@ public class StatsController {
             // manager still sees only their own group (SEC-13).
             dept = user.getDepartment();
             List<User> active = userRepository.findByActiveTrue();
-            candidates = shadowScope("scope.team-stats", user, active,
+            candidates = scopedUsers("scope.team-stats", user, active,
                     ManagerScope.visibleActiveUsers(active, user));
         }
 
@@ -324,7 +324,7 @@ public class StatsController {
         }
         if (user.getRole() == Role.MANAGER) {
             List<User> active = userRepository.findByActiveTrue();
-            List<Long> ids = shadowScope("scope.department-stats", user, active,
+            List<Long> ids = scopedUsers("scope.department-stats", user, active,
                     ManagerScope.visibleActiveUsers(active, user)).stream()
                     .map(User::getId)
                     .toList();
@@ -376,7 +376,7 @@ public class StatsController {
         List<ComplianceRecord> records;
         if (user.getRole() == Role.MANAGER) {
             List<User> active = userRepository.findByActiveTrue();
-            List<Long> ids = shadowScope("scope.critical-operators", user, active,
+            List<Long> ids = scopedUsers("scope.critical-operators", user, active,
                     ManagerScope.visibleActiveUsers(active, user)).stream()
                     .map(User::getId)
                     .toList();
@@ -532,14 +532,16 @@ public class StatsController {
     }
 
     /**
-     * Phase 3: records what leadership-backed scoping would return and serves
-     * the legacy answer. Null-safe so the DB-free controller tests, which
-     * construct this without a resolver, measure nothing rather than fail.
+     * Whose rows this caller may see: the leadership rule when the rollout
+     * switch is on, the department-string rule when it is off, and the
+     * comparison recorded either way. Null-safe so the DB-free controller
+     * tests, which construct this without a resolver, keep the legacy answer
+     * rather than fail.
      */
-    private List<User> shadowScope(String decision, User caller, List<User> candidates, List<User> legacyVisible) {
+    private List<User> scopedUsers(String decision, User caller, List<User> candidates, List<User> legacyVisible) {
         return scopeResolver == null
                 ? legacyVisible
-                : scopeResolver.shadowCompare(decision, caller, candidates, legacyVisible);
+                : scopeResolver.decide(decision, caller, candidates, legacyVisible);
     }
 
     private ResponseEntity<Map<String, String>> requireContentManage(User user) {

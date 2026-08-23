@@ -165,9 +165,9 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | `POST /api/admin/exports/read-evidence` | `AdminExportController.readEvidence` | `requireSystemAdmin` | SYSTEM_ADMIN | `ORG` | **yes** | article receipt + required-reading status ერთ explicit allowlist-ში. |
 | `POST /api/admin/exports/search-history` | `AdminExportController.searchHistory` | `requireSystemAdmin` | SYSTEM_ADMIN | `ORG` | **yes** | საძიებო ტექსტი, შედეგის ფაქტი/რაოდენობა და მომხმარებლის snapshot/current identity. |
 | `GET /api/export/download/{jobId}` | `ExportController.downloadExport` | `requireReportsExport` | reports.export + leadership | `SELF` (`SYSTEM_ADMIN`: legacy owner bypass) | **yes** | D-3: classified `ADMIN_*` export ყოველთვის strict owner-only-ია; სხვა job-ზე unknown owner fail-closed, legacy SYSTEM_ADMIN bypass რჩება. |
-| `GET /api/export/readings` | `ExportController.exportReadingsCsv` | `requireReportsExport` | reports.export + leadership | `GROUP/DEPT` | **yes** | PO-13 target allowlist გადაწყვეტილია; DPO validation და implementation pending — იხ. export allowlist. |
-| `GET /api/export/readings.pdf` | `ExportController.exportReadingsPdf` | `requireReportsExport` | reports.export + leadership | `GROUP/DEPT` | **yes** | PO-13 target allowlist გადაწყვეტილია; DPO validation და implementation pending — იხ. export allowlist. |
-| `GET /api/export/readings.xlsx` | `ExportController.exportReadingsXlsx` | `requireReportsExport` | reports.export + leadership | `GROUP/DEPT` | **yes** | PO-13 target allowlist გადაწყვეტილია; DPO validation და implementation pending — იხ. export allowlist. |
+| `GET /api/export/readings` | `ExportController.exportReadingsCsv` | `requireReportsExport` | reports.export + leadership | `GROUP/DEPT` | **yes** | PO-13 target allowlist გადაწყვეტილია; DPO validation და implementation pending — იხ. export allowlist. `scope.export` იმავე გადამრთველს ემორჩილება, რასაც manager-ის ეკრანები. |
+| `GET /api/export/readings.pdf` | `ExportController.exportReadingsPdf` | `requireReportsExport` | reports.export + leadership | `GROUP/DEPT` | **yes** | PO-13 target allowlist გადაწყვეტილია; DPO validation და implementation pending — იხ. export allowlist. `scope.export` იმავე გადამრთველს ემორჩილება, რასაც manager-ის ეკრანები. |
+| `GET /api/export/readings.xlsx` | `ExportController.exportReadingsXlsx` | `requireReportsExport` | reports.export + leadership | `GROUP/DEPT` | **yes** | PO-13 target allowlist გადაწყვეტილია; DPO validation და implementation pending — იხ. export allowlist. `scope.export` იმავე გადამრთველს ემორჩილება, რასაც manager-ის ეკრანები. |
 | `GET /api/export/status/{jobId}` | `ExportController.getExportStatus` | `requireReportsExport` | reports.export + leadership | `SELF` (`SYSTEM_ADMIN`: legacy owner bypass) | **yes** | classified `ADMIN_*` job strict owner-only-ია; სხვა job-ზე D-3 owner/legacy SYSTEM_ADMIN წესი მოქმედებს. |
 | `GET /api/export/team-stats.pdf` | `ExportController.exportTeamStatsPdf` | `requireReportsExport` | reports.export + leadership | `GROUP/DEPT` | **yes** | სვეტები allowlist-ით (§ export allowlist). raw log ველი აკრძალულია. |
 
@@ -271,11 +271,11 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
-| `GET /api/admin/critical-operators` | `StatsController.getCriticalOperators` | `requireManagerOrAdmin` | AUTH + leadership | `GROUP/DEPT` | **yes** | Phase 0: `ManagerScope`. Phase 4: `ScopeResolver`; nested group/department row-ებიც იფილტრება. |
-| `GET /api/admin/departments/{department}/groups/{groupName}/users` | `StatsController.getGroupUsers` | `requireManagerOrAdmin` | AUTH + leadership | `GROUP/DEPT` | **yes** | Phase 0: `ManagerScope`. Phase 4: `ScopeResolver`; nested group/department row-ებიც იფილტრება. |
+| `GET /api/admin/critical-operators` | `StatsController.getCriticalOperators` | `requireManagerOrAdmin` | AUTH + leadership | `GROUP/DEPT` | **yes** | `ROLLOUT_LEADERSHIP_SCOPE=false` (default): `ManagerScope` — დეპარტამენტის ტექსტი. `true`: `ScopeResolver` — leadership assignment-ები; nested group/department row-ებიც იფილტრება. შედარება ორივე რეჟიმში იწერება; იხ. `ROLLOUT_ROLLBACK_KA.md`. |
+| `GET /api/admin/departments/{department}/groups/{groupName}/users` | `StatsController.getGroupUsers` | `requireManagerOrAdmin` | AUTH + leadership | `GROUP/DEPT` | **yes** | `ROLLOUT_LEADERSHIP_SCOPE=false` (default): `ManagerScope` — დეპარტამენტის ტექსტი. `true`: `ScopeResolver` — leadership assignment-ები; nested group/department row-ებიც იფილტრება. შედარება ორივე რეჟიმში იწერება; იხ. `ROLLOUT_ROLLBACK_KA.md`. |
 | `GET /api/admin/stats/team/{teamId}` | `StatsController.getAdminTeamStats` | `requireSystemAdmin` | AUTH + leadership | `ORG` | **yes** | Phase 0: SYSTEM_ADMIN-only. Phase 4: `{teamId}` scope-ზე უნდა შემოწმდეს, არა role-ზე. |
-| `GET /api/manager/department-stats` | `StatsController.getDepartmentStats` | `requireManagerOrAdmin` | AUTH + leadership | `GROUP/DEPT` | **yes** | Phase 0: `ManagerScope`. Phase 4: `ScopeResolver`; nested group/department row-ებიც იფილტრება. |
-| `GET /api/manager/team-stats` | `StatsController.getTeamStats` | `requireManagerOrAdmin` | AUTH + leadership | `GROUP/DEPT` | **yes** | Phase 0: `ManagerScope`. Phase 4: `ScopeResolver`; nested group/department row-ებიც იფილტრება. |
+| `GET /api/manager/department-stats` | `StatsController.getDepartmentStats` | `requireManagerOrAdmin` | AUTH + leadership | `GROUP/DEPT` | **yes** | `ROLLOUT_LEADERSHIP_SCOPE=false` (default): `ManagerScope` — დეპარტამენტის ტექსტი. `true`: `ScopeResolver` — leadership assignment-ები; nested group/department row-ებიც იფილტრება. შედარება ორივე რეჟიმში იწერება; იხ. `ROLLOUT_ROLLBACK_KA.md`. |
+| `GET /api/manager/team-stats` | `StatsController.getTeamStats` | `requireManagerOrAdmin` | AUTH + leadership | `GROUP/DEPT` | **yes** | `ROLLOUT_LEADERSHIP_SCOPE=false` (default): `ManagerScope` — დეპარტამენტის ტექსტი. `true`: `ScopeResolver` — leadership assignment-ები; nested group/department row-ებიც იფილტრება. შედარება ორივე რეჟიმში იწერება; იხ. `ROLLOUT_ROLLBACK_KA.md`. |
 | `GET /api/statistics/activity` | `StatsController.getActivityTrend` | `requireContentManage` | stats.view — D-8 resolved, implementation pending | `ORG-AGG` | no | მხოლოდ აგრეგატები; `content.manage`-ისგან უნდა განცალკევდეს. |
 | `GET /api/statistics/breakdown` | `StatsController.getStatisticsBreakdown` | `requireContentManage` | stats.view — D-8 resolved, implementation pending | `ORG-AGG` | no | დაშვებული dimension: department/role/status — `COUNT`, სახელების გარეშე. |
 | `GET /api/statistics/compliance` | `StatsController.getComplianceStatistics` | `requireContentManage` | stats.view — D-8 resolved, implementation pending | `ORG-AGG` | no | მხოლოდ აგრეგატები; `content.manage`-ისგან უნდა განცალკევდეს. |
@@ -336,9 +336,9 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 | endpoint | სვეტები |
 |---|---|
-| `GET /api/export/readings` (csv) | `User ID` · `User Name` · `Item Type` · `Item ID` · `Status` · `Read At` |
-| `GET /api/export/readings.xlsx` | `თანამშრომელი` · `დეპარტამენტი` · `მასალის ტიპი` · `მასალის ID` · `სტატუსი` · `წაკითხვის თარიღი` · `ვადა` |
-| `GET /api/export/readings.pdf` | `თანამშრომელი` · `დეპარტამენტი` · `ტიპი` · `ID` · `სტატუსი` · `წაკითხვა` · `ვადა` |
+| `GET /api/export/readings` (csv) | `User ID` · `User Name` · `Item Type` · `Item ID` · `Status` · `Read At` `scope.export` იმავე გადამრთველს ემორჩილება, რასაც manager-ის ეკრანები. |
+| `GET /api/export/readings.xlsx` | `თანამშრომელი` · `დეპარტამენტი` · `მასალის ტიპი` · `მასალის ID` · `სტატუსი` · `წაკითხვის თარიღი` · `ვადა` `scope.export` იმავე გადამრთველს ემორჩილება, რასაც manager-ის ეკრანები. |
+| `GET /api/export/readings.pdf` | `თანამშრომელი` · `დეპარტამენტი` · `ტიპი` · `ID` · `სტატუსი` · `წაკითხვა` · `ვადა` `scope.export` იმავე გადამრთველს ემორჩილება, რასაც manager-ის ეკრანები. |
 | `GET /api/export/team-stats.pdf` | `დეპარტამენტი` · `სულ მიკუთვნებული` · `წაკითხული` · `%` |
 
 **სამიზნე readings allowlist — PO-13 გადაწყვეტილია, DPO validation და
