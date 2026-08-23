@@ -123,6 +123,13 @@
   trigger recomputes in Oracle — the migration's strongest evidence.
   Runbook + open items: `docs/DATA_MIGRATION_PG_TO_ORACLE_KA.md`
 - `backup.py` — DB backup job
+- `scripts/verify-like-ci.sh` — runs exactly what `.github/workflows/ci.yml`
+  runs, against a local Oracle. **CI's Actions allowance ran out on
+  2026-08-22**; every run since fails in ~2s with no logs, on every branch.
+  Until that is resolved this script is what "verified" means, and the
+  workflow now runs the three Oracle/browser jobs only on a pull request or
+  on `main` (a branch push still runs lint, pytest, the DB-free Java suite
+  and the Angular build). Do not claim CI is green — check the run.
 - `start_server.bat` — local launch
 - `docs/admin-guide.md`, `README.md` — docs
 

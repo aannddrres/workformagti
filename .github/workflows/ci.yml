@@ -5,6 +5,29 @@ on:
     branches: ["**"]
   pull_request:
 
+# One run per branch. Pushing three commits in a row used to start three full
+# runs and let all three finish, when only the last one's result could matter.
+# main is exempt: cancelling there would leave the trunk unverified, which is
+# the one place that must never happen.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+# The three jobs below that need a database are ~14 of the ~18 minutes a full
+# run costs, and every push to every branch was paying it. That is what
+# exhausted the account's Actions allowance on 2026-08-22, with a week of the
+# billing period left and every branch's CI dead from then on.
+#
+# HEAVY_JOBS_RUN_WHEN below restricts them to the two moments the answer is
+# actually load-bearing: a pull request (the review gate) and main (the
+# trunk). A plain branch push still runs the three fast jobs -- lint, the
+# Python suite, the DB-free Java suite and the Angular build -- for about
+# 4 minutes, so a typo is still caught in a minute and a half.
+#
+# The trade-off is stated rather than hidden: between pushing to a branch and
+# opening a PR, nothing verifies the Oracle-backed behaviour except running it
+# locally. scripts/verify-like-ci.sh runs exactly what these jobs run, so that
+# is a repeatable claim rather than a promise.
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -97,6 +120,7 @@ jobs:
   java-integration:
     name: Java integration tests (Oracle)
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     timeout-minutes: 30
     defaults:
       run:
@@ -177,6 +201,7 @@ jobs:
   e2e:
     name: End-to-end (Angular + Spring Boot + Oracle)
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     timeout-minutes: 35
     # The one job that runs the whole product: a browser drives the real
     # Angular build, against the real Spring Boot app, against a real Oracle.
@@ -417,6 +442,7 @@ jobs:
   etl-oracle:
     name: Cutover ETL rehearsal (Postgres -> Oracle)
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     timeout-minutes: 25
     # The only place the migration's central claims can be tested, because
     # they are all Oracle behaviour: GENERATED ALWAYS identity columns
