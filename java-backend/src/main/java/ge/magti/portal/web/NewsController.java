@@ -1,5 +1,6 @@
 package ge.magti.portal.web;
 
+import ge.magti.portal.content.ContentSanitizer;
 import ge.magti.portal.content.ContentLifecycleService;
 import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.News;
@@ -279,7 +280,7 @@ public class NewsController {
             news.setTitle((String) body.get("title"));
         }
         if (body.containsKey("content")) {
-            news.setContent((String) body.get("content"));
+            news.setContent(ContentSanitizer.sanitize((String) body.get("content")));
         }
         if (body.containsKey("target_department")) {
             news.setTargetDepartment((String) body.get("target_department"));
@@ -363,7 +364,7 @@ public class NewsController {
 
     private static void applySharedFields(News news, NewsRequest request) {
         news.setTitle(request.title());
-        news.setContent(request.content());
+        news.setContent(ContentSanitizer.sanitize(request.content()));
         news.setTargetDepartment(request.targetDepartmentOrDefault());
         news.setAttachmentUrl(request.attachmentUrl());
         news.setVisibleToTechInfo(request.visibleToTechInfoOrDefault());

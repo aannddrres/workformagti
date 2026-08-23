@@ -1701,4 +1701,42 @@ class ArticleControllerIntegrationTest {
                     .andExpect(jsonPath("$.version").value(expectedVersion));
         }
     }
+    /**
+     * RTA-003 end to end. ContentSanitizerTest proves the allowlist; this
+     * proves the allowlist is actually on the path a content administrator
+     * uses, for create and for update, so a later refactor that drops the
+     * call fails here rather than in someone's browser.
+     */
+    @Test
+    void hostileArticleContentIsNeutralisedOnCreateAndUpdate() throws Exception {
+        User admin = createUser("xss1@magti.ge", Role.CONTENT_ADMIN, "Content Creation");
+        Category cat = createCategory("კატ-XSS");
+        String hostile = "<p>ტექსტი</p><img src=\\\"/uploads/a.png\\\" onerror=\\\"steal()\\\">"
+                + "<script>steal(localStorage.magti_token)</script>";
+
+        String body = mockMvc.perform(authed(post("/api/articles"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"XSS\",\"content\":\"" + hostile + "\",\"category_id\":"
+                                + cat.getId() + ",\"target_departments\":[\"All\"]}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        long id = new com.fasterxml.jackson.databind.ObjectMapper().readTree(body).get("id").asLong();
+
+        String stored = articleRepository.findById(id).orElseThrow().getContent();
+        assertFalse(stored.contains("onerror"), stored);
+        assertFalse(stored.contains("<script"), stored);
+        assertFalse(stored.contains("steal"), stored);
+        // The legitimate parts survive -- a sanitizer that emptied the body
+        // would pass every assertion above and still be a data-loss bug.
+        assertTrue(stored.contains("ტექსტი"), stored);
+        assertTrue(stored.contains("src=\"/uploads/a.png\""), stored);
+
+        mockMvc.perform(authed(put("/api/articles/" + id), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"XSS\",\"content\":\"" + hostile + "\",\"category_id\":"
+                                + cat.getId() + ",\"target_departments\":[\"All\"]}"))
+                .andExpect(status().isOk());
+        assertFalse(articleRepository.findById(id).orElseThrow().getContent().contains("onerror"));
+    }
+
 }

@@ -1,5 +1,6 @@
 package ge.magti.portal.web;
 
+import ge.magti.portal.content.ContentSanitizer;
 import ge.magti.portal.article.ArticleListFilter;
 import ge.magti.portal.content.ContentLifecycleService;
 import ge.magti.portal.article.ArticleQueryService;
@@ -421,7 +422,7 @@ public class ArticleController {
             article.setTitle((String) body.get("title"));
         }
         if (body.containsKey("content")) {
-            article.setContent((String) body.get("content"));
+            article.setContent(ContentSanitizer.sanitize((String) body.get("content")));
         }
         if (body.containsKey("category_id")) {
             Object value = body.get("category_id");
@@ -659,7 +660,7 @@ public class ArticleController {
 
         UserNote note = userNoteRepository.findByUserIdAndArticleId(user.getId(), id).orElseGet(UserNote::new);
         boolean isNew = note.getId() == null;
-        note.setContent(request.content());
+        note.setContent(ContentSanitizer.sanitize(request.content()));
         if (isNew) {
             note.setUserId(user.getId());
             note.setArticleId(id);
@@ -1278,7 +1279,7 @@ public class ArticleController {
 
     private void applySharedFields(Article article, ArticleRequest request) {
         article.setTitle(request.title());
-        article.setContent(request.content());
+        article.setContent(ContentSanitizer.sanitize(request.content()));
         article.setCategoryId(request.categoryId());
         article.setTags(request.tags());
         article.setTargetDepartment(request.legacyTargetDepartment());

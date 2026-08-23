@@ -132,7 +132,18 @@ export class RichTextEditor implements AfterViewInit, OnDestroy {
   }
 
   /** Silent (no text-change event) so callers driving this from an effect
-   *  don't trigger their own contentChange handler re-entrantly. */
+   *  don't trigger their own contentChange handler re-entrantly.
+   *
+   *  Sanitized because `dangerouslyPasteHTML` means it: it writes the string
+   *  straight into the DOM, with none of Angular's `[innerHTML]` sanitization
+   *  that makes *reading* an article safe. Without this, a body stored by a
+   *  content admin runs its own script the moment a system admin opens the
+   *  article to edit it -- and the bearer token is in localStorage (RTA-003).
+   *
+   *  The server sanitizes on write too (`ContentSanitizer`). This is not
+   *  redundant: every article stored before that existed is still in the
+   *  database unsanitized, and this is the call that makes those safe to
+   *  open. */
   setHtml(html: string): void {
     const quill = this.quill;
     if (!quill) {
@@ -140,7 +151,7 @@ export class RichTextEditor implements AfterViewInit, OnDestroy {
     }
     quill.setText('', 'silent');
     if (html) {
-      quill.clipboard.dangerouslyPasteHTML(0, html, 'silent');
+      quill.clipboard.dangerouslyPasteHTML(0, DOMPurify.sanitize(html), 'silent');
     }
     this.charCount.set(quill.getText().replace(/\n$/, '').length);
   }
