@@ -70,7 +70,7 @@ public class SecurityConfig {
 	 * {@code UploadedFileController} now carries its own guard, so anonymous
 	 * requests for one are denied twice over.
 	 */
-	private static final String[] ANONYMOUS_GET = {"/api/health"};
+	private static final String[] ANONYMOUS_GET = {"/api/health", "/api/health/ready"};
 
 	/**
 	 * Anonymous POSTs.

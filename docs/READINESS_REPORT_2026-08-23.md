@@ -176,7 +176,7 @@ public ResponseEntity<?> serve(@PathVariable("filename") String filename) {
 ### RTA-003 — Stored XSS-ით ადმინისტრატორის signed JWT იპარება
 
 - **Severity:** `BLOCKER`
-- **Status:** `CONFIRMED`
+- **Status:** ~~`CONFIRMED`~~ → **გასწორდა 2026-08-23** (იხ. შესწორება ქვემოთ)
 - **Layer:** Frontend / Content security / Session security
 - **Where:** `angular-frontend/package.json:29` (tip-ზე `:30`); `java-backend/src/main/java/ge/magti/portal/web/ArticleController.java:1279-1285`; `angular-frontend/src/app/shared/rich-text-editor/rich-text-editor.ts:136-143`; `angular-frontend/src/app/core/auth/auth.service.ts:65-70`
 - **Code:**
@@ -196,6 +196,36 @@ localStorage.setItem(TOKEN_KEY, token);
 - **Failure scenario:** A content admin submits crafted image/event-handler HTML. A system admin opens the article editor; script executes in the portal origin, reads the bearer token, and the attacker replays it for system-admin actions.
 - **Verification:** Direct data flow is request content → `Article.content` → Quill `dangerouslyPasteHTML`; token read/write is `localStorage`. Advisory: [GitHub Security Advisory GHSA-4943-9vgg-gr5r](https://github.com/advisories/GHSA-4943-9vgg-gr5r).
 - **Required fix:** Upgrade to a non-vulnerable Quill release, sanitize on the server and again at the appropriate output boundary, deploy a restrictive CSP, move session authority out of JavaScript-readable storage where feasible, and add a stored-XSS regression test covering edit and view paths.
+
+> **[შესწორება 2026-08-23] — ექსპლუატაციის გზა დახურულია; ორი ნარჩენი პუნქტი ღიაა.**
+>
+> ჯერ სიზუსტე: ანგარიში ჯაჭვს პროდუქტის მასშტაბით აღწერს, სინამდვილეში
+> **კითხვის გზა დაცული იყო** — `format-article-content.ts:8-12` ამბობს, რომ
+> სხეული `[innerHTML]`-ით იბმება, ანუ Angular-ის `DomSanitizer` bypass-ის
+> გარეშე მუშაობს. ერთადერთი რეალური ხვრელი **რედაქტორის გახსნა** იყო:
+> `rich-text-editor.ts` → `setHtml` → `dangerouslyPasteHTML`, სადაც Angular
+> საერთოდ არ მონაწილეობს.
+>
+> **გასწორდა ორივე მხრიდან:**
+> - `rich-text-editor.ts:154` — `DOMPurify.sanitize(html)` `dangerouslyPasteHTML`-ამდე.
+>   DOMPurify უკვე იმპორტირებული იყო ამავე ფაილში. **სწორედ ეს იცავს
+>   ბაზაში უკვე შენახულ სხეულებს.**
+> - `content/ContentSanitizer.java` (jsoup, უკვე დამოკიდებულება) — allowlist
+>   ხუთ შესვლის წერტილზე: სტატიის create/update/autosave, შენიშვნა,
+>   სიახლის create/update.
+>
+> **ტესტები:** `ContentSanitizerTest` — 15; `ArticleControllerIntegrationTest`
+> 64/64 (მათ შორის `hostileArticleContentIsNeutralisedOnCreateAndUpdate`);
+> e2e 39/39 სუფთა Oracle-ზე.
+>
+> **ორი ჩავარდნა, რომელიც ტესტმა დაიჭირა და არა მომხმარებელმა** — ორივე
+> მონაცემს ანადგურებდა: jsoup-ის `relaxed` ნაკრები `<s>`-ს არ იცნობს (Quill
+> სწორედ მას აწარმოებს), და `preserveRelativeLinks(true)` მარტო არაფერს
+> აკეთებს — base URI-ს გარეშე **ყველა `/uploads/` სურათის `src` იშლებოდა.**
+>
+> **რჩება ღიად:** Quill 1.3.7 → 2.x განახლება (breaking change, ცალკე
+> სამუშაო) და CSP header (დამოკიდებულია IT §11-ის origin-ის პასუხზე).
+> ორივე იმ ხვრელს აღარ ეხება, რომელიც ბლოკერი იყო.
 
 ### RTA-004 — Leadership scope არ სრულდება და legacy free-text scope პასუხობს
 
@@ -364,6 +394,15 @@ CMD wget -q -O- http://localhost:8080/api/health || exit 1
 - **Verification:** The controller return type cannot set an error status, and the catch branch returns normally. The Docker healthcheck treats any 2xx body, including `degraded`, as success.
 - **Required fix:** Add distinct liveness/readiness endpoints, return 503 on failed readiness, configure orchestrator probes against them, and test DB loss/recovery and startup migration states.
 
+> **[შესწორება 2026-08-23] — გასწორდა.** `HealthController` გაიყო:
+> `/api/health` = **liveness**, ყოველთვის 200 (ბაზის ჩავარდნაზე კონტეინერის
+> გადატვირთვა crash loop-ს გამოიწვევდა — ამიტომ Docker `HEALTHCHECK` სწორედ
+> აქ რჩება); `/api/health/ready` = **readiness**, ბაზას ამოწმებს და
+> ჩავარდნაზე **503**-ს აბრუნებს. `HealthControllerTest` — 5 ტესტი, მათ შორის
+> ერთი, რომელიც ამტკიცებს, რომ liveness **არ** ვარდება ბაზის გათიშვაზე.
+> წვდომის კონტრაქტში ორივე სტრიქონია. **რჩება:** Kubernetes-ის probe-ების
+> კონფიგურაცია — manifest ჯერ არ არსებობს (RTA-001, IT §4).
+
 ### RTA-010 — Global search cache-ს შეუზღუდავი heap ზრდა აქვს
 
 - **Severity:** `HIGH`
@@ -409,6 +448,24 @@ return query.getResultList();
 - **Failure scenario:** Repeated `GET /api/articles?limit=1000000` calls force Oracle/JPA to materialize all article CLOBs, causing latency, heap pressure and possible service unavailability.
 - **Verification:** Controller input has no validation; service comments explicitly state no clamp and full-CLOB fetch; k6 does not exercise this boundary.
 - **Required fix:** Reject negative/oversized values, cap limit (for example 100), use a summary projection with a stored/computed read-time field, add query-count/memory regression tests and rate/timeout controls.
+
+> **[შესწორება 2026-08-23] — ნაწილობრივ გასწორდა; „cap 100" შეგნებულად არ შესრულდა.**
+>
+> `PageBounds` clamp-ავს `/api/articles`-სა და `/api/news`-ს. უარყოფითი
+> მნიშვნელობა აღარ იწვევს 500-ს (`setFirstResult(-1)` → `IllegalArgumentException`).
+>
+> **ზღვარი 1000-ია, არა 100.** ხუთი ეკრანი — knowledge base, dashboard,
+> category view, article detail, admin content — `limit: 1000`-ს ითხოვს და
+> სრულ შედეგს ხატავს; პაგინაცია არცერთს არ აქვს. 100-იანი ზღვარი ამ
+> რეპოზიტორიის ყველა ტესტს გაივლიდა და **production-ში ცოდნის ბაზის ცხრა
+> მეათედს ჩუმად დამალავდა.** 1000 ხსნის იმას, რაზეც მიგნება იყო
+> (`?limit=1000000` → CLOB-ების სრული მატერიალიზაცია), არსებულ ქცევას კი არ
+> ცვლის.
+>
+> **რჩება:** რეალური პაგინაცია იმ ხუთ ეკრანზე + summary projection, რომელიც
+> `content`-ს საერთოდ არ წამოიღებს. ზღვრის დაწევა ამ სამუშაოს **ბოლო**
+> ნაბიჯია, არა პირველი. `PageBoundsTest` — 5 ტესტი, მათ შორის ის, რომელიც
+> 1000-იან გვერდს იცავს რეგრესიისგან.
 
 ### RTA-012 — Login throttling proxy/config/replica topology-ზე სუსტდება
 
@@ -456,6 +513,18 @@ else:
 - **Failure scenario:** An operator execs into the legacy app container and runs `python seed.py`, expecting idempotent bootstrap; the script deletes users, audit/search data, messages and compliance records from the configured database.
 - **Verification:** The Dockerfile copies all repository files; `.dockerignore` does not exclude the utilities; `database.py` selects `settings.DATABASE_URL`; the default script branch calls the destructive reseed.
 - **Required fix:** Remove legacy utilities from runtime artifacts, archive the legacy deployment, add hard production guards and explicit destructive confirmation for retained maintenance commands, and restrict database privileges.
+
+> **[შესწორება 2026-08-23] — გასწორდა ორივე ნახევარი.**
+> `.dockerignore` აღარ უშვებს `seed.py`-ს, `seed_presentation_data.py`-ს,
+> `simulate_audit_data.py`-სა და ორ `scripts/seed_*`-ს build-კონტექსტში
+> (გადამოწმდა: არცერთს არ ეყრდნობა runtime). `seed.py` კი **უარს ამბობს
+> გაშვებაზე** `APP_ENV=production`-ზე — და default-იც production-ია, ანუ
+> გაუწერავი გარემო საშიშად ითვლება. გვერდის ავლა მხოლოდ ცალსახა ფრაზით:
+> `SEED_CONFIRM_WIPE=yes-destroy-all-data`. უარი `create_all`-ამდე ხდება,
+> ანუ უარყოფილი გაშვება ბაზას საერთოდ არ ეხება.
+> `tests/test_seed_production_guard.py` — 6 ტესტი, რომლებიც სკრიპტს
+> subprocess-ში უშვებენ, რადგან შესამოწმებელი სწორედ ის არის, რაც ადამიანის
+> აკრეფისას ხდება.
 
 ### RTA-014 — Audit hash chain privileged DB rewrite-ს ვერ აჩერებს
 

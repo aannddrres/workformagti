@@ -47,3 +47,15 @@ docs/
 tests/
 *.md
 !README.md
+
+# ── Never: destructive one-off tooling (audit 3, RTA-013) ────────────────
+# These wipe whatever database DATABASE_URL points at and used to ride into
+# the runtime image via `COPY . .`, one shell and one plausible-looking
+# command away from erasing production. seed.py also refuses to run with
+# APP_ENV=production now; keeping them out of the image is the other half,
+# because a file that is not there cannot be run by mistake.
+seed.py
+seed_presentation_data.py
+simulate_audit_data.py
+scripts/seed_portal.py
+scripts/seed_test_users.py

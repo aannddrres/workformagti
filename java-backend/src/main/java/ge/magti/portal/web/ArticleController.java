@@ -183,7 +183,8 @@ public class ArticleController {
         }
 
         List<Article> articles = articleQueryService.listVisible(
-                new ArticleListFilter(q, categoryId, status), user, skip, limit);
+                new ArticleListFilter(q, categoryId, status), user,
+                PageBounds.offset(skip), PageBounds.limit(limit));
 
         Set<Long> categoryIds = articles.stream()
                 .map(Article::getCategoryId).filter(Objects::nonNull).collect(Collectors.toSet());

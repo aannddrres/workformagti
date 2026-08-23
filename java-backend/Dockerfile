@@ -53,6 +53,12 @@ ENV APP_ENV=production
 ENV JAVA_TOOL_OPTIONS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError"
 EXPOSE 8080
 
+# Liveness, deliberately -- NOT /api/health/ready. Docker's only response to a
+# failed healthcheck is to mark the container unhealthy (and restart it under
+# an orchestrator), and restarting the application because Oracle is
+# unreachable turns a database outage into a crash loop. Readiness belongs on
+# a Kubernetes readinessProbe pointed at /api/health/ready, which returns 503
+# and takes the pod out of the load balancer without killing it (RTA-009).
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD wget -q -O- http://localhost:8080/api/health || exit 1
 

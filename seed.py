@@ -398,15 +398,55 @@ def seed_org_hierarchy():
         db.close()
 
 
+def _refuse_destructive_reseed_in_production() -> None:
+    """Stops `python seed.py` from wiping a production database.
+
+    Audit 3, RTA-013. This script's no-argument branch deletes users, articles,
+    audit rows, messages and compliance records from whatever database
+    ``DATABASE_URL`` points at, and it ships inside the image: the root
+    Dockerfile does ``COPY . .`` and .dockerignore did not exclude it. So the
+    whole disaster was an operator with a shell in the wrong container typing
+    a command that reads like an idempotent bootstrap.
+
+    The guard is deliberately two-part. ``APP_ENV`` alone is not enough --
+    it defaults to production, so a developer's local machine would be
+    refused too, and a guard people routinely override is not a guard. The
+    override is an explicit, unmistakable phrase rather than a bare flag,
+    because the point is that nobody types it by accident or copies it out of
+    a runbook without reading it.
+    """
+    app_env = os.getenv("APP_ENV", "production").strip().lower()
+    if app_env != "production":
+        return
+    if os.getenv("SEED_CONFIRM_WIPE") == "yes-destroy-all-data":
+        print("WARNING: destructive reseed running with APP_ENV=production, by explicit confirmation.")
+        return
+    sys.exit(
+        "REFUSED: `python seed.py` deletes every user, article, audit record, message and\n"
+        "compliance result in the database at DATABASE_URL, and APP_ENV is 'production'.\n"
+        "\n"
+        "  - Local development?  Set APP_ENV=development.\n"
+        "  - Org hierarchy only? Run `python seed.py org` -- idempotent, deletes nothing.\n"
+        "  - You really mean it? SEED_CONFIRM_WIPE=yes-destroy-all-data python seed.py\n"
+    )
+
+
 if __name__ == "__main__":
+    # `python seed.py org` -> idempotent, non-destructive org-hierarchy seeder.
+    # `python seed.py`     -> DESTRUCTIVE full demo reseed (wipes the DB first).
+    wants_org_only = len(sys.argv) > 1 and sys.argv[1].lower() == "org"
+    if not wants_org_only:
+        # Before create_all, so the refusal happens without touching the
+        # database at all -- a guard that has already issued DDL is a guard
+        # that ran too late.
+        _refuse_destructive_reseed_in_production()
+
     # Make sure the schema exists before we try to clear / insert anything.
     # Running this script on a fresh checkout (no magti_portal.db yet) used to
     # blow up on the very first DELETE because the tables didn't exist; now we
     # create them on demand so `python seed.py` is a one-shot bootstrap.
     Base.metadata.create_all(bind=engine)
-    # `python seed.py org` -> idempotent, non-destructive org-hierarchy seeder.
-    # `python seed.py`     -> DESTRUCTIVE full demo reseed (wipes the DB first).
-    if len(sys.argv) > 1 and sys.argv[1].lower() == "org":
+    if wants_org_only:
         seed_org_hierarchy()
     else:
         seed_database()

@@ -208,7 +208,8 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
-| `GET /api/health` | `HealthController.health` | — | — | `NONE` | no | ინფრასტრუქტურული probe. |
+| `GET /api/health` | `HealthController.health` | — | — | `NONE` | no | ინფრასტრუქტურული **liveness** probe. ბაზას არ ამოწმებს სტატუს-კოდისთვის — ჩავარდნა ნიშნავს „გადატვირთე კონტეინერი“, რაც ბაზის გათიშვაზე crash loop-ს გამოიწვევდა (RTA-009). |
+| `GET /api/health/ready` | `HealthController.readiness` | — | — | `NONE` | no | ინფრასტრუქტურული **readiness** probe. ბაზას ამოწმებს და ჩავარდნაზე **503**-ს აბრუნებს — pod ტრაფიკიდან გამოდის, მაგრამ არ იკვლება (RTA-009). |
 
 ### Broadcast (4)
 

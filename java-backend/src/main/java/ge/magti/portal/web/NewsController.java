@@ -132,7 +132,7 @@ public class NewsController {
         if (denial != null) {
             return denial;
         }
-        List<NewsSummaryResponse> items = newsQueryService.listVisible(user, skip, limit).stream()
+        List<NewsSummaryResponse> items = newsQueryService.listVisible(user, PageBounds.offset(skip), PageBounds.limit(limit)).stream()
                 .map(NewsSummaryResponse::from)
                 .toList();
         return ResponseEntity.ok(items);
