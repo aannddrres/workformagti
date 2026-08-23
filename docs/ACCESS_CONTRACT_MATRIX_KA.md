@@ -291,6 +291,8 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 |---|---|---|---|---|---|---|
 | `GET /api/search` | `SearchController.search` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
 | `GET /api/search/global` | `SearchController.searchGlobal` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
+| `GET /api/admin/search/reindex` | `SearchController.searchIndexCoverage` | `requireSystemAdmin` | system.audit `NEW` | `NONE` | no | მხოლოდ კითხვა: რამდენად დაფარულია შიგთავსი ინდექსით. არსებობს იმიტომ, რომ POST წუთებს გრძელდება და proxy მას პასუხამდე წყვეტს — ეს იმავე კითხვას ცხრილებიდან პასუხობს. |
+| `POST /api/admin/search/reindex` | `SearchController.rebuildSearchIndex` | `requireSystemAdmin` | system.audit `NEW` | `NONE` | no | ტრიგრამული ინდექსის სრული აღდგენა (cutover-ის ნაბიჯი). აუდიტირდება `SEARCH_REINDEX`-ით. მუშაობის განმავლობაში ძებნა შედეგს არ აბრუნებს, ამიტომ live სისტემაზე ეს ფუნქციის outage-ია. პასუხში `complete` უნდა წაიკითხოთ, არა მხოლოდ რიგების რაოდენობა. |
 | `GET /api/search/history` | `SearchController.searchHistory` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი მონაცემი. |
 
 ### Stats (12)

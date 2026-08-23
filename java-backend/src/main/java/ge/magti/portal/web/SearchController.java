@@ -1,16 +1,20 @@
 package ge.magti.portal.web;
 
 import ge.magti.portal.domain.Article;
+import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.ArticleTargetDepartment;
 import ge.magti.portal.domain.Category;
 import ge.magti.portal.domain.News;
+import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.SearchLog;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.domain.VideoInstruction;
 import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
+import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.CategoryRepository;
 import ge.magti.portal.repository.SearchLogRepository;
 import ge.magti.portal.search.GlobalSearchCache;
+import ge.magti.portal.search.SearchIndexRebuilder;
 import ge.magti.portal.search.SearchQueryService;
 import ge.magti.portal.util.TbilisiTime;
 import org.springframework.data.domain.PageRequest;
@@ -18,6 +22,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -43,18 +48,24 @@ public class SearchController {
     private final SearchLogRepository searchLogRepository;
     private final ArticleTargetDepartmentRepository targetDepartmentRepository;
     private final CategoryRepository categoryRepository;
+    private final SearchIndexRebuilder searchIndexRebuilder;
+    private final AuditLogRepository auditLogRepository;
 
     public SearchController(
             SearchQueryService searchQueryService,
             GlobalSearchCache globalSearchCache,
             SearchLogRepository searchLogRepository,
             ArticleTargetDepartmentRepository targetDepartmentRepository,
-            CategoryRepository categoryRepository) {
+            CategoryRepository categoryRepository,
+            SearchIndexRebuilder searchIndexRebuilder,
+            AuditLogRepository auditLogRepository) {
         this.searchQueryService = searchQueryService;
         this.globalSearchCache = globalSearchCache;
         this.searchLogRepository = searchLogRepository;
         this.targetDepartmentRepository = targetDepartmentRepository;
         this.categoryRepository = categoryRepository;
+        this.searchIndexRebuilder = searchIndexRebuilder;
+        this.auditLogRepository = auditLogRepository;
     }
 
     /** Port of global_search (routers/search.py:38-122). */
@@ -177,6 +188,112 @@ public class SearchController {
         log.setHasResults(resultsFound > 0);
         log.setResultsFound(resultsFound);
         searchLogRepository.save(log);
+    }
+
+    /**
+     * Rebuilds the whole trigram index from the content in the database.
+     *
+     * <p>This is the step the cutover runbook needs and nothing else provides.
+     * The ETL writes articles straight into Oracle, so no write path runs and
+     * {@code search_trigrams} stays empty: search would answer 200 OK with no
+     * results for every word in the knowledge base, silently. It is also the
+     * repair for the other case where the index and the content can drift --
+     * a restore, or a bug in an incremental reindex.
+     *
+     * <p>Read {@code complete} in the response, not just the row count.
+     * Batches commit as they go, so an interrupted rebuild leaves a partial
+     * index, which is the dangerous outcome: it looks like a working one.
+     *
+     * <p>SYSTEM_ADMIN only and audited. It is not destructive to content, but
+     * it does make search return nothing for as long as it runs, which on a
+     * live system is an outage of a feature people use constantly.
+     *
+     * <p>One wrinkle left alone: {@link GlobalSearchCache} keeps results for
+     * 60 seconds, so a rebuild on a live system can be followed by up to a
+     * minute of pre-rebuild answers. During a change window there is nothing
+     * in the cache to be stale.
+     */
+    @PostMapping("/api/admin/search/reindex")
+    public ResponseEntity<?> rebuildSearchIndex(@AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireSystemAdmin(user);
+        if (denial != null) {
+            return denial;
+        }
+
+        SearchIndexRebuilder.Report report = searchIndexRebuilder.rebuildAll();
+
+        AuditLog audit = new AuditLog();
+        audit.setAdminId(user.getId());
+        audit.setAction("SEARCH_REINDEX");
+        audit.setItemType("system");
+        audit.setItemId(0L);
+        audit.setTimestamp(TbilisiTime.now());
+        auditLogRepository.save(audit);
+
+        return ResponseEntity.ok(describeIndex(report, true));
+    }
+
+    /**
+     * @param fromRebuild a live report distinguishes an entity skipped for
+     *                    having no trigram from one never reached; a coverage
+     *                    snapshot counted from the tables cannot, so the field
+     *                    is omitted there rather than reported as a zero that
+     *                    reads like a fact
+     */
+    private static Map<String, Object> describeIndex(
+            SearchIndexRebuilder.Report report, boolean fromRebuild) {
+        Map<String, Object> counts = new LinkedHashMap<>();
+        report.byEntityType().forEach((entityType, counted) -> {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("total", counted.total());
+            row.put("indexed", counted.indexed());
+            if (fromRebuild) {
+                row.put("skipped_no_trigrams", counted.skipped());
+            }
+            row.put("trigram_rows", counted.trigramRows());
+            counts.put(entityType, row);
+        });
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("complete", report.complete());
+        body.put("trigram_rows", report.trigramRows());
+        body.put("took_ms", report.tookMillis());
+        body.put("counts", counts);
+        body.put("generated_at", TbilisiTime.now());
+        return body;
+    }
+
+    /**
+     * How much of the content is searchable right now.
+     *
+     * <p>The companion the POST needs rather than a convenience. A rebuild at
+     * this project's modelled volume runs for minutes, and an nginx in front
+     * of it will cut the request long before it answers -- the rebuild keeps
+     * going, the report does not come back, and without this the operator has
+     * no way to tell a finished rebuild from an interrupted one except by
+     * running the whole thing again.
+     *
+     * <p>Read-only and cheap: three counts per entity type.
+     */
+    @GetMapping("/api/admin/search/reindex")
+    public ResponseEntity<?> searchIndexCoverage(@AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireSystemAdmin(user);
+        if (denial != null) {
+            return denial;
+        }
+        return ResponseEntity.ok(describeIndex(searchIndexRebuilder.coverage(), false));
+    }
+
+    private static ResponseEntity<Map<String, String>> requireSystemAdmin(User user) {
+        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
+        if (authFailure != null) {
+            return authFailure;
+        }
+        if (user.getRole() != Role.SYSTEM_ADMIN) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("detail", "წვდომა უარყოფილია: საჭიროა სისტემური ადმინისტრატორი"));
+        }
+        return null;
     }
 
     private static ResponseEntity<Map<String, String>> requireAuthenticated(User user) {
