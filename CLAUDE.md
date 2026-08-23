@@ -113,6 +113,15 @@
   dev-default `SECRET_KEY` or `COOKIE_SECURE=false`
 - `migrate.py` — idempotent schema migration (Phase B → Alembic)
 - `seed.py` / `scripts/seed_test_users.py` — data seeding (one-off/dev seeders live in `scripts/`)
+- `scripts/etl/` — the Postgres→Oracle cutover ETL. `spec.py` is the single
+  source of truth for what migrates: every table in either schema must be in
+  `PLAN`, `NOT_MIGRATED` or `SOURCE_ONLY`, and `tests/etl/test_spec_coverage.py`
+  parses the Flyway migrations + `models.py` to enforce that — so a new `V43`
+  table breaks the suite until someone decides whether data crosses into it.
+  Ids are preserved (identity columns are flipped for the load), and
+  `reconcile.py` compares the Postgres audit `row_hash` with the one V28's
+  trigger recomputes in Oracle — the migration's strongest evidence.
+  Runbook + open items: `docs/DATA_MIGRATION_PG_TO_ORACLE_KA.md`
 - `backup.py` — DB backup job
 - `start_server.bat` — local launch
 - `docs/admin-guide.md`, `README.md` — docs

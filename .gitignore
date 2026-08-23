@@ -29,3 +29,7 @@ src/data/news/news_data.json
 # Real JWTs from fetch_tokens.sh -- never commit live tokens even for a
 # dev-only test instance.
 scripts/load/tokens.json
+
+# ETL run reports (scripts/etl) — they quote row ids and sample values from
+# real data, so they belong in the change record, not in git.
+reports/etl/
