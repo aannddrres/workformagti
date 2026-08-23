@@ -155,8 +155,14 @@
   Flyway takes an exclusive lock on `flyway_schema_history` before applying
   anything, so simultaneous instances serialise — one applies, the other sees
   the recorded version and skips. Plain `CREATE TABLE` / `ALTER TABLE` is
-  correct there. (Verified in audit 2, BL-13; the highest migration is
-  currently `V35`.)
+  correct there. (Verified in audit 2, BL-13.) `V37` is deliberately absent:
+  V36 is the expand half of an expand/contract pair and V37 is the contract
+  half, which must not be written until `OrgSchemaPreflight` reports clean
+  against production-like data — so the numbering runs `V36`, `V36_1`, `V38`
+  with a hole in it on purpose. Don't reuse `V37` for anything else, and
+  don't quote a "highest migration" number here: this line said `V35` for
+  seven migrations after it stopped being true (audit 3, RTA-019). `ls
+  java-backend/src/main/resources/db/migration/` is the answer.
 - Never commit secrets — `SECRET_KEY`/`POSTGRES_PASSWORD`/`APP_ENV` are already externalized to `${VAR}` substitution in `docker-compose.yml` (not hardcoded); they come from a local, gitignored `.env` (see `.env.example`). No `.env` currently exists in this repo — one must be created (with a real `SECRET_KEY` and `APP_ENV=production`) before any real deployment. `docker-compose.yml` now falls back to `APP_ENV=production` if `.env` is missing/incomplete, so an absent `.env` fails safe rather than silently reopening the dev-bypass.
 - `magti_portal.db` (~183 MB) is local dev data — do not commit or delete
 - Worktree/branch hygiene: when work in a `.claude/worktrees/*` checkout is finished (merged or abandoned), remove the worktree (`git worktree remove`) and its `claude/*` branch (`git branch -D`) in that same session — don't leave it for later. Before deleting an unmerged one, check `git diff`/`git log` against `main` for anything not yet captured. (8 stale worktrees / 16 branches / 1.2GB accumulated silently over ~3 weeks before a full cleanup on 2026-07-11 — see `docs/PRODUCTION_HANDOVER.md` for the one real deliverable that was almost lost in the pile.)

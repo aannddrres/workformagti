@@ -85,8 +85,14 @@ portal:
   # files under <uploads-dir>/exports.
   uploads-dir: ${UPLOAD_DIR:uploads}
   rollout:
-    # Phase 4 infrastructure only. Phase 9A binds the switch but does not
-    # change ScopeResolver shadow call sites or enforce the proposed scope.
+    # WIRED, NOT SHADOW. ScopeResolver.decide reads this: with it on, scoped
+    # statistics and exports answer from leadership assignments instead of the
+    # users.department string -- a live access change, not a measurement. Both
+    # rules are recorded either way, so a rollback decision has evidence.
+    #
+    # Turning it on against a database with no assignments would close access
+    # for every manager at once, so LeadershipRolloutGuard refuses to boot that
+    # combination rather than letting it look like a quiet permissions outage.
     leadership-scope-enabled: ${ROLLOUT_LEADERSHIP_SCOPE:false}
     # Separate Phase 5 rollback boundary. The proposed compliance rule stays
     # in shadow mode until the gated cutover explicitly wires this switch.

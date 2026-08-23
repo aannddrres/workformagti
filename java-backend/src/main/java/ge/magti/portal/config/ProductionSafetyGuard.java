@@ -100,6 +100,42 @@ public class ProductionSafetyGuard {
 							+ "portal.app-env=production -- the auth cookie would be sent over plain HTTP. "
 							+ "Set COOKIE_SECURE=true (requires HTTPS).");
 		}
+
+		rejectCsrfExposingSameSite(properties.getSecurity().getCookie().getSameSite());
+	}
+
+	/**
+	 * Refuses {@code SameSite=None} in production, because it is this
+	 * application's only CSRF defence.
+	 *
+	 * <p>{@code SecurityConfig} disables Spring's CSRF tokens, and
+	 * {@code JwtAuthenticationFilter} accepts the {@code access_token} cookie
+	 * on <b>every</b> endpoint, not just the ones a browser loads directly.
+	 * That combination is safe only while the browser itself refuses to attach
+	 * the cookie to a cross-site request -- which is exactly what {@code Lax}
+	 * and {@code Strict} do and {@code None} does not.
+	 *
+	 * <p>So with {@code None}, any page on the internet could issue a
+	 * state-changing request to this API and the browser would authenticate it
+	 * with the logged-in administrator's session. Nothing else in the stack
+	 * would stop it.
+	 *
+	 * <p>The value is tempting for a split-origin deployment (Angular on one
+	 * host, the API on another), which is a real possibility -- see question 9
+	 * in docs/QUESTIONS_FOR_IT.md. That deployment needs CSRF tokens turned
+	 * back on first; it does not need this switch flipped. Failing to boot is
+	 * the point: the alternative is a portal that looks fine and is wide open.
+	 */
+	private static void rejectCsrfExposingSameSite(String sameSite) {
+		if (sameSite != null && "none".equalsIgnoreCase(sameSite.trim())) {
+			throw new IllegalStateException(
+					"portal.security.cookie.same-site (COOKIE_SAMESITE) is \"None\" with "
+							+ "portal.app-env=production. CSRF protection is disabled application-wide "
+							+ "and the auth cookie is accepted on every endpoint, so SameSite is the "
+							+ "only thing stopping a cross-site request from acting as the logged-in "
+							+ "user. Use \"Lax\" (or \"Strict\"). A split-origin deployment needs CSRF "
+							+ "tokens re-enabled, not this value.");
+		}
 	}
 
 	private void rejectWeakSecret(String secret) {

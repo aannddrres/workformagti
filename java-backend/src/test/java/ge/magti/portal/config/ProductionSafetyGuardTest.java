@@ -132,4 +132,60 @@ class ProductionSafetyGuardTest {
 		PortalProperties properties = propertiesWith("production", STRONG_SECRET, true);
 		assertDoesNotThrow(() -> new ProductionSafetyGuard(properties, "").verify());
 	}
+
+	/**
+	 * RTA-021. CSRF tokens are off application-wide and the auth cookie is
+	 * accepted on every endpoint, so SameSite is the only reason a cross-site
+	 * POST does not act as the logged-in user. "None" removes it silently --
+	 * nothing else in the stack changes, and nothing logs an objection.
+	 */
+	@Test
+	void productionWithSameSiteNoneFailsLoud() {
+		PortalProperties properties = propertiesWith("production", STRONG_SECRET, true);
+		properties.getSecurity().getCookie().setSameSite("None");
+		IllegalStateException ex = assertThrows(IllegalStateException.class, () -> guard(properties).verify());
+		assertTrue(ex.getMessage().contains("COOKIE_SAMESITE"));
+	}
+
+	/** Header values are case-insensitive, and so is the way people write them. */
+	@Test
+	void sameSiteNoneIsRejectedWhateverTheCasingAndSpacing() {
+		for (String value : new String[] {"none", "NONE", " None "}) {
+			PortalProperties properties = propertiesWith("production", STRONG_SECRET, true);
+			properties.getSecurity().getCookie().setSameSite(value);
+			assertThrows(
+					IllegalStateException.class,
+					() -> guard(properties).verify(),
+					"expected SameSite=" + value + " to be refused");
+		}
+	}
+
+	@Test
+	void productionAcceptsLaxAndStrict() {
+		for (String value : new String[] {"lax", "Lax", "Strict"}) {
+			PortalProperties properties = propertiesWith("production", STRONG_SECRET, true);
+			properties.getSecurity().getCookie().setSameSite(value);
+			assertDoesNotThrow(() -> guard(properties).verify(), "expected SameSite=" + value + " to boot");
+		}
+	}
+
+	/** The shipped default must be one the guard accepts, or production cannot boot unconfigured. */
+	@Test
+	void defaultSameSitePassesTheGuard() {
+		PortalProperties properties = propertiesWith("production", STRONG_SECRET, true);
+		assertDoesNotThrow(() -> guard(properties).verify());
+		assertTrue("lax".equalsIgnoreCase(new PortalProperties().getSecurity().getCookie().getSameSite()));
+	}
+
+	/**
+	 * A non-production deployment may legitimately need SameSite=None while
+	 * someone works on a split-origin setup. The guard is a production gate,
+	 * not a style rule.
+	 */
+	@Test
+	void developmentMaySetSameSiteNone() {
+		PortalProperties properties = propertiesWith("development", STRONG_SECRET, false);
+		properties.getSecurity().getCookie().setSameSite("None");
+		assertDoesNotThrow(() -> guard(properties).verify());
+	}
 }
