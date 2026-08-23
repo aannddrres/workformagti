@@ -5,6 +5,7 @@ import ge.magti.portal.domain.User;
 import ge.magti.portal.org.OrgBackfillIssue;
 import ge.magti.portal.org.OrgBackfillPlan;
 import ge.magti.portal.org.OrgBackfillService;
+import ge.magti.portal.org.OrgSchemaPreflight;
 import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.security.PolicyShadowRecorder;
 import org.junit.jupiter.api.Test;
@@ -40,8 +41,9 @@ class PolicyDiagnosticsControllerTest {
     private final PolicyShadowRecorder recorder = new PolicyShadowRecorder();
     private final OrgBackfillService backfill = mock(OrgBackfillService.class);
     private final AuditLogRepository auditLogRepository = mock(AuditLogRepository.class);
+    private final OrgSchemaPreflight schemaPreflight = mock(OrgSchemaPreflight.class);
     private final PolicyDiagnosticsController controller =
-            new PolicyDiagnosticsController(recorder, backfill, auditLogRepository);
+            new PolicyDiagnosticsController(recorder, backfill, schemaPreflight, auditLogRepository);
 
     private static User of(Role role) {
         User user = new User();

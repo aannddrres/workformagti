@@ -210,19 +210,25 @@ deployment-მდე Flyway history და preflight ცალკე უნდ�
 3. `POST /api/admin/org-backfill/apply` — იდემპოტენტურია, რამდენჯერაც საჭიროა;
 4. `GET /api/admin/policy-shadow` — `scope.*`-ის `disagreed` **მკვეთრად უნდა
    დაეცეს**. თუ არ დაეცა, backfill არ გავრცელდა;
-5. როცა `blocks_cutover: false` — მხოლოდ მაშინ `V37` და Phase 4.
+5. როცა `blocks_cutover: false` **და** `GET /api/admin/org-schema-preflight`-ის
+   `blocks_v37: false` — მხოლოდ მაშინ `V37` და Phase 4.
 
-სამივე endpoint `SYSTEM_ADMIN`-only.
+ოთხივე endpoint `SYSTEM_ADMIN`-only.
 
 ### 5.3 `V37` განზრახ არ არსებობს
 
-`V36MigrationShapeTest.v37IsNotShippedYet` ამას ტესტით იცავს. `V37` (NOT NULL,
-`(department_id, name)` uniqueness, external-id uniqueness) მხოლოდ
-**წარმატებული backfill-ის შემდეგ, ცალკე release-ში**.
+`V36MigrationShapeTest.v37IsNotShippedYet` ამას ტესტით იცავს. `V37` — სამი
+constraint `teams`-ზე: `department_id NOT NULL`, `UNIQUE (department_id, name)`
+და `UNIQUE (ad_external_id)` — მხოლოდ **წარმატებული backfill-ის შემდეგ, ცალკე
+release-ში**. (one-scope `CHECK` და ორივე primary-leader index უკვე `V36`-შია;
+იხ. გეგმის §7.2-ის შესწორება 2026-08-23.)
 
-`V37`-ს წინ უნდა უძღოდეს preflight: `(department_id, name)` დუბლიკატები,
-`NULL` `department_id`, external-id დუბლიკატები, ერთ scope-ზე ერთზე მეტი
-აქტიური `PRIMARY`.
+**preflight განხორციელებულია (2026-08-23):** `OrgSchemaPreflight` +
+`GET /api/admin/org-schema-preflight`. `V37` მხოლოდ მაშინ, როცა
+`blocks_v37: false` **და** backfill report-ის `blocks_cutover: false`. ორივე
+საჭიროა და ერთი მეორეს არ გულისხმობს: პირველი ცხრილზეა (სტრიქონები, რომლებსაც
+constraint უარყოფს), მეორე ადამიანებზე (სტრიქონები, რომლებზეც ჯერ არავის
+გადაუწყვეტია).
 
 > **გახსოვდეთ:** `V36` **ხსნის** გლობალურ `uq_teams_name`-ს, ხოლო შემცვლელი
 > uniqueness მხოლოდ `V37`-შია. ამ ორ release-ს შორის ჯგუფის სახელზე

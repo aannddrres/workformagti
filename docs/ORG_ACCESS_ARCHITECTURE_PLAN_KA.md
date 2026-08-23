@@ -223,12 +223,26 @@ UI-ის დამალვა მონაცემთა უსაფრთ�
    `token_version`-ისგან დამოუკიდებელი) და sync metadata. Oracle-ში
    `IF NOT EXISTS` არ გამოიყენება. `POST /api/teams` და ყველა org mutation
    endpoint იკეტება `V36`-მდე, რათა expand/contract ფანჯარაში ახალი დუბლიკატი ვერ
-   გაჩნდეს. Backfill-ის წარმატებული ცალკე rollout-ის შემდეგ `V37` ამატებს
-   `NOT NULL`, composite/external-ID uniqueness-ს, one-scope `CHECK`-სა და ორ
-   function-based primary-leader unique index-ს. `V37`-ის deployment-ს წინ
-   უძღვის blocking preflight: `(department_id, name)` დუბლიკატები, `NULL`
-   `department_id`, external-ID დუბლიკატები და scope-ზე ერთზე მეტი აქტიური
-   `PRIMARY`; ნებისმიერი დარღვევა contract migration-ს აჩერებს.
+   გაჩნდეს. Backfill-ის წარმატებული ცალკე rollout-ის შემდეგ მოდის `V37`.
+
+   > **შესწორება (2026-08-23).** ამ პუნქტს აქამდე ეწერა, რომ `V37` ამატებს
+   > one-scope `CHECK`-სა და ორ function-based primary-leader unique index-ს.
+   > **ისინი უკვე `V36`-შია** (`ck_leadership_one_scope`,
+   > `uq_leadership_primary_dept`, `uq_leadership_primary_team`), როგორც
+   > departments-ის external-ID uniqueness-იც (`uq_departments_ad_id`). მათი
+   > `V37`-ში ხელახლა დაწერა `ORA-00955`-ით ჩავარდებოდა. `V37`-ს **სამი**
+   > constraint რჩება, სამივე `teams`-ზე: `department_id NOT NULL`,
+   > `UNIQUE (department_id, name)` და `UNIQUE (ad_external_id)`.
+
+   `V37`-ის deployment-ს წინ უძღვის blocking preflight — **განხორციელებულია**
+   `OrgSchemaPreflight`-ად, იკითხება `GET /api/admin/org-schema-preflight`-ით
+   (SYSTEM_ADMIN-only), gate ერთ ველშია: `blocks_v37`. სამი blocking შემოწმება
+   ზუსტად ზემოთ ჩამოთვლილ სამ constraint-ს შეესაბამება. primary-collision-ის
+   ორი შემოწმებაც რჩება, მაგრამ **არა როგორც gate**: `V36`-ის index მათ
+   შეუძლებელს ხდის, ამიტომ ასეთი ჩანაწერის პოვნა ნიშნავს, რომ ეს index ამ
+   სქემაზე აღარ არის — Flyway-ის history ამას ვერ ამჩნევს, რადგან ის მხოლოდ
+   იმას იმახსოვრებს, რომ `V36` **გაეშვა**, და არა იმას, რომ მისი ობიექტები
+   კვლავ ადგილზეა.
 2. გარდამავალი mapper: არსებული `department` ტექსტების უსაფრთხო mapping ახალ
    department/team ID-ებზე; ისტორიული audit არ იცვლება. mapper საერთოდ არ ეხება
    `read_statuses.operator_department_snapshot` და
@@ -378,8 +392,10 @@ UI-ის დამალვა მონაცემთა უსაფრთ�
 - backfill არ ცვლის `operator_department_snapshot` ისტორიულ სვეტებს;
 - scope/compliance cutover არ იწყება, თუ reconciliation report-ში არის
   დაუდასტურებელი manager, ambiguous primary collision ან authorization diff.
-- `V37` არ ეშვება, სანამ schema preflight-ის duplicate/null/primary-collision
-  ანგარიში სრულად სუფთა არ არის.
+- `V37` არ ეშვება, სანამ `GET /api/admin/org-schema-preflight` არ დააბრუნებს
+  `blocks_v37: false`-ს. `blocking: false` finding მიგრაციას არ აჩერებს, მაგრამ
+  `clean: false`-ს ტოვებს და ცალკე გამოძიებას საჭიროებს — ის `V36`-ის
+  დაკარგულ constraint-ზე მიუთითებს, არა `V37`-ის წინაპირობაზე.
 
 ## 9. acceptance criteria
 

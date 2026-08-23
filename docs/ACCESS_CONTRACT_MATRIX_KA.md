@@ -272,6 +272,7 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 |---|---|---|---|---|---|---|
 | `GET /api/admin/org-backfill/report` | `PolicyDiagnosticsController.getBackfillReport` | `requireSystemAdmin` | org.manage `NEW` | `ORG` | **yes** | dry run. ასახელებს მომხმარებლებს, რომელთა განთავსებაც ვერ მოხერხდა — ე.ი. თანამშრომლის მონაცემია. `blocks_cutover` არის §8-ის gate ერთ ველში. |
 | `POST /api/admin/org-backfill/apply` | `PolicyDiagnosticsController.applyBackfill` | `requireSystemAdmin` | org.manage `NEW` | `ORG` | **yes** | იდემპოტენტური; აუდიტირდება `ORG_BACKFILL_APPLY`-ით. Phase 8 ამას ეკრანს დაადებს, არ შეცვლის ვის შეუძლია. |
+| `GET /api/admin/org-schema-preflight` | `PolicyDiagnosticsController.getSchemaPreflight` | `requireSystemAdmin` | org.manage `NEW` | `ORG` | no | `V37`-ის blocking preflight (გეგმის §7.2/§8). `blocks_v37` არის gate ერთ ველში. პერსონალურ მონაცემს არ ატარებს — ასახელებს ჯგუფებს, არა ადამიანებს. `blocking: false` findings ნიშნავს, რომ `V36`-ის constraint ამ სქემაზე აღარ არის. |
 | `GET /api/admin/policy-shadow` | `PolicyDiagnosticsController.getPolicyShadow` | `requireSystemAdmin` | org.manage `NEW` | `NONE` | no | მხოლოდ მრიცხველები decision point-ების მიხედვით; პერსონალურ მონაცემს არ ატარებს. `unexercised` რიცხვებზე ადრე უნდა წაიკითხოთ. |
 
 ### Quiz (5)

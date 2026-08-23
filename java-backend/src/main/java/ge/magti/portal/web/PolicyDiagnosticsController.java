@@ -5,6 +5,7 @@ import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.org.OrgBackfillPlan;
 import ge.magti.portal.org.OrgBackfillService;
+import ge.magti.portal.org.OrgSchemaPreflight;
 import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.security.PolicyShadowRecorder;
 import ge.magti.portal.util.TbilisiTime;
@@ -28,24 +29,33 @@ import java.util.Map;
  * report must be clean before cutover" is not a gate if the only way to
  * consult it is to grep application logs.
  *
- * <p>SYSTEM_ADMIN only, all three. The shadow snapshot carries no personal
+ * <p>SYSTEM_ADMIN only, all four. The shadow snapshot carries no personal
  * data -- counts per decision point, nothing else -- but the backfill report
  * names the users it could not place, which makes it employee data under the
- * same rule as everything else here.
+ * same rule as everything else here, and the schema preflight names groups.
+ *
+ * <p>The two gates read differently and are meant to. The backfill report's
+ * {@code blocks_cutover} is about people: rows nobody has decided on yet. The
+ * schema preflight's {@code blocks_v37} is about the table: rows a constraint
+ * would reject. Both must be false before the contract migration runs, and
+ * neither implies the other.
  */
 @RestController
 public class PolicyDiagnosticsController {
 
     private final PolicyShadowRecorder shadowRecorder;
     private final OrgBackfillService orgBackfillService;
+    private final OrgSchemaPreflight orgSchemaPreflight;
     private final AuditLogRepository auditLogRepository;
 
     public PolicyDiagnosticsController(
             PolicyShadowRecorder shadowRecorder,
             OrgBackfillService orgBackfillService,
+            OrgSchemaPreflight orgSchemaPreflight,
             AuditLogRepository auditLogRepository) {
         this.shadowRecorder = shadowRecorder;
         this.orgBackfillService = orgBackfillService;
+        this.orgSchemaPreflight = orgSchemaPreflight;
         this.auditLogRepository = auditLogRepository;
     }
 
@@ -131,6 +141,47 @@ public class PolicyDiagnosticsController {
         auditLogRepository.save(audit);
 
         return ResponseEntity.ok(describe(plan));
+    }
+
+    /**
+     * Whether V37 would apply against this database, or fail part-way.
+     *
+     * <p>The migration itself is not written yet and must not be until the
+     * backfill has run cleanly in production. This is what tells somebody
+     * whether that day has come: {@code blocks_v37} false, plus
+     * {@code blocks_cutover} false from the report above.
+     *
+     * <p>A finding with {@code blocking: false} is not noise to skip. It is a
+     * constraint V36 already created reporting a row it should have made
+     * impossible, which means the constraint is not on this schema -- a
+     * different and worse problem than the ones V37 is about.
+     */
+    @GetMapping("/api/admin/org-schema-preflight")
+    public ResponseEntity<?> getSchemaPreflight(@AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireSystemAdmin(user);
+        if (denial != null) {
+            return denial;
+        }
+
+        OrgSchemaPreflight.Report report = orgSchemaPreflight.run();
+        List<Map<String, Object>> findings = report.violations().stream()
+                .map(violation -> {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("constraint", violation.constraint());
+                    row.put("blocking", violation.blocking());
+                    row.put("rows", violation.rows());
+                    row.put("detail", violation.detail());
+                    row.put("samples", violation.samples());
+                    return row;
+                })
+                .toList();
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("blocks_v37", report.blocksV37());
+        body.put("clean", report.clean());
+        body.put("findings", findings);
+        body.put("generated_at", TbilisiTime.now());
+        return ResponseEntity.ok(body);
     }
 
     private static Map<String, Object> describe(OrgBackfillPlan plan) {
