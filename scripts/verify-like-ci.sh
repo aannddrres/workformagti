@@ -25,12 +25,26 @@ set -euo pipefail
 MODE="${1:-all}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# `python3 -m pytest`, not the `pytest` on PATH. In CI they are the same
+# thing, because the job pip-installs into the interpreter it then runs. On a
+# developer machine they often are not: a uv- or pipx-installed pytest lives
+# in its own environment and cannot import sqlalchemy, so the suite dies in
+# conftest.py with a ModuleNotFoundError that looks like a broken repo. Found
+# by this script failing that way on the machine it was written on.
+PYTHON="${PYTHON:-python3}"
+
 ORACLE_HOST="${ORACLE_HOST:-localhost:1521/XEPDB1}"
 ORACLE_USER="${ORACLE_USER:-magti_app}"
 ORACLE_PASSWORD="${ORACLE_PASSWORD:-LocalAppPw1}"
 
 step() { printf '\n\033[1m== %s\033[0m\n' "$1"; }
 skip() { printf '\n\033[2m-- skipped: %s\033[0m\n' "$1"; }
+
+# Anything this machine could not run. The script exits non-zero while this is
+# non-empty: a job that did not run must never read as a job that passed --
+# that is the whole failure mode of replacing CI with "I ran it locally".
+UNVERIFIED=()
+unverified() { UNVERIFIED+=("$1"); printf '\n\033[33m!! not verified here: %s\033[0m\n' "$1"; }
 
 cd "$ROOT"
 
@@ -39,13 +53,24 @@ cd "$ROOT"
 if [ "$MODE" = "all" ] || [ "$MODE" = "fast" ]; then
   step "test (ruff + pytest)"
   ruff check .
-  pytest tests/ -q
+  "$PYTHON" -m pytest tests/ -q
 
   step "java-unit (DB-free)"
   (cd java-backend && mvn -B test -DexcludedGroups=oracle)
 
-  step "frontend (build + unit tests)"
-  (cd angular-frontend && npm ci && npx ng build --configuration production && npx ng test --watch=false)
+  step "frontend (i18n guard, build, unit tests)"
+  (cd angular-frontend && npm ci >/dev/null)
+  # Plain Node, no Angular CLI -- so this one runs even where the build cannot.
+  (cd angular-frontend && node scripts/check-i18n-keys.mjs)
+
+  # PR-10: nothing pins the Node version, and the Angular CLI refuses a
+  # release one patch old. Rather than let the CLI's own message look like a
+  # broken repo, say what it is and record that the job did not run.
+  if (cd angular-frontend && npx ng version >/dev/null 2>&1); then
+    (cd angular-frontend && npx ng build --configuration production && npx ng test --watch=false)
+  else
+    unverified "Angular build and unit tests -- the CLI rejects this machine's Node ($(node --version)); see PR-10 in docs/OPUS5_AUDIT_4_PRODUCTION_READINESS.md"
+  fi
 fi
 
 # --- the jobs that now run only on a pull request or on main --------------
@@ -62,7 +87,7 @@ if [ "$MODE" = "all" ] || [ "$MODE" = "oracle" ]; then
   ETL_ORACLE_DSN="$ORACLE_HOST" \
   ETL_ORACLE_USER="$ORACLE_USER" \
   ETL_ORACLE_PASSWORD="$ORACLE_PASSWORD" \
-    python -m pytest tests/etl -q
+    "$PYTHON" -m pytest tests/etl -q
 fi
 
 if [ "$MODE" = "all" ]; then
@@ -72,7 +97,13 @@ if [ "$MODE" = "all" ]; then
   # to get subtly wrong (a stale port, a leftover process, a different
   # Oracle). Getting it wrong quietly is worse than not running it, so this
   # says what to run instead of pretending.
-  skip "e2e -- run it deliberately: see the 'e2e' job in .github/workflows/ci.yml"
+  unverified "e2e -- ten minutes of orchestration a developer-machine script tends to get quietly wrong; run the 'e2e' job's steps from .github/workflows/ci.yml deliberately"
 fi
 
-printf '\n\033[1mDone (%s).\033[0m Note what this is: one machine, one Oracle, no independent runner.\n' "$MODE"
+printf '\n\033[1mDone (%s).\033[0m One machine, one Oracle, no independent runner.\n' "$MODE"
+
+if [ ${#UNVERIFIED[@]} -gt 0 ]; then
+  printf '\n\033[33m%d thing(s) this run did NOT verify:\033[0m\n' "${#UNVERIFIED[@]}"
+  for item in "${UNVERIFIED[@]}"; do printf '  - %s\n' "$item"; done
+  exit 1
+fi
