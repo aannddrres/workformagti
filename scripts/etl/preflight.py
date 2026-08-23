@@ -119,9 +119,13 @@ def check_target_empty(target, specs: list[TableSpec]) -> list[Check]:
 def check_schema_version(target, minimum: int = 42) -> Check:
     """The target must already be migrated past the last schema the plan knows."""
     try:
+        # Flyway creates its history table with quoted lower-case column
+        # names on Oracle, so an unquoted `version`/`success` is folded to
+        # upper case and does not resolve (ORA-00904). Found on the first
+        # real Oracle run; no SQLite rehearsal could have shown it.
         rows = target.query(
-            "SELECT MAX(TO_NUMBER(REGEXP_SUBSTR(version, '^\\d+'))) FROM flyway_schema_history "
-            "WHERE success = 1"
+            'SELECT MAX(TO_NUMBER(REGEXP_SUBSTR("version", \'^\\d+\'))) '
+            'FROM "flyway_schema_history" WHERE "success" = 1'
         )
         applied = int(rows[0][0]) if rows and rows[0][0] is not None else 0
     except Exception as exc:  # noqa: BLE001 - any driver error means "cannot prove it"

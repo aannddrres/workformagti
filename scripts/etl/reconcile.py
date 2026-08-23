@@ -16,6 +16,7 @@ them is the closest thing this migration has to a proof.
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -73,6 +74,35 @@ def canon(value: Any) -> str:
     return text
 
 
+def canonical_json(value: Any) -> Any:
+    """One shape for a JSON column, whatever the driver hands back.
+
+    `users.permissions` is a CLOB with a CHECK (... IS JSON) constraint. On
+    Oracle 21c python-oracledb reads that constraint and returns the value
+    already decoded into a Python list; on 19c -- what production runs -- it
+    comes back as text. Comparing a list with a string would report damage on
+    one version and not the other, so both sides are reduced to the same
+    canonical text here. Formatting is not evidence; the permission set is.
+    """
+    if value is None:
+        return None
+    if hasattr(value, "read"):
+        value = value.read()
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        try:
+            value = json.loads(text)
+        except ValueError:
+            return text  # not JSON after all -- compare it as the text it is
+    return json.dumps(value, sort_keys=True, ensure_ascii=False)
+
+
+def normalize(column, value: Any) -> Any:
+    return canonical_json(value) if column.transform == "json_to_clob" else value
+
+
 def fingerprint(values: tuple) -> str:
     return hashlib.sha256(US.join(canon(v) for v in values).encode("utf-8")).hexdigest()
 
@@ -120,14 +150,30 @@ def _keyed(rows: Iterator[tuple], key_len: int) -> dict[tuple, tuple]:
     return {row[:key_len]: row[key_len:] for row in rows}
 
 
+def compare_columns(spec: TableSpec) -> list:
+    """The columns whose values form the row fingerprint.
+
+    The key is deliberately excluded: it is compared as the key, and adding
+    it here would put the same column in the select list twice -- which
+    SQLite tolerates and Oracle rejects outright (ORA-00960, ambiguous
+    column naming, once ORDER BY names it). Found on the first real Oracle
+    run; every SQLite rehearsal had been green with the duplicate in place.
+    """
+    return [c for c in spec.columns if c.checksum and c.target not in spec.pk]
+
+
+def target_columns(spec: TableSpec) -> list[str]:
+    return [*spec.pk, *[c.target for c in compare_columns(spec)]]
+
+
 def compare_table(source, target, spec: TableSpec) -> TableReport:
     report = TableReport(target=spec.target)
     report.source_rows = source.count(spec.source)
     report.target_rows = target.count(spec.target)
 
     key_len = len(spec.pk)
-    compare_cols = [c for c in spec.columns if c.checksum]
-    target_cols = [*spec.pk, *[c.target for c in compare_cols]]
+    compare_cols = compare_columns(spec)
+    target_cols = target_columns(spec)
 
     def source_rows() -> Iterator[tuple]:
         cols = [*spec.pk, *spec.source_columns]
@@ -135,10 +181,17 @@ def compare_table(source, target, spec: TableSpec) -> TableReport:
             key = row[:key_len]
             by_source = dict(zip(spec.source_columns, row[key_len:]))
             yield key + tuple(
-                transforms.apply(c.transform, by_source[c.source]) for c in compare_cols
+                normalize(c, transforms.apply(c.transform, by_source[c.source]))
+                for c in compare_cols
             )
 
-    target_rows = target.stream(spec.target, target_cols, ", ".join(spec.pk))
+    def target_stream() -> Iterator[tuple]:
+        for row in target.stream(spec.target, target_cols, ", ".join(spec.pk)):
+            yield row[:key_len] + tuple(
+                normalize(c, v) for c, v in zip(compare_cols, row[key_len:])
+            )
+
+    target_rows = target_stream()
 
     if spec.pk == ("id",):
         # Numeric single-column key: both sides stream in the same order, so

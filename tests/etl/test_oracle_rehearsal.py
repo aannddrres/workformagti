@@ -19,6 +19,7 @@ reach is checked here, because none of it exists anywhere else:
 """
 from __future__ import annotations
 
+import json
 import os
 
 import pytest
@@ -195,9 +196,16 @@ def test_a_long_clob_survives_the_batch_bind(rehearsal):
 
 
 def test_permissions_json_passes_the_is_json_check(rehearsal):
+    """CHECK (permissions IS JSON) accepted the migrated value.
+
+    What comes back depends on the server: 21c reports the IS JSON
+    constraint and python-oracledb returns a decoded list, while 19c --
+    production -- returns text. The assertion is on the content, which is
+    the same on both.
+    """
     stored = rehearsal["target"].scalar("SELECT permissions FROM users WHERE id = 3")
-    stored = stored.read() if hasattr(stored, "read") else stored
-    assert stored == '["reports.export"]'
+    assert reconcile.canonical_json(stored) == reconcile.canonical_json('["reports.export"]')
+    assert json.loads(reconcile.canonical_json(stored)) == ["reports.export"]
 
 
 def test_an_empty_string_arrives_as_null(rehearsal):

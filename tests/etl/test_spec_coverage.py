@@ -18,7 +18,7 @@ import re
 
 import pytest
 
-from scripts.etl import preflight, spec, transforms
+from scripts.etl import preflight, reconcile, spec, transforms
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 MIGRATIONS = os.path.join(REPO_ROOT, "java-backend", "src", "main", "resources", "db", "migration")
@@ -191,3 +191,11 @@ def test_the_timestamp_transform_is_not_used_on_other_columns():
                 assert (table.target, col.target) in declared, (
                     f"{table.target}.{col.target} is not a TIMESTAMP column in Oracle"
                 )
+
+
+def test_reconciliation_never_selects_the_same_column_twice():
+    """Oracle rejects a duplicated column once ORDER BY names it (ORA-00960);
+    SQLite happily returns it twice, so only a real Oracle run found this."""
+    for table in spec.PLAN:
+        columns = reconcile.target_columns(table)
+        assert len(columns) == len(set(columns)), f"{table.target}: {columns}"

@@ -56,7 +56,10 @@ def build(
             "included": sorted(gated_included),
             "skipped": sorted(set(DECISION_REQUIRED) - set(gated_included)),
         },
-        "preflight": [_plain(c) for c in checks],
+        # `status` is a property, so asdict() leaves it out -- and the
+        # Markdown renderer only reads it for a check that is *not* ok, which
+        # is why every green rehearsal missed it.
+        "preflight": [{**_plain(c), "status": getattr(c, "status", "FAIL")} for c in checks],
         "load": _plain(load_result) if load_result else None,
         "uploads": _plain(uploads_result) if uploads_result else None,
         "uploads_verify": uploads_verify,

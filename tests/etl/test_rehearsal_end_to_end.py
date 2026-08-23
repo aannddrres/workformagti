@@ -376,3 +376,24 @@ def test_a_skipped_hash_check_never_reads_as_a_passed_one(rehearsal):
     )
     verdict = report_mod.to_markdown(payload).split("## შედეგი:")[1].splitlines()[0]
     assert "ჰეშ-ჯაჭვი შემოწმებული არ არის" in verdict
+
+
+def test_the_report_renders_a_failed_check_without_blowing_up():
+    """`status` is a property, so asdict() drops it -- and the renderer only
+    reads it for a check that is not ok, which every green run skipped."""
+    from scripts.etl import report as report_mod
+    from scripts.etl.preflight import Check
+
+    payload = report_mod.build(
+        target_kind="oracle",
+        source_dsn="sqlite:///x.db",
+        dry_run=False,
+        gated_included=[],
+        checks=[
+            Check(name="width:users.name", ok=False, detail="too long", samples=[(1,)]),
+            Check(name="empty-string-to-null", ok=False, detail="1 empty", fatal=False),
+        ],
+    )
+    markdown = report_mod.to_markdown(payload)
+    assert "**FAIL** `width:users.name`" in markdown
+    assert "**WARN** `empty-string-to-null`" in markdown
