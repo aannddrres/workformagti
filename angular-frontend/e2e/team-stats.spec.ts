@@ -86,7 +86,13 @@ test('manager dashboard: sort, drill-downs and the four exports', async ({ page,
   // Clicking inside must NOT close it -- that is what the stopPropagation on
   // the inner panel is for, and a dialog that shuts when you click its own
   // contents is unusable.
-  await criticalDialog.click({ position: { x: 10, y: 10 } });
+  //
+  // On its own heading, not at a coordinate. The panel is centred with
+  // `p-4` padding on the backdrop and rounded corners, and a fixed offset
+  // into its bounding box stopped landing on painted pixels after the
+  // redesign -- Playwright reported <html> as the element intercepting the
+  // click. A real child element is both stable and closer to what a user does.
+  await criticalDialog.getByRole('heading').click();
   await expect(criticalDialog).toBeVisible();
 
   await criticalDialog.locator('button:has(.fa-xmark)').click();

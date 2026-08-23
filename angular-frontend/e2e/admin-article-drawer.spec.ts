@@ -20,7 +20,7 @@ test('article drawer: what the form is set to is what gets saved', async ({ page
 
   await seedTokenIntoPage(page, token);
   await page.goto('/admin/content');
-  await page.getByRole('button', { name: '+ სტატია' }).click();
+  await page.getByRole('button', { name: 'სტატია', exact: true }).click();
 
   const drawer = page.locator('app-article-edit-drawer');
   await expect(drawer.getByText('ახალი სტატიის დამატება')).toBeVisible();

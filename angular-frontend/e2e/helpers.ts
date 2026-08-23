@@ -241,6 +241,23 @@ export async function loginAsUi(page: Page, email: string, password = 'x'): Prom
  *  the test -- avoids a second, redundant /api/auth/login call against the
  *  10/minute-per-IP LoginRateLimiter when the same persona (typically
  *  admin@magti.ge) both drives API fixture setup and the UI in one test. */
+/**
+ * Opens the access workspace on one of its tabs.
+ *
+ * /admin/users and /admin/roles were separate pages until the system-admin
+ * redesign (b8fcea2, 2026-08-21) folded both into /admin/access as tabs, with
+ * the users table embedded and rendering a different heading in that mode.
+ * Every spec that used to navigate to one of the old routes goes through here,
+ * so the next time the shape changes it changes in one place.
+ */
+export async function openAccessTab(page: Page, tab: 'users' | 'roles'): Promise<void> {
+  await page.goto('/admin/access');
+  await expect(page.getByRole('heading', { name: 'მომხმარებლები და წვდომა' })).toBeVisible();
+  if (tab === 'roles') {
+    await page.getByRole('tab', { name: 'როლები და უფლებები' }).click();
+  }
+}
+
 export async function seedTokenIntoPage(page: Page, token: string): Promise<void> {
   await page.goto('/login');
   await page.evaluate((t) => localStorage.setItem('magti_token', t), token);

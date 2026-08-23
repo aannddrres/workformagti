@@ -26,7 +26,7 @@ test('admin content: mandatory article with no due date is blocked from saving',
   await seedTokenIntoPage(page, token);
 
   await page.goto('/admin/content');
-  await page.getByRole('button', { name: '+ სტატია' }).click();
+  await page.getByRole('button', { name: 'სტატია', exact: true }).click();
 
   // The host <app-article-edit-drawer> element itself has a zero-size box
   // (its children are position:fixed, out of normal flow) so it never

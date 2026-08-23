@@ -228,7 +228,15 @@ test.describe('operator browsing', () => {
     await expect(cardA).toHaveCount(1);
     await expect(cardB).toHaveCount(0);
 
-    await search.fill('');
+    // Widened back to this run's own two articles rather than to everything.
+    // `search.fill('')` used to work and now depends on how much content the
+    // shared instance has accumulated: the grid is paged, so on a database
+    // with a few hundred articles the card this line is looking for is simply
+    // not on the first page. Searching the run marker keeps the assertion
+    // ("relaxing the filter brings the hidden card back") without making it a
+    // statement about how many articles exist.
+    await search.fill(id);
+    await expect(cardA).toHaveCount(1);
     await expect(cardB).toHaveCount(1);
 
     const categorySelect = page.locator('select').filter({ hasText: 'ყველა კატეგორია' });

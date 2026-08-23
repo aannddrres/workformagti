@@ -2,8 +2,8 @@ import { test, expect, APIRequestContext } from '@playwright/test';
 import { apiLogin, createArticle, createCategory, runId, seedTokenIntoPage } from './helpers';
 
 /**
- * The frame every page sits inside -- language, the mobile menu, logout --
- * plus the admin dashboard's progress controls and the video list.
+ * The frame every page sits inside -- the mobile menu and logout -- plus the
+ * admin dashboard's progress controls and the video list.
  *
  * The shell is the highest-traffic code in the product by definition: it is
  * on screen for every interaction anyone has. It was also the last thing
@@ -29,49 +29,16 @@ async function createVideo(
 }
 
 test.describe('the shell', () => {
-  test('language toggle switches the whole page and survives a navigation', async ({
-    page,
-    request
-  }) => {
-    test.setTimeout(120_000);
-    const token = await apiLogin(request, 'admin@magti.ge');
-    await seedTokenIntoPage(page, token);
-    await page.goto('/');
-
-    // The button's own label is the state: it names the language it will
-    // switch TO, so it reads EN while Georgian is active.
-    const toggle = page.getByRole('button', { name: 'EN', exact: true });
-    await expect(toggle).toBeVisible();
-
-    // Asserted on real page text, not on the button alone -- a toggle that
-    // flips its own label and translates nothing would pass that.
-    await expect(page.getByRole('button', { name: 'სისტემიდან გასვლა' })).toBeVisible();
-
-    await toggle.click();
-    await expect(page.getByRole('button', { name: 'KA', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'სისტემიდან გასვლა' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Log out' })).toBeVisible();
-
-    // Navigated IN-APP, by the sidebar link, not with page.goto.
-    //
-    // The distinction is the product's actual behaviour, found here: nothing
-    // persists the choice. app.config.ts:20 bootstraps the app at `lang: 'ka'`
-    // and toggleLanguage only calls translate.use(), so the selection lives in
-    // memory for the lifetime of the page. Client-side routing keeps it; a
-    // browser refresh resets it to Georgian.
-    //
-    // Worth knowing rather than worth failing over: Georgian is the primary
-    // and only reviewed language (app.config.ts:12), so an English-preferring
-    // operator re-picking EN after a refresh is a small cost, not a broken
-    // feature. The test asserts what the app does, and this comment records
-    // what it does not.
-    await page.getByRole('link', { name: 'News' }).click();
-    await expect(page).toHaveURL(/\/news$/);
-    await expect(page.getByRole('button', { name: 'KA', exact: true })).toBeVisible();
-
-    await page.getByRole('button', { name: 'KA', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'სისტემიდან გასვლა' })).toBeVisible();
-  });
+  // The language toggle used to be asserted here. It no longer exists: the
+  // system-admin workspace redesign (b8fcea2, 2026-08-21) removed
+  // toggleLanguage() and the only translate.use() call in the app, which
+  // matches the product being Georgian-only. app.config.ts bootstraps at
+  // `lang: 'ka'` and nothing changes it at runtime.
+  //
+  // en.json and its CI guard stay -- CLAUDE.md keeps them until an approved
+  // cleanup removes the legacy English infrastructure -- but there is no
+  // user-facing way to reach English, so there is nothing here to drive.
+  // Restoring a spec for a deleted control would be inventing a feature.
 
   test('the mobile menu opens, closes from its backdrop, and is not there on a desktop', async ({
     page,
@@ -81,15 +48,19 @@ test.describe('the shell', () => {
     const token = await apiLogin(request, 'admin@magti.ge');
     await seedTokenIntoPage(page, token);
 
-    // md:hidden on the trigger and md:static on the sidebar -- below the
-    // breakpoint is the only width at which this control exists at all.
+    // lg:hidden on the trigger and lg:translate-x-0 on the sidebar -- below
+    // the breakpoint is the only width at which this control exists at all.
+    // (The redesign moved this from md to lg; 1280 is still above it.)
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
 
-    const menuToggle = page.getByRole('button', { name: 'მენიუს გახსნა/დახურვა' });
+    const menuToggle = page.getByRole('button', { name: 'მენიუს გახსნა' });
     await expect(menuToggle).toBeVisible();
 
-    const backdrop = page.locator('div.fixed.inset-0.z-30');
+    // The backdrop is a real <button> now, not a div -- addressed by the role
+    // and label it carries rather than by its utility classes, which is what
+    // broke the previous selector when the markup changed.
+    const backdrop = page.getByRole('button', { name: 'მენიუს დახურვა' });
     await expect(backdrop).toHaveCount(0);
 
     await menuToggle.click();
@@ -97,12 +68,12 @@ test.describe('the shell', () => {
     await expect(page.getByRole('link', { name: 'სიახლეები' })).toBeVisible();
 
     // Closed from the backdrop, which is the only thing closeMobileMenu is
-    // wired to (app-shell.html:4).
+    // wired to (app-shell.html:3-8).
     //
-    // x: 350, not x: 5. The open sidebar is `fixed inset-y-0 left-0 w-64`
+    // x: 350, not x: 5. The open sidebar is `fixed inset-y-0 left-0 w-[264px]`
     // at z-40, above the backdrop's z-30, so a click near the left edge lands
     // on the sidebar instead and Playwright waits out the full action timeout
-    // for a backdrop that will never receive it. 350 is clear of the 256px
+    // for a backdrop that will never receive it. 350 is clear of the 264px
     // sidebar in this 390px viewport.
     await backdrop.click({ position: { x: 350, y: 400 } });
     await expect(backdrop).toHaveCount(0);
@@ -126,6 +97,10 @@ test.describe('the shell', () => {
     const token = await apiLogin(request, `test_operator_logout_${runId()}@magti.ge`);
     await seedTokenIntoPage(page, token);
     await page.goto('/');
+
+    // Logout moved into the account dropdown in the redesign; it is not on
+    // screen until the menu is opened.
+    await page.getByRole('button', { name: 'ანგარიშის მენიუ' }).click();
 
     const [loggedOut] = await Promise.all([
       page.waitForResponse((r) => r.url().includes('/api/auth/logout')),
@@ -158,7 +133,7 @@ test.describe('admin dashboard and videos', () => {
     const token = await apiLogin(request, 'admin@magti.ge');
     await seedTokenIntoPage(page, token);
     await page.goto('/admin/main');
-    await expect(page.getByRole('heading', { name: 'მთავარი პანელი' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'სისტემის მიმოხილვა' })).toBeVisible();
 
     // --- refresh -----------------------------------------------------------
     const [refreshed] = await Promise.all([
@@ -171,7 +146,7 @@ test.describe('admin dashboard and videos', () => {
     // Told apart by their options rather than by position: there are several
     // selects on this page and none of them carry a label element.
     const deptSelect = page.locator('select').filter({ hasText: 'ყველა დეპარტამენტი' });
-    const sortSelect = page.locator('select').filter({ hasText: 'დალაგება: სახელის მიხედვით' });
+    const sortSelect = page.locator('select').filter({ hasText: 'სახელის მიხედვით' });
     await expect(deptSelect).toBeVisible();
     await expect(sortSelect).toBeVisible();
 

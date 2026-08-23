@@ -177,10 +177,10 @@
     <div class="flex items-center justify-between px-2 py-3">
       <span class="text-sm text-gray-500 dark:text-zinc-400">{{ pageStart() }}–{{ pageEnd() }} / {{ filteredArticles().length }}</span>
       <div class="flex items-center gap-1">
-        <button (click)="goToPage(1)" [disabled]="currentPage() <= 1" class="rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:text-gray-300 dark:disabled:text-zinc-700">
+        <button (click)="goToPage(1)" [disabled]="currentPage() <= 1" aria-label="პირველი გვერდი" class="rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:text-gray-300 dark:disabled:text-zinc-700">
           <i class="fa-solid fa-angles-left"></i>
         </button>
-        <button (click)="goToPage(currentPage() - 1)" [disabled]="currentPage() <= 1" class="rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:text-gray-300 dark:disabled:text-zinc-700">
+        <button (click)="goToPage(currentPage() - 1)" [disabled]="currentPage() <= 1" aria-label="წინა გვერდი" class="rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:text-gray-300 dark:disabled:text-zinc-700">
           <i class="fa-solid fa-chevron-left"></i>
         </button>
         @for (p of pageNumbers(); track p) {
@@ -188,10 +188,10 @@
             {{ p }}
           </button>
         }
-        <button (click)="goToPage(currentPage() + 1)" [disabled]="currentPage() >= totalPages()" class="rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:text-gray-300 dark:disabled:text-zinc-700">
+        <button (click)="goToPage(currentPage() + 1)" [disabled]="currentPage() >= totalPages()" aria-label="შემდეგი გვერდი" class="rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:text-gray-300 dark:disabled:text-zinc-700">
           <i class="fa-solid fa-chevron-right"></i>
         </button>
-        <button (click)="goToPage(totalPages())" [disabled]="currentPage() >= totalPages()" class="rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:text-gray-300 dark:disabled:text-zinc-700">
+        <button (click)="goToPage(totalPages())" [disabled]="currentPage() >= totalPages()" aria-label="ბოლო გვერდი" class="rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:text-gray-300 dark:disabled:text-zinc-700">
           <i class="fa-solid fa-angles-right"></i>
         </button>
       </div>

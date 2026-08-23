@@ -41,11 +41,11 @@ test.describe('admin content list', () => {
     const search = page.getByPlaceholder('ძიება სათაურით...');
     await expect(search).toBeVisible();
 
-    await page.getByRole('button', { name: 'სიახლეები', exact: true }).click();
+    await page.getByRole('tab', { name: 'სიახლეები' }).click();
     await expect(search).toBeHidden();
-    await page.getByRole('button', { name: 'ვიდეოები', exact: true }).click();
+    await page.getByRole('tab', { name: 'ვიდეოები' }).click();
     await expect(search).toBeHidden();
-    await page.getByRole('button', { name: 'სტატიები', exact: true }).click();
+    await page.getByRole('tab', { name: 'სტატიები' }).click();
     await expect(search).toBeVisible();
 
     // --- search + pager ---------------------------------------------------
@@ -56,13 +56,16 @@ test.describe('admin content list', () => {
     await expect(page.getByText(`1–20 / ${SEEDED}`)).toBeVisible();
     await expect(page.locator('tbody tr')).toHaveCount(20);
 
-    // The pager buttons are icon-only, so they are addressed by their icon
-    // rather than by position -- an index would silently follow whichever
-    // button moved.
-    const firstPage = page.locator('button:has(.fa-angles-left)');
-    const prevPage = page.locator('button:has(.fa-chevron-left)');
-    const nextPage = page.locator('button:has(.fa-chevron-right)');
-    const lastPage = page.locator('button:has(.fa-angles-right)');
+    // Addressed by accessible name. Selecting on the icon class used to work
+    // and stopped when the redesign gave the sidebar a collapse control with
+    // the same chevrons -- `button:has(.fa-angles-left)` then matched two
+    // elements in different parts of the page. The pager buttons carry
+    // aria-labels now, which they needed anyway: icon-only buttons with no
+    // accessible name announce as "button" and nothing else.
+    const firstPage = page.getByRole('button', { name: 'პირველი გვერდი' });
+    const prevPage = page.getByRole('button', { name: 'წინა გვერდი' });
+    const nextPage = page.getByRole('button', { name: 'შემდეგი გვერდი' });
+    const lastPage = page.getByRole('button', { name: 'ბოლო გვერდი' });
 
     await page.getByRole('button', { name: '2', exact: true }).click();
     await expect(page.getByText(`21–${SEEDED} / ${SEEDED}`)).toBeVisible();
@@ -145,14 +148,18 @@ test.describe('admin content list', () => {
     await statusSelect.selectOption('');
 
     // --- select-all + bulk archive ---------------------------------------
-    // The bulk buttons are disabled with an empty selection, so the enabled
-    // state and the count in the label are themselves the assertion that
-    // select-all reached the component.
-    const archiveSelected = page.getByRole('button', { name: /არქივი \(/ });
+    // The bulk actions are not disabled buttons any more: the whole bar only
+    // exists while something is selected, and the count moved out of the
+    // button labels into a line of its own. So the bar appearing, with the
+    // right number in it, is the assertion that select-all reached the
+    // component.
+    const archiveSelected = page.getByRole('button', { name: 'არქივი', exact: true });
     const selectAll = page.locator('thead input[type="checkbox"]');
+    await expect(archiveSelected).toHaveCount(0);
+
     await selectAll.check();
-    await expect(archiveSelected).toBeEnabled();
-    await expect(archiveSelected).toContainText('(2)');
+    await expect(page.getByText('მონიშნულია 2 სტატია')).toBeVisible();
+    await expect(archiveSelected).toBeVisible();
 
     page.once('dialog', (dialog) => dialog.accept());            // confirm_bulk_archive
     await archiveSelected.click();

@@ -23,7 +23,7 @@ test.describe('admin content: news and videos', () => {
 
     await seedTokenIntoPage(page, token);
     await page.goto('/admin/content');
-    await page.getByRole('button', { name: 'სიახლეები', exact: true }).click();
+    await page.getByRole('tab', { name: 'სიახლეები' }).click();
     await page.getByRole('button', { name: '+ სიახლე' }).click();
 
     const drawer = page.locator('app-news-edit-drawer');
@@ -90,8 +90,20 @@ test.describe('admin content: news and videos', () => {
 
     // --- delete -----------------------------------------------------------
     const editedRow = page.locator('tr', { hasText: editedTitle });
+
+    // R5 made removal a two-step, evidence-safe path: an item goes to the
+    // 30-day trash, and only after it has been archived. The trash control
+    // stays disabled until then, which is asserted here rather than assumed --
+    // the old spec clicked "the last button in the row" and passed only
+    // because deletion used to be immediate.
+    const trash = editedRow.getByRole('button', { name: 'სანაგვეში გადატანა' });
+    await expect(trash).toBeDisabled();
+
+    await editedRow.getByRole('button', { name: 'დაარქივება' }).click();
+    await expect(editedRow.getByText('არქივი')).toBeVisible();
+
     page.once('dialog', (dialog) => dialog.accept());
-    await editedRow.getByRole('button').last().click();     // trash
+    await trash.click();
     await expect(editedRow).toHaveCount(0);
 
     const afterDelete = await request.get('/api/news?limit=200', { headers: auth });
@@ -112,7 +124,7 @@ test.describe('admin content: news and videos', () => {
 
     await seedTokenIntoPage(page, token);
     await page.goto('/admin/content');
-    await page.getByRole('button', { name: 'ვიდეოები', exact: true }).click();
+    await page.getByRole('tab', { name: 'ვიდეოები' }).click();
     await page.getByRole('button', { name: '+ ვიდეო' }).click();
 
     const drawer = page.locator('app-video-edit-drawer');
@@ -152,8 +164,20 @@ test.describe('admin content: news and videos', () => {
 
     // --- delete -----------------------------------------------------------
     const editedRow = page.locator('tr', { hasText: editedTitle });
+
+    // R5 made removal a two-step, evidence-safe path: an item goes to the
+    // 30-day trash, and only after it has been archived. The trash control
+    // stays disabled until then, which is asserted here rather than assumed --
+    // the old spec clicked "the last button in the row" and passed only
+    // because deletion used to be immediate.
+    const trash = editedRow.getByRole('button', { name: 'სანაგვეში გადატანა' });
+    await expect(trash).toBeDisabled();
+
+    await editedRow.getByRole('button', { name: 'დაარქივება' }).click();
+    await expect(editedRow.getByText('არქივი')).toBeVisible();
+
     page.once('dialog', (dialog) => dialog.accept());
-    await editedRow.getByRole('button').last().click();
+    await trash.click();
     await expect(editedRow).toHaveCount(0);
 
     const afterDelete = await request.get('/api/videos?limit=200', { headers: auth });

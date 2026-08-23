@@ -8,7 +8,9 @@ test.describe('login', () => {
     await page.getByRole('button', { name: 'შესვლა' }).click();
 
     await expect(page).not.toHaveURL(/\/login/);
-    await expect(page.getByText('მთავარი')).toBeVisible();
+    // The sidebar link, specifically. The redesign put the current page's
+    // title in the header too, so a bare text match now finds two.
+    await expect(page.getByRole('link', { name: 'მთავარი' })).toBeVisible();
   });
 
   test('unknown account is rejected with an error and stays on the login page', async ({ page }) => {

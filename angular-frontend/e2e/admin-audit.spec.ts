@@ -60,7 +60,11 @@ test.describe('audit log', () => {
     await seedTokenIntoPage(page, token);
     await page.goto('/admin/audit');
 
-    const archiveRows = page.locator('tr', { hasText: 'ARCHIVE' });
+    // The table shows the Georgian label now, not the raw action code -- the
+    // code survives only in the cell's title attribute (audit-format.ts's
+    // ACTION_LABELS). Filtering on what is on screen is also the more honest
+    // assertion: it is what an auditor reads.
+    const archiveRows = page.locator('tr', { hasText: 'დაარქივება' });
     await expect(archiveRows.first()).toBeVisible();
 
     // --- the pager ---------------------------------------------------------
@@ -115,7 +119,9 @@ test.describe('audit log', () => {
       search.fill('action:ARCHIVE')
     ]);
     expect(filtered.status(), 'the filtered query must reach the server').toBe(200);
-    await expect(page.locator('tbody tr', { hasText: 'LOGIN' })).toHaveCount(0);
+    // The label, not the code -- 'LOGIN' matches nothing on screen now, so
+    // this assertion would have passed with the filter removed entirely.
+    await expect(page.locator('tbody tr', { hasText: 'სისტემაში შესვლა' })).toHaveCount(0);
     await expect(archiveRows.first()).toBeVisible();
 
     await search.fill('');
@@ -178,7 +184,7 @@ test.describe('audit log', () => {
     await seedTokenIntoPage(page, token);
     await page.goto('/admin/audit');
 
-    const row = page.locator('tr', { hasText: 'ARCHIVE' }).first();
+    const row = page.locator('tr', { hasText: 'დაარქივება' }).first();
     await expect(row).toBeVisible();
 
     // --- open by clicking the row, close with the X ------------------------

@@ -114,7 +114,11 @@ test.describe('shared components', () => {
     // The star sits ON the card, and the card navigates. Its stopPropagation
     // is the only thing keeping a favourite from also being a navigation --
     // so staying put is part of the assertion, not an afterthought.
-    await expect(page).toHaveURL(/\/info$/);
+    //
+    // Matched on the path, not the whole URL: the knowledge base keeps its
+    // search term in the query string now, so the exact-match pattern failed
+    // on a page that had not navigated anywhere.
+    await expect(page).toHaveURL(/\/info(\?.*)?$/);
 
     const favorites = await request.get('/api/favorites', { headers: auth });
     expect(
@@ -133,8 +137,10 @@ test.describe('shared components', () => {
     ).toBe(false);
 
     // --- the card itself ----------------------------------------------------
+    // Article routes carry a returnUrl now, so the assertion is on the path
+    // rather than on the whole URL -- same reason as the /info check above.
     await card.click();
-    await expect(page).toHaveURL(new RegExp(`/article/${articleId}$`));
+    await expect(page).toHaveURL(new RegExp(`/article/${articleId}(\\?.*)?$`));
   });
 
   test('quiz builder: build a quiz through the UI and read it back', async ({ page, request }) => {
@@ -146,7 +152,7 @@ test.describe('shared components', () => {
 
     await seedTokenIntoPage(page, token);
     await page.goto('/admin/content');
-    await page.getByRole('button', { name: '+ სტატია' }).click();
+    await page.getByRole('button', { name: 'სტატია', exact: true }).click();
 
     const drawer = page.locator('app-article-edit-drawer');
     const title = `E2E ქვიზის კონსტრუქტორი ${id}`;

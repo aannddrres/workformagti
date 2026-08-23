@@ -1,5 +1,5 @@
 import { test, expect, APIRequestContext } from '@playwright/test';
-import { apiLogin, createArticle, createCategory, runId, seedTokenIntoPage } from './helpers';
+import { apiLogin, createArticle, createCategory, openAccessTab, runId, seedTokenIntoPage } from './helpers';
 
 /**
  * The role-management screen, which is the one place in the product where a
@@ -56,7 +56,7 @@ test.describe('role management', () => {
     const stayId = await createOperator(request, token, `e2e_role_stay_${id}@magti.ge`, stayName);
 
     await seedTokenIntoPage(page, token);
-    await page.goto('/admin/roles');
+    await openAccessTab(page, 'roles');
     await expect(page.getByRole('heading', { name: 'როლების მართვა' })).toBeVisible();
 
     // --- refresh -----------------------------------------------------------
@@ -138,7 +138,7 @@ test.describe('role management', () => {
     const otherId = await createOperator(request, token, `e2e_edit_b_${id}@magti.ge`, otherName);
 
     await seedTokenIntoPage(page, token);
-    await page.goto('/admin/roles');
+    await openAccessTab(page, 'roles');
     await page.getByRole('button', { name: /ოპერატორი/ }).first().click();
 
     const row = page.locator('tbody tr', { hasText: targetName });
@@ -182,8 +182,10 @@ test.describe('user administration', () => {
     // offers nothing, which looks exactly like an organisation that has no
     // groups.
     await page.route('**/api/admin/group-leaders', (route) => route.abort());
-    await page.goto('/admin/users');
-    await expect(page.getByRole('heading', { name: 'მომხმარებლების მართვა (RBAC)' })).toBeVisible();
+    await openAccessTab(page, 'users');
+    // Embedded, the users table renders its own section heading rather than
+    // the page title it used to carry as a standalone route.
+    await expect(page.getByRole('heading', { name: 'მომხმარებლები', exact: true })).toBeVisible();
 
     const retry = page.getByRole('button', { name: /ჯგუფების სია ვერ ჩაიტვირთა/ });
     await expect(retry).toBeVisible();

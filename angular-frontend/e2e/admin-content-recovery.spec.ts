@@ -56,17 +56,17 @@ test.describe('content admin recovery paths', () => {
     await expect(row).toHaveCount(1);
 
     // --- select the row ----------------------------------------------------
-    // The count on the button is the visible proof toggleSelected reached the
-    // component, and it is what bulkArchive reads.
+    // The bulk bar's own count line is the visible proof toggleSelected
+    // reached the component; the button labels no longer carry it.
     await row.getByRole('checkbox').check();
-    await expect(page.getByRole('button', { name: /ამოღება \(1\)/ })).toBeVisible();
+    await expect(page.getByText('მონიშნულია 1 სტატია')).toBeVisible();
 
     // --- the failure path, first -------------------------------------------
     // Driven before the success so the article is still archived for it.
     // dismissActionError has exactly one route: an action that failed.
     await page.route('**/api/articles/bulk-archive', (route) => route.abort());
     page.once('dialog', (dialog) => dialog.accept());
-    await page.getByRole('button', { name: /ამოღება/ }).click();
+    await page.getByRole('button', { name: 'ამოღება', exact: true }).click();
 
     const banner = page.locator('div.bg-red-50').first();
     await expect(banner).toBeVisible();
@@ -87,7 +87,7 @@ test.describe('content admin recovery paths', () => {
     page.once('dialog', (dialog) => dialog.accept());
     const [unarchived] = await Promise.all([
       page.waitForResponse((r) => r.url().includes('/api/articles/bulk-archive')),
-      page.getByRole('button', { name: /ამოღება/ }).click()
+      page.getByRole('button', { name: 'ამოღება', exact: true }).click()
     ]);
     expect(unarchived.status(), 'the bulk unarchive must reach the server').toBe(200);
 
