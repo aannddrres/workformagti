@@ -801,10 +801,10 @@ cookie:
 
 | საკითხი | რატომ ვერ შემოწმდა | რა მტკიცებულებაა საჭირო |
 |---|---|---|
-| Python pytest suite | repository venv points to a missing Windows Store Python 3.11; available bundled Python 3.12 cannot load the venv's cp311 native modules | clean pinned Python 3.11 environment; `pytest tests/ -q` result |
-| Angular clean install/build/unit tests | two `npm ci` attempts failed on locked native files (`lmdb` binary, then `esbuild.exe`, `EPERM`) and left Angular CLI unavailable; this is an audit-host condition, not a product defect finding | clean Node 22.22.3 workspace; `npm ci`, `npm run build`, `npm test -- --watch=false` |
-| Playwright E2E | Angular build/runtime unavailable; configured project is desktop Chromium only | complete E2E on built target plus mobile Chromium and agreed Firefox/WebKit matrix |
-| Clean Oracle Flyway migration | Docker/Oracle is unavailable in the audit environment | disposable supported Oracle, Flyway V1→V42 log, schema validation and smoke tests |
+| ~~Python pytest suite~~ **შესრულდა 2026-08-23** | audit-host condition; გამეორდა სუფთა გარემოში | `ruff check .` PASS; `pytest tests/ -q` → **213 passed, 27 skipped** |
+| ~~Angular clean install/build/unit tests~~ **შესრულდა 2026-08-23** | audit-host condition (`EPERM` on Windows); გამეორდა Linux-ზე, Node 22.23.2 | build PASS; unit → **25 spec files, 88 tests passed** |
+| ~~Playwright E2E~~ **ნაწილობრივ შესრულდა 2026-08-23** | desktop Chromium გაეშვა სრულად, სუფთა Oracle-ზე: **39 passed, 0 failed** (2.1 წთ), backend + `ng serve` რეალურ სტეკზე | **რჩება:** mobile Chromium და შეთანხმებული Firefox/WebKit მატრიცა |
+| ~~Clean Oracle Flyway migration~~ **შესრულდა 2026-08-23** | ახალი `gvenzl/oracle-xe:21-slim-faststart` კონტეინერი, ნულიდან | Flyway V1→V42 გაირბინა; `ddl-auto: validate` ჩავარდნის გარეშე; Java Oracle suite + ETL rehearsal (**128 passed**) იმავე სქემაზე |
 | Existing Oracle migration/baseline | no production-like existing schema or row-volume snapshot was supplied | masked schema/data profile, deliberate baseline/cutover rehearsal and reconciliation report |
 | V36 backfill and V37 tightening | V37 does not exist and no signed reconciliation artifact is present | production-like backfill plan/result, zero unresolved rows, V37 migration and rollback evidence |
 | ~~PostgreSQL→Oracle data cutover~~ **[შესწორება 2026-08-23]** | ~~no ETL/mapping/count/hash/replay tool or dry-run result exists~~ — `scripts/etl/` (12 მოდული) და `docs/DATA_MIGRATION_PG_TO_ORACLE_KA.md` არსებობს ბრანჩის tip-ზე, რეალურ Oracle-ზე გავლილი რეპეტიციითა და `row_hash` reconciliation-ით | რჩება: production-ის რეალური row counts, ფანჯარა და თქვენს რკინაზე გამეორებული გაზომვა — IT §12 |
