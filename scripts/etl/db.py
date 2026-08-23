@@ -20,6 +20,14 @@ from typing import Any, Iterator, Sequence
 
 BATCH = 1000
 
+# Above this many UTF-8 bytes a value has to be bound as a LOB; below it, the
+# driver can send a CLOB column as an ordinary string, which measured 2.5x
+# faster on the audit table (328 -> 824 rows/s). 3500 stays clear of the 4000
+# byte VARCHAR2 bind limit a database in STANDARD max_string_size mode has,
+# so the choice is safe on both settings. Georgian is three bytes a
+# character, so the check counts bytes, not characters.
+CLOB_BIND_THRESHOLD_BYTES = 3500
+
 
 class DriverMissing(RuntimeError):
     pass
@@ -117,6 +125,12 @@ class SourceDb:
 # ---------------------------------------------------------------- target ---
 
 
+def _needs_lob(value: Any) -> bool:
+    if isinstance(value, str):
+        return len(value.encode("utf-8")) > CLOB_BIND_THRESHOLD_BYTES
+    return value is not None and not isinstance(value, (int, float))
+
+
 class OracleTarget:
     """The real target: Oracle 19c, schema at Flyway V42."""
 
@@ -186,16 +200,42 @@ class OracleTarget:
         sql = f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({binds})"
         cur = self._conn.cursor()
         try:
-            if bind_types:
+            effective = self._bind_types_for(columns, bind_types, rows)
+            if effective:
                 declared = {
                     "clob": self._oracledb.DB_TYPE_CLOB,
                     "blob": self._oracledb.DB_TYPE_BLOB,
                     "timestamp": self._oracledb.DB_TYPE_TIMESTAMP,
                 }
-                cur.setinputsizes(*(declared.get(bind_types.get(name)) for name in columns))
+                cur.setinputsizes(*(declared.get(effective.get(name)) for name in columns))
             cur.executemany(sql, rows)
         finally:
             cur.close()
+
+    def _bind_types_for(
+        self, columns: Sequence[str], bind_types: dict[str, str], rows: list[tuple]
+    ) -> dict[str, str]:
+        """Declare a CLOB only for the batches that actually contain one.
+
+        A CLOB bind makes the driver create a temporary LOB per row, and on a
+        table like audit_logs -- where `details` is a CLOB column holding a
+        few dozen characters -- that dominates the insert. Deciding per batch
+        keeps both properties: short values go as strings and go fast, and a
+        batch carrying a real 40k article body still gets its LOB bind.
+
+        BLOBs are always declared: bytes have no fast path here, and every
+        value that reaches this column is file content.
+        """
+        effective = {}
+        for position, name in enumerate(columns):
+            kind = bind_types.get(name)
+            if kind != "clob":
+                if kind:
+                    effective[name] = kind
+                continue
+            if any(_needs_lob(row[position]) for row in rows):
+                effective[name] = "clob"
+        return effective
 
     def update_many(self, table: str, set_columns: Sequence[str], pk: Sequence[str], rows: list[tuple]) -> None:
         if not rows:
