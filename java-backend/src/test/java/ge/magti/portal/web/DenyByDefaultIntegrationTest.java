@@ -128,19 +128,6 @@ class DenyByDefaultIntegrationTest {
     }
 
     /**
-     * Attachments stay anonymous on purpose (QUESTIONS_FOR_IT.md question 9).
-     * A 404 for a filename that does not exist proves the request reached
-     * UploadedFileController rather than being turned away by the chain --
-     * which a 401 would not distinguish.
-     */
-    @Test
-    void attachmentsAreStillServedWithoutAToken() throws Exception {
-        assertEquals(404,
-                mockMvc.perform(get("/uploads/00000000-0000-0000-0000-000000000000.png"))
-                        .andReturn().getResponse().getStatus());
-    }
-
-    /**
      * Spring forwards a failed request to /error to render the body. If that
      * forward were authorized like the original request, an authenticated
      * caller's 404 would come back as 401 -- a wrong status for a request

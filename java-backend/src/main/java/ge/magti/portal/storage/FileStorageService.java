@@ -92,9 +92,10 @@ public class FileStorageService {
      * Filenames this service will look up. Uploads are named
      * {@code <uuid>.<ext>} by {@code UploadController}, so this is far wider
      * than what we generate -- it exists to make the disk fallback below
-     * safe. {@code /uploads/**} is a public path (see {@code SecurityConfig}),
-     * and {@code Path.resolve} on an unvalidated segment is how a request for
-     * {@code ..%2f..%2fapplication.yml} turns into an arbitrary file read.
+     * safe. {@code /uploads/**} now requires a logged-in employee (D-4), but
+     * that only narrows who can try: {@code Path.resolve} on an unvalidated
+     * segment is how a request for {@code ..%2f..%2fapplication.yml} turns
+     * into an arbitrary file read, and every employee could make it.
      */
     private static final Pattern SAFE_FILENAME = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]{0,99}");
 
@@ -141,7 +142,7 @@ public class FileStorageService {
         Path path = dir.resolve(filename).normalize();
         // SAFE_FILENAME already rules out traversal; this is the second lock
         // on the same door, because the cost of being wrong here is an
-        // arbitrary file read on a public endpoint.
+        // arbitrary file read by any authenticated caller.
         if (!path.startsWith(dir) || !Files.isRegularFile(path)) {
             return Optional.empty();
         }

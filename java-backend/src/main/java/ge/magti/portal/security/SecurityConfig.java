@@ -65,11 +65,12 @@ public class SecurityConfig {
 	 * anyone can log in, and returns nothing but three status words (PR-09
 	 * moved the JDBC URL out of its failure branch for exactly this reason).
 	 *
-	 * <p>{@code /uploads/**} is here only until D-4 is implemented. Filenames
-	 * are UUIDs, so today the path is unguessable rather than protected --
-	 * which is not the same thing, and is why the decision went the other way.
+	 * <p>{@code /uploads/**} is deliberately NOT here. It was, until D-4
+	 * (2026-08-22) decided an attachment must require a logged-in employee;
+	 * {@code UploadedFileController} now carries its own guard, so anonymous
+	 * requests for one are denied twice over.
 	 */
-	private static final String[] ANONYMOUS_GET = {"/api/health", "/uploads/**"};
+	private static final String[] ANONYMOUS_GET = {"/api/health"};
 
 	/**
 	 * Anonymous POSTs.

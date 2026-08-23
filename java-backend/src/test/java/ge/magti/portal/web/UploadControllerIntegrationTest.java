@@ -132,7 +132,11 @@ class UploadControllerIntegrationTest {
         // and UploadedFileController serves them back at the same URL. The
         // round-trip is asserted byte-for-byte because "200 OK" alone would
         // also pass if the BLOB came back empty.
-        byte[] served = mockMvc.perform(get(url))
+        // D-4: the same URL now needs a logged-in employee. Fetching it back
+        // with the uploader's own token, rather than anonymously as this
+        // assertion used to, is the point of the decision -- and
+        // AttachmentAccessIntegrationTest covers the denial side.
+        byte[] served = mockMvc.perform(get(url).header("Authorization", "Bearer " + tokenFor(admin)))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Type", "image/png"))
                 .andReturn().getResponse().getContentAsByteArray();

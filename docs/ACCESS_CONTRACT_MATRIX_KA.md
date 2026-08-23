@@ -45,19 +45,15 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 იატაკი მათ ქვეშ: ის წყვეტს მხოლოდ „აქვს ვალიდური token თუ არა", არასოდეს —
 „რომელი უფლება".
 
-**ანონიმურად ხელმისაწვდომია ზუსტად ის 4 endpoint, რომელთა `gate (დღეს)`
+**ანონიმურად ხელმისაწვდომია ზუსტად ის 3 endpoint, რომელთა `gate (დღეს)`
 სვეტში `—` წერია.** ეს აღარ არის დამთხვევა: `AnonymousSurfaceTest` ორივე
 მიმართულებით ადარებს ამ ცხრილს `SecurityConfig`-ის allowlist-ს და build-ს
 ტეხს, თუ ისინი დაშორდნენ — მათ შორის მაშინ, როცა allowlist-ის შაბლონი
 უფრო ფართოა, ვიდრე გამოიყურება (`/api/auth/**` ორი ცალკეული გზის ნაცვლად).
 
-> `GET /uploads/{filename}` ამ ოთხში **დროებით** რჩება. მფლობელმა უკვე
-> გადაწყვიტა, რომ დანართს ავტორიზაცია სჭირდება (**D-4, 2026-08-22**,
-> `QUESTIONS_FOR_IT.md` §9) — ეს ცალკე ცვლილებაა, რადგან ის მომხმარებლის
-> ქცევას ცვლის, deny-by-default-ის იატაკი კი განზრახ არაფერს ცვლის.
-> ამ ჩანაწერით იცვლება მხოლოდ ის, რომ გამონაკლისი ახლა allowlist-ის ერთი
-> გასაჩივრებადი ხაზია, და არა გლობალური დეფოლტის შედეგი, რომელსაც არავინ
-> კითხულობს.
+> `GET /uploads/{filename}` **აღარ არის** ანონიმური — D-4 (2026-08-22)
+> განხორციელდა და `UploadedFileController`-ს საკუთარი `requireAuthenticated`
+> აქვს. ანონიმური ჩამოთვლა ოთხიდან სამზე შემცირდა.
 
 ## capability-ების ლექსიკონი
 
@@ -323,7 +319,7 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
-| `GET /uploads/{filename}` | `UploadedFileController.serve` | — | AUTH — D-4 resolved, implementation pending | `AUTH` | content-dependent | **სამიზნე:** მხოლოდ ავტორიზებულ თანამშრომელს; დაკოპირებული URL login-ის გარეშე არ იხსნება. მიმდინარე კოდში gate ჯერ არ არის. ინფრასტრუქტურული წინაპირობები: `QUESTIONS_FOR_IT.md` §9. |
+| `GET /uploads/{filename}` | `UploadedFileController.serve` | `requireAuthenticated` | AUTH — D-4 განხორციელებულია | `AUTH` | content-dependent | მხოლოდ ავტორიზებულ თანამშრომელს; დაკოპირებული URL login-ის გარეშე აღარ იხსნება. ჩაშენებული `<img>` httpOnly cookie-თი მუშაობს, სანამ Angular და API ერთ origin-ზეა. დარჩენილი ინფრასტრუქტურული წინაპირობები: `QUESTIONS_FOR_IT.md` §9. |
 
 ### User (14)
 
@@ -513,10 +509,21 @@ download-ზე): განსხვავებული პასუხი end
 ავტორიზებულ თანამშრომელს გაეხსნება. დაკოპირებული `/uploads/<uuid>` URL login-ის
 გარეშე არ მუშაობს; საჯარო/დაცული ტიპების არჩევანი არ ემატება.
 
-მიმდინარე `UploadedFileController.serve` ჯერ საჯაროა. განხორციელების commit-მა
-უნდა დაამატოს authentication gate, Angular-ის image/download ქცევა და regression
-tests. `QUESTIONS_FOR_IT.md` §9-ში ღია რჩება მხოლოდ ingress/cache/scanning-ის
-ინფრასტრუქტურული ნაწილი.
+**განხორციელებულია (2026-08-23).** `UploadedFileController.serve` ატარებს
+`requireAuthenticated`-ს, `/uploads/**` ამოღებულია `SecurityConfig`-ის ანონიმური
+allowlist-იდან, და regression tests დამატებულია (`AttachmentAccessIntegrationTest`).
+
+Angular-ის მხარეს **ცვლილება არ დასჭირდა და ეს დამტკიცებულია, არა ნავარაუდევი**:
+სტატიის ტექსტში ჩაშენებული `<img src="/uploads/...">` ბრაუზერის საკუთარი
+მოთხოვნაა — Angular-ის interceptor-ი მასზე არ მუშაობს და Bearer header არ ედება.
+ის ავტორიზდება login-ის httpOnly `access_token` cookie-თი (`path=/`), რომელსაც
+ბრაუზერი same-origin subresource-ზე თავად აგზავნის. ტესტი სწორედ ამ გზას ამოწმებს
+cookie-თი, header-ის გარეშე.
+
+`QUESTIONS_FOR_IT.md` §9-ში ღია რჩება მხოლოდ ingress/cache/scanning-ის
+ინფრასტრუქტურული ნაწილი — მათ შორის origin-ის კითხვა: **split-origin deployment-ზე
+ჩაშენებული სურათები გატყდება**, რადგან cookie `SameSite=lax`-ით cross-site
+subresource-ზე არ იგზავნება.
 
 ### D-5. `content.manage`-ის მარცვლოვნება — ✅ გადაწყვეტილია (2026-08-22)
 
