@@ -42,8 +42,14 @@ public class QuizAttempt {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "article_id", nullable = false)
+    @Column(name = "article_id")
     private Long articleId;
+
+    @Column(name = "article_id_snapshot")
+    private Long articleIdSnapshot;
+
+    @Column(name = "article_title_snapshot", length = 500)
+    private String articleTitleSnapshot;
 
     @Column(name = "article_version", nullable = false)
     private int articleVersion;
@@ -80,6 +86,22 @@ public class QuizAttempt {
 
     public void setArticleId(Long articleId) {
         this.articleId = articleId;
+    }
+
+    public Long getArticleIdSnapshot() {
+        return articleIdSnapshot;
+    }
+
+    public void setArticleIdSnapshot(Long articleIdSnapshot) {
+        this.articleIdSnapshot = articleIdSnapshot;
+    }
+
+    public String getArticleTitleSnapshot() {
+        return articleTitleSnapshot;
+    }
+
+    public void setArticleTitleSnapshot(String articleTitleSnapshot) {
+        this.articleTitleSnapshot = articleTitleSnapshot;
     }
 
     public int getArticleVersion() {

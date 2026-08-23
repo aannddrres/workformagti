@@ -27,6 +27,14 @@ export class VideosService {
     return this.http.delete<void>(`/api/videos/${id}`);
   }
 
+  archive(id: number): Observable<VideoInstruction> {
+    return this.http.post<VideoInstruction>(`/api/videos/${id}/archive`, {});
+  }
+
+  unarchive(id: number): Observable<VideoInstruction> {
+    return this.http.post<VideoInstruction>(`/api/videos/${id}/unarchive`, {});
+  }
+
   /** Fire-and-forget view-tracking, matching viewVideo's "log the view,
    *  don't block the player" behavior -- fired on opening the detail view,
    *  not on actually pressing play (which is unobservable for a

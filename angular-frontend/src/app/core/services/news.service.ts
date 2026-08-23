@@ -33,4 +33,12 @@ export class NewsService {
   remove(id: number): Observable<void> {
     return this.http.delete<void>(`/api/news/${id}`);
   }
+
+  archive(id: number): Observable<News> {
+    return this.http.post<News>(`/api/news/${id}/archive`, {});
+  }
+
+  unarchive(id: number): Observable<News> {
+    return this.http.post<News>(`/api/news/${id}/unarchive`, {});
+  }
 }

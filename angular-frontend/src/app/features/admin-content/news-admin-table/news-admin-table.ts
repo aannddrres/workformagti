@@ -10,8 +10,7 @@ import { ToastService } from '../../../core/notifications/toast.service';
 /**
  * Port of #admin-news-table-container (base-layout.html:1853-1870) +
  * fetchAndRenderAdminNews. Plain list, no filters/pagination (matches
- * Python exactly) -- edit + delete row actions ("ისტორია" deferred, same
- * user sign-off as the Articles tab).
+ * Python exactly) -- edit plus R5 archive/trash actions.
  */
 @Component({
   selector: 'app-news-admin-table',
@@ -65,15 +64,23 @@ export class NewsAdminTable {
   }
 
   protected remove(item: NewsSummary): void {
+    if (!item.is_archived) {
+      this.toast.error('სიახლე ჯერ უნდა დაარქივოთ და მხოლოდ შემდეგ გადაიტანოთ სანაგვეში.');
+      return;
+    }
     if (!window.confirm(this.translate.instant('content.news.confirm_delete'))) return;
-    // Delete failures were swallowed entirely. Note the backend 500s on
-    // deleting any news item that was ever edited (audit BL-01: the history FK
-    // has no ON DELETE CASCADE), so this failure is the normal case today,
-    // not an edge one — the row simply stayed on screen with no explanation.
     this.newsService.remove(item.id).subscribe({
       next: () => this.load(),
       error: (err: HttpErrorResponse) =>
         this.toast.error(err.error?.detail ?? this.translate.instant('content.news.delete_error'))
+    });
+  }
+
+  protected toggleArchive(item: NewsSummary): void {
+    const request = item.is_archived ? this.newsService.unarchive(item.id) : this.newsService.archive(item.id);
+    request.subscribe({
+      next: () => this.load(),
+      error: (err: HttpErrorResponse) => this.toast.error(err.error?.detail ?? 'არქივის მოქმედება ვერ შესრულდა')
     });
   }
 }

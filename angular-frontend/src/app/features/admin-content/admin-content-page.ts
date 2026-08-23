@@ -251,6 +251,10 @@ export class AdminContentPage {
 
   protected deleteArticle(article: ArticleSummary): void {
     this.openMenuFor.set(null);
+    if (article.status !== 'archived') {
+      this.actionError.set('სტატია ჯერ უნდა დაარქივოთ და მხოლოდ შემდეგ გადაიტანოთ სანაგვეში.');
+      return;
+    }
     if (!window.confirm(this.translate.instant('content.articles.confirm_delete'))) return;
     this.actionError.set(null);
     this.articlesService.remove(article.id).subscribe({

@@ -48,6 +48,7 @@ describe('AppShell effective-access navigation', () => {
     });
 
     expect(visible(shell, '/admin/content')).toBe(true);
+    expect(visible(shell, '/admin/trash')).toBe(true);
     expect(visible(shell, '/admin/categories')).toBe(true);
     expect(visible(shell, '/admin/overview')).toBe(false);
     expect(visible(shell, '/admin/access')).toBe(false);
@@ -59,6 +60,7 @@ describe('AppShell effective-access navigation', () => {
     });
 
     expect(visible(shell, '/admin/content')).toBe(false);
+    expect(visible(shell, '/admin/trash')).toBe(false);
     expect(visible(shell, '/admin/categories')).toBe(false);
   });
 

@@ -41,6 +41,7 @@ describe('effective-access route boundaries', () => {
         canActivate: child('admin').canActivate,
         children: [
           { path: 'content', component: StubPage },
+          { path: 'trash', component: StubPage },
           { path: 'categories', component: StubPage },
           { path: 'overview', component: StubPage, canActivate: adminChild('overview').canActivate },
           { path: 'access', component: StubPage, canActivate: adminChild('access').canActivate },
@@ -89,6 +90,9 @@ describe('effective-access route boundaries', () => {
     await harness.navigateByUrl('/admin/content');
 
     expect(currentUrl()).toBe('/admin/content');
+
+    await harness.navigateByUrl('/admin/trash');
+    expect(currentUrl()).toBe('/admin/trash');
   });
 
   it('opens admin content and overview for the explicit system-admin bypass', async () => {
@@ -106,6 +110,9 @@ describe('effective-access route boundaries', () => {
 
     await harness.navigateByUrl('/admin/content');
 
+    expect(currentUrl()).toBe('/');
+
+    await harness.navigateByUrl('/admin/trash');
     expect(currentUrl()).toBe('/');
   });
 

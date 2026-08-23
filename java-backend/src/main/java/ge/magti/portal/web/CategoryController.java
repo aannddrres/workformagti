@@ -45,30 +45,14 @@ import java.util.Optional;
  * <p>Also not ported: state.py's category_cache/search_cache TTL-cache
  * clearing -- no cache exists in the Java port yet.
  *
- * <p><b>Delete's fallback reassignment</b> (routers/categories.py:104-142):
- * deleting a category is a soft-delete ({@code is_active=false}), but any
- * article still pointing at it would otherwise become orphaned, so its
- * articles are first bulk-reassigned to a fixed fallback category named
- * "ზოგადი" ("General"), created on the fly with fixed defaults if it
- * doesn't exist yet. If the category being deleted IS that fallback
- * category, the reassignment step is skipped (a category can't be
- * reassigned onto itself).
- *
- * <p><b>Bug fix, found during a full-suite test run (2026-08-12):</b> the
- * fallback lookup used {@code findByName} (single-result semantics), which
- * throws if two categories ever share the "ზოგადი" name -- a real
- * possibility since {@code categories.name} has no unique constraint, in
- * either app. This would 500 on ANY category delete, not just deleting the
- * fallback itself. Python's {@code .filter(name==...).first()}
- * (routers/categories.py:127) degrades gracefully instead, silently using
- * whichever row it finds first -- {@code findFirstByNameOrderByIdAsc} now
- * matches that.
+ * <p>R5 changes delete from silent fallback reassignment to fail-closed
+ * blocking. The administrator must explicitly move every article first;
+ * trashed articles count too because they may still be restored.
  */
 @RestController
 public class CategoryController {
 
     private static final String NOT_FOUND_DETAIL = "კატეგორია ვერ მოიძებნა";
-    private static final String FALLBACK_NAME = "ზოგადი";
 
     private final CategoryRepository categoryRepository;
     private final ArticleRepository articleRepository;
@@ -165,25 +149,12 @@ public class CategoryController {
         if (found.isEmpty()) {
             return notFound();
         }
-        Category category = found.get();
-
-        // BL-07: active-only. The old lookup would happily return the
-        // fallback category AFTER it had itself been deleted, sending every
-        // later deletion's articles into a category getCategories hides.
-        Category fallback = categoryRepository.findFirstByNameAndActiveTrueOrderByIdAsc(FALLBACK_NAME).orElseGet(() -> {
-            Category created = new Category();
-            created.setName(FALLBACK_NAME);
-            created.setSlug("general");
-            created.setIcon("fa-layer-group");
-            created.setPastelColorClass("general");
-            created.setActive(true);
-            return categoryRepository.saveAndFlush(created);
-        });
-
-        if (!fallback.getId().equals(id)) {
-            articleRepository.reassignCategory(id, fallback.getId());
+        if (articleRepository.countAllByCategoryIdIncludingTrash(id) > 0) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                    "detail", "კატეგორია გამოიყენება — ჯერ ყველა მასალა სხვა კატეგორიაში გადაიტანეთ"));
         }
 
+        Category category = found.get();
         category.setActive(false);
         categoryRepository.save(category);
         return ResponseEntity.noContent().build();

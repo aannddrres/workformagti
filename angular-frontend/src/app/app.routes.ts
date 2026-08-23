@@ -120,6 +120,12 @@ export const routes: Routes = [
           },
           { path: 'main', pathMatch: 'full', redirectTo: 'overview' },
           { path: 'content', component: AdminContentPage, data: { title: 'nav.sidebar.admin_content' } },
+          {
+            path: 'trash',
+            loadComponent: () =>
+              import('./features/admin-trash/admin-trash-page').then(({ AdminTrashPage }) => AdminTrashPage),
+            data: { title: 'სანაგვე' }
+          },
           { path: 'categories', component: AdminCategoriesPage, data: { title: 'nav.sidebar.admin_categories' } },
           {
             path: 'access',

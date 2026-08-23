@@ -210,20 +210,21 @@ class CategoryControllerIntegrationTest {
     }
 
     @Test
-    void deletingACategoryReassignsItsArticlesToTheFallback() throws Exception {
+    void deletingAUsedCategoryIsBlockedUntilContentIsMoved() throws Exception {
         User admin = createUser("ca5@magti.ge", Role.CONTENT_ADMIN);
         Category source = createCategory("წყარო კატეგორია");
         Article article = createArticle("გადასანაცვლებელი სტატია", source.getId());
 
         mockMvc.perform(authed(delete("/api/categories/" + source.getId()), tokenFor(admin)))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(
+                        "კატეგორია გამოიყენება — ჯერ ყველა მასალა სხვა კატეგორიაში გადაიტანეთ"));
 
-        Category fallback = categoryRepository.findFirstByNameOrderByIdAsc("ზოგადი").orElseThrow();
         Article reloaded = articleRepository.findById(article.getId()).orElseThrow();
-        assertEquals(fallback.getId(), reloaded.getCategoryId());
+        assertEquals(source.getId(), reloaded.getCategoryId());
 
         Category reloadedSource = categoryRepository.findById(source.getId()).orElseThrow();
-        assertTrue(!reloadedSource.isActive());
+        assertTrue(reloadedSource.isActive());
     }
 
     /**
@@ -238,14 +239,14 @@ class CategoryControllerIntegrationTest {
      * so this test works whether or not a fallback already exists.
      */
     @Test
-    void deletingTheFallbackCategoryItselfSkipsReassignment() throws Exception {
+    void deletingAnyUsedCategoryIsBlockedWithoutFallbackSpecialCases() throws Exception {
         User admin = createUser("ca6@magti.ge", Role.CONTENT_ADMIN);
         Category fallback = categoryRepository.findFirstByNameOrderByIdAsc("ზოგადი")
                 .orElseGet(() -> createCategory("ზოგადი"));
         Article article = createArticle("ზოგად კატეგორიაზე მიბმული სტატია", fallback.getId());
 
         mockMvc.perform(authed(delete("/api/categories/" + fallback.getId()), tokenFor(admin)))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isConflict());
 
         Article reloaded = articleRepository.findById(article.getId()).orElseThrow();
         assertEquals(fallback.getId(), reloaded.getCategoryId());
@@ -306,24 +307,12 @@ class CategoryControllerIntegrationTest {
      * the articles landed somewhere nobody can see or select.
      */
     @Test
-    void deletingACategoryAfterTheFallbackWasDeletedDoesNotHideItsArticles() throws Exception {
+    void deletingAnUnusedCategoryStillSoftDeletesIt() throws Exception {
         User admin = createUser("bl07@magti.ge", Role.CONTENT_ADMIN);
-
-        // Delete the fallback itself first, exactly as the finding describes.
-        Category fallback = categoryRepository.findFirstByNameAndActiveTrueOrderByIdAsc("ზოგადი")
-                .orElseGet(() -> createCategory("ზოგადი"));
-        mockMvc.perform(authed(delete("/api/categories/" + fallback.getId()), tokenFor(admin)))
-                .andExpect(status().isNoContent());
-
         Category doomed = createCategory("წასაშლელი " + System.nanoTime());
-        Article article = createArticle("გადასატანი სტატია", doomed.getId());
 
         mockMvc.perform(authed(delete("/api/categories/" + doomed.getId()), tokenFor(admin)))
                 .andExpect(status().isNoContent());
-
-        Long newCategoryId = articleRepository.findById(article.getId()).orElseThrow().getCategoryId();
-        Category landedIn = categoryRepository.findById(newCategoryId).orElseThrow();
-        assertTrue(landedIn.isActive(),
-                "the article must not be reassigned into a soft-deleted category that no dropdown shows");
+        assertTrue(!categoryRepository.findById(doomed.getId()).orElseThrow().isActive());
     }
 }

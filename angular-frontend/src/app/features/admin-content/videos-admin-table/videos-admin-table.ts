@@ -8,10 +8,8 @@ import { ToastService } from '../../../core/notifications/toast.service';
 
 /**
  * Port of #admin-videos-table-container (base-layout.html:1872-1889) +
- * fetchAndRenderAdminVideos. Plain list, no filters/pagination -- edit +
- * delete row actions only (Python's own admin table has no archive
- * button here either, despite VideoController having archive/unarchive
- * endpoints -- confirmed by reading frontend_api.js's row markup).
+ * fetchAndRenderAdminVideos. R5 adds the previously missing archive/trash
+ * controls so the backend lifecycle is actually usable from the product.
  */
 @Component({
   selector: 'app-videos-admin-table',
@@ -65,15 +63,23 @@ export class VideosAdminTable {
   }
 
   protected remove(item: VideoInstruction): void {
+    if (!item.is_archived) {
+      this.toast.error('ვიდეო ჯერ უნდა დაარქივოთ და მხოლოდ შემდეგ გადაიტანოთ სანაგვეში.');
+      return;
+    }
     if (!window.confirm(this.translate.instant('content.videos.confirm_delete'))) return;
-    // Delete failures were swallowed entirely. Note the backend 500s on
-    // deleting any video that was ever edited (audit BL-01: the history FK
-    // has no ON DELETE CASCADE), so this failure is the normal case today,
-    // not an edge one — the row simply stayed on screen with no explanation.
     this.videosService.remove(item.id).subscribe({
       next: () => this.load(),
       error: (err: HttpErrorResponse) =>
         this.toast.error(err.error?.detail ?? this.translate.instant('content.videos.delete_error'))
+    });
+  }
+
+  protected toggleArchive(item: VideoInstruction): void {
+    const request = item.is_archived ? this.videosService.unarchive(item.id) : this.videosService.archive(item.id);
+    request.subscribe({
+      next: () => this.load(),
+      error: (err: HttpErrorResponse) => this.toast.error(err.error?.detail ?? 'არქივის მოქმედება ვერ შესრულდა')
     });
   }
 }

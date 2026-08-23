@@ -518,7 +518,7 @@
       "action_edit": "Edit",
       "action_archive": "Archive",
       "action_unarchive": "Unarchive",
-      "action_delete": "Delete",
+      "action_delete": "Move to trash",
       "new_title": "Add New Article",
       "edit_title": "Edit Article",
       "field_title": "Title",
@@ -542,7 +542,7 @@
       "notify_operators": "Notify operators",
       "preview": "Preview",
       "preview_title_placeholder": "Title",
-      "confirm_delete": "Delete this article? This action is irreversible.",
+      "confirm_delete": "Move this article to the recoverable 30-day trash?",
       "confirm_archive_one": "Archive this article? It will no longer appear in the operator knowledge base.",
       "confirm_unarchive_one": "Unarchive this article?",
       "confirm_bulk_archive": "Archive {{count}} article(s)? They will no longer appear in the operator knowledge base.",
@@ -550,7 +550,7 @@
       "load_failed": "Could not load the article.",
       "save_failed": "Could not save the article.",
       "upload_failed": "Could not upload the file.",
-      "delete_failed": "Could not delete the article.",
+      "delete_failed": "Could not move the article to trash.",
       "archive_failed": "Could not complete the action.",
       "bulk_archive_failed": "Could not complete the bulk action.",
       "mandatory_load_error": "Could not determine whether this article is mandatory",
@@ -579,10 +579,10 @@
       "field_content": "Content",
       "field_department": "Target department",
       "field_attachment": "Attached file (PDF, Word, image)",
-      "confirm_delete": "Delete this news item?",
+      "confirm_delete": "Move this news item to the recoverable 30-day trash?",
       "load_failed": "Could not load the news item.",
       "save_failed": "Could not save the news item.",
-      "delete_error": "Could not delete the news item"
+      "delete_error": "Could not move the news item to trash"
     },
     "videos": {
       "new": "Video",
@@ -595,10 +595,10 @@
       "field_url": "Video URL, or upload a file",
       "field_category": "Category",
       "select_category": "Select a category",
-      "confirm_delete": "Delete this video?",
+      "confirm_delete": "Move this video to the recoverable 30-day trash?",
       "load_failed": "Could not load the video.",
       "save_failed": "Could not save the video.",
-      "delete_error": "Could not delete the video"
+      "delete_error": "Could not move the video to trash"
     },
     "history": {
       "heading": "Revision history",
@@ -645,7 +645,7 @@
     "orphan_parent": "#{{id}} (no longer exists)",
     "edit": "Edit",
     "delete": "Delete",
-    "confirm_delete": "Delete this category? Its articles will be reassigned to the general category.",
+    "confirm_delete": "Delete this category? The action is blocked while any content uses it.",
     "save_failed": "Could not save",
     "color_general": "Default (Slate)",
     "color_mobile": "Amber (Mobile)",

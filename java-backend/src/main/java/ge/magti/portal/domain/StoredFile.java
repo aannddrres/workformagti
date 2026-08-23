@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.OffsetDateTime;
 
@@ -25,6 +26,7 @@ import java.time.OffsetDateTime;
  */
 @Entity
 @Table(name = "stored_files")
+@SQLRestriction("trashed_at IS NULL")
 public class StoredFile {
 
     @Id

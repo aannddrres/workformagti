@@ -1,8 +1,8 @@
 # წვდომის კონტრაქტის მატრიცა
 
 **სტატუსი:** Phase 1 — decision/contract lock **დასრულებულია**; D-1…D-8 დახურულია
-**ბოლო განახლება:** 2026-08-22 (Phase 9A access-diff evidence)
-**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 125 endpoint
+**ბოლო განახლება:** 2026-08-23 (R5 content lifecycle)
+**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 130 endpoint
 **გეგმა:** `docs/ORG_ACCESS_ARCHITECTURE_PLAN_KA.md` (ფაზები, §9.1 სავალდებულო მტკიცებულებები)
 
 ეს ფაილი არის ორგანიზაციული წვდომის **კონტრაქტი**: თითოეული backend endpoint-ისთვის
@@ -72,7 +72,8 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 ## ციფრებში
 
-- **125** endpoint (119 + 6 განცალკევებული SYSTEM_ADMIN export endpoint);
+- **130** endpoint (119 + 6 განცალკევებული SYSTEM_ADMIN export endpoint +
+  3 content-trash endpoint + 2 news archive endpoint);
 - **39** ატარებს თანამშრომლის საიდენტიფიკაციო მონაცემს (`PII = yes`);
 - **12** უკვე leadership-scoped;
 - **0** ღია გადაწყვეტილება (D-1…D-8 დახურულია).
@@ -95,7 +96,7 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | `GET /api/articles` | `ArticleController.getArticles` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
 | `POST /api/articles` | `ArticleController.createArticle` | `requireArticlesEditPermission`, `requireArticlesPublishPermission` | articles.edit + articles.publish | `ORG-CONTENT` | no | Phase 6: redundant content-admin role-gate მოიხსნა; explicit permission override მუშაობს. |
 | `POST /api/articles/bulk-archive` | `ArticleController.bulkArchiveArticles` | `requireArticlesArchivePermission` | articles.archive | `ORG-CONTENT` | no | უკვე permission-ზეა. |
-| `DELETE /api/articles/{id}` | `ArticleController.deleteArticle` | `requireArticlesEditPermission` | articles.edit | `ORG-CONTENT` | no | Phase 6: redundant content-admin role-gate მოიხსნა. |
+| `DELETE /api/articles/{id}` | `ArticleController.deleteArticle` | `requireArticlesEditPermission` | articles.edit | `ORG-CONTENT` | no | R5: მხოლოდ უკვე არქივირებული სტატია გადადის 30-დღიან აღდგენად სანაგვეში; hard delete არაა. |
 | `GET /api/articles/{id}` | `ArticleController.getArticle` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
 | `PUT /api/articles/{id}` | `ArticleController.updateArticle` | `requireArticlesEditPermission`, `requireArticlesPublishPermission` | articles.edit + articles.publish | `ORG-CONTENT` | no | Phase 6: redundant content-admin role-gate მოიხსნა; explicit permission override მუშაობს. |
 | `POST /api/articles/{id}/archive` | `ArticleController.archiveArticle` | `requireArticlesArchivePermission` | articles.archive | `ORG-CONTENT` | no | უკვე permission-ზეა. |
@@ -138,7 +139,7 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 |---|---|---|---|---|---|---|
 | `GET /api/categories` | `CategoryController.getCategories` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
 | `POST /api/categories` | `CategoryController.createCategory` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
-| `DELETE /api/categories/{id}` | `CategoryController.deleteCategory` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `DELETE /api/categories/{id}` | `CategoryController.deleteCategory` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | R5: გამოყენებული კატეგორია `409`-ით იკეტება; ჩუმი fallback reassignment აღარ ხდება. |
 | `PUT /api/categories/{id}` | `CategoryController.updateCategory` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
 
 ### Compliance (7)
@@ -201,18 +202,28 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | `POST /api/reminders/{reminderId}/read` | `ReminderController.markRead` | `requireAuthenticated` | AUTH | `SELF` | no | ownership lookup უცხო და არარსებულ id-ს ერთნაირ `404`-ად აბრუნებს; განმეორებითი read იდემპოტენტურია. |
 | `POST /api/reminders/users/{userId}/send` | `ReminderController.sendManual` | `requireAuthenticated` | AUTH + `ScopeResolver.resolveGroupLeadership` | `GROUP` (`SYSTEM_ADMIN`: `ORG`) | **yes** | PRIMARY/ACTING ჯგუფის უფროსი მხოლოდ საკუთარ აქტიურ წევრს უგზავნის server-owned ფიქსირებულ ტექსტს; 24-საათიანი recipient cooldown, audit და DB lock სავალდებულოა. |
 
-### News (8)
+### ContentTrash (3)
+
+| endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
+|---|---|---|---|---|---|---|
+| `GET /api/content-trash` | `ContentTrashController.listTrash` | `requireContentManage` | content.manage | `ORG-CONTENT` | **yes** | R5: article/news/video-ის საერთო 30-დღიანი სანაგვე; აჩვენებს ჩამგდები პირის სახელს და legal-hold მდგომარეობას. |
+| `POST /api/content-trash/{itemType}/{itemId}/restore` | `ContentTrashController.restore` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | R5: მხოლოდ 30-დღიანი ფანჯრის შიგნით; მასალა და მისი orphaned attachment ისევ არქივში ბრუნდება. |
+| `DELETE /api/content-trash/{itemType}/{itemId}` | `ContentTrashController.purge` | `requireSystemAdmin` | SYSTEM_ADMIN | `ORG` | no | R5: მხოლოდ ვადის გასვლის შემდეგ, legal hold-ის გარეშე; explicit/manual purge, evidence-safe და სრულად აუდიტირებული. |
+
+### News (10)
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
 | `GET /api/news` | `NewsController.getNews` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
 | `POST /api/news` | `NewsController.createNews` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
-| `DELETE /api/news/{id}` | `NewsController.deleteNews` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `DELETE /api/news/{id}` | `NewsController.deleteNews` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | R5: მხოლოდ უკვე არქივირებული სიახლე გადადის 30-დღიან აღდგენად სანაგვეში. |
 | `GET /api/news/{id}` | `NewsController.getNewsItem` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
 | `PUT /api/news/{id}` | `NewsController.updateNews` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `POST /api/news/{id}/archive` | `NewsController.archiveNews` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | R5: explicit archive; ოპერატორის ხედიდან და search index-იდან იმალება. |
 | `PATCH /api/news/{id}/autosave` | `NewsController.autosaveNews` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
 | `GET /api/news/{id}/history` | `NewsController.getNewsHistory` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
 | `POST /api/news/{id}/history/{historyId}/restore` | `NewsController.restoreNewsVersion` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `POST /api/news/{id}/unarchive` | `NewsController.unarchiveNews` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | R5: explicit unarchive და search reindex. |
 
 ### Org (4)
 
@@ -310,7 +321,7 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 |---|---|---|---|---|---|---|
 | `GET /api/videos` | `VideoController.getVideos` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
 | `POST /api/videos` | `VideoController.createVideo` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
-| `DELETE /api/videos/{id}` | `VideoController.deleteVideo` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `DELETE /api/videos/{id}` | `VideoController.deleteVideo` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | R5: მხოლოდ უკვე არქივირებული ვიდეო გადადის 30-დღიან აღდგენად სანაგვეში. |
 | `PUT /api/videos/{id}` | `VideoController.updateVideo` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
 | `POST /api/videos/{id}/archive` | `VideoController.archiveVideo` | `requireVideosArchivePermission` | videos.archive | `ORG-CONTENT` | no | უკვე permission-ზეა. |
 | `POST /api/videos/{id}/unarchive` | `VideoController.unarchiveVideo` | `requireVideosArchivePermission` | videos.archive | `ORG-CONTENT` | no | უკვე permission-ზეა. |

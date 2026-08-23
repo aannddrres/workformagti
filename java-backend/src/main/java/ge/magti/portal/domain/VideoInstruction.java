@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.OffsetDateTime;
 
@@ -35,6 +36,7 @@ import java.time.OffsetDateTime;
  */
 @Entity
 @Table(name = "video_instructions")
+@SQLRestriction("trashed_at IS NULL")
 public class VideoInstruction {
 
     @Id

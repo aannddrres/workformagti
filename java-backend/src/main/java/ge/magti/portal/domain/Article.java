@@ -9,6 +9,7 @@ import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import jakarta.persistence.Transient;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -48,6 +49,7 @@ import java.util.List;
  */
 @Entity
 @Table(name = "articles")
+@SQLRestriction("trashed_at IS NULL")
 public class Article {
 
     @Id

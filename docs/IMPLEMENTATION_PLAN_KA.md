@@ -1,8 +1,8 @@
 # Magti Portal — დადასტურებული გადაწყვეტილებების განხორციელების გეგმა
 
 **მფლობელი:** Product Owner + Engineering
-**განახლებულია:** 2026-08-22
-**სტატუსი:** ეტაპები A–E დასრულებულია; შემდეგია ეტაპი F
+**განახლებულია:** 2026-08-23
+**სტატუსი:** ეტაპები A–F დასრულებულია; შემდეგია ეტაპი G
 
 ## 1. მიზანი და source of truth
 
@@ -155,12 +155,27 @@ credential ველები არ არსებობს, audit JSON detail
 
 ### ეტაპი F — კონტენტის lifecycle და retention
 
+**სტატუსი:** ✅ დასრულებულია 2026-08-23; ავტომატური production purge და
+გრძელვადიანი audit archive კვლავ IT/Security/DPO კონტრაქტის gate-ია.
+
 - archive → explicit trash → 30-დღიანი recovery → verified purge;
 - article/news/video/attachment payload-ის purge არ შლის read/view/audit evidence-ს;
 - category delete იკეტება, სანამ მასალა სხვა კატეგორიაში არ გადავა;
 - Broadcast-ს აქვს საკუთარი completed history;
 - Oracle-ში 1-წლიანი ბიზნეს audit და შემდგომი protected archive მხოლოდ
   IT/Security/DPO retention/verification პასუხების შემდეგ ირთვება.
+
+**განხორციელებული კონტრაქტი:** V42 ამატებს article/news/video/stored-file
+payload-ის recoverable trash metadata-სა და evidence snapshot-ებს. ჩვეულებრივი
+queries/ფაილის გაცემა სანაგვეში გადატანილ მასალას მალავს; კონტენტის მენეჯერი მას
+30 დღის განმავლობაში აღადგენს, ხოლო ვადის შემდეგ explicit purge მხოლოდ
+`SYSTEM_ADMIN`-ს შეუძლია და legal hold-ზე fail-closed არის. scheduler/ავტომატური
+production purge განზრახ არ არსებობს. საბოლოო purge შლის payload-სა და orphaned
+attachment-ს, მაგრამ ინარჩუნებს read receipts, view logs, required readings,
+read statuses, quiz attempts და audit evidence-ს დამოუკიდებელი id/title
+snapshot-ებით. გამოყენებული კატეგორია — მათ შორის სანაგვეში არსებული მასალის
+კატეგორია — ვერ იშლება, სანამ მასალა სხვაგან არ გადავა. Broadcast-ის დასრულებული
+ისტორია მის დამოუკიდებელ lifecycle-ში რჩება.
 
 ### ეტაპი G — production integration და cutover
 

@@ -1,6 +1,6 @@
 package ge.magti.portal.web;
 
-import ge.magti.portal.content.ContentDeletionService;
+import ge.magti.portal.content.ContentLifecycleService;
 import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.User;
@@ -64,7 +64,7 @@ public class VideoController {
     private final PermissionChecker permissionChecker;
     private final TagSyncService tagSyncService;
     private final SearchReindexService searchReindexService;
-    private final ContentDeletionService contentDeletionService;
+    private final ContentLifecycleService contentLifecycleService;
 
     public VideoController(
             VideoInstructionRepository videoRepository,
@@ -72,13 +72,13 @@ public class VideoController {
             PermissionChecker permissionChecker,
             TagSyncService tagSyncService,
             SearchReindexService searchReindexService,
-            ContentDeletionService contentDeletionService) {
+            ContentLifecycleService contentLifecycleService) {
         this.videoRepository = videoRepository;
         this.auditLogRepository = auditLogRepository;
         this.permissionChecker = permissionChecker;
         this.tagSyncService = tagSyncService;
         this.searchReindexService = searchReindexService;
-        this.contentDeletionService = contentDeletionService;
+        this.contentLifecycleService = contentLifecycleService;
     }
 
     @GetMapping("/api/videos")
@@ -168,13 +168,13 @@ public class VideoController {
         if (found.isEmpty()) {
             return notFound();
         }
-        // BL-10: tags_mapping/favorites have no FK to videos either -- the
-        // required_readings half of this is a no-op for "video" today
-        // (nothing points one there), see ContentDeletionService's javadoc.
-        contentDeletionService.deletePolymorphicReferences("video", id);
-        videoRepository.delete(found.get());
-        searchReindexService.remove(SearchReindexService.VIDEO, id);
-        return ResponseEntity.noContent().build();
+        ContentLifecycleService.Status status = contentLifecycleService.moveToTrash(
+                ContentLifecycleService.ItemType.VIDEO, id, user);
+        if (status == ContentLifecycleService.Status.OK) {
+            searchReindexService.remove(SearchReindexService.VIDEO, id);
+            return ResponseEntity.noContent().build();
+        }
+        return ContentTrashController.response(status, "ვიდეო სანაგვეში გადავიდა");
     }
 
     @PostMapping("/api/videos/{id}/archive")

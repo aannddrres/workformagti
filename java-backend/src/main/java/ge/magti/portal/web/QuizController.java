@@ -220,6 +220,8 @@ public class QuizController {
 
         QuizAttempt attempt = new QuizAttempt();
         attempt.setArticleId(id);
+        attempt.setArticleIdSnapshot(id);
+        attempt.setArticleTitleSnapshot(article.getTitle());
         attempt.setArticleVersion(article.getVersion());
         attempt.setUserId(user.getId());
         attempt.setAttemptNumber(attemptNumber);

@@ -235,6 +235,8 @@ class SearchControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)));
 
+        mockMvc.perform(authed(post("/api/articles/" + id + "/archive"), tokenFor(admin)))
+                .andExpect(status().isOk());
         mockMvc.perform(authed(delete("/api/articles/" + id), tokenFor(admin)))
                 .andExpect(status().isNoContent());
 

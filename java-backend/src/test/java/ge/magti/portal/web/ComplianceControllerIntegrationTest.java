@@ -418,46 +418,28 @@ class ComplianceControllerIntegrationTest {
                 .andExpect(status().isNotFound());
     }
 
-    /**
-     * BL-14: {@code markRead} only consulted the quiz gate {@code if
-     * (readingArticle != null)}, so an orphaned required reading (its
-     * article gone) let anyone mark it read unconditionally -- quiz or no
-     * quiz. The audit noted this "resolves itself once BL-02 is fixed": once
-     * {@code ContentDeletionService} deletes a required reading along with
-     * its article, {@code markRead}'s OWN lookup at {@code readingId} 404s
-     * before the null-article branch is ever reached. This proves that end
-     * to end through the real DELETE /api/articles endpoint, not just by
-     * reasoning about the code.
-     */
+    /** R5 retains historical assignment evidence but unavailable payload can never gain a new acknowledgement. */
     @Test
-    void markReadOnAReadingOrphanedByArticleDeletionIs404NotSilentSuccess() throws Exception {
+    void markReadOnATrashedReadingIs404WithoutDeletingTheAssignment() throws Exception {
         User admin = createUser("bl14-admin@magti.ge", Role.CONTENT_ADMIN, "All");
         User operator = createUser("bl14-op@magti.ge", Role.OPERATOR, "All");
         Article article = createArticle("წასაშლელი სავალდებულო სტატია", true);
         RequiredReading reading = createReading("article", article.getId(), "All", TbilisiTime.now().plusDays(3));
+        article.setStatus("archived");
+        articleRepository.saveAndFlush(article);
 
         mockMvc.perform(authed(delete("/api/articles/" + article.getId()), tokenFor(admin)))
                 .andExpect(status().isNoContent());
-        // In production, deleteArticle and markRead are two separate HTTP
-        // requests, each with its own fresh persistence context -- markRead's
-        // findById(readingId) genuinely re-queries Oracle and correctly sees
-        // the row gone. Here both run through MockMvc inside this one test's
-        // shared transaction/session, so without clearing it, findById would
-        // return the SAME `reading` instance this test loaded earlier via
-        // createReading -- Hibernate's L1 cache, checked before any query for
-        // a lookup by id -- and markRead would wrongly believe the reading
-        // still exists (it tried, and hit ORA-02291 inserting into
-        // read_statuses for a required_reading_id that no longer exists).
-        // flush()+clear() makes this MockMvc call see what a real second
-        // request would.
         entityManager.flush();
         entityManager.clear();
 
         mockMvc.perform(authed(post("/api/compliance/mark-read/" + reading.getId()), tokenFor(operator)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.detail").value("სავალდებულო მასალა ვერ მოიძებნა"));
+        assertTrue(requiredReadingRepository.findById(reading.getId()).isPresent(),
+                "the historical assignment must survive while its payload is in trash");
         assertTrue(readStatusRepository.findByUserIdAndRequiredReadingId(operator.getId(), reading.getId()).isEmpty(),
-                "no read_statuses row should be written for a reading that no longer exists");
+                "unavailable payload must not gain a new read acknowledgement");
     }
 
     @Test

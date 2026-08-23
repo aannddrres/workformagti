@@ -13,6 +13,7 @@ import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.repository.VideoInstructionRepository;
 import ge.magti.portal.security.JwtService;
 import ge.magti.portal.util.TbilisiTime;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -63,6 +64,8 @@ class VideoControllerIntegrationTest {
     private TagMappingRepository tagMappingRepository;
     @Autowired
     private FavoriteRepository favoriteRepository;
+    @Autowired
+    private EntityManager entityManager;
     @Autowired
     private AuditLogRepository auditLogRepository;
     @Autowired
@@ -240,11 +243,12 @@ class VideoControllerIntegrationTest {
     @Test
     void contentAdminDeletesAVideo() throws Exception {
         User admin = createUser("va8@magti.ge", Role.CONTENT_ADMIN, "Content Creation");
-        VideoInstruction video = createVideo("წასაშლელი ვიდეო", "All", false);
+        VideoInstruction video = createVideo("წასაშლელი ვიდეო", "All", true);
 
         mockMvc.perform(authed(delete("/api/videos/" + video.getId()), tokenFor(admin)))
                 .andExpect(status().isNoContent());
 
+        entityManager.clear();
         assertTrue(videoRepository.findById(video.getId()).isEmpty());
     }
 
@@ -254,7 +258,7 @@ class VideoControllerIntegrationTest {
      * Oracle's cascade cannot reach either. Confirmed via ContentDeletionService.
      */
     @Test
-    void deletingAVideoRemovesOrphanedTagsAndFavorites() throws Exception {
+    void movingAVideoToTrashKeepsTagsAndFavoritesForRecovery() throws Exception {
         User admin = createUser("va10@magti.ge", Role.CONTENT_ADMIN, "Content Creation");
         User operator = createUser("va10-op@magti.ge", Role.OPERATOR, "Content Creation");
 
@@ -266,6 +270,9 @@ class VideoControllerIntegrationTest {
                 .andReturn().getResponse().getContentAsString();
         long id = new com.fasterxml.jackson.databind.ObjectMapper().readTree(createBody).get("id").asLong();
 
+        mockMvc.perform(authed(post("/api/videos/" + id + "/archive"), tokenFor(admin)))
+                .andExpect(status().isOk());
+
         Favorite favorite = new Favorite();
         favorite.setUserId(operator.getId());
         favorite.setItemType("video");
@@ -276,10 +283,8 @@ class VideoControllerIntegrationTest {
                 .andExpect(status().isNoContent());
 
         assertTrue(tagMappingRepository.findAll().stream()
-                        .noneMatch(m -> "video".equals(m.getItemType()) && m.getItemId().equals(id)),
-                "tags_mapping must not keep pointing at a deleted video");
-        assertTrue(favoriteRepository.findByUserIdAndItemTypeAndItemId(operator.getId(), "video", id).isEmpty(),
-                "a favourite of a deleted video must be removed");
+                .anyMatch(m -> "video".equals(m.getItemType()) && m.getItemId().equals(id)));
+        assertTrue(favoriteRepository.findByUserIdAndItemTypeAndItemId(operator.getId(), "video", id).isPresent());
     }
 
     @Test

@@ -20,6 +20,10 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
     @Query("UPDATE Article a SET a.categoryId = :fallbackId WHERE a.categoryId = :oldCategoryId")
     void reassignCategory(Long oldCategoryId, Long fallbackId);
 
+    /** Includes trashed rows: restoring one must never point at a category that was deleted meanwhile. */
+    @Query(value = "SELECT COUNT(*) FROM articles WHERE category_id = :categoryId", nativeQuery = true)
+    long countAllByCategoryIdIncludingTrash(Long categoryId);
+
     /**
      * Port of get_stale_articles' filter (routers/articles.py:1543-1547).
      * A NULL lastVerifiedAt never matches "< cutoff" in SQL (NULL

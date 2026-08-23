@@ -11,6 +11,8 @@ import ge.magti.portal.repository.NewsRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.JwtService;
 import ge.magti.portal.util.TbilisiTime;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -63,6 +65,8 @@ class NewsControllerIntegrationTest {
     private JwtService jwtService;
     @Autowired
     private PasswordEncoder passwordEncoder;
+    @PersistenceContext
+    private EntityManager entityManager;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -158,22 +162,17 @@ class NewsControllerIntegrationTest {
         assertFalse(newsHistoryRepository.findByNewsIdOrderByUpdatedAtDesc(id).isEmpty(),
                 "the PUT above must have written a history row, or the delete below proves nothing about BL-01");
 
+        mockMvc.perform(authed(post("/api/news/" + id + "/archive"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.is_archived").value(true));
         mockMvc.perform(authed(delete("/api/news/" + id), tokenFor(admin)))
                 .andExpect(status().isNoContent());
-        // Hibernate defers the entity-level DELETE FROM news to flush time,
-        // and auto-flush-before-query only fires when a query's own table
-        // overlaps what's dirty -- a query against news_history (a
-        // DIFFERENT table) won't trigger it. Oracle's ON DELETE CASCADE only
-        // runs once the DELETE statement actually reaches it, so without
-        // this the check below would still see the pre-delete rows. Same
-        // pattern as ArticleControllerIntegrationTest's
-        // deletingAnArticleCascadesHistoryAndTargetDepartments.
-        newsRepository.flush();
+        entityManager.clear();
 
         mockMvc.perform(authed(get("/api/news/" + id), tokenFor(admin)))
                 .andExpect(status().isNotFound());
-        assertTrue(newsHistoryRepository.findByNewsIdOrderByUpdatedAtDesc(id).isEmpty(),
-                "news_history rows must cascade-delete with the news item (BL-01)");
+        assertFalse(newsHistoryRepository.findByNewsIdOrderByUpdatedAtDesc(id).isEmpty(),
+                "news history is recoverable with the trashed payload");
     }
 
     @Test

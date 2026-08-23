@@ -138,7 +138,8 @@ public class ComplianceController {
                 currentStatus = "overdue";
             }
             ItemDetail detail = details.get(new ItemKey(r.getItemType(), r.getItemId()));
-            String itemTitle = detail != null ? detail.title() : ("Item #" + r.getItemId());
+            String itemTitle = detail != null ? detail.title()
+                    : (r.getItemTitleSnapshot() != null ? r.getItemTitleSnapshot() : ("Item #" + r.getItemId()));
             String itemContent = detail != null ? detail.content() : "Content not available.";
             results.add(new MyReadingResponse(
                     RequiredReadingResponse.from(r), currentStatus, readAt, isOverdue, itemTitle, itemContent));
@@ -185,11 +186,15 @@ public class ComplianceController {
         Article readingArticle = null;
         if ("article".equals(reading.getItemType())) {
             readingArticle = articleRepository.findById(reading.getItemId()).orElse(null);
-            if (readingArticle != null) {
-                ResponseEntity<Map<String, String>> quizGate = quizGateChecker.denialFor(readingArticle, user);
-                if (quizGate != null) {
-                    return quizGate;
-                }
+            if (readingArticle == null) {
+                // Keep the assignment and its past read evidence for audit,
+                // but never create a new acknowledgement for payload the
+                // employee can no longer open (trashed or purged).
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", READING_NOT_FOUND));
+            }
+            ResponseEntity<Map<String, String>> quizGate = quizGateChecker.denialFor(readingArticle, user);
+            if (quizGate != null) {
+                return quizGate;
             }
         }
 
@@ -232,6 +237,8 @@ public class ComplianceController {
         RequiredReading reading = new RequiredReading();
         reading.setItemType(request.itemType());
         reading.setItemId(request.itemId());
+        reading.setItemTitleSnapshot(itemTitleResolver.resolve(request.itemType(), request.itemId())
+                .orElse("მასალა #" + request.itemId()));
         reading.setTargetDepartment(request.targetDepartmentOrDefault());
         reading.setDueDate(normalizeDueDate(request.dueDate()));
         reading.setPriority(request.priorityOrDefault());

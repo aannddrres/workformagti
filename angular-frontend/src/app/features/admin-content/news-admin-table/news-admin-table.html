@@ -21,8 +21,8 @@
         <tr><td colspan="4" class="px-5 py-6 text-center text-gray-500 dark:text-zinc-400">{{ 'content.news.none_found' | translate }}</td></tr>
       } @else {
         @for (item of items(); track item.id) {
-          <tr class="transition-colors hover:bg-gray-50 dark:hover:bg-zinc-800/60">
-            <td class="px-5 py-3"><span class="inline-flex items-center gap-2"><i class="fa-solid fa-bullhorn text-gray-400"></i>{{ item.title }}</span></td>
+          <tr class="transition-colors hover:bg-gray-50 dark:hover:bg-zinc-800/60" [class.opacity-60]="item.is_archived">
+            <td class="px-5 py-3"><span class="inline-flex items-center gap-2"><i class="fa-solid fa-bullhorn text-gray-400"></i>{{ item.title }} @if (item.is_archived) { <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs">არქივი</span> }</span></td>
             <td class="px-5 py-3 text-gray-500 dark:text-zinc-400">{{ departmentLabel(item.target_department) }}</td>
             <td class="px-5 py-3 text-gray-500 dark:text-zinc-400">{{ item.created_at | date: 'dd.MM.yyyy' }}</td>
             <td class="px-5 py-3">
@@ -30,7 +30,10 @@
                 <button (click)="openEdit(item)" class="text-gray-400 hover:text-blue-500 transition-colors" [attr.aria-label]="'content.articles.action_edit' | translate">
                   <i class="fa-solid fa-pen-to-square"></i>
                 </button>
-                <button (click)="remove(item)" class="text-gray-400 hover:text-danger transition-colors" [attr.aria-label]="'content.articles.action_delete' | translate">
+                <button (click)="toggleArchive(item)" class="text-gray-400 hover:text-amber-600 transition-colors" [attr.aria-label]="item.is_archived ? 'არქივიდან ამოღება' : 'დაარქივება'">
+                  <i [class]="item.is_archived ? 'fa-solid fa-box-open' : 'fa-solid fa-box-archive'"></i>
+                </button>
+                <button (click)="remove(item)" [disabled]="!item.is_archived" class="text-gray-400 hover:text-danger transition-colors disabled:cursor-not-allowed disabled:opacity-30" aria-label="სანაგვეში გადატანა" [title]="!item.is_archived ? 'ჯერ დაარქივეთ' : 'სანაგვეში გადატანა'">
                   <i class="fa-solid fa-trash-can"></i>
                 </button>
               </div>

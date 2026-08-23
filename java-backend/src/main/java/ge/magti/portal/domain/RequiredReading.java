@@ -34,6 +34,9 @@ public class RequiredReading {
     @Column(name = "item_id", nullable = false)
     private Long itemId;
 
+    @Column(name = "item_title_snapshot", length = 500)
+    private String itemTitleSnapshot;
+
     @Column(name = "target_department", length = 200)
     private String targetDepartment = "All";
 
@@ -65,6 +68,14 @@ public class RequiredReading {
 
     public void setItemId(Long itemId) {
         this.itemId = itemId;
+    }
+
+    public String getItemTitleSnapshot() {
+        return itemTitleSnapshot;
+    }
+
+    public void setItemTitleSnapshot(String itemTitleSnapshot) {
+        this.itemTitleSnapshot = itemTitleSnapshot;
     }
 
     public String getTargetDepartment() {

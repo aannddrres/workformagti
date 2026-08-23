@@ -1,6 +1,7 @@
 package ge.magti.portal.web;
 
-import ge.magti.portal.content.ContentDeletionService;
+import ge.magti.portal.content.ContentLifecycleService;
+import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.News;
 import ge.magti.portal.domain.NewsHistory;
 import ge.magti.portal.domain.Permission;
@@ -8,6 +9,7 @@ import ge.magti.portal.domain.User;
 import ge.magti.portal.news.NewsQueryService;
 import ge.magti.portal.repository.NewsHistoryRepository;
 import ge.magti.portal.repository.NewsRepository;
+import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.search.SearchReindexService;
 import ge.magti.portal.security.PermissionChecker;
@@ -68,8 +70,9 @@ public class NewsController {
     private final UserRepository userRepository;
     private final NewsQueryService newsQueryService;
     private final SearchReindexService searchReindexService;
-    private final ContentDeletionService contentDeletionService;
+    private final ContentLifecycleService contentLifecycleService;
     private final PermissionChecker permissionChecker;
+    private final AuditLogRepository auditLogRepository;
 
     public NewsController(
             NewsRepository newsRepository,
@@ -77,15 +80,17 @@ public class NewsController {
             UserRepository userRepository,
             NewsQueryService newsQueryService,
             SearchReindexService searchReindexService,
-            ContentDeletionService contentDeletionService,
-            PermissionChecker permissionChecker) {
+            ContentLifecycleService contentLifecycleService,
+            PermissionChecker permissionChecker,
+            AuditLogRepository auditLogRepository) {
         this.newsRepository = newsRepository;
         this.newsHistoryRepository = newsHistoryRepository;
         this.userRepository = userRepository;
         this.newsQueryService = newsQueryService;
         this.searchReindexService = searchReindexService;
-        this.contentDeletionService = contentDeletionService;
+        this.contentLifecycleService = contentLifecycleService;
         this.permissionChecker = permissionChecker;
+        this.auditLogRepository = auditLogRepository;
     }
 
     /** Port of get_news_item (routers/news.py:23-44). */
@@ -193,13 +198,56 @@ public class NewsController {
         if (found.isEmpty()) {
             return notFound();
         }
-        // BL-02/BL-10: a news item can be a required-reading target exactly
-        // like an article (RequiredReadingRequest.itemType is a free
-        // string) -- same orphan risk, same cleanup.
-        contentDeletionService.deletePolymorphicReferences("news", id);
-        newsRepository.delete(found.get());
+        ContentLifecycleService.Status status = contentLifecycleService.moveToTrash(
+                ContentLifecycleService.ItemType.NEWS, id, user);
+        if (status == ContentLifecycleService.Status.OK) {
+            searchReindexService.remove(SearchReindexService.NEWS, id);
+            return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+        }
+        return ContentTrashController.response(status, "სიახლე სანაგვეში გადავიდა");
+    }
+
+    @PostMapping("/api/news/{id}/archive")
+    @Transactional
+    public ResponseEntity<?> archiveNews(@PathVariable Long id, @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        if (denial != null) {
+            return denial;
+        }
+        Optional<News> found = newsRepository.findById(id);
+        if (found.isEmpty()) {
+            return notFound();
+        }
+        News news = found.get();
+        if (!news.isArchived()) {
+            news.setExpiresAt(TbilisiTime.now());
+            newsRepository.save(news);
+            writeAuditLog(user, "ARCHIVE", news);
+        }
         searchReindexService.remove(SearchReindexService.NEWS, id);
-        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+        return ResponseEntity.ok(NewsResponse.from(news));
+    }
+
+    @PostMapping("/api/news/{id}/unarchive")
+    @Transactional
+    public ResponseEntity<?> unarchiveNews(@PathVariable Long id, @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        if (denial != null) {
+            return denial;
+        }
+        Optional<News> found = newsRepository.findById(id);
+        if (found.isEmpty()) {
+            return notFound();
+        }
+        News news = found.get();
+        if (!news.isArchived()) {
+            return ResponseEntity.badRequest().body(Map.of("detail", "სიახლე არ არის არქივში"));
+        }
+        news.setExpiresAt(null);
+        News saved = newsRepository.save(news);
+        writeAuditLog(user, "UNARCHIVE", saved);
+        searchReindexService.reindexNews(saved);
+        return ResponseEntity.ok(NewsResponse.from(saved));
     }
 
     /** Port of autosave_news (routers/news.py:216-238). */
@@ -309,11 +357,7 @@ public class NewsController {
 
         News saved = newsRepository.save(news);
         searchReindexService.reindexNews(saved);
-        // No AuditLog entity is wired to this controller (Python's log_audit
-        // call, routers/news.py:298) -- Audit's own HTTP surface (list/CSV
-        // export) isn't built yet, and this restore action's audit coverage
-        // isn't part of the 8 endpoints this slice adds. Left for the Audit
-        // domain slice, consistent with not wiring AuditLogRepository here.
+        writeAuditLog(user, "RESTORE_VERSION", saved);
         return ResponseEntity.ok(NewsResponse.from(saved));
     }
 
@@ -335,6 +379,19 @@ public class NewsController {
         history.setUpdatedBy(updatedBy);
         history.setUpdatedAt(TbilisiTime.now());
         newsHistoryRepository.save(history);
+    }
+
+    private void writeAuditLog(User actor, String action, News news) {
+        AuditLog audit = new AuditLog();
+        audit.setAdminId(actor.getId());
+        audit.setAdminNameSnapshot(actor.getName());
+        audit.setAdminEmailSnapshot(actor.getEmail());
+        audit.setAction(action);
+        audit.setItemType("news");
+        audit.setItemId(news.getId());
+        audit.setItemNameSnapshot(news.getTitle());
+        audit.setTimestamp(TbilisiTime.now());
+        auditLogRepository.save(audit);
     }
 
     private static ResponseEntity<?> notFound() {

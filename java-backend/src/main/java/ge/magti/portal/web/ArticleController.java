@@ -1,7 +1,7 @@
 package ge.magti.portal.web;
 
 import ge.magti.portal.article.ArticleListFilter;
-import ge.magti.portal.content.ContentDeletionService;
+import ge.magti.portal.content.ContentLifecycleService;
 import ge.magti.portal.article.ArticleQueryService;
 import ge.magti.portal.article.EligibleOperatorsService;
 import ge.magti.portal.diff.DiffResult;
@@ -125,7 +125,7 @@ public class ArticleController {
     private final ArticleQueryService articleQueryService;
     private final EligibleOperatorsService eligibleOperatorsService;
     private final SearchReindexService searchReindexService;
-    private final ContentDeletionService contentDeletionService;
+    private final ContentLifecycleService contentLifecycleService;
 
     public ArticleController(
             ArticleRepository articleRepository,
@@ -146,7 +146,7 @@ public class ArticleController {
             ArticleQueryService articleQueryService,
             EligibleOperatorsService eligibleOperatorsService,
             SearchReindexService searchReindexService,
-            ContentDeletionService contentDeletionService) {
+            ContentLifecycleService contentLifecycleService) {
         this.articleRepository = articleRepository;
         this.targetDepartmentRepository = targetDepartmentRepository;
         this.articleHistoryRepository = articleHistoryRepository;
@@ -165,7 +165,7 @@ public class ArticleController {
         this.articleQueryService = articleQueryService;
         this.eligibleOperatorsService = eligibleOperatorsService;
         this.searchReindexService = searchReindexService;
-        this.contentDeletionService = contentDeletionService;
+        this.contentLifecycleService = contentLifecycleService;
     }
 
     @GetMapping("/api/articles")
@@ -514,13 +514,13 @@ public class ArticleController {
         if (found.isEmpty()) {
             return notFound();
         }
-        // BL-02/BL-10: required_readings, tags_mapping and favorites all
-        // address the article by (item_type, item_id) with no FK, so
-        // Oracle's cascade cannot reach any of them.
-        contentDeletionService.deletePolymorphicReferences("article", id);
-        articleRepository.delete(found.get());
-        searchReindexService.remove(SearchReindexService.ARTICLE, id);
-        return ResponseEntity.noContent().build();
+        ContentLifecycleService.Status status = contentLifecycleService.moveToTrash(
+                ContentLifecycleService.ItemType.ARTICLE, id, user);
+        if (status == ContentLifecycleService.Status.OK) {
+            searchReindexService.remove(SearchReindexService.ARTICLE, id);
+            return ResponseEntity.noContent().build();
+        }
+        return ContentTrashController.response(status, "სტატია სანაგვეში გადავიდა");
     }
 
     @PostMapping("/api/articles/{id}/archive")

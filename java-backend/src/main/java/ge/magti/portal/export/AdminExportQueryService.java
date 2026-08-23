@@ -75,8 +75,9 @@ public class AdminExportQueryService {
                 + "UNION ALL "
                 + "SELECT 'REQUIRED_READING', s.id, s.user_id, u.name, u.email, "
                 + "s.operator_department_snapshot, rr.item_type, rr.item_id, "
-                + "CASE WHEN rr.item_type = 'article' THEN a.title WHEN rr.item_type = 'news' THEN n.title "
-                + "ELSE 'მასალა #' || TO_CHAR(rr.item_id) END, CAST(NULL AS NUMBER), s.status, s.read_at, rr.due_date "
+                + "COALESCE(rr.item_title_snapshot, CASE WHEN rr.item_type = 'article' THEN a.title "
+                + "WHEN rr.item_type = 'news' THEN n.title ELSE 'მასალა #' || TO_CHAR(rr.item_id) END), "
+                + "CAST(NULL AS NUMBER), s.status, s.read_at, rr.due_date "
                 + "FROM read_statuses s JOIN users u ON u.id = s.user_id "
                 + "JOIN required_readings rr ON rr.id = s.required_reading_id "
                 + "LEFT JOIN articles a ON rr.item_type = 'article' AND a.id = rr.item_id "
@@ -113,9 +114,10 @@ public class AdminExportQueryService {
                 "ელფოსტა", "სტატიის ID", "სტატიის სათაური", "სტატიის ვერსია", "მცდელობის ნომერი",
                 "ქულა", "კითხვების რაოდენობა", "ჩააბარა");
         FilteredSql filtered = filtered("SELECT q.id, q.created_at, q.user_id, u.name, u.email, "
-                + "q.article_id, a.title, q.article_version, q.attempt_number, q.score, q.total_questions, "
+                + "q.article_id_snapshot, COALESCE(q.article_title_snapshot, a.title), q.article_version, "
+                + "q.attempt_number, q.score, q.total_questions, "
                 + "CASE WHEN q.passed = 1 THEN 'კი' ELSE 'არა' END FROM quiz_attempts q "
-                + "JOIN users u ON u.id = q.user_id JOIN articles a ON a.id = q.article_id WHERE 1=1",
+                + "JOIN users u ON u.id = q.user_id LEFT JOIN articles a ON a.id = q.article_id WHERE 1=1",
                 "q.created_at", from, through);
         return new Query(headers, filtered.sql() + " ORDER BY q.created_at DESC, q.id DESC FETCH FIRST "
                 + QUERY_LIMIT + " ROWS ONLY", filtered.args(), -1);

@@ -156,7 +156,9 @@
                             <i class="fa-solid fa-box-archive text-gray-400 w-4"></i> {{ 'content.articles.action_archive' | translate }}
                           }
                         </button>
-                        <button (click)="deleteArticle(article)" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors">
+                        <button (click)="deleteArticle(article)" [disabled]="article.status !== 'archived'"
+                                [title]="article.status !== 'archived' ? 'ჯერ დაარქივეთ' : 'სანაგვეში გადატანა'"
+                                class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-red-950/30">
                           <i class="fa-solid fa-trash-can text-red-400 w-4"></i> {{ 'content.articles.action_delete' | translate }}
                         </button>
                       </div>

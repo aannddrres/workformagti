@@ -628,10 +628,10 @@ class ArticleControllerIntegrationTest {
     // ── delete ────────────────────────────────────────────────────────
 
     @Test
-    void deletingAnArticleCascadesHistoryAndTargetDepartments() throws Exception {
+    void movingAnArchivedArticleToTrashKeepsItsRecoverablePayload() throws Exception {
         User admin = createUser("aa14@magti.ge", Role.CONTENT_ADMIN, "All");
         Category cat = createCategory("კატ-12");
-        Article article = createArticle("წასაშლელი", cat.getId(), "published", false,
+        Article article = createArticle("წასაშლელი", cat.getId(), "archived", false,
                 List.of("All", "ტექნიკური"), null);
         ArticleHistory history = new ArticleHistory();
         history.setArticleId(article.getId());
@@ -643,26 +643,13 @@ class ArticleControllerIntegrationTest {
 
         mockMvc.perform(authed(delete("/api/articles/" + article.getId()), tokenFor(admin)))
                 .andExpect(status().isNoContent());
-        // The DELETE's own pending change is on `articles`; Hibernate's
-        // auto-flush-before-query only flushes when a query's own table
-        // overlaps what's dirty, so a query against a DIFFERENT table
-        // (article_target_departments/article_history) won't by itself
-        // trigger flushing the articles DELETE first. Forcing it here
-        // makes this verification see what Oracle's ON DELETE CASCADE
-        // actually did -- already independently confirmed directly via
-        // sqlplus. A real caller never needs this: in production the
-        // request's own transaction commits right after the controller
-        // method returns, so any later request already sees the true
-        // post-cascade state without help.
-        articleRepository.flush();
-
+        entityManager.clear();
         assertTrue(articleRepository.findById(article.getId()).isEmpty());
-        assertTrue(targetDepartmentRepository.findByArticleId(article.getId()).isEmpty());
-        // Not findById(history.getId()) -- that checks Hibernate's L1
-        // session cache first and returns the same still-held Java object
-        // this test constructed, without ever re-querying, regardless of
-        // the flush above. findByArticleId always issues a real SELECT.
-        assertTrue(articleHistoryRepository.findByArticleId(article.getId()).isEmpty());
+        assertEquals(1, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM articles WHERE id = ? AND trashed_at IS NOT NULL", Integer.class,
+                article.getId()));
+        assertEquals(2, targetDepartmentRepository.findByArticleId(article.getId()).size());
+        assertEquals(1, articleHistoryRepository.findByArticleId(article.getId()).size());
     }
 
     /**
@@ -672,11 +659,11 @@ class ArticleControllerIntegrationTest {
      * note 500'd on ORA-02292. Fixed by V30. This is the regression test.
      */
     @Test
-    void deletingAnArticleCascadesUserNotes() throws Exception {
+    void movingAnArticleToTrashKeepsPersonalNotesForRecovery() throws Exception {
         User admin = createUser("aa15@magti.ge", Role.CONTENT_ADMIN, "All");
         User operator = createUser("op15@magti.ge", Role.OPERATOR, "ტექნიკური");
         Category cat = createCategory("კატ-13");
-        Article article = createArticle("პირადი შენიშვნის სტატია", cat.getId(), "published", false,
+        Article article = createArticle("პირადი შენიშვნის სტატია", cat.getId(), "archived", false,
                 List.of("All"), null);
 
         UserNote note = new UserNote();
@@ -687,10 +674,9 @@ class ArticleControllerIntegrationTest {
 
         mockMvc.perform(authed(delete("/api/articles/" + article.getId()), tokenFor(admin)))
                 .andExpect(status().isNoContent());
-        articleRepository.flush();
-
+        entityManager.clear();
         assertTrue(articleRepository.findById(article.getId()).isEmpty());
-        assertTrue(userNoteRepository.findByUserIdAndArticleId(operator.getId(), article.getId()).isEmpty());
+        assertTrue(userNoteRepository.findByUserIdAndArticleId(operator.getId(), article.getId()).isPresent());
     }
 
     /**
@@ -702,15 +688,16 @@ class ArticleControllerIntegrationTest {
      * forever, and the compliance denominator kept counting it.
      */
     @Test
-    void deletingAnArticleRemovesItsRequiredReadingAndReadStatuses() throws Exception {
+    void movingAnArticleToTrashPreservesRequiredReadingEvidence() throws Exception {
         User admin = createUser("aa16@magti.ge", Role.CONTENT_ADMIN, "All");
         User operator = createUser("op16@magti.ge", Role.OPERATOR, "All");
         Category cat = createCategory("კატ-14");
-        Article article = createArticle("სავალდებულო წასაშლელი", cat.getId(), "published", false, List.of("All"), null);
+        Article article = createArticle("სავალდებულო წასაშლელი", cat.getId(), "archived", false, List.of("All"), null);
 
         RequiredReading required = new RequiredReading();
         required.setItemType("article");
         required.setItemId(article.getId());
+        required.setItemTitleSnapshot(article.getTitle());
         required.setTargetDepartment("All");
         required.setDueDate(TbilisiTime.now().plusDays(7));
         RequiredReading savedRequired = requiredReadingRepository.saveAndFlush(required);
@@ -724,20 +711,10 @@ class ArticleControllerIntegrationTest {
 
         mockMvc.perform(authed(delete("/api/articles/" + article.getId()), tokenFor(admin)))
                 .andExpect(status().isNoContent());
-        articleRepository.flush();
-
-        // Not findById(savedRequired.getId()) -- ContentDeletionService
-        // removes it via deleteAllInBatch, a bulk JPQL delete that (like any
-        // bulk operation) does not evict the already-loaded `savedRequired`
-        // instance from this session's L1 cache. findById would return that
-        // same stale, still-"present" object without ever re-querying,
-        // regardless of the flush above -- the same trap
-        // deletingAnArticleCascadesHistoryAndTargetDepartments documents for
-        // ArticleHistory. findByItemTypeAndItemId always issues a real SELECT.
-        assertTrue(requiredReadingRepository.findByItemTypeAndItemId("article", article.getId()).isEmpty(),
-                "the required_readings row must not survive the article it points at");
-        assertTrue(readStatusRepository.findByUserIdAndRequiredReadingId(operator.getId(), savedRequired.getId()).isEmpty(),
-                "its read_statuses row must go with it");
+        assertEquals(1, requiredReadingRepository.findByItemTypeAndItemId("article", article.getId()).size(),
+                "required reading is compliance evidence and must survive trash");
+        assertTrue(readStatusRepository.findByUserIdAndRequiredReadingId(operator.getId(), savedRequired.getId()).isPresent(),
+                "read status is compliance evidence and must survive trash");
     }
 
     /**
@@ -746,11 +723,11 @@ class ArticleControllerIntegrationTest {
      * ContentDeletionService call.
      */
     @Test
-    void deletingAnArticleRemovesOrphanedTagsAndFavorites() throws Exception {
+    void movingAnArticleToTrashKeepsTagsAndFavoritesForRecovery() throws Exception {
         User admin = createUser("aa17@magti.ge", Role.CONTENT_ADMIN, "All");
         User operator = createUser("op17@magti.ge", Role.OPERATOR, "All");
         Category cat = createCategory("კატ-15");
-        Article article = createArticle("ტეგებიანი წასაშლელი", cat.getId(), "published", false, List.of("All"), null);
+        Article article = createArticle("ტეგებიანი წასაშლელი", cat.getId(), "archived", false, List.of("All"), null);
 
         Tag tag = tagRepository.findByName("რეგრესია").orElseGet(() -> {
             Tag created = new Tag();
@@ -771,12 +748,8 @@ class ArticleControllerIntegrationTest {
 
         mockMvc.perform(authed(delete("/api/articles/" + article.getId()), tokenFor(admin)))
                 .andExpect(status().isNoContent());
-        articleRepository.flush();
-
-        assertTrue(tagMappingRepository.findById(mapping.getId()).isEmpty(),
-                "tags_mapping must not keep pointing at a deleted article");
-        assertTrue(favoriteRepository.findByUserIdAndItemTypeAndItemId(operator.getId(), "article", article.getId()).isEmpty(),
-                "a favourite of a deleted article must be removed, not left rendering a null title");
+        assertTrue(tagMappingRepository.findById(mapping.getId()).isPresent());
+        assertTrue(favoriteRepository.findByUserIdAndItemTypeAndItemId(operator.getId(), "article", article.getId()).isPresent());
     }
 
     // ── archive / unarchive / bulk-archive ───────────────────────────
@@ -1501,8 +1474,8 @@ class ArticleControllerIntegrationTest {
      * while the row is still addressable by the article it belonged to.
      */
     @Test
-    void aDeletedArticlesReadReceiptsAndViewLogsStayFindable() throws Exception {
-        User admin = createUser("aa90@magti.ge", Role.CONTENT_ADMIN, "All");
+    void purgedArticlesReadReceiptsAndViewLogsStayFindable() throws Exception {
+        User admin = createUser("aa90@magti.ge", Role.SYSTEM_ADMIN, "All");
         Category cat = createCategory("კატ-88");
         long articleId = createArticleViaApi(tokenFor(admin), "წასაშლელი სტატია", "შინაარსი", cat.getId());
         User operator = createUser("aa91@magti.ge", Role.OPERATOR, "All");
@@ -1512,8 +1485,14 @@ class ArticleControllerIntegrationTest {
         mockMvc.perform(authed(post("/api/articles/" + articleId + "/view"), tokenFor(operator)))
                 .andExpect(status().isOk());
 
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/archive"), tokenFor(admin)))
+                .andExpect(status().isOk());
         mockMvc.perform(authed(delete("/api/articles/" + articleId), tokenFor(admin)))
                 .andExpect(status().isNoContent());
+        jdbcTemplate.update("UPDATE articles SET purge_after = ? WHERE id = ?",
+                java.sql.Timestamp.valueOf(TbilisiTime.now().minusMinutes(1).toLocalDateTime()), articleId);
+        mockMvc.perform(authed(delete("/api/content-trash/article/" + articleId), tokenFor(admin)))
+                .andExpect(status().isOk());
         // ON DELETE SET NULL happens in the database, so the loaded entities
         // in this transaction's persistence context still hold the old
         // article_id. flush + clear forces the assertions below to read what
