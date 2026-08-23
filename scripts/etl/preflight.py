@@ -90,6 +90,40 @@ UNIQUE_KEYS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("audit_action_translations", ("action",)),
 )
 
+# Columns whose allowed values are not written down anywhere the database can
+# see them -- no CHECK constraint, no lookup table, just a Java enum. Every
+# other preflight check tests the source against something Oracle will itself
+# enforce; these are the ones Oracle accepts happily and the application then
+# cannot read.
+#
+# Failure mode: an out-of-domain string migrates cleanly, the row sits in
+# Oracle looking correct, and the first request that maps it throws
+# (``No enum constant AuditCategory.admin``) with a 500 and no clue that the
+# cause arrived in the cutover.
+#
+# The four fields are (source table, source column, the Java type the value
+# must satisfy, whether NULL is acceptable). Allowed values live in
+# ENUM_VALUES so tests/etl/test_enum_domains.py can check them against the
+# Java sources and fail the build if either side drifts -- copying them by
+# hand once is fine, keeping them correct by hand is not.
+ENUM_VALUES: dict[str, tuple[str, ...]] = {
+    # AuditCategory.java -- enum constant names, persisted by @Enumerated(STRING).
+    "AuditCategory": ("CONTENT", "USER", "SECURITY", "SYSTEM"),
+    # Role.java -- Role.value(), not Role.name(); RoleConverter persists the
+    # lowercase form and Role.fromValue() throws on anything else.
+    "Role": ("operator", "manager", "content_admin", "admin"),
+}
+
+ENUM_DOMAINS: tuple[tuple[str, str, str, bool], ...] = (
+    # V10 leaves the column nullable and the Java field is nullable too, so an
+    # absent category is a gap in the audit taxonomy, not a broken row.
+    ("audit_logs", "category", "AuditCategory", True),
+    # V3 leaves role nullable, but nothing downstream does: JwtService.java:65
+    # and JwtAuthenticationFilter.java:96 both dereference getRole() unguarded,
+    # so a NULL role is a user who cannot log in.
+    ("users", "role", "Role", False),
+)
+
 
 def _length_expr(dialect: str, column: str) -> str:
     # Both dialects count characters, not bytes, which is what VARCHAR2(n CHAR)
@@ -298,6 +332,52 @@ def check_empty_strings(source, specs: list[TableSpec]) -> Check:
     )
 
 
+def check_enum_domains(source, specs: list[TableSpec]) -> list[Check]:
+    """Reject values the application cannot map back to a Java enum.
+
+    Runs only for tables actually in the plan, so skipping a table (an owner
+    decision in spec.py) also skips its domain check rather than reporting a
+    failure for data that will not cross.
+
+    Fatal by design. There is no repair on the target side: the string is
+    already stored, Oracle is content with it, and the only way to find the
+    row afterwards is a user hitting a 500. Fixing it in the source before
+    the load costs one UPDATE.
+    """
+    planned = {spec.source for spec in specs}
+    checks: list[Check] = []
+    for table, column, java_type, nullable in ENUM_DOMAINS:
+        if table not in planned:
+            continue
+        allowed = ENUM_VALUES[java_type]
+        quoted = ", ".join(f"'{value}'" for value in allowed)
+        null_clause = "" if nullable else f" OR {column} IS NULL"
+        rows = source.query(
+            f"SELECT {column}, COUNT(*) FROM {table} "
+            f"WHERE ({column} IS NOT NULL AND {column} NOT IN ({quoted})){null_clause} "
+            f"GROUP BY {column} ORDER BY COUNT(*) DESC"
+        )
+        offending = sum(int(row[1]) for row in rows)
+        checks.append(
+            Check(
+                name=f"enum-domain:{table}.{column}",
+                ok=offending == 0,
+                detail=(
+                    f"every {table}.{column} is a {java_type} value"
+                    if offending == 0
+                    else (
+                        f"{offending} row(s) hold a {table}.{column} that {java_type} "
+                        f"cannot map; allowed: {', '.join(allowed)}"
+                        + ("" if nullable else " (NULL is not acceptable here either)")
+                    )
+                ),
+                affected=offending,
+                samples=[(row[0], int(row[1])) for row in rows[:SAMPLE_LIMIT]],
+            )
+        )
+    return checks
+
+
 def check_audit_details_length(source) -> Check:
     """Rows whose `details` is longer than Oracle can hash in one piece.
 
@@ -364,6 +444,7 @@ def run(source, target, specs: list[TableSpec], *, check_target: bool = True) ->
     checks.extend(check_unique_keys(source, specs))
     checks.extend(check_transformable(source, specs))
     checks.append(check_empty_strings(source, specs))
+    checks.extend(check_enum_domains(source, specs))
     checks.append(check_audit_details_length(source))
     checks.append(check_audit_chain_source(source))
     return checks

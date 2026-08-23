@@ -35,7 +35,7 @@ def _audit_rows() -> list[dict]:
     rows = [
         {
             "id": 1, "admin_id": 2, "action": "CREATE", "item_type": "article", "item_id": 1,
-            "timestamp": NOW, "category": "content",
+            "timestamp": NOW, "category": "CONTENT",
             "details": '{"title": {"new": "ტარიფის ცვლილება"}}',
             "admin_name_snapshot": "გიორგი კაპანაძე", "admin_email_snapshot": "admin@magti.ge",
             "item_name_snapshot": "ტარიფის ცვლილება", "ip_address": "10.0.0.5",
@@ -43,13 +43,13 @@ def _audit_rows() -> list[dict]:
         },
         {
             "id": 2, "admin_id": 2, "action": "UPDATE", "item_type": "article", "item_id": 1,
-            "timestamp": LATER, "category": "content", "details": None,
+            "timestamp": LATER, "category": "CONTENT", "details": None,
             "admin_name_snapshot": "გიორგი კაპანაძე", "admin_email_snapshot": "admin@magti.ge",
             "item_name_snapshot": "ტარიფის ცვლილება", "ip_address": None, "user_agent": None,
         },
         {
             "id": 3, "admin_id": 1, "action": "LOGIN", "item_type": "user", "item_id": 1,
-            "timestamp": LATER, "category": "security", "details": None,
+            "timestamp": LATER, "category": "SECURITY", "details": None,
             "admin_name_snapshot": "ნინო ბერიძე", "admin_email_snapshot": "manager@magti.ge",
             "item_name_snapshot": None, "ip_address": "10.0.0.9", "user_agent": "curl/8",
         },

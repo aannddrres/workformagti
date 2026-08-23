@@ -340,7 +340,7 @@ def _audit(n):
     for i in range(1, n["audit_logs"] + 1):
         row = {
             "id": i, "admin_id": (i % 30) + 1, "action": "UPDATE", "item_type": "article",
-            "item_id": (i % n["articles"]) + 1, "timestamp": next(ts), "category": "content",
+            "item_id": (i % n["articles"]) + 1, "timestamp": next(ts), "category": "CONTENT",
             "details": json.dumps({"title": {"old": f"სტატია {i}", "new": f"სტატია {i} v2"}},
                                   ensure_ascii=False),
             "admin_name_snapshot": f"თანამშრომელი {(i % 30) + 1}",

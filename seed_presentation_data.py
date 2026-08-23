@@ -289,7 +289,11 @@ def phase1(db):
     for day_offset, (action, item_type, item_id, details) in zip(range(10, 0, -1), admin_log_entries):
         db.add(models.AuditLog(
             admin_id=sysadmin.id, action=action, item_type=item_type, item_id=item_id,
-            timestamp=now_for_logs - timedelta(days=day_offset), category="admin", details=details,
+            # No explicit category: "admin" is not one of the four
+            # AuditCategory values the Java reader accepts, and a row it
+            # cannot map throws on read after the Oracle cutover. Leaving it
+            # unset lets models.classify_audit_category() pick CONTENT.
+            timestamp=now_for_logs - timedelta(days=day_offset), details=details,
         ))
     db.commit()
 
@@ -391,7 +395,9 @@ def _write_receipt(db, article, version, user, read_at):
     receipt.read_at = read_at
     db.add(models.AuditLog(
         admin_id=user.id, action="article_read", item_type="article", item_id=article.id,
-        timestamp=read_at, category="compliance",
+        # USER, not "compliance": AuditCategory has no such constant, and this
+        # is a user's own reading activity -- the same class as MARK_READ.
+        timestamp=read_at, category="USER",
         details=f"მომხმარებელი გაეცნო სტატიას: {article.title}",
     ))
 

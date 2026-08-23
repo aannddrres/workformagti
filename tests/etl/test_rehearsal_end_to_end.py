@@ -100,10 +100,10 @@ def _seed(path: str) -> None:
     conn.executemany(
         "INSERT INTO audit_logs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         [
-            (1, 2, "CREATE", "article", 1, NOW, "content", '{"title": "ტარიფის ცვლილება"}',
+            (1, 2, "CREATE", "article", 1, NOW, "CONTENT", '{"title": "ტარიფის ცვლილება"}',
              "გიორგი კაპანაძე", "admin@magti.ge", "ტარიფის ცვლილება", None, "a" * 64,
              "10.0.0.5", "Mozilla/5.0"),
-            (2, 2, "UPDATE", "article", 1, NOW, "content", None,
+            (2, 2, "UPDATE", "article", 1, NOW, "CONTENT", None,
              "გიორგი კაპანაძე", "admin@magti.ge", "ტარიფის ცვლილება", "a" * 64, "b" * 64,
              None, None),
         ],
