@@ -270,24 +270,30 @@ def compare_audit_hashes(source, target) -> dict[str, Any]:
                 "-- the target chain is verified independently instead"
             ),
         }
+    # Both sides stream in ascending id order, so the comparison walks them in
+    # lockstep. Holding the target side in a dict first was fine for a fixture
+    # and is not fine for a real audit log: at the volumes this table reaches
+    # under a 180-day retention it is hundreds of megabytes of Python objects,
+    # on the one machine that also has to finish inside a change window.
     left = source.stream("audit_logs", ["id", "row_hash"], "id")
     right = target.stream("audit_logs", ["id", "row_hash"], "id")
     matched = mismatched = source_unchained = 0
     samples: list[Any] = []
-    right_by_id: dict[Any, Any] = {}
-    for row_id, row_hash in right:
-        right_by_id[int(row_id)] = row_hash
+    rrow = next(right, None)
     for row_id, row_hash in left:
         row_id = int(row_id)
+        while rrow is not None and int(rrow[0]) < row_id:
+            rrow = next(right, None)
+        target_hash = rrow[1] if rrow is not None and int(rrow[0]) == row_id else None
         if row_hash is None:
             source_unchained += 1
             continue
-        if right_by_id.get(row_id) == row_hash:
+        if target_hash == row_hash:
             matched += 1
         else:
             mismatched += 1
             if len(samples) < SAMPLE_LIMIT:
-                samples.append({"id": row_id, "source": row_hash, "target": right_by_id.get(row_id)})
+                samples.append({"id": row_id, "source": row_hash, "target": target_hash})
     return {
         "ok": mismatched == 0,
         "matched": matched,

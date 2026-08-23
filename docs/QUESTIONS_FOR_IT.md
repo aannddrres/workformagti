@@ -393,10 +393,32 @@ Oracle-ში არ კოპირდება და ცენტრალუ
 2. **წყარო.** ETL კითხულობს live Postgres-ს თუ მის snapshot/replica-ს?
    (სესია `READ ONLY`-ია, მაგრამ ერთიანი `REPEATABLE READ` სნეპშოტი
    სჭირდება — თუ read replica არსებობს, ის სჯობს.)
-3. **ფანჯარა.** რამდენი დროა ხელმისაწვდომი? დატვირთვის ხანგრძლივობა
-   რეალურ მოცულობაზე **ჯერ არ არის გაზომილი** — ამიტომ გვჭირდება
-   ერთი სრული რეპეტიცია test/staging Oracle-ზე production-ის ასლით.
-   ასეთი გარემო როდის და როგორ გამოიყოფა?
+3. **ფანჯარა.** რამდენი დროა ხელმისაწვდომი?
+   ჩვენი მხრიდან **გაზომვა უკვე გაკეთებულია** (Oracle XE 21c, კონტეინერი,
+   `python -m scripts.etl.bench` — იხ. `DATA_MIGRATION_PG_TO_ORACLE_KA.md` §11.2).
+   რაც **თქვენგან** გვჭირდება, არის ორი რამ:
+
+   ა) **რეალური სტრიქონების რაოდენობა** production-ის Postgres-იდან — ამის
+      გარეშე ფანჯრის შეფასება მოდელზეა დაფუძნებული, არა ფაქტზე:
+
+   ```sql
+   SELECT 'article_view_logs' AS t, COUNT(*) FROM article_view_logs
+   UNION ALL SELECT 'audit_logs', COUNT(*) FROM audit_logs
+   UNION ALL SELECT 'search_logs', COUNT(*) FROM search_logs
+   UNION ALL SELECT 'article_read_receipts', COUNT(*) FROM article_read_receipts
+   UNION ALL SELECT 'read_statuses', COUNT(*) FROM read_statuses
+   UNION ALL SELECT 'articles', COUNT(*) FROM articles
+   UNION ALL SELECT 'users', COUNT(*) FROM users
+   ORDER BY 2 DESC;
+   ```
+   პლუს დანართების საერთო მოცულობა: `du -sh /app/uploads` და ფაილების რიცხვი.
+
+   ბ) **გაზომვის გამეორება თქვენს რკინაზე.** ჩვენი რიცხვები კონტეინერში
+      მომუშავე Oracle **XE**-დან მოდის (XE-ს აქვს 2 CPU thread-ისა და 2 GB
+      SGA-ს ხელოვნური ზღვარი). თქვენს production-კლასის სერვერზე შედეგი
+      სავარაუდოდ უკეთესი იქნება, მაგრამ ეს **უნდა გაიზომოს**, არა ვივარაუდოთ.
+      საჭიროა test/staging Oracle production-ის ასლით — როდის და როგორ
+      გამოიყოფა?
 4. **ტევადობა.** მიგრირებული აუდიტი + view logs + დანართების BLOB-ები
    ერთდროულად ჯდება თუ არა §6-ში მოთხოვნილ tablespace-ში? გვჭირდება
    რაოდენობრივი ზღვარი, რომ preflight-ში ჩავწეროთ.
