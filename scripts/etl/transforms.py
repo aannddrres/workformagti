@@ -15,6 +15,7 @@ do that, and only for columns the plan does not list at all.
 from __future__ import annotations
 
 import json
+from datetime import date, datetime
 from typing import Any, Callable
 
 
@@ -73,10 +74,40 @@ def json_to_clob(value: Any) -> Any:
     raise TypeError(f"JSON column holds {type(value).__name__}: {value!r}")
 
 
+def to_timestamp(value: Any) -> Any:
+    """TIMESTAMP(6) columns: whatever the source hands back -> a datetime.
+
+    Postgres already returns datetime objects, so this is a no-op there. The
+    SQLite dev database returns text, and Oracle will not accept a string for
+    a TIMESTAMP column unless it happens to match the session's
+    NLS_TIMESTAMP_FORMAT -- which is how a rehearsal run from the local dev
+    database would fail on binding, long after preflight said everything was
+    fine. Converting here makes both sources behave the same.
+
+    No time zone is attached. models.py stores naive Tbilisi local time
+    (`get_tbilisi_time`) and Oracle's TIMESTAMP(6) is equally zone-less;
+    attaching one would move every historical row.
+    """
+    if value is None or isinstance(value, datetime):
+        return value
+    if isinstance(value, date):
+        return datetime(value.year, value.month, value.day)
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        try:
+            return datetime.fromisoformat(text.replace(" ", "T"))
+        except ValueError as exc:
+            raise ValueError(f"timestamp column holds unparseable text: {value!r}") from exc
+    raise TypeError(f"timestamp column holds {type(value).__name__}: {value!r}")
+
+
 TRANSFORMS: dict[str, Callable[[Any], Any]] = {
     "passthrough": passthrough,
     "bool_to_number": bool_to_number,
     "json_to_clob": json_to_clob,
+    "timestamp": to_timestamp,
 }
 
 

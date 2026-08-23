@@ -88,8 +88,13 @@ def _verdict(report: dict) -> str:
     audit = reconcile.get("audit_hash") or {}
     if not tables_ok or not audit.get("ok", True):
         return "❌ აღმოჩენილია განსხვავება — იხილეთ ქვემოთ"
+    integrity = reconcile.get("audit_chain_integrity") or {}
+    if not integrity.get("ok", True):
+        return "❌ აუდიტის ჯაჭვის მთლიანობა დარღვეულია — იხილეთ ქვემოთ"
     if audit.get("skipped"):
         # Never let a skipped check read as a passed one.
+        if integrity and not integrity.get("skipped"):
+            return "✅ ცხრილები ემთხვევა; ჯაჭვი დამოუკიდებლად გადამოწმდა — პირდაპირი შედარება არ იყო გამოსადეგი"
         return "✅ ცხრილები ემთხვევა — ⚠️ აუდიტის ჰეშ-ჯაჭვი შემოწმებული არ არის"
     return "✅ ყველა ცხრილი და აუდიტის ჰეშ-ჯაჭვი ემთხვევა"
 
@@ -208,6 +213,16 @@ def to_markdown(report: dict) -> str:
             if audit.get("samples"):
                 add("")
                 add(f"განსხვავებული ID-ები: `{[s['id'] for s in audit['samples']]}`")
+            add("")
+        integrity = reconcile.get("audit_chain_integrity") or {}
+        if integrity and not integrity.get("skipped"):
+            add("### აუდიტის ჯაჭვის დამოუკიდებელი გადამოწმება")
+            add("")
+            add(f"{'✅' if integrity['ok'] else '❌'} {integrity['detail']}")
+            if integrity.get("broken_hash") or integrity.get("broken_link"):
+                add("")
+                add(f"გატეხილი კავშირი: `{integrity.get('broken_link')}`")
+                add(f"გატეხილი ჰეში: `{integrity.get('broken_hash')}`")
             add("")
         if reconcile.get("identity"):
             add("### IDENTITY-ის მაღალი ნიშნული")

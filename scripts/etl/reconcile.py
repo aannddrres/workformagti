@@ -22,7 +22,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Iterator
 
-from . import transforms
+from . import audit_chain, transforms
 from .spec import NOT_MIGRATED, TableSpec
 
 SAMPLE_LIMIT = 10
@@ -101,6 +101,7 @@ class TableReport:
 class Report:
     tables: list[TableReport] = field(default_factory=list)
     audit_hash: dict[str, Any] = field(default_factory=dict)
+    audit_chain_integrity: dict[str, Any] = field(default_factory=dict)
     identity: list[dict[str, Any]] = field(default_factory=list)
     untouched: list[dict[str, Any]] = field(default_factory=list)
 
@@ -109,6 +110,7 @@ class Report:
         return (
             all(t.ok for t in self.tables)
             and self.audit_hash.get("ok", True)
+            and self.audit_chain_integrity.get("ok", True)
             and all(i.get("ok", True) for i in self.identity)
             and all(u.get("ok", True) for u in self.untouched)
         )
@@ -195,6 +197,26 @@ def compare_audit_hashes(source, target) -> dict[str, Any]:
             "samples": [],
             "detail": "hash-chain comparison skipped: only an Oracle target rebuilds the chain",
         }
+    unchained = int(source.scalar("SELECT COUNT(*) FROM audit_logs WHERE row_hash IS NULL") or 0)
+    if unchained:
+        # Postgres skips unchained rows when picking the tip; Oracle hashes
+        # every row it is given. With even one pre-chain row the two chains
+        # legitimately diverge from that point on, so comparing them would
+        # report damage that did not happen. verify_target_chain() still
+        # proves the target's own integrity -- see audit_chain.py.
+        return {
+            "ok": True,
+            "skipped": True,
+            "matched": 0,
+            "mismatched": 0,
+            "source_unchained": unchained,
+            "samples": [],
+            "detail": (
+                f"direct hash comparison not applicable: {unchained} source row(s) predate the "
+                "Postgres chain, and Oracle hashes them too, so the two chains diverge by design "
+                "-- the target chain is verified independently instead"
+            ),
+        }
     left = source.stream("audit_logs", ["id", "row_hash"], "id")
     right = target.stream("audit_logs", ["id", "row_hash"], "id")
     matched = mismatched = source_unchained = 0
@@ -222,6 +244,50 @@ def compare_audit_hashes(source, target) -> dict[str, Any]:
         "detail": (
             f"{matched} audit row(s) hash identically on both sides; {mismatched} diverge; "
             f"{source_unchained} source row(s) had no hash to compare (pre-chain rows)"
+        ),
+    }
+
+
+AUDIT_COLUMNS = (
+    "id", "prev_hash", "admin_id", "action", "item_type", "item_id", "timestamp",
+    "category", "details", "admin_name_snapshot", "admin_email_snapshot",
+    "item_name_snapshot", "ip_address", "user_agent", "row_hash",
+)
+
+
+def verify_target_chain(target) -> dict[str, Any]:
+    """Re-hash every migrated audit row from the values Oracle returns.
+
+    Independent of the source: it proves the chain Oracle built is internally
+    consistent *and* that it was computed over the field values now stored
+    there. This is the check that still means something when the direct
+    source comparison does not apply.
+    """
+    if getattr(target, "kind", "") != "oracle":
+        return {"ok": True, "skipped": True, "checked": 0, "detail": "not an Oracle target"}
+    checked = 0
+    broken_link: list[Any] = []
+    broken_hash: list[Any] = []
+    expected_prev: str | None = None
+    for row in target.stream("audit_logs", list(AUDIT_COLUMNS), "id"):
+        values = dict(zip(AUDIT_COLUMNS, row))
+        checked += 1
+        if values["prev_hash"] != expected_prev and len(broken_link) < SAMPLE_LIMIT:
+            broken_link.append(values["id"])
+        if audit_chain.row_hash(values) != values["row_hash"] and len(broken_hash) < SAMPLE_LIMIT:
+            broken_hash.append(values["id"])
+        expected_prev = values["row_hash"]
+    ok = not broken_link and not broken_hash
+    return {
+        "ok": ok,
+        "skipped": False,
+        "checked": checked,
+        "broken_link": broken_link,
+        "broken_hash": broken_hash,
+        "detail": (
+            f"{checked} migrated audit row(s) re-hash to the value Oracle stored, in an unbroken chain"
+            if ok
+            else f"chain integrity broken: {len(broken_link)} link(s), {len(broken_hash)} hash(es)"
         ),
     }
 
@@ -297,6 +363,7 @@ def run(source, target, specs: list[TableSpec]) -> Report:
         report.tables.append(compare_table(source, target, spec))
     if any(spec.target == "audit_logs" for spec in specs):
         report.audit_hash = compare_audit_hashes(source, target)
+        report.audit_chain_integrity = verify_target_chain(target)
     report.identity = check_identity_high_water(target, specs)
     report.untouched = check_untouched(target)
     return report

@@ -84,7 +84,14 @@ def load_table(source, target, spec: TableSpec, *, dry_run: bool, batch: int = B
     result = TableResult(target=spec.target)
     started = time.monotonic()
     insert_cols = [c.target for c in spec.insert_columns]
-    lobs = {c.target: c.lob for c in spec.insert_columns if c.lob}
+    # A column needs its bind type declared when the driver's default would
+    # be wrong: LOBs, and every TIMESTAMP (bound as DATE by default, which
+    # drops the microseconds the audit hash is computed over).
+    bind_types = {
+        c.target: (c.lob or "timestamp")
+        for c in spec.insert_columns
+        if c.lob or c.transform == "timestamp"
+    }
 
     if spec.identity and not dry_run:
         target.identity_allow_explicit(spec.target)
@@ -93,7 +100,7 @@ def load_table(source, target, spec: TableSpec, *, dry_run: bool, batch: int = B
     for chunk in _batches((transform_row(spec, r) for r in source_rows), batch):
         result.rows_read += len(chunk)
         if not dry_run:
-            target.insert_many(spec.target, insert_cols, lobs, chunk)
+            target.insert_many(spec.target, insert_cols, bind_types, chunk)
             result.rows_written += len(chunk)
 
     # Self-FKs: the parent row may sit anywhere in the table, so the column is

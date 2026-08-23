@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from . import transforms
+from . import audit_chain, transforms
 from .spec import TableSpec
 
 SAMPLE_LIMIT = 10
@@ -294,6 +294,38 @@ def check_empty_strings(source, specs: list[TableSpec]) -> Check:
     )
 
 
+def check_audit_details_length(source) -> Check:
+    """Rows whose `details` is longer than Oracle can hash in one piece.
+
+    V28 reduces `details` to its first 32000 characters before hashing
+    (STANDARD_HASH takes no CLOB); the Postgres trigger hashed the whole
+    value. For a longer row the two hashes differ for a reason that has
+    nothing to do with the migration, so the direct chain comparison would
+    report a false mismatch. audit_trail.py clips each diffed value at 200
+    characters, so this should always be zero -- which is exactly why it is
+    worth stating rather than assuming.
+    """
+    count = int(
+        source.scalar(
+            f"SELECT COUNT(*) FROM audit_logs WHERE details IS NOT NULL "
+            f"AND length(details) > {audit_chain.DETAILS_LIMIT}"
+        )
+        or 0
+    )
+    return Check(
+        name="audit-details-length",
+        ok=count == 0,
+        detail=(
+            f"every audit `details` fits Oracle's {audit_chain.DETAILS_LIMIT}-character hash input"
+            if count == 0
+            else f"{count} audit row(s) exceed {audit_chain.DETAILS_LIMIT} characters; their "
+            "hashes cannot be compared directly across the two databases"
+        ),
+        affected=count,
+        fatal=False,
+    )
+
+
 def check_audit_chain_source(source) -> Check:
     """How much of the source audit log is already chained.
 
@@ -328,6 +360,7 @@ def run(source, target, specs: list[TableSpec], *, check_target: bool = True) ->
     checks.extend(check_unique_keys(source, specs))
     checks.extend(check_transformable(source, specs))
     checks.append(check_empty_strings(source, specs))
+    checks.append(check_audit_details_length(source))
     checks.append(check_audit_chain_source(source))
     return checks
 

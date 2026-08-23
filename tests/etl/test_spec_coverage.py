@@ -146,3 +146,48 @@ def test_audit_log_hashes_are_never_inserted():
 @pytest.mark.parametrize("table", [s.target for s in spec.PLAN])
 def test_extract_order_is_deterministic(table):
     assert spec.BY_TARGET[table].extract_order
+
+
+def oracle_timestamp_columns() -> set[tuple[str, str]]:
+    """(table, column) for every TIMESTAMP(6) column the migrations declare."""
+    found: set[tuple[str, str]] = set()
+    create = re.compile(r"CREATE\s+TABLE\s+(\w+)\s*\((.*?)\n\);", re.IGNORECASE | re.DOTALL)
+    alter = re.compile(r"ALTER\s+TABLE\s+(\w+)\s+ADD\s*\((.*?)\);", re.IGNORECASE | re.DOTALL)
+    column = re.compile(r"^\s*(\w+)\s+TIMESTAMP\b", re.IGNORECASE | re.MULTILINE)
+    for name in sorted(os.listdir(MIGRATIONS)):
+        if not name.endswith(".sql"):
+            continue
+        with open(os.path.join(MIGRATIONS, name), encoding="utf-8") as handle:
+            body = "\n".join(
+                line for line in handle.read().splitlines() if not line.strip().startswith("--")
+            )
+        for pattern in (create, alter):
+            for table, block in pattern.findall(body):
+                for col in column.findall(block):
+                    found.add((table.lower(), col.lower()))
+    return found
+
+
+def test_every_timestamp_column_uses_the_timestamp_transform():
+    """A TIMESTAMP bound as text is rejected by Oracle unless it happens to
+    match NLS_TIMESTAMP_FORMAT -- which is a binding failure mid-load, not a
+    preflight one. The transform normalises the SQLite dev source; this test
+    is what keeps the two lists in step."""
+    declared = oracle_timestamp_columns()
+    for table in spec.PLAN:
+        for col in table.columns:
+            if (table.target, col.target) in declared:
+                assert col.transform == "timestamp", (
+                    f"{table.target}.{col.target} is TIMESTAMP in Oracle but is mapped with "
+                    f"transform={col.transform!r}"
+                )
+
+
+def test_the_timestamp_transform_is_not_used_on_other_columns():
+    declared = oracle_timestamp_columns()
+    for table in spec.PLAN:
+        for col in table.columns:
+            if col.transform == "timestamp":
+                assert (table.target, col.target) in declared, (
+                    f"{table.target}.{col.target} is not a TIMESTAMP column in Oracle"
+                )

@@ -189,6 +189,37 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
+			<!-- Applies the schema without starting the application: `mvn
+				 flyway:migrate -Dflyway.url=... -Dflyway.user=... -Dflyway.password=...`.
+				 The app itself still runs Flyway on startup exactly as before; this
+				 plugin adds a way to migrate a database that has no app in front of
+				 it yet, which is what a DBA doing a cutover has, and what the
+				 Postgres to Oracle ETL rehearsal needs before it can load anything
+				 (see docs/DATA_MIGRATION_PG_TO_ORACLE_KA.md).
+
+				 Both dependencies are explicit because the plugin resolves its own
+				 classpath, not the project's: Flyway 10+ ships each database in a
+				 separate module, so without flyway-database-oracle it reports "no
+				 database module" against an Oracle URL, and without the JDBC driver
+				 it cannot connect at all. Versions come from the Spring Boot parent
+				 so they cannot drift from the ones the application runs with. -->
+			<plugin>
+				<groupId>org.flywaydb</groupId>
+				<artifactId>flyway-maven-plugin</artifactId>
+				<version>${flyway.version}</version>
+				<dependencies>
+					<dependency>
+						<groupId>org.flywaydb</groupId>
+						<artifactId>flyway-database-oracle</artifactId>
+						<version>${flyway.version}</version>
+					</dependency>
+					<dependency>
+						<groupId>com.oracle.database.jdbc</groupId>
+						<artifactId>ojdbc11</artifactId>
+						<version>${oracle-database.version}</version>
+					</dependency>
+				</dependencies>
+			</plugin>
 		</plugins>
 	</build>
 

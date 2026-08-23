@@ -14,6 +14,7 @@ that, and the run report says which one produced it.
 from __future__ import annotations
 
 import sqlite3
+from datetime import datetime
 from dataclasses import dataclass
 from typing import Any, Iterator, Sequence
 
@@ -164,26 +165,34 @@ class OracleTarget:
     def count(self, table: str) -> int:
         return int(self.scalar(f"SELECT COUNT(*) FROM {table}") or 0)
 
-    def insert_many(self, table: str, columns: Sequence[str], lobs: dict[str, str], rows: list[tuple]) -> None:
+    def insert_many(
+        self, table: str, columns: Sequence[str], bind_types: dict[str, str], rows: list[tuple]
+    ) -> None:
+        """Batch insert, with the bind type declared wherever the default is wrong.
+
+        Two columns' worth of reasons, both of which fail quietly or late:
+
+        * a CLOB past 32k cannot go through the default string bind at all
+          (DPY-4007), and article bodies routinely are;
+        * a Python datetime must be bound as TIMESTAMP, not DATE. Oracle's
+          DATE type has no fractional seconds, so the wrong bind does not
+          raise -- it silently drops microseconds, which then shows up as
+          every audit hash disagreeing with the source and no obvious reason
+          why.
+        """
         if not rows:
             return
         binds = ", ".join(f":{i + 1}" for i in range(len(columns)))
         sql = f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({binds})"
         cur = self._conn.cursor()
         try:
-            if lobs:
-                # Without this, a CLOB longer than 32k fails the batch bind
-                # (DPY-4007) -- and article bodies are routinely longer.
-                sizes = []
-                for name in columns:
-                    kind = lobs.get(name)
-                    if kind == "clob":
-                        sizes.append(self._oracledb.DB_TYPE_CLOB)
-                    elif kind == "blob":
-                        sizes.append(self._oracledb.DB_TYPE_BLOB)
-                    else:
-                        sizes.append(None)
-                cur.setinputsizes(*sizes)
+            if bind_types:
+                declared = {
+                    "clob": self._oracledb.DB_TYPE_CLOB,
+                    "blob": self._oracledb.DB_TYPE_BLOB,
+                    "timestamp": self._oracledb.DB_TYPE_TIMESTAMP,
+                }
+                cur.setinputsizes(*(declared.get(bind_types.get(name)) for name in columns))
             cur.executemany(sql, rows)
         finally:
             cur.close()
@@ -243,6 +252,12 @@ class OracleTarget:
         self._conn.rollback()
 
 
+# The rehearsal target stores timestamps as ISO text. Python 3.12 deprecated
+# the implicit datetime adapter, so it is declared here rather than inherited
+# from a version that still happens to provide one.
+sqlite3.register_adapter(datetime, lambda value: value.isoformat(sep=" "))
+
+
 class SqliteTarget:
     """Rehearsal target -- wiring and ordering only, not Oracle semantics."""
 
@@ -275,7 +290,9 @@ class SqliteTarget:
     def count(self, table: str) -> int:
         return int(self.scalar(f"SELECT COUNT(*) FROM {table}") or 0)
 
-    def insert_many(self, table: str, columns: Sequence[str], lobs: dict[str, str], rows: list[tuple]) -> None:
+    def insert_many(
+        self, table: str, columns: Sequence[str], bind_types: dict[str, str], rows: list[tuple]
+    ) -> None:
         if not rows:
             return
         binds = ", ".join("?" for _ in columns)

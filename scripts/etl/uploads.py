@@ -134,18 +134,18 @@ def load(source, target, directory: str, *, dry_run: bool = False, batch: int = 
         return report  # fail-closed: the load would be rejected by Oracle anyway
 
     columns = ["filename", "content_type", "byte_size", "uploaded_by", "created_at", "content"]
-    lobs = {"content": "blob"}
+    bind_types = {"content": "blob", "created_at": "timestamp"}
     chunk: list[tuple] = []
     for row in _rows(directory, names):
         report.bytes_total += row[2]
         chunk.append(row)
         if len(chunk) >= batch:
             if not dry_run:
-                target.insert_many("stored_files", columns, lobs, chunk)
+                target.insert_many("stored_files", columns, bind_types, chunk)
                 report.rows_written += len(chunk)
             chunk = []
     if chunk and not dry_run:
-        target.insert_many("stored_files", columns, lobs, chunk)
+        target.insert_many("stored_files", columns, bind_types, chunk)
         report.rows_written += len(chunk)
     if not dry_run:
         target.commit()
