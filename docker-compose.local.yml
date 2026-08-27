@@ -77,6 +77,33 @@ services:
     # compose network, the same shape as an in-cluster Service.
     expose:
       - "8080"
+    # Overrides the image's own HEALTHCHECK (java-backend/Dockerfile:56) for
+    # laptop timings only -- same command, longer grace.
+    #
+    # The image is tuned for Kubernetes, where a probe that fails while the
+    # app is still coming up costs a restart and the pod tries again. Here
+    # both `seed` and `frontend` wait on `condition: service_healthy`, so the
+    # first container marked unhealthy aborts the whole `up` with "dependency
+    # failed to start" -- there is no second attempt.
+    #
+    # The image allows start_period 30s + 3 x 30s = ~120s before it gives up.
+    # On this first run the backend is running 36 Flyway migrations against an
+    # Oracle that has just finished initialising. CI needs up to 90s for the
+    # same step on a warm runner (.github/workflows/ci.yml:258) and
+    # scripts/run-local.sh budgets 120s -- so 120s is roughly 1.3x what a fast
+    # machine needs, which is not a margin at all once Docker Desktop's
+    # virtualisation overhead and a cold page cache are in it.
+    #
+    # A longer start_period costs a fast machine nothing: the first successful
+    # check ends it immediately. It only changes how long a slow one is given
+    # before being declared dead, here ~300s, still bounded so a backend that
+    # is genuinely broken still fails instead of hanging forever.
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8080/api/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 180s
 
   seed:
     # Enough content to browse, added through the real API once the backend is
