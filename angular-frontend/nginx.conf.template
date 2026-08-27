@@ -15,6 +15,53 @@ server {
     # hard 404 on a deep link/refresh.
     location / {
         try_files $uri $uri/ /index.html;
+
+        # Security headers for the documents and assets this server owns.
+        #
+        # The Python app these replaced set five of these on every response
+        # (main.py's security_headers middleware). The port to Angular+nginx
+        # dropped all of them, so the portal has been shipping none since --
+        # this restores them for the surface nginx actually serves.
+        #
+        # Deliberately NOT at server level: /api/ and /uploads/ are proxied to
+        # Spring Boot, which sets its own (Spring Security's defaults, plus an
+        # explicit nosniff on uploads, UploadedFileController:61). nginx's
+        # add_header would append rather than replace, and a doubled
+        # "X-Frame-Options: DENY, DENY" is ignored by browsers -- which would
+        # leave those responses worse protected than before.
+        #
+        # `always` so the headers survive error responses too; without it
+        # nginx only adds them to 200/204/301/302/304.
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+        # CSP, verified against the real production bundle rather than
+        # written from the spec:
+        #
+        #   script-src 'self'   -- the build emits exactly one <script src>
+        #                          and no inline handler, so no 'unsafe-inline'
+        #                          is needed. This only holds while
+        #                          optimization.styles.inlineCritical is false
+        #                          (angular.json): with it on, Angular inlines
+        #                          critical CSS and swaps the real stylesheet
+        #                          in with onload="this.media='all'" -- an
+        #                          inline handler that this directive blocks,
+        #                          leaving the app rendered with no styles at
+        #                          all. Measured, not assumed.
+        #   style-src 'self'    -- component styles are extracted into
+        #                          styles-*.css, not injected at runtime.
+        #   img-src img.youtube -- video thumbnails (shared/youtube.ts:50).
+        #   frame-src youtube   -- the embedded player
+        #                          (video-detail-page.html:20).
+        #
+        # frame-ancestors 'none' is the modern form of the X-Frame-Options
+        # above; both are here because they are read by different browsers.
+        #
+        # No HSTS: this server listens on plain HTTP and TLS terminates in
+        # front of it, so the header belongs on whatever does the terminating
+        # (see docs/QUESTIONS_FOR_IT.md #4 -- the ingress is still unconfirmed).
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: https://img.youtube.com; media-src 'self'; connect-src 'self'; frame-src https://www.youtube.com https://www.youtube-nocookie.com; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'" always;
     }
 
     location /api/ {

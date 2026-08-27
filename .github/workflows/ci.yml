@@ -85,6 +85,42 @@ jobs:
       - name: Build
         run: npx ng build --configuration production
 
+      # The nginx that serves this bundle sends
+      # "script-src 'self'" with no 'unsafe-inline'
+      # (angular-frontend/nginx.conf.template). That directive is only safe
+      # while the build emits no inline script, and what decides that is
+      # optimization.styles.inlineCritical in angular.json: turn it back on
+      # and Angular inlines the critical CSS, then swaps the real stylesheet
+      # in with onload="this.media='all'" -- an inline handler the CSP
+      # refuses to run, leaving the portal rendered with no styles at all.
+      #
+      # That failure is silent: the build passes, the unit tests pass, the
+      # page returns 200, and only a browser with the real headers shows it.
+      # So it is checked here, against the actual artefact, rather than left
+      # to be found in a demo.
+      - name: Bundle stays CSP-compatible
+        run: |
+          index=dist/angular-frontend/browser/index.html
+          test -f "$index" || { echo "no built index.html at $index"; exit 1; }
+          if grep -qiE '<[^>]+ on[a-z]+=' "$index"; then
+            echo "index.html carries an inline event handler:"
+            grep -oiE '<[^>]+ on[a-z]+="[^"]*"' "$index"
+            echo
+            echo "script-src 'self' will refuse to run it. Check that"
+            echo "optimization.styles.inlineCritical is still false in angular.json,"
+            echo "or widen the CSP in nginx.conf.template on purpose."
+            exit 1
+          fi
+          # A <script src=...></script> has nothing between the tags, so only
+          # a block with actual content matches. Written without a lookahead
+          # on purpose: grep -E has none, and the version that used one never
+          # matched anything, which is worse than not checking at all.
+          if grep -qE '<script[^>]*>[[:space:]]*[^[:space:]<]' "$index"; then
+            echo "index.html carries an inline <script> block; script-src 'self' blocks it."
+            exit 1
+          fi
+          echo "no inline handlers or inline scripts -- CSP contract holds."
+
       - name: Unit tests
         run: npx ng test --watch=false
 
