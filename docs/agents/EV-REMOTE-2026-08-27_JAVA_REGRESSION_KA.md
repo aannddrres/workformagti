@@ -622,6 +622,91 @@ mvn -B -DskipTests package → BUILD SUCCESS, JAR 93 096 060 ბაიტი (�
 
 ---
 
+## 13. WS2 P0 ციკლი 4 — `ProductionSafetyGuardTest` მატრიცა
+
+**12 → 17 ტესტი.** მხოლოდ ტესტი; `ProductionSafetyGuard.java` და
+`PortalProperties.java` **უცვლელია**.
+
+### 13.1 რატომ *არ* დაიწერა 16-კომბინაციიანი truth table
+
+თავდაპირველად დავწერე 2⁴ = 16 კომბინაციის მატრიცა (devLogin × weakSecret ×
+devDbPassword × insecureCookie) და **წავშალე**, რადგან გამართლება, რომელიც
+მას მივუწერე, **მცდარი იყო**.
+
+`ProductionSafetyGuard.verify()` არის ოთხი დამოუკიდებელი
+`if (risk) throw` სწორხაზოვანი მიმდევრობა, სადაც თითოეული პრედიკატი
+**მხოლოდ საკუთარ ღერძს** კითხულობს. ამიტომ 16-კომბინაციიანი ცხრილი
+**მათემატიკურად გამომდინარეობს** უკვე არსებული ოთხი single-risk
+ტესტიდან. კომენტარი, რომელიც დავწერე — „else-if ჯაჭვად გადაქცევა
+single-risk ტესტებს მწვანედ დატოვებდა" — ასევე მცდარია: როცა ყველა შტო
+`throw`-ს აკეთებს, `else if` სემანტიკურად იდენტურია.
+
+ე.ი. 16 ტესტი მხოლოდ გაიმეორებდა არსებულს. წაშლილია.
+
+**რეალური კომბინატორული ზედაპირი სხვაგან იყო** — ორი შემოწმების *შიგნით*:
+`PLACEHOLDER_MARKERS`-ს **10** ჩანაწერი აქვს, `KNOWN_DEV_DB_PASSWORDS`-ს —
+**5**, არსებული ტესტები კი თითოეულიდან **მხოლოდ 2**-ს ეხებოდა.
+
+### 13.2 დამატებული ტესტები
+
+| ტესტი | რას იცავს |
+|---|---|
+| `everyPlaceholderMarkerIsRejectedAsASecret` | ყველა 10 marker. სია **reflection-ით იკითხება თვით ველიდან**, არა კოპირებული — დუბლიკატი ჩუმად გადაიხრებოდა ახალი marker-ის დამატებისთანავე, და გადაიხრებოდა იმ მიმართულებით, რომ **ნაკლებს** ამოწმებდეს, ვიდრე კოდი |
+| `everyKnownDevDatabasePasswordIsRejected` | ყველა 5 shipped dev პაროლი (PR-05), იმავე reflection-ით |
+| `noNonProductionEnvironmentIsEverChecked` | guard-ის სკოპი: `development`, `dev`, `staging`, `test`, `local`, `""` — სრულიად გატეხილი კონფიგურაციითაც არ უნდა გაჩერდეს |
+| `appEnvIsMatchedCaseInsensitivelyButIsNotTrimmed` | ⚠️ იხ. §13.3 — **დაფიქსირებული ხარვეზი**, არა დამტკიცებული ქცევა |
+| `theStartupSecurityLineIsLoggedEvenWhenTheGuardRefusesToBoot` | PR-08. logback `ListAppender`-ით |
+
+### 13.3 ⚠️ ახალი ხარვეზი — `APP_ENV` არ იჭრება (`trim`)
+
+`PortalProperties.isProduction()` არის `"production".equalsIgnoreCase(appEnv)`
+— **მხოლოდ ეს**. რეგისტრი მნიშვნელობა არ აქვს (`PRODUCTION`, `Production`
+მუშაობს), მაგრამ **გარშემო ჰარისი წყვეტს, საერთოდ გაეშვება თუ არა რომელიმე
+შემოწმება**.
+
+`APP_ENV=production ` (ერთი ბოლო ჰარისით — რასაც `.env` ფაილიც და
+docker compose-იც **ინარჩუნებს**) `isProduction()`-ისთვის **არ არის**
+production. guard პირველივე შემოწმებამდე ბრუნდება, და deployment ჩართული
+dev login-ითა და placeholder secret-ით **ჩუმად ეშვება**.
+
+ეს არის ზუსტად ის ავარია, რომელზეც SEC-01-ია — ოღონდ დაკარგული ცვლადის
+ნაცვლად შემთხვევითი სიმბოლოთი მოსული.
+
+**არ გამისწორებია.** `trim()` ერთსტრიქონიანი ცვლილებაა, მაგრამ ცვლის
+*როდის ამბობს უარს production deployment ჩატვირთვაზე* — ე.ი. დადასტურებული
+security ქცევის ცვლილებაა. ტესტი მიმდინარე ქცევას **აფიქსირებს, არ
+ამტკიცებს სისწორეს**, და მისი შეტყობინება პირდაპირ ამბობს: *„თუ ეს ახლა
+ჩავარდა, `isProduction()` უფრო შემწყნარებელი გახდა, რაც გაუმჯობესებაა —
+წაშალე ტესტის ეს ნახევარი და მასთან ერთად ეს ხარვეზიც."*
+
+შემოთავაზებული იდენტიფიკატორი: **`DEC-P04`**.
+
+### 13.4 Evidence — 5 mutation probe, ყველა სწორად ჩავარდა
+
+| probe (main source, დროებით) | შედეგი |
+|---|---|
+| `containsPlaceholderMarker` → `equals` (ნაცვლად `contains`) | **ყველა 10 marker** დაფიქსირდა: `[change-me, change_me, changeme, super-secret-temporary-key, your-secret, replace-me, placeholder, example, todo, xxxxx]` |
+| `isKnownDevDatabasePassword` → ყოველთვის `false` | ყველა 5 პაროლი დაფიქსირდა |
+| `logEffectiveSecurityConfig()` გადატანილი შემოწმებების ქვემოთ (**ზუსტად PR-08-ის რეგრესია**) | `aborted the boot without logging` |
+| `if (!properties.isProduction()) return;` მოხსნილი | `refused a non-production environment` |
+| `isProduction()`-ს დაემატა `.trim()` | `is currently NOT production` — ე.ი. §13.3-ის ტესტი შესწორებას სწორად ამჩნევს |
+
+`ProductionSafetyGuard.java` და `PortalProperties.java` ორივე probe-ის
+შემდეგ **byte-identical** აღდგა (`diff -q`), `git status`-ში
+`src/main/java` უცვლელია.
+
+### 13.5 სრული DB-free suite
+
+```
+mvn -B clean test -DexcludedGroups=oracle
+Tests run: 271, Failures: 0, Errors: 0, Skipped: 0 — BUILD SUCCESS (11.451 s)
+mvn -B -DskipTests package → BUILD SUCCESS, JAR 93 096 060 ბაიტი (უცვლელი)
+```
+
+257 → 259 → 261 → 266 → **271**.
+
+---
+
 ## 9. ამ სესიაში შეცვლილი ფაილები (არ არის commit-ული)
 
 **ციკლი 1** (commit `1656b96`, push-ული):
@@ -650,6 +735,13 @@ mvn -B -DskipTests package → BUILD SUCCESS, JAR 93 096 060 ბაიტი (�
 | `java-backend/src/test/java/ge/magti/portal/web/EndpointGuardCoverageTest.java` | შეცვლილი (reader გატანილი) |
 | `docs/agents/EV-REMOTE-2026-08-27_JAVA_REGRESSION_KA.md` | შეცვლილი (§12) |
 
+**ციკლი 4** (§13):
+
+| ფაილი | ტიპი |
+|---|---|
+| `java-backend/src/test/java/ge/magti/portal/config/ProductionSafetyGuardTest.java` | შეცვლილი (12 → 17 ტესტი) |
+| `docs/agents/EV-REMOTE-2026-08-27_JAVA_REGRESSION_KA.md` | შეცვლილი (§13) |
+
 `main` კოდში (`src/main/java`) **არაფერი შეცვლილა** — ორივე ციკლი მხოლოდ
 ტესტს და დოკუმენტაციას ეხება. PR **არ შექმნილა**.
 
@@ -665,4 +757,5 @@ mvn -B -DskipTests package → BUILD SUCCESS, JAR 93 096 060 ბაიტი (�
 | `DEC-P01` | `/uploads/{filename}` file entitlement | **ღია** — არ შევეხე; ახლა ჩამაგრებულია `EndpointPrincipalCoverageTest.PUBLIC_BY_DESIGN`-ში |
 | `DEC-P02` | logout contract (`users.token_version`, „log out everywhere") | **ღია** — არ შევეხე; ამ სესიაში ვერ წავიკითხე (დოკუმენტი არ არსებობს) |
 | `DEC-P03` *(ახალი, შემოთავაზებული)* | `export_jobs`-ს არ აქვს owner სვეტი → `/api/export/download/{jobId}` და `/status/{jobId}` არ ამოწმებს მფლობელობას (§6, ღია ზედაპირი 1) | **გადაწყვეტილება საჭიროა** — გამოსწორება მოითხოვს `V36` migration-ს და ეხება დადასტურებულ export flow-ს |
+| `DEC-P04` *(ახალი, შემოთავაზებული)* | `PortalProperties.isProduction()` არ იჭრება — `APP_ENV=production ` (ბოლო ჰარისით) **გამორთავს ყველა production შემოწმებას** (§13.3) | **გადაწყვეტილება საჭიროა** — `trim()` ცვლის, როდის ამბობს უარს production deployment ჩატვირთვაზე |
 | — | დოკუმენტების შეუსაბამობა: 7 enterprise-readiness ფაილი არ არსებობს ამ repository-ში (§0) | **მომხმარებლის გადასაწყვეტი** — უნდა დაი-commit-დეს თუ არა Windows workspace-იდან |
