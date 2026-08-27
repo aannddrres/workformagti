@@ -351,18 +351,179 @@ DB-free unit/slice gate — **დახურულია** (§3, 257/257 მწ
 
 ---
 
+## 11. WS2 P0 გაგრძელება — DB-free ციკლი 2
+
+### 11.1 `EndpointGuardCoverageTest` — bytecode-დონის guard შემოწმება
+
+`EndpointPrincipalCoverageTest` (§6.1) მხოლოდ *იატაკია*: ის ამოწმებს, რომ
+handler-ს **გადაეცემა** გამომძახებელი. ღია რჩებოდა ზუსტად ის შემთხვევა,
+რომელიც თვითონვე დაასახელა — handler, რომელიც `@AuthenticationPrincipal
+User`-ს იღებს და **არასდროს უყურებს**. `permitAll`-ის ქვეშ ასეთი endpoint
+ყველასთვის ხელმისაწვდომია, პარამეტრი კი დაცულის შთაბეჭდილებას ტოვებს.
+
+ახალი ტესტი ამ ნახვრეტს კეტავს. method body reflection-ისთვის უხილავია,
+**bytecode-ისთვის — არა**, და Spring-ს უკვე მოაქვს repackaged ASM
+(`org.springframework.asm`) — ახალი dependency საჭირო არ არის. ტესტი
+კითხულობს თითოეული controller-ის `.class` ფაილს, აგროვებს რას იძახებს
+თითოეული handler, **მიჰყვება იმავე კლასის private helper-ებში**
+(repo-ს ყველა `require*` guard private-ია და რამდენიმე handler მათ
+helper-ის გავლით აღწევს) და მოითხოვს, რომ call closure-ში იყოს
+ამოცნობილი guard.
+
+ამოცნობილი guard-ები (განზრახ მოკლე სია):
+
+| ტიპი | რა ითვლება |
+|---|---|
+| controller-ის საკუთარი | ნებისმიერი მეთოდი `require`-ით (`requireAuthenticated`, `requireSystemAdmin`, `requireContentAdmin`, `requireManagerOrAdmin`, `requireReportsExport`, `requireComplianceAssign`, `requireSystemAuditNonManager`) — prefix-ით, რომ ახალი guard დაწერის დღესვე ხილული იყოს |
+| permission | `PermissionChecker.hasPermission` |
+| scope | `ManagerScope.isDepartmentScoped` / `.visibleActiveUsers` |
+| department | `DepartmentMatcher.matches` |
+| messaging | `DirectMessagePermission.canSend` |
+| quiz gate | `QuizGateChecker.denialFor` |
+| ownership | repository finder `findBy…UserId…` — favourites/messages **არასდროს** მოიძებნება მარტო id-ით, მხოლოდ (id, userId)-ით, ამიტომ სხვისი row ცარიელი ბრუნდება და handler პასუხობს 404-ს. ეს **არის** authorization და ისე ითვლება |
+
+**რას ვერ ამტკიცებს (ჩაწერილია javadoc-ში):** ამტკიცებს, რომ guard
+**გამოძახებულია**, არა რომ მისი შედეგი **გათვალისწინებულია** — handler,
+რომელიც `requireSystemAdmin(user)`-ს იძახებს და denial-ს გადააგდებს,
+ისევ გაივლის. ასევე ვერ ამოწმებს, სწორი guard-ია თუ არა არჩეული
+(`requireAuthenticated` admin-only endpoint-ზე დააკმაყოფილებს).
+ეს რჩება `*IntegrationTest` negative case-ების საქმედ. ასევე
+**ვერ ხედავს lambda-ს შიგნით გამოძახებულ guard-ს** (`invokedynamic` სხვა
+ინსტრუქციაა) — ეს უსაფრთხო მიმართულებით ცდება: ასეთი handler **ჩავარდება**,
+არ გაივლის.
+
+**შედეგი: 112 endpoint-იდან 108 ამოწმებს guard-ს. 4 გამონაკლისი:**
+
+| route | მიზეზი |
+|---|---|
+| `POST /api/auth/login` | ჯერ არავინაა უარსაყოფი; ზღუდავს `LoginRateLimiter` |
+| `POST /api/auth/logout` | **DEC-P02 — logout contract.** განზრახ null-tolerant (`AuthController:136-141`): გასვლა როცა უკვე გასული ხარ შეცდომა არაა, და 401 აქ frontend-ის საკუთარ logout გზას ჩიხში მოაქცევდა ტოკენის ვადის გასვლისას. **principal-ს იღებს**, ამიტომ §6.1-ის ტესტს გადის — ეს ერთადერთი endpoint-ია, სადაც ორი guard კანონიერად არ თანხმდება |
+| `GET /api/health` | probe; მხოლოდ status სტრიქონები |
+| `GET /uploads/{filename}` | **DEC-P01** — იგივე ჩანაწერი, რაც §6.1-ში |
+
+`DEC-P02`-ის ჩამაგრება allowlist-ში იმავე ლოგიკით ხდება, რაც `DEC-P01`-ის:
+გადაწყვეტილების დახურვა **ავტომატურად** მოითხოვს ჩანაწერის წაშლას,
+რადგან allowlist ორივე მიმართულებით მოწმდება.
+
+**Evidence:**
+
+```
+mvn -B test -DexcludedGroups=oracle -Dtest='Endpoint*CoverageTest'
+Tests run: 4, Failures: 0, Errors: 0, Skipped: 0 — BUILD SUCCESS (5.040 s)
+```
+
+**Negative control — ორი mutation probe:**
+
+*Probe A* (allowlist-იდან `POST /api/auth/logout` მოხსნილი) → სწორად
+ჩავარდა და სწორად დაასახელა:
+```
+expected: <[]> but was: <[POST /api/auth/logout  (AuthController#logout)]>
+```
+
+*Probe B* (`GUARD_PREFIX` = `"require"` შეიცვალა არარსებული prefix-ით,
+რომ ანალიზი დაბრმავებულიყო) → **60 endpoint** გამოცხადდა ungoverned-ად.
+ეს ამტკიცებს, რომ closure ანალიზი რეალურად მიჰყვება `require*`
+გამოძახებებს (private helper-ების ჩათვლით) 60 endpoint-ისთვის, დანარჩენ
+48-ს კი სხვა ტიპის guard ფარავს — ე.ი. ტესტი **არ არის ცარიელი**.
+
+ფაილი ორივე probe-ის შემდეგ byte-identical აღდგა (`diff -q`).
+
+### 11.2 `ControllerEndpoints` — გაზიარებული scanner
+
+ორივე coverage ტესტი ერთსა და იმავე endpoint სიას უნდა უყურებდეს.
+scanner გატანილია `ControllerEndpoints`-ში (test scope), `EndpointPrincipalCoverageTest`
+გადაყვანილია მასზე. მიზეზი javadoc-შია: ორი guard, რომლებიც ვერ
+შეთანხმდებოდნენ „რა არის endpoint"-ზე, თითოეული სხვა ქვესიმრავლეს
+შეამოწმებდა, და მათ შორის ჩავარდნილი endpoint ზუსტად ის იქნებოდა,
+რომელსაც ვერავინ შეამჩნევდა. ისინი განსხვავდებიან იმით, **რას** ამტკიცებენ,
+არასდროს — იმით, **რას უყურებენ**.
+
+### 11.3 Negative/IDOR დაფარვის ინვენტარიზაცია (ანალიზი, არა gate)
+
+112 endpoint შედარდა ყველა integration ტესტის negative assertion-ს
+(`isForbidden` / `isUnauthorized` = role denial; `isNotFound` = ownership-ის
+სტილის denial):
+
+| კატეგორია | რაოდენობა |
+|---|---|
+| აქვს 403/401 denial ტესტი | **72** |
+| მხოლოდ 404 ტესტი (ownership-ის სტილი) | **10** |
+| **არანაირი negative ტესტი** | **30** |
+
+**არანაირი negative დაფარვა (30)** — WS2 P0-ის დარჩენილი სამუშაოს რუკა:
+
+- **ArticleController (9):** `/api/admin/articles/stale`, `{id}/read-receipt/me`, `{id}/read-receipts`, `{id}/related`, `{id}/unarchive`, `{id}/versions`, `{id}/view`, `{id}/views`, `/api/me/recently-viewed`
+- **StatsController (7):** `/api/admin/stats/team/{teamId}`, `/api/manager/team-stats`, `/api/statistics/activity`, `/breakdown`, `/compliance`, `/failed-searches`, `/popular-searches`
+- **ExportController (3):** `/api/export/download/{jobId}` ⚠️, `/readings.xlsx`, `/team-stats.pdf`
+- **QuizController (3):** `{id}/quiz/attempt`, `/api/knowledge-leaderboard`, `/api/users/me/knowledge-score`
+- **ComplianceController (2):** `/my-progress`, `/required-readings/by-item/{itemType}/{itemId}`
+- **სხვა (6):** `GET /api/audit-logs/{id}/verify`, `POST /api/auth/logout` (DEC-P02), `PATCH /api/news/{id}/autosave`, `GET /uploads/{filename}` (DEC-P01), `POST /api/users/me/password`, `POST /api/videos/{id}/unarchive`
+
+⚠️ `GET /api/export/download/{jobId}` ორმაგად ღიაა: **არც** ownership
+შემოწმება აქვს (§6, `DEC-P03`) **და არც** negative ტესტი.
+
+**მეთოდის ვალიდაცია (spot-check, არა ნდობა ევრისტიკაზე):**
+
+- `POST /api/articles/{id}/view` — ერთადერთი ტესტი უცხო operator-ით
+  (`ArticleControllerIntegrationTest:1370`) **განზრახ** `isOk()`-ს ამტკიცებს
+  („view-tracking still succeeds anyway"). ე.ი. denial ტესტი მართლაც არ არსებობს.
+- `POST /api/users/me/password` — 4 negative ტესტი
+  (`UserControllerIntegrationTest:172-190`) მხოლოდ `isBadRequest`-ია
+  (პაროლის ვალიდაცია), არა authorization denial. კლასიფიკაცია სწორია.
+
+**რატომ ანალიზი და არა build gate:** ratchet ტესტი, რომელიც ტესტების
+**წყაროს** parse-ს დააფუძნებდა, მყიფე იქნებოდა; ორი გაშვებული gate
+(§6.1 reflection, §11.1 bytecode) სტრუქტურულ მონაცემებს კითხულობს და
+არა ტექსტს. ეს ინვენტარიზაცია სამუშაოს რუკაა, არა კარიბჭე.
+
+### 11.4 შემოწმებული და უცვლელი
+
+- `ManagerScope` / `DepartmentMatcher` / `DirectMessagePermission` — უკვე
+  აქვთ 6 / 11 / 9 unit ტესტი, prefix-boundary, null-fail-closed და
+  `"All"` ქცევის ჩათვლით. **დამატებითი ტესტი არ დამიწერია** — დუბლირება
+  იქნებოდა.
+- გადამოწმდა, რომ `DirectMessagePermission.canSend(MANAGER, "All", …)`
+  რეალურად wildcard-ის შტოში გადის (`DepartmentMatcher.matches` target
+  `"All"`-ით) და `managerStoredAsAllKeepsItsExistingReach` სწორედ ამას
+  ამტკიცებს — javadoc-ის განცხადებული `ManagerScope`-თან განსხვავება
+  **რეალურია და უკვე დაფარულია** ორივე მხრიდან. შეუსაბამობა არ აღმოჩნდა.
+
+### 11.5 სრული DB-free suite
+
+```
+mvn -B test -DexcludedGroups=oracle
+Tests run: 261, Failures: 0, Errors: 0, Skipped: 0 — BUILD SUCCESS (9.245 s)
+Finished at: 2026-08-27T06:12:11Z
+```
+
+257 (baseline) → 259 (§6.1) → **261** (§11.1). არსებული არცერთი ტესტი
+არ დაზიანებულა.
+
+---
+
 ## 9. ამ სესიაში შეცვლილი ფაილები (არ არის commit-ული)
 
-| ფაილი | ტიპი | სტატუსი |
-|---|---|---|
-| `docs/agents/EV-REMOTE-2026-08-27_JAVA_REGRESSION_KA.md` | ახალი | untracked |
-| `java-backend/src/test/java/ge/magti/portal/web/EndpointPrincipalCoverageTest.java` | ახალი | untracked |
+**ციკლი 1** (commit `1656b96`, push-ული):
 
-`commit` / `push` / PR **არ შესრულებულა** — ცალკე ნებართვის მოლოდინში.
-არსებულ არცერთ ფაილს არ შეხებია (`git status`-ში modified/deleted: 0).
+| ფაილი | ტიპი |
+|---|---|
+| `docs/agents/EV-REMOTE-2026-08-27_JAVA_REGRESSION_KA.md` | ახალი |
+| `java-backend/src/test/java/ge/magti/portal/web/EndpointPrincipalCoverageTest.java` | ახალი |
 
-⚠️ ეს გარემო **ephemeral container**-ია. თუ ცვლილებები არ დაი-commit-დება
-და არ დაი-push-დება, ისინი დაიკარგება container-ის გადამუშავებისას.
+**ციკლი 2** (§11):
+
+| ფაილი | ტიპი |
+|---|---|
+| `java-backend/src/test/java/ge/magti/portal/web/EndpointGuardCoverageTest.java` | ახალი |
+| `java-backend/src/test/java/ge/magti/portal/web/ControllerEndpoints.java` | ახალი |
+| `java-backend/src/test/java/ge/magti/portal/web/EndpointPrincipalCoverageTest.java` | შეცვლილი (scanner გატანილი) |
+| `docs/agents/EV-REMOTE-2026-08-27_JAVA_REGRESSION_KA.md` | შეცვლილი (§11) |
+
+`main` კოდში (`src/main/java`) **არაფერი შეცვლილა** — ორივე ციკლი მხოლოდ
+ტესტს და დოკუმენტაციას ეხება. PR **არ შექმნილა**.
+
+⚠️ ეს გარემო **ephemeral container**-ია — შენახვა მხოლოდ push-ის შემდეგაა
+გარანტირებული.
 
 ---
 

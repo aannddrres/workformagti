@@ -2,13 +2,8 @@ package ge.magti.portal.web;
 
 import ge.magti.portal.domain.User;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
-import org.springframework.core.annotation.AnnotatedElementUtils;
-import org.springframework.core.type.filter.AnnotationTypeFilter;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -87,13 +82,13 @@ class EndpointPrincipalCoverageTest {
         List<String> routes = new ArrayList<>();
         List<String> unguardable = new ArrayList<>();
 
-        for (Class<?> controller : scanRestControllers()) {
+        for (Class<?> controller : ControllerEndpoints.restControllers()) {
             for (Method method : controller.getDeclaredMethods()) {
-                RequestMapping mapping = AnnotatedElementUtils.findMergedAnnotation(method, RequestMapping.class);
+                RequestMapping mapping = ControllerEndpoints.mappingOf(method);
                 if (mapping == null) {
                     continue;
                 }
-                String route = describe(mapping);
+                String route = ControllerEndpoints.route(mapping);
                 routes.add(route);
                 if (PUBLIC_BY_DESIGN.contains(route)) {
                     continue;
@@ -123,13 +118,13 @@ class EndpointPrincipalCoverageTest {
         Set<String> stillPublic = new LinkedHashSet<>();
         Set<String> known = new LinkedHashSet<>();
 
-        for (Class<?> controller : scanRestControllers()) {
+        for (Class<?> controller : ControllerEndpoints.restControllers()) {
             for (Method method : controller.getDeclaredMethods()) {
-                RequestMapping mapping = AnnotatedElementUtils.findMergedAnnotation(method, RequestMapping.class);
+                RequestMapping mapping = ControllerEndpoints.mappingOf(method);
                 if (mapping == null) {
                     continue;
                 }
-                String route = describe(mapping);
+                String route = ControllerEndpoints.route(mapping);
                 known.add(route);
                 if (!receivesPrincipal(method)) {
                     stillPublic.add(route);
@@ -149,22 +144,6 @@ class EndpointPrincipalCoverageTest {
                         + "the comment above it should go too)");
     }
 
-    private static List<Class<?>> scanRestControllers() {
-        ClassPathScanningCandidateComponentProvider scanner =
-                new ClassPathScanningCandidateComponentProvider(false);
-        scanner.addIncludeFilter(new AnnotationTypeFilter(RestController.class));
-
-        List<Class<?>> found = new ArrayList<>();
-        for (BeanDefinition definition : scanner.findCandidateComponents("ge.magti.portal")) {
-            try {
-                found.add(Class.forName(definition.getBeanClassName()));
-            } catch (ClassNotFoundException e) {
-                throw new IllegalStateException("scanned but unloadable: " + definition.getBeanClassName(), e);
-            }
-        }
-        return found;
-    }
-
     /**
      * True when the handler is handed the caller. The type is checked, not
      * just the annotation: {@code @AuthenticationPrincipal String username}
@@ -181,13 +160,5 @@ class EndpointPrincipalCoverageTest {
             }
         }
         return false;
-    }
-
-    /** "GET /api/articles/{id}" -- stable across handler renames. */
-    private static String describe(RequestMapping mapping) {
-        String verb = mapping.method().length == 0 ? "ANY" : mapping.method()[0].name();
-        String[] paths = mapping.path().length > 0 ? mapping.path() : mapping.value();
-        String path = paths.length == 0 ? "(no path)" : paths[0];
-        return verb + " " + path;
     }
 }
