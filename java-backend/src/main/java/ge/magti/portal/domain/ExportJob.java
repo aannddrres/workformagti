@@ -49,6 +49,20 @@ public class ExportJob {
     private String status = "processing";
 
     /**
+     * Who asked for this export (DEC-P03, {@code V36}). The download and
+     * status endpoints match on it, so a job is readable only by the caller
+     * whose scope produced its contents.
+     *
+     * <p>Nullable for rows written before V36, which have no owner to
+     * attribute. Those read as "not yours" and get the same
+     * "expired -- regenerate" answer a swept row does; with a one-hour TTL
+     * the whole legacy population is gone within an hour of deploying.
+     */
+    @Column(name = "created_by")
+    private Long createdBy;
+
+
+    /**
      * <b>Legacy since V31 (audit PR-03/BL-09).</b> A pod-local absolute path,
      * which is exactly the problem: the row lived in shared Oracle while the
      * file lived on whichever container happened to build it. New jobs leave
@@ -76,6 +90,14 @@ public class ExportJob {
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public Long getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(Long createdBy) {
+        this.createdBy = createdBy;
     }
 
     public String getStatus() {

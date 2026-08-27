@@ -847,7 +847,7 @@ hash-ის **გამოთვლა** (V28 trigger + `audit_logs_canonical_st
 |---|---|---|
 | `DEC-P01` | `/uploads/{filename}` file entitlement | **ღია** — არ შევეხე; ახლა ჩამაგრებულია `EndpointPrincipalCoverageTest.PUBLIC_BY_DESIGN`-ში |
 | `DEC-P02` | logout contract (`users.token_version`, „log out everywhere") | **ღია** — არ შევეხე; ამ სესიაში ვერ წავიკითხე (დოკუმენტი არ არსებობს) |
-| `DEC-P03` *(ახალი, შემოთავაზებული)* | `export_jobs`-ს არ აქვს owner სვეტი → `/api/export/download/{jobId}` და `/status/{jobId}` არ ამოწმებს მფლობელობას (§6, ღია ზედაპირი 1) | **გადაწყვეტილება საჭიროა** — გამოსწორება მოითხოვს `V36` migration-ს და ეხება დადასტურებულ export flow-ს |
+| ~~`DEC-P03`~~ | `export_jobs`-ს არ ჰქონდა owner სვეტი | ✅ **გასწორებულია** — იხ. §18 |
 | ~~`DEC-P04`~~ | `PortalProperties.isProduction()` არ იჭრებოდა | ✅ **გასწორებულია** — იხ. §16 |
 | ~~`DEC-P05`~~ | `APP_ENV=prod` და typo-ები production არ იყო | ✅ **გასწორებულია** — იხ. §17 |
 | — | დოკუმენტების შეუსაბამობა: 7 enterprise-readiness ფაილი არ არსებობს ამ repository-ში (§0) | **მომხმარებლის გადასაწყვეტი** — უნდა დაი-commit-დეს თუ არა Windows workspace-იდან |
@@ -1137,3 +1137,102 @@ mvn -B -DskipTests package → BUILD SUCCESS, JAR 93 096 357 ბაიტი
 (`DEC-P04` და `DEC-P05`) და default-იც fail-open. Java-ს პორტი აქ უკვე
 შეგნებულად განსხვავდებოდა (SEC-01); ეს გასწორება განსხვავებას აღრმავებს.
 **Python-ის მხარეს არ შევხებივარ** — ის ცალკე გადაწყვეტილებაა.
+
+---
+
+## 18. `DEC-P03` — გასწორებულია (`V36` + ownership-scoped query)
+
+ამ სესიის **პირველი სქემის ცვლილება**. მომხმარებლის პირდაპირი
+გადაწყვეტილებით.
+
+### 18.1 ცვლილებები
+
+| ფაილი | რა |
+|---|---|
+| `V36__export_job_owner.sql` | **ახალი** — `export_jobs.created_by NUMBER` + FK `users(id)` `ON DELETE SET NULL` |
+| `ExportJob.java` | `createdBy` ველი |
+| `ExportJobRepository.java` | `findByIdAndCreatedBy(String, Long)` |
+| `ExportController.java` | `enqueueJob` აჭედებს მთხოვნელს; `status`/`download` scoped query-ს იყენებს |
+
+### 18.2 სამი გადაწყვეტილება, რომელიც კოდში ჩანს
+
+**1. ownership არის *query*-ში, არა შემდგომ შემოწმებაში.**
+`findByIdAndCreatedBy` და არა `findById` + `if`. სხვისი job ბრუნდება
+ცარიელი — ე.ი. **განურჩეველია არარსებული id-სგან**, და endpoint პასუხობს
+იმავეს, რასაც უცნობ id-ზე. ცალკე „not yours" პასუხი დაუდასტურებდა job-ის
+არსებობას იმას, ვინც შეიძლება მხოლოდ ეჭვობდეს.
+
+**2. pre-`V36` row (created_by NULL) არავის ეკუთვნის.**
+scoped query მას ვერასდროს იჭერს. TTL 1 საათია
+(`ExportJobWorker.EXPORT_JOB_TTL_SECONDS`), ე.ი. მთელი legacy პოპულაცია
+deploy-იდან ერთ საათში ქრება. მათი მომსახურება ყველასთვის, ვისაც
+permission აქვს, ხვრელს ზუსტად ამ ფანჯრისთვის ღიად დატოვებდა.
+მომხმარებელი იღებს უკვე არსებულ „ვადა გავიდა — თავიდან შექმენით".
+
+**3. SYSTEM_ADMIN-ის გამონაკლისი — არა.**
+`ExportQueryService` admin-ს არ scope-ავს, ე.ი. მისი **საკუთარი** export
+ისედაც სხვისის ზედსიმრავლეა და სხვისი job არასდროს სჭირდება. დაშვება კი
+გატეხავდა ზუსტად იმას, რაც SEC-02-მა დაამატა: audit row, რომელიც ამბობს
+ვისი პერსონალური მონაცემები გავიდა **და ვინ წაიღო**.
+
+### 18.3 ტესტები
+
+**DB-free** (`ExportJobOwnershipTest`, 6 ტესტი — გაშვებული და მწვანე):
+მფლობელი ტვირთავს; სხვა manager იღებს **byte-for-byte იმავე პასუხს**, რასაც
+უცნობი id; status-იც scoped-ია; ownerless row არავისია; admin გამონაკლისი
+არაა; და — სტრუქტურული ნახევარი — `findById` **არასდროს** გამოიძახება.
+
+**Oracle-gated** (`ExportControllerIntegrationTest`, +2): ორი manager ორ
+სხვადასხვა დეპარტამენტში, სვეტის/mapping-ის/query-ის თანხმობა, და
+ownerless row. ⚠️ **ვერ გავუშვი** — იხ. §18.5.
+
+`ExportControllerDownloadTest` (არსებული, BL-09-ის ოთხი პასუხი) განახლდა:
+მისი `exporter()`-ს ახლა `id` სჭირდება, რადგან ძებნა scoped გახდა.
+
+### 18.4 Evidence — probe-მა ჩემივე ტესტის სისუსტე გამოააშკარავა
+
+პირველი probe (fix-ის უკუქცევა) მხოლოდ **5/6** ჩააგდო.
+`anotherManagerGetsByteForByteTheAnswerAnUnknownIdGets` **გაიარა — არასწორი
+მიზეზით**: mock-ი მხოლოდ `findByIdAndCreatedBy`-ს ჰქონდა დაყენებული,
+ამიტომ უკუქცეული controller-ის `findById` ცარიელს აბრუნებდა და „სხვისი
+job არ არსებობს" ხდებოდა ვაკუუმური.
+
+გასწორდა: mock ახლა **row-ს არსებულად ხატავს** (`findById` აბრუნებს
+მფლობელის job-ს, scoped query — ცარიელს), რაც არის რეალური ბაზის
+მდგომარეობა.
+
+განმეორებითი probe — **6/6 ჩავარდა**, ექსპლოიტი პირდაპირი ტექსტით:
+
+```
+anotherManagerGetsByteForByteTheAnswerAnUnknownIdGets:156  expected: <410 GONE> but was: <200 OK>
+statusIsScopedToTheCallerToo:170                           expected: <404 NOT_FOUND> but was: <200 OK>
+notEvenASystemAdminOpensSomebodyElsesJob:225               expected: <410 GONE> but was: <200 OK>
+aJobFromBeforeTheOwnerColumnBelongsToNobody:187            expected: <410 GONE> but was: <200 OK>
+```
+
+`ExportController.java` byte-identical აღდგა.
+
+```
+mvn -B clean test -DexcludedGroups=oracle
+Tests run: 296, Failures: 0, Errors: 0, Skipped: 0 — BUILD SUCCESS (10.951 s)
+mvn -B -DskipTests package → BUILD SUCCESS, JAR 93 097 889 ბაიტი
+```
+
+290 → **296**.
+
+### 18.5 ⚠️ რაც **ვერ** გადამოწმდა
+
+`V36` **არ გაშვებულა** — ამ გარემოში Oracle არ არსებობს. ე.ი.
+გადაუმოწმებელია: migration-ის SQL, FK-ის შექმნა, JPA mapping-ის შესაბამისობა
+(`ddl-auto=validate` boot-ზე გაასწორებდა, თუ არ ემთხვევა), და ორივე ახალი
+integration ტესტი.
+
+რისკის შესამცირებლად migration **ორ განცხადებად დაიწერა**
+(`ALTER TABLE ... ADD (created_by NUMBER);` + ცალკე
+`ADD CONSTRAINT ... FOREIGN KEY`) — Oracle კომბინირებულ ფორმასაც იღებს,
+მაგრამ იქ, სადაც გაშვება შეუძლებელია, სჯობს ფორმა, რომელშიც შეცდომის
+ადგილი არ არის. `CLAUDE.md`-ის წესის თანახმად Flyway migration-ს
+`IF NOT EXISTS`-ის მსგავსი დაცვა **არ** სჭირდება.
+
+**პირველი Oracle-იანი გაშვება ამ ცვლილების ვალიდაციაა.** სანამ ის არ
+მოხდება, `DEC-P03` ჩაითვალოს „გასწორებული, დაუდასტურებელი".

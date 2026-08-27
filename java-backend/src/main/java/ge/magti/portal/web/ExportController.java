@@ -160,7 +160,7 @@ public class ExportController {
                 "თანამშრომელი", "დეპარტამენტი", "მასალის ტიპი", "მასალის ID", "სტატუსი", "წაკითხვის თარიღი", "ვადა");
         List<List<Object>> tableRows = readingRowsForSpreadsheet(rows);
 
-        String jobId = enqueueJob(tableRows, headers, "Compliance", "xlsx");
+        String jobId = enqueueJob(tableRows, headers, "Compliance", "xlsx", admin);
         return ResponseEntity.ok(new ExportJobResponse(jobId));
     }
 
@@ -183,7 +183,7 @@ public class ExportController {
         List<String> headers = List.of("თანამშრომელი", "დეპარტამენტი", "ტიპი", "ID", "სტატუსი", "წაკითხვა", "ვადა");
         List<List<Object>> tableRows = readingRowsForSpreadsheet(rows);
 
-        String jobId = enqueueJob(tableRows, headers, "სავალდებულოდ გასაცნობი სტატუსი", "pdf");
+        String jobId = enqueueJob(tableRows, headers, "სავალდებულოდ გასაცნობი სტატუსი", "pdf", user);
         return ResponseEntity.ok(new ExportJobResponse(jobId));
     }
 
@@ -205,7 +205,7 @@ public class ExportController {
             tableRows.add(List.of(entry.getKey(), String.valueOf(total), String.valueOf(read), formatPercent(read, total)));
         }
 
-        String jobId = enqueueJob(tableRows, headers, "გუნდის სტატისტიკა — წაკითხვის პროცენტი", "pdf");
+        String jobId = enqueueJob(tableRows, headers, "გუნდის სტატისტიკა — წაკითხვის პროცენტი", "pdf", user);
         return ResponseEntity.ok(new ExportJobResponse(jobId));
     }
 
@@ -216,7 +216,9 @@ public class ExportController {
         if (denial != null) {
             return denial;
         }
-        Optional<ExportJob> job = exportJobRepository.findById(jobId);
+        // DEC-P03: scoped to the caller, so another manager's job is
+        // indistinguishable from an id that never existed.
+        Optional<ExportJob> job = exportJobRepository.findByIdAndCreatedBy(jobId, user.getId());
         if (job.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", "საექსპორტო დავალება ვერ მოიძებნა"));
         }
@@ -248,10 +250,12 @@ public class ExportController {
         if (denial != null) {
             return denial;
         }
-        Optional<ExportJob> jobOpt = exportJobRepository.findById(jobId);
+        Optional<ExportJob> jobOpt = exportJobRepository.findByIdAndCreatedBy(jobId, user.getId());
         if (jobOpt.isEmpty()) {
-            // A swept row is indistinguishable from a bad id here; both mean
-            // "regenerate", which is what the expired message says.
+            // A swept row, a bad id, another caller's job and a pre-V36 row
+            // with no owner all land here; all four mean "regenerate", which
+            // is what the expired message says. Answering the third of them
+            // differently would confirm the job exists (DEC-P03).
             return ResponseEntity.status(HttpStatus.GONE)
                     .body(Map.of("detail", "ექსპორტის ვადა გავიდა — გთხოვთ, თავიდან შექმნათ", "status", "expired"));
         }
@@ -323,10 +327,14 @@ public class ExportController {
                 .toList();
     }
 
-    private String enqueueJob(List<List<Object>> rows, List<String> headers, String title, String exportType) {
+    private String enqueueJob(
+            List<List<Object>> rows, List<String> headers, String title, String exportType, User owner) {
         String jobId = UUID.randomUUID().toString();
         ExportJob job = new ExportJob();
         job.setId(jobId);
+        // DEC-P03. The contents of this job are whatever ExportQueryService
+        // let THIS caller see, so the job belongs to them and to nobody else.
+        job.setCreatedBy(owner.getId());
         job.setStatus("processing");
         job.setPath(null);
         job.setExpiresAt(System.currentTimeMillis() / 1000.0 + ExportJobWorker.EXPORT_JOB_TTL_SECONDS);

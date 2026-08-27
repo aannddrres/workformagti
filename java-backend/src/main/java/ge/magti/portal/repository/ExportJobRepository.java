@@ -4,6 +4,7 @@ import ge.magti.portal.domain.ExportJob;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ExportJobRepository extends JpaRepository<ExportJob, String> {
 
@@ -16,4 +17,20 @@ public interface ExportJobRepository extends JpaRepository<ExportJob, String> {
      * up a job whose worker crashed mid-build, not just completed/failed ones.
      */
     List<ExportJob> findByExpiresAtLessThan(double now);
+
+    /**
+     * The ownership lookup behind {@code GET /api/export/status/{jobId}} and
+     * {@code /download/{jobId}} (DEC-P03).
+     *
+     * <p>Scoping the query rather than fetching by id and comparing
+     * afterwards is deliberate: another caller's job comes back empty, so it
+     * is indistinguishable from an id that does not exist, and the endpoints
+     * answer it with the response they already give for an unknown id. A
+     * distinct "not yours" would confirm the job exists to somebody who may
+     * not know it does.
+     *
+     * <p>A row with a NULL {@code created_by} -- written before {@code V36}
+     * -- never matches, which is the intended answer: nobody owns it.
+     */
+    Optional<ExportJob> findByIdAndCreatedBy(String id, Long createdBy);
 }

@@ -1,0 +1,32 @@
+-- DEC-P03: export_jobs had no owner column at all, so
+-- GET /api/export/download/{jobId} could only ever authorize on the
+-- reports.export permission -- and the contents of a job are scoped to
+-- whoever asked for it (ExportQueryService pins a MANAGER to their own
+-- department). A manager of one department holding the same permission
+-- could download another department's export in full, given the id.
+--
+-- The id is a UUID4, so this was authorization by obscurity rather than open
+-- enumeration -- but an id reaches a log, a browser history, a shared screen
+-- or the audit trail, and SEC-02's whole point is that the audit row must
+-- answer whose personal data left the portal. It cannot, if the downloader
+-- can be somebody other than the requester.
+--
+-- Nullable, and no backfill: rows written before this migration have no
+-- owner to attribute, and export_jobs.expires_at is one hour from creation
+-- (ExportJobWorker.EXPORT_JOB_TTL_SECONDS), so the entire legacy population
+-- ages out within an hour of deploying this. The controller treats an
+-- unowned row as not yours, which returns the "expired -- please regenerate"
+-- answer it already gives for a swept row. Guessing an owner would be worse
+-- than asking for a regenerate.
+--
+-- ON DELETE SET NULL mirrors stored_files.uploaded_by (V31): deleting a user
+-- must not fail on, or cascade into, a row that expires within the hour.
+--
+-- Split into two statements rather than one parenthesised ADD carrying both.
+-- Oracle accepts the combined form, but this migration cannot be executed
+-- where it was written (no Oracle reachable -- see the session evidence note),
+-- so it uses the shape there is no room to be wrong about.
+ALTER TABLE export_jobs ADD (created_by NUMBER);
+
+ALTER TABLE export_jobs ADD CONSTRAINT fk_export_jobs_user
+    FOREIGN KEY (created_by) REFERENCES users (id) ON DELETE SET NULL;
