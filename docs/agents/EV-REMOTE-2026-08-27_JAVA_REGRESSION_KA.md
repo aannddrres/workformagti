@@ -854,7 +854,11 @@ hash-ის **გამოთვლა** (V28 trigger + `audit_logs_canonical_st
 
 ---
 
-## 15. გაჩერების წერტილი — 2026-08-27
+## 15. გაჩერების წერტილი — 2026-08-27 *(ᲒᲐᲓᲐᲛᲣᲨᲐᲕᲔᲑᲣᲚᲘ — იხ. §20)*
+
+> ⚠️ ეს სექცია იმ მომენტში იყო სწორი, როცა დაიწერა. მას შემდეგ მომხმარებელმა
+> ოთხი დამატებითი ციკლი დაავალა (`DEC-P04`, `DEC-P05`, `DEC-P03`,
+> Testcontainers). **მიმდინარე მდგომარეობისთვის იხ. §20.**
 
 **Verdict: NOT READY.** სესია შეჩერდა განზრახ: დარჩენილი ნამდვილი P0
 სამუშაო **Oracle-ს საჭიროებს**, რაც ამ გარემოში დაბლოკილია (§5), ხოლო
@@ -1352,3 +1356,69 @@ mvn -B test -Dgroups=oracle
 `ORACLE_DB_URL`-ის დაყენების გარეშე. **მაგრამ ეს ამ გარემოს blocker-ს არ
 ხსნის** — აქ registry დაბლოკილია, ე.ი. სრული regression, P0-A18 და `V36`
 კვლავ **`External`**.
+
+---
+
+## 20. მიმდინარე გაჩერების წერტილი — 2026-08-27 (განახლებული)
+
+**Verdict: NOT READY** — უცვლელი. §15 გადამუშავებულია ამით.
+
+### 20.1 Repository
+
+| | |
+|---|---|
+| branch | `claude/enterprise-readiness-verify-lq1eto` |
+| HEAD | `2c0729c7bb628cad474b96e06885f5ec2ef9a90a` |
+| `origin/<branch>` | იდენტური — ყველაფერი push-ულია |
+| working tree | სუფთა (porcelain 0) |
+| commit-ები `main`-ის ზემოთ | **10** |
+
+### 20.2 რა გაკეთდა ჯამში
+
+DB-free suite: **257 → 296** (+39). JAR: 93 098 296 ბაიტი.
+
+**ხუთი ახალი build gate** (ციკლები 2–5, ტესტი მხოლოდ):
+endpoint principal · endpoint guard (bytecode) · permission liveness (ორივე
+ფორმა) · production safety lists · audit tamper verdict.
+თითოეული mutation probe-ით დადასტურებული, რომ ცარიელი არაა.
+
+**სამი უსაფრთხოების გასწორება** (ციკლები 6–8, main source):
+
+| ID | რა | სად |
+|---|---|---|
+| `DEC-P04` | `APP_ENV=production ` (ჰარისით) გამორთავდა ყველა შემოწმებას **და** dev login-ს მისაწვდომს ხდიდა | §16 |
+| `DEC-P05` | `APP_ENV=prod` / typo-ები — იგივე fail-open; გასწორდა **ინვერსიით** (dev-სია), არა alias-ების სიით | §17 |
+| `DEC-P03` | `export_jobs`-ს owner სვეტი არ ჰქონდა → სხვისი export-ის ჩამოტვირთვა; `V36` + scoped query | §18 |
+
+**Testcontainers** (ციკლი 9) — Oracle-ის blocker მოხსნილია დეველოპერის
+მანქანაზე; CI უცვლელი (§19).
+
+### 20.3 რა რჩება დაბლოკილი
+
+| სამუშაო | ბლოკერი |
+|---|---|
+| სრული Java/Oracle regression (257 ტესტი) | `External` — registry დაბლოკილია ამ გარემოში (§5, §19.4) |
+| P0-A18 Video/Access 20/20 | `External` — იგივე |
+| 30 endpoint-ის negative/IDOR ტესტი (§11.3) | `External` — ყველა negative ტესტი `@RequiresOracle`-ია |
+| **`V36`-ის ვალიდაცია** | `External` — migration **არასდროს გაშვებულა** (§18.5) |
+| `DEC-P01`, `DEC-P02` | გადაწყვეტილება |
+| EV-229-თან შედარება | 7 დოკუმენტი ამ repo-ში არ არსებობს (§0) |
+
+### 20.4 შემდეგი ნაბიჯები, პრიორიტეტით
+
+1. **გაშვება Oracle-იან მანქანაზე.** ეს ერთი ნაბიჯი ხურავს ოთხ ხაზს
+   §20.3-იდან. Testcontainers-ის შემდეგ საკმარისია `mvn -B test` მანქანაზე,
+   სადაც Docker registry ღიაა — `ORACLE_DB_URL` აღარაა საჭირო.
+   **`V36` პირველად სწორედ იქ გაეშვება.**
+2. `DEC-P01` / `DEC-P02` გადაწყვეტილება (ორივე ტესტში ჩამაგრებულია —
+   დახურვა იძულებით მოითხოვს allowlist ჩანაწერის წაშლას).
+3. 7 enterprise-readiness დოკუმენტის commit Windows workspace-იდან.
+4. *(სურვილისამებრ)* Python `config.py`-ის `DEC-P04`/`DEC-P05` პარიტეტი —
+   მას **ორივე** ხარვეზი კვლავ აქვს და default-იც fail-open (§17.6).
+
+### 20.5 რა **არ** შეიცვალა (განზრახ)
+
+`PermissionChecker`-ის SYSTEM_ADMIN bypass · `/uploads/{filename}` (`DEC-P01`) ·
+logout-ის null-tolerant კონტრაქტი (`DEC-P02`) · retention ·
+`AuditChainService`-ის ლოგიკა · ნებისმიერი role/scope წესი ·
+Python-ის backend · CI workflow.
