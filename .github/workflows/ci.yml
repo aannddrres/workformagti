@@ -82,6 +82,11 @@ jobs:
       - name: Install
         run: npm ci
 
+      # Before the build, because it needs no build and a missing key is
+      # cheaper to report on its own than buried under bundle output.
+      - name: Translations complete
+        run: npm run check:i18n
+
       - name: Build
         run: npx ng build --configuration production
 

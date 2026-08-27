@@ -87,7 +87,7 @@
         <p class="mt-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
           {{ 'content.articles.categories_load_error' | translate }}
           <button type="button" (click)="loadCategories()" class="ml-1 underline hover:no-underline">
-            {{ 'common.retry' | translate }}
+            {{ 'shared.retry' | translate }}
           </button>
         </p>
       }
@@ -156,7 +156,7 @@
                     class="h-4 w-4 accent-brand"
                   />
                   <div class="relative inline-block text-left">
-                    <button (click)="toggleMenu(article.id)" class="text-gray-400 hover:text-gray-600 focus:outline-none p-1 dark:hover:text-gray-200">
+                    <button (click)="toggleMenu(article.id)" [attr.aria-label]="'content.articles.actions_menu_label' | translate" class="text-gray-400 hover:text-gray-600 focus:outline-none p-1 dark:hover:text-gray-200">
                       <i class="fa-solid fa-ellipsis-vertical text-lg"></i>
                     </button>
                     @if (openMenuFor() === article.id) {
@@ -193,10 +193,10 @@
     <div class="flex items-center justify-between px-2 py-3">
       <span class="text-sm text-gray-500 dark:text-zinc-400">{{ pageStart() }}–{{ pageEnd() }} / {{ filteredArticles().length }}</span>
       <div class="flex items-center gap-1">
-        <button (click)="goToPage(1)" [disabled]="currentPage() <= 1" class="rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:text-gray-300 dark:disabled:text-zinc-700">
+        <button (click)="goToPage(1)" [attr.aria-label]="'content.pagination.first_label' | translate" [disabled]="currentPage() <= 1" class="rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:text-gray-300 dark:disabled:text-zinc-700">
           <i class="fa-solid fa-angles-left"></i>
         </button>
-        <button (click)="goToPage(currentPage() - 1)" [disabled]="currentPage() <= 1" class="rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:text-gray-300 dark:disabled:text-zinc-700">
+        <button (click)="goToPage(currentPage() - 1)" [attr.aria-label]="'content.pagination.prev_label' | translate" [disabled]="currentPage() <= 1" class="rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:text-gray-300 dark:disabled:text-zinc-700">
           <i class="fa-solid fa-chevron-left"></i>
         </button>
         @for (p of pageNumbers(); track p) {
@@ -204,10 +204,10 @@
             {{ p }}
           </button>
         }
-        <button (click)="goToPage(currentPage() + 1)" [disabled]="currentPage() >= totalPages()" class="rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:text-gray-300 dark:disabled:text-zinc-700">
+        <button (click)="goToPage(currentPage() + 1)" [attr.aria-label]="'content.pagination.next_label' | translate" [disabled]="currentPage() >= totalPages()" class="rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:text-gray-300 dark:disabled:text-zinc-700">
           <i class="fa-solid fa-chevron-right"></i>
         </button>
-        <button (click)="goToPage(totalPages())" [disabled]="currentPage() >= totalPages()" class="rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:text-gray-300 dark:disabled:text-zinc-700">
+        <button (click)="goToPage(totalPages())" [attr.aria-label]="'content.pagination.last_label' | translate" [disabled]="currentPage() >= totalPages()" class="rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:text-gray-300 dark:disabled:text-zinc-700">
           <i class="fa-solid fa-angles-right"></i>
         </button>
       </div>
