@@ -10,6 +10,7 @@ A local .env file is loaded automatically if python-dotenv is installed
 (see requirements.txt / .env.example).
 """
 import os
+from urllib.parse import urlsplit
 
 try:
     # Optional: load a local .env so `uvicorn main:app` picks up overrides.
@@ -155,16 +156,119 @@ class Settings:
         return not is_development_environment(self.APP_ENV)
 
 
+# ── Production startup guard ──────────────────────────────────────────
+#
+# DEC-P06. This used to compare SECRET_KEY against ONE exact literal and not
+# look at the database password at all, while the Java port already rejected
+# blank/short/low-entropy/placeholder secrets and five shipped dev passwords
+# (SEC-07, PR-05). The gap mattered here for the same reason it did there:
+# .env.example ships CHANGE_ME inside DATABASE_URL and
+# CHANGE_ME_TO_A_STRONG_PASSWORD for POSTGRES_PASSWORD, and neither is the
+# one literal the old check knew about, so both sailed straight through.
+#
+# Written as pure functions for the same reason resolve_log_level above is:
+# the contract can be pinned by tests without re-importing this module under
+# a patched environment.
+
+# A secret has to be long enough that brute-forcing the HMAC key is not a
+# realistic path to forging tokens. 48 characters is comfortably past that for
+# HS256 and still shorter than anything secrets.token_urlsafe(64) produces,
+# which is what the error message tells the operator to run.
+_MIN_SECRET_LENGTH = 48
+
+# Distinct-character floor. Catches the other way people satisfy a length
+# rule -- "aaaaaaaa...", or a short word repeated -- which is long but carries
+# almost no entropy.
+_MIN_DISTINCT_SECRET_CHARS = 12
+
+# Matched as substrings, case-insensitively. Mirrors the Java port's
+# PLACEHOLDER_MARKERS: the point of a substring match is that it catches the
+# placeholder somebody edited slightly instead of replacing.
+_PLACEHOLDER_MARKERS = (
+    "change-me", "change_me", "changeme",
+    "super-secret-temporary-key", "your-secret", "replace-me", "placeholder",
+    "example", "todo", "xxxxx",
+)
+
+# Shipped/obvious development passwords. Exact matches, so a real password is
+# never rejected by accident.
+_KNOWN_DEV_DB_PASSWORDS = (
+    "magti", "postgres", "password", "admin", "root",
+    "MagtiAppDev2026Pw", "CHANGE_ME_LOCAL_DEV_ONLY",
+)
+
+
+def _contains_placeholder_marker(value: str) -> bool:
+    lowered = value.lower()
+    return any(marker in lowered for marker in _PLACEHOLDER_MARKERS)
+
+
+def secret_key_problem(secret: str | None) -> str | None:
+    """Why this SECRET_KEY is unfit for production, or None if it is fine.
+
+    Returns the problem phrase rather than a bool so the startup message can
+    tell the operator which rule they tripped -- "is only 20 characters" is
+    actionable in a way that "is invalid" is not.
+    """
+    if not secret or not secret.strip():
+        return "is not set"
+    if _contains_placeholder_marker(secret):
+        return "is still a placeholder value"
+    if len(secret) < _MIN_SECRET_LENGTH:
+        return f"is only {len(secret)} characters (minimum {_MIN_SECRET_LENGTH})"
+    if len(set(secret)) < _MIN_DISTINCT_SECRET_CHARS:
+        return "has too few distinct characters to be a real random value"
+    return None
+
+
+def is_known_dev_database_password(password: str | None) -> bool:
+    """True for a shipped development password or an unedited placeholder.
+
+    Absent is deliberately NOT a problem: SQLite has no password, and a
+    deployment may supply credentials another way (a .pgpass file, an IAM
+    token, a socket peer trust). The driver reports a genuinely missing
+    password clearly on the first connection; guessing here would block a
+    working setup to catch nothing.
+    """
+    if not password or not password.strip():
+        return False
+    return password in _KNOWN_DEV_DB_PASSWORDS or _contains_placeholder_marker(password)
+
+
+def database_url_password(database_url: str) -> str | None:
+    """The password the app itself connects with, out of DATABASE_URL.
+
+    Unlike the Java port there is no separate password setting to read: this
+    codebase carries one URL with the credentials embedded, which is also
+    where POSTGRES_PASSWORD ends up once .env.example's instruction to keep
+    the two matching is followed. Checking the URL therefore covers both.
+    """
+    try:
+        return urlsplit(database_url).password
+    except ValueError:
+        # A URL urlsplit cannot parse is not this guard's problem to
+        # diagnose; the driver will say so far more precisely.
+        return None
+
+
 settings = Settings()
 
 if settings.is_production:
-    # Fail loud at startup rather than silently shipping a dev secret or a
-    # cookie sent over plain HTTP — both are the kind of misconfiguration
-    # that's easy to miss in a one-person deployment and expensive once live.
-    if settings.SECRET_KEY == "super-secret-temporary-key-for-local-development":
+    # Fail loud at startup rather than silently shipping a dev secret, a
+    # shipped database password, or a cookie sent over plain HTTP — all three
+    # are the kind of misconfiguration that's easy to miss in a one-person
+    # deployment and expensive once live.
+    _secret_problem = secret_key_problem(settings.SECRET_KEY)
+    if _secret_problem:
         raise RuntimeError(
-            "SECRET_KEY is still the development default with APP_ENV=production. "
+            f"SECRET_KEY {_secret_problem} with APP_ENV=production. "
             'Generate one: python -c "import secrets; print(secrets.token_urlsafe(64))"'
+        )
+    if is_known_dev_database_password(database_url_password(settings.DATABASE_URL)):
+        raise RuntimeError(
+            "DATABASE_URL still carries a shipped development password with "
+            "APP_ENV=production. Set a real one (and keep POSTGRES_PASSWORD "
+            "matching it when using docker-compose)."
         )
     if not settings.COOKIE_SECURE:
         raise RuntimeError(
