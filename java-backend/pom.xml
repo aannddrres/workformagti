@@ -181,6 +181,35 @@
 			<artifactId>spring-boot-starter-webmvc-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+
+		<!-- Testcontainers, test scope only.
+			 The Oracle-tagged half of the suite needs a real Oracle. CI's oracle
+			 job supplies one through `services:` and sets ORACLE_DB_URL, and a
+			 developer with a local instance sets the same variable. Neither helps
+			 somebody with only Docker, so ~257 tests were unrunnable for them,
+			 which is how a database-bound suite quietly becomes one nobody runs
+			 before pushing.
+
+			 OracleTestcontainer starts a container ONLY when ORACLE_DB_URL is
+			 unset, so CI and anyone with a real instance are unaffected: this adds
+			 a path, it does not take one away. Versions come from the Spring Boot
+			 parent (testcontainers 2.0.5), which is also why the artifact ids
+			 carry 2.x's `testcontainers-` prefix. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-testcontainers</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers-junit-jupiter</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers-oracle-xe</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>

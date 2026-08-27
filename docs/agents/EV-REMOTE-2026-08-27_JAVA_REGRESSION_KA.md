@@ -1236,3 +1236,119 @@ integration ტესტი.
 
 **პირველი Oracle-იანი გაშვება ამ ცვლილების ვალიდაციაა.** სანამ ის არ
 მოხდება, `DEC-P03` ჩაითვალოს „გასწორებული, დაუდასტურებელი".
+
+---
+
+## 19. Testcontainers — Oracle-ის blocker-ის მოხსნა დეველოპერის მანქანაზე
+
+### 19.1 პრობლემა
+
+~257 Oracle-tagged ტესტს რეალური Oracle სჭირდება. CI-ის oracle job მას
+`services:`-ით აწვდის და `ORACLE_DB_URL`-ს აყენებს; ლოკალური instance-ის
+მქონე დეველოპერი იმავე ცვლადს აყენებს. **ვისაც მხოლოდ Docker აქვს —
+ვერაფერს უშვებდა**, ე.ი. ბაზაზე დამოკიდებული suite ჩუმად იქცევა ისეთად,
+რომელსაც push-მდე არავინ უშვებს.
+
+### 19.2 დამატებული
+
+| ფაილი | რა |
+|---|---|
+| `pom.xml` | `spring-boot-testcontainers`, `testcontainers-junit-jupiter`, `testcontainers-oracle-xe` — **მხოლოდ `test` scope** |
+| `OracleTestcontainer.java` | **ახალი** — `@TestConfiguration` + `@ServiceConnection` |
+| `RequiresOracle.java` | დაემატა `@Import(OracleTestcontainer.class)` |
+
+**ვერსია:** Spring Boot 4.1-ის parent-ი მართავს Testcontainers **2.0.5**-ს.
+2.x-ში artifact id-ები `testcontainers-` პრეფიქსით არის (`oracle-xe` →
+`testcontainers-oracle-xe`) — 1.x-ის სახელები 404-ს იძლევა.
+
+**image:** `gvenzl/oracle-xe:21-slim-faststart` — **ზუსტად ის, რასაც CI
+იყენებს** (`ci.yml:118`), რომ ორივე გზა ერთსა და იმავე Oracle-ს
+ამოწმებდეს, და არა ორ სხვადასხვას, რომლებიც უბრალოდ ორივე „Oracle"-ს
+ეძახიან.
+
+### 19.3 ორი დიზაინის გადაწყვეტილება
+
+**1. კონტეინერი იშვება მხოლოდ მაშინ, როცა `ORACLE_DB_URL` დაყენებული არაა.**
+ე.ი. **გზას ამატებს, არ ართმევს**. კონტეინერი უფრო ნელია, ვიდრე უკვე
+არსებული ბაზა, და განზრახ დაყენებული URL-ის ჩუმად გადაფარვა უარესი
+იქნებოდა, ვიდრე fallback-ის არშეთავაზება.
+
+პირობა ამოწმებს **env ცვლადს**, არა `spring.datasource.url`-ს — ამ
+უკანასკნელს ყოველთვის აქვს მნიშვნელობა (`application.yml` აყენებს
+`localhost:1521/orclpdb1`-ს). ეს default არის „Oracle არ არის
+კონფიგურირებული", და არა კონფიგურირებული — ე.ი. მასზე დაყრდნობა
+კონტეინერს ვერასდროს გაუშვებდა ზუსტად იმისთვის, ვისთვისაც ის არის.
+
+**2. `@Import` ზის `@RequiresOracle`-ზე, არა 20 ტესტ-კლასზე.**
+ერთი რედაქტირება, და ოცივე DB-ზე დამოკიდებული კლასი იღებს კონტეინერს.
+`OracleTagCoverageTest` უკვე აფეილებს build-ს `@RequiresOracle`-ის გარეშე
+დარჩენილი `@SpringBootTest`-ისთვის — ე.ი. **ახალი ტესტი ვერ დაემატება ისე,
+რომ ჩუმად გამორჩეს**.
+
+### 19.4 Evidence — რა დადასტურდა და რა არა
+
+✅ **სრულად დადასტურებული — `ORACLE_DB_URL` დაყენებულია (CI-ის გზა):**
+
+```
+ORACLE_DB_URL=... mvn -B test -Dgroups=oracle -Dtest=OracleRoundTripTest
+  "Pulling docker image" ......... 0
+  "DockerClientFactory" .......... 0
+  docker ps -a ................... ცარიელი
+  ჩავარდნის მიზეზი ............... ORA-12541 / Connection refused
+```
+
+ე.ი. კონტეინერი **არ შექმნილა**, datasource `application.yml`-იდან წამოვიდა,
+ქცევა **ზუსტად ისეთია, როგორიც იყო**. **CI-ს არაფერი შეხებია** — მისი
+ორივე Oracle job `ORACLE_DB_URL`-ს აყენებს (`ci.yml:146`, `:238`).
+
+⚠️ **ნაწილობრივ დადასტურებული — `ORACLE_DB_URL` არაა (ახალი გზა):**
+
+wiring **მუშაობს ბოლომდე**, რასაც context-ის კონფიგურაცია ადასტურებს:
+
+```
+ImportsContextCustomizer key = [ge.magti.portal.OracleTestcontainer]
+...ServiceConnectionContextCustomizer
+Testcontainers version: 2.0.5
+Connected to docker
+tc.gvenzl/oracle-xe:21-slim-faststart : Pulling docker image: gvenzl/oracle-xe:21-slim-faststart
+```
+
+ე.ი. `@Import` მიაღწია ტესტ-კლასს → პირობა დაკმაყოფილდა → `@ServiceConnection`
+დარეგისტრირდა → Testcontainers Docker-ს დაუკავშირდა → **CI-ის image-ს
+დაუძახა**.
+
+ჩავარდა **მხოლოდ registry-ის pull-ზე**, იმავე egress policy-ით, რაც §5-შია:
+
+```
+Can't get Docker image: RemoteDockerImage(imageName=gvenzl/oracle-xe:21-slim-faststart, ...)
+failed to copy: httpReadSeeker: failed open: ... Forbidden
+```
+
+(იგივე `testcontainers/ryuk`-ზეც; `TESTCONTAINERS_RYUK_DISABLED=true`-ით
+გავიარე, რომ თვით Oracle-ის pull-მდე მიმეღწია და დავრწმუნებულიყავი, რომ
+ხელისშემშლელი კონკრეტულად registry-ია და არა ryuk-ის თავისებურება.)
+
+**შესაბამისად:** კოდი ბოლომდე მუშაობს, გარემო ბლოკავს ბაიტების ჩამოტვირთვას.
+პირველი გაშვება ღია registry-ის მქონე მანქანაზე არის ამის ვალიდაცია.
+
+### 19.5 გვერდითი ეფექტები
+
+DB-free suite: **296/296 უცვლელი**, დრო 10.9s → 12.6s (Testcontainers
+classpath-ზეა, მაგრამ Oracle-tagged კლასების გარეშე უქმია — 21 დამთხვევა
+ლოგში მხოლოდ Spring-ის context-customizer plumbing-ია, არა კონტეინერი).
+
+JAR: 93 098 296 ბაიტი — ცვლილება მხოლოდ `test` scope-შია, artifact-ში
+Testcontainers **არ ხვდება**.
+
+### 19.6 რას ხსნის ეს
+
+დეველოპერს Docker-ით ახლა შეუძლია გაუშვას:
+
+```
+mvn -B test            # სრული suite, კონტეინერი ავტომატურად
+mvn -B test -Dgroups=oracle
+```
+
+`ORACLE_DB_URL`-ის დაყენების გარეშე. **მაგრამ ეს ამ გარემოს blocker-ს არ
+ხსნის** — აქ registry დაბლოკილია, ე.ი. სრული regression, P0-A18 და `V36`
+კვლავ **`External`**.
