@@ -6,6 +6,8 @@ import org.springframework.context.annotation.Configuration;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 /**
  * Binds the {@code portal.*} keys in application.yml. Mirrors config.py's
@@ -58,33 +60,57 @@ public class PortalProperties {
 	}
 
 	/**
-	 * Whitespace around the value is ignored, and an unset or blank value is
-	 * production (DEC-P04).
+	 * The environments that are NOT production. Everything else is.
 	 *
-	 * <p>This used to be {@code equalsIgnoreCase} and nothing else, which
-	 * made the casing of APP_ENV free but let a stray character decide
-	 * whether the deployment was production at all. {@code APP_ENV=production}
-	 * with one trailing space -- which .env files and docker compose both
-	 * preserve -- was not production, and both of this method's callers turn
-	 * on that answer: {@link ProductionSafetyGuard} returns before its first
-	 * check, and {@code AuthenticationService:80} gates the password-less dev
-	 * login on {@code !isProduction()}. So a single invisible character
-	 * disabled the boot-time guard AND made the bypass eligible again -- both
-	 * halves of the SEC-01 fix, undone by a space.
+	 * <p>Deliberately the complement of what you would expect: listing the
+	 * production spellings instead ({@code production}, {@code prod},
+	 * {@code prd}, ...) can never be finished, and every name missing from it
+	 * fails OPEN. {@code APP_ENV=produciton} is not a hypothetical -- it is
+	 * the same typo class as the {@code APP_ENV=prod} this field's comment
+	 * has named since SEC-01, and under a production allowlist both of them
+	 * silently turn off every check.
 	 *
-	 * <p>Blank is treated the same as absent for the same reason the field
-	 * above defaults to production: {@code APP_ENV=} is a variable somebody
-	 * meant to set and did not, and the insecure mode is the one that has to
-	 * be asked for. A developer who lands here gets a loud refusal naming
-	 * APP_ENV, not a silent production boot.
+	 * <p>Listed this way an unrecognised value fails SAFE, which is the rule
+	 * the default above and the blank handling below already follow: the
+	 * insecure mode is the one that must be asked for, by name.
 	 *
-	 * <p><b>Still not production:</b> {@code prod}, and every other spelling
-	 * that is not the word. That is a deliberately separate question -- which
-	 * aliases count is a list someone has to choose, not whitespace to
-	 * discard -- and it is recorded rather than answered here.
+	 * <p><b>Only local-machine names are here.</b> {@code staging},
+	 * {@code qa}, {@code uat}, {@code sandbox} and {@code preprod} are
+	 * deployed, shared environments reachable by people other than the
+	 * developer who started them, so the guard applies to them exactly as it
+	 * does to production. That is a change from the old behaviour, where
+	 * every string except "production" skipped every check.
+	 */
+	private static final Set<String> DEVELOPMENT_ENVIRONMENTS =
+			Set.of("development", "dev", "local", "test");
+
+	/**
+	 * True unless APP_ENV explicitly names a local development environment.
+	 *
+	 * <p>This used to be {@code equalsIgnoreCase("production")} and nothing
+	 * else, which made every other value -- a stray space, a typo, an alias,
+	 * an empty string -- non-production. Both callers turn on that answer:
+	 * {@link ProductionSafetyGuard} returns before its first check, and
+	 * {@code AuthenticationService:80} gates the password-less dev login on
+	 * {@code !isProduction()}. So any of those values disabled the boot-time
+	 * guard AND made the bypass eligible in the same step -- both halves of
+	 * the SEC-01 fix, undone by a character nobody could see (DEC-P04) or a
+	 * shorthand somebody thought was equivalent (DEC-P05).
+	 *
+	 * <p>Now the only way to reach the insecure posture is to name a
+	 * development environment, spelled correctly. Whitespace and casing are
+	 * forgiven because they are never intent; the word itself is not, because
+	 * it always is.
+	 *
+	 * <p>A deployment that gets this wrong now fails loudly -- the guard
+	 * refuses to boot and names the variable -- instead of starting with the
+	 * dev login live.
 	 */
 	public boolean isProduction() {
-		return appEnv == null || appEnv.isBlank() || "production".equalsIgnoreCase(appEnv.strip());
+		if (appEnv == null) {
+			return true;
+		}
+		return !DEVELOPMENT_ENVIRONMENTS.contains(appEnv.strip().toLowerCase(Locale.ROOT));
 	}
 
 	public Security getSecurity() {

@@ -849,7 +849,7 @@ hash-ის **გამოთვლა** (V28 trigger + `audit_logs_canonical_st
 | `DEC-P02` | logout contract (`users.token_version`, „log out everywhere") | **ღია** — არ შევეხე; ამ სესიაში ვერ წავიკითხე (დოკუმენტი არ არსებობს) |
 | `DEC-P03` *(ახალი, შემოთავაზებული)* | `export_jobs`-ს არ აქვს owner სვეტი → `/api/export/download/{jobId}` და `/status/{jobId}` არ ამოწმებს მფლობელობას (§6, ღია ზედაპირი 1) | **გადაწყვეტილება საჭიროა** — გამოსწორება მოითხოვს `V36` migration-ს და ეხება დადასტურებულ export flow-ს |
 | ~~`DEC-P04`~~ | `PortalProperties.isProduction()` არ იჭრებოდა | ✅ **გასწორებულია** — იხ. §16 |
-| `DEC-P05` *(ახალი, შემოთავაზებული)* | `APP_ENV=prod` (და ყველა სხვა alias) კვლავ **არ არის** production → იგივე fail-open, რაც `DEC-P04`-ს ჰქონდა (§16.5) | **გადაწყვეტილება საჭიროა** — რომელი alias-ები ჩაითვალოს production-ად, სიაა და არა ჰარისების მოცილება |
+| ~~`DEC-P05`~~ | `APP_ENV=prod` და typo-ები production არ იყო | ✅ **გასწორებულია** — იხ. §17 |
 | — | დოკუმენტების შეუსაბამობა: 7 enterprise-readiness ფაილი არ არსებობს ამ repository-ში (§0) | **მომხმარებლის გადასაწყვეტი** — უნდა დაი-commit-დეს თუ არა Windows workspace-იდან |
 
 ---
@@ -1032,3 +1032,108 @@ mvn -B -DskipTests package → BUILD SUCCESS, JAR 93 096 140 ბაიტი
 `development`-ია (fail-open). Java-ს პორტი უკვე შეგნებულად განსხვავდება
 აქ (default `production`, SEC-01) — ეს გასწორება იმავე მიმართულებით
 აგრძელებს. Python-ის მხარე **არ შემეხო**.
+
+---
+
+## 17. `DEC-P05` — გასწორებულია (ინვერსიით, არა alias-ების სიით)
+
+### 17.1 რატომ **არ** გაკეთდა alias-ების სია
+
+§16.5-ში საკითხი ასე ჩავწერე: „რომელი alias-ები ჩაითვალოს production-ად".
+გამოსავალი კი **საპირისპიროა**.
+
+production-ის სპელინგების სია (`production`, `prod`, `prd`, `live`, …)
+**ვერასდროს დასრულდება**, და ყოველი მასში არარსებული სახელი
+**fail-open**-ია. `APP_ENV=produciton` (ბეჭდვითი შეცდომა) იმავე კლასისაა,
+რაც `APP_ENV=prod` — და production-allowlist-ის ქვეშ **ორივე** ჩუმად
+გამორთავს ყველა შემოწმებას. ე.ი. alias-ების სია ხურავს იმას, რაც
+ვინმემ მოასწრო მოეფიქრებინა, და ღიად ტოვებს ყველა typo-ს — **ეს არის
+ხარვეზის ფორმა, არა მისი გამოსწორება**.
+
+### 17.2 გასწორება — development-ის სია, ყველა დანარჩენი production
+
+```java
+private static final Set<String> DEVELOPMENT_ENVIRONMENTS =
+        Set.of("development", "dev", "local", "test");
+
+public boolean isProduction() {
+    if (appEnv == null) {
+        return true;
+    }
+    return !DEVELOPMENT_ENVIRONMENTS.contains(appEnv.strip().toLowerCase(Locale.ROOT));
+}
+```
+
+ახლა **ერთადერთი გზა უსაფრთხოების გამორთვისკენ არის development გარემოს
+სახელით დასახელება, სწორად დაწერილი**. ჰარისები და რეგისტრი პატიებულია,
+რადგან ისინი არასდროსაა განზრახვა; თვით სიტყვა — არა, რადგან ის ყოველთვისაა.
+
+ეს არის იმავე წესის დასრულება, რომელსაც ველის default-ი (`production`)
+და `DEC-P04`-ის blank-ის დამუშავება უკვე მისდევდნენ: **დაუცველი რეჟიმი
+ის არის, რომელიც სახელით უნდა მოითხოვო.**
+
+### 17.3 ⚠️ ქცევის ცვლილება — `staging`, `qa`, `uat` ახლა production-ია
+
+სიაში **მხოლოდ ლოკალური მანქანის სახელებია**. `staging`, `qa`, `uat`,
+`sandbox`, `preprod` არის **განთავსებული, საზიარო** გარემოები, რომლებზეც
+სხვა ადამიანებსაც მიუწვდებათ ხელი — ამიტომ guard მათზეც ისევე მოქმედებს,
+როგორც production-ზე.
+
+ეს არის ცვლილება ძველ ქცევასთან, სადაც `"production"`-ის გარდა **ყველა**
+სტრიქონი ყველა შემოწმებას გვერდს უვლიდა.
+
+**რეპოზე გავლენა: არანაირი.** გადამოწმებულია — მთელ repo-ში მხოლოდ ორი
+მნიშვნელობა გამოიყენება:
+
+| სად | მნიშვნელობა |
+|---|---|
+| `.github/workflows/ci.yml:253` | `development` ✅ |
+| `src/test/resources/application.properties:26` | `development` ✅ |
+| `java-backend/.env.example:27` | `development` ✅ |
+| `java-backend/Dockerfile:40` | `production` ✅ |
+
+ავარიის რეჟიმი არასწორი მნიშვნელობისას: guard **უარს ამბობს ჩატვირთვაზე
+და ასახელებს ცვლადს** — ხმამაღალი და გამოსასწორებელი, და არა ჩუმი
+production ჩატვირთვა ჩართული dev login-ით.
+
+### 17.4 ტესტები
+
+| ტესტი | კლასი |
+|---|---|
+| `anythingThatIsNotAKnownDevelopmentEnvironmentIsProduction` | `ProductionSafetyGuardTest` — `prod`, `prd`, `live`, `produciton`, `prodcution`, `developement`, `staging`, `qa`, `uat`, `sandbox`, `preprod`, `anything-at-all` |
+| `theKnownDevelopmentEnvironmentsAreStillReachable` | `ProductionSafetyGuardTest` — დაუცველი რეჟიმი კვლავ მისაწვდომია სახელით (`DEVELOPMENT`, `" dev "`, `"\tLocal\n"`) |
+| `anUnrecognisedAppEnvDoesNotEnableTheBypass` | `AuthenticationServiceTest` — **bypass-ის მხრიდან** |
+
+`noNonProductionEnvironmentIsEverChecked`-ის სიიდან `staging` მოიხსნა
+(ახლა production-ია). `appEnvStillHasToBeTheWordProduction` — `DEC-P04`-ის
+საზღვრის ტესტი — ჩანაცვლდა: ის განზრახ ზღუდავდა გასწორებას ჰარისებით,
+რაც `DEC-P05`-მა გააუქმა.
+
+### 17.5 Evidence — გასწორების უკუქცევა
+
+`isProduction()` დროებით დაბრუნდა `DEC-P04`-ის (production-allowlist)
+ფორმაზე → **2 ტესტი ჩავარდა**, ერთი ექსპლოიტს პირდაპირ ამბობს:
+
+```
+AuthenticationServiceTest.anUnrecognisedAppEnvDoesNotEnableTheBypass:151
+    APP_ENV=[prod] handed out a password-less admin login
+ProductionSafetyGuardTest.anythingThatIsNotAKnownDevelopmentEnvironmentIsProduction:337
+```
+
+`PortalProperties.java` byte-identical აღდგა.
+
+```
+mvn -B clean test -DexcludedGroups=oracle
+Tests run: 290, Failures: 0, Errors: 0, Skipped: 0 — BUILD SUCCESS (10.928 s)
+mvn -B -DskipTests package → BUILD SUCCESS, JAR 93 096 357 ბაიტი
+```
+
+288 → **290**.
+
+### 17.6 Python-თან პარიტეტი — განსხვავება გაიზარდა
+
+`config.py:41` კვლავ `os.getenv("APP_ENV", "development").lower()` და
+`:111` კვლავ `== "production"` — ე.ი. Python-ს **ორივე** ხარვეზი აქვს
+(`DEC-P04` და `DEC-P05`) და default-იც fail-open. Java-ს პორტი აქ უკვე
+შეგნებულად განსხვავდებოდა (SEC-01); ეს გასწორება განსხვავებას აღრმავებს.
+**Python-ის მხარეს არ შევხებივარ** — ის ცალკე გადაწყვეტილებაა.

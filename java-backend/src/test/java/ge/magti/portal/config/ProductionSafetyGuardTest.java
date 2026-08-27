@@ -218,7 +218,7 @@ class ProductionSafetyGuardTest {
 	@Test
 	void noNonProductionEnvironmentIsEverChecked() {
 		List<String> refused = new ArrayList<>();
-		for (String appEnv : List.of("development", "dev", "staging", "test", "local")) {
+		for (String appEnv : List.of("development", "dev", "test", "local")) {
 			PortalProperties properties =
 					propertiesWith(appEnv, "change-me-to-a-long-random-value", false);
 			properties.getSecurity().setAllowDevLogin(true);
@@ -307,24 +307,63 @@ class ProductionSafetyGuardTest {
 	}
 
 	/**
-	 * The fix removes whitespace, not the word. Which aliases count as
-	 * production is a list someone has to choose, and {@code APP_ENV=prod} on
-	 * a real deployment still silently disables every check here -- recorded
-	 * as a follow-up rather than answered by widening the match on the way
-	 * past.
+	 * DEC-P05. An APP_ENV that is not a recognised development environment is
+	 * production, whatever it says.
+	 *
+	 * <p>The predicate used to name the production spelling and treat
+	 * everything else as development, which meant every value missing from
+	 * that one name failed OPEN: {@code prod}, the typo {@code produciton},
+	 * an unrelated word. Listing the development names instead makes the same
+	 * mistakes fail SAFE -- the guard runs, refuses the boot and names the
+	 * variable, rather than starting with the dev login live.
+	 *
+	 * <p>An allowlist of production spellings would not have fixed this. It
+	 * closes the entries somebody thought to add and leaves every typo open,
+	 * which is the shape of the bug, not a fix for it.
 	 */
 	@Test
-	void appEnvStillHasToBeTheWordProduction() {
-		List<String> wronglyProduction = new ArrayList<>();
-		for (String spelling : List.of("prod", "productionn", "production-eu", "preproduction")) {
-			if (appEnvOf(spelling).isProduction()) {
-				wronglyProduction.add(spelling);
+	void anythingThatIsNotAKnownDevelopmentEnvironmentIsProduction() {
+		List<String> failedOpen = new ArrayList<>();
+		for (String spelling : List.of(
+				"prod", "prd", "live",
+				"produciton", "prodcution", "developement",
+				"staging", "qa", "uat", "sandbox", "preprod",
+				"anything-at-all")) {
+			if (!appEnvOf(spelling).isProduction()) {
+				failedOpen.add(spelling);
 			}
 		}
 
-		assertEquals(List.of(), wronglyProduction,
-				"the match was widened beyond whitespace -- if that is deliberate, this test should say so "
-						+ "explicitly rather than fail");
+		assertEquals(List.of(), failedOpen,
+				"these APP_ENV values are not recognised development environments, so they must be treated "
+						+ "as production -- each one that is not disables every check in this class and makes "
+						+ "the password-less dev login eligible");
+	}
+
+	/**
+	 * The other side of the same rule: the insecure posture is still
+	 * reachable, and only by naming it. Whitespace and casing are forgiven
+	 * because they are never intent.
+	 *
+	 * <p>Only local-machine names are on this list. staging, qa and uat are
+	 * deployed environments other people can reach, so they get the same
+	 * checks production does -- a change from the old behaviour, where every
+	 * string but "production" skipped all of them.
+	 */
+	@Test
+	void theKnownDevelopmentEnvironmentsAreStillReachable() {
+		List<String> notRecognised = new ArrayList<>();
+		for (String spelling : List.of(
+				"development", "dev", "local", "test",
+				"DEVELOPMENT", " dev ", "\tLocal\n")) {
+			if (appEnvOf(spelling).isProduction()) {
+				notRecognised.add("[" + spelling + "]");
+			}
+		}
+
+		assertEquals(List.of(), notRecognised,
+				"a developer must still be able to ask for the insecure posture by name -- if this fails, "
+						+ "local development cannot start at all");
 	}
 
 	private static PortalProperties appEnvOf(String appEnv) {

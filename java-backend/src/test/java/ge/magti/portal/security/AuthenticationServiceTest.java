@@ -126,6 +126,34 @@ class AuthenticationServiceTest {
         verify(userRepository, never()).save(any());
     }
 
+    /**
+     * DEC-P05, from the side that hands out tokens. A shorthand or a typo in
+     * APP_ENV must not be a way to reach the bypass.
+     *
+     * <p>{@code prod} is the one this repo's own SEC-01 comment has named
+     * since the beginning; {@code produciton} is the same mistake with
+     * nobody to have thought of it in advance. Both used to be
+     * "not production" and therefore eligible, and the boot-time guard that
+     * would have refused the combination read the same method and skipped
+     * for the same reason.
+     *
+     * <p>allow-dev-login stays ON here on purpose: that is the dangerous
+     * configuration, and the point is that only a named development
+     * environment unlocks it.
+     */
+    @Test
+    void anUnrecognisedAppEnvDoesNotEnableTheBypass() {
+        when(userRepository.findByEmailIgnoreCase("admin@magti.ge")).thenReturn(Optional.empty());
+
+        for (String spelling : List.of("prod", "produciton", "staging", "qa", "anything-at-all")) {
+            properties.setAppEnv(spelling);
+
+            assertTrue(service.authenticate("admin@magti.ge", "any-password").isEmpty(),
+                    "APP_ENV=[" + spelling + "] handed out a password-less admin login");
+        }
+        verify(userRepository, never()).save(any());
+    }
+
     /** Same gate, for the empty value: absent and blank must both fail safe. */
     @Test
     void aBlankAppEnvDoesNotEnableTheBypass() {
