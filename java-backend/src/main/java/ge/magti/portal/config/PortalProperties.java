@@ -57,8 +57,34 @@ public class PortalProperties {
 		this.uploadsDir = uploadsDir;
 	}
 
+	/**
+	 * Whitespace around the value is ignored, and an unset or blank value is
+	 * production (DEC-P04).
+	 *
+	 * <p>This used to be {@code equalsIgnoreCase} and nothing else, which
+	 * made the casing of APP_ENV free but let a stray character decide
+	 * whether the deployment was production at all. {@code APP_ENV=production}
+	 * with one trailing space -- which .env files and docker compose both
+	 * preserve -- was not production, and both of this method's callers turn
+	 * on that answer: {@link ProductionSafetyGuard} returns before its first
+	 * check, and {@code AuthenticationService:80} gates the password-less dev
+	 * login on {@code !isProduction()}. So a single invisible character
+	 * disabled the boot-time guard AND made the bypass eligible again -- both
+	 * halves of the SEC-01 fix, undone by a space.
+	 *
+	 * <p>Blank is treated the same as absent for the same reason the field
+	 * above defaults to production: {@code APP_ENV=} is a variable somebody
+	 * meant to set and did not, and the insecure mode is the one that has to
+	 * be asked for. A developer who lands here gets a loud refusal naming
+	 * APP_ENV, not a silent production boot.
+	 *
+	 * <p><b>Still not production:</b> {@code prod}, and every other spelling
+	 * that is not the word. That is a deliberately separate question -- which
+	 * aliases count is a list someone has to choose, not whitespace to
+	 * discard -- and it is recorded rather than answered here.
+	 */
 	public boolean isProduction() {
-		return "production".equalsIgnoreCase(appEnv);
+		return appEnv == null || appEnv.isBlank() || "production".equalsIgnoreCase(appEnv.strip());
 	}
 
 	public Security getSecurity() {

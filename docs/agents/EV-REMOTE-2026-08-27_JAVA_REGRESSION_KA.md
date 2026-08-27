@@ -848,7 +848,8 @@ hash-ის **გამოთვლა** (V28 trigger + `audit_logs_canonical_st
 | `DEC-P01` | `/uploads/{filename}` file entitlement | **ღია** — არ შევეხე; ახლა ჩამაგრებულია `EndpointPrincipalCoverageTest.PUBLIC_BY_DESIGN`-ში |
 | `DEC-P02` | logout contract (`users.token_version`, „log out everywhere") | **ღია** — არ შევეხე; ამ სესიაში ვერ წავიკითხე (დოკუმენტი არ არსებობს) |
 | `DEC-P03` *(ახალი, შემოთავაზებული)* | `export_jobs`-ს არ აქვს owner სვეტი → `/api/export/download/{jobId}` და `/status/{jobId}` არ ამოწმებს მფლობელობას (§6, ღია ზედაპირი 1) | **გადაწყვეტილება საჭიროა** — გამოსწორება მოითხოვს `V36` migration-ს და ეხება დადასტურებულ export flow-ს |
-| `DEC-P04` *(ახალი, შემოთავაზებული)* | `PortalProperties.isProduction()` არ იჭრება — `APP_ENV=production ` (ბოლო ჰარისით) **გამორთავს ყველა production შემოწმებას** (§13.3) | **გადაწყვეტილება საჭიროა** — `trim()` ცვლის, როდის ამბობს უარს production deployment ჩატვირთვაზე |
+| ~~`DEC-P04`~~ | `PortalProperties.isProduction()` არ იჭრებოდა | ✅ **გასწორებულია** — იხ. §16 |
+| `DEC-P05` *(ახალი, შემოთავაზებული)* | `APP_ENV=prod` (და ყველა სხვა alias) კვლავ **არ არის** production → იგივე fail-open, რაც `DEC-P04`-ს ჰქონდა (§16.5) | **გადაწყვეტილება საჭიროა** — რომელი alias-ები ჩაითვალოს production-ად, სიაა და არა ჰარისების მოცილება |
 | — | დოკუმენტების შეუსაბამობა: 7 enterprise-readiness ფაილი არ არსებობს ამ repository-ში (§0) | **მომხმარებლის გადასაწყვეტი** — უნდა დაი-commit-დეს თუ არა Windows workspace-იდან |
 
 ---
@@ -921,3 +922,113 @@ DB-free suite: **257 → 283** (+26). ხუთი ახალი build gate:
 საჯაროობა (`DEC-P01`) · logout-ის null-tolerant კონტრაქტი (`DEC-P02`) ·
 export flow · retention · `isProduction()`-ის სემანტიკა (`DEC-P04`) ·
 `AuditChainService`-ის ლოგიკა · ნებისმიერი role/scope წესი.
+
+---
+
+## 16. `DEC-P04` — გასწორებულია
+
+**პირველი main-source ცვლილება ამ სესიაში.** მომხმარებლის პირდაპირი
+გადაწყვეტილებით.
+
+### 16.1 ხარვეზი უფრო მძიმე აღმოჩნდა, ვიდრე §13.3-ში ჩავწერე
+
+`isProduction()`-ს **ორი** გამომძახებელი აქვს, არა ერთი:
+
+1. `ProductionSafetyGuard:76` — `if (!properties.isProduction()) return;`
+2. **`AuthenticationService:80`** — `boolean isTestAccount = !properties.isProduction() && ...`
+   — ეს არის **უპაროლო dev login-ის კარიბჭე**.
+
+ე.ი. `APP_ENV=production ` (ერთი ბოლო ჰარისი):
+
+- guard **ყველა** შემოწმებამდე ბრუნდებოდა → `allow-dev-login=true`
+  ჩატვირთვისას აღარ იკრძალებოდა; **და**
+- dev login-ის გზა ხდებოდა **მისაწვდომი**.
+
+SEC-01-ის (Critical) **ორივე** დამცავი ერთი უხილავი სიმბოლოთი ეცემოდა.
+§13.3-ში მხოლოდ პირველი მქონდა აღწერილი.
+
+### 16.2 გასწორება
+
+`PortalProperties.isProduction()`:
+
+```java
+// იყო
+return "production".equalsIgnoreCase(appEnv);
+
+// გახდა
+return appEnv == null || appEnv.isBlank() || "production".equalsIgnoreCase(appEnv.strip());
+```
+
+`strip()` და არა `trim()` — Unicode-ს ითვალისწინებს (non-breaking space და
+მისთანები), იგივე, რასაც `DepartmentMatcher` იყენებს.
+
+**null/blank → production.** იმავე მიზეზით, რითაც ველი production-ზეა
+დაყენებული: `APP_ENV=` არის ცვლადი, რომლის დაყენებაც სურდათ და არ
+დააყენეს. დეველოპერი, რომელიც აქ მოხვდება, იღებს **ხმამაღალ უარს**
+APP_ENV-ის დასახელებით, და არა ჩუმ production ჩატვირთვას.
+
+### 16.3 რა ტესტები დაემატა/შეიცვალა
+
+| ტესტი | კლასი |
+|---|---|
+| `appEnvIgnoresSurroundingWhitespaceAndCasing` | `ProductionSafetyGuardTest` (ჩაანაცვლა ხარვეზის დამფიქსირებელი ძველი ტესტი) |
+| `anUnsetOrBlankAppEnvIsProduction` | `ProductionSafetyGuardTest` |
+| `appEnvStillHasToBeTheWordProduction` | `ProductionSafetyGuardTest` — ზღუდავს გასწორების არეალს |
+| `aProductionAppEnvWithStrayWhitespaceIsStillChecked` | `ProductionSafetyGuardTest` — **guard-ის მხრიდან** |
+| `whitespaceAroundAProductionAppEnvDoesNotReEnableTheBypass` | `AuthenticationServiceTest` — **bypass-ის მხრიდან** |
+| `aBlankAppEnvDoesNotEnableTheBypass` | `AuthenticationServiceTest` |
+
+`noNonProductionEnvironmentIsEverChecked`-ის სიიდან `""` მოიხსნა —
+ის ახლა production-ია.
+
+⚠️ `isProduction()`-ის მარტო შემოწმება **არასაკმარისი იქნებოდა**:
+ხვრელი ორ გამომძახებელშია, ამიტომ ორივე მხარე ცალკე იტესტება.
+
+### 16.4 Evidence — გასწორების უკუქცევა (probe)
+
+`isProduction()` დროებით დაბრუნდა გასწორებამდელ ვერსიაზე →
+**5 ტესტი ჩავარდა**, მათ შორის ექსპლოიტი პირდაპირი ტექსტით:
+
+```
+AuthenticationServiceTest.whitespaceAroundAProductionAppEnvDoesNotReEnableTheBypass:123
+    APP_ENV=[ production] handed out a password-less admin login
+AuthenticationServiceTest.aBlankAppEnvDoesNotEnableTheBypass:137
+    APP_ENV=[] handed out a password-less admin login
+ProductionSafetyGuardTest.aProductionAppEnvWithStrayWhitespaceIsStillChecked:278
+    APP_ENV=[ production] booted with the dev login on and a placeholder secret
+ProductionSafetyGuardTest.appEnvIgnoresSurroundingWhitespaceAndCasing:260
+ProductionSafetyGuardTest.anUnsetOrBlankAppEnvIsProduction:304
+```
+
+`PortalProperties.java` byte-identical აღდგა გასწორებულ ვერსიაზე.
+
+```
+mvn -B clean test -DexcludedGroups=oracle
+Tests run: 288, Failures: 0, Errors: 0, Skipped: 0 — BUILD SUCCESS (11.193 s)
+mvn -B -DskipTests package → BUILD SUCCESS, JAR 93 096 140 ბაიტი
+```
+
+283 → **288**.
+
+### 16.5 ⚠️ დარჩენილი ღიობი — `DEC-P05`
+
+გასწორება **ჰარისებს** აშორებს, **სიტყვას არ ცვლის**.
+`APP_ENV=prod` რეალურ deployment-ზე კვლავ **ჩუმად გამორთავს ყველა
+შემოწმებას და dev login-ს მისაწვდომს ხდის** — ზუსტად იგივე fail-open.
+
+`PortalProperties`-ის javadoc თავად ასახელებს `APP_ENV=prod`-ს SEC-01-ის
+პრობლემის ნაწილად, მაგრამ „რომელი alias-ები ჩაითვალოს" **სიის არჩევაა**,
+არა ჰარისის მოცილება — სხვა ტიპის გადაწყვეტილება. განზრახ არ გაფართოვდა.
+`appEnvStillHasToBeTheWordProduction` ამ საზღვარს **ტესტით ამაგრებს**:
+თუ ვინმე მატჩს გააფართოებს, ეს ტესტი ჩავარდება და აიძულებს, რომ ეს
+შეგნებული ცვლილება იყოს.
+
+### 16.6 Python-თან პარიტეტი — შეგნებული განსხვავება
+
+`config.py:41` — `os.getenv("APP_ENV", "development").lower()`,
+`config.py:111` — `self.APP_ENV == "production"`.
+
+ე.ი. Python-საც **აქვს იგივე whitespace ხარვეზი**, და მისი default
+`development`-ია (fail-open). Java-ს პორტი უკვე შეგნებულად განსხვავდება
+აქ (default `production`, SEC-01) — ეს გასწორება იმავე მიმართულებით
+აგრძელებს. Python-ის მხარე **არ შემეხო**.

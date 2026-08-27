@@ -218,7 +218,7 @@ class ProductionSafetyGuardTest {
 	@Test
 	void noNonProductionEnvironmentIsEverChecked() {
 		List<String> refused = new ArrayList<>();
-		for (String appEnv : List.of("development", "dev", "staging", "test", "local", "")) {
+		for (String appEnv : List.of("development", "dev", "staging", "test", "local")) {
 			PortalProperties properties =
 					propertiesWith(appEnv, "change-me-to-a-long-random-value", false);
 			properties.getSecurity().setAllowDevLogin(true);
@@ -235,33 +235,102 @@ class ProductionSafetyGuardTest {
 	}
 
 	/**
-	 * {@code appEnv} is matched with {@code equalsIgnoreCase} and nothing
-	 * else, so the casing of APP_ENV does not matter but its surrounding
-	 * whitespace decides whether any check runs at all.
+	 * DEC-P04, fixed. Surrounding whitespace no longer decides whether a
+	 * deployment is production.
 	 *
-	 * <p><b>This pins current behaviour; it does not endorse it.</b>
-	 * {@code APP_ENV=production } with one trailing space -- which a .env
-	 * file and docker compose both preserve -- is not production to
-	 * {@link PortalProperties#isProduction()}, so the guard returns before
-	 * its first check and a deployment with the dev login enabled and a
-	 * placeholder secret boots silently. That is the exact failure SEC-01 is
-	 * about, arriving through a stray character instead of a missing
-	 * variable. Trimming would be a one-line change, but it changes when a
-	 * production deployment refuses to boot, so it is recorded as a finding
-	 * for the owner rather than taken here.
+	 * <p>It used to: {@code isProduction()} was {@code equalsIgnoreCase} and
+	 * nothing else, so {@code APP_ENV=production } with one trailing space --
+	 * which .env files and docker compose both preserve -- was not
+	 * production. Both callers turn on that answer, so one invisible
+	 * character skipped every check in this class AND made the password-less
+	 * dev login eligible again ({@code AuthenticationService:80} gates it on
+	 * {@code !isProduction()}). Both halves of SEC-01, undone by a space.
 	 */
 	@Test
-	void appEnvIsMatchedCaseInsensitivelyButIsNotTrimmed() {
-		for (String spelling : List.of("production", "PRODUCTION", "Production")) {
-			assertTrue(new PortalProperties() {{ setAppEnv(spelling); }}.isProduction(),
-					spelling + " should be recognised as production");
+	void appEnvIgnoresSurroundingWhitespaceAndCasing() {
+		List<String> notRecognised = new ArrayList<>();
+		for (String spelling : List.of(
+				"production", "PRODUCTION", "Production",
+				" production", "production ", "  production  ", "\tproduction\n")) {
+			if (!appEnvOf(spelling).isProduction()) {
+				notRecognised.add("[" + spelling + "]");
+			}
 		}
-		for (String spelling : List.of(" production", "production ", "prod", "productionn")) {
-			assertTrue(!new PortalProperties() {{ setAppEnv(spelling); }}.isProduction(),
-					"[" + spelling + "] is currently NOT production -- if this now fails, isProduction() was "
-							+ "made more forgiving, which is an improvement: delete this half of the test "
-							+ "and the finding that goes with it");
+
+		assertEquals(List.of(), notRecognised,
+				"these spellings of APP_ENV are production and must be treated as such -- a value that "
+						+ "misses by whitespace disables every check in this class and re-enables the dev login");
+	}
+
+	/**
+	 * DEC-P04 from this class's side: a production APP_ENV that misses the
+	 * exact spelling by whitespace must still be checked. Asserting
+	 * {@code isProduction()} alone would not have shown this -- the guard is
+	 * what turns that answer into a refused boot.
+	 */
+	@Test
+	void aProductionAppEnvWithStrayWhitespaceIsStillChecked() {
+		for (String spelling : List.of(" production", "production ", "\tPRODUCTION\n")) {
+			PortalProperties properties =
+					propertiesWith(spelling, "change-me-to-a-long-random-value", false);
+			properties.getSecurity().setAllowDevLogin(true);
+
+			IllegalStateException ex = assertThrows(IllegalStateException.class,
+					() -> new ProductionSafetyGuard(properties, "MagtiAppDev2026Pw").verify(),
+					"APP_ENV=[" + spelling + "] booted with the dev login on and a placeholder secret");
+			assertTrue(ex.getMessage().contains("allow-dev-login"), ex.getMessage());
 		}
+	}
+
+	/**
+	 * An unset or blank APP_ENV is production, for the same reason the field
+	 * defaults to it: the insecure mode is the one that has to be asked for.
+	 * {@code APP_ENV=} is a variable somebody meant to set and did not, and a
+	 * developer who lands here gets a loud refusal naming APP_ENV rather than
+	 * a silent production boot.
+	 */
+	@Test
+	void anUnsetOrBlankAppEnvIsProduction() {
+		List<String> treatedAsDevelopment = new ArrayList<>();
+		for (String spelling : List.of("", " ", "   ", "\t")) {
+			if (!appEnvOf(spelling).isProduction()) {
+				treatedAsDevelopment.add("[" + spelling + "]");
+			}
+		}
+		if (!appEnvOf(null).isProduction()) {
+			treatedAsDevelopment.add("null");
+		}
+
+		assertEquals(List.of(), treatedAsDevelopment,
+				"a blank APP_ENV must fail safe to production -- treating it as development is the SEC-01 "
+						+ "hole arriving through an empty value instead of a missing one");
+	}
+
+	/**
+	 * The fix removes whitespace, not the word. Which aliases count as
+	 * production is a list someone has to choose, and {@code APP_ENV=prod} on
+	 * a real deployment still silently disables every check here -- recorded
+	 * as a follow-up rather than answered by widening the match on the way
+	 * past.
+	 */
+	@Test
+	void appEnvStillHasToBeTheWordProduction() {
+		List<String> wronglyProduction = new ArrayList<>();
+		for (String spelling : List.of("prod", "productionn", "production-eu", "preproduction")) {
+			if (appEnvOf(spelling).isProduction()) {
+				wronglyProduction.add(spelling);
+			}
+		}
+
+		assertEquals(List.of(), wronglyProduction,
+				"the match was widened beyond whitespace -- if that is deliberate, this test should say so "
+						+ "explicitly rather than fail");
+	}
+
+	private static PortalProperties appEnvOf(String appEnv) {
+		PortalProperties properties = new PortalProperties();
+		properties.setAppEnv(appEnv);
+		return properties;
 	}
 
 	/**
