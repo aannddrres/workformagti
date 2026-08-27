@@ -501,6 +501,127 @@ Finished at: 2026-08-27T06:12:11Z
 
 ---
 
+## 12. WS2 P0 ციკლი 3 — `PermissionEnforcementCoverageTest`-ის გაძლიერება
+
+არსებული ტესტი (3 ტესტი) ამოწმებდა, რომ catalog-ის ყოველი permission
+**გამოძახებულია** სადმე `hasPermission(...)`-ით (SEC-06-ის დაცვა).
+`PermissionChecker`-ის javadoc კი პირდაპირ ამბობს, რას **ვერ** იჭერს ის:
+
+> „…catches a permission nobody checks; it cannot catch one that is checked
+> but **can never be false**."
+
+ეს ხვრელი დაიხურა. **3 → 8 ტესტი.**
+
+### 12.1 რატომ შეიძლება permission იყოს „შემოწმებული, მაგრამ მკვდარი"
+
+`PermissionChecker:53-56` SYSTEM_ADMIN-ს უპირობოდ `true`-ს უბრუნებს,
+ჯერ არაფრის წაკითხვამდე. აქედან **ორი** სხვადასხვა სიკვდილის ფორმა:
+
+| ფორმა | სად ჩანს | ტესტი |
+|---|---|---|
+| **A.** ყველა non-admin როლს **აქვს** default-ად → არავის უარი ეთქმის | `Permission.DEFAULTS_BY_ROLE`-ში | `everyPermissionCanActuallyRefuseSomebody` |
+| **B.** მოწმდება **მხოლოდ** იქ, სადაც SYSTEM_ADMIN როლი ისედაც სავალდებულოა → შემოწმება მუშაობს მხოლოდ იმ როლისთვის, რომელიც მას გვერდს უვლის | call site-ებში, **არა** default-ებში | `noPermissionIsConsultedOnlyBehindTheSystemAdminBypass` |
+
+**`users.manage`-ს B ფორმა ჰქონდა**, არა A: OPERATOR-ს ის არ ჰქონდა
+(default-ები ცარიელია), მაგრამ ყველა user-administration endpoint
+`requireSystemAdmin`-ის უკან იდგა, ამიტომ შემოწმებამდე მხოლოდ
+SYSTEM_ADMIN აღწევდა — და ის bypass-ს იყენებდა.
+
+> ⚠️ პირველი ვერსია ამ ორ ფორმას ერთმანეთში ურევდა და javadoc აცხადებდა,
+> რომ A ფორმის ტესტი `users.manage`-ს დაიჭერდა. **არ დაიჭერდა.**
+> javadoc გასწორდა და B ფორმისთვის ცალკე, bytecode-ზე დაფუძნებული ტესტი
+> დაიწერა.
+
+### 12.2 დამატებული ტესტები
+
+| ტესტი | რას იცავს |
+|---|---|
+| `everyPermissionCanActuallyRefuseSomebody` | ფორმა A. შეფასდება `Permission.defaultsFor`-ის მიხედვით — ე.ი. იმის მიხედვით, რას იღებს **რეალური** ანგარიში შექმნისას/როლის ცვლილებისას (`UserController:213`, `:450`, `AuthenticationService:114`), და არა ხელით აწყობილი `User` ობიექტის მიხედვით |
+| `noPermissionIsConsultedOnlyBehindTheSystemAdminBypass` | ფორმა B — **`users.manage`-ის ნამდვილი ფორმა**. თითოეული permission-ისთვის პოულობს endpoint-ებს, რომელთა call closure **ასახელებს** კონსტანტას *და* აღწევს `hasPermission`-ს; შემდეგ ამოწმებს, ყველა მათგანი იძახებს თუ არა `requireSystemAdmin`-ს |
+| `theRefusabilityCheckWouldActuallyFailForAnAdminOnlyPermission` | negative control ფორმა A-სთვის |
+| `everyRoleHasADefaultPermissionSet` | `DEFAULTS_BY_ROLE` არის `Map.of` 4 როლზე, შედეგი კი **დაუყოვნებლივ** dereference-დება სამივე call site-ზე (ორი `for`-each, ერთი `.stream()`). მე-5 როლი NPE-ს გამოიწვევდა user creation-ში, role reassignment-სა და JIT provisioning-ში — runtime-ზე, პირველივე ანგარიშზე |
+| `systemAdminDefaultsCoverTheWholeCatalog` | ხდის `PermissionChecker`-ის javadoc-ში აღწერილ **ღია გადაწყვეტილებას** (bypass-ის მოხსნა) მოგვიანებით უსაფრთხოდ ასაღებს. დღეს SYSTEM_ADMIN-ის default set საერთოდ არ იკითხება — bypass ჯერ პასუხობს — სწორედ ამიტომ შეუძლია მას შეუმჩნევლად გადაიხაროს. bypass-ის მოხსნის დღე იქნება ის დღე, როცა ეს გადახრა ადმინების უფლებების უხმო დაკარგვად იქცევა |
+
+### 12.3 არსებული ტესტის გამაგრება — per-file scanning
+
+`allProductionSource()` ყველა `.java`-ს **ერთ blob-ად** აერთებდა, ხოლო
+`enforcementOf`-ის `[^;]*?` DOTALL-ით შეიძლებოდა ფაილის საზღვარი გადაეკვეთა:
+ერთი ფაილის ბოლოს დარჩენილი `hasPermission(user,` და მეორის დასაწყისში
+მდგარი `Permission.SYSTEM_AUDIT` ერთად წაიკითხებოდა როგორც enforcement,
+რომელიც **არცერთში არ არსებობს**.
+
+ეს არის false positive **სწორედ სახიფათო მიმართულებით** — ტესტი იტყოდა
+„permission დაცულია", როცა არ არის. `productionSourceFiles()` ახლა
+თითოეულ ფაილს ცალკე ამოწმებს; შესაძლებლობა მოხსნილია და არა განხილული.
+
+### 12.4 `ControllerBytecode` — გაზიარებული bytecode reader
+
+B ფორმის ტესტს method body-ს კითხვა სჭირდება. ASM visitor-ის მეორედ
+დაწერის ნაცვლად, `EndpointGuardCoverageTest`-ის მანქანერია გატანილია
+`ControllerBytecode`-ში (test scope) და გაფართოებულია `visitFieldInsn`-ით —
+enum კონსტანტა static ველია, ასე იკითხება „რომელ `Permission`-ს ასახელებს
+ეს მეთოდი". `EndpointGuardCoverageTest` გადაყვანილია მასზე (4/4 მწვანე).
+
+`ControllerEndpoints` გახდა `public` — `PermissionEnforcementCoverageTest`
+ცხოვრობს `ge.magti.portal.domain`-ში (permission არის domain-ის კითხვა),
+მაგრამ პასუხისთვის endpoint-ებს უნდა უყუროს.
+
+### 12.5 Evidence
+
+```
+mvn -B test -DexcludedGroups=oracle -Dtest=PermissionEnforcementCoverageTest
+Tests run: 8, Failures: 0, Errors: 0, Skipped: 0 — BUILD SUCCESS
+```
+
+**Mutation probe 1 — `Permission.java` (main source, დროებით):**
+(i) `REPORTS_EXPORT` მიეცა ყველა non-admin როლს, (ii) `SYSTEM_AUDIT`
+მოეხსნა SYSTEM_ADMIN-ს. სწორად ჩავარდა **ზუსტად 2 ტესტი**:
+
+```
+These permissions can never be false for anyone: [reports.export]
+SYSTEM_ADMIN's default permission set is missing [system.audit]
+```
+
+**Mutation probe 2 — B ფორმის დეტექტორი:**
+`SYSTEM_ADMIN_GATE` შეიცვალა `"requireAuthenticated"`-ით (gate, რომელსაც
+consulting endpoint-ები **მართლაც** იძახებენ) → **6 permission** გამოცხადდა
+მკვდრად:
+
+```
+[articles.edit, articles.publish, articles.archive, videos.archive,
+ compliance.assign, reports.export]
+```
+
+**Mutation probe 3 — non-vacuity:** `SYSTEM_ADMIN_GATE` = არარსებული სახელი
+→ ცალკე assertion-მა იმუშავა (`no endpoint anywhere was seen calling
+__no_such_gate__ -- the detector cannot recognise the admin gate, so this
+test would never fire whatever the code did`). ეს აუცილებელია, რადგან
+ტესტი „მკვდარს" **ყველა** consulting endpoint-ის gate-ქვეშ ყოფნიდან
+ასკვნის — დეტექტორი, რომელიც gate-ს ვერ ხედავს, სამუდამოდ საპირისპიროს
+დაასკვნიდა, ჩუმად.
+
+ყველა ფაილი probe-ების შემდეგ byte-identical აღდგა (`diff -q`);
+`git status`-ში `src/main/java` **უცვლელია**.
+
+### 12.6 სრული DB-free suite
+
+```
+mvn -B clean test -DexcludedGroups=oracle
+Tests run: 266, Failures: 0, Errors: 0, Skipped: 0 — BUILD SUCCESS (11.637 s)
+mvn -B -DskipTests package → BUILD SUCCESS, JAR 93 096 060 ბაიტი (უცვლელი)
+```
+
+257 (baseline) → 259 → 261 → **266**.
+
+### 12.7 რაც კვლავ ღიაა
+
+`PermissionChecker`-ის SYSTEM_ADMIN bypass **არ მოხსნილა** — ეს
+დოკუმენტირებული ღია გადაწყვეტილებაა („needs a look at real data first")
+და მისი შეცვლა role/permission-ის დადასტურებული გადაწყვეტილების ცვლილება
+იქნებოდა. §12.2-ის ბოლო ტესტი მას მხოლოდ **უსაფრთხოდ ასაღებს ხდის**.
+
+---
+
 ## 9. ამ სესიაში შეცვლილი ფაილები (არ არის commit-ული)
 
 **ციკლი 1** (commit `1656b96`, push-ული):
@@ -518,6 +639,16 @@ Finished at: 2026-08-27T06:12:11Z
 | `java-backend/src/test/java/ge/magti/portal/web/ControllerEndpoints.java` | ახალი |
 | `java-backend/src/test/java/ge/magti/portal/web/EndpointPrincipalCoverageTest.java` | შეცვლილი (scanner გატანილი) |
 | `docs/agents/EV-REMOTE-2026-08-27_JAVA_REGRESSION_KA.md` | შეცვლილი (§11) |
+
+**ციკლი 3** (§12):
+
+| ფაილი | ტიპი |
+|---|---|
+| `java-backend/src/test/java/ge/magti/portal/domain/PermissionEnforcementCoverageTest.java` | შეცვლილი (3 → 8 ტესტი) |
+| `java-backend/src/test/java/ge/magti/portal/web/ControllerBytecode.java` | ახალი |
+| `java-backend/src/test/java/ge/magti/portal/web/ControllerEndpoints.java` | შეცვლილი (`public`) |
+| `java-backend/src/test/java/ge/magti/portal/web/EndpointGuardCoverageTest.java` | შეცვლილი (reader გატანილი) |
+| `docs/agents/EV-REMOTE-2026-08-27_JAVA_REGRESSION_KA.md` | შეცვლილი (§12) |
 
 `main` კოდში (`src/main/java`) **არაფერი შეცვლილა** — ორივე ციკლი მხოლოდ
 ტესტს და დოკუმენტაციას ეხება. PR **არ შექმნილა**.

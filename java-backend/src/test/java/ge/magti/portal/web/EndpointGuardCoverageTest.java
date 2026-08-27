@@ -1,19 +1,12 @@
 package ge.magti.portal.web;
 
+import ge.magti.portal.web.ControllerBytecode.Body;
+import ge.magti.portal.web.ControllerBytecode.Invocation;
 import org.junit.jupiter.api.Test;
-import org.springframework.asm.ClassReader;
-import org.springframework.asm.ClassVisitor;
-import org.springframework.asm.MethodVisitor;
-import org.springframework.asm.SpringAsmInfo;
-import org.springframework.asm.Type;
 import org.springframework.web.bind.annotation.RequestMapping;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -140,7 +133,7 @@ class EndpointGuardCoverageTest {
         int checked = 0;
 
         for (Class<?> controller : ControllerEndpoints.restControllers()) {
-            Map<String, Set<Invocation>> invocations = readInvocations(controller);
+            Map<String, Body> bodies = ControllerBytecode.read(controller);
             for (Method method : controller.getDeclaredMethods()) {
                 RequestMapping mapping = ControllerEndpoints.mappingOf(method);
                 if (mapping == null) {
@@ -151,7 +144,7 @@ class EndpointGuardCoverageTest {
                 if (NO_GUARD_BY_DESIGN.contains(route)) {
                     continue;
                 }
-                if (!reachesAGuard(controller, method, invocations)) {
+                if (!reachesAGuard(controller, method, bodies)) {
                     ungoverned.add(route + "  (" + controller.getSimpleName() + "#" + method.getName() + ")");
                 }
             }
@@ -179,7 +172,7 @@ class EndpointGuardCoverageTest {
         Set<String> stillUngoverned = new LinkedHashSet<>();
 
         for (Class<?> controller : ControllerEndpoints.restControllers()) {
-            Map<String, Set<Invocation>> invocations = readInvocations(controller);
+            Map<String, Body> bodies = ControllerBytecode.read(controller);
             for (Method method : controller.getDeclaredMethods()) {
                 RequestMapping mapping = ControllerEndpoints.mappingOf(method);
                 if (mapping == null) {
@@ -187,7 +180,7 @@ class EndpointGuardCoverageTest {
                 }
                 String route = ControllerEndpoints.route(mapping);
                 known.add(route);
-                if (!reachesAGuard(controller, method, invocations)) {
+                if (!reachesAGuard(controller, method, bodies)) {
                     stillUngoverned.add(route);
                 }
             }
@@ -201,75 +194,18 @@ class EndpointGuardCoverageTest {
                         + "is GET /uploads/{filename}, DEC-P01 has)");
     }
 
-    /** One call site: who is invoked, by what name, with what descriptor. */
-    private record Invocation(String owner, String name, String descriptor) {
-    }
-
     /**
-     * Walks the handler's calls, following any call that stays inside the
-     * same controller so a guard invoked from a private helper still counts.
-     * Cross-class calls are recorded but not followed: a guard reached three
-     * services deep is not something a reader of the handler can see either,
-     * and following it would turn this into a whole-program analysis whose
-     * failures nobody could act on.
-     *
-     * <p>A guard invoked from inside a lambda is not seen either: lambdas
-     * compile to {@code invokedynamic}, which is a different instruction.
-     * That errs the safe way -- such a handler fails this test rather than
-     * passing it -- and every guard in the codebase today is a plain call at
-     * the top of the handler, which is also where it belongs.
+     * True when the handler, or a private helper it reaches inside the same
+     * controller, calls something that can refuse the caller.
      */
-    private static boolean reachesAGuard(Class<?> controller, Method handler, Map<String, Set<Invocation>> invocations) {
-        String internalName = Type.getInternalName(controller);
-        Set<String> visited = new HashSet<>();
-        List<String> queue = new ArrayList<>();
-        queue.add(handler.getName() + Type.getMethodDescriptor(handler));
-
-        while (!queue.isEmpty()) {
-            String key = queue.remove(queue.size() - 1);
-            if (!visited.add(key)) {
-                continue;
-            }
-            for (Invocation invocation : invocations.getOrDefault(key, Set.of())) {
-                if (invocation.name().startsWith(GUARD_PREFIX)
-                        || GUARD_METHODS.contains(invocation.name())
-                        || isOwnerScopedLookup(invocation.name())) {
-                    return true;
-                }
-                if (internalName.equals(invocation.owner())) {
-                    queue.add(invocation.name() + invocation.descriptor());
-                }
+    private static boolean reachesAGuard(Class<?> controller, Method handler, Map<String, Body> bodies) {
+        for (Invocation invocation : ControllerBytecode.closureOf(controller, handler, bodies).invocations()) {
+            if (invocation.name().startsWith(GUARD_PREFIX)
+                    || GUARD_METHODS.contains(invocation.name())
+                    || isOwnerScopedLookup(invocation.name())) {
+                return true;
             }
         }
         return false;
-    }
-
-    /** name+descriptor of a method -> everything its body invokes. */
-    private static Map<String, Set<Invocation>> readInvocations(Class<?> controller) {
-        Map<String, Set<Invocation>> byMethod = new HashMap<>();
-        String resource = Type.getInternalName(controller) + ".class";
-        try (InputStream bytecode = controller.getClassLoader().getResourceAsStream(resource)) {
-            if (bytecode == null) {
-                throw new IllegalStateException("no bytecode on the classpath for " + controller.getName()
-                        + " -- this guard reads .class files and cannot work without them");
-            }
-            new ClassReader(bytecode).accept(new ClassVisitor(SpringAsmInfo.ASM_VERSION) {
-                @Override
-                public MethodVisitor visitMethod(int access, String name, String descriptor,
-                                                 String signature, String[] exceptions) {
-                    Set<Invocation> calls = byMethod.computeIfAbsent(name + descriptor, k -> new LinkedHashSet<>());
-                    return new MethodVisitor(SpringAsmInfo.ASM_VERSION) {
-                        @Override
-                        public void visitMethodInsn(int opcode, String owner, String calledName,
-                                                    String calledDescriptor, boolean isInterface) {
-                            calls.add(new Invocation(owner, calledName, calledDescriptor));
-                        }
-                    };
-                }
-            }, ClassReader.SKIP_FRAMES | ClassReader.SKIP_DEBUG);
-        } catch (IOException e) {
-            throw new IllegalStateException("could not read bytecode for " + controller.getName(), e);
-        }
-        return byMethod;
     }
 }
