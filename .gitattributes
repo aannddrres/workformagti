@@ -1,0 +1,49 @@
+# Line endings, decided here rather than by each contributor's Git install.
+#
+# Git for Windows' default installer option sets core.autocrlf=true, which
+# rewrites LF to CRLF on checkout. Everything here is LF, so on a Windows
+# clone that conversion lands CRLF in files that are then executed or parsed
+# inside a Linux container -- where a trailing \r is not whitespace, it is
+# part of the token:
+#
+#   scripts/seed-demo-content.sh  docker-compose.local.yml mounts it and runs
+#                                 `sh /seed.sh`. With CRLF it dies on the
+#                                 first line and the portal comes up empty.
+#                                 Nothing depends on the seed service, so the
+#                                 stack still starts and the failure is quiet
+#                                 -- an empty portal, no obvious cause.
+#   scripts/run-local.sh          the other one-command path onto a laptop.
+#   nginx.conf.template           rendered by envsubst into nginx's config, so
+#                                 a trailing \r ends up inside header VALUES.
+#
+# java-backend/mvnw was already safe: java-backend/.gitattributes (generated
+# by the Maven wrapper) pins it to LF for that subtree. This file gives the
+# rest of the repository the same protection instead of leaving it to one
+# tool's generated config to have covered the right files by luck.
+#
+# `text=auto eol=lf` normalises to LF in the repository AND checks out LF on
+# every platform, so none of this depends on how a contributor installed Git.
+# Windows tooling has handled LF for years; the exceptions are below.
+* text=auto eol=lf
+
+# cmd.exe genuinely needs CRLF: a .bat/.cmd with LF-only endings can split
+# tokens across lines mid-command. These run on the host, never in a container.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Never touched. Marked explicitly so `text=auto` cannot guess wrong and
+# corrupt one by "normalising" bytes that happen to look like text.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.webp binary
+*.pdf  binary
+*.ttf  binary
+*.woff  binary
+*.woff2 binary
+*.jar  binary
+*.xlsx binary
+*.db   binary
+*.sqlite3 binary
