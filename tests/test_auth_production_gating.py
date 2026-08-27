@@ -10,6 +10,7 @@ the documented manual-login credentials for admin@magti.ge etc.
 import os
 import sys
 
+import pytest
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -65,3 +66,43 @@ def test_login_endpoint_rejects_bypass_email_in_production(db_session, monkeypat
             json={"email": "admin@magti.ge", "password": _WRONG_PASSWORD},
         )
     assert res.status_code == 401, res.text
+
+
+@pytest.mark.parametrize(
+    "app_env",
+    [
+        # DEC-P04: whitespace a .env file and docker compose both preserve.
+        "production ", " production", "\tPRODUCTION\n",
+        # DEC-P05: a shorthand, and the typo nobody thinks of in advance.
+        "prod", "produciton", "staging",
+        # Set but empty -- a variable somebody meant to fill in and did not.
+        "",
+    ],
+)
+def test_bypass_stays_shut_for_every_non_development_app_env(db_session, monkeypatch, app_env):
+    """The same Critical finding as the tests above, reached through the value
+    of APP_ENV rather than through code that forgot to check it.
+
+    ``is_production`` used to be ``self.APP_ENV == "production"``, so each of
+    these was a development environment and ``admin@magti.ge`` accepted any
+    password. There is no second ALLOW_DEV_LOGIN switch on this side, unlike
+    the Java port -- one wrong character was the whole distance between a
+    deployment and unauthenticated admin access.
+
+    Note these set ``settings.APP_ENV`` directly, exactly as the tests above
+    do, which bypasses the strip/lower applied when config.py first reads the
+    variable. That is deliberate: it is why the normalisation lives inside
+    ``is_development_environment`` rather than only at read time.
+    """
+    monkeypatch.setattr(settings, "APP_ENV", app_env)
+
+    assert security.authenticate_user(db_session, "admin@magti.ge", _WRONG_PASSWORD) is None, (
+        f"APP_ENV={app_env!r} accepted a wrong password for a bypass-listed admin"
+    )
+
+
+def test_named_development_environments_still_reach_the_bypass(db_session, monkeypatch):
+    """The other direction: the insecure posture stays reachable by naming it,
+    or local development cannot start at all."""
+    monkeypatch.setattr(settings, "APP_ENV", "development")
+    assert security.authenticate_user(db_session, "admin@magti.ge", _WRONG_PASSWORD) is not None

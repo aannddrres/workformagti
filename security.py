@@ -41,9 +41,11 @@ CONTENT_ADMIN_ROLES = (ROLE_CONTENT_ADMIN, ROLE_SYSTEM_ADMIN)
 # ┌──────────────────────────────────────────────────────────┐
 # │ MOCK AD ACCOUNTS FOR LOCAL TESTING                       │
 # │ Any password works for these emails.                     │
-# │ Active only when APP_ENV != "production" — refusing to   │
-# │ start in production prevents a six-account credential    │
-# │ bypass from shipping by accident.                        │
+# │ Active only when APP_ENV NAMES a development environment │
+# │ (config.py's _DEVELOPMENT_ENVIRONMENTS). It used to be   │
+# │ "anything that is not exactly production", so a trailing │
+# │ space, "prod" or a typo left this six-account credential │
+# │ bypass live -- DEC-P04/DEC-P05.                          │
 # └──────────────────────────────────────────────────────────┘
 _DEV_TEST_EMAILS = {
     "admin@magti.ge",

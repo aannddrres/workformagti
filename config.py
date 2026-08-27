@@ -25,20 +25,63 @@ def _csv_env(name: str, default: str) -> list[str]:
     return [item.strip() for item in raw.split(",") if item.strip()]
 
 
+# The environments that are NOT production. Everything else is.
+#
+# Deliberately the complement of what you would expect. Listing the production
+# spellings instead ("production", "prod", "prd", ...) can never be finished,
+# and every name missing from it fails OPEN: APP_ENV=prod and the typo
+# APP_ENV=produciton both stop being production, and on this codebase that
+# means security.py:57 populates TEST_EMAILS — six accounts, admin@magti.ge
+# among them, where any password is accepted — and security.py:198 will
+# JIT-provision them. Unlike the Java port there is no second
+# ALLOW_DEV_LOGIN switch behind it, so one wrong character is the whole
+# distance between a deployment and unauthenticated admin access.
+#
+# Listed this way an unrecognised value fails SAFE: the startup guard below
+# runs, and the bypass stays empty.
+#
+# Only local-machine names are here. "staging", "qa", "uat", "sandbox" and
+# "preprod" are deployed environments other people can reach, so they get the
+# production posture — a change from the old behaviour, where every string
+# except "production" enabled the bypass.
+_DEVELOPMENT_ENVIRONMENTS = frozenset({"development", "dev", "local", "test"})
+
+
+def is_development_environment(app_env: str | None) -> bool:
+    """True only when app_env explicitly names a local development environment.
+
+    Whitespace and casing are forgiven because they are never intent — a
+    trailing space is what a .env file and docker compose both preserve, and
+    APP_ENV=production with one used to be a development environment. The word
+    itself is not forgiven, because it always is intent.
+    """
+    return (app_env or "").strip().lower() in _DEVELOPMENT_ENVIRONMENTS
+
+
 def resolve_log_level(app_env: str, explicit: str | None) -> str:
     """Explicit LOG_LEVEL wins; otherwise production is quiet (INFO) and
     development verbose (DEBUG). Pure function so tests can pin the contract
     without re-importing the module under a patched environment."""
     if explicit and explicit.strip():
         return explicit.strip().upper()
-    return "INFO" if app_env.lower() == "production" else "DEBUG"
+    return "DEBUG" if is_development_environment(app_env) else "INFO"
 
 
 class Settings:
     # ── Environment ───────────────────────────────────────────────────
-    # "production" disables developer-only conveniences (mock AD allowlist,
-    # verbose tracebacks). Anything else is treated as a development env.
-    APP_ENV: str = os.getenv("APP_ENV", "development").lower()
+    # Anything that is not a named development environment disables the
+    # developer-only conveniences (mock AD allowlist, verbose tracebacks) --
+    # see _DEVELOPMENT_ENVIRONMENTS for why that list is the one written out
+    # rather than the production spellings.
+    #
+    # Stripped as well as lowercased: "production " with a trailing space used
+    # to be a development environment, and .env files and docker compose both
+    # preserve one.
+    #
+    # The "development" default is only reached by a bare local run: the
+    # Dockerfile sets APP_ENV=production and docker-compose.yml falls back to
+    # ${APP_ENV:-production}, so no deployment path relies on it.
+    APP_ENV: str = os.getenv("APP_ENV", "development").strip().lower()
 
     # ── Security / JWT ────────────────────────────────────────────────
     # NEVER ship the development default to production. Generate a strong key:
@@ -92,7 +135,7 @@ class Settings:
     # ── Logging ───────────────────────────────────────────────────────
     LOG_LEVEL: str = resolve_log_level(
         os.getenv("APP_ENV", "development"), os.getenv("LOG_LEVEL")
-    )
+    )  # resolve_log_level strips/lowercases via is_development_environment
     # SQL echo is opt-in ONLY (dev chaos-testing aid): at DEBUG it logs every
     # query from every worker and rotates real errors out of the log in hours.
     LOG_SQL: bool = os.getenv("LOG_SQL", "false").lower() == "true"
@@ -109,7 +152,7 @@ class Settings:
 
     @property
     def is_production(self) -> bool:
-        return self.APP_ENV == "production"
+        return not is_development_environment(self.APP_ENV)
 
 
 settings = Settings()

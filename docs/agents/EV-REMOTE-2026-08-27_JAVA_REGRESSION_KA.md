@@ -1141,6 +1141,7 @@ mvn -B -DskipTests package → BUILD SUCCESS, JAR 93 096 357 ბაიტი
 (`DEC-P04` და `DEC-P05`) და default-იც fail-open. Java-ს პორტი აქ უკვე
 შეგნებულად განსხვავდებოდა (SEC-01); ეს გასწორება განსხვავებას აღრმავებს.
 **Python-ის მხარეს არ შევხებივარ** — ის ცალკე გადაწყვეტილებაა.
+*(მოგვიანებით გასწორდა — იხ. §21.)*
 
 ---
 
@@ -1422,3 +1423,111 @@ endpoint principal · endpoint guard (bytecode) · permission liveness (ორ�
 logout-ის null-tolerant კონტრაქტი (`DEC-P02`) · retention ·
 `AuditChainService`-ის ლოგიკა · ნებისმიერი role/scope წესი ·
 Python-ის backend · CI workflow.
+
+---
+
+## 21. `DEC-P04` + `DEC-P05` — Python-ის პარიტეტი (`config.py`)
+
+მომხმარებლის პირდაპირი გადაწყვეტილებით. **Python-ის მხარე უფრო მძიმე
+აღმოჩნდა, ვიდრე Java-სი.**
+
+### 21.1 რატომ უარესი
+
+Java-ში `!isProduction()` **მარტო** არ კმაროდა — საჭირო იყო მეორე,
+ცალკე ჩამრთველი `ALLOW_DEV_LOGIN`. **Python-ს ასეთი არ აქვს:**
+
+| ადგილი | რას აკეთებს |
+|---|---|
+| `security.py:57` | `if settings.is_production: TEST_EMAILS = set() else: TEST_EMAILS = _DEV_TEST_EMAILS` — **ექვსი ანგარიში, `admin@magti.ge`-ს ჩათვლით, სადაც ნებისმიერი პაროლი მიიღება** |
+| `security.py:198` | `if not user and not settings.is_production:` — იმავე ანგარიშების JIT provisioning |
+
+ე.ი. `APP_ENV`-ში **ერთი არასწორი სიმბოლო** = უავტორიზაციო admin წვდომა.
+Java-ში იგივე შეცდომა ჯერ კიდევ მეორე ჩამრთველს აწყდებოდა.
+
+### 21.2 გასწორება — იგივე ინვერსია, რაც Java-ში
+
+```python
+_DEVELOPMENT_ENVIRONMENTS = frozenset({"development", "dev", "local", "test"})
+
+def is_development_environment(app_env: str | None) -> bool:
+    return (app_env or "").strip().lower() in _DEVELOPMENT_ENVIRONMENTS
+```
+
+სამი ადგილი:
+
+| სად | იყო | გახდა |
+|---|---|---|
+| `Settings.APP_ENV` | `os.getenv(...).lower()` | `.strip().lower()` |
+| `Settings.is_production` | `self.APP_ENV == "production"` | `not is_development_environment(self.APP_ENV)` |
+| `resolve_log_level` | `app_env.lower() == "production"` | იგივე helper-ი — **ერთი განსაზღვრება, არა ორი, რომლებიც ერთმანეთს დაშორდებიან** |
+
+### 21.3 რატომ **არ** შეიცვალა default-ი `"development"`
+
+Java-ში default `production`-ზე გადავიდა, რადგან **image-ს საერთოდ არ
+ჰქონდა `APP_ENV`** — ეს იყო SEC-01-ის რეალური ტრიგერი. Python-ის მხარეს
+ეს ტრიგერი **არ არსებობს**:
+
+| სად | მნიშვნელობა |
+|---|---|
+| `Dockerfile:36` | `ENV ... APP_ENV=production` |
+| `docker-compose.yml` × 4 სერვისი | `APP_ENV: ${APP_ENV:-production}` |
+
+ე.ი. **არცერთი deployment გზა არ ეყრდნობა default-ს** — ის მხოლოდ
+„ბრძანების ხაზიდან ლოკალურად გაშვებისას" მიიღწევა, სადაც `development`
+სწორია. default-ის შეცვლა ყველა დეველოპერის `start_server.bat`-ს
+გატეხავდა ისე, რომ არაფერს დაიცავდა. **დაფიქსირდა კომენტარში, არ
+შეცვლილა.**
+
+⚠️ `APP_ENV=` (დაყენებული, მაგრამ ცარიელი) **არ** იღებს default-ს —
+`os.getenv` ცარიელ სტრიქონს აბრუნებს. ინვერსიის შემდეგ ეს **production**-ია,
+რაც ემთხვევა Java-ს.
+
+### 21.4 Evidence
+
+```
+pytest tests/ -q  →  141 passed, 1 skipped   (იყო 133 passed, 1 skipped)
+ruff check        →  All checks passed!
+```
+
+**Probe 1 — `is_production` დაბრუნდა ზუსტ შედარებაზე:**
+`tests/test_app_env_resolution.py` — **22 ჩავარდნა** (`prod`, `prd`, `live`,
+`produciton`, `prodcution`, `developement`, `staging`, `preprod`,
+`" production"`, `"production "`, `""`, `"   "`, …).
+
+**Probe 2 — იგივე, `test_auth_production_gating.py`-ზე** (ეს არის ის, რაც
+მართლა მნიშვნელოვანია — bypass, არა predicate). **7 ჩავარდნა**, ექსპლოიტი
+ტესტის საკუთარი ტექსტით:
+
+```
+APP_ENV='prod' accepted a wrong password for a bypass-listed admin
+APP_ENV='produciton' accepted a wrong password for a bypass-listed admin
+APP_ENV='staging' accepted a wrong password for a bypass-listed admin
+APP_ENV='\tPRODUCTION\n' accepted a wrong password for a bypass-listed admin
+APP_ENV='' accepted a wrong password for a bypass-listed admin
+```
+
+`config.py` ორივე probe-ის შემდეგ byte-identical აღდგა.
+
+### 21.5 ჩემი ტესტის შეცდომა, probe-მა რომ დაიჭირა
+
+პირველ ვერსიაში ვამტკიცებდი, რომ `""` production-ია (სწორია) **და** რომ
+`None` development-ია (**არასწორია** — Java-ში `null → production`).
+ტესტი თავის თავს ეწინააღმდეგებოდა და ჩავარდა. გასწორდა **ტესტი, არა კოდი**:
+`None` fail-safe-ია production-ზე, ხოლო „ცვლადი საერთოდ არ არსებობს →
+default `development`" ცალკე ტესტია, იმავე გამოსახულებით, რასაც `config.py`
+იყენებს.
+
+### 21.6 გვერდითი ეფექტი — ორი მოძველებული კომენტარი
+
+`security.py:44`-ის ბანერი და `.claude/skills/run-magti-portal/SKILL.md`
+ორივე ამბობდა „active whenever `APP_ENV != "production"`", რაც ამ
+ცვლილების შემდეგ **მცდარია**. ორივე განახლდა — უსაფრთხოების ბანერი,
+რომელიც ტყუის, უარესია, ვიდრე ბანერის არქონა.
+
+### 21.7 რა რჩება
+
+Python-ის მხარეს **არ შემეხო**: `TEST_EMAILS`-ის სია, JIT provisioning-ის
+ლოგიკა, startup guard-ის შემოწმებები (Java-სგან განსხვავებით Python
+`SECRET_KEY`-ს მხოლოდ ერთ ლიტერალს ადარებს და DB პაროლს საერთოდ არ
+ამოწმებს — ეს **ცალკე** ხარვეზია, `DEC-P06`-ის კანდიდატი, აქ არ
+გამისწორებია).
