@@ -707,6 +707,90 @@ mvn -B -DskipTests package → BUILD SUCCESS, JAR 93 096 060 ბაიტი (�
 
 ---
 
+## 14. WS2 P0 ციკლი 5 — audit chain tamper-verdict, Oracle-ის გარეშე
+
+**+12 ტესტი** (`AuditChainVerdictTest`). `AuditChainService.java`
+**უცვლელია** — მხოლოდ ახალი ტესტი.
+
+### 14.1 რატომ ეს აირჩა
+
+tamper-evidence P0 უსაფრთხოების თვისებაა, და მის უკან **მხოლოდ**
+`AuditChainServiceTest` იდგა, რომელიც `@RequiresOracle`-ია. ე.ი. DB-free
+CI job მას **მთლიანად ტოვებდა**: verdict ლოგიკის ცვლილება ხვდებოდა ან
+ნელ job-ში, ან დეველოპერის მანქანაზე, ან — არსად.
+
+`ClientIpResolver`-ს უკვე 10 ტესტი აქვს (მარგინალური მოგება), ხოლო
+`DEC-P03`/`DEC-P04` patch-ები თქვენს გადაწყვეტილებაზეა დაბლოკილი.
+
+### 14.2 რა **არ** გაკეთდა და რატომ
+
+`AuditChainServiceTest` **უცვლელი რჩება და მთავარია** — ის რეალური JPA
+გზით წერს, V28-ის Oracle trigger-ს ახარებინებს hash-ს, შემდეგ ცვლის row-ს,
+შლის predecessor-ს და აყალბებს მეორე genesis-ს. აქ არაფერი ცვლის მას
+და აქაური არცერთი ტესტი ვერ დაიჭერს შეცდომას SQL-ში ან
+`audit_logs_canonical_string`-ში.
+
+**verdict ლოგიკის სუფთა ფუნქციად გამოტანა (refactor) განზრახ არ გაკეთდა.**
+ეს იქნებოდა tamper-detection კოდის რედაქტირება, რომლის რეგრესიაზე
+შემოწმებაც ამ გარემოში **შეუძლებელია** (Oracle მიუწვდომელია). ამის
+ნაცვლად ტესტი რეალურ `AuditChainService`-ს ატარებს **stub `JdbcTemplate`-ით**
+— main source ხელუხლებელია.
+
+ფასი: ტესტი მიბმულია სამი query-ის სვეტების სახელებზე. ეს არის
+შესაძლო ყველაზე პატარა მიბმა — ალტერნატივა main-ის შეცვლა იყო.
+
+### 14.3 რა დაიფარა (ის, რასაც Oracle ტესტი ყველაზე ცუდად წვდება)
+
+verdict-ის კიდეები კონკრეტულ chain-მდგომარეობას საჭიროებს — 11 გატეხილი
+row, ერთდროულად შეცვლილი *და* გაწყვეტილი row, chain-ის შუაში დაწყებული
+window. ეს არითმეტიკაა ბაზიდან მოსულ მნიშვნელობებზე:
+
+| ტესტი | უცილობლობა |
+|---|---|
+| `theWindowIsClampedToAtLeastOne` / `...AtMostFiveHundred` | `n` იჭრება [1,500]-ში *query-მდე*: 0/უარყოფითი `FETCH FIRST ? ROWS ONLY`-ს **შეცდომად** აქცევდა, უსაზღვრო კი dashboard-ის mount-ს სრული ცხრილის ხელახალ ჰეშირებად |
+| `anIntactChainFromGenesisIsOk` | საბაზისო |
+| `aRowThatNoLongerRecomputesIsAHashMismatch` | შეცვლილი row |
+| `aRowPointingAtTheWrongPredecessorIsALinkBreak` | წაშლილი/გადანაცვლებული predecessor |
+| `aRowThatFailsBothWaysCountsTwiceButIsListedOnce` | ორივე მრიცხველი დამოუკიდებელია, `bad_ids` კი **სანახავი row-ების ნაკრებია** — ორჯერ გატეხილი row მაინც *ერთი* row-ია |
+| `theOldestRowInTheWindowIsCheckedAgainstTheRowBeforeIt` | window-ის უძველესი row-იც რეალურ link-შემოწმებას იღებს. ამის გარეშე ზუსტად window-ის კიდეზე დაწყებული გაყალბება — **გაყალბებული genesis-ის ჩათვლით** — ერთადერთი რამ იქნებოდა, რასაც dashboard ვერ ხედავს |
+| `badIdsStopAtTenWhileTheCountersDoNot` | `bad_ids` არის dashboard-ის ნიმუში, შეზღუდული 10-ით; **მრიცხველები არ იზღუდება** — ისინი პასუხობენ „რამდენად ცუდადაა", და იქ ჭერი კატასტროფულ ზიანს 10 row-ად აჩვენებდა |
+| `anEmptyWindowIsOkAndNeverLooksForAPredecessor` | ცარიელ window-ზე boundary query ზედმეტი round trip იქნებოდა ყოველ mount-ზე |
+| `rowsPredatingTheChainAreCountedButDoNotMakeItTampered` | V28-მდელი row-ები **ზიანი არ არის**. მათი tampering-ად ჩათვლა dashboard-ს წითლად აანთებდა ყოველ deployment-ზე, რომელსაც ისტორია მოჰყვება — მუდმივად წითელ ინდიკატორს კი აღარავინ კითხულობს |
+| `verifyReportsUnchainedForARowWithNoHash` | არც ok, არც tampered — შესადარებელი არაფერია; „tampered" deployment-ს იმ ზიანში დაადანაშაულებდა, რომელიც არ ჩაუდენია |
+| `verifyIsTamperedWhenEitherTheHashOrTheLinkFails` | ორივე ცალკე ჩავარდნა საკმარისია |
+
+### 14.4 Evidence — 6 mutation probe, თითოეულმა **ზუსტად** სამიზნე ტესტი ჩააგდო
+
+| probe (`AuditChainService.java`, დროებით) | ჩავარდა |
+|---|---|
+| clamp მოხსნილი | `theWindowIsClampedToAtLeastOne`, `...AtMostFiveHundred` |
+| `bad_ids` ჭერი 10 → 100 | `badIdsStopAtTenWhileTheCountersDoNot` |
+| boundary predecessor აღარ იძებნება | `theOldestRowInTheWindowIsCheckedAgainstTheRowBeforeIt` |
+| link შემოწმება → `else if` | `aRowThatFailsBothWaysCountsTwiceButIsListedOnce` |
+| pre-V28 row-ები status-ს „tampered"-ად აქცევს | `rowsPredatingTheChainAreCountedButDoNotMakeItTampered` |
+| `verify()` აღარ აბრუნებს `unchained`-ს | `verifyReportsUnchainedForARowWithNoHash` |
+
+`AuditChainService.java` ყველა probe-ის შემდეგ **byte-identical** აღდგა;
+`git status`-ში `src/main/java` უცვლელია.
+
+### 14.5 სრული DB-free suite
+
+```
+mvn -B clean test -DexcludedGroups=oracle
+Tests run: 283, Failures: 0, Errors: 0, Skipped: 0 — BUILD SUCCESS (11.224 s)
+mvn -B -DskipTests package → BUILD SUCCESS, JAR 93 096 060 ბაიტი (უცვლელი)
+```
+
+257 → 259 → 261 → 266 → 271 → **283**.
+
+### 14.6 რაც კვლავ Oracle-ს საჭიროებს
+
+hash-ის **გამოთვლა** (V28 trigger + `audit_logs_canonical_string` +
+`STANDARD_HASH`) და სამივე query-ის SQL. ეს `AuditChainServiceTest`-ის
+საქმეა და ამ გარემოში ვერ გაეშვება — **`External`, უცვლელი**.
+
+---
+
 ## 9. ამ სესიაში შეცვლილი ფაილები (არ არის commit-ული)
 
 **ციკლი 1** (commit `1656b96`, push-ული):
@@ -741,6 +825,13 @@ mvn -B -DskipTests package → BUILD SUCCESS, JAR 93 096 060 ბაიტი (�
 |---|---|
 | `java-backend/src/test/java/ge/magti/portal/config/ProductionSafetyGuardTest.java` | შეცვლილი (12 → 17 ტესტი) |
 | `docs/agents/EV-REMOTE-2026-08-27_JAVA_REGRESSION_KA.md` | შეცვლილი (§13) |
+
+**ციკლი 5** (§14):
+
+| ფაილი | ტიპი |
+|---|---|
+| `java-backend/src/test/java/ge/magti/portal/audit/AuditChainVerdictTest.java` | ახალი (12 ტესტი) |
+| `docs/agents/EV-REMOTE-2026-08-27_JAVA_REGRESSION_KA.md` | შეცვლილი (§14) |
 
 `main` კოდში (`src/main/java`) **არაფერი შეცვლილა** — ორივე ციკლი მხოლოდ
 ტესტს და დოკუმენტაციას ეხება. PR **არ შექმნილა**.
