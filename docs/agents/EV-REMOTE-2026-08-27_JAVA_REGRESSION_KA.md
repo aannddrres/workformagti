@@ -850,3 +850,74 @@ hash-ის **გამოთვლა** (V28 trigger + `audit_logs_canonical_st
 | `DEC-P03` *(ახალი, შემოთავაზებული)* | `export_jobs`-ს არ აქვს owner სვეტი → `/api/export/download/{jobId}` და `/status/{jobId}` არ ამოწმებს მფლობელობას (§6, ღია ზედაპირი 1) | **გადაწყვეტილება საჭიროა** — გამოსწორება მოითხოვს `V36` migration-ს და ეხება დადასტურებულ export flow-ს |
 | `DEC-P04` *(ახალი, შემოთავაზებული)* | `PortalProperties.isProduction()` არ იჭრება — `APP_ENV=production ` (ბოლო ჰარისით) **გამორთავს ყველა production შემოწმებას** (§13.3) | **გადაწყვეტილება საჭიროა** — `trim()` ცვლის, როდის ამბობს უარს production deployment ჩატვირთვაზე |
 | — | დოკუმენტების შეუსაბამობა: 7 enterprise-readiness ფაილი არ არსებობს ამ repository-ში (§0) | **მომხმარებლის გადასაწყვეტი** — უნდა დაი-commit-დეს თუ არა Windows workspace-იდან |
+
+---
+
+## 15. გაჩერების წერტილი — 2026-08-27
+
+**Verdict: NOT READY.** სესია შეჩერდა განზრახ: დარჩენილი ნამდვილი P0
+სამუშაო **Oracle-ს საჭიროებს**, რაც ამ გარემოში დაბლოკილია (§5), ხოლო
+დამატებითი DB-free ტესტი უკვე კლებადი უკუგებაა.
+
+### 15.1 Repository-ის მდგომარეობა
+
+| | |
+|---|---|
+| branch | `claude/enterprise-readiness-verify-lq1eto` |
+| HEAD | `28c51539c216abb190f41dc5aa1a24cfa03d4216` |
+| `origin/<branch>` | იდენტური — ყველაფერი push-ულია |
+| working tree | სუფთა (porcelain 0) |
+| commit-ები `main`-ის ზემოთ | 5 |
+| `src/main/java` | **არცერთხელ არ შეცვლილა** |
+
+```
+28c5153 test(audit): check the tamper verdict without a database
+92a9f4f test(config): cover every placeholder marker and dev password, not two of each
+fc0ce57 test(security): catch a permission that is checked but can never be false
+120054a test(security): assert every endpoint actually calls a guard, not just receives the caller
+1656b96 test(security): fail the build when an endpoint cannot authorize anyone
+```
+
+### 15.2 რა შეიცვალა ჯამში
+
+DB-free suite: **257 → 283** (+26). ხუთი ახალი build gate:
+
+| gate | ფაილი | რას კეტავს |
+|---|---|---|
+| endpoint principal | `EndpointPrincipalCoverageTest` | endpoint, რომელსაც გამომძახებელი არ გადაეცემა |
+| endpoint guard | `EndpointGuardCoverageTest` | endpoint, რომელიც principal-ს იღებს და **არ უყურებს** |
+| permission liveness | `PermissionEnforcementCoverageTest` | permission, რომელიც შემოწმებულია, მაგრამ **ვერასდროს იქნება false** (ორივე ფორმა) |
+| production safety | `ProductionSafetyGuardTest` | placeholder/dev-password სიის ჩანაწერი, რომელიც არაფერს უარყოფს |
+| audit tamper verdict | `AuditChainVerdictTest` | chain-health-ის არითმეტიკა Oracle-ის გარეშე |
+
+ყველა gate mutation probe-ით დადასტურებულია, რომ **ცარიელი არ არის**.
+
+### 15.3 რა არის დაბლოკილი და რაზე
+
+| დაბლოკილი სამუშაო | ბლოკერი |
+|---|---|
+| სრული Java/Oracle regression (257 ტესტი) | `External` — Oracle მიუწვდომელია (§5) |
+| P0-A18 Video/Access 20/20 ხელახალი დადასტურება | `External` — იგივე |
+| 30 endpoint-ის negative/IDOR ტესტი (§11.3) | `External` — ყველა negative ტესტი `@RequiresOracle`-ია |
+| EV-229-თან შედარება, `DEC-P01`/`DEC-P02` სტატუსი | დოკუმენტები ამ repo-ში არ არსებობს (§0) |
+| `DEC-P03` fix (export ownership + `V36`) | გადაწყვეტილება |
+| `DEC-P04` fix (`APP_ENV` trim) | გადაწყვეტილება |
+
+### 15.4 შემდეგი ნაბიჯები, პრიორიტეტით
+
+1. **`DEC-P03`** — `export_jobs`-ს owner სვეტი არ აქვს, `GET /api/export/download/{jobId}` მფლობელობას არ ამოწმებს და negative ტესტიც არ აქვს (§6, §11.3). ორმაგად ღიაა.
+2. **`DEC-P04`** — `APP_ENV=production ` (ბოლო ჰარისით) **ყველა production შემოწმებას გამორთავს** (§13.3).
+3. **Oracle-იანი გარემო** — მის გარეშე verdict ვერ შეიცვლება. საჭიროა ან
+   `gvenzl/oracle-xe`-ზე წვდომა (აქ egress policy კრძალავს), ან
+   Testcontainers-ის დამატება `pom.xml`-ში, ან CI-ის Oracle job-ის გაშვება.
+4. **7 enterprise-readiness დოკუმენტის commit** Windows workspace-იდან —
+   მათ გარეშე ყოველი ახალი აგენტი ამ §0-ის შეუსაბამობით იწყებს.
+5. დარჩენილი DB-free კანდიდატი: `ClientIpResolver` / `TRUSTED_PROXIES`
+   CIDR და spoofed `X-Forwarded-For` კიდურა შემთხვევები (მოკრძალებული).
+
+### 15.5 რა **არ** შეიცვალა (განზრახ)
+
+`PermissionChecker`-ის SYSTEM_ADMIN bypass · `/uploads/{filename}`-ის
+საჯაროობა (`DEC-P01`) · logout-ის null-tolerant კონტრაქტი (`DEC-P02`) ·
+export flow · retention · `isProduction()`-ის სემანტიკა (`DEC-P04`) ·
+`AuditChainService`-ის ლოგიკა · ნებისმიერი role/scope წესი.
