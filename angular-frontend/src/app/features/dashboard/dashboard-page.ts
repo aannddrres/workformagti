@@ -14,8 +14,8 @@ import { MandatoryReadingWidget } from './mandatory-reading-widget';
 import { NewsPreview } from './news-preview';
 import { RecentlyViewedStrip } from './recently-viewed-strip';
 import { buildCategoryCounts, isRecentlyPublished } from '../../shared/category-visuals';
+import { MANAGEMENT_ROLES } from '../../core/auth/roles';
 
-const MANAGEMENT_ROLES = ['admin', 'content_admin', 'manager'];
 
 /**
  * Port of page-dashboard (base-layout.html:501-739). The original is a

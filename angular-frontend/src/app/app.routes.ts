@@ -23,11 +23,12 @@ import { MessagingPage } from './features/messaging/messaging-page';
 import { authGuard } from './core/auth/auth.guard';
 import { auditLogGuard } from './core/auth/permission.guard';
 import { roleGuard } from './core/auth/role.guard';
-
-const MANAGER_ROLES = ['admin', 'manager'];
-const MANAGEMENT_ROLES = ['admin', 'content_admin', 'manager'];
-const ADMIN_OR_CONTENT_ADMIN = ['admin', 'content_admin'];
-const ADMIN_ONLY = ['admin'];
+import {
+  ADMIN_ONLY,
+  ADMIN_OR_CONTENT_ADMIN,
+  MANAGEMENT_ROLES,
+  MANAGER_ROLES
+} from './core/auth/roles';
 
 export const routes: Routes = [
   { path: 'login', component: Login },

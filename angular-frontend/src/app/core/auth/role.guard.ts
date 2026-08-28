@@ -18,7 +18,10 @@ import { AuthService } from './auth.service';
  * beyond the JWT's `role` claim, which belongs with the Audit domain's
  * actual page build in Phase 3c, not this generic shell-level guard.
  */
-export function roleGuard(allowRoles?: string[], denyRoles?: string[]): CanActivateFn {
+export function roleGuard(
+  allowRoles?: readonly string[],
+  denyRoles?: readonly string[]
+): CanActivateFn {
   return () => {
     const auth = inject(AuthService);
     const router = inject(Router);

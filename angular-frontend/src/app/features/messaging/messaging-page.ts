@@ -8,11 +8,10 @@ import { formatKaDateTime } from '../../shared/ka-date';
 import { ComposeMessageModal } from './compose-message-modal/compose-message-modal';
 import { BroadcastModal } from './broadcast-modal/broadcast-modal';
 import { ToastService } from '../../core/notifications/toast.service';
+import { ADMIN_OR_CONTENT_ADMIN, MANAGER_ROLES } from '../../core/auth/roles';
 
 type Tab = 'inbox' | 'sent';
 
-const MANAGER_ROLES = ['admin', 'manager'];
-const ADMIN_OR_CONTENT_ADMIN = ['admin', 'content_admin'];
 
 /**
  * Port of routers/messaging.py's 6 durable endpoints -- one page, Inbox/Sent
