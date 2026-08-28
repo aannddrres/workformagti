@@ -4,6 +4,10 @@ __pycache__/
 *.pyc
 *.bak
 *.png
+# ...but the two app logos are real source assets, referenced by
+# angular-frontend/src/app/shared/logo/logo.ts. The blanket rule above was
+# hiding them from git status entirely, so a fresh clone rendered no logo.
+!angular-frontend/public/*.png
 uploads/
 backups/
 archives/
@@ -29,3 +33,11 @@ src/data/news/news_data.json
 # Real JWTs from fetch_tokens.sh -- never commit live tokens even for a
 # dev-only test instance.
 scripts/load/tokens.json
+
+# Local-only presentation stack credentials and generated verification reports.
+.presentation.env
+.presentation-artifacts/
+
+# Generated knowledge-graph output (graphify skill): 18 MB of AST caches and
+# a rebuilt graph.json/graph.html. Regenerated from the source tree on demand.
+graphify-out/

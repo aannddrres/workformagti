@@ -9,6 +9,12 @@ server {
     server_name _;
     root /usr/share/nginx/html;
 
+    add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src https://www.youtube.com https://www.youtube-nocookie.com" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+
     # Angular SPA: unknown paths fall back to index.html so client-side
     # routing (Angular Router) handles them, matching how the dev server
     # and Python's original server-rendered base-layout.html both avoid a
@@ -28,5 +34,10 @@ server {
     location /uploads/ {
         proxy_pass http://${BACKEND_HOST}:${BACKEND_PORT}/uploads/;
         proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_no_cache 1;
+        proxy_cache_bypass 1;
     }
 }
