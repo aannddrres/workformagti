@@ -164,6 +164,17 @@ public class CategoryController {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
                     "detail", "კატეგორია გამოიყენება — ჯერ ყველა მასალა სხვა კატეგორიაში გადაიტანეთ"));
         }
+        // Same dangling-reference guard as the article check above, for the other
+        // thing that points at a category: its own subcategories. Without this a
+        // parent could be deactivated while its children stayed active, still
+        // carrying parent_id -- and since the category list is active-only, the
+        // UI then renders those children as orphans pointing at a parent it
+        // cannot find. Nothing is corrupted (the parent row survives, soft
+        // deleted) but the tree is inconsistent until someone reactivates it.
+        if (categoryRepository.countByParentIdAndActiveTrue(id) > 0) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                    "detail", "კატეგორიას ქვეკატეგორიები აქვს — ჯერ ისინი წაშალეთ ან სხვა კატეგორიას დაუქვემდებარეთ"));
+        }
 
         Category category = found.get();
         Map<String, Object> before = MutationAuditService.categorySnapshot(category);

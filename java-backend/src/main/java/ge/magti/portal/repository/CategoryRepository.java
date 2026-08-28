@@ -42,4 +42,11 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     /** Active category routes must be unambiguous; inactive rows do not appear in the public category list. */
     Optional<Category> findFirstBySlugIgnoreCaseAndActiveTrue(String slug);
+
+    /**
+     * Subcategory guard for delete. Counts only ACTIVE children: an already
+     * soft-deleted child is invisible everywhere the parent is, so it cannot
+     * be left dangling by removing the parent.
+     */
+    long countByParentIdAndActiveTrue(Long parentId);
 }

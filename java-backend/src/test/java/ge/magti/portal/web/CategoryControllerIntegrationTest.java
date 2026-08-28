@@ -256,6 +256,38 @@ class CategoryControllerIntegrationTest {
     }
 
     /**
+     * Found by an AI-browser QA pass (2026-08-28). Deleting a parent used to
+     * return 204 and deactivate it while its children stayed active, still
+     * carrying parent_id. The category list is active-only, so the UI then
+     * showed those children as orphans pointing at a parent it could not
+     * find. The article guard above already prevented exactly this shape of
+     * dangling reference; subcategories were simply not covered by it.
+     */
+    @Test
+    void deletingAParentCategoryIsBlockedWhileItStillHasSubcategories() throws Exception {
+        User admin = createUser("ca6@magti.ge", Role.CONTENT_ADMIN);
+        Category parent = createCategory("მშობელი კატეგორია");
+        Category child = createCategory("შვილი კატეგორია");
+        child.setParentId(parent.getId());
+        categoryRepository.saveAndFlush(child);
+
+        mockMvc.perform(authed(delete("/api/categories/" + parent.getId()), tokenFor(admin)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(
+                        "კატეგორიას ქვეკატეგორიები აქვს — ჯერ ისინი წაშალეთ ან სხვა კატეგორიას დაუქვემდებარეთ"));
+
+        assertTrue(categoryRepository.findById(parent.getId()).orElseThrow().isActive());
+
+        // Once the child is gone the parent deletes normally -- the guard
+        // blocks the dangling state, it does not make parents undeletable.
+        mockMvc.perform(authed(delete("/api/categories/" + child.getId()), tokenFor(admin)))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(authed(delete("/api/categories/" + parent.getId()), tokenFor(admin)))
+                .andExpect(status().isNoContent());
+        assertTrue(!categoryRepository.findById(parent.getId()).orElseThrow().isActive());
+    }
+
+    /**
      * Bug found running the full suite (2026-08-12): this dev Oracle schema
      * already has a real "ზოგადი" category left over from earlier manual
      * browser verification of the Categories admin UI -- categories.name
