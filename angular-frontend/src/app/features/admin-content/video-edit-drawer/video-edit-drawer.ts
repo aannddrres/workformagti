@@ -8,6 +8,7 @@ import { VideoInstruction, VideoInstructionRequest } from '../../../core/models/
 import { Category } from '../../../core/models/category';
 import { DEPARTMENTS } from '../../../shared/user-roles';
 import { ToastService } from '../../../core/notifications/toast.service';
+import { PortalDialog } from '../../../shared/portal-dialog/portal-dialog';
 
 /**
  * Port of the video slide-out drawer -- base-layout.html:2015-2088
@@ -22,7 +23,7 @@ import { ToastService } from '../../../core/notifications/toast.service';
 @Component({
   selector: 'app-video-edit-drawer',
   standalone: true,
-  imports: [TranslatePipe],
+  imports: [TranslatePipe, PortalDialog],
   templateUrl: './video-edit-drawer.html'
 })
 export class VideoEditDrawer {
@@ -51,6 +52,7 @@ export class VideoEditDrawer {
 
   protected readonly uploading = signal(false);
   protected readonly saving = signal(false);
+  protected readonly dirty = signal(false);
   protected readonly saveError = signal<string | null>(null);
   protected readonly dueDateError = signal(false);
   /** FE-04: an empty dropdown must not be indistinguishable from a failed load. */
@@ -85,6 +87,7 @@ export class VideoEditDrawer {
   }
 
   private resetForCreate(): void {
+    this.dirty.set(false);
     this.title.set('');
     this.videoUrl.set('');
     this.category.set('');
@@ -130,6 +133,7 @@ export class VideoEditDrawer {
     this.videoUrl.set(video.video_url);
     this.category.set(video.category ?? '');
     this.targetDepartment.set(video.target_department);
+    this.dirty.set(false);
   }
 
   protected onFileInputChange(event: Event): void {
@@ -140,6 +144,7 @@ export class VideoEditDrawer {
         next: (result) => {
           this.videoUrl.set(result.url);
           this.uploading.set(false);
+          this.dirty.set(true);
         },
         error: () => {
           this.uploading.set(false);
@@ -151,7 +156,14 @@ export class VideoEditDrawer {
   }
 
   protected close(): void {
+    if (this.dirty() && !window.confirm('შეუნახავი ცვლილებები დაიკარგება. გსურთ დახურვა?')) {
+      return;
+    }
     this.closed.emit();
+  }
+
+  protected markDirty(): void {
+    this.dirty.set(true);
   }
 
   protected submit(event: Event): void {
@@ -172,17 +184,20 @@ export class VideoEditDrawer {
 
     this.saving.set(true);
     this.saveError.set(null);
+    const dueIso = this.isMandatory() && this.dueDate() ? new Date(this.dueDate()).toISOString() : null;
+    const command = {
+      video: payload,
+      mandatory: this.isMandatory(),
+      due_date: dueIso,
+      target_department: this.targetDepartment()
+    };
     const id = this.videoId();
-    const request = id != null ? this.videosService.update(id, payload) : this.videosService.create(payload);
+    const request = id != null
+      ? this.videosService.updateCommand(id, command)
+      : this.videosService.createCommand(command);
 
     request.subscribe({
-      next: async (video) => {
-        const dueIso = this.isMandatory() && this.dueDate() ? new Date(this.dueDate()).toISOString() : null;
-        try {
-          await this.requiredReadingService.sync('video', video.id, this.targetDepartment(), this.isMandatory(), dueIso);
-        } catch {
-          /* non-fatal -- video itself saved successfully */
-        }
+      next: () => {
         this.saving.set(false);
         this.saved.emit();
       },

@@ -1,6 +1,5 @@
 package ge.magti.portal.news;
 
-import ge.magti.portal.domain.News;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.util.DepartmentGroup;
 import ge.magti.portal.util.DepartmentMatcher;
@@ -27,7 +26,20 @@ import java.util.List;
 public class NewsQueryService {
 
     private static final String LIST_JPQL = """
-            SELECT n FROM News n
+            SELECT new ge.magti.portal.news.NewsListItem(
+              n.id,
+              n.title,
+              n.targetDepartment,
+              n.attachmentUrl,
+              n.createdAt,
+              n.version,
+              n.visibleToTechInfo,
+              n.visibleToServiceCenter,
+              n.expiresAt,
+              n.isDraft,
+              n.authorId
+            )
+            FROM News n
             WHERE (n.isDraft = false OR n.authorId = :userId)
               AND (
                     :isAdmin = true
@@ -45,18 +57,19 @@ public class NewsQueryService {
     @PersistenceContext
     private EntityManager entityManager;
 
-    public List<News> listVisible(User user, int skip, int limit) {
+    public List<NewsListItem> listVisible(User user, int skip, int limit) {
         DepartmentGroup group = DepartmentMatcher.splitGroup(user.getDepartment());
         List<String> depts = List.of(user.getDepartment(), group.prefix(), "All");
 
-        TypedQuery<News> query = entityManager.createQuery(LIST_JPQL, News.class);
+        TypedQuery<NewsListItem> query = entityManager.createQuery(LIST_JPQL, NewsListItem.class);
         query.setParameter("userId", user.getId());
         query.setParameter("isAdmin", user.getRole().isContentAdmin());
         query.setParameter("depts", depts);
         query.setParameter("now", TbilisiTime.now());
         query.setParameter("userDept", user.getDepartment());
-        // No clamping, matching Python exactly -- get_news' skip/limit params
-        // have no ge=0/le=N constraint either.
+        // The HTTP boundary rejects invalid/unbounded cardinality before this
+        // query is reached. Keeping the values explicit here preserves the
+        // legacy arbitrary-offset behavior used by the Angular load-more UI.
         query.setFirstResult(skip);
         query.setMaxResults(limit);
         return query.getResultList();

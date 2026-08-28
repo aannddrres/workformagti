@@ -78,7 +78,7 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
-    void validCookieTokenPopulatesSecurityContextWhenNoHeader() throws Exception {
+    void cookieTokenWithoutSessionIdIsRejected() throws Exception {
         String token = jwtService.createAccessToken(Map.of("sub", "manager@magti.ge"));
         User user = activeUser("manager@magti.ge", Role.MANAGER);
         when(userRepository.findByEmail("manager@magti.ge")).thenReturn(Optional.of(user));
@@ -91,8 +91,7 @@ class JwtAuthenticationFilterTest {
 
         filter.doFilter(request, response, chain);
 
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        assertEquals(user, auth.getPrincipal());
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
         verify(chain).doFilter(request, response);
     }
 

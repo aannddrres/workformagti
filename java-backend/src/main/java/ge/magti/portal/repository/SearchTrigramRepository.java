@@ -1,6 +1,7 @@
 package ge.magti.portal.repository;
 
 import ge.magti.portal.domain.SearchTrigram;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -40,7 +41,9 @@ public interface SearchTrigramRepository extends JpaRepository<SearchTrigram, Lo
     @Query("SELECT st.entityId FROM SearchTrigram st "
             + "WHERE st.entityType = :entityType AND st.trigram IN :trigrams "
             + "GROUP BY st.entityId "
-            + "HAVING COUNT(DISTINCT st.trigram) = :trigramCount")
+            + "HAVING COUNT(DISTINCT st.trigram) = :trigramCount "
+            + "ORDER BY st.entityId DESC")
     List<Long> findCandidateEntityIds(@Param("entityType") String entityType,
-            @Param("trigrams") Collection<String> trigrams, @Param("trigramCount") long trigramCount);
+            @Param("trigrams") Collection<String> trigrams, @Param("trigramCount") long trigramCount,
+            Pageable pageable);
 }

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { apiLogin, createArticle, createTestOperator, firstCategoryId, loginAsUi, runId } from './helpers';
+import { apiLogin, createArticle, firstCategoryId, runId, seedTokenIntoPage } from './helpers';
 
 /**
  * Confirms department-scoped visibility actually holds in the UI, not just
@@ -21,18 +21,22 @@ test('operators in different departments see different mandatory-reading content
   await createArticle(request, adminToken, { title: infoTitle, categoryId, targetDepartments: ['საინფორმაციო'] });
   await createArticle(request, adminToken, { title: techTitle, categoryId, targetDepartments: ['ტექნიკური'] });
 
-  const infoEmail = `test_operator_dept_info_${id}@magti.ge`;
-  const techEmail = `test_operator_dept_tech_${id}@magti.ge`;
-  await createTestOperator(request, adminToken, infoEmail, 'E2E Info Operator', 'საინფორმაციო');
-  await createTestOperator(request, adminToken, techEmail, 'E2E Tech Operator', 'ტექნიკური');
+  // Identity and department ownership come from the seeded directory
+  // personas; the portal must not manufacture local users for a test.
+  const infoToken = await apiLogin(request, 'info@magti.ge');
+  const techToken = await apiLogin(request, 'tech@magti.ge');
 
-  await loginAsUi(page, infoEmail);
-  await page.goto('/info');
+  await seedTokenIntoPage(page, infoToken);
+  // The shared local Oracle retains older E2E fixtures and the knowledge
+  // base deliberately renders only the first 40 title-sorted cards. Search
+  // by this run's common id so the assertion tests department visibility,
+  // not whether the new rows happen to sort above accumulated fixtures.
+  await page.goto(`/info?q=${encodeURIComponent(id)}`);
   await expect(page.getByText(infoTitle)).toBeVisible();
   await expect(page.getByText(techTitle)).not.toBeVisible();
 
-  await loginAsUi(page, techEmail);
-  await page.goto('/info');
+  await seedTokenIntoPage(page, techToken);
+  await page.goto(`/info?q=${encodeURIComponent(id)}`);
   await expect(page.getByText(techTitle)).toBeVisible();
   await expect(page.getByText(infoTitle)).not.toBeVisible();
 });

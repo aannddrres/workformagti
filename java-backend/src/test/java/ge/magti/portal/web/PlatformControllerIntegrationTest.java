@@ -194,8 +194,9 @@ class PlatformControllerIntegrationTest {
     }
 
     @Test
-    void notificationsSummaryCountsUnreadReminders() throws Exception {
+    void notificationsSummaryCountsUnreadRemindersOnlyForTheCaller() throws Exception {
         User operator = createUser("plat-op4@magti.ge", Role.OPERATOR, "All");
+        User otherOperator = createUser("plat-op4-other@magti.ge", Role.OPERATOR, "All");
         Reminder unread = reminder(operator, "წაუკითხავი შეხსენება");
         unread.setCreatedAt(TbilisiTime.now());
         reminderRepository.saveAndFlush(unread);
@@ -208,6 +209,9 @@ class PlatformControllerIntegrationTest {
         mockMvc.perform(authed(get("/api/notifications/summary"), tokenFor(operator)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.unread_reminders_count").value(1));
+        mockMvc.perform(authed(get("/api/notifications/summary"), tokenFor(otherOperator)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread_reminders_count").value(0));
     }
 
     private Reminder reminder(User recipient, String content) {

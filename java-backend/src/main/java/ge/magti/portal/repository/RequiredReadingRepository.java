@@ -32,23 +32,22 @@ public interface RequiredReadingRepository extends JpaRepository<RequiredReading
      */
     List<RequiredReading> findByItemTypeAndItemId(String itemType, Long itemId);
 
-    /** Mirrors create_article_read_receipt's compliance-bridge lookup (routers/articles.py:1210-1216) -- prefix-aware (caller passes [dept, deptPrefix, "All"]), unlike EligibleOperatorsService's exact-match rule. */
-    List<RequiredReading> findByItemTypeAndItemIdAndTargetDepartmentIn(String itemType, Long itemId, List<String> targetDepartments);
+    /**
+     * Mirrors create_article_read_receipt's compliance-bridge lookup
+     * (routers/articles.py:1210-1216) -- prefix-aware (caller passes [dept,
+     * deptPrefix, "All"]), unlike EligibleOperatorsService's exact-match
+     * rule. V6 has no item/target uniqueness constraint, so the caller uses
+     * a 1,001-row sentinel page and fails loudly rather than hydrating an
+     * unbounded relation or silently skipping matching readings.
+     */
+    List<RequiredReading> findByItemTypeAndItemIdAndTargetDepartmentIn(
+            String itemType, Long itemId, List<String> targetDepartments, Pageable pageable);
 
     /** get_required_reading_for_item's by-item lookup (routers/compliance.py:331-334). Distinct from findFirstBy... only in name/intent; both return the first row. */
     Optional<RequiredReading> findFirstByItemTypeAndItemIdOrderByIdAsc(String itemType, Long itemId);
 
     /** Mirrors get_my_readings' visibility filter (routers/compliance.py:49-51) -- caller passes [dept, deptPrefix, "All"]. */
-    List<RequiredReading> findByTargetDepartmentIn(List<String> targetDepartments);
-
-    /**
-     * Grouped count of every required reading by its target_department --
-     * the {@code readings_by_dept} map compute_compliance builds
-     * (routers/stats.py:314-321). Object[] = {targetDepartment (String),
-     * count (Long)}.
-     */
-    @Query("SELECT rr.targetDepartment, COUNT(rr.id) FROM RequiredReading rr GROUP BY rr.targetDepartment")
-    List<Object[]> countGroupedByTargetDepartment();
+    List<RequiredReading> findByTargetDepartmentIn(List<String> targetDepartments, Pageable pageable);
 
     /**
      * Mirrors get_compliance_statistics' top-5-most-read-articles query
@@ -57,8 +56,7 @@ public interface RequiredReadingRepository extends JpaRepository<RequiredReading
      * articles that actually have at least one target-department row
      * (Article.target_department_rows.any()) -- articles with none would
      * fail ArticleResponse validation downstream, so they're excluded here
-     * rather than crashing the endpoint. Theta-join across three entities,
-     * same idiom as {@link ReadStatusRepository#readCountsByUserAndDepartment}.
+     * rather than crashing the endpoint. Theta-join across three entities.
      * Object[] = {articleId (Long), readCount (Long)}, caller applies the limit
      * via {@code pageable}.
      */

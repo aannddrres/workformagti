@@ -40,9 +40,9 @@ describe('effective-access route boundaries', () => {
         path: 'admin',
         canActivate: child('admin').canActivate,
         children: [
-          { path: 'content', component: StubPage },
-          { path: 'trash', component: StubPage },
-          { path: 'categories', component: StubPage },
+          { path: 'content', component: StubPage, canActivate: adminChild('content').canActivate },
+          { path: 'trash', component: StubPage, canActivate: adminChild('trash').canActivate },
+          { path: 'categories', component: StubPage, canActivate: adminChild('categories').canActivate },
           { path: 'overview', component: StubPage, canActivate: adminChild('overview').canActivate },
           { path: 'access', component: StubPage, canActivate: adminChild('access').canActivate },
           { path: 'org', component: StubPage, canActivate: adminChild('org').canActivate },
@@ -103,6 +103,18 @@ describe('effective-access route boundaries', () => {
 
     await harness.navigateByUrl('/admin/overview');
     expect(currentUrl()).toBe('/admin/overview');
+  });
+
+  it('opens aggregate overview from stats.view without widening content routes', async () => {
+    const harness = await harnessFor('operator', {
+      role: 'operator', permissions: ['stats.view'], bypass: false, can_publish_announcement: false
+    });
+
+    await harness.navigateByUrl('/admin/overview');
+    expect(currentUrl()).toBe('/admin/overview');
+
+    await harness.navigateByUrl('/admin/content');
+    expect(currentUrl()).toBe('/');
   });
 
   it('closes admin content for an operator without the effective permission', async () => {

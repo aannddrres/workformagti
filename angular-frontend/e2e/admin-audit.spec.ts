@@ -60,7 +60,9 @@ test.describe('audit log', () => {
     await seedTokenIntoPage(page, token);
     await page.goto('/admin/audit');
 
-    const archiveRows = page.locator('tr', { hasText: 'ARCHIVE' });
+    // The UI deliberately localises action names, while preserving the raw
+    // action code in the badge title for exact filtering and automation.
+    const archiveRows = page.locator('tr', { has: page.locator('span[title="ARCHIVE"]') });
     await expect(archiveRows.first()).toBeVisible();
 
     // --- the pager ---------------------------------------------------------
@@ -115,7 +117,7 @@ test.describe('audit log', () => {
       search.fill('action:ARCHIVE')
     ]);
     expect(filtered.status(), 'the filtered query must reach the server').toBe(200);
-    await expect(page.locator('tbody tr', { hasText: 'LOGIN' })).toHaveCount(0);
+    await expect(page.locator('tbody tr', { has: page.locator('span[title="LOGIN"]') })).toHaveCount(0);
     await expect(archiveRows.first()).toBeVisible();
 
     await search.fill('');
@@ -178,13 +180,13 @@ test.describe('audit log', () => {
     await seedTokenIntoPage(page, token);
     await page.goto('/admin/audit');
 
-    const row = page.locator('tr', { hasText: 'ARCHIVE' }).first();
+    const row = page.locator('tr', { has: page.locator('span[title="ARCHIVE"]') }).first();
     await expect(row).toBeVisible();
 
     // --- open by clicking the row, close with the X ------------------------
     await row.click();
     await expect(page.getByText('ლოგის დეტალები')).toBeVisible();
-    await page.locator('button:has(.fa-xmark)').click();
+    await page.getByRole('button', { name: 'დეტალების დახურვა' }).click();
     await expect(page.getByText('ლოგის დეტალები')).toBeHidden();
 
     // --- the shield icon opens the drawer AND verifies in one click --------

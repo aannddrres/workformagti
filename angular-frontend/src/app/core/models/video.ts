@@ -19,3 +19,10 @@ export interface VideoInstructionRequest {
   target_department: string;
   tags: string | null;
 }
+
+export interface VideoCommandRequest {
+  video: VideoInstructionRequest;
+  mandatory: boolean;
+  due_date: string | null;
+  target_department: string;
+}

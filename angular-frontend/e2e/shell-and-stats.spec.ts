@@ -29,7 +29,7 @@ async function createVideo(
 }
 
 test.describe('the shell', () => {
-  test('language toggle switches the whole page and survives a navigation', async ({
+  test('Georgian-only shell keeps the selected accessible font size across navigation', async ({
     page,
     request
   }) => {
@@ -38,39 +38,20 @@ test.describe('the shell', () => {
     await seedTokenIntoPage(page, token);
     await page.goto('/');
 
-    // The button's own label is the state: it names the language it will
-    // switch TO, so it reads EN while Georgian is active.
-    const toggle = page.getByRole('button', { name: 'EN', exact: true });
-    await expect(toggle).toBeVisible();
+    await expect(page.getByRole('button', { name: 'EN', exact: true })).toHaveCount(0);
+    const fontMenu = page.getByRole('button', { name: 'შრიფტის ზომა' });
+    await fontMenu.click();
+    await page.getByRole('button', { name: '130%', exact: true }).click();
+    await expect(fontMenu).toContainText('130%');
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset['fontScale'])).toBe('130');
 
-    // Asserted on real page text, not on the button alone -- a toggle that
-    // flips its own label and translates nothing would pass that.
-    await expect(page.getByRole('button', { name: 'სისტემიდან გასვლა' })).toBeVisible();
-
-    await toggle.click();
-    await expect(page.getByRole('button', { name: 'KA', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'სისტემიდან გასვლა' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Log out' })).toBeVisible();
-
-    // Navigated IN-APP, by the sidebar link, not with page.goto.
-    //
-    // The distinction is the product's actual behaviour, found here: nothing
-    // persists the choice. app.config.ts:20 bootstraps the app at `lang: 'ka'`
-    // and toggleLanguage only calls translate.use(), so the selection lives in
-    // memory for the lifetime of the page. Client-side routing keeps it; a
-    // browser refresh resets it to Georgian.
-    //
-    // Worth knowing rather than worth failing over: Georgian is the primary
-    // and only reviewed language (app.config.ts:12), so an English-preferring
-    // operator re-picking EN after a refresh is a small cost, not a broken
-    // feature. The test asserts what the app does, and this comment records
-    // what it does not.
-    await page.getByRole('link', { name: 'News' }).click();
+    await page.getByRole('link', { name: 'სიახლეები' }).click();
     await expect(page).toHaveURL(/\/news$/);
-    await expect(page.getByRole('button', { name: 'KA', exact: true })).toBeVisible();
-
-    await page.getByRole('button', { name: 'KA', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'სისტემიდან გასვლა' })).toBeVisible();
+    await expect(fontMenu).toContainText('130%');
+    await page.reload();
+    await expect(fontMenu).toContainText('130%');
+    await fontMenu.click();
+    await page.getByRole('button', { name: '100%', exact: true }).click();
   });
 
   test('the mobile menu opens, closes from its backdrop, and is not there on a desktop', async ({
@@ -86,10 +67,10 @@ test.describe('the shell', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
 
-    const menuToggle = page.getByRole('button', { name: 'მენიუს გახსნა/დახურვა' });
+    const menuToggle = page.getByRole('button', { name: 'მენიუს გახსნა' });
     await expect(menuToggle).toBeVisible();
 
-    const backdrop = page.locator('div.fixed.inset-0.z-30');
+    const backdrop = page.getByRole('button', { name: 'მენიუს დახურვა' });
     await expect(backdrop).toHaveCount(0);
 
     await menuToggle.click();
@@ -127,6 +108,7 @@ test.describe('the shell', () => {
     await seedTokenIntoPage(page, token);
     await page.goto('/');
 
+    await page.getByRole('button', { name: 'ანგარიშის მენიუ' }).click();
     const [loggedOut] = await Promise.all([
       page.waitForResponse((r) => r.url().includes('/api/auth/logout')),
       page.getByRole('button', { name: 'სისტემიდან გასვლა' }).click()
@@ -157,13 +139,13 @@ test.describe('admin dashboard and videos', () => {
     test.setTimeout(120_000);
     const token = await apiLogin(request, 'admin@magti.ge');
     await seedTokenIntoPage(page, token);
-    await page.goto('/admin/main');
-    await expect(page.getByRole('heading', { name: 'მთავარი პანელი' })).toBeVisible();
+    await page.goto('/admin/overview');
+    await expect(page.getByRole('heading', { name: 'სისტემის მიმოხილვა' })).toBeVisible();
 
     // --- refresh -----------------------------------------------------------
     const [refreshed] = await Promise.all([
       page.waitForResponse((r) => r.url().includes('/api/statistics/')),
-      page.getByRole('button', { name: 'განახლება' }).click()
+      page.getByRole('button', { name: 'მონაცემების განახლება' }).click()
     ]);
     expect(refreshed.status()).toBe(200);
 
@@ -171,7 +153,7 @@ test.describe('admin dashboard and videos', () => {
     // Told apart by their options rather than by position: there are several
     // selects on this page and none of them carry a label element.
     const deptSelect = page.locator('select').filter({ hasText: 'ყველა დეპარტამენტი' });
-    const sortSelect = page.locator('select').filter({ hasText: 'დალაგება: სახელის მიხედვით' });
+    const sortSelect = page.locator('select').filter({ hasText: 'შესრულება: მაღალი' });
     await expect(deptSelect).toBeVisible();
     await expect(sortSelect).toBeVisible();
 

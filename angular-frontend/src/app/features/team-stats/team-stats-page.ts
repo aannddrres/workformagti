@@ -5,9 +5,10 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { Observable } from 'rxjs';
 import { StatsService } from '../../core/services/stats.service';
 import { ExportPollTimeoutError, ExportService } from '../../core/services/export.service';
-import { CriticalOperator, DepartmentDashboard, DepartmentGroupStats, DepartmentStats, GroupMemberCompletion } from '../../core/models/stats';
+import { CriticalOperator, DepartmentDashboard, DepartmentGroupStats, DepartmentStats, GroupMemberCompletion, LeadershipOption } from '../../core/models/stats';
 import { ExportJobResponse } from '../../core/models/export';
 import { ReminderService } from '../../core/services/reminder.service';
+import { PortalDialog } from '../../shared/portal-dialog/portal-dialog';
 
 type SortMode = 'name' | 'compliance';
 type Tier = { bar: string; text: string };
@@ -43,7 +44,7 @@ type ExportKind = 'xlsx' | 'pdf' | 'team_stats_pdf';
 @Component({
   selector: 'app-team-stats-page',
   standalone: true,
-  imports: [TranslatePipe],
+  imports: [TranslatePipe, PortalDialog],
   templateUrl: './team-stats-page.html'
 })
 export class TeamStatsPage {
@@ -57,6 +58,9 @@ export class TeamStatsPage {
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly sortMode = signal<SortMode>('name');
+  protected readonly leadershipGroups = signal<LeadershipOption[]>([]);
+  protected readonly selectedTeamId = signal<number | null>(null);
+  protected readonly canExportPrimary = signal(false);
 
   protected readonly criticalModalOpen = signal(false);
   protected readonly criticalLoading = signal(false);
@@ -78,13 +82,21 @@ export class TeamStatsPage {
   protected readonly asyncExportError = signal<string | null>(null);
 
   constructor() {
-    this.load();
+    this.statsService.leadershipOptions().subscribe({
+      next: (response) => {
+        this.leadershipGroups.set(response.groups);
+        this.selectedTeamId.set(response.defaultTeamId);
+        this.canExportPrimary.set(response.canExportPrimary);
+        this.load();
+      },
+      error: () => this.load()
+    });
   }
 
   private load(): void {
     this.loading.set(true);
     this.errorMessage.set(null);
-    this.statsService.departmentDashboard().subscribe({
+    this.statsService.departmentDashboard(this.selectedTeamId()).subscribe({
       next: (data) => {
         this.dashboard.set(data);
         this.loading.set(false);
@@ -94,6 +106,13 @@ export class TeamStatsPage {
         this.loading.set(false);
       }
     });
+  }
+
+  selectTeam(value: string): void {
+    const teamId = Number(value);
+    if (!Number.isFinite(teamId) || teamId === this.selectedTeamId()) return;
+    this.selectedTeamId.set(teamId);
+    this.load();
   }
 
   refresh(): void {
@@ -148,7 +167,7 @@ export class TeamStatsPage {
     this.criticalModalOpen.set(true);
     this.criticalLoading.set(true);
     this.criticalError.set(false);
-    this.statsService.criticalOperators().subscribe({
+    this.statsService.criticalOperators(this.selectedTeamId()).subscribe({
       next: (data) => {
         this.criticalOperators.set(data.operators);
         this.criticalTotal.set(data.total);

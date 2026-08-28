@@ -1,5 +1,7 @@
 package ge.magti.portal.web;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.Department;
@@ -46,6 +48,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Transactional
 class OrgAdminControllerIntegrationTest {
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Autowired
     private MockMvc mockMvc;
@@ -189,8 +193,29 @@ class OrgAdminControllerIntegrationTest {
                 .filter(row -> "leadership_assignment".equals(row.getItemType()))
                 .filter(row -> assignmentId == row.getItemId())
                 .toList();
-        assertEquals(List.of("CREATE_LEADERSHIP_ASSIGNMENT", "DEACTIVATE_LEADERSHIP_ASSIGNMENT"),
-                auditRows.stream().map(AuditLog::getAction).toList());
+        assertTrue(auditRows.stream().map(AuditLog::getAction).toList().containsAll(
+                List.of("CREATE_LEADERSHIP_ASSIGNMENT", "DEACTIVATE_LEADERSHIP_ASSIGNMENT")));
         assertTrue(auditRows.stream().allMatch(row -> admin.getId().equals(row.getAdminId())));
+        assertTrue(auditRows.stream().allMatch(row -> admin.getName().equals(row.getAdminNameSnapshot())));
+        assertTrue(auditRows.stream().allMatch(row -> row.getItemNameSnapshot().contains(leader.getName())));
+
+        AuditLog createdRow = auditRows.stream()
+                .filter(row -> "CREATE_LEADERSHIP_ASSIGNMENT".equals(row.getAction()))
+                .findFirst().orElseThrow();
+        JsonNode created = objectMapper.readTree(createdRow.getDetails());
+        assertEquals(1, created.path("schema_version").asInt());
+        assertEquals("SUCCESS", created.path("result").asText());
+        assertTrue(created.path("before").isNull());
+        assertTrue(created.path("after").path("active").asBoolean());
+        assertEquals("ACTING", created.path("after").path("assignment_type").asText());
+        assertEquals(team.getId(), created.path("after").path("team_id").asLong());
+
+        AuditLog deactivatedRow = auditRows.stream()
+                .filter(row -> "DEACTIVATE_LEADERSHIP_ASSIGNMENT".equals(row.getAction()))
+                .findFirst().orElseThrow();
+        JsonNode deactivated = objectMapper.readTree(deactivatedRow.getDetails());
+        assertTrue(deactivated.path("before").path("active").asBoolean());
+        assertFalse(deactivated.path("after").path("active").asBoolean());
+        assertFalse(deactivated.path("after").path("ended_at").isNull());
     }
 }

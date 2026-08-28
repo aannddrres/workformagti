@@ -16,8 +16,6 @@ public interface ReminderRepository extends JpaRepository<Reminder, Long> {
 
     Page<Reminder> findByRecipientUserIdOrderByCreatedAtDesc(Long recipientUserId, Pageable pageable);
 
-    List<Reminder> findByRecipientUserIdOrderByCreatedAtDesc(Long recipientUserId);
-
     Optional<Reminder> findByIdAndRecipientUserId(Long id, Long recipientUserId);
 
     long countByRecipientUserIdAndReadAtIsNull(Long recipientUserId);
@@ -26,7 +24,7 @@ public interface ReminderRepository extends JpaRepository<Reminder, Long> {
             Long requiredReadingId, Long recipientUserId, ReminderType type);
 
     List<Reminder> findByRequiredReadingIdAndTypeOrderByIdAsc(
-            Long requiredReadingId, ReminderType type);
+            Long requiredReadingId, ReminderType type, Pageable pageable);
 
     Optional<Reminder> findFirstByRecipientUserIdAndTypeOrderByCreatedAtDesc(
             Long recipientUserId, ReminderType type);
@@ -51,7 +49,8 @@ public interface ReminderRepository extends JpaRepository<Reminder, Long> {
             @Param("seedType") ReminderType seedType,
             @Param("deliveryType") ReminderType deliveryType,
             @Param("after") OffsetDateTime after,
-            @Param("through") OffsetDateTime through);
+            @Param("through") OffsetDateTime through,
+            Pageable pageable);
 
     @Query("SELECT DISTINCT rr.id FROM RequiredReading rr, Reminder seed "
             + "WHERE seed.requiredReadingId = rr.id AND seed.type = :seedType "
@@ -66,5 +65,6 @@ public interface ReminderRepository extends JpaRepository<Reminder, Long> {
     List<Long> findPendingOverdueReadingIds(
             @Param("seedType") ReminderType seedType,
             @Param("deliveryType") ReminderType deliveryType,
-            @Param("through") OffsetDateTime through);
+            @Param("through") OffsetDateTime through,
+            Pageable pageable);
 }

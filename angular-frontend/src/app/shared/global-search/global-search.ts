@@ -19,6 +19,7 @@ import { detailRouteFor, iconForContentType } from '../content-type-visuals';
 import { CategoriesService } from '../../core/services/categories.service';
 import { Category } from '../../core/models/category';
 import { categoryPath } from '../category-tree';
+import { PortalDialog } from '../portal-dialog/portal-dialog';
 
 /**
  * Command-palette search, reachable from anywhere with Ctrl/⌘+K.
@@ -46,7 +47,7 @@ import { categoryPath } from '../category-tree';
 @Component({
   selector: 'app-global-search',
   standalone: true,
-  imports: [TranslatePipe],
+  imports: [TranslatePipe, PortalDialog],
   templateUrl: './global-search.html',
   host: {
     '(document:keydown)': 'onDocumentKeydown($event)',

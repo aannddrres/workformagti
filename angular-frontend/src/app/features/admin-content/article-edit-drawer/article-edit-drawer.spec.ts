@@ -38,8 +38,8 @@ describe('ArticleEditDrawer due-date validation', () => {
     const component = fixture.componentInstance as any;
 
     const articlesService = TestBed.inject(ArticlesService);
-    const createSpy = vi.spyOn(articlesService, 'create');
-    const updateSpy = vi.spyOn(articlesService, 'update');
+    const createSpy = vi.spyOn(articlesService, 'createCommand');
+    const updateSpy = vi.spyOn(articlesService, 'updateCommand');
 
     component.deptChecked.set({ info: true, tech: false, office: false });
     component.isMandatory.set(true);
@@ -59,7 +59,7 @@ describe('ArticleEditDrawer due-date validation', () => {
 
     const articlesService = TestBed.inject(ArticlesService);
     const createSpy = vi
-      .spyOn(articlesService, 'create')
+      .spyOn(articlesService, 'createCommand')
       .mockReturnValue(of({ id: 1, title: 'x' } as any));
     component.richTextEditor = () => ({ getHtml: () => '<p>x</p>' });
 

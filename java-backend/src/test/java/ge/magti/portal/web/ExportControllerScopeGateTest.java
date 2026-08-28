@@ -104,7 +104,7 @@ class ExportControllerScopeGateTest {
     void aRefusedExportWritesNoAuditRow() {
         controller.exportReadingsCsv(holderOf(Role.CONTENT_ADMIN));
 
-        verify(auditLogRepository, never()).save(any());
+        verify(auditLogRepository, never()).saveAndFlush(any());
     }
 
     @Test

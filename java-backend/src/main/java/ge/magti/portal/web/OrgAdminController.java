@@ -6,8 +6,8 @@ import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.Team;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.org.LeadershipAssignmentService;
+import ge.magti.portal.org.OrgDirectoryQueryService;
 import ge.magti.portal.repository.DepartmentRepository;
-import ge.magti.portal.repository.LeadershipAssignmentRepository;
 import ge.magti.portal.repository.TeamRepository;
 import ge.magti.portal.repository.UserRepository;
 import jakarta.validation.Valid;
@@ -26,6 +26,8 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -36,20 +38,20 @@ public class OrgAdminController {
     private final DepartmentRepository departmentRepository;
     private final TeamRepository teamRepository;
     private final UserRepository userRepository;
-    private final LeadershipAssignmentRepository assignmentRepository;
     private final LeadershipAssignmentService assignmentService;
+    private final OrgDirectoryQueryService orgDirectoryQueryService;
 
     public OrgAdminController(
             DepartmentRepository departmentRepository,
             TeamRepository teamRepository,
             UserRepository userRepository,
-            LeadershipAssignmentRepository assignmentRepository,
-            LeadershipAssignmentService assignmentService) {
+            LeadershipAssignmentService assignmentService,
+            OrgDirectoryQueryService orgDirectoryQueryService) {
         this.departmentRepository = departmentRepository;
         this.teamRepository = teamRepository;
         this.userRepository = userRepository;
-        this.assignmentRepository = assignmentRepository;
         this.assignmentService = assignmentService;
+        this.orgDirectoryQueryService = orgDirectoryQueryService;
     }
 
     @GetMapping("/api/admin/org/structure")
@@ -59,14 +61,22 @@ public class OrgAdminController {
             return denial;
         }
 
+        List<Department> departmentRows = orgDirectoryQueryService.listActiveDepartmentsWithinLimit();
+        Set<Long> departmentIds = departmentRows.stream().map(Department::getId).collect(Collectors.toSet());
+        List<Team> teamRows = orgDirectoryQueryService.listTeamsInDepartmentsWithinLimit(departmentIds);
+        Map<Long, List<Team>> teamsByDepartment = teamRows.stream()
+                .collect(Collectors.groupingBy(Team::getDepartmentId, LinkedHashMap::new, Collectors.toList()));
+
         Map<Long, Long> memberCounts = new LinkedHashMap<>();
-        for (Object[] row : userRepository.countActiveGroupedByTeam()) {
+        List<Long> teamIds = teamRows.stream().map(Team::getId).toList();
+        for (Object[] row : teamIds.isEmpty() ? List.<Object[]>of()
+                : userRepository.countActiveGroupedByTeamIds(teamIds)) {
             memberCounts.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue());
         }
-        List<OrgDepartmentResponse> departments = departmentRepository.findByActiveTrueOrderBySortOrder().stream()
+        List<OrgDepartmentResponse> departments = departmentRows.stream()
                 .map(department -> new OrgDepartmentResponse(
                         department.getId(), department.getStableKey(), department.getName(), department.isActive(),
-                        teamRepository.findByDepartmentId(department.getId()).stream()
+                        teamsByDepartment.getOrDefault(department.getId(), List.of()).stream()
                                 .sorted(Comparator.comparing(Team::getName))
                                 .map(team -> new OrgTeamResponse(
                                         team.getId(), team.getStableKey(), team.getName(), team.isActive(),
@@ -82,7 +92,7 @@ public class OrgAdminController {
         if (denial != null) {
             return denial;
         }
-        return ResponseEntity.ok(resolvedAssignments(assignmentRepository.findAll()));
+        return ResponseEntity.ok(resolvedAssignments(orgDirectoryQueryService.listAssignmentsWithinLimit()));
     }
 
     @PostMapping("/api/admin/org/assignments")
@@ -124,9 +134,13 @@ public class OrgAdminController {
         Map<Long, User> users = userRepository.findAllById(
                         assignments.stream().map(LeadershipAssignment::getUserId).distinct().toList()).stream()
                 .collect(Collectors.toMap(User::getId, Function.identity()));
-        Map<Long, Department> departments = departmentRepository.findAll().stream()
+        Map<Long, Department> departments = departmentRepository.findAllById(
+                        assignments.stream().map(LeadershipAssignment::getDepartmentId)
+                                .filter(Objects::nonNull).distinct().toList()).stream()
                 .collect(Collectors.toMap(Department::getId, Function.identity()));
-        Map<Long, Team> teams = teamRepository.findAll().stream()
+        Map<Long, Team> teams = teamRepository.findAllById(
+                        assignments.stream().map(LeadershipAssignment::getTeamId)
+                                .filter(Objects::nonNull).distinct().toList()).stream()
                 .collect(Collectors.toMap(Team::getId, Function.identity()));
         return assignments.stream()
                 .sorted(Comparator.comparing(LeadershipAssignment::isActive).reversed()

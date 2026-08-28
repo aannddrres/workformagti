@@ -1098,20 +1098,6 @@
     "source": "routers/articles.py:823",
     "context": "HTTPException detail (404) when the quiz exists but has zero questions."
   },
-  "articles.api.feedback_deprecated": {
-    "ka": "ხარვეზის რეპორტირება დეპრეკირებულია",
-    "en": "Issue reporting is deprecated",
-    "reviewed": false,
-    "source": "routers/articles.py:1402",
-    "context": "HTTPException detail (410 Gone) for the removed article-issue-reporting endpoint."
-  },
-  "articles.api.feedback_view_deprecated": {
-    "ka": "უკუკავშირის ნახვა დეპრეკირებულია",
-    "en": "Viewing feedback is deprecated",
-    "reviewed": false,
-    "source": "routers/articles.py:1410",
-    "context": "HTTPException detail (410 Gone) for the removed feedback-viewing endpoint."
-  },
   "articles.modal.add_to_notes_tooltip": {
     "ka": "ჩანაწერებში დამატება",
     "en": "Add to notes",

@@ -2,6 +2,8 @@ package ge.magti.portal.web;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -18,8 +20,9 @@ import java.util.Map;
  * a status for infrastructure that isn't there.
  *
  * <p>The database check is real now (Phase 1b gave this a live Oracle
- * DataSource) -- runs the same bare {@code SELECT 1} liveness probe as
- * the Python original, not a guess.
+ * DataSource) -- runs the same bare {@code SELECT 1} dependency/readiness
+ * probe as the Python original, not a guess. Process liveness is exposed
+ * separately by Actuator and deliberately does not depend on Oracle.
  *
  * <p><b>PR-09:</b> this endpoint is unauthenticated, and the failure branch
  * used to return {@code "error: " + e.getMessage()} straight to the caller.
@@ -28,6 +31,10 @@ import java.util.Map;
  * map of the internal database. The detail now goes to the log, where the
  * people diagnosing the outage are already looking, and the response says
  * only that the check failed.
+ *
+ * <p>A failed dependency check returns HTTP 503. Returning a degraded JSON
+ * body with HTTP 200 would tell an orchestrator to keep routing traffic to an
+ * instance that cannot serve database-backed requests.
  */
 @RestController
 public class HealthController {
@@ -41,7 +48,7 @@ public class HealthController {
 	}
 
 	@GetMapping("/api/health")
-	public Map<String, String> health() {
+	public ResponseEntity<Map<String, String>> health() {
 		Map<String, String> body = new LinkedHashMap<>();
 		body.put("status", "ok");
 		body.put("redis", "not_configured");
@@ -50,13 +57,13 @@ public class HealthController {
 				Statement statement = connection.createStatement()) {
 			statement.execute("SELECT 1 FROM dual");
 			body.put("database", "ok");
+			return ResponseEntity.ok(body);
 		} catch (Exception e) {
 			// Full detail (including the JDBC URL) to the log, not the wire.
 			logger.error("Health check: database probe failed", e);
 			body.put("database", "error");
 			body.put("status", "degraded");
+			return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(body);
 		}
-
-		return body;
 	}
 }

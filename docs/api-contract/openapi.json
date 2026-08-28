@@ -2170,82 +2170,6 @@
         "title": "InsightsRibbon",
         "type": "object"
       },
-      "KnowledgeFeedbackCreate": {
-        "description": "Request schema for operators reporting article issues.",
-        "properties": {
-          "message": {
-            "title": "Message",
-            "type": "string"
-          }
-        },
-        "required": [
-          "message"
-        ],
-        "title": "KnowledgeFeedbackCreate",
-        "type": "object"
-      },
-      "KnowledgeFeedbackResponse": {
-        "description": "Response schema detailing reported feedback, reporter, and target article.",
-        "properties": {
-          "article_id": {
-            "title": "Article Id",
-            "type": "integer"
-          },
-          "article_title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Article Title"
-          },
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "id": {
-            "title": "Id",
-            "type": "integer"
-          },
-          "message": {
-            "title": "Message",
-            "type": "string"
-          },
-          "status": {
-            "title": "Status",
-            "type": "string"
-          },
-          "user_id": {
-            "title": "User Id",
-            "type": "integer"
-          },
-          "user_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "User Name"
-          }
-        },
-        "required": [
-          "id",
-          "user_id",
-          "article_id",
-          "message",
-          "status",
-          "created_at"
-        ],
-        "title": "KnowledgeFeedbackResponse",
-        "type": "object"
-      },
       "KnowledgeScoreResponse": {
         "properties": {
           "articles_passed": {
@@ -4274,36 +4198,6 @@
         ]
       }
     },
-    "/api/admin/feedback": {
-      "get": {
-        "operationId": "get_admin_feedback_api_admin_feedback_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/KnowledgeFeedbackResponse"
-                  },
-                  "title": "Response Get Admin Feedback Api Admin Feedback Get",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "summary": "Get Admin Feedback",
-        "tags": [
-          "articles"
-        ]
-      }
-    },
     "/api/admin/group-leaders": {
       "get": {
         "description": "Lists team leads for the Block 5 group-filter dropdown.\n\nFast/lightweight by design: id + name only, no stats joins.\n\nAccess: Restricted to system administrators (admin) only.",
@@ -4877,63 +4771,6 @@
           }
         ],
         "summary": "Autosave Article",
-        "tags": [
-          "articles"
-        ]
-      }
-    },
-    "/api/articles/{article_id}/feedback": {
-      "post": {
-        "operationId": "create_article_feedback_api_articles__article_id__feedback_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "article_id",
-            "required": true,
-            "schema": {
-              "title": "Article Id",
-              "type": "integer"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/KnowledgeFeedbackCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/KnowledgeFeedbackResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "summary": "Create Article Feedback",
         "tags": [
           "articles"
         ]

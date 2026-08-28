@@ -5,10 +5,10 @@ import ge.magti.portal.domain.Department;
 import ge.magti.portal.domain.LeadershipAssignment;
 import ge.magti.portal.domain.Team;
 import ge.magti.portal.domain.User;
-import ge.magti.portal.repository.DepartmentRepository;
 import ge.magti.portal.repository.LeadershipAssignmentRepository;
 import ge.magti.portal.repository.TeamRepository;
 import ge.magti.portal.repository.UserRepository;
+import ge.magti.portal.user.UserDirectoryQueryService;
 import ge.magti.portal.util.TbilisiTime;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,25 +46,27 @@ import java.util.TreeMap;
 public class OrgBackfillService {
 
     private final UserRepository userRepository;
-    private final DepartmentRepository departmentRepository;
     private final TeamRepository teamRepository;
     private final LeadershipAssignmentRepository leadershipAssignmentRepository;
+    private final UserDirectoryQueryService userDirectoryQueryService;
+    private final OrgDirectoryQueryService orgDirectoryQueryService;
 
     public OrgBackfillService(
-            UserRepository userRepository, DepartmentRepository departmentRepository,
-            TeamRepository teamRepository, LeadershipAssignmentRepository leadershipAssignmentRepository) {
+            UserRepository userRepository, TeamRepository teamRepository,
+            LeadershipAssignmentRepository leadershipAssignmentRepository,
+            UserDirectoryQueryService userDirectoryQueryService,
+            OrgDirectoryQueryService orgDirectoryQueryService) {
         this.userRepository = userRepository;
-        this.departmentRepository = departmentRepository;
         this.teamRepository = teamRepository;
         this.leadershipAssignmentRepository = leadershipAssignmentRepository;
+        this.userDirectoryQueryService = userDirectoryQueryService;
+        this.orgDirectoryQueryService = orgDirectoryQueryService;
     }
 
     /** What the backfill would do. Writes nothing. */
     public OrgBackfillPlan plan() {
-        return OrgBackfillPlanner.plan(
-                userRepository.findByActiveTrue(),
-                departmentRepository.findAll(),
-                teamRepository.findAll());
+        return plan(activeUsersSnapshot(), orgDirectoryQueryService.listDepartmentsWithinLimit(),
+                orgDirectoryQueryService.listTeamsWithinLimit());
     }
 
     /**
@@ -75,12 +77,17 @@ public class OrgBackfillService {
      *                this creates -- a backfilled leader must be traceable to
      *                the person who ran the backfill, not appear from nowhere
      */
-    @Transactional
+    @Transactional(noRollbackFor = {
+            UserDirectoryQueryService.ActiveUserCardinalityExceededException.class,
+            OrgDirectoryQueryService.OrgDirectoryCardinalityExceededException.class})
     public OrgBackfillPlan apply(Long actorId) {
-        OrgBackfillPlan plan = plan();
+        List<User> activeUsers = activeUsersSnapshot();
+        List<Department> departments = orgDirectoryQueryService.listDepartmentsWithinLimit();
+        List<Team> teams = orgDirectoryQueryService.listTeamsWithinLimit();
+        OrgBackfillPlan plan = plan(activeUsers, departments, teams);
 
         Map<String, Long> teamIdByKey = new LinkedHashMap<>();
-        for (Team team : teamRepository.findAll()) {
+        for (Team team : teams) {
             if (team.getDepartmentId() != null) {
                 teamIdByKey.put(key(team.getDepartmentId(), team.getName()), team.getId());
             }
@@ -103,7 +110,7 @@ public class OrgBackfillService {
         }
 
         Map<Long, User> usersById = new LinkedHashMap<>();
-        for (User user : userRepository.findByActiveTrue()) {
+        for (User user : activeUsers) {
             usersById.put(user.getId(), user);
         }
 
@@ -125,8 +132,7 @@ public class OrgBackfillService {
                 continue;
             }
             boolean alreadyLeads = leadershipAssignmentRepository
-                    .findByUserIdAndActiveTrue(candidate.userId()).stream()
-                    .anyMatch(existing -> teamId.equals(existing.getTeamId()));
+                    .existsByUserIdAndTeamIdAndActiveTrue(candidate.userId(), teamId);
             if (alreadyLeads) {
                 continue;
             }
@@ -142,6 +148,15 @@ public class OrgBackfillService {
         }
 
         return plan;
+    }
+
+    private OrgBackfillPlan plan(
+            List<User> activeUsers, List<Department> departments, List<Team> teams) {
+        return OrgBackfillPlanner.plan(activeUsers, departments, teams);
+    }
+
+    private List<User> activeUsersSnapshot() {
+        return userDirectoryQueryService.listActiveUsersWithinLimit();
     }
 
     /**
@@ -188,4 +203,5 @@ public class OrgBackfillService {
     private static String key(Long departmentId, String name) {
         return departmentId + " " + name;
     }
+
 }

@@ -1,7 +1,7 @@
 import { request as playwrightRequest, FullConfig } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { SHARED_PERSONAS, TOKEN_CACHE } from './helpers';
+import { E2E_PASSWORD, SHARED_PERSONAS, TOKEN_CACHE } from './helpers';
 
 /**
  * Logs the shared personas in ONCE per run and caches their tokens.
@@ -24,11 +24,11 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
 
   try {
     for (const email of SHARED_PERSONAS) {
-      const res = await context.post('/api/auth/login', { data: { email, password: 'x' } });
+      const res = await context.post('/api/auth/login', { data: { email, password: E2E_PASSWORD } });
       if (!res.ok()) {
         throw new Error(
           `global setup could not log in ${email}: ${res.status()} ${await res.text()}\n` +
-            'The JIT test accounts need APP_ENV=development AND ALLOW_DEV_LOGIN=true.'
+            'Provide E2E_PASSWORD for pre-seeded accounts, or enable development JIT login for test accounts.'
         );
       }
       tokens[email] = (await res.json()).access_token as string;

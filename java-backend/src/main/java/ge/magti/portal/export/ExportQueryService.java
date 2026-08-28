@@ -11,6 +11,9 @@ import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.ManagerScope;
 import ge.magti.portal.security.ScopeResolver;
 import ge.magti.portal.stats.ComplianceRecord;
+import ge.magti.portal.user.UserDirectoryQueryService;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -57,22 +60,27 @@ public class ExportQueryService {
     /** Phase 3 shadow only; nullable so the DB-free scoping tests stay unchanged. */
     private final ScopeResolver scopeResolver;
 
+    /** Production complete-result boundary; nullable only in the DB-free compatibility constructor. */
+    private final UserDirectoryQueryService userDirectoryQueryService;
+
     public ExportQueryService(
             ComplianceQueryService complianceQueryService, ReadStatusRepository readStatusRepository,
             UserRepository userRepository, RequiredReadingRepository requiredReadingRepository) {
-        this(complianceQueryService, readStatusRepository, userRepository, requiredReadingRepository, null);
+        this(complianceQueryService, readStatusRepository, userRepository, requiredReadingRepository, null, null);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
     public ExportQueryService(
             ComplianceQueryService complianceQueryService, ReadStatusRepository readStatusRepository,
             UserRepository userRepository, RequiredReadingRepository requiredReadingRepository,
-            ScopeResolver scopeResolver) {
+            ScopeResolver scopeResolver,
+            UserDirectoryQueryService userDirectoryQueryService) {
         this.complianceQueryService = complianceQueryService;
         this.readStatusRepository = readStatusRepository;
         this.userRepository = userRepository;
         this.requiredReadingRepository = requiredReadingRepository;
         this.scopeResolver = scopeResolver;
+        this.userDirectoryQueryService = userDirectoryQueryService;
     }
 
     /**
@@ -136,15 +144,24 @@ public class ExportQueryService {
         if (caller.getRole() == Role.SYSTEM_ADMIN) {
             return complianceQueryService.computeCompliance();
         }
-        List<User> active = userRepository.findByActiveTrue();
-        List<User> visible = ManagerScope.visibleActiveUsers(active, caller);
-        if (scopeResolver != null) {
-            // Phase 3: measures what leadership-backed scoping would export,
-            // and keeps serving the department-string answer.
-            visible = scopeResolver.shadowCompare("scope.export", caller, active, visible);
+        List<User> active = boundedActiveUsers();
+        List<User> visible;
+        if (scopeResolver == null) {
+            visible = ManagerScope.visibleActiveUsers(active, caller);
+        } else {
+            var primaryScope = scopeResolver.resolvePrimaryLeadership(caller);
+            visible = active.stream().filter(candidate -> primaryScope.includesTeam(candidate.getTeamId())).toList();
         }
         List<Long> ids = visible.stream().map(User::getId).toList();
         return complianceQueryService.computeCompliance(ids, null);
+    }
+
+    private List<User> boundedActiveUsers() {
+        // Production is always database-bounded. The fallback exists only for
+        // the older repository-mock constructor used by DB-free pure tests.
+        return userDirectoryQueryService == null
+                ? userRepository.findByActiveTrue()
+                : userDirectoryQueryService.listActiveUsersWithinLimit();
     }
 
     /**
@@ -163,7 +180,9 @@ public class ExportQueryService {
             return List.of();
         }
 
-        List<ReadStatus> statuses = readStatusRepository.findByUserIdIn(eligibleUserIds);
+        List<ReadStatus> statuses = readStatusRepository.findByUserIdIn(
+                eligibleUserIds,
+                PageRequest.of(0, ExportSizeGuard.MAX_ROWS + 1, Sort.by("id")));
         ExportSizeGuard.checkSize(statuses.size());
 
         Map<Long, User> usersById = userRepository.findAllById(eligibleUserIds).stream()

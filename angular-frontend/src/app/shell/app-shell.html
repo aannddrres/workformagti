@@ -13,8 +13,10 @@
       class="fixed inset-y-0 left-0 z-40 flex w-[264px] shrink-0 -translate-x-full flex-col border-r border-slate-200 bg-white transition-[width,transform] duration-200 dark:border-slate-800 dark:bg-slate-950 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0"
       [class.translate-x-0]="mobileMenuOpen()"
       [class.lg:w-[84px]]="sidebarCollapsed()"
+      [attr.aria-hidden]="isMobile() && !mobileMenuOpen() ? 'true' : null"
+      [attr.inert]="isMobile() && !mobileMenuOpen() ? '' : null"
     >
-      <div class="flex h-[72px] items-center justify-between border-b border-slate-100 px-5 dark:border-slate-800">
+      <div class="flex min-h-[4.5rem] items-center justify-between border-b border-slate-100 px-5 py-2 dark:border-slate-800">
         <div [class.lg:hidden]="sidebarCollapsed()">
           <app-logo />
         </div>
@@ -79,7 +81,7 @@
     </aside>
 
     <div class="flex min-w-0 flex-1 flex-col">
-      <header class="sticky top-0 z-30 flex h-[72px] items-center gap-3 border-b border-slate-200 bg-white/95 px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 lg:px-6">
+      <header class="sticky top-0 z-30 flex min-h-[4.5rem] flex-wrap items-center gap-3 border-b border-slate-200 bg-white/95 px-4 py-2 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 lg:flex-nowrap lg:px-6">
         <button
           type="button"
           (click)="toggleMobileMenu()"
@@ -169,3 +171,27 @@
     </div>
   </div>
 </div>
+
+@if (idleSession.warningOpen()) {
+  <div class="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/55 p-4">
+    <section
+      portalDialog
+      portalDialogLabelledBy="session-warning-heading"
+      portalDialogDescribedBy="session-warning-description"
+      [portalDialogEscape]="false"
+      class="surface-card w-full max-w-md p-6 shadow-2xl"
+    >
+      <div class="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+        <i class="fa-solid fa-clock" aria-hidden="true"></i>
+      </div>
+      <h2 id="session-warning-heading" class="text-xl font-bold text-slate-900 dark:text-slate-50">სესია მალე დასრულდება</h2>
+      <p id="session-warning-description" class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+        უმოქმედობის გამო სისტემა {{ idleSession.secondsRemaining() }} წამში გამოგიყვანთ. სამუშაოს გასაგრძელებლად დაადასტურეთ სესია.
+      </p>
+      <div class="mt-6 flex flex-wrap justify-end gap-3">
+        <button type="button" (click)="idleSession.endNow()" class="secondary-button">გასვლა</button>
+        <button type="button" (click)="idleSession.continueSession()" class="primary-button">სესიის გაგრძელება</button>
+      </div>
+    </section>
+  </div>
+}

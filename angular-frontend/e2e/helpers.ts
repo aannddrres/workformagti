@@ -14,6 +14,8 @@ export function runId(): string {
  *  per account per minute). */
 export const SHARED_PERSONAS = ['admin@magti.ge', 'content@magti.ge', 'info@magti.ge'];
 export const TOKEN_CACHE = join(__dirname, '.auth', 'tokens.json');
+export const E2E_PASSWORD = process.env.E2E_PASSWORD ?? 'x';
+const AUTO_PROVISION_TEST_USERS = process.env.E2E_AUTO_PROVISION === 'true';
 
 let cache: Record<string, string> | null = null;
 
@@ -31,12 +33,34 @@ function cachedToken(email: string): string | undefined {
   return cache![email];
 }
 
-export async function apiLogin(request: APIRequestContext, email: string, password = 'x'): Promise<string> {
+export async function apiLogin(request: APIRequestContext, email: string, password = E2E_PASSWORD): Promise<string> {
   const hit = cachedToken(email);
   if (hit) {
     return hit;
   }
-  const res = await request.post('/api/auth/login', { data: { email, password } });
+  let res = await request.post('/api/auth/login', { data: { email, password } });
+  if (!res.ok() && AUTO_PROVISION_TEST_USERS && email.startsWith('test_operator_')) {
+    const adminToken = cachedToken('admin@magti.ge');
+    expect(adminToken, 'admin token is required to provision a local QA operator').toBeTruthy();
+    const created = await request.post('/api/users', {
+      headers: { Authorization: `Bearer ${adminToken}` },
+      data: {
+        email,
+        name: `QA Operator ${runId()}`,
+        department: 'Support',
+        position: null,
+        phone: null,
+        role: 'operator',
+        password: E2E_PASSWORD,
+        team_id: null
+      }
+    });
+    expect(
+      created.ok(),
+      `auto-provision failed for ${email}: ${created.status()} ${await created.text()}`
+    ).toBeTruthy();
+    res = await request.post('/api/auth/login', { data: { email, password: E2E_PASSWORD } });
+  }
   expect(res.ok(), `login failed for ${email}: ${res.status()} ${await res.text()}`).toBeTruthy();
   const body = await res.json();
   return body.access_token as string;
@@ -217,7 +241,7 @@ export async function createTestOperator(
       position: null,
       phone: null,
       role: 'operator',
-      password: 'NotUsedJitBypass1!',
+      password: E2E_PASSWORD,
       team_id: null
     }
   });
@@ -228,11 +252,11 @@ export async function createTestOperator(
 
 /** Logs the given persona into the Angular app by obtaining a real JWT via
  *  the API (faster + less flaky than typing through the login form every
- *  time) and seeding it into localStorage before the app bootstraps. The
+ *  time) and placing it in the same httpOnly cookie used by production. The
  *  dedicated login-flow scenarios in auth.spec.ts still drive the real
  *  form -- this helper is for scenarios where login itself isn't what's
  *  under test. */
-export async function loginAsUi(page: Page, email: string, password = 'x'): Promise<void> {
+export async function loginAsUi(page: Page, email: string, password = E2E_PASSWORD): Promise<void> {
   const token = await apiLogin(page.request, email, password);
   await seedTokenIntoPage(page, token);
 }
@@ -243,7 +267,15 @@ export async function loginAsUi(page: Page, email: string, password = 'x'): Prom
  *  admin@magti.ge) both drives API fixture setup and the UI in one test. */
 export async function seedTokenIntoPage(page: Page, token: string): Promise<void> {
   await page.goto('/login');
-  await page.evaluate((t) => localStorage.setItem('magti_token', t), token);
+  const origin = new URL(page.url()).origin;
+  await page.context().addCookies([{
+    name: 'access_token',
+    value: token,
+    url: origin,
+    httpOnly: true,
+    secure: origin.startsWith('https:'),
+    sameSite: 'Lax'
+  }]);
   await page.goto('/');
   await expect(page).not.toHaveURL(/\/login/);
 }

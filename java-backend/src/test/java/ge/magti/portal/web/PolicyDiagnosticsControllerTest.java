@@ -1,12 +1,14 @@
 package ge.magti.portal.web;
 
+import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.org.OrgBackfillIssue;
 import ge.magti.portal.org.OrgBackfillPlan;
 import ge.magti.portal.org.OrgBackfillService;
-import ge.magti.portal.repository.AuditLogRepository;
+import ge.magti.portal.org.OrgDirectoryQueryService;
 import ge.magti.portal.security.PolicyShadowRecorder;
+import ge.magti.portal.user.UserDirectoryQueryService;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +25,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -39,9 +42,9 @@ class PolicyDiagnosticsControllerTest {
 
     private final PolicyShadowRecorder recorder = new PolicyShadowRecorder();
     private final OrgBackfillService backfill = mock(OrgBackfillService.class);
-    private final AuditLogRepository auditLogRepository = mock(AuditLogRepository.class);
+    private final MutationAuditService mutationAuditService = mock(MutationAuditService.class);
     private final PolicyDiagnosticsController controller =
-            new PolicyDiagnosticsController(recorder, backfill, auditLogRepository);
+            new PolicyDiagnosticsController(recorder, backfill, mutationAuditService);
 
     private static User of(Role role) {
         User user = new User();
@@ -123,7 +126,7 @@ class PolicyDiagnosticsControllerTest {
         controller.getBackfillReport(of(Role.SYSTEM_ADMIN));
 
         verify(backfill, never()).apply(anyLong());
-        verify(auditLogRepository, never()).save(any());
+        verifyNoInteractions(mutationAuditService);
     }
 
     /** A backfilled leader with no record of who created it is the problem, not the fix. */
@@ -134,6 +137,43 @@ class PolicyDiagnosticsControllerTest {
         assertEquals(HttpStatus.OK, controller.applyBackfill(of(Role.SYSTEM_ADMIN)).getStatusCode());
 
         verify(backfill).apply(1L);
-        verify(auditLogRepository).save(any());
+        verify(mutationAuditService).recordSuccess(
+                any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void oversizedBackfillFailsLoudlyBeforeApplyAndAuditsTheRejectedMutation() {
+        when(backfill.plan()).thenThrow(new UserDirectoryQueryService.ActiveUserCardinalityExceededException());
+        when(backfill.apply(1L)).thenThrow(new UserDirectoryQueryService.ActiveUserCardinalityExceededException());
+        User admin = of(Role.SYSTEM_ADMIN);
+
+        assertEquals(HttpStatus.PAYLOAD_TOO_LARGE, controller.getBackfillReport(admin).getStatusCode());
+        ResponseEntity<?> applyResponse = controller.applyBackfill(admin);
+        assertEquals(HttpStatus.PAYLOAD_TOO_LARGE, applyResponse.getStatusCode());
+        assertTrue(String.valueOf(bodyOf(applyResponse).get("detail")).contains("უსაფრთხო ზღვარს"));
+
+        verify(mutationAuditService).recordResult(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
+        verify(mutationAuditService, never()).recordSuccess(
+                any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void oversizedOrgReferenceSnapshotAlsoFailsLoudlyAndAuditsTheRejectedMutation() {
+        when(backfill.plan()).thenThrow(
+                new OrgDirectoryQueryService.OrgDirectoryCardinalityExceededException());
+        when(backfill.apply(1L)).thenThrow(
+                new OrgDirectoryQueryService.OrgDirectoryCardinalityExceededException());
+        User admin = of(Role.SYSTEM_ADMIN);
+
+        assertEquals(HttpStatus.PAYLOAD_TOO_LARGE, controller.getBackfillReport(admin).getStatusCode());
+        ResponseEntity<?> applyResponse = controller.applyBackfill(admin);
+        assertEquals(HttpStatus.PAYLOAD_TOO_LARGE, applyResponse.getStatusCode());
+        assertTrue(String.valueOf(bodyOf(applyResponse).get("detail")).contains("უსაფრთხო ზღვარს"));
+
+        verify(mutationAuditService).recordResult(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
+        verify(mutationAuditService, never()).recordSuccess(
+                any(), any(), any(), any(), any(), any(), any());
     }
 }

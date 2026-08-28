@@ -14,18 +14,16 @@ import java.util.Set;
  * string list, models.py:43, defined security.py:363-370), and a separate
  * 13 colon-named permissions seeded into Role/Permission/RolePermission DB
  * tables (scripts/seed_rbac.py:18-32) that no dotted check ever matches --
- * except "system:audit", which was deliberately spelled to land in both
- * (security.py:381, migrate.py's ensure_system_audit_permission_seeded).
+ * including the historical "system:audit" value. Raw system audit is now
+ * SYSTEM_ADMIN-only and therefore is not a grantable catalog entry.
  *
- * <p>Decided 2026-07-29 (migration doc, bug #5): the Java port keeps ONE
- * catalog, dot-notation, folding system:audit into it as
- * {@link #SYSTEM_AUDIT} ("system.audit"). The other 12 colon-only
+ * <p>The Java port keeps one dot-notation catalog. The remaining colon-only
  * permissions are deliberately NOT ported here -- per that same decision
  * they get added one at a time, only if and when a Java endpoint actually
  * needs one:
  * users:manage, content:editor, content:publisher, compliance:manage,
  * reports:view_global, reports:export_sensitive, communication:broadcast,
- * content:archive, feedback:resolve, reports:export_personal_data.
+ * content:archive, reports:export_personal_data.
  * (reports:export and compliance:assign are not in that leftover list --
  * they already have dotted equivalents below.)
  */
@@ -52,7 +50,6 @@ public enum Permission {
     // /api/users/{id}/permissions will now reject it as unknown, which is
     // correct: the frontend catalog no longer offers it.
     ARTICLES_EDIT("articles.edit"),
-    ARTICLES_PUBLISH("articles.publish"),
     ARTICLES_ARCHIVE("articles.archive"),
     VIDEOS_ARCHIVE("videos.archive"),
     CONTENT_MANAGE("content.manage"),
@@ -75,18 +72,18 @@ public enum Permission {
     // Until one is chosen, the switch is not shipped. See the report and
     // PermissionChecker's javadoc.
     COMPLIANCE_ASSIGN("compliance.assign"),
-    REPORTS_EXPORT("reports.export"),
-    SYSTEM_AUDIT("system.audit");
+    STATS_VIEW("stats.view"),
+    REPORTS_EXPORT("reports.export");
 
     private static final Map<Role, Set<Permission>> DEFAULTS_BY_ROLE = Map.of(
             Role.OPERATOR, EnumSet.noneOf(Permission.class),
-            Role.MANAGER, EnumSet.of(REPORTS_EXPORT, SYSTEM_AUDIT),
+            Role.MANAGER, EnumSet.of(REPORTS_EXPORT),
             Role.CONTENT_ADMIN, EnumSet.of(
-                    ARTICLES_EDIT, ARTICLES_PUBLISH, ARTICLES_ARCHIVE,
-                    VIDEOS_ARCHIVE, CONTENT_MANAGE, COMPLIANCE_ASSIGN, SYSTEM_AUDIT),
+                    ARTICLES_EDIT, ARTICLES_ARCHIVE,
+                    VIDEOS_ARCHIVE, CONTENT_MANAGE, COMPLIANCE_ASSIGN),
             Role.SYSTEM_ADMIN, EnumSet.of(
-                    ARTICLES_EDIT, ARTICLES_PUBLISH, ARTICLES_ARCHIVE,
-                    VIDEOS_ARCHIVE, CONTENT_MANAGE, COMPLIANCE_ASSIGN, REPORTS_EXPORT, SYSTEM_AUDIT));
+                    ARTICLES_EDIT, ARTICLES_ARCHIVE,
+                    VIDEOS_ARCHIVE, CONTENT_MANAGE, COMPLIANCE_ASSIGN, STATS_VIEW, REPORTS_EXPORT));
 
     private final String value;
 
@@ -106,33 +103,9 @@ public enum Permission {
     }
 
     /**
-     * Mirrors security.py's DEFAULT_PERMISSIONS_BY_ROLE (security.py:385-406)
-     * for every permission except SYSTEM_AUDIT.
-     *
-     * <p><b>SYSTEM_AUDIT is a deliberate addition beyond that dict</b> --
-     * verified missing via a live Phase-2 parity check against the running
-     * Python app (2026-08-06), confirmed with the user, then fixed. In
-     * Python, {@code system:audit} is never granted through
-     * DEFAULT_PERMISSIONS_BY_ROLE at all; it lives only in the separate,
-     * colon-named RBAC-table catalog (security.py:376-381,
-     * {@code migrate.py}'s {@code ensure_system_audit_permission_seeded}),
-     * which explicitly seeds it for {@code content_admin} AND
-     * {@code manager} ("a manager holds the same permission but ...
-     * hard-pins them to their own department/group at query time"). That
-     * separate 3-table RBAC system was consciously retired during this
-     * port (bug #5) and folded into this one dotted catalog -- but the
-     * fold only carried the enum value itself over, not the actual grant,
-     * so real content_admin/manager accounts here could never view the
-     * audit log at all (403) despite that being real, intended Python
-     * behavior. {@link ge.magti.portal.web.AuditLogController}'s own
-     * department-scoping for managers was already built assuming they
-     * *can* reach the endpoint -- this default grant is what actually
-     * makes that reachable.
-     *
-     * <p>SYSTEM_ADMIN's set is never actually consulted by the Python
-     * dependency that grants that role everything unconditionally
-     * regardless of this list; kept here anyway so the map is a faithful,
-     * complete mirror of the source rather than a partial one.
+     * Returns the default grant set for the canonical role. Direct article
+     * publishing is included in {@code articles.edit}; raw system audit is a
+     * SYSTEM_ADMIN role boundary and neither appears as an independent grant.
      *
      * <p>Unrelated to known bug #4 (routers/users.py:460-465): a separate
      * admin-facing "known permissions" whitelist on the manual

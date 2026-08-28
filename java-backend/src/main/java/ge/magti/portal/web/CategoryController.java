@@ -1,8 +1,10 @@
 package ge.magti.portal.web;
 
+import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.domain.Category;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.User;
+import ge.magti.portal.query.CompleteResultGuard;
 import ge.magti.portal.repository.ArticleRepository;
 import ge.magti.portal.repository.CategoryRepository;
 import ge.magti.portal.security.PermissionChecker;
@@ -36,11 +38,9 @@ import java.util.Optional;
  * admin)}). There is no granular sub-permission here, unlike videos'
  * archive endpoints.
  *
- * <p><b>Known, deliberate gap</b> (same as {@link VideoController}):
- * Python's create/update/delete get an automatic audit row from
- * audit_trail.py's ORM listener (models.Category is in its classified-model
- * map) -- no Java equivalent of that cross-cutting mechanism exists yet, so
- * none of the three mutating endpoints below write an audit row.
+ * <p>Create/update/delete write a reconstructable audit row in the same
+ * transaction as the category change. An audit flush failure therefore rolls
+ * the business mutation back instead of leaving an unaudited category state.
  *
  * <p>Also not ported: state.py's category_cache/search_cache TTL-cache
  * clearing -- no cache exists in the Java port yet.
@@ -57,13 +57,15 @@ public class CategoryController {
     private final CategoryRepository categoryRepository;
     private final ArticleRepository articleRepository;
     private final PermissionChecker permissionChecker;
+    private final MutationAuditService contentMutationAuditService;
 
     public CategoryController(
             CategoryRepository categoryRepository, ArticleRepository articleRepository,
-            PermissionChecker permissionChecker) {
+            PermissionChecker permissionChecker, MutationAuditService contentMutationAuditService) {
         this.categoryRepository = categoryRepository;
         this.articleRepository = articleRepository;
         this.permissionChecker = permissionChecker;
+        this.contentMutationAuditService = contentMutationAuditService;
     }
 
     @GetMapping("/api/categories")
@@ -73,14 +75,15 @@ public class CategoryController {
             return denial;
         }
 
-        List<CategoryResponse> categories = categoryRepository.findAll().stream()
-                .filter(Category::isActive)
+        List<CategoryResponse> categories = CompleteResultGuard.enforce(
+                        categoryRepository.findByActiveTrue(CompleteResultGuard.sentinelPage())).stream()
                 .map(CategoryResponse::from)
                 .toList();
         return ResponseEntity.ok(categories);
     }
 
     @PostMapping("/api/categories")
+    @Transactional
     public ResponseEntity<?> createCategory(
             @Valid @RequestBody CategoryRequest request, @AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireContentManage(user);
@@ -110,11 +113,15 @@ public class CategoryController {
 
         Category category = new Category();
         applyRequest(category, request);
-        Category saved = categoryRepository.save(category);
+        Category saved = categoryRepository.saveAndFlush(category);
+        contentMutationAuditService.recordSuccess(
+                user, "CREATE", "category", saved.getId(), saved.getName(), null,
+                MutationAuditService.categorySnapshot(saved));
         return ResponseEntity.ok(CategoryResponse.from(saved));
     }
 
     @PutMapping("/api/categories/{id}")
+    @Transactional
     public ResponseEntity<?> updateCategory(
             @PathVariable Long id, @Valid @RequestBody CategoryRequest request,
             @AuthenticationPrincipal User user) {
@@ -128,12 +135,16 @@ public class CategoryController {
             return notFound();
         }
         Category category = found.get();
+        Map<String, Object> before = MutationAuditService.categorySnapshot(category);
         ResponseEntity<Map<String, String>> duplicate = rejectDuplicateName(request.name(), id);
         if (duplicate != null) {
             return duplicate;
         }
         applyRequest(category, request);
-        Category saved = categoryRepository.save(category);
+        Category saved = categoryRepository.saveAndFlush(category);
+        contentMutationAuditService.recordSuccess(
+                user, "UPDATE", "category", saved.getId(), saved.getName(), before,
+                MutationAuditService.categorySnapshot(saved));
         return ResponseEntity.ok(CategoryResponse.from(saved));
     }
 
@@ -155,8 +166,12 @@ public class CategoryController {
         }
 
         Category category = found.get();
+        Map<String, Object> before = MutationAuditService.categorySnapshot(category);
         category.setActive(false);
-        categoryRepository.save(category);
+        Category saved = categoryRepository.saveAndFlush(category);
+        contentMutationAuditService.recordSuccess(
+                user, "DELETE", "category", saved.getId(), saved.getName(), before,
+                MutationAuditService.categorySnapshot(saved));
         return ResponseEntity.noContent().build();
     }
 

@@ -3,14 +3,9 @@
  * (app-renderers.js:502-560) -- fenced/backtick code transforms and the
  * plain-paragraph fallback for bodies with no recognizable block tags.
  *
- * Sanitization is handled differently on purpose: the original calls
- * `DOMPurify.sanitize(...)` (falling back to **unsanitized** raw
- * `innerHTML` if the CDN script failed to load -- a real XSS gap). This
- * port drops DOMPurify and instead binds the formatted HTML via Angular's
- * `[innerHTML]`, which always runs through Angular's own DomSanitizer with
- * no unsanitized fallback path -- the migration doc's own §2.3 risk #3
- * calls for exactly this verification-and-replace, not a re-add of the
- * CDN dependency.
+ * The backend now sanitizes content before persistence. Angular's
+ * `[innerHTML]` sanitization is retained as an independent rendering-layer
+ * defence for legacy rows and presentation-only transformations below.
  */
 export interface ArticleLinkTarget {
   id: number;

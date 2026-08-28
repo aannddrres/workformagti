@@ -1,12 +1,10 @@
 package ge.magti.portal.announcement;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import ge.magti.portal.domain.AuditLog;
+import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.domain.BroadcastAnnouncement;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
-import ge.magti.portal.repository.AuditLogRepository;
+import ge.magti.portal.query.CompleteResultGuard;
 import ge.magti.portal.repository.BroadcastAnnouncementRepository;
 import ge.magti.portal.util.TbilisiTime;
 import ge.magti.portal.web.BroadcastRequest;
@@ -16,7 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -25,19 +22,20 @@ import java.util.Map;
 public class BroadcastService {
 
     private final BroadcastAnnouncementRepository repository;
-    private final AuditLogRepository auditLogRepository;
-    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+    private final MutationAuditService mutationAuditService;
 
     public BroadcastService(
             BroadcastAnnouncementRepository repository,
-            AuditLogRepository auditLogRepository) {
+            MutationAuditService mutationAuditService) {
         this.repository = repository;
-        this.auditLogRepository = auditLogRepository;
+        this.mutationAuditService = mutationAuditService;
     }
 
     @Transactional(readOnly = true)
     public List<BroadcastAnnouncement> active() {
-        return repository.findByEndedAtIsNullAndEndsAtAfterOrderByPublishedAtDesc(TbilisiTime.now());
+        return CompleteResultGuard.enforce(
+                repository.findByEndedAtIsNullAndEndsAtAfterOrderByPublishedAtDesc(
+                        TbilisiTime.now(), CompleteResultGuard.sentinelPage()));
     }
 
     @Transactional(readOnly = true)
@@ -60,7 +58,10 @@ public class BroadcastService {
         announcement.setPublishedByUserId(actor.getId());
         announcement.setPublisherNameSnapshot(actor.getName());
         BroadcastAnnouncement saved = repository.saveAndFlush(announcement);
-        writeAudit(saved, actor, "PUBLISH_BROADCAST");
+        mutationAuditService.recordSuccess(
+                actor, "PUBLISH_BROADCAST", "broadcast", saved.getId(),
+                "Broadcast #" + saved.getId(), null,
+                MutationAuditService.broadcastSnapshot(saved));
         return saved;
     }
 
@@ -72,6 +73,7 @@ public class BroadcastService {
             throw new BroadcastOwnershipException("განცხადების დროზე ადრე მოხსნა მხოლოდ მის გამომქვეყნებელს შეუძლია");
         }
 
+        Map<String, Object> before = MutationAuditService.broadcastSnapshot(announcement);
         OffsetDateTime now = TbilisiTime.now();
         if (announcement.getEndedAt() != null || !announcement.getEndsAt().isAfter(now)) {
             throw new BroadcastStateException("განცხადება უკვე დასრულებულია");
@@ -80,36 +82,11 @@ public class BroadcastService {
         announcement.setEndedByUserId(actor.getId());
         announcement.setEndedByNameSnapshot(actor.getName());
         BroadcastAnnouncement saved = repository.saveAndFlush(announcement);
-        writeAudit(saved, actor, "END_BROADCAST_EARLY");
+        mutationAuditService.recordSuccess(
+                actor, "END_BROADCAST_EARLY", "broadcast", saved.getId(),
+                "Broadcast #" + saved.getId(), before,
+                MutationAuditService.broadcastSnapshot(saved));
         return saved;
-    }
-
-    private void writeAudit(BroadcastAnnouncement announcement, User actor, String action) {
-        AuditLog audit = new AuditLog();
-        audit.setAdminId(actor.getId());
-        audit.setAction(action);
-        audit.setItemType("broadcast");
-        audit.setItemId(announcement.getId());
-        audit.setTimestamp(TbilisiTime.now());
-        audit.setAdminNameSnapshot(actor.getName());
-        audit.setAdminEmailSnapshot(actor.getEmail());
-        audit.setItemNameSnapshot(announcement.getMessage().substring(0, Math.min(200, announcement.getMessage().length())));
-
-        Map<String, Object> details = new LinkedHashMap<>();
-        details.put("audience", "ALL_AUTHENTICATED");
-        details.put("priority", announcement.getPriority().name());
-        details.put("message", announcement.getMessage());
-        details.put("published_at", announcement.getPublishedAt().toString());
-        details.put("ends_at", announcement.getEndsAt().toString());
-        if (announcement.getEndedAt() != null) {
-            details.put("ended_at", announcement.getEndedAt().toString());
-        }
-        try {
-            audit.setDetails(objectMapper.writeValueAsString(details));
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("Broadcast audit serialization failed", e);
-        }
-        auditLogRepository.save(audit);
     }
 
     public static class InvalidBroadcastException extends RuntimeException {

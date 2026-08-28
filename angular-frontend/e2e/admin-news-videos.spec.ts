@@ -23,8 +23,8 @@ test.describe('admin content: news and videos', () => {
 
     await seedTokenIntoPage(page, token);
     await page.goto('/admin/content');
-    await page.getByRole('button', { name: 'სიახლეები', exact: true }).click();
-    await page.getByRole('button', { name: '+ სიახლე' }).click();
+    await page.getByRole('tab', { name: 'სიახლეები', exact: true }).click();
+    await page.getByRole('button', { name: '+ სიახლე', exact: true }).click();
 
     const drawer = page.locator('app-news-edit-drawer');
     await expect(drawer.getByText('ახალი სიახლის დამატება')).toBeVisible();
@@ -90,8 +90,10 @@ test.describe('admin content: news and videos', () => {
 
     // --- delete -----------------------------------------------------------
     const editedRow = page.locator('tr', { hasText: editedTitle });
+    await editedRow.getByRole('button', { name: 'დაარქივება' }).click();
+    await expect(editedRow.getByRole('button', { name: 'სანაგვეში გადატანა' })).toBeEnabled();
     page.once('dialog', (dialog) => dialog.accept());
-    await editedRow.getByRole('button').last().click();     // trash
+    await editedRow.getByRole('button', { name: 'სანაგვეში გადატანა' }).click();
     await expect(editedRow).toHaveCount(0);
 
     const afterDelete = await request.get('/api/news?limit=200', { headers: auth });
@@ -112,8 +114,8 @@ test.describe('admin content: news and videos', () => {
 
     await seedTokenIntoPage(page, token);
     await page.goto('/admin/content');
-    await page.getByRole('button', { name: 'ვიდეოები', exact: true }).click();
-    await page.getByRole('button', { name: '+ ვიდეო' }).click();
+    await page.getByRole('tab', { name: 'ვიდეოები', exact: true }).click();
+    await page.getByRole('button', { name: '+ ვიდეო', exact: true }).click();
 
     const drawer = page.locator('app-video-edit-drawer');
     await expect(drawer.getByText('ახალი ვიდეოს დამატება')).toBeVisible();
@@ -152,8 +154,10 @@ test.describe('admin content: news and videos', () => {
 
     // --- delete -----------------------------------------------------------
     const editedRow = page.locator('tr', { hasText: editedTitle });
+    await editedRow.getByRole('button', { name: 'დაარქივება' }).click();
+    await expect(editedRow.getByRole('button', { name: 'სანაგვეში გადატანა' })).toBeEnabled();
     page.once('dialog', (dialog) => dialog.accept());
-    await editedRow.getByRole('button').last().click();
+    await editedRow.getByRole('button', { name: 'სანაგვეში გადატანა' }).click();
     await expect(editedRow).toHaveCount(0);
 
     const afterDelete = await request.get('/api/videos?limit=200', { headers: auth });

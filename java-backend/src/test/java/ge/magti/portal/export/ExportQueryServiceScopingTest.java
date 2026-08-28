@@ -10,18 +10,26 @@ import ge.magti.portal.repository.ReadStatusRepository;
 import ge.magti.portal.repository.RequiredReadingRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.stats.ComplianceRecord;
+import ge.magti.portal.user.UserDirectoryQueryService;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.springframework.data.domain.Pageable;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.SortedMap;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -69,7 +77,7 @@ class ExportQueryServiceScopingTest {
         when(userRepository.findByActiveTrue()).thenReturn(allOperators);
 
         // One read status per operator, all against the same required reading.
-        when(readStatusRepository.findByUserIdIn(anyList())).thenAnswer(invocation -> {
+        when(readStatusRepository.findByUserIdIn(anyList(), any(Pageable.class))).thenAnswer(invocation -> {
             List<Long> ids = invocation.getArgument(0);
             return ids.stream().map(ExportQueryServiceScopingTest::readStatus).toList();
         });
@@ -182,6 +190,40 @@ class ExportQueryServiceScopingTest {
         // not read as "unrestricted", which is what broke the fail-closed case.
         assertTrue(ExportQueryService.isDepartmentScoped(managerOf(null)));
         assertNull(ExportQueryService.scopeDepartmentFor(managerOf(null)));
+    }
+
+    @Test
+    void productionConstructorUsesTheBoundedActiveDirectorySnapshot() {
+        UserDirectoryQueryService directory = mock(UserDirectoryQueryService.class);
+        when(directory.listActiveUsersWithinLimit()).thenReturn(allOperators);
+        ExportQueryService bounded = new ExportQueryService(
+                complianceQueryService, readStatusRepository, userRepository,
+                requiredReadingRepository, null, directory);
+
+        List<ReadingExportRow> rows = bounded.eligibleReadingRows(managerOf(OWN_DEPT));
+
+        assertEquals(List.of(1L, 2L), rows.stream().map(ReadingExportRow::userId).sorted().toList());
+        verify(directory).listActiveUsersWithinLimit();
+        verify(userRepository, never()).findByActiveTrue();
+    }
+
+    @Test
+    void oversizedReadingExportStopsAtDatabaseSentinelBeforeReferenceHydration() {
+        when(readStatusRepository.findByUserIdIn(anyList(), any(Pageable.class)))
+                .thenReturn(Collections.nCopies(
+                        ExportSizeGuard.MAX_ROWS + 1,
+                        readStatus(ownOperatorA.getId())));
+
+        assertThrows(ExportTooLargeException.class,
+                () -> service.eligibleReadingRows(userOf(Role.SYSTEM_ADMIN, "All")));
+
+        ArgumentCaptor<Pageable> page = ArgumentCaptor.forClass(Pageable.class);
+        verify(readStatusRepository).findByUserIdIn(anyList(), page.capture());
+        assertEquals(ExportSizeGuard.MAX_ROWS + 1, page.getValue().getPageSize());
+        assertEquals(0, page.getValue().getPageNumber());
+        assertEquals("id: ASC", page.getValue().getSort().toString());
+        verify(userRepository, never()).findAllById(anyList());
+        verify(requiredReadingRepository, never()).findAllById(anyList());
     }
 
     private static User operator(Long id, String name, String department) {

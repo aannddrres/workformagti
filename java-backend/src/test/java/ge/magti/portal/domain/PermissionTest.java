@@ -17,40 +17,32 @@ class PermissionTest {
     }
 
     @Test
-    void systemAuditMergesTheColonNamedCatalogEntry() {
-        assertEquals("system.audit", Permission.SYSTEM_AUDIT.value());
-    }
-
-    @Test
     void operatorGetsNoDefaultPermissions() {
         assertTrue(Permission.defaultsFor(Role.OPERATOR).isEmpty());
     }
 
-    /**
-     * REPORTS_EXPORT matches security.py's DEFAULT_PERMISSIONS_BY_ROLE
-     * directly; SYSTEM_AUDIT does not come from that dict at all -- Python
-     * grants it to managers through the separate, retired colon-named RBAC
-     * catalog instead (migrate.py's ensure_system_audit_permission_seeded).
-     * Confirmed missing here via a live parity check against the running
-     * Python app (2026-08-06) and added back deliberately, not part of the
-     * original "field-for-field" dict mirror.
-     */
     @Test
-    void managerDefaultsToReportsExportAndSystemAudit() {
-        assertEquals(Set.of(Permission.REPORTS_EXPORT, Permission.SYSTEM_AUDIT), Permission.defaultsFor(Role.MANAGER));
+    void managerDefaultsToReportsExportOnly() {
+        assertEquals(Set.of(Permission.REPORTS_EXPORT), Permission.defaultsFor(Role.MANAGER));
     }
 
-    /** See managerDefaultsToReportsExportAndSystemAudit's javadoc -- same SYSTEM_AUDIT addition applies here. */
     @Test
-    void contentAdminDefaultsMatchSecurityPyPlusSystemAudit() {
+    void contentAdminDefaultsMatchTheAuthoringContract() {
         assertEquals(
                 // ARTICLES_VIEW removed from the catalog by SEC-06: it was
                 // never enforced and could not safely be, since OPERATOR
                 // holds no permissions at all and gating reads on it would
                 // have closed the knowledge base to everyone who uses it.
-                Set.of(Permission.ARTICLES_EDIT, Permission.ARTICLES_PUBLISH,
-                        Permission.ARTICLES_ARCHIVE, Permission.VIDEOS_ARCHIVE, Permission.COMPLIANCE_ASSIGN,
-                        Permission.CONTENT_MANAGE, Permission.SYSTEM_AUDIT),
+                Set.of(Permission.ARTICLES_EDIT, Permission.ARTICLES_ARCHIVE,
+                        Permission.VIDEOS_ARCHIVE, Permission.COMPLIANCE_ASSIGN, Permission.CONTENT_MANAGE),
                 Permission.defaultsFor(Role.CONTENT_ADMIN));
+    }
+
+    @Test
+    void statsViewIsAnExplicitGrantForEveryNonAdminRole() {
+        assertTrue(!Permission.defaultsFor(Role.OPERATOR).contains(Permission.STATS_VIEW));
+        assertTrue(!Permission.defaultsFor(Role.MANAGER).contains(Permission.STATS_VIEW));
+        assertTrue(!Permission.defaultsFor(Role.CONTENT_ADMIN).contains(Permission.STATS_VIEW));
+        assertTrue(Permission.defaultsFor(Role.SYSTEM_ADMIN).contains(Permission.STATS_VIEW));
     }
 }

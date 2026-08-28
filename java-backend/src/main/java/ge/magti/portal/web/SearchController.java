@@ -1,13 +1,12 @@
 package ge.magti.portal.web;
 
+import ge.magti.portal.article.ArticleTargetQueryService;
 import ge.magti.portal.domain.Article;
-import ge.magti.portal.domain.ArticleTargetDepartment;
 import ge.magti.portal.domain.Category;
 import ge.magti.portal.domain.News;
 import ge.magti.portal.domain.SearchLog;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.domain.VideoInstruction;
-import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
 import ge.magti.portal.repository.CategoryRepository;
 import ge.magti.portal.repository.SearchLogRepository;
 import ge.magti.portal.search.GlobalSearchCache;
@@ -24,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -38,22 +38,25 @@ import java.util.stream.Collectors;
 @RestController
 public class SearchController {
 
+    private static final int MAX_QUERY_LENGTH = 200;
+    private static final String QUERY_TOO_LONG_DETAIL = "საძიებო ტექსტი არ უნდა აღემატებოდეს 200 სიმბოლოს";
+
     private final SearchQueryService searchQueryService;
     private final GlobalSearchCache globalSearchCache;
     private final SearchLogRepository searchLogRepository;
-    private final ArticleTargetDepartmentRepository targetDepartmentRepository;
+    private final ArticleTargetQueryService articleTargetQueryService;
     private final CategoryRepository categoryRepository;
 
     public SearchController(
             SearchQueryService searchQueryService,
             GlobalSearchCache globalSearchCache,
             SearchLogRepository searchLogRepository,
-            ArticleTargetDepartmentRepository targetDepartmentRepository,
+            ArticleTargetQueryService articleTargetQueryService,
             CategoryRepository categoryRepository) {
         this.searchQueryService = searchQueryService;
         this.globalSearchCache = globalSearchCache;
         this.searchLogRepository = searchLogRepository;
-        this.targetDepartmentRepository = targetDepartmentRepository;
+        this.articleTargetQueryService = articleTargetQueryService;
         this.categoryRepository = categoryRepository;
     }
 
@@ -67,14 +70,16 @@ public class SearchController {
         if (denial != null) {
             return denial;
         }
+        if (queryTooLong(q)) {
+            return ResponseEntity.badRequest().body(Map.of("detail", QUERY_TOO_LONG_DETAIL));
+        }
 
         List<Article> articles = searchQueryService.searchArticles(q, categoryId, user);
         writeSearchLog(user, q, articles.size());
 
         Set<Long> articleIds = articles.stream().map(Article::getId).collect(Collectors.toSet());
-        Map<Long, List<String>> deptsByArticle = targetDepartmentRepository.findByArticleIdIn(articleIds).stream()
-                .collect(Collectors.groupingBy(ArticleTargetDepartment::getArticleId,
-                        Collectors.mapping(ArticleTargetDepartment::getDepartment, Collectors.toList())));
+        Map<Long, List<String>> deptsByArticle =
+                articleTargetQueryService.targetDepartmentsByArticleWithinLimit(articleIds);
 
         List<ArticleResponse> response = articles.stream()
                 .map(a -> ArticleResponse.from(a, deptsByArticle.getOrDefault(a.getId(), List.of())))
@@ -89,8 +94,12 @@ public class SearchController {
         if (denial != null) {
             return denial;
         }
+        if (queryTooLong(q)) {
+            return ResponseEntity.badRequest().body(Map.of("detail", QUERY_TOO_LONG_DETAIL));
+        }
 
-        String cacheKey = "search:" + q + ":" + user.getRole().name() + ":" + user.getDepartment();
+        String normalizedQuery = q.strip().toLowerCase(Locale.ROOT);
+        String cacheKey = "search:" + normalizedQuery + ":" + user.getRole().name() + ":" + user.getDepartment();
         SearchQueryService.GlobalSearchResult result =
                 globalSearchCache.getOrCompute(cacheKey, () -> searchQueryService.searchGlobal(q, user));
 
@@ -104,9 +113,8 @@ public class SearchController {
             categoryRepository.findAllById(categoryIds).forEach(c -> categoryNames.put(c.getId(), c.getName()));
         }
         Set<Long> articleIds = result.articles().stream().map(Article::getId).collect(Collectors.toSet());
-        Map<Long, List<String>> deptsByArticle = targetDepartmentRepository.findByArticleIdIn(articleIds).stream()
-                .collect(Collectors.groupingBy(ArticleTargetDepartment::getArticleId,
-                        Collectors.mapping(ArticleTargetDepartment::getDepartment, Collectors.toList())));
+        Map<Long, List<String>> deptsByArticle =
+                articleTargetQueryService.targetDepartmentsByArticleWithinLimit(articleIds);
 
         List<ArticleSummaryResponse> articles = result.articles().stream()
                 .map(a -> ArticleSummaryResponse.from(
@@ -177,6 +185,10 @@ public class SearchController {
         log.setHasResults(resultsFound > 0);
         log.setResultsFound(resultsFound);
         searchLogRepository.save(log);
+    }
+
+    private static boolean queryTooLong(String q) {
+        return q != null && q.strip().length() > MAX_QUERY_LENGTH;
     }
 
     private static ResponseEntity<Map<String, String>> requireAuthenticated(User user) {

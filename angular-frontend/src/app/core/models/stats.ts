@@ -136,3 +136,15 @@ export interface GroupUsersResponse {
   users: GroupMemberCompletion[];
   total: number;
 }
+
+export interface LeadershipOption {
+  teamId: number;
+  teamName: string;
+  assignmentType: 'PRIMARY' | 'ACTING';
+}
+
+export interface LeadershipOptionsResponse {
+  groups: LeadershipOption[];
+  defaultTeamId: number | null;
+  canExportPrimary: boolean;
+}

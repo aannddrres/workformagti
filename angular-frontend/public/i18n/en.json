@@ -95,6 +95,7 @@
     "perm_content_manage": "Manage all content",
     "perm_compliance_assign": "Assign mandatory reading",
     "perm_reports_export": "Export reports",
+    "perm_stats_view": "View company-wide statistics",
     "perm_inherited": "(from role)",
     "perm_role_grants": "The selected role grants this permission by default",
     "perm_role_denies": "The selected role does not grant this permission by default",

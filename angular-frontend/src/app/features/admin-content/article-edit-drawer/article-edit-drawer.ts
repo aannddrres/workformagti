@@ -5,11 +5,12 @@ import { CategoriesService } from '../../../core/services/categories.service';
 import { QuizAdminService } from '../../../core/services/quiz-admin.service';
 import { RequiredReadingService } from '../../../core/services/required-reading.service';
 import { UploadService } from '../../../core/services/upload.service';
-import { Article, ArticleRequest } from '../../../core/models/article';
+import { ArticleCommandRequest, ArticleRequest } from '../../../core/models/article';
 import { Category } from '../../../core/models/category';
 import { RichTextEditor } from '../../../shared/rich-text-editor/rich-text-editor';
 import { QuizBuilder } from '../../../shared/quiz-builder/quiz-builder';
 import { ToastService } from '../../../core/notifications/toast.service';
+import { PortalDialog } from '../../../shared/portal-dialog/portal-dialog';
 
 const DEPARTMENT_ORDER: { key: 'info' | 'tech' | 'office'; name: string }[] = [
   { key: 'info', name: 'საინფორმაციო' },
@@ -36,7 +37,7 @@ const DEPARTMENT_ORDER: { key: 'info' | 'tech' | 'office'; name: string }[] = [
 @Component({
   selector: 'app-article-edit-drawer',
   standalone: true,
-  imports: [TranslatePipe, RichTextEditor, QuizBuilder],
+  imports: [TranslatePipe, RichTextEditor, QuizBuilder, PortalDialog],
   templateUrl: './article-edit-drawer.html'
 })
 export class ArticleEditDrawer {
@@ -86,6 +87,7 @@ export class ArticleEditDrawer {
   protected readonly uploading = signal(false);
   protected readonly dropzoneActive = signal(false);
   protected readonly saving = signal(false);
+  protected readonly dirty = signal(false);
   protected readonly saveError = signal<string | null>(null);
   protected readonly departmentError = signal(false);
   protected readonly dueDateError = signal(false);
@@ -127,6 +129,7 @@ export class ArticleEditDrawer {
   }
 
   private resetForCreate(): void {
+    this.dirty.set(false);
     this.title.set('');
     this.categoryIdValue.set(null);
     this.tags.set('');
@@ -179,6 +182,7 @@ export class ArticleEditDrawer {
         queueMicrotask(() => {
           this.richTextEditor()?.setHtml(article.content);
           this.previewHtml.set(article.content);
+          this.dirty.set(false);
         });
 
         // If this lookup fails silently the checkbox renders UNCHECKED, which
@@ -225,10 +229,16 @@ export class ArticleEditDrawer {
 
   protected onEditorContentChange(html: string): void {
     this.previewHtml.set(html);
+    this.dirty.set(true);
+  }
+
+  protected markDirty(): void {
+    this.dirty.set(true);
   }
 
   protected toggleDepartment(key: 'info' | 'tech' | 'office', checked: boolean): void {
     this.deptChecked.update((current) => ({ ...current, [key]: checked }));
+    this.dirty.set(true);
   }
 
   protected dropzoneClass(): string {
@@ -275,6 +285,7 @@ export class ArticleEditDrawer {
         this.attachmentUrl.set(result.url);
         this.attachmentFilename.set(result.filename);
         this.uploading.set(false);
+        this.dirty.set(true);
       },
       error: () => {
         this.uploading.set(false);
@@ -286,9 +297,13 @@ export class ArticleEditDrawer {
   protected removeAttachment(): void {
     this.attachmentUrl.set(null);
     this.attachmentFilename.set(null);
+    this.dirty.set(true);
   }
 
   protected close(): void {
+    if (this.dirty() && !window.confirm('შეუნახავი ცვლილებები დაიკარგება. გსურთ დახურვა?')) {
+      return;
+    }
     this.closed.emit();
   }
 
@@ -331,44 +346,26 @@ export class ArticleEditDrawer {
 
     this.saving.set(true);
     this.saveError.set(null);
+    const questions = this.quizEnabled() ? this.quizBuilder()?.getQuestions() ?? [] : [];
+    const command: ArticleCommandRequest = {
+      article: payload,
+      mandatory: this.isMandatory(),
+      due_date: this.isMandatory() && this.dueDate() ? new Date(this.dueDate()).toISOString() : null,
+      target_department: departments[0],
+      quiz: this.quizEnabled() ? { questions } : null
+    };
     const id = this.articleId();
-    const request = id != null ? this.articlesService.update(id, payload) : this.articlesService.create(payload);
+    const request = id != null
+      ? this.articlesService.updateCommand(id, command)
+      : this.articlesService.createCommand(command);
 
     request.subscribe({
-      next: (article: Article) => this.afterSaved(article, departments[0]),
+      next: () => this.finishSave(),
       error: (err) => {
         this.saving.set(false);
         this.saveError.set(err?.error?.detail ?? this.translate.instant('content.articles.save_failed'));
       }
     });
-  }
-
-  private async afterSaved(article: Article, targetDepartment: string): Promise<void> {
-    const dueIso = this.isMandatory() && this.dueDate() ? new Date(this.dueDate()).toISOString() : null;
-    try {
-      await this.requiredReadingService.sync('article', article.id, targetDepartment, this.isMandatory(), dueIso);
-    } catch {
-      /* non-fatal -- article itself saved successfully */
-    }
-
-    if (this.quizEnabled()) {
-      const questions = this.quizBuilder()!.getQuestions();
-      if (questions.length > 0) {
-        this.quizAdminService.update(article.id, questions).subscribe({
-          next: () => this.finishSave(),
-          // The article really did save, so closing the drawer is right --
-          // but the quiz did not, and swallowing that told the admin their
-          // questions were live when they were not. The article's own
-          // read-gate depends on them.
-          error: () => {
-            this.toast.error(this.translate.instant('content.articles.quiz_save_error'));
-            this.finishSave();
-          }
-        });
-        return;
-      }
-    }
-    this.finishSave();
   }
 
   private finishSave(): void {

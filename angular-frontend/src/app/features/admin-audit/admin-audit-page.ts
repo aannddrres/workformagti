@@ -2,6 +2,7 @@ import { computed, Component, inject, signal } from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
 import { AuditService } from '../../core/services/audit.service';
 import { AuthService } from '../../core/auth/auth.service';
+import { PortalDialog } from '../../shared/portal-dialog/portal-dialog';
 import { AuditChainHealth, AuditLogEntry, AuditVerifyResult } from '../../core/models/audit';
 import {
   categoryBadge,
@@ -38,15 +39,7 @@ function isoDate(d: Date): string {
  * - Technical action/item codes are preserved in the data and tooltip, but
  *   rendered as stable Georgian labels. Audit is a frequent operational
  *   screen and raw implementation codes are not useful primary copy.
- * - The manager role's dept-scoped, read-only view of this page
- *   (audit-dashboard.js's `isManager()` branches: hidden export/chain-health,
- *   a scope note) is unreachable through the Python UI today -- the whole
- *   "ადმინისტრირება" sidebar section is gated
- *   `data-required-role="admin,content_admin"` at its wrapping `<div>`,
- *   which hides all descendants regardless of the per-item re-show logic
- *   audit-dashboard.js layers on top. Phase 6/7 made that branch reachable
- *   through the backend's effective `system.audit` decision, so the scoped
- *   manager behavior below is part of the live Angular page.
+ * - The target product boundary makes this entire page SYSTEM_ADMIN-only.
  * - The CSV export button (`#btn-export-audit-csv`) has no click handler
  *   anywhere in static/js -- a dead control in the Python original. The
  *   backend endpoint it's unambiguously labeled for (`GET
@@ -56,23 +49,15 @@ function isoDate(d: Date): string {
 @Component({
   selector: 'app-admin-audit-page',
   standalone: true,
-  imports: [TranslatePipe],
+  imports: [TranslatePipe, PortalDialog],
   templateUrl: './admin-audit-page.html'
 })
 export class AdminAuditPage {
   private readonly auth = inject(AuthService);
 
   /**
-   * The backend serves MANAGER a department-scoped audit list
-   * (AuditLogController:205-207) but refuses them export, verify and
-   * chain-health outright — those use requireSystemAuditNonManager, bulk
-   * egress and integrity tooling rather than the scoped read view.
-   *
-   * The Python original had exactly these branches (audit-dashboard.js's
-   * isManager()); this port skipped them because /admin was role-gated and
-   * a manager could never reach the page. Now that the route is permission
-   * -driven they have a reachable caller again, so they are back: without
-   * them a manager would be handed three controls that answer only 403.
+   * Kept as a defensive display flag for stale tabs during a permission
+   * revocation; route and API enforcement both reject non-system-admins.
    */
   protected readonly isManager = computed(() => this.auth.currentUser()?.role === 'manager');
   private readonly auditService = inject(AuditService);

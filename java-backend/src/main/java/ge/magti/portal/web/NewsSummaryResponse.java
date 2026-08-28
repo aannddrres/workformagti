@@ -2,6 +2,7 @@ package ge.magti.portal.web;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import ge.magti.portal.domain.News;
+import ge.magti.portal.news.NewsListItem;
 
 import java.time.OffsetDateTime;
 
@@ -20,6 +21,14 @@ public record NewsSummaryResponse(
         @JsonProperty("is_draft") boolean isDraft,
         @JsonProperty("author_id") Long authorId
 ) {
+    public static NewsSummaryResponse from(NewsListItem news) {
+        return new NewsSummaryResponse(news.id(), news.title(), news.targetDepartment(),
+                news.attachmentUrl(), news.createdAt(), news.version(), news.visibleToTechInfo(),
+                news.visibleToServiceCenter(), news.archived(), news.expiresAt(), news.draft(),
+                news.authorId());
+    }
+
+    /** Full-entity mapper retained for non-list call sites such as global search. */
     public static NewsSummaryResponse from(News news) {
         return new NewsSummaryResponse(news.getId(), news.getTitle(), news.getTargetDepartment(),
                 news.getAttachmentUrl(), news.getCreatedAt(), news.getVersion(), news.isVisibleToTechInfo(),

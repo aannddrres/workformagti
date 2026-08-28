@@ -1,7 +1,13 @@
 package ge.magti.portal.repository;
 
 import ge.magti.portal.domain.ExportJob;
+import ge.magti.portal.export.ExpiredExportJobReference;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -15,5 +21,14 @@ public interface ExportJobRepository extends JpaRepository<ExportJob, String> {
      * forever. {@code expiresAt} is set from creation, so this also sweeps
      * up a job whose worker crashed mid-build, not just completed/failed ones.
      */
-    List<ExportJob> findByExpiresAtLessThan(double now);
+    @Query("SELECT new ge.magti.portal.export.ExpiredExportJobReference(j.id, j.path) "
+            + "FROM ExportJob j WHERE j.expiresAt < :now ORDER BY j.id")
+    List<ExpiredExportJobReference> findExpiredReferences(
+            @Param("now") double now,
+            Pageable pageable);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Transactional
+    @Query("DELETE FROM ExportJob j WHERE j.id IN :ids")
+    int deleteExpiredByIds(@Param("ids") List<String> ids);
 }

@@ -3,47 +3,35 @@
     <!-- The login screen carried no company mark at all before this. -->
     <div class="mb-6"><app-logo size="lg" /></div>
     <h1 class="mb-1 text-2xl font-semibold text-gray-800 dark:text-gray-100">{{ 'auth.login_page.heading' | translate }}</h1>
-    <p class="mb-6 text-sm text-gray-500 dark:text-gray-400">{{ 'auth.login_page.subtitle' | translate }}</p>
+    <p class="mb-6 text-sm text-gray-500 dark:text-gray-400">
+      {{ isLocal ? 'აირჩიეთ როლი ლოკალური UX და ფუნქციური ტესტირებისთვის.' : ('auth.login_page.subtitle' | translate) }}
+    </p>
 
-    <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-4">
-      <div>
-        <label for="login-email" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">
-          {{ 'auth.login_page.email_label' | translate }}
-        </label>
-        <input
-          id="login-email"
-          type="email"
-          formControlName="email"
-          autocomplete="username"
-          class="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
-        />
-      </div>
-
-      <div>
-        <label for="login-password" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">
-          {{ 'auth.login_page.password_label' | translate }}
-        </label>
-        <input
-          id="login-password"
-          type="password"
-          formControlName="password"
-          autocomplete="current-password"
-          [placeholder]="'auth.login_page.password_placeholder' | translate"
-          class="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
-        />
-      </div>
-
+    <div class="flex flex-col gap-4">
       @if (errorMessage()) {
-        <p class="text-sm text-red-600 dark:text-red-400">{{ errorMessage() }}</p>
+        <p role="alert" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">{{ errorMessage() }}</p>
       }
 
-      <button
-        type="submit"
-        [disabled]="submitting()"
-        class="mt-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {{ (submitting() ? 'auth.login_page.submit_button_loading' : 'auth.login_page.submit_button') | translate }}
-      </button>
-    </form>
+      @if (isLocal) {
+        <div>
+          <p class="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">ლოკალური სატესტო პერსონა</p>
+          <div class="grid grid-cols-2 gap-2">
+            @for (persona of personas; track persona.email) {
+              <button type="button" [disabled]="submitting()" (click)="loginPersona(persona.email)" class="secondary-button min-h-20 flex-col justify-center text-center">
+                <i class="fa-solid" [class]="persona.icon" aria-hidden="true"></i>
+                <span>{{ persona.label }}</span>
+              </button>
+            }
+          </div>
+          <p class="mt-3 text-xs leading-5 text-slate-500 dark:text-slate-400">პაროლი არ გამოიყენება. ეს არჩევანი ხელმისაწვდომია მხოლოდ loopback მისამართზე და backend-ის development რეჟიმში.</p>
+        </div>
+      } @else {
+        <button type="button" [disabled]="submitting()" (click)="startCorporateSso()" class="primary-button w-full justify-center py-3">
+          <i class="fa-solid fa-building-shield" aria-hidden="true"></i>
+          {{ submitting() ? 'მიმდინარეობს გადამისამართება…' : 'კომპანიის ანგარიშით შესვლა' }}
+        </button>
+        <p class="text-center text-xs leading-5 text-slate-500 dark:text-slate-400">წვდომა გაიცემა მხოლოდ კომპანიის Active Directory-ის წარმატებული ავტორიზაციის შემდეგ.</p>
+      }
+    </div>
   </div>
 </div>

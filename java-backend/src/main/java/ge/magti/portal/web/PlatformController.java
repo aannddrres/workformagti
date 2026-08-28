@@ -9,6 +9,7 @@ import ge.magti.portal.domain.ReadStatus;
 import ge.magti.portal.domain.RequiredReading;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
+import ge.magti.portal.query.CompleteResultGuard;
 import ge.magti.portal.repository.ReminderRepository;
 import ge.magti.portal.repository.NewsRepository;
 import ge.magti.portal.repository.ReadStatusRepository;
@@ -74,7 +75,9 @@ public class PlatformController {
         if (denial != null) {
             return denial;
         }
-        return ResponseEntity.ok(tagRepository.findAllByOrderByName().stream().map(TagResponse::from).toList());
+        return ResponseEntity.ok(CompleteResultGuard.enforce(
+                        tagRepository.findAllByOrderByName(CompleteResultGuard.sentinelPage())).stream()
+                .map(TagResponse::from).toList());
     }
 
     /** Port of get_notifications_summary (routers/platform.py:125-197). */
@@ -90,8 +93,10 @@ public class PlatformController {
         List<UnreadReadingSummaryItem> unreadReadings = new ArrayList<>();
         if (!ComplianceCalculator.MANAGEMENT_ROLES.contains(user.getRole())) {
             String deptPrefix = DepartmentMatcher.splitGroup(user.getDepartment()).prefix();
-            List<RequiredReading> readings = requiredReadingRepository.findByTargetDepartmentIn(
-                    List.of(user.getDepartment(), deptPrefix, "All"));
+            List<RequiredReading> readings = CompleteResultGuard.enforce(
+                    requiredReadingRepository.findByTargetDepartmentIn(
+                            List.of(user.getDepartment(), deptPrefix, "All"),
+                            CompleteResultGuard.sentinelPage()));
             if (!readings.isEmpty()) {
                 Map<ItemKey, ItemDetail> details = itemTitleResolver.resolveDetailsBulk(
                         readings.stream().map(r -> new ItemKey(r.getItemType(), r.getItemId())).toList());

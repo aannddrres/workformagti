@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const reportDirectory = process.env.PLAYWRIGHT_REPORT_DIR ?? 'playwright-report';
+
 /**
  * Locally: the isolated Java+Oracle test instance (Angular dev server on
  * :4201, proxying /api to Spring Boot on :8090) -- never the developer's
@@ -27,8 +29,12 @@ export default defineConfig({
   // Playwright's own failure block lands ~230 lines above the end of the job
   // log, under two server-log dumps, so pulling it back from the API means
   // pulling the whole backend startup with it.
-  reporter: process.env.CI
-    ? [['list'], ['html', { open: 'never' }], ['json', { outputFile: 'playwright-report/results.json' }]]
+  reporter: process.env.CI || process.env.PLAYWRIGHT_REPORT_DIR
+    ? [
+        ['list'],
+        ['html', { open: 'never', outputFolder: reportDirectory }],
+        ['json', { outputFile: `${reportDirectory}/results.json` }]
+      ]
     : [['list']],
   use: {
     // Playwright's default here is 0 -- no limit -- so a click on an element

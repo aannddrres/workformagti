@@ -95,6 +95,7 @@
     "perm_content_manage": "კონტენტის სრული მართვა",
     "perm_compliance_assign": "სავალდებულო კითხვის დანიშვნა",
     "perm_reports_export": "რეპორტების ექსპორტი",
+    "perm_stats_view": "კომპანიის საერთო სტატისტიკა",
     "perm_inherited": "(როლიდან)",
     "perm_role_grants": "არჩეული როლი ამ უფლებას ავტომატურად ანიჭებს",
     "perm_role_denies": "არჩეული როლი ამ უფლებას ავტომატურად არ ანიჭებს",

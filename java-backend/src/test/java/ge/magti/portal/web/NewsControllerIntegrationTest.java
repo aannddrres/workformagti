@@ -2,12 +2,15 @@ package ge.magti.portal.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ge.magti.portal.RequiresOracle;
+import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.News;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
+import ge.magti.portal.history.HistoryPayloadGuard;
 import ge.magti.portal.repository.NewsHistoryRepository;
 import ge.magti.portal.repository.NewsRepository;
+import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.JwtService;
 import ge.magti.portal.util.TbilisiTime;
@@ -61,6 +64,8 @@ class NewsControllerIntegrationTest {
     private NewsRepository newsRepository;
     @Autowired
     private NewsHistoryRepository newsHistoryRepository;
+    @Autowired
+    private AuditLogRepository auditLogRepository;
     @Autowired
     private JwtService jwtService;
     @Autowired
@@ -117,6 +122,21 @@ class NewsControllerIntegrationTest {
     }
 
     @Test
+    void listRejectsInvalidOrUnboundedCardinality() throws Exception {
+        User operator = createUser("news-list-bounds@magti.ge", Role.OPERATOR, "All");
+        String token = tokenFor(operator);
+
+        for (String query : new String[] {"skip=-1&limit=20", "skip=0&limit=0", "skip=0&limit=1001"}) {
+            mockMvc.perform(authed(get("/api/news?" + query), token))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.detail").value(ListQueryBounds.INVALID_DETAIL));
+        }
+
+        mockMvc.perform(authed(get("/api/news?skip=0&limit=1000"), token))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void operatorCannotCreateNews() throws Exception {
         User operator = createUser("news-op1@magti.ge", Role.OPERATOR, "All");
 
@@ -159,8 +179,27 @@ class NewsControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("განახლებული სიახლე"))
                 .andExpect(jsonPath("$.version").value(2));
-        assertFalse(newsHistoryRepository.findByNewsIdOrderByUpdatedAtDesc(id).isEmpty(),
+        assertFalse(newsHistoryRepository.findByNewsIdOrderByUpdatedAtDesc(
+                id, ge.magti.portal.query.CompleteResultGuard.sentinelPage()).isEmpty(),
                 "the PUT above must have written a history row, or the delete below proves nothing about BL-01");
+
+        AuditLog createAudit = auditLogRepository.findAll().stream()
+                .filter(a -> "news".equals(a.getItemType()) && Long.valueOf(id).equals(a.getItemId())
+                        && "CREATE".equals(a.getAction()))
+                .findFirst().orElseThrow();
+        AuditLog updateAudit = auditLogRepository.findAll().stream()
+                .filter(a -> "news".equals(a.getItemType()) && Long.valueOf(id).equals(a.getItemId())
+                        && "UPDATE".equals(a.getAction()))
+                .findFirst().orElseThrow();
+        var createDetails = objectMapper.readTree(createAudit.getDetails());
+        var updateDetails = objectMapper.readTree(updateAudit.getDetails());
+        assertEquals(admin.getId(), createAudit.getAdminId());
+        assertEquals("პირველი სიახლე", createAudit.getItemNameSnapshot());
+        assertTrue(createDetails.path("before").isNull());
+        assertEquals(1, createDetails.path("after").path("version").asInt());
+        assertEquals("პირველი სიახლე", updateDetails.path("before").path("title").asText());
+        assertEquals("განახლებული სიახლე", updateDetails.path("after").path("title").asText());
+        assertEquals(2, updateDetails.path("after").path("version").asInt());
 
         mockMvc.perform(authed(post("/api/news/" + id + "/archive"), tokenFor(admin)))
                 .andExpect(status().isOk())
@@ -171,7 +210,8 @@ class NewsControllerIntegrationTest {
 
         mockMvc.perform(authed(get("/api/news/" + id), tokenFor(admin)))
                 .andExpect(status().isNotFound());
-        assertFalse(newsHistoryRepository.findByNewsIdOrderByUpdatedAtDesc(id).isEmpty(),
+        assertFalse(newsHistoryRepository.findByNewsIdOrderByUpdatedAtDesc(
+                id, ge.magti.portal.query.CompleteResultGuard.sentinelPage()).isEmpty(),
                 "news history is recoverable with the trashed payload");
     }
 
@@ -285,6 +325,40 @@ class NewsControllerIntegrationTest {
     }
 
     @Test
+    void archiveAndUnarchiveWriteReconstructableAuditEvidence() throws Exception {
+        User admin = createUser("news-lifecycle-admin@magti.ge", Role.CONTENT_ADMIN, "All");
+        News news = createNewsDirect("არქივის სიახლე", "All", false, admin.getId());
+
+        mockMvc.perform(authed(post("/api/news/" + news.getId() + "/archive"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.is_archived").value(true));
+
+        AuditLog archiveAudit = auditLogRepository.findAll().stream()
+                .filter(a -> "ARCHIVE".equals(a.getAction()) && "news".equals(a.getItemType())
+                        && news.getId().equals(a.getItemId()))
+                .findFirst().orElseThrow();
+        var archiveDetails = objectMapper.readTree(archiveAudit.getDetails());
+        assertEquals(admin.getId(), archiveAudit.getAdminId());
+        assertEquals(admin.getName(), archiveAudit.getAdminNameSnapshot());
+        assertEquals(news.getTitle(), archiveAudit.getItemNameSnapshot());
+        assertTrue(archiveDetails.path("before").path("expires_at").isNull());
+        assertFalse(archiveDetails.path("after").path("expires_at").isNull());
+
+        mockMvc.perform(authed(post("/api/news/" + news.getId() + "/unarchive"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.is_archived").value(false));
+
+        AuditLog unarchiveAudit = auditLogRepository.findAll().stream()
+                .filter(a -> "UNARCHIVE".equals(a.getAction()) && "news".equals(a.getItemType())
+                        && news.getId().equals(a.getItemId()))
+                .findFirst().orElseThrow();
+        var unarchiveDetails = objectMapper.readTree(unarchiveAudit.getDetails());
+        assertFalse(unarchiveDetails.path("before").path("expires_at").isNull());
+        assertTrue(unarchiveDetails.path("after").path("expires_at").isNull());
+        assertEquals("SUCCESS", unarchiveDetails.path("result").asText());
+    }
+
+    @Test
     void newsHistoryAndRestoreLifecycle() throws Exception {
         User admin = createUser("news-history-admin@magti.ge", Role.CONTENT_ADMIN, "All");
         News news = createNewsDirect("ორიგინალი სათაური", "All", false, admin.getId());
@@ -302,16 +376,103 @@ class NewsControllerIntegrationTest {
                 .andReturn().getResponse().getContentAsString();
         long historyId = objectMapper.readTree(historyBody).get(0).get("id").asLong();
 
+        mockMvc.perform(authed(get("/api/news/" + news.getId() + "/history-summary"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$[0].title").value("ორიგინალი სათაური"))
+                .andExpect(jsonPath("$[0].content").doesNotExist());
+        mockMvc.perform(authed(get("/api/news/" + news.getId() + "/history/" + historyId), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("ორიგინალი სათაური"))
+                .andExpect(jsonPath("$.content").value("შინაარსი"));
+
         mockMvc.perform(authed(post("/api/news/" + news.getId() + "/history/" + historyId + "/restore"),
                         tokenFor(admin)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("ორიგინალი სათაური"))
                 .andExpect(jsonPath("$.version").value(3));
 
+        AuditLog restoreAudit = auditLogRepository.findAll().stream()
+                .filter(a -> "RESTORE_VERSION".equals(a.getAction()) && "news".equals(a.getItemType())
+                        && news.getId().equals(a.getItemId()))
+                .findFirst().orElseThrow();
+        var restoreDetails = objectMapper.readTree(restoreAudit.getDetails());
+        assertEquals("პირველი რედაქცია", restoreDetails.path("before").path("title").asText());
+        assertEquals(2, restoreDetails.path("before").path("version").asInt());
+        assertEquals("ორიგინალი სათაური", restoreDetails.path("after").path("title").asText());
+        assertEquals(3, restoreDetails.path("after").path("version").asInt());
+
         // The restore itself archived the pre-restore ("პირველი რედაქცია") state.
         mockMvc.perform(authed(get("/api/news/" + news.getId() + "/history"), tokenFor(admin)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(2)));
+    }
+
+    @Test
+    void historyIdsCannotCrossNewsBoundariesAndRejectedRestoreDoesNotMutate() throws Exception {
+        User admin = createUser("news-history-idor@magti.ge", Role.CONTENT_ADMIN, "All");
+        News target = createNewsDirect("სამიზნე სიახლე", "All", false, admin.getId());
+        News foreign = createNewsDirect("სხვა სიახლე", "All", false, admin.getId());
+
+        mockMvc.perform(authed(put("/api/news/" + target.getId()), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(newsRequestJson("სამიზნე განახლება", "All")))
+                .andExpect(status().isOk());
+        mockMvc.perform(authed(put("/api/news/" + foreign.getId()), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(newsRequestJson("სხვა განახლება", "All")))
+                .andExpect(status().isOk());
+
+        long foreignHistoryId = newsHistoryRepository.findByNewsIdOrderByUpdatedAtDesc(
+                foreign.getId(), ge.magti.portal.query.CompleteResultGuard.sentinelPage()).getFirst().getId();
+        News before = newsRepository.findById(target.getId()).orElseThrow();
+        int beforeHistoryCount = newsHistoryRepository.findByNewsIdOrderByUpdatedAtDesc(
+                target.getId(), ge.magti.portal.query.CompleteResultGuard.sentinelPage()).size();
+
+        mockMvc.perform(authed(
+                        get("/api/news/" + target.getId() + "/history/" + foreignHistoryId), tokenFor(admin)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("ისტორიის ვერსია ვერ მოიძებნა"));
+        mockMvc.perform(authed(
+                        post("/api/news/" + target.getId() + "/history/" + foreignHistoryId + "/restore"),
+                        tokenFor(admin)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("ისტორიის ვერსია ვერ მოიძებნა"));
+
+        entityManager.flush();
+        entityManager.clear();
+        News after = newsRepository.findById(target.getId()).orElseThrow();
+        assertEquals(before.getTitle(), after.getTitle());
+        assertEquals(before.getContent(), after.getContent());
+        assertEquals(before.getVersion(), after.getVersion());
+        assertEquals(beforeHistoryCount, newsHistoryRepository.findByNewsIdOrderByUpdatedAtDesc(
+                target.getId(), ge.magti.portal.query.CompleteResultGuard.sentinelPage()).size());
+        assertTrue(auditLogRepository.findAll().stream().noneMatch(a ->
+                "RESTORE_VERSION".equals(a.getAction()) && "news".equals(a.getItemType())
+                        && target.getId().equals(a.getItemId())));
+    }
+
+    @Test
+    void legacyFullNewsHistoryHasAnAggregateClobBudgetButSummaryDoesNotLoadContent() throws Exception {
+        User admin = createUser("news-history-budget@magti.ge", Role.CONTENT_ADMIN, "All");
+        News news = createNewsDirect("დიდი ისტორია", "All", false, admin.getId());
+        mockMvc.perform(authed(put("/api/news/" + news.getId()), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(newsRequestJson("ახალი სათაური", "All")))
+                .andExpect(status().isOk());
+        var history = newsHistoryRepository.findByNewsIdOrderByUpdatedAtDesc(
+                news.getId(), ge.magti.portal.query.CompleteResultGuard.sentinelPage()).getFirst();
+        history.setContent("x".repeat((int) HistoryPayloadGuard.MAX_FULL_RESPONSE_CHARACTERS + 1));
+        newsHistoryRepository.saveAndFlush(history);
+        entityManager.clear();
+
+        mockMvc.perform(authed(get("/api/news/" + news.getId() + "/history-summary"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].content").doesNotExist());
+        mockMvc.perform(authed(get("/api/news/" + news.getId() + "/history"), tokenFor(admin)))
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(jsonPath("$.detail").value(
+                        "ისტორიის სრული ტექსტის მოცულობა უსაფრთხო დამუშავების ზღვარს აჭარბებს"));
     }
 
     @Test
@@ -331,6 +492,15 @@ class NewsControllerIntegrationTest {
         News reloaded = newsRepository.findById(news.getId()).orElseThrow();
         assertEquals("ავტოშენახული სათაური", reloaded.getTitle());
         assertEquals("ორიგინალი შინაარსი", reloaded.getContent());
+
+        var audit = auditLogRepository.findAll().stream()
+                .filter(a -> "AUTOSAVE".equals(a.getAction()) && news.getId().equals(a.getItemId()))
+                .findFirst().orElseThrow();
+        var details = objectMapper.readTree(audit.getDetails());
+        assertEquals("საწყისი სათაური", details.at("/before/title").asText());
+        assertEquals("ავტოშენახული სათაური", details.at("/after/title").asText());
+        assertEquals("SUCCESS", details.get("result").asText());
+        assertFalse(audit.getDetails().contains("ორიგინალი შინაარსი"));
     }
 
     @Test

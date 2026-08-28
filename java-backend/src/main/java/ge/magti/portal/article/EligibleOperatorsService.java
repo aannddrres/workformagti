@@ -3,7 +3,7 @@ package ge.magti.portal.article;
 import ge.magti.portal.compliance.ComplianceCalculator;
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.User;
-import ge.magti.portal.repository.UserRepository;
+import ge.magti.portal.user.UserDirectoryQueryService;
 import ge.magti.portal.util.TbilisiTime;
 import org.springframework.stereotype.Service;
 
@@ -33,10 +33,10 @@ import java.util.List;
 @Service
 public class EligibleOperatorsService {
 
-    private final UserRepository userRepository;
+    private final UserDirectoryQueryService userDirectoryQueryService;
 
-    public EligibleOperatorsService(UserRepository userRepository) {
-        this.userRepository = userRepository;
+    public EligibleOperatorsService(UserDirectoryQueryService userDirectoryQueryService) {
+        this.userDirectoryQueryService = userDirectoryQueryService;
     }
 
     public List<User> forArticle(Article article, List<String> targetDepartments) {
@@ -51,8 +51,8 @@ public class EligibleOperatorsService {
         }
 
         List<User> candidates = targetDepartments.contains("All")
-                ? userRepository.findByActiveTrue()
-                : userRepository.findByActiveTrueAndDepartmentIn(targetDepartments);
+                ? userDirectoryQueryService.listActiveUsersWithinLimit()
+                : userDirectoryQueryService.listActiveUsersInDepartmentsWithinLimit(targetDepartments);
 
         return candidates.stream()
                 .filter(u -> !ComplianceCalculator.MANAGEMENT_ROLES.contains(u.getRole()))

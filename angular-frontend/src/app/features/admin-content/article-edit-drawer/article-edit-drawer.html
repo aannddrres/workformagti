@@ -1,12 +1,12 @@
 <div class="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" (click)="close()"></div>
 
-<div class="fixed inset-y-0 right-0 z-50 w-full max-w-2xl lg:max-w-6xl bg-white dark:bg-zinc-900 shadow-2xl flex flex-col">
+<div portalDialog portalDialogLabelledBy="article-editor-heading" (portalDialogClose)="close()" class="fixed inset-0 z-50 flex w-full flex-col bg-white dark:bg-zinc-900">
   <div class="flex items-center justify-between border-b border-gray-200 dark:border-zinc-800 px-6 py-4">
-    <h3 class="text-xl font-bold text-gray-800 dark:text-zinc-100">
+    <h3 id="article-editor-heading" class="text-xl font-bold text-gray-800 dark:text-zinc-100">
       {{ (isEditing ? 'content.articles.edit_title' : 'content.articles.new_title') | translate }}
     </h3>
-    <button type="button" (click)="close()" class="text-gray-500 hover:text-gray-700 dark:text-zinc-400">
-      <i class="fa-solid fa-xmark text-xl"></i>
+    <button type="button" (click)="close()" aria-label="რედაქტორის დახურვა" class="text-gray-500 hover:text-gray-700 dark:text-zinc-400">
+      <i class="fa-solid fa-xmark text-xl" aria-hidden="true"></i>
     </button>
   </div>
 
@@ -14,10 +14,11 @@
     <div class="flex flex-col lg:flex-row lg:items-stretch">
       <!-- Left: form -->
       <div class="flex-1 border-r border-gray-200 dark:border-zinc-800">
-        <form (submit)="submit($event)" class="flex flex-col">
+        <form (submit)="submit($event)" (input)="markDirty()" (change)="markDirty()" class="flex flex-col">
           <div class="px-6 pt-5 pb-0">
-            <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'content.articles.field_title' | translate }}</label>
+            <label for="article-title" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'content.articles.field_title' | translate }}</label>
             <input
+              id="article-title"
               type="text"
               required
               [value]="title()"
@@ -27,7 +28,7 @@
           </div>
 
           <div class="px-6 pt-4">
-            <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">
+            <label id="article-content-label" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">
               {{ 'content.articles.field_content' | translate }}
               <span class="text-xs font-normal text-gray-400 ml-2">({{ richTextEditor().charCount() }} {{ 'content.articles.characters' | translate }})</span>
             </label>
@@ -37,8 +38,9 @@
           <div class="px-6 py-5 space-y-5 border-t border-gray-100 dark:border-zinc-800 mt-4">
             <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
               <div>
-                <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'content.articles.field_category' | translate }}</label>
+                <label for="article-category" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'content.articles.field_category' | translate }}</label>
                 <select
+                  id="article-category"
                   required
                   (change)="categoryIdValue.set(+$any($event.target).value)"
                   class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
@@ -60,8 +62,9 @@
                 }
               </div>
               <div>
-                <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'content.articles.field_tags' | translate }}</label>
+                <label for="article-tags" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'content.articles.field_tags' | translate }}</label>
                 <input
+                  id="article-tags"
                   type="text"
                   [value]="tags()"
                   (input)="tags.set($any($event.target).value)"
@@ -98,8 +101,9 @@
 
             <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
               <div>
-                <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'content.articles.field_status' | translate }}</label>
+                <label for="article-status" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'content.articles.field_status' | translate }}</label>
                 <select
+                  id="article-status"
                   (change)="status.set($any($event.target).value)"
                   class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
                 >
@@ -110,8 +114,9 @@
               </div>
               @if (status() === 'scheduled') {
                 <div>
-                  <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'content.articles.field_scheduled_at' | translate }}</label>
+                  <label for="article-scheduled-at" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'content.articles.field_scheduled_at' | translate }}</label>
                   <input
+                    id="article-scheduled-at"
                     type="datetime-local"
                     [value]="scheduledAt()"
                     (input)="scheduledAt.set($any($event.target).value)"
@@ -123,7 +128,7 @@
 
             <div class="flex flex-col gap-2 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/60 p-4">
               <div class="flex items-center gap-3">
-                <input type="checkbox" [checked]="isMandatory()" (change)="isMandatory.set($any($event.target).checked)" class="h-4 w-4 accent-brand" />
+                <input id="article-mandatory" type="checkbox" [checked]="isMandatory()" (change)="isMandatory.set($any($event.target).checked)" class="h-4 w-4 accent-brand" />
                 @if (mandatoryUnknown()) {
                   <!-- The unchecked box below is not a fact here; say so, so the
                        editor does not save it as one. -->
@@ -131,11 +136,12 @@
                     {{ 'content.articles.mandatory_unknown' | translate }}
                   </span>
                 }
-                <label class="text-sm font-medium text-gray-800 dark:text-zinc-200">{{ 'content.articles.field_mandatory' | translate }}</label>
+                <label for="article-mandatory" class="text-sm font-medium text-gray-800 dark:text-zinc-200">{{ 'content.articles.field_mandatory' | translate }}</label>
                 @if (isMandatory()) {
                   <div class="ml-4 flex flex-1 items-center gap-3 border-l border-gray-300 dark:border-zinc-700 pl-4">
-                    <label class="text-sm font-medium text-gray-600 dark:text-zinc-400">{{ 'content.articles.field_due_date' | translate }}</label>
+                    <label for="article-due-date" class="text-sm font-medium text-gray-600 dark:text-zinc-400">{{ 'content.articles.field_due_date' | translate }}</label>
                     <input
+                      id="article-due-date"
                       type="date"
                       [value]="dueDate()"
                       (input)="dueDate.set($any($event.target).value)"
@@ -151,8 +157,8 @@
 
             <div class="flex flex-col gap-3 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/60 p-4">
               <div class="flex items-center gap-3">
-                <input type="checkbox" [checked]="quizEnabled()" (change)="quizEnabled.set($any($event.target).checked)" class="h-4 w-4 accent-brand" />
-                <label class="text-sm font-medium text-gray-800 dark:text-zinc-200">{{ 'content.articles.field_quiz' | translate }}</label>
+                <input id="article-quiz" type="checkbox" [checked]="quizEnabled()" (change)="quizEnabled.set($any($event.target).checked)" class="h-4 w-4 accent-brand" />
+                <label for="article-quiz" class="text-sm font-medium text-gray-800 dark:text-zinc-200">{{ 'content.articles.field_quiz' | translate }}</label>
               </div>
               @if (quizLoadFailed()) {
                 <!-- The builder below is empty because the fetch failed, not

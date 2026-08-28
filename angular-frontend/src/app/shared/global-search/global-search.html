@@ -22,8 +22,8 @@
   <!-- Backdrop. Click-outside closes, matching the Escape key. -->
   <div class="fixed inset-0 z-50 bg-black/40 p-4 pt-[10vh]" (click)="close()">
     <div
-      role="dialog"
-      aria-modal="true"
+      portalDialog
+      (portalDialogClose)="close()"
       [attr.aria-label]="'search.palette.dialog_label' | translate"
       (click)="$event.stopPropagation()"
       class="mx-auto w-full max-w-xl overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-900"

@@ -203,17 +203,28 @@ test.describe('operator browsing', () => {
     // page", which a single-category fixture cannot.
     const catA = await createCategory(request, token, `E2E კატეგორია A ${id}`);
     const catB = await createCategory(request, token, `E2E კატეგორია B ${id}`);
-    const titleA = `E2E სტატია ალფა ${id}`;
-    const titleB = `E2E სტატია ბეტა ${id}`;
+    // The real search is trigram-based, not an exact-title filter. The old
+    // fixtures shared both "E2E სტატია" and the default fixture body, so a
+    // full-title query could legitimately rank both and make this assertion
+    // flaky. Give each article a genuinely distinct search corpus.
+    // Prefix with ASCII A/B so both fixtures sort into the first rendered
+    // 40-card page even when the presentation database already contains a
+    // large imported Georgian catalogue.
+    const searchAnchorA = `AAAALPHA${id}UNICORN`;
+    const searchAnchorB = `BBBBETA${id}COMPASS`;
+    const titleA = searchAnchorA;
+    const titleB = searchAnchorB;
     await createArticle(request, token, {
       title: titleA,
       categoryId: catA.id,
-      targetDepartments: ['საინფორმაციო']
+      targetDepartments: ['საინფორმაციო'],
+      content: `<p>${searchAnchorA}</p>`
     });
     await createArticle(request, token, {
       title: titleB,
       categoryId: catB.id,
-      targetDepartments: ['საინფორმაციო']
+      targetDepartments: ['საინფორმაციო'],
+      content: `<p>${searchAnchorB}</p>`
     });
 
     await seedTokenIntoPage(page, token);
@@ -222,6 +233,12 @@ test.describe('operator browsing', () => {
 
     const cardA = page.locator('app-article-card', { hasText: titleA });
     const cardB = page.locator('app-article-card', { hasText: titleB });
+
+    // Wait for the initial categories + article list chain to finish before
+    // driving the debounced search. Otherwise the constructor's initial
+    // empty-query request can complete after our input and overwrite it.
+    await expect(cardA).toHaveCount(1);
+    await expect(cardB).toHaveCount(1);
 
     const search = page.getByPlaceholder('ძიება თემით ...');
     await search.fill(titleA);
@@ -272,14 +289,14 @@ test.describe('operator browsing', () => {
     await page.goto('/favorites');
     await expect(page.getByRole('heading', { name: 'ჩემი რჩეულები' })).toBeVisible();
 
-    const row = page.locator('div[role="button"]', { hasText: title });
+    const row = page.locator('article', { hasText: title });
     await expect(row).toHaveCount(1);
 
     // --- remove ------------------------------------------------------------
     // Its stopPropagation is the whole reason this button can exist on a row
     // that navigates, so the URL not changing is half the assertion.
     await row.getByRole('button', { name: 'წაშლა' }).click();
-    await expect(page.locator('div[role="button"]', { hasText: title })).toHaveCount(0);
+    await expect(page.locator('article', { hasText: title })).toHaveCount(0);
     await expect(page).toHaveURL(/\/favorites$/);
 
     const after = await request.get('/api/favorites', { headers: auth });
@@ -294,7 +311,7 @@ test.describe('operator browsing', () => {
       data: { item_type: 'article', item_id: articleId }
     });
     await page.reload();
-    await page.locator('div[role="button"]', { hasText: title }).click();
+    await page.locator('article', { hasText: title }).getByRole('button', { name: title }).click();
     await expect(page).toHaveURL(new RegExp(`/article/${articleId}$`));
   });
 });

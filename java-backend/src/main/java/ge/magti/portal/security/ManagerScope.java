@@ -87,7 +87,7 @@ public final class ManagerScope {
      *
      * <h2>Why this is not the same question as {@code hasPermission}</h2>
      *
-     * {@code reports.export} and {@code system.audit} say what a caller may
+     * {@code reports.export} and other capabilities say what a caller may
      * <i>do</i>. They must never say <i>whose data</i> -- a system admin can
      * grant {@code reports.export} to anyone, so deriving a scope from the
      * permission alone lets the grant silently widen who is readable

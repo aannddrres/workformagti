@@ -19,23 +19,18 @@
  * They are now one token. Changing the brand colour is a one-line edit here
  * instead of a 29-file sweep, and a fourth red cannot quietly appear.
  *
- * ⚠️ THE CURRENT VALUE IS PROVISIONAL — IT IS NOT MAGTI'S BRAND RED.
- * #B91C1C is simply Tailwind's stock `red-700`. It was adopted by default and
- * then aliased to the name `magti` in tailwind.config.js, which made a
- * framework default look like a brand decision. It is kept here only so this
- * refactor changes structure without changing how the app looks today.
- *
- * TO SET THE REAL BRAND COLOUR: replace the two --brand-* values below with
- * the official Magti values (from the brand book, not sampled from a
- * screenshot) and delete this warning. Nothing else needs to change.
+ * The public magticom.ge logo asset uses #ED1B2F. That exact value remains the
+ * identity accent; interactive red is deliberately darker so white control
+ * text meets WCAG contrast.
  *
  * Format is space-separated sRGB channels, not `#rrggbb`, so Tailwind's
  * opacity modifiers keep working (`bg-brand/10`, `dark:bg-brand/20`).
  * ------------------------------------------------------------------------- */
 :root {
-  /* Brand accent: primary actions, focus rings, active nav, selected tabs. */
-  --brand-600: 185 28 28; /* PROVISIONAL — Tailwind red-700, see above */
-  --brand-700: 155 23 23; /* hover/pressed, ~10% darker */
+  --brand-500: 237 27 47; /* official public Magticom mark */
+  --brand-600: 200 16 46; /* accessible interactive derivative */
+  --brand-700: 151 12 35;
+  --focus-ring: 126 14 32;
 
   /* Danger: destructive, irreversible actions only — delete, and nothing else.
    *
@@ -52,15 +47,7 @@
   --danger-600: 220 38 38; /* Tailwind red-600 — the conventional destructive red */
   --danger-700: 185 28 28;
 
-  /* Georgian first: the UI is ka-first (<html lang="ka">) and no webfont is
-   * self-hosted yet, so Georgian glyphs fall back to whatever the OS ships —
-   * which differs across Windows, macOS and Android. This stack at least
-   * prefers a real Georgian face where one exists instead of leaving the
-   * choice to the browser default.
-   *
-   * NEXT STEP: self-host a licensed Georgian family (BPG, Noto Sans Georgian
-   * or Firo) as woff2 and prepend it here — add the @font-face blocks below.
-   * That is the single highest-impact visual change available to this app. */
+  /* Noto Sans Georgian is bundled under the SIL OFL; no CDN is used. */
   --font-sans:
     'Noto Sans Georgian', 'BPG Arial', Sylfaen, system-ui, -apple-system, 'Segoe UI', Roboto, Arial,
     sans-serif;
@@ -87,8 +74,9 @@
  * on both surfaces. Declared explicitly anyway so a future dark-mode-specific
  * brand tint has an obvious home rather than being patched inline. */
 .dark {
-  --brand-600: 185 28 28;
-  --brand-700: 155 23 23;
+  --brand-600: 251 113 133;
+  --brand-700: 151 12 35;
+  --focus-ring: 255 155 164;
   /* Lifted slightly on dark surfaces, where the light-mode red loses contrast. */
   --danger-600: 248 113 113;
   --danger-700: 220 38 38;
@@ -98,6 +86,30 @@
   --border: 55 65 81;
   --text: 241 245 249;
   --text-muted: 167 180 197;
+}
+
+@font-face {
+  font-family: 'Noto Sans Georgian';
+  src: url('/fonts/NotoSansGeorgian-400.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Noto Sans Georgian';
+  src: url('/fonts/NotoSansGeorgian-600.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Noto Sans Georgian';
+  src: url('/fonts/NotoSansGeorgian-700.ttf') format('truetype');
+  font-weight: 700 900;
+  font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
@@ -137,7 +149,7 @@
   }
 
   :focus-visible {
-    outline: 3px solid rgb(var(--brand-600) / 0.35);
+    outline: 3px solid rgb(var(--focus-ring));
     outline-offset: 2px;
   }
 
@@ -179,12 +191,24 @@
     @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-[10px] bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
+  .dark .primary-button {
+    background: rgb(var(--brand-700));
+  }
+
   .secondary-button {
     @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-[10px] border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800;
   }
 
   .quiet-button {
     @apply inline-flex min-h-9 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white;
+  }
+
+  .icon-button {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white;
+  }
+
+  .queue-action {
+    @apply flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed dark:text-slate-200 dark:hover:bg-slate-800;
   }
 
   .field-control {

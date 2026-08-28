@@ -72,6 +72,26 @@ spring:
 server:
   port: 8080
 
+# Kubernetes/orchestrator-safe health contract. Liveness deliberately excludes
+# Oracle so a dependency outage does not restart a healthy JVM in a loop;
+# readiness includes Oracle and maps DOWN/OUT_OF_SERVICE to HTTP 503. Details
+# are never exposed on these unauthenticated operational endpoints.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,db
+
 # Mirrors config.py's Settings class -- same env var names, same
 # insecure-but-workable local defaults, so a real deployment overrides them
 # the same way the Python app expects. See portal.security.jwt.secret's
@@ -91,6 +111,12 @@ portal:
     # Separate Phase 5 rollback boundary. The proposed compliance rule stays
     # in shadow mode until the gated cutover explicitly wires this switch.
     compliance-eligibility-enabled: ${ROLLOUT_COMPLIANCE_ELIGIBILITY:false}
+  retention:
+    # Comma-separated exact SSO email identities approved by DPO/Legal to set
+    # or release content legal holds. Empty by default: hold mutation fails
+    # closed for every application role until the external authority decision
+    # is supplied. Do not put real identities in source control.
+    legal-hold-authorized-emails: ${LEGAL_HOLD_AUTHORIZED_EMAILS:}
   security:
     # Password-less dev login. OFF unless asked for by name; ProductionSafetyGuard
     # refuses to boot if this is true while app-env is production.
@@ -115,7 +141,10 @@ portal:
       # a long, varied but publicly known string would still pass.
       secret: ${SECRET_KEY:super-secret-temporary-key-for-local-development}
       algorithm: ${JWT_ALGORITHM:HS256}
-      access-token-expire-minutes: ${ACCESS_TOKEN_EXPIRE_MINUTES:60}
+      access-token-expire-minutes: ${ACCESS_TOKEN_EXPIRE_MINUTES:480}
     cookie:
       secure: ${COOKIE_SECURE:false}
-      samesite: ${COOKIE_SAMESITE:lax}
+      samesite: ${COOKIE_SAMESITE:strict}
+    session:
+      idle-minutes: ${SESSION_IDLE_MINUTES:30}
+      maximum-minutes: ${SESSION_MAXIMUM_MINUTES:480}

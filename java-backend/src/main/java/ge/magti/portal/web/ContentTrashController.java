@@ -3,6 +3,7 @@ package ge.magti.portal.web;
 import ge.magti.portal.content.ContentLifecycleService;
 import ge.magti.portal.content.ContentLifecycleService.ItemType;
 import ge.magti.portal.content.ContentLifecycleService.Status;
+import ge.magti.portal.content.LegalHoldAuthority;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
@@ -24,10 +25,15 @@ public class ContentTrashController {
 
     private final ContentLifecycleService lifecycleService;
     private final PermissionChecker permissionChecker;
+    private final LegalHoldAuthority legalHoldAuthority;
 
-    public ContentTrashController(ContentLifecycleService lifecycleService, PermissionChecker permissionChecker) {
+    public ContentTrashController(
+            ContentLifecycleService lifecycleService,
+            PermissionChecker permissionChecker,
+            LegalHoldAuthority legalHoldAuthority) {
         this.lifecycleService = lifecycleService;
         this.permissionChecker = permissionChecker;
+        this.legalHoldAuthority = legalHoldAuthority;
     }
 
     @GetMapping("/api/content-trash")
@@ -69,6 +75,38 @@ public class ContentTrashController {
         return response(lifecycleService.purge(type, itemId, user), "მასალა საბოლოოდ წაიშალა");
     }
 
+    @PostMapping("/api/content-trash/{itemType}/{itemId}/legal-hold")
+    public ResponseEntity<?> setLegalHold(
+            @PathVariable String itemType, @PathVariable Long itemId,
+            @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireLegalHoldAuthority(user);
+        if (denial != null) {
+            return denial;
+        }
+        return changeLegalHold(itemType, itemId, true, user);
+    }
+
+    @DeleteMapping("/api/content-trash/{itemType}/{itemId}/legal-hold")
+    public ResponseEntity<?> releaseLegalHold(
+            @PathVariable String itemType, @PathVariable Long itemId,
+            @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireLegalHoldAuthority(user);
+        if (denial != null) {
+            return denial;
+        }
+        return changeLegalHold(itemType, itemId, false, user);
+    }
+
+    private ResponseEntity<?> changeLegalHold(
+            String itemType, Long itemId, boolean hold, User user) {
+        ItemType type = ItemType.fromWireName(itemType);
+        if (type == null) {
+            return error(HttpStatus.BAD_REQUEST, "კონტენტის ტიპი არასწორია");
+        }
+        return response(lifecycleService.changeLegalHold(type, itemId, hold, user),
+                hold ? "legal hold ჩართულია" : "legal hold მოხსნილია");
+    }
+
     static ResponseEntity<?> response(Status status, String successMessage) {
         return switch (status) {
             case OK -> ResponseEntity.ok(Map.of("detail", successMessage));
@@ -76,8 +114,19 @@ public class ContentTrashController {
             case NOT_ARCHIVED -> error(HttpStatus.CONFLICT, "მასალა ჯერ უნდა დაარქივდეს");
             case RECOVERY_EXPIRED -> error(HttpStatus.GONE, "აღდგენის 30-დღიანი ვადა გასულია");
             case PURGE_NOT_DUE -> error(HttpStatus.CONFLICT, "საბოლოო წაშლის 30-დღიანი ვადა ჯერ არ გასულა");
-            case LEGAL_HOLD -> error(HttpStatus.LOCKED, "მასალაზე მოქმედებს legal hold და მისი წაშლა აკრძალულია");
+            case LEGAL_HOLD -> error(HttpStatus.LOCKED, "მასალაზე მოქმედებს legal hold და მისი ცვლილება აკრძალულია");
+            case NOT_AUTHORIZED -> error(HttpStatus.FORBIDDEN, "legal hold მართვის უფლება არ გაქვთ");
         };
+    }
+
+    private ResponseEntity<Map<String, String>> requireLegalHoldAuthority(User user) {
+        if (user == null) {
+            return error(HttpStatus.UNAUTHORIZED, "Could not validate credentials");
+        }
+        if (!legalHoldAuthority.canManage(user)) {
+            return error(HttpStatus.FORBIDDEN, "legal hold მართვის უფლება არ გაქვთ");
+        }
+        return null;
     }
 
     private ResponseEntity<Map<String, String>> requireContentManage(User user) {

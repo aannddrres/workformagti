@@ -1,6 +1,5 @@
 package ge.magti.portal.article;
 
-import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.util.DepartmentGroup;
 import ge.magti.portal.util.DepartmentMatcher;
@@ -33,16 +32,29 @@ import java.util.List;
  * exist and are still read/written elsewhere (kept, unchanged) -- only the
  * never-reachable role-gated filter is not reproduced.
  *
- * <p>Also not ported: Python's {@code defer(content)} list-view optimization
- * -- this fetches full entities including the CLOB {@code content} column.
- * See {@link ge.magti.portal.web.ArticleSummaryResponse}'s own note on why
- * that's a documented performance gap, not a correctness one.
+ * <p>Python's {@code defer(content)} list-view optimization is represented by
+ * a constructor projection. V45 maintains the read-time scalar in Oracle, so
+ * the list retains its exact response shape without selecting the content CLOB.
  */
 @Service
 public class ArticleQueryService {
 
     private static final String LIST_JPQL = """
-            SELECT a FROM Article a
+            SELECT new ge.magti.portal.article.ArticleListItem(
+              a.id,
+              a.title,
+              a.categoryId,
+              a.tags,
+              a.status,
+              a.publishedAt,
+              a.createdAt,
+              a.readTime,
+              a.audienceProfile,
+              a.visibleToTechInfo,
+              a.visibleToServiceCenter,
+              a.isDraft
+            )
+            FROM Article a
             WHERE (a.isDraft = false OR a.authorId = :userId)
               AND (:q IS NULL OR a.title LIKE :qPattern)
               AND (:categoryId IS NULL OR a.categoryId = :categoryId)
@@ -72,11 +84,11 @@ public class ArticleQueryService {
     @PersistenceContext
     private EntityManager entityManager;
 
-    public List<Article> listVisible(ArticleListFilter filter, User user, int skip, int limit) {
+    public List<ArticleListItem> listVisible(ArticleListFilter filter, User user, int skip, int limit) {
         DepartmentGroup group = DepartmentMatcher.splitGroup(user.getDepartment());
         List<String> depts = List.of(user.getDepartment(), group.prefix(), "All");
 
-        TypedQuery<Article> query = entityManager.createQuery(LIST_JPQL, Article.class);
+        TypedQuery<ArticleListItem> query = entityManager.createQuery(LIST_JPQL, ArticleListItem.class);
         query.setParameter("userId", user.getId());
         query.setParameter("q", filter.q());
         query.setParameter("qPattern", filter.q() == null ? null : "%" + filter.q() + "%");
@@ -86,10 +98,9 @@ public class ArticleQueryService {
         query.setParameter("depts", depts);
         query.setParameter("now", TbilisiTime.now());
         query.setParameter("userDept", user.getDepartment());
-        // No clamping here, matching Python exactly: get_articles' skip/limit
-        // params have no ge=0/le=N constraint either (unlike get_article_views,
-        // which does clamp) -- an out-of-range value is equally unguarded on
-        // both sides rather than silently "fixed" on this side only.
+        // The HTTP boundary rejects invalid/unbounded cardinality before this
+        // query is reached. Keeping the values explicit here preserves the
+        // legacy arbitrary-offset behavior used by current Angular views.
         query.setFirstResult(skip);
         query.setMaxResults(limit);
         return query.getResultList();

@@ -26,7 +26,7 @@ class UserTest {
         user.setPermissions(Set.of(Permission.ARTICLES_EDIT.value()));
 
         assertTrue(user.hasPermission(Permission.ARTICLES_EDIT));
-        assertFalse(user.hasPermission(Permission.ARTICLES_PUBLISH));
+        assertFalse(user.hasPermission(Permission.ARTICLES_ARCHIVE));
     }
 
     @Test

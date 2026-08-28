@@ -4,6 +4,8 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Comparator;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
@@ -23,6 +25,7 @@ import java.util.function.Supplier;
 public class GlobalSearchCache {
 
     private static final Duration TTL = Duration.ofSeconds(60);
+    static final int MAX_ENTRIES = 512;
 
     private record Entry(SearchQueryService.GlobalSearchResult value, Instant expiresAt) {
     }
@@ -45,7 +48,7 @@ public class GlobalSearchCache {
         }
         try {
             SearchQueryService.GlobalSearchResult result = factory.get();
-            cache.put(key, new Entry(result, Instant.now().plus(TTL)));
+            putBounded(key, new Entry(result, Instant.now().plus(TTL)));
             future.complete(result);
             return result;
         } catch (RuntimeException e) {
@@ -54,5 +57,23 @@ public class GlobalSearchCache {
         } finally {
             inflight.remove(key);
         }
+    }
+
+    private void putBounded(String key, Entry entry) {
+        synchronized (cache) {
+            Instant now = Instant.now();
+            cache.entrySet().removeIf(candidate -> !candidate.getValue().expiresAt().isAfter(now));
+            if (!cache.containsKey(key) && cache.size() >= MAX_ENTRIES) {
+                cache.entrySet().stream()
+                        .min(Comparator.comparing(candidate -> candidate.getValue().expiresAt()))
+                        .map(Map.Entry::getKey)
+                        .ifPresent(cache::remove);
+            }
+            cache.put(key, entry);
+        }
+    }
+
+    int cachedEntryCount() {
+        return cache.size();
     }
 }

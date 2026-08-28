@@ -21,7 +21,7 @@ import java.util.Set;
  * deliberately not replicated the same way elsewhere in this port).
  *
  * <p>Only wired into endpoints that can actually change title/content/tags/
- * category -- archive/unarchive/feedback/note/verify/read-receipt/view
+ * category -- archive/unarchive/note/verify/read-receipt/view
  * endpoints don't touch those fields, so they don't need a reindex call.
  */
 @Service

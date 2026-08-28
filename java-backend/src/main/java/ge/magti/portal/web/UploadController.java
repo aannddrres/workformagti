@@ -1,16 +1,15 @@
 package ge.magti.portal.web;
 
-import ge.magti.portal.domain.AuditLog;
+import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.User;
-import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.storage.FileStorageService;
 import ge.magti.portal.security.PermissionChecker;
 import ge.magti.portal.storage.FileTypeVerifier;
-import ge.magti.portal.util.TbilisiTime;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -76,18 +75,19 @@ public class UploadController {
     );
 
     private final FileStorageService fileStorageService;
-    private final AuditLogRepository auditLogRepository;
+    private final MutationAuditService mutationAuditService;
     private final PermissionChecker permissionChecker;
 
     public UploadController(
-            FileStorageService fileStorageService, AuditLogRepository auditLogRepository,
+            FileStorageService fileStorageService, MutationAuditService mutationAuditService,
             PermissionChecker permissionChecker) {
         this.fileStorageService = fileStorageService;
-        this.auditLogRepository = auditLogRepository;
+        this.mutationAuditService = mutationAuditService;
         this.permissionChecker = permissionChecker;
     }
 
     @PostMapping("/api/upload")
+    @Transactional
     public ResponseEntity<?> uploadFile(
             @RequestParam("file") MultipartFile file, @AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireContentManage(user);
@@ -129,13 +129,12 @@ public class UploadController {
                     .body(Map.of("detail", "ფაილის შენახვა ვერ მოხერხდა"));
         }
 
-        AuditLog entry = new AuditLog();
-        entry.setAdminId(user.getId());
-        entry.setAction("UPLOAD");
-        entry.setItemType("file");
-        entry.setItemId(0L);
-        entry.setTimestamp(TbilisiTime.now());
-        auditLogRepository.save(entry);
+        mutationAuditService.recordSuccess(
+                user, "UPLOAD", "file", 0L, uniqueFilename, null,
+                Map.of(
+                        "stored_filename", uniqueFilename,
+                        "content_type", contentType,
+                        "byte_size", file.getSize()));
 
         return ResponseEntity.ok(new UploadResponse("/uploads/" + uniqueFilename, uniqueFilename));
     }

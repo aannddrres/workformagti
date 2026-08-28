@@ -6,6 +6,7 @@ import { RequiredReadingService } from '../../../core/services/required-reading.
 import { News, NewsRequest } from '../../../core/models/news';
 import { DEPARTMENTS } from '../../../shared/user-roles';
 import { ToastService } from '../../../core/notifications/toast.service';
+import { PortalDialog } from '../../../shared/portal-dialog/portal-dialog';
 
 /**
  * Port of the news slide-out drawer -- base-layout.html:1912-2013
@@ -19,7 +20,7 @@ import { ToastService } from '../../../core/notifications/toast.service';
 @Component({
   selector: 'app-news-edit-drawer',
   standalone: true,
-  imports: [TranslatePipe],
+  imports: [TranslatePipe, PortalDialog],
   templateUrl: './news-edit-drawer.html'
 })
 export class NewsEditDrawer {
@@ -49,6 +50,7 @@ export class NewsEditDrawer {
 
   protected readonly uploading = signal(false);
   protected readonly saving = signal(false);
+  protected readonly dirty = signal(false);
   protected readonly saveError = signal<string | null>(null);
   protected readonly dueDateError = signal(false);
 
@@ -68,6 +70,7 @@ export class NewsEditDrawer {
   }
 
   private resetForCreate(): void {
+    this.dirty.set(false);
     this.title.set('');
     this.content.set('');
     this.targetDepartment.set('All');
@@ -93,6 +96,7 @@ export class NewsEditDrawer {
         this.attachmentFilename.set(news.attachment_url ? news.attachment_url.split('/').pop() ?? null : null);
         this.visibleTechInfo.set(news.visible_to_tech_info);
         this.visibleServiceCenter.set(news.visible_to_service_center);
+        this.dirty.set(false);
 
         // Same trap as the article drawer: a silent failure here renders the
         // checkbox UNCHECKED, which the editor cannot tell from "not mandatory",
@@ -122,6 +126,7 @@ export class NewsEditDrawer {
           this.attachmentUrl.set(result.url);
           this.attachmentFilename.set(result.filename);
           this.uploading.set(false);
+          this.dirty.set(true);
         },
         error: () => {
           this.uploading.set(false);
@@ -135,9 +140,17 @@ export class NewsEditDrawer {
   protected removeAttachment(): void {
     this.attachmentUrl.set(null);
     this.attachmentFilename.set(null);
+    this.dirty.set(true);
+  }
+
+  protected markDirty(): void {
+    this.dirty.set(true);
   }
 
   protected close(): void {
+    if (this.dirty() && !window.confirm('შეუნახავი ცვლილებები დაიკარგება. გსურთ დახურვა?')) {
+      return;
+    }
     this.closed.emit();
   }
 
@@ -160,17 +173,20 @@ export class NewsEditDrawer {
 
     this.saving.set(true);
     this.saveError.set(null);
+    const dueIso = this.isMandatory() && this.dueDate() ? new Date(this.dueDate()).toISOString() : null;
+    const command = {
+      news: payload,
+      mandatory: this.isMandatory(),
+      due_date: dueIso,
+      target_department: this.targetDepartment()
+    };
     const id = this.newsId();
-    const request = id != null ? this.newsService.update(id, payload) : this.newsService.create(payload);
+    const request = id != null
+      ? this.newsService.updateCommand(id, command)
+      : this.newsService.createCommand(command);
 
     request.subscribe({
-      next: async (news) => {
-        const dueIso = this.isMandatory() && this.dueDate() ? new Date(this.dueDate()).toISOString() : null;
-        try {
-          await this.requiredReadingService.sync('news', news.id, this.targetDepartment(), this.isMandatory(), dueIso);
-        } catch {
-          /* non-fatal -- news item itself saved successfully */
-        }
+      next: () => {
         this.saving.set(false);
         this.saved.emit();
       },

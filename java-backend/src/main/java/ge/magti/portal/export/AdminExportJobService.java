@@ -1,12 +1,9 @@
 package ge.magti.portal.export;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import ge.magti.portal.domain.AuditLog;
+import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.domain.ExportJob;
 import ge.magti.portal.domain.User;
-import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.ExportJobRepository;
-import ge.magti.portal.util.TbilisiTime;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,12 +17,12 @@ import java.util.UUID;
 public class AdminExportJobService {
 
     private final ExportJobRepository jobRepository;
-    private final AuditLogRepository auditRepository;
-    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+    private final MutationAuditService mutationAuditService;
 
-    public AdminExportJobService(ExportJobRepository jobRepository, AuditLogRepository auditRepository) {
+    public AdminExportJobService(
+            ExportJobRepository jobRepository, MutationAuditService mutationAuditService) {
         this.jobRepository = jobRepository;
-        this.auditRepository = auditRepository;
+        this.mutationAuditService = mutationAuditService;
     }
 
     @Transactional
@@ -40,29 +37,23 @@ public class AdminExportJobService {
         job.setStatus("processing");
         job.setPath(null);
         job.setExpiresAt(System.currentTimeMillis() / 1000.0 + ExportJobWorker.EXPORT_JOB_TTL_SECONDS);
-        jobRepository.save(job);
+        jobRepository.saveAndFlush(job);
 
-        AuditLog audit = new AuditLog();
-        audit.setAdminId(actor.getId());
-        audit.setAdminNameSnapshot(actor.getName());
-        audit.setAdminEmailSnapshot(actor.getEmail());
-        audit.setAction(family.auditAction());
-        audit.setItemType("admin_export");
-        audit.setItemId(0L);
-        audit.setItemNameSnapshot(family.title());
-        audit.setTimestamp(TbilisiTime.now());
-        Map<String, Object> details = new LinkedHashMap<>();
-        details.put("job_id", jobId);
-        details.put("export_family", family.code());
-        details.put("date_from", from);
-        details.put("date_through", through);
-        details.put("row_count", rowCount);
-        try {
-            audit.setDetails(objectMapper.writeValueAsString(details));
-        } catch (Exception e) {
-            throw new IllegalStateException("Admin export audit serialization failed", e);
-        }
-        auditRepository.save(audit);
+        Map<String, Object> after = new LinkedHashMap<>();
+        after.put("job_id", jobId);
+        after.put("export_family", family.code());
+        after.put("date_from", from == null ? null : from.toString());
+        after.put("date_through", through == null ? null : through.toString());
+        after.put("row_count", rowCount);
+        after.put("status", job.getStatus());
+        mutationAuditService.recordSuccess(
+                actor,
+                family.auditAction(),
+                "admin_export",
+                0L,
+                family.title(),
+                null,
+                after);
         return jobId;
     }
 }

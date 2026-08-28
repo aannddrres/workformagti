@@ -30,6 +30,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 
 /**
  * Real Oracle, real HTTP, real Spring Security filter chain -- covers
@@ -93,7 +94,10 @@ class UploadControllerIntegrationTest {
         MockMultipartFile file = new MockMultipartFile(
                 "file", "note.txt", "text/plain", "hello".getBytes(StandardCharsets.UTF_8));
 
-        mockMvc.perform(multipart("/api/upload").file(file))
+        // Supply a valid CSRF token so this test reaches the authentication
+        // boundary; a browser mutation without CSRF is correctly rejected
+        // earlier with 403 by Spring Security.
+        mockMvc.perform(multipart("/api/upload").file(file).with(csrf()))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.detail").value("Could not validate credentials"));
     }
@@ -132,17 +136,31 @@ class UploadControllerIntegrationTest {
         // and UploadedFileController serves them back at the same URL. The
         // round-trip is asserted byte-for-byte because "200 OK" alone would
         // also pass if the BLOB came back empty.
-        byte[] served = mockMvc.perform(get(url))
+        mockMvc.perform(get(url))
+                .andExpect(status().isUnauthorized());
+
+        byte[] served = mockMvc.perform(get(url).header("Authorization", "Bearer " + tokenFor(admin)))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Type", "image/png"))
+                .andExpect(header().string("Cache-Control", "no-store"))
                 .andReturn().getResponse().getContentAsByteArray();
         assertArrayEquals(PNG_BYTES, served);
         assertTrue(storedFileRepository.findById(filename).isPresent(), "the upload must be a stored_files row");
 
-        long auditCount = auditLogRepository.findAll().stream()
-                .filter(a -> a.getAdminId().equals(admin.getId()) && "UPLOAD".equals(a.getAction()))
-                .count();
-        assertEquals(1, auditCount);
+        var uploadAudit = auditLogRepository.findAll().stream()
+                .filter(a -> admin.getId().equals(a.getAdminId()) && "UPLOAD".equals(a.getAction()))
+                .findFirst().orElseThrow();
+        var uploadDetails = objectMapper.readTree(uploadAudit.getDetails());
+        assertEquals("SUCCESS", uploadDetails.get("result").asText());
+        assertEquals("image/png", uploadDetails.at("/after/content_type").asText());
+        assertEquals(PNG_BYTES.length, uploadDetails.at("/after/byte_size").asInt());
+
+        var accessAudit = auditLogRepository.findAll().stream()
+                .filter(a -> admin.getId().equals(a.getAdminId()) && "FILE_ACCESS".equals(a.getAction()))
+                .findFirst().orElseThrow();
+        var accessDetails = objectMapper.readTree(accessAudit.getDetails());
+        assertEquals("SUCCESS", accessDetails.get("result").asText());
+        assertEquals(filename, accessDetails.at("/after/stored_filename").asText());
     }
 
     @Test

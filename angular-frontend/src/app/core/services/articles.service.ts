@@ -4,12 +4,18 @@ import { Observable } from 'rxjs';
 import {
   Article,
   ArticleBulkArchiveResponse,
+  ArticleCommandRequest,
   ArticleRequest,
   ArticleSummary,
   RecentlyViewedItem,
   RelatedArticle,
 } from '../models/article';
-import { ArticleDiff, ArticleHistoryItem, ArticleVersionItem } from '../models/article-history';
+import {
+  ArticleDiff,
+  ArticleHistoryItem,
+  ArticleHistorySummaryItem,
+  ArticleVersionItem,
+} from '../models/article-history';
 
 @Injectable({ providedIn: 'root' })
 export class ArticlesService {
@@ -48,6 +54,14 @@ export class ArticlesService {
 
   create(request: ArticleRequest): Observable<Article> {
     return this.http.post<Article>('/api/articles', request);
+  }
+
+  createCommand(request: ArticleCommandRequest): Observable<Article> {
+    return this.http.post<Article>('/api/articles/command', request);
+  }
+
+  updateCommand(id: number, request: ArticleCommandRequest): Observable<Article> {
+    return this.http.put<Article>(`/api/articles/${id}/command`, request);
   }
 
   update(id: number, request: ArticleRequest): Observable<Article> {
@@ -124,6 +138,16 @@ export class ArticlesService {
   /** Admin-only raw revision list (routers/articles.py's get_article_history). */
   history(id: number): Observable<ArticleHistoryItem[]> {
     return this.http.get<ArticleHistoryItem[]>(`/api/articles/${id}/history`);
+  }
+
+  /** Admin history metadata without materializing every revision CLOB. */
+  historySummary(id: number): Observable<ArticleHistorySummaryItem[]> {
+    return this.http.get<ArticleHistorySummaryItem[]>(`/api/articles/${id}/history-summary`);
+  }
+
+  /** One full revision loaded only when the user expands its summary row. */
+  historyItem(id: number, historyId: number): Observable<ArticleHistoryItem> {
+    return this.http.get<ArticleHistoryItem>(`/api/articles/${id}/history/${historyId}`);
   }
 
   /** Quick-look diff of one historical snapshot against the CURRENT content

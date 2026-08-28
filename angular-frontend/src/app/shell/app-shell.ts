@@ -1,5 +1,5 @@
 import { DecimalPipe } from '@angular/common';
-import { Component, HostListener, inject, signal } from '@angular/core';
+import { Component, HostListener, OnDestroy, inject, signal } from '@angular/core';
 import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -9,6 +9,8 @@ import { Logo } from '../shared/logo/logo';
 import { GlobalSearch } from '../shared/global-search/global-search';
 import { UserProfileService } from '../core/auth/user-profile.service';
 import { FontScaleService } from '../core/accessibility/font-scale.service';
+import { IdleSessionService } from '../core/auth/idle-session.service';
+import { PortalDialog } from '../shared/portal-dialog/portal-dialog';
 
 interface NavLink {
   label: string;
@@ -30,19 +32,25 @@ interface NavSection {
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [DecimalPipe, GlobalSearch, Logo, RouterOutlet, RouterLink, RouterLinkActive, TranslatePipe],
+  imports: [DecimalPipe, GlobalSearch, Logo, RouterOutlet, RouterLink, RouterLinkActive, TranslatePipe, PortalDialog],
   templateUrl: './app-shell.html'
 })
-export class AppShell {
+export class AppShell implements OnDestroy {
   protected readonly profiles = inject(UserProfileService);
   protected readonly auth = inject(AuthService);
   protected readonly translate = inject(TranslateService);
   protected readonly theme = inject(ThemeService);
   protected readonly fontScale = inject(FontScaleService);
+  protected readonly idleSession = inject(IdleSessionService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly mobileViewport = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia('(max-width: 1023px)')
+    : null;
+  private readonly onViewportChange = (event: MediaQueryListEvent): void => this.isMobile.set(event.matches);
 
   protected readonly mobileMenuOpen = signal(false);
+  protected readonly isMobile = signal(this.mobileViewport?.matches ?? false);
   protected readonly sidebarCollapsed = signal(localStorage.getItem('magti_sidebar_collapsed') === 'true');
   protected readonly fontMenuOpen = signal(false);
   protected readonly accountMenuOpen = signal(false);
@@ -69,8 +77,7 @@ export class AppShell {
     {
       label: 'ადმინისტრირება',
       links: [
-        { label: 'მიმოხილვა', path: '/admin/overview', icon: 'fa-gauge-high', allowRoles: ['admin'] },
-        { label: 'კონტენტი', path: '/admin/content', icon: 'fa-file-lines', requiresPermission: 'content.manage' },
+        { label: 'საერთო სტატისტიკა', path: '/admin/overview', icon: 'fa-chart-line', requiresPermission: 'stats.view' },
         { label: 'სანაგვე', path: '/admin/trash', icon: 'fa-trash-can-arrow-up', requiresPermission: 'content.manage' },
         { label: 'კატეგორიები', path: '/admin/categories', icon: 'fa-folder-tree', requiresPermission: 'content.manage' },
         { label: 'განცხადებები', path: '/admin/broadcasts', icon: 'fa-bullhorn', requiresAnnouncementPublisher: true },
@@ -78,12 +85,14 @@ export class AppShell {
         { label: 'ორგანიზაციული სტრუქტურა', path: '/admin/org', icon: 'fa-sitemap', allowRoles: ['admin'] },
         { label: 'ლიდერების დანიშვნა', path: '/admin/org/assignments', icon: 'fa-user-tie', allowRoles: ['admin'] },
         { label: 'მონაცემების ექსპორტი', path: '/admin/exports', icon: 'fa-file-export', allowRoles: ['admin'] },
-        { label: 'აუდიტი და უსაფრთხოება', path: '/admin/audit', icon: 'fa-shield-halved', requiresPermission: 'system.audit' }
+        { label: 'აუდიტი და უსაფრთხოება', path: '/admin/audit', icon: 'fa-shield-halved', allowRoles: ['admin'] },
+        { label: 'კონტენტის სამუშაო სივრცე', path: '/admin/content', icon: 'fa-file-lines', requiresPermission: 'content.manage' }
       ]
     }
   ];
 
   constructor() {
+    this.mobileViewport?.addEventListener('change', this.onViewportChange);
     this.router.events.pipe(filter((e) => e instanceof NavigationEnd)).subscribe(() => {
       this.mobileMenuOpen.set(false);
       this.closeMenus();
@@ -95,7 +104,13 @@ export class AppShell {
     // to fetch authorization first.
     this.profiles.ensureLoaded().subscribe();
     this.profiles.ensureAccessLoaded().subscribe();
+    this.idleSession.start();
     this.updatePageTitle();
+  }
+
+  ngOnDestroy(): void {
+    this.idleSession.stop();
+    this.mobileViewport?.removeEventListener('change', this.onViewportChange);
   }
 
   toggleMobileMenu(): void {
@@ -172,6 +187,7 @@ export class AppShell {
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
+    this.mobileMenuOpen.set(false);
     this.closeMenus();
   }
 

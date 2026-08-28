@@ -1,15 +1,18 @@
 package ge.magti.portal.web;
 
+import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.content.ContentLifecycleService;
-import ge.magti.portal.domain.AuditLog;
+import ge.magti.portal.content.ArticleHtmlSanitizer;
 import ge.magti.portal.domain.News;
 import ge.magti.portal.domain.NewsHistory;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.User;
+import ge.magti.portal.history.HistoryPayloadGuard;
+import ge.magti.portal.query.CompleteResultGuard;
+import ge.magti.portal.news.NewsHistorySummary;
 import ge.magti.portal.news.NewsQueryService;
 import ge.magti.portal.repository.NewsHistoryRepository;
 import ge.magti.portal.repository.NewsRepository;
-import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.search.SearchReindexService;
 import ge.magti.portal.security.PermissionChecker;
@@ -20,6 +23,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -53,12 +57,12 @@ import java.util.Optional;
  * row rather than reset by a full-replace, and {@code isDraft} defaults to
  * {@code false} (published) rather than {@code true} on create.
  *
- * <p><b>Known, deliberate gaps, same reasoning as every other Content
- * controller so far:</b> no automatic ORM-listener audit row (Python's own
- * update_news/delete_news don't call log_audit either -- only
- * restore_news_version does, ported below); no search_cache clearing (no
- * such cache exists yet in the Java port); no SSE broadcast (_notify --
- * Messaging domain isn't built yet).
+ * <p>Create/update/archive/unarchive/version-restore write reconstructable
+ * audit evidence in the same transaction as the payload, history and search
+ * index. Delete delegates the same fail-closed rule to
+ * {@link ContentLifecycleService}. There is no
+ * search_cache clearing (no such cache exists yet in the Java port) and no SSE
+ * broadcast (_notify -- Messaging domain isn't built yet).
  */
 @RestController
 public class NewsController {
@@ -72,7 +76,8 @@ public class NewsController {
     private final SearchReindexService searchReindexService;
     private final ContentLifecycleService contentLifecycleService;
     private final PermissionChecker permissionChecker;
-    private final AuditLogRepository auditLogRepository;
+    private final ArticleHtmlSanitizer articleHtmlSanitizer;
+    private final MutationAuditService contentMutationAuditService;
 
     public NewsController(
             NewsRepository newsRepository,
@@ -82,7 +87,8 @@ public class NewsController {
             SearchReindexService searchReindexService,
             ContentLifecycleService contentLifecycleService,
             PermissionChecker permissionChecker,
-            AuditLogRepository auditLogRepository) {
+            ArticleHtmlSanitizer articleHtmlSanitizer,
+            MutationAuditService contentMutationAuditService) {
         this.newsRepository = newsRepository;
         this.newsHistoryRepository = newsHistoryRepository;
         this.userRepository = userRepository;
@@ -90,7 +96,8 @@ public class NewsController {
         this.searchReindexService = searchReindexService;
         this.contentLifecycleService = contentLifecycleService;
         this.permissionChecker = permissionChecker;
-        this.auditLogRepository = auditLogRepository;
+        this.articleHtmlSanitizer = articleHtmlSanitizer;
+        this.contentMutationAuditService = contentMutationAuditService;
     }
 
     /** Port of get_news_item (routers/news.py:23-44). */
@@ -131,6 +138,9 @@ public class NewsController {
         if (denial != null) {
             return denial;
         }
+        if (ListQueryBounds.isInvalid(skip, limit)) {
+            return ResponseEntity.badRequest().body(Map.of("detail", ListQueryBounds.INVALID_DETAIL));
+        }
         List<NewsSummaryResponse> items = newsQueryService.listVisible(user, skip, limit).stream()
                 .map(NewsSummaryResponse::from)
                 .toList();
@@ -151,8 +161,11 @@ public class NewsController {
         news.setDraft(request.isDraftOrDefaultForCreate());
         news.setAuthorId(user.getId());
         news.setCreatedAt(TbilisiTime.now());
-        News saved = newsRepository.save(news);
+        News saved = newsRepository.saveAndFlush(news);
         searchReindexService.reindexNews(saved);
+        contentMutationAuditService.recordSuccess(
+                user, "CREATE", "news", saved.getId(), saved.getTitle(), null,
+                MutationAuditService.newsSnapshot(saved));
         return ResponseEntity.status(HttpStatus.OK).body(NewsResponse.from(saved));
     }
 
@@ -170,6 +183,7 @@ public class NewsController {
             return notFound();
         }
         News news = found.get();
+        Map<String, Object> before = MutationAuditService.newsSnapshot(news);
 
         archiveCurrentState(news, user.getId());
 
@@ -181,8 +195,11 @@ public class NewsController {
         // unrelated edit. Preserved from the existing row instead.
         news.setVersion(news.getVersion() + 1);
 
-        News saved = newsRepository.save(news);
+        News saved = newsRepository.saveAndFlush(news);
         searchReindexService.reindexNews(saved);
+        contentMutationAuditService.recordSuccess(
+                user, "UPDATE", "news", saved.getId(), saved.getTitle(), before,
+                MutationAuditService.newsSnapshot(saved));
         return ResponseEntity.ok(NewsResponse.from(saved));
     }
 
@@ -220,9 +237,12 @@ public class NewsController {
         }
         News news = found.get();
         if (!news.isArchived()) {
+            Map<String, Object> before = MutationAuditService.newsSnapshot(news);
             news.setExpiresAt(TbilisiTime.now());
-            newsRepository.save(news);
-            writeAuditLog(user, "ARCHIVE", news);
+            News saved = newsRepository.saveAndFlush(news);
+            contentMutationAuditService.recordSuccess(
+                    user, "ARCHIVE", "news", saved.getId(), saved.getTitle(), before,
+                    MutationAuditService.newsSnapshot(saved));
         }
         searchReindexService.remove(SearchReindexService.NEWS, id);
         return ResponseEntity.ok(NewsResponse.from(news));
@@ -243,9 +263,12 @@ public class NewsController {
         if (!news.isArchived()) {
             return ResponseEntity.badRequest().body(Map.of("detail", "სიახლე არ არის არქივში"));
         }
+        Map<String, Object> before = MutationAuditService.newsSnapshot(news);
         news.setExpiresAt(null);
-        News saved = newsRepository.save(news);
-        writeAuditLog(user, "UNARCHIVE", saved);
+        News saved = newsRepository.saveAndFlush(news);
+        contentMutationAuditService.recordSuccess(
+                user, "UNARCHIVE", "news", saved.getId(), saved.getTitle(), before,
+                MutationAuditService.newsSnapshot(saved));
         searchReindexService.reindexNews(saved);
         return ResponseEntity.ok(NewsResponse.from(saved));
     }
@@ -264,6 +287,7 @@ public class NewsController {
             return notFound();
         }
         News news = found.get();
+        Map<String, Object> before = MutationAuditService.newsSnapshot(news);
 
         // routers/news.py:229-230 -- self-heals a null author_id (e.g. a
         // row affected by the now-fixed update_news bug, or any other path)
@@ -279,7 +303,7 @@ public class NewsController {
             news.setTitle((String) body.get("title"));
         }
         if (body.containsKey("content")) {
-            news.setContent((String) body.get("content"));
+            news.setContent(articleHtmlSanitizer.sanitize((String) body.get("content")));
         }
         if (body.containsKey("target_department")) {
             news.setTargetDepartment((String) body.get("target_department"));
@@ -302,18 +326,25 @@ public class NewsController {
         }
 
         News saved = newsRepository.saveAndFlush(news);
+        contentMutationAuditService.recordSuccess(
+                user, "AUTOSAVE", "news", saved.getId(), saved.getTitle(), before,
+                MutationAuditService.newsSnapshot(saved));
         searchReindexService.reindexNews(saved);
         return ResponseEntity.ok(NewsAutosaveResponse.from(saved));
     }
 
     /** Port of get_news_history (routers/news.py:241-265). */
     @GetMapping("/api/news/{id}/history")
+    @Transactional(readOnly = true, isolation = Isolation.SERIALIZABLE)
     public ResponseEntity<?> getNewsHistory(@PathVariable Long id, @AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireContentManage(user);
         if (denial != null) {
             return denial;
         }
-        List<NewsHistory> history = newsHistoryRepository.findByNewsIdOrderByUpdatedAtDesc(id);
+        HistoryPayloadGuard.enforceFullResponseCharacters(
+                newsHistoryRepository.totalContentCharactersByNewsId(id));
+        List<NewsHistory> history = CompleteResultGuard.enforce(
+                newsHistoryRepository.findByNewsIdOrderByUpdatedAtDesc(id, CompleteResultGuard.sentinelPage()));
         Map<Long, String> namesByUserId = userRepository
                 .findAllById(history.stream().map(NewsHistory::getUpdatedBy).distinct().toList())
                 .stream()
@@ -324,6 +355,48 @@ public class NewsController {
                         h.getUpdatedAt(), namesByUserId.get(h.getUpdatedBy())))
                 .toList();
         return ResponseEntity.ok(rows);
+    }
+
+    /** CLOB-free list companion; the legacy full-history wire remains unchanged. */
+    @GetMapping("/api/news/{id}/history-summary")
+    public ResponseEntity<?> getNewsHistorySummary(@PathVariable Long id, @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        if (denial != null) {
+            return denial;
+        }
+        List<NewsHistorySummary> history = CompleteResultGuard.enforce(
+                newsHistoryRepository.findSummaryByNewsIdOrderByUpdatedAtDesc(
+                        id, CompleteResultGuard.sentinelPage()));
+        Map<Long, String> namesByUserId = userRepository
+                .findAllById(history.stream().map(NewsHistorySummary::updatedBy).distinct().toList())
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(User::getId, User::getName));
+
+        List<NewsHistorySummaryResponse> rows = history.stream()
+                .map(h -> new NewsHistorySummaryResponse(h.id(), h.title(), h.attachmentUrl(),
+                        h.updatedAt(), namesByUserId.get(h.updatedBy())))
+                .toList();
+        return ResponseEntity.ok(rows);
+    }
+
+    /** Loads one news content CLOB after a summary row is selected. */
+    @GetMapping("/api/news/{id}/history/{historyId}")
+    public ResponseEntity<?> getNewsHistoryItem(
+            @PathVariable Long id, @PathVariable Long historyId, @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        if (denial != null) {
+            return denial;
+        }
+        Optional<NewsHistory> history = newsHistoryRepository.findByIdAndNewsId(historyId, id);
+        if (history.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("detail", "ისტორიის ვერსია ვერ მოიძებნა"));
+        }
+        NewsHistory row = history.get();
+        String authorName = userRepository.findById(row.getUpdatedBy()).map(User::getName).orElse(null);
+        return ResponseEntity.ok(new NewsHistoryResponse(
+                row.getId(), row.getTitle(), row.getContent(), row.getAttachmentUrl(),
+                row.getUpdatedAt(), authorName));
     }
 
     /** Port of restore_news_version (routers/news.py:268-302). */
@@ -340,6 +413,7 @@ public class NewsController {
             return notFound();
         }
         News news = found.get();
+        Map<String, Object> before = MutationAuditService.newsSnapshot(news);
 
         Optional<NewsHistory> historyRow = newsHistoryRepository.findByIdAndNewsId(historyId, id);
         if (historyRow.isEmpty()) {
@@ -351,19 +425,21 @@ public class NewsController {
         archiveCurrentState(news, user.getId());
 
         news.setTitle(h.getTitle());
-        news.setContent(h.getContent());
+        news.setContent(articleHtmlSanitizer.sanitize(h.getContent()));
         news.setAttachmentUrl(h.getAttachmentUrl());
         news.setVersion(news.getVersion() + 1);
 
-        News saved = newsRepository.save(news);
+        News saved = newsRepository.saveAndFlush(news);
         searchReindexService.reindexNews(saved);
-        writeAuditLog(user, "RESTORE_VERSION", saved);
+        contentMutationAuditService.recordSuccess(
+                user, "RESTORE_VERSION", "news", saved.getId(), saved.getTitle(), before,
+                MutationAuditService.newsSnapshot(saved));
         return ResponseEntity.ok(NewsResponse.from(saved));
     }
 
-    private static void applySharedFields(News news, NewsRequest request) {
+    private void applySharedFields(News news, NewsRequest request) {
         news.setTitle(request.title());
-        news.setContent(request.content());
+        news.setContent(articleHtmlSanitizer.sanitize(request.content()));
         news.setTargetDepartment(request.targetDepartmentOrDefault());
         news.setAttachmentUrl(request.attachmentUrl());
         news.setVisibleToTechInfo(request.visibleToTechInfoOrDefault());
@@ -379,19 +455,6 @@ public class NewsController {
         history.setUpdatedBy(updatedBy);
         history.setUpdatedAt(TbilisiTime.now());
         newsHistoryRepository.save(history);
-    }
-
-    private void writeAuditLog(User actor, String action, News news) {
-        AuditLog audit = new AuditLog();
-        audit.setAdminId(actor.getId());
-        audit.setAdminNameSnapshot(actor.getName());
-        audit.setAdminEmailSnapshot(actor.getEmail());
-        audit.setAction(action);
-        audit.setItemType("news");
-        audit.setItemId(news.getId());
-        audit.setItemNameSnapshot(news.getTitle());
-        audit.setTimestamp(TbilisiTime.now());
-        auditLogRepository.save(audit);
     }
 
     private static ResponseEntity<?> notFound() {

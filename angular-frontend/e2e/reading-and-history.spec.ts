@@ -191,7 +191,7 @@ test.describe('reading and version history', () => {
     // own entry or only the saved history rows is the component's business,
     // and this test does not need to pin it down. More than one is what the
     // rest of the assertions actually depend on.
-    const rows = overlay.locator('div.cursor-pointer');
+    const rows = overlay.getByRole('button', { name: /^V\d/ });
     await expect(rows.nth(1)).toBeVisible();
 
     const [selected] = await Promise.all([
@@ -203,7 +203,7 @@ test.describe('reading and version history', () => {
     // --- compare against a different version -------------------------------
     // The select defaults to the predecessor, so picking the LAST option is
     // what guarantees a real change event rather than a no-op re-selection.
-    const compare = overlay.locator('select');
+    const compare = overlay.getByRole('combobox', { name: 'შედარება:' });
     await expect(compare).toBeVisible();
     const optionCount = await compare.locator('option').count();
     expect(optionCount, 'the fixture did not produce enough versions to compare').toBeGreaterThan(1);
@@ -217,7 +217,7 @@ test.describe('reading and version history', () => {
     await expect(overlay.getByText('წაშლილი')).toBeVisible();
 
     // --- close, then leave the article -------------------------------------
-    await page.locator('div.absolute.inset-0').first().click({ position: { x: 5, y: 5 } });
+    await overlay.getByRole('button', { name: 'დახურვა' }).click();
     await expect(overlay).toHaveCount(0);
 
     await page.getByRole('button', { name: 'უკან დაბრუნება' }).click();

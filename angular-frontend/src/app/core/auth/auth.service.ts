@@ -1,6 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, map, of, tap } from 'rxjs';
+import { Observable, catchError, finalize, map, of, shareReplay, tap } from 'rxjs';
 
 export interface CurrentUser {
   email: string;
@@ -12,30 +12,55 @@ interface LoginResponse {
   token_type: string;
 }
 
-const TOKEN_KEY = 'magti_token';
-
 /**
- * Port of static/js's Auth object. The real credential enforced by the
- * backend is an httpOnly cookie (see AuthController.accessTokenCookie) --
- * this service stores a second, JS-readable copy of the same token
- * (localStorage, key `magti_token`, matching the existing Python frontend's
- * convention) purely so the UI can read claims (role) and attach a Bearer
- * header, without needing cross-origin cookies during Angular-dev-server
- * development (see proxy.conf.json for why that's avoided for now).
+ * Cookie-backed portal session. The JWT is accepted from the login response
+ * only long enough to derive the in-memory shell identity; it is never
+ * persisted in Web Storage. Reloads restore the identity through
+ * GET /api/users/me while the httpOnly cookie remains the credential.
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
 
-  private readonly _currentUser = signal<CurrentUser | null>(this.readUserFromStoredToken());
+  private readonly _currentUser = signal<CurrentUser | null>(null);
   readonly currentUser = this._currentUser.asReadonly();
   readonly isAuthenticated = computed(() => this._currentUser() !== null);
+  private restoreRequest?: Observable<CurrentUser | null>;
 
   login(email: string, password: string): Observable<CurrentUser> {
     return this.http.post<LoginResponse>('/api/auth/login', { email, password }).pipe(
-      tap((res) => this.storeToken(res.access_token)),
-      map(() => this._currentUser()!)
+      map((res) => this.decodeUser(res.access_token)),
+      tap((user) => this._currentUser.set(user)),
+      map((user) => user!)
     );
+  }
+
+  /** Local presentation personas. The backend accepts these only when its
+   * explicit non-production dev-login switch is enabled. */
+  loginPersona(email: string): Observable<CurrentUser> {
+    return this.login(email, 'local-persona');
+  }
+
+  startCorporateSso(): Observable<never> {
+    return this.http.post<never>('/api/auth/sso/start', {});
+  }
+
+  restoreSession(): Observable<CurrentUser | null> {
+    const current = this._currentUser();
+    if (current) {
+      return of(current);
+    }
+    this.restoreRequest ??= this.http.get<{ email: string; role: string }>('/api/users/me').pipe(
+      map((profile) => ({ email: profile.email, role: profile.role })),
+      tap((user) => this._currentUser.set(user)),
+      catchError(() => {
+        this._currentUser.set(null);
+        return of(null);
+      }),
+      finalize(() => this.restoreRequest = undefined),
+      shareReplay({ bufferSize: 1, refCount: false })
+    );
+    return this.restoreRequest;
   }
 
   logout(): Observable<void> {
@@ -62,35 +87,13 @@ export class AuthService {
     this.clearToken();
   }
 
-  getToken(): string | null {
-    return localStorage.getItem(TOKEN_KEY);
-  }
-
-  private storeToken(token: string): void {
-    localStorage.setItem(TOKEN_KEY, token);
-    this._currentUser.set(this.decodeUser(token));
-  }
-
   private clearToken(): void {
-    localStorage.removeItem(TOKEN_KEY);
     this._currentUser.set(null);
+    this.restoreRequest = undefined;
   }
 
-  private readUserFromStoredToken(): CurrentUser | null {
-    const token = this.getToken();
-    if (!token) {
-      return null;
-    }
-    const user = this.decodeUser(token);
-    if (!user) {
-      localStorage.removeItem(TOKEN_KEY);
-    }
-    return user;
-  }
-
-  /** Decodes the JWT payload client-side (no signature verification --
-   *  the server is the actual authority; this is only for reading claims
-   *  to drive the UI, matching the existing Python frontend's approach). */
+  /** Decodes transient login-response claims for immediate navigation only.
+   *  The server remains the authority and the token is not persisted. */
   private decodeUser(token: string): CurrentUser | null {
     try {
       const payloadSegment = token.split('.')[1];

@@ -49,13 +49,18 @@ describe('adminOverviewGuard', () => {
     expect(target(result)).toBe('/admin/content');
   });
 
-  it('does not resolve D-8 by opening overview to content.manage', async () => {
-    const result = await run({ role: 'content_admin', permissions: ['content.manage'], bypass: false, can_publish_announcement: true });
+  it('opens the overview only from the independent stats.view capability', async () => {
+    expect(await run({
+      role: 'operator', permissions: ['stats.view'], bypass: false, can_publish_announcement: false
+    })).toBe(true);
 
-    expect(target(result)).toBe('/admin/content');
+    expect(await run({
+      role: 'content_admin', permissions: ['content.manage', 'stats.view'], bypass: false,
+      can_publish_announcement: true
+    })).toBe(true);
   });
 
   it('fails closed when effective access cannot be loaded', async () => {
-    expect(target(await run(null))).toBe('/');
+    expect(target(await run(null))).toBe('/forbidden');
   });
 });

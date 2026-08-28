@@ -1,15 +1,15 @@
 package ge.magti.portal.web;
 
+import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.config.PortalProperties;
-import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.User;
-import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.AuthenticationService;
 import ge.magti.portal.security.ClientIpResolver;
 import ge.magti.portal.security.JwtService;
 import ge.magti.portal.security.LoginRateLimiter;
-import ge.magti.portal.util.TbilisiTime;
+import ge.magti.portal.security.PortalSessionService;
+import ge.magti.portal.security.JwtAuthenticationFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -39,32 +39,40 @@ public class AuthController {
 
     private final AuthenticationService authenticationService;
     private final JwtService jwtService;
-    private final AuditLogRepository auditLogRepository;
+    private final MutationAuditService mutationAuditService;
     private final PortalProperties properties;
     private final LoginRateLimiter rateLimiter;
     private final ClientIpResolver clientIpResolver;
     private final UserRepository userRepository;
+    private final PortalSessionService sessionService;
 
     public AuthController(
             AuthenticationService authenticationService,
             JwtService jwtService,
-            AuditLogRepository auditLogRepository,
+            MutationAuditService mutationAuditService,
             PortalProperties properties,
             LoginRateLimiter rateLimiter,
             ClientIpResolver clientIpResolver,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            PortalSessionService sessionService) {
         this.authenticationService = authenticationService;
         this.jwtService = jwtService;
-        this.auditLogRepository = auditLogRepository;
+        this.mutationAuditService = mutationAuditService;
         this.properties = properties;
         this.rateLimiter = rateLimiter;
         this.clientIpResolver = clientIpResolver;
         this.userRepository = userRepository;
+        this.sessionService = sessionService;
     }
 
     @PostMapping("/api/auth/login")
+    @Transactional
     public ResponseEntity<?> login(
             @Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
+        if (properties.isProduction()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "detail", "production გარემოში ადგილობრივი პაროლით შესვლა გამორთულია. გამოიყენეთ კომპანიის SSO."));
+        }
         // Mirrors routers/auth.py:28's @limiter.limit("10/minute") --
         // checked before any DB work, same as the Python decorator runs
         // before the handler body. SEC-04/PR-04: the key is the resolved
@@ -84,40 +92,57 @@ public class AuthController {
             // violate the constraint and hoard enumeration data. Mirrors
             // routers/auth.py:48-56 exactly.
             authenticationService.findExistingAccount(request.email()).ifPresent(existing -> {
-                AuditLog failedLogin = new AuditLog();
-                failedLogin.setAdminId(existing.getId());
-                failedLogin.setAction("LOGIN_FAILED");
-                failedLogin.setItemType("user");
-                failedLogin.setItemId(existing.getId());
-                failedLogin.setTimestamp(TbilisiTime.now());
-                failedLogin.setDetails("IP: " + clientIp);
-                failedLogin.setIpAddress(clientIp);
-                failedLogin.setUserAgent(truncatedUserAgent(httpRequest));
-                auditLogRepository.save(failedLogin);
+                mutationAuditService.recordResult(
+                        existing,
+                        "LOGIN_FAILED",
+                        "user",
+                        existing.getId(),
+                        existing.getName(),
+                        "FAILURE",
+                        "AUTHENTICATION_REJECTED",
+                        null,
+                        Map.of("authenticated", false, "auth_channel", "LOCAL_DEVELOPMENT_ONLY"),
+                        clientIp,
+                        truncatedUserAgent(httpRequest));
             });
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("detail", "არასწორი ელ. ფოსტა ან მომხმარებელი არ არსებობს"));
         }
 
         User user = authenticated.get();
-
-        if (!request.email().startsWith("test_operator_")) {
-            AuditLog successfulLogin = new AuditLog();
-            successfulLogin.setAdminId(user.getId());
-            successfulLogin.setAction("LOGIN");
-            successfulLogin.setItemType("user");
-            successfulLogin.setItemId(user.getId());
-            successfulLogin.setTimestamp(TbilisiTime.now());
-            successfulLogin.setIpAddress(clientIp);
-            successfulLogin.setUserAgent(truncatedUserAgent(httpRequest));
-            auditLogRepository.save(successfulLogin);
-        }
-
-        String accessToken = jwtService.createAccessTokenFor(user);
+        var portalSession = sessionService.create(user, clientIp, truncatedUserAgent(httpRequest));
+        String accessToken = jwtService.createAccessTokenFor(user, portalSession.getId());
+        mutationAuditService.recordResult(
+                user,
+                "LOGIN",
+                "user",
+                user.getId(),
+                user.getName(),
+                "SUCCESS",
+                null,
+                null,
+                Map.of(
+                        "authenticated", true,
+                        "session_created", true,
+                        "auth_channel", "LOCAL_DEVELOPMENT_ONLY",
+                        "role", user.getRole().value()),
+                clientIp,
+                truncatedUserAgent(httpRequest));
 
         httpResponse.addHeader(HttpHeaders.SET_COOKIE, accessTokenCookie(accessToken).toString());
 
         return ResponseEntity.ok(new TokenResponse(accessToken, "bearer"));
+    }
+
+    /**
+     * Fail-closed seam for the production AD/SSO adapter. Until IT provides
+     * the trusted identity-provider metadata and endpoints, the portal never
+     * falls back to a local or temporary password.
+     */
+    @PostMapping("/api/auth/sso/start")
+    public ResponseEntity<Map<String, String>> startCorporateSso() {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
+                "detail", "კომპანიის ავტორიზაციის სერვისი ჯერ არ არის დაკავშირებული. წვდომა არ გაიცა."));
     }
 
     /**
@@ -142,13 +167,34 @@ public class AuthController {
     @PostMapping("/api/auth/logout")
     @Transactional
     public ResponseEntity<Map<String, String>> logout(
-            @AuthenticationPrincipal User user, HttpServletResponse httpResponse) {
+            @AuthenticationPrincipal User user, HttpServletRequest request, HttpServletResponse httpResponse) {
         if (user != null) {
+            String sessionId = (String) request.getAttribute(JwtAuthenticationFilter.SESSION_REQUEST_ATTRIBUTE);
+            boolean sessionRevoked = sessionId != null && sessionService.revoke(sessionId, user.getId());
+            long tokenVersionBefore = user.getTokenVersion();
             // Not save(user): the principal is detached and Phase 6 made
             // User.lockVersion an @Version, so a concurrent edit to the same
             // row would answer a logout with 409 and leave the token valid.
             // See UserRepository.revokeIssuedTokens.
-            userRepository.revokeIssuedTokens(user.getId());
+            if (userRepository.revokeIssuedTokens(user.getId()) != 1) {
+                throw new IllegalStateException("Authenticated user token revocation did not update exactly one row");
+            }
+            mutationAuditService.recordResult(
+                    user,
+                    "LOGOUT",
+                    "user",
+                    user.getId(),
+                    user.getName(),
+                    "SUCCESS",
+                    null,
+                    Map.of(
+                            "token_version", tokenVersionBefore,
+                            "session_present", sessionId != null),
+                    Map.of(
+                            "token_version", tokenVersionBefore + 1,
+                            "session_revoked", sessionRevoked),
+                    clientIpResolver.resolve(request),
+                    truncatedUserAgent(request));
         }
         ResponseCookie cleared = ResponseCookie.from("access_token", "")
                 .httpOnly(true)

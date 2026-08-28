@@ -6,7 +6,9 @@ import ge.magti.portal.domain.ArticleHistory;
 import ge.magti.portal.domain.ArticleReadReceipt;
 import ge.magti.portal.domain.ArticleViewLog;
 import ge.magti.portal.domain.AssignmentType;
+import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.Category;
+import ge.magti.portal.domain.Department;
 import ge.magti.portal.domain.Favorite;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.QuizAttempt;
@@ -20,6 +22,7 @@ import ge.magti.portal.domain.User;
 import ge.magti.portal.domain.UserNote;
 import ge.magti.portal.domain.UserPermissionOverride;
 import ge.magti.portal.domain.LeadershipAssignment;
+import ge.magti.portal.history.HistoryPayloadGuard;
 import ge.magti.portal.repository.ArticleHistoryRepository;
 import ge.magti.portal.repository.ArticleReadReceiptRepository;
 import ge.magti.portal.repository.ArticleRepository;
@@ -27,6 +30,7 @@ import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
 import ge.magti.portal.repository.ArticleViewLogRepository;
 import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.CategoryRepository;
+import ge.magti.portal.repository.DepartmentRepository;
 import ge.magti.portal.repository.FavoriteRepository;
 import ge.magti.portal.repository.LeadershipAssignmentRepository;
 import ge.magti.portal.repository.QuizAttemptRepository;
@@ -38,6 +42,7 @@ import ge.magti.portal.repository.TeamRepository;
 import ge.magti.portal.repository.UserNoteRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.repository.UserPermissionOverrideRepository;
+import ge.magti.portal.query.CompleteResultGuard;
 import ge.magti.portal.security.JwtService;
 import ge.magti.portal.util.TbilisiTime;
 import jakarta.persistence.EntityManager;
@@ -116,6 +121,8 @@ class ArticleControllerIntegrationTest {
     private QuizAttemptRepository quizAttemptRepository;
     @Autowired
     private LeadershipAssignmentRepository leadershipAssignmentRepository;
+    @Autowired
+    private DepartmentRepository departmentRepository;
     @Autowired
     private TeamRepository teamRepository;
     @Autowired
@@ -207,6 +214,70 @@ class ArticleControllerIntegrationTest {
         mockMvc.perform(get("/api/articles"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.detail").value("Could not validate credentials"));
+    }
+
+    @Test
+    void listRejectsInvalidOrUnboundedCardinality() throws Exception {
+        User operator = createUser("article-list-bounds@magti.ge", Role.OPERATOR, "All");
+        String token = tokenFor(operator);
+
+        for (String query : new String[] {"skip=-1&limit=20", "skip=0&limit=0", "skip=0&limit=1001"}) {
+            mockMvc.perform(authed(get("/api/articles?" + query), token))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.detail").value(ListQueryBounds.INVALID_DETAIL));
+        }
+
+        mockMvc.perform(authed(get("/api/articles?skip=0&limit=1000"), token))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void listUsesDatabaseMaintainedReadTimeWithoutReturningContent() throws Exception {
+        User admin = createUser("article-list-read-time@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category category = createCategory("კატ-read-time");
+        Article article = createArticle(
+                "გრძელი list projection", category.getId(), "published", false, List.of("All"), null);
+        article.setContent("სიტყვა ".repeat(450));
+        articleRepository.saveAndFlush(article);
+
+        // The derived value is database-owned: even a direct/stale writer
+        // cannot persist a client-supplied read_time that disagrees with the
+        // content CLOB.
+        jdbcTemplate.update("UPDATE articles SET read_time = 999 WHERE id = ?", article.getId());
+        assertEquals(3, jdbcTemplate.queryForObject(
+                "SELECT read_time FROM articles WHERE id = ?", Integer.class, article.getId()));
+
+        mockMvc.perform(authed(get("/api/articles")
+                        .param("category_id", String.valueOf(category.getId())), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(article.getId()))
+                .andExpect(jsonPath("$[0].read_time").value(3))
+                .andExpect(jsonPath("$[0].content").doesNotExist());
+    }
+
+    @Test
+    void listFailsLoudlyWhenBoundedParentsExpandPastTheTargetRelationLimit() throws Exception {
+        User admin = createUser("article-target-cross-product@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category category = createCategory("target-cross-product-category");
+        long firstId = createArticleViaApi(tokenFor(admin), "target parent one", "content", category.getId());
+        long secondId = createArticleViaApi(tokenFor(admin), "target parent two", "content", category.getId());
+
+        jdbcTemplate.update(
+                "DELETE FROM article_target_departments WHERE article_id IN (?, ?)", firstId, secondId);
+        List<Object[]> rows = new java.util.ArrayList<>();
+        java.util.stream.IntStream.range(0, 501)
+                .forEach(index -> rows.add(new Object[]{firstId, "first-target-" + index}));
+        java.util.stream.IntStream.range(0, 500)
+                .forEach(index -> rows.add(new Object[]{secondId, "second-target-" + index}));
+        jdbcTemplate.batchUpdate(
+                "INSERT INTO article_target_departments (article_id, department) VALUES (?, ?)", rows);
+
+        mockMvc.perform(authed(get("/api/articles")
+                        .param("category_id", category.getId().toString()), tokenFor(admin)))
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(jsonPath("$.detail")
+                        .value("ჩანაწერების რაოდენობა უსაფრთხო დამუშავების ზღვარს აჭარბებს"));
     }
 
     @Test
@@ -332,8 +403,8 @@ class ArticleControllerIntegrationTest {
     }
 
     @Test
-    void revokedArticlesEditPermissionBlocksMutatingEndpointsAndPublishIsGatedSeparately() throws Exception {
-        // Regression for bug #314: articles.edit/articles.publish used to be
+    void revokedArticlesEditPermissionBlocksMutatingEndpointsAndEditIncludesPublishing() throws Exception {
+        // Regression for bug #314: articles.edit used to be
         // stored per-user (settable via PUT /api/users/{id}/permissions) but
         // never actually consulted -- revoking a content_admin's articles.edit
         // did not block PUT /api/articles/{id}, confirmed live. Now enforced.
@@ -362,22 +433,20 @@ class ArticleControllerIntegrationTest {
         mockMvc.perform(authed(delete("/api/articles/" + existing.getId()), tokenFor(admin)))
                 .andExpect(status().isForbidden());
 
-        // A second content_admin keeps articles.edit but has articles.publish
-        // revoked -- can still save as draft, but cannot set status=published.
-        User editorNoPublish = createUser("aa7c@magti.ge", Role.CONTENT_ADMIN, "All");
-        deny(editorNoPublish, Permission.ARTICLES_PUBLISH);
+        // Publishing is deliberately part of articles.edit, not a second
+        // independently revocable switch.
+        User editor = createUser("aa7c@magti.ge", Role.CONTENT_ADMIN, "All");
 
-        mockMvc.perform(authed(post("/api/articles"), tokenFor(editorNoPublish))
+        mockMvc.perform(authed(post("/api/articles"), tokenFor(editor))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"title\":\"დრაფტი\",\"content\":\"y\",\"category_id\":" + cat.getId()
                                 + ",\"target_departments\":[\"All\"],\"status\":\"draft\"}"))
                 .andExpect(status().isOk());
-        mockMvc.perform(authed(post("/api/articles"), tokenFor(editorNoPublish))
+        mockMvc.perform(authed(post("/api/articles"), tokenFor(editor))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"title\":\"გამოქვეყნებადი\",\"content\":\"y\",\"category_id\":" + cat.getId()
                                 + ",\"target_departments\":[\"All\"],\"status\":\"published\"}"))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.detail").value("წვდომა უარყოფილია: არასაკმარისი უფლებები"));
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -408,6 +477,17 @@ class ArticleControllerIntegrationTest {
         assertEquals(1, history.size());
         assertEquals(1, history.get(0).getVersionId());
         assertEquals("ახალი სტატია", history.get(0).getTitle());
+
+        AuditLog createAudit = auditLogRepository.findAll().stream()
+                .filter(a -> "article".equals(a.getItemType()) && Long.valueOf(id).equals(a.getItemId())
+                        && "CREATE".equals(a.getAction()))
+                .findFirst().orElseThrow();
+        var createDetails = new com.fasterxml.jackson.databind.ObjectMapper().readTree(createAudit.getDetails());
+        assertEquals(admin.getId(), createAudit.getAdminId());
+        assertEquals("ახალი სტატია", createAudit.getItemNameSnapshot());
+        assertTrue(createDetails.path("before").isNull());
+        assertEquals(1, createDetails.path("after").path("version").asInt());
+        assertEquals(2, createDetails.path("after").path("target_departments").size());
     }
 
     @Test
@@ -458,9 +538,22 @@ class ArticleControllerIntegrationTest {
         assertTrue(history.stream().anyMatch(h -> h.getVersionId() == 1 && "ძველი სათაური".equals(h.getTitle())));
         assertTrue(history.stream().anyMatch(h -> h.getVersionId() == 2 && "ახალი სათაური".equals(h.getTitle())));
 
-        List<String> depts = targetDepartmentRepository.findByArticleId(article.getId()).stream()
+        List<String> depts = targetDepartmentRepository.findByArticleId(
+                        article.getId(), CompleteResultGuard.sentinelPage()).stream()
                 .map(ge.magti.portal.domain.ArticleTargetDepartment::getDepartment).toList();
         assertEquals(List.of("საინფორმაციო"), depts);
+
+        AuditLog updateAudit = auditLogRepository.findAll().stream()
+                .filter(a -> "article".equals(a.getItemType()) && article.getId().equals(a.getItemId())
+                        && "UPDATE".equals(a.getAction()))
+                .findFirst().orElseThrow();
+        var updateDetails = new com.fasterxml.jackson.databind.ObjectMapper().readTree(updateAudit.getDetails());
+        assertEquals("ძველი სათაური", updateDetails.path("before").path("title").asText());
+        assertEquals(1, updateDetails.path("before").path("version").asInt());
+        assertEquals("ახალი სათაური", updateDetails.path("after").path("title").asText());
+        assertEquals(2, updateDetails.path("after").path("version").asInt());
+        assertEquals("საინფორმაციო",
+                updateDetails.path("after").path("target_departments").get(0).asText());
     }
 
     @Test
@@ -492,9 +585,19 @@ class ArticleControllerIntegrationTest {
         Article reloaded = articleRepository.findById(article.getId()).orElseThrow();
         assertEquals("შინაარსი ტესტისთვის", reloaded.getContent(), "content wasn't in the payload -- must stay untouched");
         assertEquals(cat.getId(), reloaded.getCategoryId());
-        List<String> depts = targetDepartmentRepository.findByArticleId(article.getId()).stream()
+        List<String> depts = targetDepartmentRepository.findByArticleId(
+                        article.getId(), CompleteResultGuard.sentinelPage()).stream()
                 .map(ge.magti.portal.domain.ArticleTargetDepartment::getDepartment).toList();
         assertEquals(List.of("ტექნიკური"), depts, "target_departments wasn't in the payload -- must stay untouched");
+
+        var audit = auditLogRepository.findAll().stream()
+                .filter(a -> "AUTOSAVE".equals(a.getAction()) && article.getId().equals(a.getItemId()))
+                .findFirst().orElseThrow();
+        var details = new com.fasterxml.jackson.databind.ObjectMapper().readTree(audit.getDetails());
+        assertEquals("თავდაპირველი სათაური", details.at("/before/title").asText());
+        assertEquals("განახლებული სათაური", details.at("/after/title").asText());
+        assertEquals("SUCCESS", details.get("result").asText());
+        assertFalse(audit.getDetails().contains("შინაარსი ტესტისთვის"));
     }
 
     @Test
@@ -508,7 +611,8 @@ class ArticleControllerIntegrationTest {
                         .content("{\"target_departments\":[]}"))
                 .andExpect(status().isOk());
 
-        List<String> depts = targetDepartmentRepository.findByArticleId(article.getId()).stream()
+        List<String> depts = targetDepartmentRepository.findByArticleId(
+                        article.getId(), CompleteResultGuard.sentinelPage()).stream()
                 .map(ge.magti.portal.domain.ArticleTargetDepartment::getDepartment).toList();
         assertEquals(List.of("ტექნიკური"), depts);
     }
@@ -648,7 +752,8 @@ class ArticleControllerIntegrationTest {
         assertEquals(1, jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM articles WHERE id = ? AND trashed_at IS NOT NULL", Integer.class,
                 article.getId()));
-        assertEquals(2, targetDepartmentRepository.findByArticleId(article.getId()).size());
+        assertEquals(2, targetDepartmentRepository.findByArticleId(
+                article.getId(), CompleteResultGuard.sentinelPage()).size());
         assertEquals(1, articleHistoryRepository.findByArticleId(article.getId()).size());
     }
 
@@ -764,13 +869,35 @@ class ArticleControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("archived"));
 
-        assertTrue(auditLogRepository.findAll().stream()
-                .anyMatch(a -> "ARCHIVE".equals(a.getAction()) && "article".equals(a.getItemType())
-                        && article.getId().equals(a.getItemId())));
+        AuditLog archiveAudit = auditLogRepository.findAll().stream()
+                .filter(a -> "ARCHIVE".equals(a.getAction()) && "article".equals(a.getItemType())
+                        && article.getId().equals(a.getItemId()))
+                .findFirst().orElseThrow();
+        var archiveDetails = new com.fasterxml.jackson.databind.ObjectMapper().readTree(archiveAudit.getDetails());
+        assertEquals(admin.getId(), archiveAudit.getAdminId());
+        assertEquals(admin.getName(), archiveAudit.getAdminNameSnapshot());
+        assertEquals(article.getTitle(), archiveAudit.getItemNameSnapshot());
+        assertEquals("published", archiveDetails.path("before").path("status").asText());
+        assertEquals("archived", archiveDetails.path("after").path("status").asText());
+        assertEquals(1, archiveDetails.path("after").path("version").asInt());
 
         mockMvc.perform(authed(post("/api/articles/" + article.getId() + "/archive"), tokenFor(admin)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("archived"));
+        assertEquals(1, auditLogRepository.findAll().stream()
+                .filter(a -> "ARCHIVE".equals(a.getAction()) && article.getId().equals(a.getItemId()))
+                .count());
+
+        mockMvc.perform(authed(post("/api/articles/" + article.getId() + "/unarchive"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("published"));
+        AuditLog unarchiveAudit = auditLogRepository.findAll().stream()
+                .filter(a -> "UNARCHIVE".equals(a.getAction()) && "article".equals(a.getItemType())
+                        && article.getId().equals(a.getItemId()))
+                .findFirst().orElseThrow();
+        var unarchiveDetails = new com.fasterxml.jackson.databind.ObjectMapper().readTree(unarchiveAudit.getDetails());
+        assertEquals("archived", unarchiveDetails.path("before").path("status").asText());
+        assertEquals("published", unarchiveDetails.path("after").path("status").asText());
     }
 
     @Test
@@ -816,10 +943,13 @@ class ArticleControllerIntegrationTest {
 
         assertEquals("archived", articleRepository.findById(toArchive.getId()).orElseThrow().getStatus());
 
-        boolean hasSnapshot = auditLogRepository.findAll().stream()
-                .anyMatch(a -> "ARCHIVE".equals(a.getAction()) && toArchive.getId().equals(a.getItemId())
-                        && a.getAdminNameSnapshot() != null && a.getItemNameSnapshot() != null);
-        assertTrue(hasSnapshot, "bulk-archive sets audit snapshots explicitly, unlike the single-item endpoint");
+        AuditLog bulkAudit = auditLogRepository.findAll().stream()
+                .filter(a -> "ARCHIVE".equals(a.getAction()) && toArchive.getId().equals(a.getItemId()))
+                .findFirst().orElseThrow();
+        var details = new com.fasterxml.jackson.databind.ObjectMapper().readTree(bulkAudit.getDetails());
+        assertEquals("published", details.path("before").path("status").asText());
+        assertEquals("archived", details.path("after").path("status").asText());
+        assertEquals("SUCCESS", details.path("result").asText());
     }
 
     @Test
@@ -844,6 +974,17 @@ class ArticleControllerIntegrationTest {
         LeadershipAssignment assignment = new LeadershipAssignment();
         assignment.setUserId(leader.getId());
         assignment.setTeamId(team.getId());
+        assignment.setAssignmentType(type);
+        assignment.setActive(true);
+        assignment.setStartedAt(TbilisiTime.now());
+        assignment.setSource(LeadershipAssignment.Source.MANUAL);
+        return leadershipAssignmentRepository.saveAndFlush(assignment);
+    }
+
+    private LeadershipAssignment leadDepartment(User leader, Department department, AssignmentType type) {
+        LeadershipAssignment assignment = new LeadershipAssignment();
+        assignment.setUserId(leader.getId());
+        assignment.setDepartmentId(department.getId());
         assignment.setAssignmentType(type);
         assignment.setActive(true);
         assignment.setStartedAt(TbilisiTime.now());
@@ -900,6 +1041,39 @@ class ArticleControllerIntegrationTest {
     }
 
     @Test
+    void notesOnTheSameArticleRemainIsolatedPerUser() throws Exception {
+        User owner = createUser("note-owner@magti.ge", Role.OPERATOR, "All");
+        User other = createUser("note-other@magti.ge", Role.OPERATOR, "All");
+        Category cat = createCategory("კატ-note-owner-boundary");
+        Article article = createArticle(
+                "საერთო სტატია პირადი შენიშვნებით", cat.getId(), "published", false, List.of("All"), null);
+
+        mockMvc.perform(authed(put("/api/articles/" + article.getId() + "/note"), tokenFor(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"მფლობელის პირადი ჩანაწერი\"}"))
+                .andExpect(status().isOk());
+        String otherInitialBody = mockMvc.perform(
+                        authed(get("/api/articles/" + article.getId() + "/note"), tokenFor(other)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertEquals("null", otherInitialBody);
+
+        mockMvc.perform(authed(put("/api/articles/" + article.getId() + "/note"), tokenFor(other))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"მეორე მომხმარებლის ჩანაწერი\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user_id").value(other.getId()));
+        mockMvc.perform(authed(get("/api/articles/" + article.getId() + "/note"), tokenFor(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user_id").value(owner.getId()))
+                .andExpect(jsonPath("$.content").value("მფლობელის პირადი ჩანაწერი"));
+
+        assertEquals(2, userNoteRepository.findAll().stream()
+                .filter(note -> article.getId().equals(note.getArticleId()))
+                .count());
+    }
+
+    @Test
     void noteOnAnInvisibleArticleIs404() throws Exception {
         User operator = createUser("aa23@magti.ge", Role.OPERATOR, "საინფორმაციო");
         Category cat = createCategory("კატ-18");
@@ -928,8 +1102,13 @@ class ArticleControllerIntegrationTest {
 
         Article reloaded = articleRepository.findById(article.getId()).orElseThrow();
         assertTrue(!reloaded.getLastVerifiedAt().isBefore(before));
-        assertTrue(auditLogRepository.findAll().stream()
-                .anyMatch(a -> "VERIFY".equals(a.getAction()) && article.getId().equals(a.getItemId())));
+        var audit = auditLogRepository.findAll().stream()
+                .filter(a -> "VERIFY".equals(a.getAction()) && article.getId().equals(a.getItemId()))
+                .findFirst().orElseThrow();
+        var details = new com.fasterxml.jackson.databind.ObjectMapper().readTree(audit.getDetails());
+        assertTrue(details.at("/before/last_verified_at").isNull());
+        assertTrue(!details.at("/after/last_verified_at").isNull());
+        assertEquals("SUCCESS", details.get("result").asText());
     }
 
     @Test
@@ -1071,6 +1250,97 @@ class ArticleControllerIntegrationTest {
     }
 
     @Test
+    void historySummaryOmitsClobAndLoadsOneSelectedRevisionOnDemand() throws Exception {
+        User admin = createUser("aa30-summary@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-25-summary");
+        long articleId = createArticleViaApi(tokenFor(admin), "ვერსია 1", "დიდი შინაარსი 1", cat.getId());
+        updateArticleViaApi(tokenFor(admin), articleId, "ვერსია 2", "დიდი შინაარსი 2", cat.getId());
+
+        String summaryBody = mockMvc.perform(
+                        authed(get("/api/articles/" + articleId + "/history-summary"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].title").value("ვერსია 2"))
+                .andExpect(jsonPath("$[0].content").doesNotExist())
+                .andExpect(jsonPath("$[0].author_name").value(admin.getName()))
+                .andReturn().getResponse().getContentAsString();
+        long selectedHistoryId = new com.fasterxml.jackson.databind.ObjectMapper()
+                .readTree(summaryBody).get(0).get("id").asLong();
+
+        mockMvc.perform(authed(
+                        get("/api/articles/" + articleId + "/history/" + selectedHistoryId), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(selectedHistoryId))
+                .andExpect(jsonPath("$.content").value("დიდი შინაარსი 2"));
+    }
+
+    @Test
+    void historyIdsCannotCrossArticleBoundariesAndRejectedRestoreDoesNotMutate() throws Exception {
+        User admin = createUser("aa30-history-idor@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-25-history-idor");
+        long targetArticleId = createArticleViaApi(
+                tokenFor(admin), "სამიზნე სტატია", "სამიზნე შინაარსი", cat.getId());
+        long foreignArticleId = createArticleViaApi(
+                tokenFor(admin), "სხვა სტატია", "სხვა შინაარსი", cat.getId());
+        long targetHistoryId = historyIdForVersion(targetArticleId, 1);
+        long foreignHistoryId = historyIdForVersion(foreignArticleId, 1);
+        Article before = articleRepository.findById(targetArticleId).orElseThrow();
+        int beforeHistoryCount = articleHistoryRepository.findByArticleId(targetArticleId).size();
+
+        mockMvc.perform(authed(
+                        get("/api/articles/" + targetArticleId + "/history/" + foreignHistoryId),
+                        tokenFor(admin)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("ისტორიის ვერსია ვერ მოიძებნა"));
+        mockMvc.perform(authed(
+                        get("/api/articles/" + targetArticleId + "/history/" + foreignHistoryId + "/diff"),
+                        tokenFor(admin)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("ისტორიის ვერსია ვერ მოიძებნა"));
+        mockMvc.perform(authed(
+                        get("/api/articles/" + targetArticleId + "/history/" + targetHistoryId + "/diff")
+                                .param("compare_history_id", Long.toString(foreignHistoryId)),
+                        tokenFor(admin)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("შესადარებელი ისტორიის ვერსია ვერ მოიძებნა"));
+        mockMvc.perform(authed(
+                        post("/api/articles/" + targetArticleId + "/history/" + foreignHistoryId + "/restore"),
+                        tokenFor(admin)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("ისტორიის ვერსია ვერ მოიძებნა"));
+
+        entityManager.flush();
+        entityManager.clear();
+        Article after = articleRepository.findById(targetArticleId).orElseThrow();
+        assertEquals(before.getTitle(), after.getTitle());
+        assertEquals(before.getContent(), after.getContent());
+        assertEquals(before.getVersion(), after.getVersion());
+        assertEquals(beforeHistoryCount, articleHistoryRepository.findByArticleId(targetArticleId).size());
+        assertTrue(auditLogRepository.findAll().stream().noneMatch(a ->
+                "RESTORE".equals(a.getAction()) && Long.valueOf(targetArticleId).equals(a.getItemId())));
+    }
+
+    @Test
+    void legacyFullHistoryFailsBeforeOversizedClobHydrationWhileSummaryRemainsAvailable() throws Exception {
+        User admin = createUser("aa30-budget@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-25-budget");
+        long articleId = createArticleViaApi(tokenFor(admin), "დიდი ისტორია", "საწყისი", cat.getId());
+        ArticleHistory history = articleHistoryRepository.findByArticleId(articleId).stream()
+                .findFirst().orElseThrow();
+        history.setContent("x".repeat((int) HistoryPayloadGuard.MAX_FULL_RESPONSE_CHARACTERS + 1));
+        articleHistoryRepository.saveAndFlush(history);
+        entityManager.clear();
+
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/history-summary"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].content").doesNotExist());
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/history"), tokenFor(admin)))
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(jsonPath("$.detail").value(
+                        "ისტორიის სრული ტექსტის მოცულობა უსაფრთხო დამუშავების ზღვარს აჭარბებს"));
+    }
+
+    @Test
     void historyDoesNotRequireTheArticleToExist() throws Exception {
         User admin = createUser("aa31@magti.ge", Role.CONTENT_ADMIN, "All");
 
@@ -1154,8 +1424,14 @@ class ArticleControllerIntegrationTest {
         Article reloaded = articleRepository.findById(articleId).orElseThrow();
         assertEquals("ორიგინალი სათაური", reloaded.getTitle());
         assertEquals(3, reloaded.getVersion());
-        assertTrue(auditLogRepository.findAll().stream()
-                .anyMatch(a -> "RESTORE".equals(a.getAction()) && Long.valueOf(articleId).equals(a.getItemId())));
+        AuditLog restoreAudit = auditLogRepository.findAll().stream()
+                .filter(a -> "RESTORE".equals(a.getAction()) && Long.valueOf(articleId).equals(a.getItemId()))
+                .findFirst().orElseThrow();
+        var restoreDetails = new com.fasterxml.jackson.databind.ObjectMapper().readTree(restoreAudit.getDetails());
+        assertEquals("შეცვლილი სათაური", restoreDetails.path("before").path("title").asText());
+        assertEquals(2, restoreDetails.path("before").path("version").asInt());
+        assertEquals("ორიგინალი სათაური", restoreDetails.path("after").path("title").asText());
+        assertEquals(3, restoreDetails.path("after").path("version").asInt());
 
         List<ArticleHistory> allHistory = articleHistoryRepository.findByArticleId(articleId);
         assertEquals(3, allHistory.size(), "v1, v2 (from the earlier update), and the new v3 restore snapshot");
@@ -1171,6 +1447,11 @@ class ArticleControllerIntegrationTest {
         long v1HistoryId = historyIdForVersion(articleId, 1);
 
         mockMvc.perform(authed(get("/api/articles/" + articleId + "/history"), tokenFor(operator)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/history-summary"), tokenFor(operator)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(
+                        get("/api/articles/" + articleId + "/history/" + v1HistoryId), tokenFor(operator)))
                 .andExpect(status().isForbidden());
         mockMvc.perform(authed(post("/api/articles/" + articleId + "/history/" + v1HistoryId + "/restore"), tokenFor(operator)))
                 .andExpect(status().isForbidden());
@@ -1423,9 +1704,33 @@ class ArticleControllerIntegrationTest {
     }
 
     @Test
-    void myReadReceiptStatusReflectsWhetherIveRead() throws Exception {
+    void readReceiptComplianceBridgeFailsLoudlyAboveTheCompleteRelationLimit() throws Exception {
+        User admin = createUser("relation-limit-admin@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category category = createCategory("relation-limit-category");
+        long articleId = createArticleViaApi(
+                tokenFor(admin), "relation limit", "content", category.getId());
+        User operator = createUser("relation-limit-operator@magti.ge", Role.OPERATOR, "All");
+
+        List<Object[]> rows = java.util.stream.IntStream.rangeClosed(0, CompleteResultGuard.MAX_ROWS)
+                .mapToObj(ignored -> new Object[]{articleId})
+                .toList();
+        jdbcTemplate.batchUpdate(
+                "INSERT INTO required_readings "
+                        + "(item_type, item_id, target_department, due_date, priority) "
+                        + "VALUES ('article', ?, 'All', SYSTIMESTAMP, 'normal')",
+                rows);
+
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/read-receipt"), tokenFor(operator)))
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(jsonPath("$.detail")
+                        .value("ჩანაწერების რაოდენობა უსაფრთხო დამუშავების ზღვარს აჭარბებს"));
+    }
+
+    @Test
+    void myReadReceiptStatusReflectsOnlyTheCallersReceipt() throws Exception {
         User admin = createUser("aa50@magti.ge", Role.CONTENT_ADMIN, "All");
         User operator = createUser("aa51@magti.ge", Role.OPERATOR, "All");
+        User otherOperator = createUser("aa51-other@magti.ge", Role.OPERATOR, "All");
         Category cat = createCategory("კატ-38");
         long articleId = createArticleViaApi(tokenFor(admin), "სტატია", "შინაარსი", cat.getId());
 
@@ -1437,6 +1742,18 @@ class ArticleControllerIntegrationTest {
                 .andExpect(status().isOk());
 
         mockMvc.perform(authed(get("/api/articles/" + articleId + "/read-receipt/me"), tokenFor(operator)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.has_read").value(true))
+                .andExpect(jsonPath("$.article_version").value(1));
+
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/read-receipt/me"), tokenFor(otherOperator)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.has_read").value(false));
+
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/read-receipt"), tokenFor(otherOperator)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/read-receipt/me"), tokenFor(otherOperator)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.has_read").value(true))
                 .andExpect(jsonPath("$.article_version").value(1));
@@ -1459,7 +1776,9 @@ class ArticleControllerIntegrationTest {
         mockMvc.perform(authed(post("/api/articles/" + articleId + "/view"), tokenFor(unrelatedOperator)))
                 .andExpect(status().isNotFound());
 
-        assertEquals(0, articleViewLogRepository.findByArticleIdSnapshotOrderByViewedAtDesc(articleId).size());
+        assertEquals(0, articleViewLogRepository.findAll().stream()
+                .filter(view -> articleId == view.getArticleIdSnapshot())
+                .count());
     }
 
     /**
@@ -1500,7 +1819,9 @@ class ArticleControllerIntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        List<ArticleViewLog> views = articleViewLogRepository.findByArticleIdSnapshotOrderByViewedAtDesc(articleId);
+        List<ArticleViewLog> views = articleViewLogRepository.findAll().stream()
+                .filter(view -> articleId == view.getArticleIdSnapshot())
+                .toList();
         assertEquals(1, views.size(), "the view log must still be reachable by the deleted article's id");
         assertNull(views.get(0).getArticleId(), "the FK is still nulled -- that is how you know it is gone");
         assertEquals("წასაშლელი სტატია", views.get(0).getArticleTitleSnapshot());
@@ -1531,7 +1852,30 @@ class ArticleControllerIntegrationTest {
 
         mockMvc.perform(authed(get("/api/articles/" + articleId + "/views").param("limit", "1"), tokenFor(admin)))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total_views").value(3))
+                .andExpect(jsonPath("$.unique_viewers").value(2))
                 .andExpect(jsonPath("$.views.length()").value(1));
+
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/views")
+                        .param("offset", "2").param("limit", "1"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total_views").value(3))
+                .andExpect(jsonPath("$.unique_viewers").value(2))
+                .andExpect(jsonPath("$.views.length()").value(1));
+
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/views")
+                        .param("version", "1"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total_views").value(3))
+                .andExpect(jsonPath("$.unique_viewers").value(2))
+                .andExpect(jsonPath("$.views.length()").value(3));
+
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/views")
+                        .param("version", "2"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total_views").value(0))
+                .andExpect(jsonPath("$.unique_viewers").value(0))
+                .andExpect(jsonPath("$.views.length()").value(0));
     }
 
     @Test
@@ -1556,19 +1900,25 @@ class ArticleControllerIntegrationTest {
     }
 
     @Test
-    void groupLeaderSeesNamedOfficialReadsOnlyForAssignedTeam() throws Exception {
+    void groupLeaderSeesNamedOfficialReadsOnlyForDirectTeamDespiteDepartmentAssignment() throws Exception {
         String department = "ლიდერის-scope-" + System.nanoTime();
         User publisher = createUser("evidence-publisher@magti.ge", Role.CONTENT_ADMIN, department);
         Category category = createCategory("scope-კატეგორია");
         long articleId = createArticleViaApiWithDept(
                 tokenFor(publisher), "scope მტკიცებულება", "შინაარსი", category.getId(), department);
 
+        Department canonicalDepartment = departmentRepository.findByName("ტექნიკური").orElseThrow();
         Team ownTeam = createTeam("scope-own-" + System.nanoTime());
+        ownTeam.setDepartmentId(canonicalDepartment.getId());
+        ownTeam = teamRepository.saveAndFlush(ownTeam);
         Team siblingTeam = createTeam("scope-sibling-" + System.nanoTime());
+        siblingTeam.setDepartmentId(canonicalDepartment.getId());
+        siblingTeam = teamRepository.saveAndFlush(siblingTeam);
         User leader = createUser("evidence-leader@magti.ge", Role.MANAGER, department);
         leader.setTeamId(ownTeam.getId());
         leader = userRepository.saveAndFlush(leader);
         leadTeam(leader, ownTeam, AssignmentType.ACTING);
+        leadDepartment(leader, canonicalDepartment, AssignmentType.ACTING);
 
         User ownReader = createUser("evidence-own@magti.ge", Role.OPERATOR, department);
         ownReader.setTeamId(ownTeam.getId());
@@ -1606,22 +1956,30 @@ class ArticleControllerIntegrationTest {
     }
 
     @Test
-    void recentlyViewedDedupesRepeatViews() throws Exception {
+    void recentlyViewedDedupesRepeatViewsAndRemainsIsolatedPerUser() throws Exception {
         User admin = createUser("aa57@magti.ge", Role.CONTENT_ADMIN, "All");
         Category cat = createCategory("კატ-41");
         long articleA = createArticleViaApi(tokenFor(admin), "სტატია ა", "შინაარსი ა", cat.getId());
         long articleB = createArticleViaApi(tokenFor(admin), "სტატია ბ", "შინაარსი ბ", cat.getId());
         User operator = createUser("aa58@magti.ge", Role.OPERATOR, "All");
+        User otherOperator = createUser("aa58-other@magti.ge", Role.OPERATOR, "All");
 
         mockMvc.perform(authed(post("/api/articles/" + articleA + "/view"), tokenFor(operator))).andExpect(status().isOk());
         mockMvc.perform(authed(post("/api/articles/" + articleB + "/view"), tokenFor(operator))).andExpect(status().isOk());
         mockMvc.perform(authed(post("/api/articles/" + articleA + "/view"), tokenFor(operator))).andExpect(status().isOk());
+        mockMvc.perform(authed(post("/api/articles/" + articleB + "/view"), tokenFor(otherOperator)))
+                .andExpect(status().isOk());
 
         mockMvc.perform(authed(get("/api/me/recently-viewed"), tokenFor(operator)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].title").value("სტატია ა"))
                 .andExpect(jsonPath("$[1].title").value("სტატია ბ"));
+
+        mockMvc.perform(authed(get("/api/me/recently-viewed"), tokenFor(otherOperator)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].title").value("სტატია ბ"));
     }
 
     /**

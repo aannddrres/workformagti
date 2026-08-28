@@ -7,7 +7,8 @@ import java.util.Set;
 
 /**
  * Mirrors models.py's classify_audit_category (models.py:409-415) and its
- * three backing sets/map (models.py:381-406) exactly. Pure and DB-free --
+ * three backing sets/map (models.py:381-406), excluding retired feature
+ * item types. Pure and DB-free --
  * safe to port now even though the rest of the Audit domain mostly isn't
  * (see the migration doc's §1a).
  */
@@ -26,7 +27,6 @@ public final class AuditCategoryClassifier {
             Map.entry("category", AuditCategory.CONTENT),
             Map.entry("article", AuditCategory.CONTENT),
             Map.entry("video", AuditCategory.CONTENT),
-            Map.entry("feedback", AuditCategory.CONTENT),
             Map.entry("required_reading", AuditCategory.CONTENT),
             Map.entry("user", AuditCategory.USER),
             Map.entry("readings", AuditCategory.SYSTEM),

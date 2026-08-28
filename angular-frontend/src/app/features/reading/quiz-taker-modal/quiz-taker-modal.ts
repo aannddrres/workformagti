@@ -2,6 +2,7 @@ import { Component, effect, inject, input, output, signal } from '@angular/core'
 import { TranslatePipe } from '@ngx-translate/core';
 import { QuizService } from '../../../core/services/quiz.service';
 import { QuizPublic } from '../../../core/models/quiz';
+import { PortalDialog } from '../../../shared/portal-dialog/portal-dialog';
 
 /**
  * Reader-facing quiz modal -- port of app-core.js's #quiz-modal
@@ -15,7 +16,7 @@ import { QuizPublic } from '../../../core/models/quiz';
 @Component({
   selector: 'app-quiz-taker-modal',
   standalone: true,
-  imports: [TranslatePipe],
+  imports: [TranslatePipe, PortalDialog],
   templateUrl: './quiz-taker-modal.html'
 })
 export class QuizTakerModal {

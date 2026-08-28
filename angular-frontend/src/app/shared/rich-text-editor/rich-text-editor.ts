@@ -37,8 +37,8 @@ const MARKDOWN_LINE_RULES: MarkdownLineRule[] = [
 ];
 
 /**
- * Wraps raw Quill 1.3.7 (snow theme) -- same version the Python app loads
- * from CDN in base-layout.html, and same toolbar config/image handler as
+ * Wraps locally bundled Quill 2 (snow theme), with the same toolbar
+ * config/image handler as
  * app-core.js's DOMContentLoaded block (lines 123-139, 452-491), plus the
  * additive authoring extras from admin-cms-enhancements.js: "#"/"##"/">"
  * line shortcuts, a "/" slash-command menu, and sanitized inline-image
@@ -78,6 +78,7 @@ export class RichTextEditor implements AfterViewInit, OnDestroy {
   private slashMenuLineStart = 0;
 
   private quill: any = null;
+  private tooltipObserver: MutationObserver | null = null;
 
   ngAfterViewInit(): void {
     const quill = new Quill(this.editorHost().nativeElement, {
@@ -98,6 +99,48 @@ export class RichTextEditor implements AfterViewInit, OnDestroy {
       }
     });
     this.quill = quill;
+
+    quill.root.setAttribute('role', 'textbox');
+    quill.root.setAttribute('aria-multiline', 'true');
+    quill.root.setAttribute('aria-labelledby', 'article-content-label');
+    const toolbar = quill.getModule('toolbar')?.container as HTMLElement | undefined;
+    toolbar?.setAttribute('role', 'toolbar');
+    toolbar?.setAttribute('aria-label', 'ტექსტის ფორმატირება');
+    const controlLabels: Record<string, string> = {
+      'ql-header': 'სათაურის დონე',
+      'ql-bold': 'მუქი ტექსტი',
+      'ql-italic': 'დახრილი ტექსტი',
+      'ql-underline': 'ხაზგასმული ტექსტი',
+      'ql-strike': 'გადახაზული ტექსტი',
+      'ql-list': 'სია',
+      'ql-link': 'ბმულის დამატება',
+      'ql-image': 'სურათის დამატება',
+      'ql-clean': 'ფორმატირების გასუფთავება'
+    };
+    for (const [className, label] of Object.entries(controlLabels)) {
+      toolbar?.querySelectorAll<HTMLElement>(`.${className}`).forEach((control) => {
+        const value = control.getAttribute('value');
+        control.setAttribute('aria-label', value ? `${label}: ${value}` : label);
+      });
+    }
+    const tooltip = (quill.container as HTMLElement).querySelector<HTMLElement>('.ql-tooltip');
+    if (tooltip) {
+      tooltip.querySelector<HTMLInputElement>('input')?.setAttribute('aria-label', 'ბმულის მისამართი');
+      tooltip.querySelector<HTMLElement>('.ql-action')?.setAttribute('aria-label', 'ბმულის შენახვა');
+      tooltip.querySelector<HTMLElement>('.ql-remove')?.setAttribute('aria-label', 'ბმულის წაშლა');
+      const syncTooltipVisibility = (): void => {
+        const hidden = tooltip.classList.contains('ql-hidden');
+        tooltip.toggleAttribute('hidden', hidden);
+        if (hidden) {
+          tooltip.setAttribute('aria-hidden', 'true');
+        } else {
+          tooltip.removeAttribute('aria-hidden');
+        }
+      };
+      syncTooltipVisibility();
+      this.tooltipObserver = new MutationObserver(syncTooltipVisibility);
+      this.tooltipObserver.observe(tooltip, { attributes: true, attributeFilter: ['class'] });
+    }
 
     quill.on('text-change', (delta: unknown, oldDelta: unknown, source: string) => {
       this.charCount.set(quill.getText().replace(/\n$/, '').length);
@@ -124,6 +167,8 @@ export class RichTextEditor implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.tooltipObserver?.disconnect();
+    this.tooltipObserver = null;
     this.quill = null;
   }
 
@@ -140,7 +185,11 @@ export class RichTextEditor implements AfterViewInit, OnDestroy {
     }
     quill.setText('', 'silent');
     if (html) {
-      quill.clipboard.dangerouslyPasteHTML(0, html, 'silent');
+      // Stored legacy content may predate the server-side sanitizer. Quill's
+      // aptly named API is only called after DOMPurify has removed executable
+      // markup, so opening an old draft cannot execute its raw HTML.
+      const clean = DOMPurify.sanitize(html);
+      quill.clipboard.dangerouslyPasteHTML(0, clean, 'silent');
     }
     this.charCount.set(quill.getText().replace(/\n$/, '').length);
   }

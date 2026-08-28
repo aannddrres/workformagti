@@ -27,35 +27,34 @@ export function roleGuard(allowRoles?: string[], denyRoles?: string[]): CanActiv
       return router.createUrlTree(['/login']);
     }
     if (allowRoles && !allowRoles.includes(user.role)) {
-      return router.createUrlTree(['/']);
+      return router.createUrlTree(['/forbidden']);
     }
     if (denyRoles && denyRoles.includes(user.role)) {
-      return router.createUrlTree(['/']);
+      return router.createUrlTree(['/forbidden']);
     }
     return true;
   };
 }
 
 /**
- * `/admin/overview` remains system-admin-only while D-8 is open.
+ * `/admin/overview` follows the resolved D-8 capability split.
  *
- * SYSTEM_ADMIN bypass enters overview. Any caller with `content.manage`
- * (including an explicitly granted operator) is redirected to the content
- * workspace. Everyone else fails closed at home. This redirect preserves the
- * capability boundary without deciding whether content managers may see the
- * statistics overview.
+ * SYSTEM_ADMIN bypass and an explicit `stats.view` grant enter the aggregate
+ * overview. A caller with only `content.manage` is redirected to the content
+ * workspace. Everyone else fails closed. The ordering matters when one caller
+ * holds both capabilities: statistics stays directly reachable.
  */
 export const adminOverviewGuard: CanActivateFn = () => {
   const profiles = inject(UserProfileService);
   const router = inject(Router);
 
   return profiles.ensureAccessLoaded().pipe(map((access) => {
-    if (access?.bypass) {
+    if (access?.bypass || profiles.hasPermission('stats.view')) {
       return true;
     }
     if (profiles.hasPermission('content.manage')) {
       return router.createUrlTree(['/admin', 'content']);
     }
-    return router.createUrlTree(['/']);
+    return router.createUrlTree(['/forbidden']);
   }));
 };

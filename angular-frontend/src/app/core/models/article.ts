@@ -50,6 +50,14 @@ export interface ArticleRequest {
   notify_operators?: boolean;
 }
 
+export interface ArticleCommandRequest {
+  article: ArticleRequest;
+  mandatory: boolean;
+  due_date: string | null;
+  target_department: string;
+  quiz: { questions: import('./quiz-admin').QuizQuestionAdmin[] } | null;
+}
+
 /** Mirrors web.ArticleBulkArchiveResponse. */
 export interface ArticleBulkArchiveResponse {
   updated: number;

@@ -4,7 +4,7 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { AdminUsersService } from '../../core/services/admin-users.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { AdminUser, GroupLeader } from '../../core/models/admin-user';
-import { DEPARTMENTS, ROLES } from '../../shared/user-roles';
+import { ROLES } from '../../shared/user-roles';
 import { UserEditModal } from './user-edit-modal';
 import { ToastService } from '../../core/notifications/toast.service';
 import { StatsService } from '../../core/services/stats.service';
@@ -46,7 +46,6 @@ export class AdminUsersPage {
 
   protected readonly currentUserEmail = computed(() => this.authService.currentUser()?.email ?? null);
 
-  protected readonly departments = DEPARTMENTS;
   protected readonly roles = ROLES;
   protected readonly departmentLabel = formatDepartmentLabel;
 
@@ -81,16 +80,6 @@ export class AdminUsersPage {
   protected readonly groupLeaders = signal<GroupLeader[]>([]);
   protected readonly groupLeadersFailed = signal(false);
   protected readonly selectedManagerId = signal<number | null>(null);
-
-  protected readonly showCreatePanel = signal(false);
-  protected readonly creating = signal(false);
-  protected readonly createError = signal<string | null>(null);
-  protected readonly cuName = signal('');
-  protected readonly cuEmail = signal('');
-  protected readonly cuDepartment = signal('All');
-  protected readonly cuPosition = signal('');
-  protected readonly cuRole = signal('operator');
-  protected readonly cuPassword = signal('');
 
   protected readonly selectedUser = signal<AdminUser | null>(null);
 
@@ -198,47 +187,6 @@ export class AdminUsersPage {
         this.loadUsers();
       }
     });
-  }
-
-  openCreatePanel(): void {
-    this.cuName.set('');
-    this.cuEmail.set('');
-    this.cuDepartment.set('All');
-    this.cuPosition.set('');
-    this.cuRole.set('operator');
-    this.cuPassword.set('');
-    this.createError.set(null);
-    this.showCreatePanel.set(true);
-  }
-
-  closeCreatePanel(): void {
-    this.showCreatePanel.set(false);
-  }
-
-  submitCreate(event: Event): void {
-    event.preventDefault();
-    this.creating.set(true);
-    this.createError.set(null);
-    this.usersService
-      .create({
-        name: this.cuName(),
-        email: this.cuEmail(),
-        department: this.cuDepartment(),
-        position: this.cuPosition() || null,
-        role: this.cuRole(),
-        password: this.cuPassword()
-      })
-      .subscribe({
-        next: () => {
-          this.creating.set(false);
-          this.closeCreatePanel();
-          this.loadUsers();
-        },
-        error: (err) => {
-          this.creating.set(false);
-          this.createError.set(err?.error?.detail ?? null);
-        }
-      });
   }
 
   openEditModal(user: AdminUser): void {

@@ -1,5 +1,6 @@
 package ge.magti.portal.web;
 
+import ge.magti.portal.user.UserDirectoryQueryService;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -72,6 +73,46 @@ class GlobalExceptionHandlerTest {
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals("მისამართი ვერ მოიძებნა", response.getBody().get("detail"));
+        assertFalse(response.getBody().containsKey("correlation_id"));
+    }
+
+    @Test
+    void oversizedCompleteResultBecomesAStable413WithoutCorrelationId() {
+        ResponseEntity<Map<String, String>> response = handler.handleActiveUserCardinalityExceeded();
+
+        assertEquals(HttpStatus.PAYLOAD_TOO_LARGE, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().get("detail").contains("უსაფრთხო დამუშავების ზღვარს"));
+        assertFalse(response.getBody().containsKey("correlation_id"));
+    }
+
+    @Test
+    void oversizedArticleEvidenceBecomesAStable413WithoutCorrelationId() {
+        ResponseEntity<Map<String, String>> response = handler.handleArticleEvidenceCardinalityExceeded();
+
+        assertEquals(HttpStatus.PAYLOAD_TOO_LARGE, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().get("detail").contains("უსაფრთხო დამუშავების ზღვარს"));
+        assertFalse(response.getBody().containsKey("correlation_id"));
+    }
+
+    @Test
+    void oversizedOrgDirectoryBecomesAStable413WithoutCorrelationId() {
+        ResponseEntity<Map<String, String>> response = handler.handleOrgDirectoryCardinalityExceeded();
+
+        assertEquals(HttpStatus.PAYLOAD_TOO_LARGE, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().get("detail").contains("უსაფრთხო დამუშავების ზღვარს"));
+        assertFalse(response.getBody().containsKey("correlation_id"));
+    }
+
+    @Test
+    void oversizedLegacyListBecomesAStable413WithoutCorrelationId() {
+        ResponseEntity<Map<String, String>> response = handler.handleListCardinalityExceeded();
+
+        assertEquals(HttpStatus.PAYLOAD_TOO_LARGE, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().get("detail").contains("უსაფრთხო დამუშავების ზღვარს"));
         assertFalse(response.getBody().containsKey("correlation_id"));
     }
 }

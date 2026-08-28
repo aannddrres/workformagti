@@ -2,19 +2,20 @@ package ge.magti.portal.web;
 
 import ge.magti.portal.compliance.ComplianceCalculator;
 import ge.magti.portal.compliance.ComplianceQueryService;
+import ge.magti.portal.compliance.RequiredReadingMutationService;
+import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.reminder.ReminderService;
 import ge.magti.portal.content.ItemDetail;
 import ge.magti.portal.content.ItemKey;
 import ge.magti.portal.content.ItemTitleResolver;
 import ge.magti.portal.domain.Article;
-import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.ReadStatus;
 import ge.magti.portal.domain.RequiredReading;
 import ge.magti.portal.domain.User;
+import ge.magti.portal.query.CompleteResultGuard;
 import ge.magti.portal.quiz.QuizGateChecker;
 import ge.magti.portal.repository.ArticleReadReceiptRepository;
-import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.ArticleRepository;
 import ge.magti.portal.repository.ReadStatusRepository;
 import ge.magti.portal.repository.RequiredReadingRepository;
@@ -74,7 +75,8 @@ public class ComplianceController {
     private final ReminderService reminderService;
     private final ItemTitleResolver itemTitleResolver;
     private final PermissionChecker permissionChecker;
-    private final AuditLogRepository auditLogRepository;
+    private final MutationAuditService mutationAuditService;
+    private final RequiredReadingMutationService requiredReadingMutationService;
 
     public ComplianceController(
             ComplianceQueryService complianceQueryService,
@@ -86,7 +88,8 @@ public class ComplianceController {
             ReminderService reminderService,
             ItemTitleResolver itemTitleResolver,
             PermissionChecker permissionChecker,
-            AuditLogRepository auditLogRepository) {
+            MutationAuditService mutationAuditService,
+            RequiredReadingMutationService requiredReadingMutationService) {
         this.complianceQueryService = complianceQueryService;
         this.requiredReadingRepository = requiredReadingRepository;
         this.readStatusRepository = readStatusRepository;
@@ -96,7 +99,8 @@ public class ComplianceController {
         this.reminderService = reminderService;
         this.itemTitleResolver = itemTitleResolver;
         this.permissionChecker = permissionChecker;
-        this.auditLogRepository = auditLogRepository;
+        this.mutationAuditService = mutationAuditService;
+        this.requiredReadingMutationService = requiredReadingMutationService;
     }
 
     /** Port of get_my_readings (routers/compliance.py:30-113). */
@@ -113,8 +117,10 @@ public class ComplianceController {
         }
 
         String deptPrefix = DepartmentMatcher.splitGroup(user.getDepartment()).prefix();
-        List<RequiredReading> readings = requiredReadingRepository.findByTargetDepartmentIn(
-                List.of(user.getDepartment(), deptPrefix, "All"));
+        List<RequiredReading> readings = CompleteResultGuard.enforce(
+                requiredReadingRepository.findByTargetDepartmentIn(
+                        List.of(user.getDepartment(), deptPrefix, "All"),
+                        CompleteResultGuard.sentinelPage()));
         if (readings.isEmpty()) {
             return ResponseEntity.ok(List.of());
         }
@@ -205,6 +211,8 @@ public class ComplianceController {
                     fresh.setRequiredReadingId(readingId);
                     return fresh;
                 });
+        Map<String, Object> before = stat.getId() == null
+                ? null : MutationAuditService.readStatusSnapshot(stat);
         stat.setStatus("read");
         stat.setReadAt(TbilisiTime.now());
         stat.setOperatorDepartmentSnapshot(user.getDepartment());
@@ -222,6 +230,10 @@ public class ComplianceController {
                     readingArticle.getVersion(), user.getId(), user.getName(), user.getEmail(),
                     user.getDepartment(), TbilisiTime.now());
         }
+        mutationAuditService.recordSuccess(
+                user, "MARK_REQUIRED_READING_READ", "read_status", savedStat.getId(),
+                reading.getItemTitleSnapshot(), before,
+                MutationAuditService.readStatusSnapshot(savedStat));
         return ResponseEntity.ok(response);
     }
 
@@ -247,6 +259,10 @@ public class ComplianceController {
         // PO-16 makes assignment delivery part of the durable contract. The
         // reading and its fixed reminders therefore commit atomically.
         reminderService.deliverAssignment(saved, user);
+        mutationAuditService.recordSuccess(
+                user, "CREATE_REQUIRED_READING", "required_reading", saved.getId(),
+                saved.getItemTitleSnapshot(), null,
+                MutationAuditService.requiredReadingSnapshot(saved));
 
         return ResponseEntity.ok(RequiredReadingResponse.from(saved));
     }
@@ -284,6 +300,7 @@ public class ComplianceController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", READING_NOT_FOUND));
         }
         RequiredReading reading = found.get();
+        Map<String, Object> before = MutationAuditService.requiredReadingSnapshot(reading);
 
         // BL-04: read_statuses is keyed on required_reading_id (V22:11), not
         // on the item. So re-pointing an existing reading at a different
@@ -309,18 +326,15 @@ public class ComplianceController {
         reading.setTargetDepartment(request.targetDepartmentOrDefault());
         reading.setDueDate(normalizeDueDate(request.dueDate()));
         reading.setPriority(request.priorityOrDefault());
-        RequiredReading saved = requiredReadingRepository.save(reading);
+        RequiredReading saved = requiredReadingRepository.saveAndFlush(reading);
 
         // BL-04's other half: this endpoint wrote no audit row at all, so a
         // changed deadline -- the thing that decides who counts as overdue --
         // left no record of who moved it or when.
-        AuditLog audit = new AuditLog();
-        audit.setAdminId(user.getId());
-        audit.setAction("UPDATE_REQUIRED_READING");
-        audit.setItemType("required_reading");
-        audit.setItemId(saved.getId());
-        audit.setTimestamp(TbilisiTime.now());
-        auditLogRepository.save(audit);
+        mutationAuditService.recordSuccess(
+                user, "UPDATE_REQUIRED_READING", "required_reading", saved.getId(),
+                saved.getItemTitleSnapshot(), before,
+                MutationAuditService.requiredReadingSnapshot(saved));
 
         return ResponseEntity.ok(RequiredReadingResponse.from(saved));
     }
@@ -338,8 +352,7 @@ public class ComplianceController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", READING_NOT_FOUND));
         }
         try {
-            requiredReadingRepository.delete(found.get());
-            requiredReadingRepository.flush();
+            requiredReadingMutationService.delete(found.get(), user);
         } catch (DataIntegrityViolationException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(Map.of("detail", READING_HAS_READ_RECEIPTS));

@@ -1,5 +1,6 @@
 package ge.magti.portal.web;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.AssignmentType;
@@ -27,6 +28,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
@@ -36,6 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -65,13 +68,17 @@ class ReminderControllerIntegrationTest {
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     @Test
-    void inboxIsOwnerOnlyPaginatedAndReadIsIdempotentWithOneVersionAdvance() throws Exception {
+    void inboxAndReadStateAreIsolatedPerCallerAndReadIsIdempotent() throws Exception {
         User creator = user("reminder-owner-creator", Role.CONTENT_ADMIN, uniqueDepartment("owner"), null);
         User owner = user("reminder-owner", Role.OPERATOR, creator.getDepartment(), null);
         User other = user("reminder-other", Role.OPERATOR, creator.getDepartment(), null);
         RequiredReading reading = reading(creator.getDepartment(), TbilisiTime.now().plusDays(3));
         reminderService.deliverAssignment(reading, creator);
-        long reminderId = reminderRepository.findByRecipientUserIdOrderByCreatedAtDesc(owner.getId()).get(0).getId();
+        long reminderId = reminderRepository.findByRecipientUserIdOrderByCreatedAtDesc(
+                owner.getId(), PageRequest.of(0, 1_000)).getContent().get(0).getId();
+        long otherReminderId = reminderRepository.findByRecipientUserIdOrderByCreatedAtDesc(
+                other.getId(), PageRequest.of(0, 1_000)).getContent().get(0).getId();
+        assertTrue(reminderId != otherReminderId, "each recipient must have a separate reminder row");
 
         mockMvc.perform(get("/api/reminders")).andExpect(status().isUnauthorized());
         mockMvc.perform(authed(get("/api/reminders?page=-1"), tokenFor(owner)))
@@ -79,14 +86,22 @@ class ReminderControllerIntegrationTest {
         mockMvc.perform(authed(get("/api/reminders"), tokenFor(owner)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.total_elements").value(1))
+                .andExpect(jsonPath("$.items[0].id").value((int) reminderId))
                 .andExpect(jsonPath("$.items[0].type").value("ASSIGNMENT"))
                 .andExpect(jsonPath("$.items[0].content").value(org.hamcrest.Matchers.containsString("მასალა #")));
+
+        mockMvc.perform(authed(get("/api/reminders"), tokenFor(other)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total_elements").value(1))
+                .andExpect(jsonPath("$.items[0].id").value((int) otherReminderId));
 
         mockMvc.perform(authed(post("/api/reminders/" + reminderId + "/read"), tokenFor(other)))
                 .andExpect(status().isNotFound());
         mockMvc.perform(authed(post("/api/reminders/" + reminderId + "/read"), tokenFor(owner)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.lock_version").value(1));
+        assertNull(reminderRepository.findById(otherReminderId).orElseThrow().getReadAt(),
+                "reading one caller's reminder must not change another caller's reminder");
         mockMvc.perform(authed(post("/api/reminders/" + reminderId + "/read"), tokenFor(owner)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.lock_version").value(1));
@@ -94,10 +109,17 @@ class ReminderControllerIntegrationTest {
         long readAudits = auditLogRepository.findAll().stream()
                 .filter(row -> "READ_REMINDER".equals(row.getAction()) && row.getItemId().equals(reminderId)).count();
         assertEquals(1, readAudits, "an idempotent second read must not create a second audit event");
+        var readAudit = auditLogRepository.findAll().stream()
+                .filter(row -> "READ_REMINDER".equals(row.getAction()) && row.getItemId().equals(reminderId))
+                .findFirst().orElseThrow();
+        JsonNode readDetails = objectMapper.readTree(readAudit.getDetails());
+        assertEquals("SUCCESS", readDetails.path("result").asText());
+        assertTrue(readDetails.path("before").path("read_at").isNull());
+        assertFalse(readDetails.path("after").path("read_at").isNull());
     }
 
     @Test
-    void dueSoonAndOverdueSweepsDeliverExactlyOnceAndSkipCompletedRecipient() {
+    void dueSoonAndOverdueSweepsDeliverExactlyOnceAndSkipCompletedRecipient() throws Exception {
         String department = uniqueDepartment("schedule");
         User creator = user("reminder-schedule-creator", Role.CONTENT_ADMIN, department, null);
         User pending = user("reminder-schedule-pending", Role.OPERATOR, department, null);
@@ -107,7 +129,8 @@ class ReminderControllerIntegrationTest {
 
         assertEquals(2, sweepService.runOnce());
         assertEquals(0, sweepService.runOnce());
-        assertEquals(1, reminderRepository.findByRecipientUserIdOrderByCreatedAtDesc(pending.getId()).stream()
+        assertEquals(1, reminderRepository.findByRecipientUserIdOrderByCreatedAtDesc(
+                        pending.getId(), PageRequest.of(0, 1_000)).stream()
                 .filter(value -> value.getType() == ReminderType.DUE_SOON).count());
 
         ReadStatus done = new ReadStatus();
@@ -132,6 +155,9 @@ class ReminderControllerIntegrationTest {
                 .findFirst().orElseThrow();
         assertNull(systemAudit.getAdminId());
         assertEquals("სისტემა", systemAudit.getAdminNameSnapshot());
+        JsonNode systemDetails = objectMapper.readTree(systemAudit.getDetails());
+        assertEquals(1, systemDetails.path("schema_version").asInt());
+        assertEquals("OVERDUE", systemDetails.path("after").path("delivery").asText());
         String rowHash = jdbcTemplate.queryForObject(
                 "SELECT row_hash FROM audit_logs WHERE id = ?", String.class, systemAudit.getId());
         assertTrue(rowHash != null && !rowHash.isBlank());
@@ -173,6 +199,11 @@ class ReminderControllerIntegrationTest {
                 .findFirst().orElseThrow();
         assertEquals(primary.getId(), audit.getAdminId());
         assertEquals(target.getName(), audit.getItemNameSnapshot());
+        JsonNode details = objectMapper.readTree(audit.getDetails());
+        assertEquals("SUCCESS", details.path("result").asText());
+        assertEquals(1, details.path("after").path("pending_count").asInt());
+        assertFalse(audit.getDetails().contains(target.getName()),
+                "recipient name belongs in the protected target snapshot, not duplicated in details");
     }
 
     @Test

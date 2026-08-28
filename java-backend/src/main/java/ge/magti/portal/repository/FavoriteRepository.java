@@ -1,6 +1,7 @@
 package ge.magti.portal.repository;
 
 import ge.magti.portal.domain.Favorite;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -11,7 +12,7 @@ import java.util.Optional;
 
 public interface FavoriteRepository extends JpaRepository<Favorite, Long> {
 
-    List<Favorite> findByUserId(Long userId);
+    List<Favorite> findByUserId(Long userId, Pageable pageable);
 
     Optional<Favorite> findByIdAndUserId(Long id, Long userId);
 

@@ -1,5 +1,10 @@
 package ge.magti.portal.web;
 
+import ge.magti.portal.article.ArticleEvidenceCardinalityGuard;
+import ge.magti.portal.history.HistoryPayloadGuard;
+import ge.magti.portal.org.OrgDirectoryQueryService;
+import ge.magti.portal.query.CompleteResultGuard;
+import ge.magti.portal.user.UserDirectoryQueryService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,6 +106,41 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleMissingResource(NoResourceFoundException exception) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
                 "detail", "მისამართი ვერ მოიძებნა"));
+    }
+
+    /** Complete-result administrative views fail loudly instead of truncating. */
+    @ExceptionHandler(UserDirectoryQueryService.UserDirectoryCardinalityExceededException.class)
+    public ResponseEntity<Map<String, String>> handleActiveUserCardinalityExceeded() {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(Map.of(
+                "detail", "მომხმარებლების რაოდენობა უსაფრთხო დამუშავების ზღვარს აჭარბებს"));
+    }
+
+    /** Complete-result history/evidence views fail loudly instead of truncating. */
+    @ExceptionHandler(ArticleEvidenceCardinalityGuard.ArticleEvidenceCardinalityExceededException.class)
+    public ResponseEntity<Map<String, String>> handleArticleEvidenceCardinalityExceeded() {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(Map.of(
+                "detail", "სტატიის ისტორიის ჩანაწერების რაოდენობა უსაფრთხო დამუშავების ზღვარს აჭარბებს"));
+    }
+
+    /** Legacy full-history arrays have a hard aggregate CLOB budget. */
+    @ExceptionHandler(HistoryPayloadGuard.HistoryPayloadExceededException.class)
+    public ResponseEntity<Map<String, String>> handleHistoryPayloadExceeded() {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(Map.of(
+                "detail", "ისტორიის სრული ტექსტის მოცულობა უსაფრთხო დამუშავების ზღვარს აჭარბებს"));
+    }
+
+    /** Complete-result organization reference views fail loudly instead of truncating. */
+    @ExceptionHandler(OrgDirectoryQueryService.OrgDirectoryCardinalityExceededException.class)
+    public ResponseEntity<Map<String, String>> handleOrgDirectoryCardinalityExceeded() {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(Map.of(
+                "detail", "ორგანიზაციული ჩანაწერების რაოდენობა უსაფრთხო დამუშავების ზღვარს აჭარბებს"));
+    }
+
+    /** Legacy complete-result arrays fail loudly instead of truncating. */
+    @ExceptionHandler(CompleteResultGuard.CompleteResultCardinalityExceededException.class)
+    public ResponseEntity<Map<String, String>> handleListCardinalityExceeded() {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(Map.of(
+                "detail", "ჩანაწერების რაოდენობა უსაფრთხო დამუშავების ზღვარს აჭარბებს"));
     }
 
     @ExceptionHandler(Exception.class)

@@ -21,11 +21,10 @@ import java.util.List;
  * modeled as part of this class, same reasoning as {@link User} deferring
  * {@link Team} as an object reference.
  *
- * <p>Not ported: the {@code category_name} and {@code read_time} Python
- * {@code @property}s (models.py:163-186). Both are response-shaping
- * (a joined display name; an estimated reading time from a word count) for
- * whatever serves the API response, not part of the entity's own shape --
- * they belong wherever that response gets assembled, not here.
+ * <p>{@code category_name} remains response-shaping only. {@code read_time}
+ * is a database-maintained derived scalar: V45 backfills it and an Oracle
+ * trigger keeps it synchronized with the content CLOB, allowing list
+ * projections to preserve the response value without loading the CLOB.
  *
  * <p><b>Department targeting is two coexisting mechanisms today, on
  * purpose, mid-migration inside the Python app itself</b> (models.py:156-171,
@@ -148,6 +147,9 @@ public class Article {
 
     @Column(name = "quiz_enabled")
     private boolean quizEnabled = false;
+
+    @Column(name = "read_time", nullable = false, insertable = false, updatable = false)
+    private int readTime = 1;
 
     public Long getId() {
         return id;
@@ -315,5 +317,9 @@ public class Article {
 
     public void setQuizEnabled(boolean quizEnabled) {
         this.quizEnabled = quizEnabled;
+    }
+
+    public int getReadTime() {
+        return readTime;
     }
 }

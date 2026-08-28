@@ -1,58 +1,66 @@
 import { test, expect } from '@playwright/test';
 import { apiLogin, createArticle, firstCategoryId, markRead, runId, seedTokenIntoPage, syncRequiredReading } from './helpers';
 
-/**
- * The migration plan originally assumed ArticleController's delete
- * endpoint 409s when a read receipt already exists for the article. Live-
- * probing the isolated Java backend (curl, outside this suite) showed that
- * assumption is stale: the current code has no conflict check at all --
- * DELETE just cascades through required_readings/read_status/etc and
- * returns 204, even with an existing read receipt in place.
- *
- * That cascade path is exactly what the earlier "DELETE /api/articles/{id}
- * 500" bug fix (V30 migration, ON DELETE CASCADE on user_notes/
- * knowledge_feedback) was meant to make safe. So instead of a fictional
- * 409, this test verifies the actually-meaningful regression: deleting an
- * article that already has a required-reading assignment AND a read
- * receipt against it does not 500, succeeds cleanly, and the row leaves
- * the admin table.
- */
-test('deleting an article with an existing read receipt cascades cleanly (no 500 regression)', async ({
-  page,
-  request
-}) => {
+async function exportedEvidenceCount(request: import('@playwright/test').APIRequestContext, headers: Record<string, string>): Promise<number> {
+  const submitted = await request.post('/api/admin/exports/read-evidence', { headers });
+  expect(submitted.status()).toBe(202);
+  const audit = await request.get('/api/audit-logs?limit=1&offset=0&action=EXPORT_ADMIN_READ_EVIDENCE', { headers });
+  expect(audit.ok()).toBeTruthy();
+  const rows = await audit.json();
+  expect(rows.length).toBe(1);
+  return Number(JSON.parse(rows[0].details).row_count);
+}
+
+test('trash preserves mandatory-reading and read-receipt evidence', async ({ page, request }) => {
+  test.setTimeout(120_000);
   const id = runId();
   const adminToken = await apiLogin(request, 'admin@magti.ge');
+  const operatorToken = await apiLogin(request, 'nino@magti.ge');
+  const headers = { Authorization: `Bearer ${adminToken}` };
   const categoryId = await firstCategoryId(request, adminToken);
-
-  const title = `E2E delete-cascade ${id}`;
+  const title = `E2E evidence-preserving trash ${id}`;
   const articleId = await createArticle(request, adminToken, {
-    title,
-    categoryId,
-    targetDepartments: ['Support']
+    title, categoryId, targetDepartments: ['Support']
   });
-
-  const dueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-  const readingId = await syncRequiredReading(request, adminToken, articleId, 'Support', dueDate);
-
-  const operatorToken = await apiLogin(request, `test_operator_delcascade_${id}@magti.ge`);
+  const readingId = await syncRequiredReading(
+    request, adminToken, articleId, 'Support', new Date(Date.now() + 7 * 86_400_000).toISOString()
+  );
   await markRead(request, operatorToken, readingId);
 
-  await seedTokenIntoPage(page, adminToken);
-  await page.goto('/admin/content');
+  const before = await request.get(`/api/articles/${articleId}/read-receipts`, { headers });
+  expect(before.ok()).toBeTruthy();
+  const beforeBody = await before.json();
+  expect(JSON.stringify(beforeBody)).toContain('ნინო ჩიტიშვილი');
+  const evidenceCountBeforeTrash = await exportedEvidenceCount(request, headers);
 
-  await page.getByPlaceholder('ძიება სათაურით...').fill(title);
-  const row = page.locator('tr', { hasText: title });
+  await seedTokenIntoPage(page, adminToken);
+  await page.goto('/admin/content?type=article');
+  await page.getByLabel('ძიება').fill(title);
+  const row = page.locator('tbody tr', { hasText: title });
   await expect(row).toBeVisible();
 
-  await row.getByRole('button').click(); // ellipsis menu toggle
+  await row.getByRole('button', { name: 'სტატიის მოქმედებები' }).click();
   page.once('dialog', (dialog) => dialog.accept());
+  await row.getByRole('button', { name: 'დაარქივება' }).click();
+  await expect(row.getByText('არქივი')).toBeVisible();
 
-  const [deleteResponse] = await Promise.all([
-    page.waitForResponse((res) => res.url().includes(`/api/articles/${articleId}`) && res.request().method() === 'DELETE'),
-    row.getByRole('button', { name: 'წაშლა' }).click()
+  await row.getByRole('button', { name: 'სტატიის მოქმედებები' }).click();
+  page.once('dialog', (dialog) => dialog.accept());
+  const [trashed] = await Promise.all([
+    page.waitForResponse((response) => response.url().endsWith(`/api/articles/${articleId}`) && response.request().method() === 'DELETE'),
+    row.getByRole('button', { name: 'სანაგვეში გადატანა' }).click()
   ]);
+  expect(trashed.status()).toBe(204);
+  await expect(row).toHaveCount(0);
 
-  expect(deleteResponse.status(), 'delete must not regress to a 500').toBe(204);
-  await expect(row).not.toBeVisible();
+  const trash = await request.get('/api/content-trash', { headers });
+  expect(trash.ok()).toBeTruthy();
+  expect((await trash.json()).some((item: { item_type: string; item_id: number }) =>
+    item.item_type === 'article' && item.item_id === articleId)).toBe(true);
+
+  // The active-content endpoint correctly stops exposing a trashed article,
+  // while the classified evidence export must retain the exact same rows.
+  const after = await request.get(`/api/articles/${articleId}/read-receipts`, { headers });
+  expect(after.status()).toBe(404);
+  expect(await exportedEvidenceCount(request, headers)).toBe(evidenceCountBeforeTrash);
 });

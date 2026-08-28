@@ -1,23 +1,22 @@
 package ge.magti.portal.reminder;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.content.ItemTitleResolver;
-import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.LeadershipAssignment;
 import ge.magti.portal.domain.ReadStatus;
 import ge.magti.portal.domain.Reminder;
 import ge.magti.portal.domain.ReminderType;
 import ge.magti.portal.domain.RequiredReading;
 import ge.magti.portal.domain.User;
-import ge.magti.portal.repository.AuditLogRepository;
-import ge.magti.portal.repository.LeadershipAssignmentRepository;
+import ge.magti.portal.org.OrgDirectoryQueryService;
+import ge.magti.portal.query.CompleteResultGuard;
 import ge.magti.portal.repository.ReadStatusRepository;
 import ge.magti.portal.repository.ReminderRepository;
 import ge.magti.portal.repository.RequiredReadingRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.Scope;
 import ge.magti.portal.security.ScopeResolver;
+import ge.magti.portal.user.UserDirectoryQueryService;
 import ge.magti.portal.util.DepartmentMatcher;
 import ge.magti.portal.util.TbilisiTime;
 import org.springframework.data.domain.Page;
@@ -46,29 +45,31 @@ public class ReminderService {
     private final RequiredReadingRepository readingRepository;
     private final ReadStatusRepository readStatusRepository;
     private final UserRepository userRepository;
-    private final LeadershipAssignmentRepository leadershipRepository;
-    private final AuditLogRepository auditLogRepository;
+    private final MutationAuditService mutationAuditService;
     private final ItemTitleResolver itemTitleResolver;
     private final ScopeResolver scopeResolver;
-    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+    private final UserDirectoryQueryService userDirectoryQueryService;
+    private final OrgDirectoryQueryService orgDirectoryQueryService;
 
     public ReminderService(
             ReminderRepository reminderRepository,
             RequiredReadingRepository readingRepository,
             ReadStatusRepository readStatusRepository,
             UserRepository userRepository,
-            LeadershipAssignmentRepository leadershipRepository,
-            AuditLogRepository auditLogRepository,
+            MutationAuditService mutationAuditService,
             ItemTitleResolver itemTitleResolver,
-            ScopeResolver scopeResolver) {
+            ScopeResolver scopeResolver,
+            UserDirectoryQueryService userDirectoryQueryService,
+            OrgDirectoryQueryService orgDirectoryQueryService) {
         this.reminderRepository = reminderRepository;
         this.readingRepository = readingRepository;
         this.readStatusRepository = readStatusRepository;
         this.userRepository = userRepository;
-        this.leadershipRepository = leadershipRepository;
-        this.auditLogRepository = auditLogRepository;
+        this.mutationAuditService = mutationAuditService;
         this.itemTitleResolver = itemTitleResolver;
         this.scopeResolver = scopeResolver;
+        this.userDirectoryQueryService = userDirectoryQueryService;
+        this.orgDirectoryQueryService = orgDirectoryQueryService;
     }
 
     @Transactional(readOnly = true)
@@ -82,9 +83,10 @@ public class ReminderService {
         Reminder reminder = reminderRepository.findByIdAndRecipientUserId(reminderId, recipient.getId())
                 .orElseThrow(() -> new ReminderNotFoundException("შეხსენება ვერ მოიძებნა"));
         if (reminder.getReadAt() == null) {
+            Map<String, Object> before = MutationAuditService.reminderSnapshot(reminder);
             reminder.setReadAt(TbilisiTime.now());
             Reminder saved = reminderRepository.saveAndFlush(reminder);
-            writeAudit(saved, recipient, "READ_REMINDER", Map.of());
+            writeAudit(saved, recipient, "READ_REMINDER", before, Map.of());
             return saved;
         }
         return reminder;
@@ -94,18 +96,19 @@ public class ReminderService {
     @Transactional
     public int deliverAssignment(RequiredReading reading, User creator) {
         String title = titleOf(reading);
-        Set<Long> activeLeaderIds = leadershipRepository.findByActiveTrue().stream()
-                .map(LeadershipAssignment::getUserId)
-                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        Set<Long> activeLeaderIds = activeLeaderIds();
 
         int delivered = 0;
-        for (User recipient : userRepository.findByActiveTrue()) {
+        // Obtain the complete bounded snapshot before the first reminder write,
+        // so an oversized directory rolls the enclosing assignment transaction
+        // back instead of creating a partial recipient set.
+        for (User recipient : userDirectoryQueryService.listActiveUsersWithinLimit()) {
             if (!isEligible(recipient, activeLeaderIds) || !targets(reading, recipient)) {
                 continue;
             }
             Reminder reminder = buildReadingReminder(reading, recipient, ReminderType.ASSIGNMENT, creator, title);
             Reminder saved = reminderRepository.saveAndFlush(reminder);
-            writeAudit(saved, creator, "SEND_AUTOMATIC_REMINDER", Map.of("delivery", "ASSIGNMENT"));
+            writeAudit(saved, creator, "SEND_AUTOMATIC_REMINDER", null, Map.of("delivery", "ASSIGNMENT"));
             delivered++;
         }
         return delivered;
@@ -118,12 +121,12 @@ public class ReminderService {
             throw new IllegalArgumentException("Scheduled reminder type required");
         }
         String title = titleOf(reading);
-        Set<Long> activeLeaderIds = leadershipRepository.findByActiveTrue().stream()
-                .map(LeadershipAssignment::getUserId)
-                .collect(java.util.stream.Collectors.toSet());
+        Set<Long> activeLeaderIds = activeLeaderIds();
         int delivered = 0;
-        for (Reminder seed : reminderRepository.findByRequiredReadingIdAndTypeOrderByIdAsc(
-                reading.getId(), ReminderType.ASSIGNMENT)) {
+        List<Reminder> seeds = CompleteResultGuard.enforce(
+                reminderRepository.findByRequiredReadingIdAndTypeOrderByIdAsc(
+                        reading.getId(), ReminderType.ASSIGNMENT, CompleteResultGuard.sentinelPage()));
+        for (Reminder seed : seeds) {
             Long recipientId = seed.getRecipientUserId();
             if (recipientId == null
                     || reminderRepository.existsByRequiredReadingIdAndRecipientUserIdAndType(
@@ -138,7 +141,7 @@ public class ReminderService {
             }
             Reminder reminder = buildReadingReminder(reading, recipient, type, null, title);
             Reminder saved = reminderRepository.saveAndFlush(reminder);
-            writeAudit(saved, null, "SEND_AUTOMATIC_REMINDER", Map.of("delivery", type.name()));
+            writeAudit(saved, null, "SEND_AUTOMATIC_REMINDER", null, Map.of("delivery", type.name()));
             delivered++;
         }
         return delivered;
@@ -181,17 +184,17 @@ public class ReminderService {
         reminder.setTriggeredByNameSnapshot(actor.getName());
         reminder.setCreatedAt(now);
         Reminder saved = reminderRepository.saveAndFlush(reminder);
-        writeAudit(saved, actor, "SEND_MANUAL_REMINDER", Map.of("pending_count", pendingCount));
+        writeAudit(saved, actor, "SEND_MANUAL_REMINDER", null, Map.of("pending_count", pendingCount));
         return saved;
     }
 
     private int pendingReadingCount(User recipient) {
-        if (!isEligible(recipient, leadershipRepository.findByActiveTrue().stream()
-                .map(LeadershipAssignment::getUserId).collect(java.util.stream.Collectors.toSet()))) {
+        if (!isEligible(recipient, activeLeaderIds())) {
             return 0;
         }
         List<String> departments = targetDepartments(recipient);
-        List<RequiredReading> readings = readingRepository.findByTargetDepartmentIn(departments);
+        List<RequiredReading> readings = CompleteResultGuard.enforce(
+                readingRepository.findByTargetDepartmentIn(departments, CompleteResultGuard.sentinelPage()));
         if (readings.isEmpty()) {
             return 0;
         }
@@ -260,33 +263,29 @@ public class ReminderService {
                 user, activeLeaderIds.contains(user.getId()));
     }
 
-    private void writeAudit(Reminder reminder, User actor, String action, Map<String, Object> extra) {
-        AuditLog audit = new AuditLog();
-        audit.setAdminId(actor == null ? null : actor.getId());
-        audit.setAdminNameSnapshot(actor == null ? SYSTEM_ACTOR : actor.getName());
-        audit.setAdminEmailSnapshot(actor == null ? null : actor.getEmail());
-        audit.setAction(action);
-        audit.setItemType("reminder");
-        audit.setItemId(reminder.getId());
-        audit.setItemNameSnapshot(reminder.getRecipientNameSnapshot());
-        audit.setTimestamp(TbilisiTime.now());
-
-        Map<String, Object> details = new LinkedHashMap<>();
-        details.put("recipient_user_id", reminder.getRecipientUserId());
-        details.put("recipient_name", reminder.getRecipientNameSnapshot());
-        details.put("reminder_type", reminder.getType().name());
-        details.put("required_reading_id", reminder.getRequiredReadingId());
-        details.put("item_type", reminder.getItemTypeSnapshot());
-        details.put("item_id", reminder.getItemIdSnapshot());
-        details.put("item_title", reminder.getItemTitleSnapshot());
-        details.put("due_at", reminder.getDueAtSnapshot() == null ? null : reminder.getDueAtSnapshot().toString());
-        details.putAll(extra);
-        try {
-            audit.setDetails(objectMapper.writeValueAsString(details));
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("Reminder audit serialization failed", e);
+    private void writeAudit(
+            Reminder reminder,
+            User actor,
+            String action,
+            Map<String, Object> before,
+            Map<String, Object> extra) {
+        Map<String, Object> after = new LinkedHashMap<>(MutationAuditService.reminderSnapshot(reminder));
+        after.putAll(extra);
+        if (actor == null) {
+            mutationAuditService.recordSystemSuccess(
+                    SYSTEM_ACTOR, action, "reminder", reminder.getId(),
+                    reminder.getRecipientNameSnapshot(), before, after);
+            return;
         }
-        auditLogRepository.save(audit);
+        mutationAuditService.recordSuccess(
+                actor, action, "reminder", reminder.getId(),
+                reminder.getRecipientNameSnapshot(), before, after);
+    }
+
+    private Set<Long> activeLeaderIds() {
+        return orgDirectoryQueryService.listActiveAssignmentsWithinLimit().stream()
+                .map(LeadershipAssignment::getUserId)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
     }
 
     public static class ReminderNotFoundException extends RuntimeException {

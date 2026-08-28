@@ -3,8 +3,11 @@ package ge.magti.portal.web;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.Article;
+import ge.magti.portal.domain.AssignmentType;
 import ge.magti.portal.domain.AuditCategory;
 import ge.magti.portal.domain.AuditLog;
+import ge.magti.portal.domain.Department;
+import ge.magti.portal.domain.LeadershipAssignment;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.ReadStatus;
 import ge.magti.portal.domain.RequiredReading;
@@ -12,19 +15,24 @@ import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.SearchLog;
 import ge.magti.portal.domain.Team;
 import ge.magti.portal.domain.User;
+import ge.magti.portal.domain.UserPermissionOverride;
 import ge.magti.portal.repository.ArticleRepository;
 import ge.magti.portal.repository.AuditLogRepository;
+import ge.magti.portal.repository.DepartmentRepository;
+import ge.magti.portal.repository.LeadershipAssignmentRepository;
 import ge.magti.portal.repository.ReadStatusRepository;
 import ge.magti.portal.repository.RequiredReadingRepository;
 import ge.magti.portal.repository.SearchLogRepository;
 import ge.magti.portal.repository.TeamRepository;
 import ge.magti.portal.repository.UserRepository;
+import ge.magti.portal.repository.UserPermissionOverrideRepository;
 import ge.magti.portal.security.JwtService;
 import ge.magti.portal.util.TbilisiTime;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -58,6 +66,8 @@ class StatsControllerIntegrationTest {
     @Autowired
     private UserRepository userRepository;
     @Autowired
+    private UserPermissionOverrideRepository permissionOverrideRepository;
+    @Autowired
     private ArticleRepository articleRepository;
     @Autowired
     private RequiredReadingRepository requiredReadingRepository;
@@ -69,6 +79,10 @@ class StatsControllerIntegrationTest {
     private AuditLogRepository auditLogRepository;
     @Autowired
     private TeamRepository teamRepository;
+    @Autowired
+    private DepartmentRepository departmentRepository;
+    @Autowired
+    private LeadershipAssignmentRepository leadershipAssignmentRepository;
     @Autowired
     private JwtService jwtService;
     @Autowired
@@ -88,6 +102,34 @@ class StatsControllerIntegrationTest {
                 .map(Permission::value)
                 .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new)));
         return userRepository.saveAndFlush(user);
+    }
+
+    private User createStatsViewer(String email, String department) {
+        User user = createUser(email, Role.OPERATOR, department);
+        UserPermissionOverride override = new UserPermissionOverride();
+        override.setUserId(user.getId());
+        override.setPermission(Permission.STATS_VIEW.value());
+        override.setState(UserPermissionOverride.State.ALLOW);
+        override.setUpdatedAt(TbilisiTime.now());
+        override.setUpdatedBy(user.getId());
+        permissionOverrideRepository.saveAndFlush(override);
+        return user;
+    }
+
+    private void assertAggregateStatsStatus(User caller, int expectedStatus) throws Exception {
+        String token = tokenFor(caller);
+        mockMvc.perform(authed(get("/api/statistics/activity"), token))
+                .andExpect(status().is(expectedStatus));
+        mockMvc.perform(authed(get("/api/statistics/breakdown").param("dimension", "role"), token))
+                .andExpect(status().is(expectedStatus));
+        mockMvc.perform(authed(get("/api/statistics/compliance"), token))
+                .andExpect(status().is(expectedStatus));
+        mockMvc.perform(authed(get("/api/statistics/failed-searches"), token))
+                .andExpect(status().is(expectedStatus));
+        mockMvc.perform(authed(get("/api/statistics/kpi"), token))
+                .andExpect(status().is(expectedStatus));
+        mockMvc.perform(authed(get("/api/statistics/popular-searches"), token))
+                .andExpect(status().is(expectedStatus));
     }
 
     /** {@link #createUser} with a caller-chosen display name -- needed wherever a test asserts on names. */
@@ -120,6 +162,23 @@ class StatsControllerIntegrationTest {
         return teamRepository.saveAndFlush(team);
     }
 
+    private Team createTeam(String name, Long departmentId) {
+        Team team = createTeam(name);
+        team.setDepartmentId(departmentId);
+        return teamRepository.saveAndFlush(team);
+    }
+
+    private void assignTeam(User leader, Team team, AssignmentType type) {
+        LeadershipAssignment assignment = new LeadershipAssignment();
+        assignment.setUserId(leader.getId());
+        assignment.setTeamId(team.getId());
+        assignment.setAssignmentType(type);
+        assignment.setActive(true);
+        assignment.setStartedAt(TbilisiTime.now());
+        assignment.setSource(LeadershipAssignment.Source.MANUAL);
+        leadershipAssignmentRepository.saveAndFlush(assignment);
+    }
+
     private RequiredReading createReading(Long articleId, String targetDepartment) {
         RequiredReading reading = new RequiredReading();
         reading.setItemType("article");
@@ -147,6 +206,19 @@ class StatsControllerIntegrationTest {
         log.setHasResults(hasResults);
         log.setTimestamp(TbilisiTime.now());
         searchLogRepository.saveAndFlush(log);
+    }
+
+    private void assertSearchTermCount(String responseBody, String term, long expectedCount) throws Exception {
+        boolean found = false;
+        for (var row : objectMapper.readTree(responseBody)) {
+            if (term.equals(row.path("search_term").asText())
+                    && expectedCount == row.path("count").asLong()) {
+                found = true;
+                break;
+            }
+        }
+        assertTrue(found, "Expected search term/count was absent from the bounded response: "
+                + term + "/" + expectedCount);
     }
 
     private void createAuditLog(Long adminId, OffsetDateTime timestamp, AuditCategory category) {
@@ -181,8 +253,22 @@ class StatsControllerIntegrationTest {
     }
 
     @Test
+    void statsViewIsIndependentFromContentManageAcrossAllSixAggregates() throws Exception {
+        User contentManager = createUser("stats-content-only@magti.ge", Role.CONTENT_ADMIN, "All");
+        User statsViewer = createStatsViewer("stats-view-only@magti.ge", "All");
+        User systemAdmin = createUser("stats-bypass-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
+
+        assertAggregateStatsStatus(contentManager, 403);
+        assertAggregateStatsStatus(statsViewer, 200);
+        assertAggregateStatsStatus(systemAdmin, 200);
+
+        mockMvc.perform(authed(get("/api/admin/articles/stale"), tokenFor(statsViewer)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void kpiCountsReflectSeededData() throws Exception {
-        User admin = createUser("stats-kpi-admin@magti.ge", Role.CONTENT_ADMIN, "All");
+        User admin = createStatsViewer("stats-kpi-admin@magti.ge", "All");
         long articlesBefore = articleRepository.count();
         createArticle("KPI სტატია 1");
         createArticle("KPI სტატია 2");
@@ -197,29 +283,47 @@ class StatsControllerIntegrationTest {
 
     @Test
     void popularAndFailedSearchesGroupNormalizedTermsCaseAndWhitespace() throws Exception {
-        // Existence-filter, not a positional [0] check -- both endpoints aggregate
-        // across ALL search_logs (no user/department scoping in Python either), so
-        // real seeded search volume on this Oracle instance may outrank this term.
-        User admin = createUser("stats-search-admin@magti.ge", Role.CONTENT_ADMIN, "All");
+        // Both endpoints aggregate across ALL search_logs and return only the top
+        // 10. Extend the current leading bucket instead of assuming a new count=2
+        // term will outrank persistent test/seed data on a reused Oracle schema.
+        User admin = createStatsViewer("stats-search-admin@magti.ge", "All");
         User op = createUser("stats-search-op@magti.ge", Role.OPERATOR, "All");
-        // Georgian script has no case distinction, so the two variants below only
-        // exercise TRIM (whitespace normalisation) -- confirmed matching Oracle's
-        // actual TRIM/LOWER/GROUP BY behavior via a direct sqlplus check.
-        String uniqueTerm = "უნიკალური-ძებნა-" + System.nanoTime();
-        createSearchLog(op.getId(), uniqueTerm, true);
-        createSearchLog(op.getId(), "  " + uniqueTerm + "  ", true);
-        String uniqueFailedTerm = "წარუმატებელი-ძებნა-" + System.nanoTime();
-        createSearchLog(op.getId(), uniqueFailedTerm, false);
+        var currentPopular = searchLogRepository.popularSearchTerms(PageRequest.of(0, 1));
+        String popularTerm = currentPopular.isEmpty()
+                ? "unique-popular-" + System.nanoTime()
+                : (String) currentPopular.getFirst()[0];
+        long popularCountBefore = currentPopular.isEmpty()
+                ? 0L
+                : ((Number) currentPopular.getFirst()[1]).longValue();
+        String popularVariant = popularTerm.length() <= 496
+                ? "  " + popularTerm.toUpperCase(java.util.Locale.ROOT) + "  "
+                : popularTerm.toUpperCase(java.util.Locale.ROOT);
+        createSearchLog(op.getId(), popularVariant, true);
+        createSearchLog(op.getId(), popularVariant, true);
 
-        mockMvc.perform(authed(get("/api/statistics/popular-searches"), tokenFor(admin)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.search_term == '" + uniqueTerm.toLowerCase() + "')].count")
-                        .value(org.hamcrest.Matchers.contains(2)));
+        var currentFailed = searchLogRepository.failedSearchTerms(PageRequest.of(0, 1));
+        String failedTerm = currentFailed.isEmpty()
+                ? "unique-failed-" + System.nanoTime()
+                : (String) currentFailed.getFirst()[0];
+        long failedCountBefore = currentFailed.isEmpty()
+                ? 0L
+                : ((Number) currentFailed.getFirst()[1]).longValue();
+        String failedVariant = failedTerm.length() <= 496
+                ? "  " + failedTerm.toUpperCase(java.util.Locale.ROOT) + "  "
+                : failedTerm.toUpperCase(java.util.Locale.ROOT);
+        createSearchLog(op.getId(), failedVariant, false);
 
-        mockMvc.perform(authed(get("/api/statistics/failed-searches"), tokenFor(admin)))
+        String popularBody = mockMvc.perform(authed(
+                        get("/api/statistics/popular-searches"), tokenFor(admin)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.search_term == '" + uniqueFailedTerm.toLowerCase() + "')].count")
-                        .value(org.hamcrest.Matchers.contains(1)));
+                .andReturn().getResponse().getContentAsString();
+        assertSearchTermCount(popularBody, popularTerm, popularCountBefore + 2);
+
+        String failedBody = mockMvc.perform(authed(
+                        get("/api/statistics/failed-searches"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertSearchTermCount(failedBody, failedTerm, failedCountBefore + 1);
     }
 
     @Test
@@ -227,7 +331,7 @@ class StatsControllerIntegrationTest {
         // compute_compliance() is org-wide (routers/stats.py:161), so this asserts
         // shape/bounds rather than an exact figure -- real seeded data on this
         // Oracle instance already contributes to the numerator/denominator.
-        User admin = createUser("stats-comp-admin@magti.ge", Role.CONTENT_ADMIN, "All");
+        User admin = createStatsViewer("stats-comp-admin@magti.ge", "All");
         User op1 = createUser("stats-comp-op1@magti.ge", Role.OPERATOR, "All");
         Article article = createArticle("კომპლაენს სტატია");
         RequiredReading reading = createReading(article.getId(), "All");
@@ -255,6 +359,34 @@ class StatsControllerIntegrationTest {
                 .andExpect(status().isForbidden());
         mockMvc.perform(authed(get("/api/statistics/user-progress"), tokenFor(sysAdmin)))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void userProgressRejectsUnboundedRequestsAndPagesActiveOperatorsAtOracle() throws Exception {
+        User sysAdmin = createUser("stats-up-bounds-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
+        createUser("stats-up-bounds-op1@magti.ge", Role.OPERATOR, "All");
+        createUser("stats-up-bounds-op2@magti.ge", Role.OPERATOR, "All");
+
+        mockMvc.perform(authed(get("/api/statistics/user-progress").param("skip", "-1"), tokenFor(sysAdmin)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(ListQueryBounds.INVALID_DETAIL));
+        mockMvc.perform(authed(get("/api/statistics/user-progress").param("limit", "1001"), tokenFor(sysAdmin)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(ListQueryBounds.INVALID_DETAIL));
+
+        String firstBody = mockMvc.perform(authed(get("/api/statistics/user-progress")
+                        .param("skip", "0").param("limit", "1"), tokenFor(sysAdmin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
+                .andReturn().getResponse().getContentAsString();
+        String secondBody = mockMvc.perform(authed(get("/api/statistics/user-progress")
+                        .param("skip", "1").param("limit", "1"), tokenFor(sysAdmin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
+                .andReturn().getResponse().getContentAsString();
+        long firstId = objectMapper.readTree(firstBody).get(0).get("user_id").asLong();
+        long secondId = objectMapper.readTree(secondBody).get(0).get("user_id").asLong();
+        assertTrue(firstId < secondId, "successive Oracle slices must use stable user-id ordering");
     }
 
     @Test
@@ -299,6 +431,47 @@ class StatsControllerIntegrationTest {
         }
         org.junit.jupiter.api.Assertions.assertTrue(containsOfficeOp);
         org.junit.jupiter.api.Assertions.assertFalse(containsTechOp, "a manager must never see another department's members");
+    }
+
+    @Test
+    void managerTeamStatsDefaultsToAssignedTeamAndRejectsForeignTeamId() throws Exception {
+        String suffix = Long.toString(System.nanoTime());
+        String department = "ერთიდეპარტამენტი-" + suffix;
+        Team ownTeam = createTeam("team-stats-own-" + suffix);
+        Team foreignTeam = createTeam("team-stats-foreign-" + suffix);
+
+        User manager = namedUser("stats-team-scope-manager@magti.ge", Role.MANAGER, department,
+                "Team scope manager " + suffix);
+        manager.setTeamId(ownTeam.getId());
+        manager = userRepository.saveAndFlush(manager);
+
+        User ownMember = namedUser("stats-team-scope-own@magti.ge", Role.OPERATOR, department,
+                "Own team member " + suffix);
+        ownMember.setTeamId(ownTeam.getId());
+        ownMember = userRepository.saveAndFlush(ownMember);
+
+        User foreignMember = namedUser("stats-team-scope-foreign@magti.ge", Role.OPERATOR, department,
+                "Foreign team member " + suffix);
+        foreignMember.setTeamId(foreignTeam.getId());
+        foreignMember = userRepository.saveAndFlush(foreignMember);
+
+        String defaultBody = mockMvc.perform(authed(get("/api/manager/team-stats"), tokenFor(manager)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertTrue(defaultBody.contains(ownMember.getName()),
+                "the manager's primary team remains the default interactive scope");
+        assertFalse(defaultBody.contains(foreignMember.getName()),
+                "a sibling team in the same department must not leak through the default response");
+
+        mockMvc.perform(authed(get("/api/manager/team-stats")
+                        .param("team_id", foreignTeam.getId().toString()), tokenFor(manager)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail").value("არჩეული ჯგუფი თქვენს აქტიურ დანიშვნებში არ შედის"));
+
+        mockMvc.perform(authed(get("/api/manager/team-stats")
+                        .param("team_id", ownTeam.getId().toString()), tokenFor(manager)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.members[?(@.user_id == " + ownMember.getId() + ")]").exists());
     }
 
     @Test
@@ -490,8 +663,58 @@ class StatsControllerIntegrationTest {
     }
 
     @Test
+    void assignmentBackedLegacyGroupPathAuthorizesCanonicalTargetEvenWhenItIsEmpty() throws Exception {
+        String suffix = Long.toString(System.nanoTime());
+        Department department = departmentRepository.findByName("ტექნიკური").orElseThrow();
+        String ownGroupName = "ჯგუფი path-own-" + suffix;
+        String emptyAssignedGroupName = "ჯგუფი path-empty-" + suffix;
+        String foreignGroupName = "ჯგუფი path-foreign-" + suffix;
+        Team ownTeam = createTeam(ownGroupName, department.getId());
+        Team emptyAssignedTeam = createTeam(emptyAssignedGroupName, department.getId());
+        Team foreignTeam = createTeam(foreignGroupName, department.getId());
+
+        User manager = namedUser("stats-group-path-manager-" + suffix + "@magti.ge", Role.MANAGER,
+                "ტექნიკური — " + ownGroupName, "Path manager " + suffix);
+        manager.setTeamId(ownTeam.getId());
+        manager = userRepository.saveAndFlush(manager);
+        assignTeam(manager, emptyAssignedTeam, AssignmentType.ACTING);
+
+        User ownMember = namedUser("stats-group-path-own-" + suffix + "@magti.ge", Role.OPERATOR,
+                "ტექნიკური — " + ownGroupName, "Path own " + suffix);
+        ownMember.setTeamId(ownTeam.getId());
+        ownMember = userRepository.saveAndFlush(ownMember);
+        User staleForeignBinding = namedUser(
+                "stats-group-path-stale-" + suffix + "@magti.ge", Role.OPERATOR,
+                "ტექნიკური — " + ownGroupName, "Path stale " + suffix);
+        staleForeignBinding.setTeamId(foreignTeam.getId());
+        staleForeignBinding = userRepository.saveAndFlush(staleForeignBinding);
+
+        mockMvc.perform(authed(get(
+                        "/api/admin/departments/{department}/groups/{groupName}/users",
+                        department.getName(), ownGroupName), tokenFor(manager)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.users[?(@.user_id == " + ownMember.getId() + ")]").exists())
+                .andExpect(jsonPath("$.users[?(@.user_id == " + staleForeignBinding.getId() + ")]").doesNotExist());
+
+        mockMvc.perform(authed(get(
+                        "/api/admin/departments/{department}/groups/{groupName}/users",
+                        department.getName(), emptyAssignedGroupName), tokenFor(manager)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.users.length()").value(0));
+
+        mockMvc.perform(authed(get(
+                        "/api/admin/departments/{department}/groups/{groupName}/users",
+                        department.getName(), foreignGroupName), tokenFor(manager)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(get(
+                        "/api/admin/departments/{department}/groups/{groupName}/users",
+                        department.getName(), "ჯგუფი missing-" + suffix), tokenFor(manager)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void activityTrendDayBucketReturnsRequestedNumberOfDaysWithCounts() throws Exception {
-        User admin = createUser("stats-act-admin@magti.ge", Role.CONTENT_ADMIN, "All");
+        User admin = createStatsViewer("stats-act-admin@magti.ge", "All");
         createAuditLog(admin.getId(), TbilisiTime.now(), AuditCategory.SYSTEM);
 
         mockMvc.perform(authed(get("/api/statistics/activity").param("days", "3"), tokenFor(admin)))
@@ -502,7 +725,7 @@ class StatsControllerIntegrationTest {
 
     @Test
     void activityTrendRejectsInvalidBucket() throws Exception {
-        User admin = createUser("stats-act-bad-admin@magti.ge", Role.CONTENT_ADMIN, "All");
+        User admin = createStatsViewer("stats-act-bad-admin@magti.ge", "All");
 
         mockMvc.perform(authed(get("/api/statistics/activity").param("bucket", "week"), tokenFor(admin)))
                 .andExpect(status().isBadRequest())
@@ -511,7 +734,7 @@ class StatsControllerIntegrationTest {
 
     @Test
     void breakdownReturnsGroupedCountsForEachWhitelistedDimension() throws Exception {
-        User admin = createUser("stats-brk-admin@magti.ge", Role.CONTENT_ADMIN, "დეპარტამენტი-X");
+        User admin = createStatsViewer("stats-brk-admin@magti.ge", "დეპარტამენტი-X");
 
         mockMvc.perform(authed(get("/api/statistics/breakdown").param("dimension", "department"), tokenFor(admin)))
                 .andExpect(status().isOk())
@@ -524,7 +747,7 @@ class StatsControllerIntegrationTest {
 
     @Test
     void breakdownRejectsUnknownDimension() throws Exception {
-        User admin = createUser("stats-brk-bad-admin@magti.ge", Role.CONTENT_ADMIN, "All");
+        User admin = createStatsViewer("stats-brk-bad-admin@magti.ge", "All");
 
         mockMvc.perform(authed(get("/api/statistics/breakdown").param("dimension", "nonsense"), tokenFor(admin)))
                 .andExpect(status().isBadRequest())

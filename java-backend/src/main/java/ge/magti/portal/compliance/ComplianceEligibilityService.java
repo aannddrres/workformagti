@@ -69,7 +69,7 @@ public class ComplianceEligibilityService {
     }
 
     private boolean hasActiveLeadership(User user) {
-        return !leadershipAssignmentRepository.findByUserIdAndActiveTrue(user.getId()).isEmpty();
+        return leadershipAssignmentRepository.existsByUserIdAndActiveTrue(user.getId());
     }
 
     /**

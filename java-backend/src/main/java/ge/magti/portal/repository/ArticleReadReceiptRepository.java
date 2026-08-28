@@ -1,6 +1,7 @@
 package ge.magti.portal.repository;
 
 import ge.magti.portal.domain.ArticleReadReceipt;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -21,7 +22,8 @@ public interface ArticleReadReceiptRepository extends JpaRepository<ArticleReadR
     Optional<ArticleReadReceipt> findByArticleIdSnapshotAndArticleVersionAndOperatorId(
             Long articleIdSnapshot, int articleVersion, Long operatorId);
 
-    List<ArticleReadReceipt> findByArticleIdSnapshotAndArticleVersion(Long articleIdSnapshot, int articleVersion);
+    List<ArticleReadReceipt> findByArticleIdSnapshotAndArticleVersion(
+            Long articleIdSnapshot, int articleVersion, Pageable pageable);
 
     /**
      * Port of _upsert_read_receipt's race-safety guarantee

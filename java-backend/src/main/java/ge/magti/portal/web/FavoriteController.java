@@ -3,6 +3,7 @@ package ge.magti.portal.web;
 import ge.magti.portal.content.ItemTitleResolver;
 import ge.magti.portal.domain.Favorite;
 import ge.magti.portal.domain.User;
+import ge.magti.portal.query.CompleteResultGuard;
 import ge.magti.portal.repository.FavoriteRepository;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -44,7 +45,8 @@ public class FavoriteController {
         if (denial != null) {
             return denial;
         }
-        List<FavoriteResponse> favorites = favoriteRepository.findByUserId(user.getId()).stream()
+        List<FavoriteResponse> favorites = CompleteResultGuard.enforce(
+                        favoriteRepository.findByUserId(user.getId(), CompleteResultGuard.sentinelPage())).stream()
                 .map(f -> FavoriteResponse.from(f, itemTitleResolver.resolve(f.getItemType(), f.getItemId()).orElse(null)))
                 .toList();
         return ResponseEntity.ok(favorites);

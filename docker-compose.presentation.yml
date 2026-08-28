@@ -1,0 +1,126 @@
+# Fully isolated, laptop-only presentation stack.
+# Managed through ./presentation.ps1; do not reuse this file as a deployment manifest.
+name: magti-portal-presentation
+
+x-presentation-tool: &presentation-tool
+  image: magti-portal-presentation-tools:local
+  build:
+    context: ./scripts/presentation
+  depends_on:
+    backend:
+      condition: service_healthy
+  environment: &presentation-tool-environment
+    APP_ENV: development
+    ORACLE_DB_DSN: oracle:1521/XEPDB1
+    ORACLE_DB_USER: magti_app
+    ORACLE_DB_PASSWORD: ${PRESENTATION_DB_PASSWORD:?missing PRESENTATION_DB_PASSWORD}
+    PRESENTATION_SEED_CONFIRM: ${PRESENTATION_SEED_CONFIRM:?missing PRESENTATION_SEED_CONFIRM}
+    PRESENTATION_DEMO_PASSWORD: ${PRESENTATION_DEMO_PASSWORD:?missing PRESENTATION_DEMO_PASSWORD}
+    PRESENTATION_SOURCE_DB: /source/magti_portal.db
+    PRESENTATION_SOURCE_UPLOADS: /source/uploads
+    PRESENTATION_ARTIFACT_DIR: /artifacts
+    PRESENTATION_API_BASE_URL: http://backend:8080
+    PRESENTATION_REQUIRE_RO_MOUNTS: "true"
+  volumes:
+    - ./magti_portal.db:/source/magti_portal.db:ro
+    - ./uploads:/source/uploads:ro
+    - ./.presentation-artifacts:/artifacts
+  profiles: ["tools"]
+  restart: "no"
+
+services:
+  oracle:
+    image: gvenzl/oracle-xe:21-slim-faststart
+    environment:
+      ORACLE_PASSWORD: ${PRESENTATION_SYS_PASSWORD:?missing PRESENTATION_SYS_PASSWORD}
+      APP_USER: magti_app
+      APP_USER_PASSWORD: ${PRESENTATION_DB_PASSWORD:?missing PRESENTATION_DB_PASSWORD}
+    volumes:
+      - presentation-oracle-data:/opt/oracle/oradata
+    ports:
+      # Loopback-only QA schema access for the Maven Oracle integration suite.
+      - "127.0.0.1:1523:1521"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 10s
+      retries: 40
+      start_period: 90s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./java-backend
+    depends_on:
+      oracle:
+        condition: service_healthy
+    environment:
+      ORACLE_DB_URL: jdbc:oracle:thin:@oracle:1521/XEPDB1
+      ORACLE_DB_USER: magti_app
+      ORACLE_DB_PASSWORD: ${PRESENTATION_DB_PASSWORD:?missing PRESENTATION_DB_PASSWORD}
+      APP_ENV: development
+      ALLOW_DEV_LOGIN: "false"
+      SECRET_KEY: ${PRESENTATION_JWT_SECRET:?missing PRESENTATION_JWT_SECRET}
+      COOKIE_SECURE: "false"
+      ROLLOUT_LEADERSHIP_SCOPE: "true"
+      ROLLOUT_COMPLIANCE_ELIGIBILITY: "true"
+    expose:
+      - "8080"
+    # A brand-new Oracle volume makes the first Spring startup materially
+    # slower while Flyway applies all 42 migrations. Keep the production
+    # image's health probe, but give the isolated laptop demo enough grace
+    # to complete that one-time cold start without being rejected by Compose.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:8080/api/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+      start_period: 180s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./angular-frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      BACKEND_HOST: backend
+      BACKEND_PORT: "8080"
+    ports:
+      - "127.0.0.1:8081:8080"
+    restart: unless-stopped
+
+  seeder:
+    <<: *presentation-tool
+
+  pulse:
+    <<: *presentation-tool
+    entrypoint: ["python", "/app/activity_pulse.py"]
+    command: []
+
+  qa:
+    <<: *presentation-tool
+    entrypoint: ["python", "/app/qa_regression.py"]
+    command: []
+    environment:
+      <<: *presentation-tool-environment
+      PRESENTATION_QA_RUN_ID: ${PRESENTATION_QA_RUN_ID:-manual}
+
+  qa-python:
+    image: magti-portal-presentation-tools:local
+    build:
+      context: ./scripts/presentation
+    working_dir: /workspace
+    entrypoint: ["python", "-m", "pytest"]
+    command: ["tests/test_presentation_seed.py", "-q", "--noconftest", "-p", "no:cacheprovider"]
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes:
+      - ./:/workspace:ro
+    profiles: ["tools"]
+    restart: "no"
+
+volumes:
+  presentation-oracle-data:
+    name: magti-portal-presentation-oracle-data

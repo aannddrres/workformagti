@@ -8,6 +8,7 @@ import ge.magti.portal.domain.News;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
+import ge.magti.portal.query.CompleteResultGuard;
 import ge.magti.portal.repository.ArticleRepository;
 import ge.magti.portal.repository.FavoriteRepository;
 import ge.magti.portal.repository.NewsRepository;
@@ -108,8 +109,9 @@ class FavoriteControllerIntegrationTest {
     }
 
     @Test
-    void operatorCanBookmarkAndListAndUnbookmark() throws Exception {
+    void bookmarkCollectionAndMutationAreIsolatedPerCaller() throws Exception {
         User operator = createUser("fav-op1@magti.ge", Role.OPERATOR);
+        User otherOperator = createUser("fav-op1-other@magti.ge", Role.OPERATOR);
         Article article = createArticle("რჩეულებში დასამატებელი სტატია");
 
         String addBody = mockMvc.perform(authed(post("/api/favorites"), tokenFor(operator))
@@ -126,12 +128,34 @@ class FavoriteControllerIntegrationTest {
                 .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
                 .andExpect(jsonPath("$[0].id").value((int) favoriteId));
 
+        mockMvc.perform(authed(get("/api/favorites"), tokenFor(otherOperator)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(0)));
+
+        String otherAddBody = mockMvc.perform(authed(post("/api/favorites"), tokenFor(otherOperator))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"item_type\":\"article\",\"item_id\":" + article.getId() + "}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        long otherFavoriteId = objectMapper.readTree(otherAddBody).get("id").asLong();
+        assertTrue(favoriteId != otherFavoriteId, "the same item must have a distinct favorite row per caller");
+
+        mockMvc.perform(authed(get("/api/favorites"), tokenFor(otherOperator)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$[0].id").value((int) otherFavoriteId));
+
         mockMvc.perform(authed(delete("/api/favorites/" + favoriteId), tokenFor(operator)))
                 .andExpect(status().isNoContent());
 
         mockMvc.perform(authed(get("/api/favorites"), tokenFor(operator)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(0)));
+
+        mockMvc.perform(authed(get("/api/favorites"), tokenFor(otherOperator)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$[0].id").value((int) otherFavoriteId));
     }
 
     @Test
@@ -154,7 +178,8 @@ class FavoriteControllerIntegrationTest {
         long secondId = objectMapper.readTree(secondBody).get("id").asLong();
 
         assertEquals(firstId, secondId);
-        List<Favorite> stored = favoriteRepository.findByUserId(operator.getId());
+        List<Favorite> stored = favoriteRepository.findByUserId(
+                operator.getId(), CompleteResultGuard.sentinelPage());
         assertEquals(1, stored.size());
     }
 

@@ -28,8 +28,8 @@ describe('VideoEditDrawer due-date validation', () => {
     const component = fixture.componentInstance as any;
 
     const videosService = TestBed.inject(VideosService);
-    const createSpy = vi.spyOn(videosService, 'create');
-    const updateSpy = vi.spyOn(videosService, 'update');
+    const createSpy = vi.spyOn(videosService, 'createCommand');
+    const updateSpy = vi.spyOn(videosService, 'updateCommand');
 
     component.isMandatory.set(true);
     component.dueDate.set('');
@@ -47,7 +47,7 @@ describe('VideoEditDrawer due-date validation', () => {
     const component = fixture.componentInstance as any;
 
     const videosService = TestBed.inject(VideosService);
-    const createSpy = vi.spyOn(videosService, 'create').mockReturnValue(of({ id: 1, title: 'x' } as any));
+    const createSpy = vi.spyOn(videosService, 'createCommand').mockReturnValue(of({ id: 1, title: 'x' } as any));
 
     component.isMandatory.set(true);
     component.dueDate.set('2030-01-01');
@@ -64,7 +64,7 @@ describe('VideoEditDrawer due-date validation', () => {
     const component = fixture.componentInstance as any;
 
     const videosService = TestBed.inject(VideosService);
-    const createSpy = vi.spyOn(videosService, 'create').mockReturnValue(of({ id: 1, title: 'x' } as any));
+    const createSpy = vi.spyOn(videosService, 'createCommand').mockReturnValue(of({ id: 1, title: 'x' } as any));
 
     component.isMandatory.set(false);
     component.dueDate.set('');

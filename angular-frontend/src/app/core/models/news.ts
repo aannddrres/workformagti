@@ -44,3 +44,10 @@ export interface NewsRequest {
   visible_to_tech_info: boolean;
   visible_to_service_center: boolean;
 }
+
+export interface NewsCommandRequest {
+  news: NewsRequest;
+  mandatory: boolean;
+  due_date: string | null;
+  target_department: string;
+}

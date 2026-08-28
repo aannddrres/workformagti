@@ -1,13 +1,13 @@
 package ge.magti.portal.compliance;
 
 import ge.magti.portal.domain.User;
-import ge.magti.portal.repository.ReadStatusRepository;
-import ge.magti.portal.repository.RequiredReadingRepository;
 import ge.magti.portal.repository.UserRepository;
+import ge.magti.portal.user.UserDirectoryQueryService;
+import ge.magti.portal.domain.Role;
+import org.springframework.data.domain.PageRequest;
 import ge.magti.portal.stats.ComplianceRecord;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -30,28 +30,24 @@ import java.util.Map;
 public class ComplianceQueryService {
 
     private final UserRepository userRepository;
-    private final RequiredReadingRepository requiredReadingRepository;
-    private final ReadStatusRepository readStatusRepository;
+    private final ComplianceProgressQueryService progressQueryService;
 
     /** Phase 3 shadow only; nullable so the DB-free callers stay unchanged. */
     private final ComplianceEligibilityService eligibilityService;
 
     public ComplianceQueryService(
             UserRepository userRepository,
-            RequiredReadingRepository requiredReadingRepository,
-            ReadStatusRepository readStatusRepository) {
-        this(userRepository, requiredReadingRepository, readStatusRepository, null);
+            ComplianceProgressQueryService progressQueryService) {
+        this(userRepository, progressQueryService, null);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
     public ComplianceQueryService(
             UserRepository userRepository,
-            RequiredReadingRepository requiredReadingRepository,
-            ReadStatusRepository readStatusRepository,
+            ComplianceProgressQueryService progressQueryService,
             ComplianceEligibilityService eligibilityService) {
         this.userRepository = userRepository;
-        this.requiredReadingRepository = requiredReadingRepository;
-        this.readStatusRepository = readStatusRepository;
+        this.progressQueryService = progressQueryService;
         this.eligibilityService = eligibilityService;
     }
 
@@ -76,12 +72,30 @@ public class ComplianceQueryService {
     public List<ComplianceRecord> computeCompliance(List<Long> scopeUserIds, String scopeDepartment) {
         List<User> candidates;
         if (scopeUserIds != null) {
+            if (scopeUserIds.size() > UserDirectoryQueryService.MAX_ACTIVE_USERS) {
+                throw new UserDirectoryQueryService.ActiveUserCardinalityExceededException();
+            }
             candidates = scopeUserIds.isEmpty() ? List.of() : userRepository.findAllById(scopeUserIds);
         } else if (scopeDepartment != null) {
-            candidates = userRepository.findByActiveTrueAndDepartment(scopeDepartment);
+            candidates = UserDirectoryQueryService.requireWithinActiveUserLimit(
+                    userRepository.findByActiveTrueAndDepartmentOrderByIdAsc(
+                            scopeDepartment,
+                            PageRequest.of(0, UserDirectoryQueryService.MAX_ACTIVE_USERS + 1)));
         } else {
-            candidates = userRepository.findByActiveTrue();
+            candidates = UserDirectoryQueryService.requireWithinActiveUserLimit(
+                    userRepository.findByActiveTrueAndRoleOrderByIdAsc(
+                            Role.OPERATOR,
+                            PageRequest.of(0, UserDirectoryQueryService.MAX_ACTIVE_USERS + 1)));
         }
+        return computeComplianceForUsers(candidates);
+    }
+
+    /**
+     * Computes the shared compliance formula for a caller-supplied, already
+     * bounded candidate slice. Eligibility is rechecked here so a query
+     * optimization cannot become a second policy implementation.
+     */
+    public List<ComplianceRecord> computeComplianceForUsers(List<User> candidates) {
         List<User> users = candidates.stream()
                 .filter(candidate -> {
                     boolean legacy = ComplianceCalculator.isEligible(candidate);
@@ -95,26 +109,10 @@ public class ComplianceQueryService {
                 })
                 .toList();
 
-        // SQL-side GROUP BY instead of hydrating every RequiredReading row.
-        Map<String, Integer> requiredCountsByDept = new HashMap<>();
-        for (Object[] row : requiredReadingRepository.countGroupedByTargetDepartment()) {
-            requiredCountsByDept.put((String) row[0], ((Number) row[1]).intValue());
-        }
-        int allRequired = requiredCountsByDept.getOrDefault("All", 0);
-
-        List<Long> userIds = users.stream().map(User::getId).toList();
-        Map<ReadCountKey, Integer> readCountsByUserDept = new HashMap<>();
-        if (!userIds.isEmpty()) {
-            for (Object[] row : readStatusRepository.readCountsByUserAndDepartment(userIds)) {
-                readCountsByUserDept.put(
-                        new ReadCountKey(((Number) row[0]).longValue(), (String) row[1]),
-                        ((Number) row[2]).intValue());
-            }
-        }
+        Map<Long, ReadingProgress> progressByUser = progressQueryService.progressByUser(users);
 
         return users.stream()
-                .map(user -> new ComplianceRecord(user,
-                        ComplianceCalculator.computeProgress(user, allRequired, requiredCountsByDept, readCountsByUserDept)))
+                .map(user -> new ComplianceRecord(user, progressByUser.get(user.getId())))
                 .toList();
     }
 }

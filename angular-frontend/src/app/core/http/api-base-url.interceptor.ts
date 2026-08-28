@@ -11,8 +11,12 @@ import { environment } from '../../../environments/environment';
  * service file. See environment.prod.ts's comment.
  */
 export const apiBaseUrlInterceptor: HttpInterceptorFn = (req, next) => {
-  if (!environment.apiBaseUrl || (!req.url.startsWith('/api') && !req.url.startsWith('/uploads'))) {
+  const isPortalRequest = req.url.startsWith('/api') || req.url.startsWith('/uploads');
+  if (!isPortalRequest) {
     return next(req);
   }
-  return next(req.clone({ url: environment.apiBaseUrl + req.url }));
+  return next(req.clone({
+    url: environment.apiBaseUrl ? environment.apiBaseUrl + req.url : req.url,
+    withCredentials: true
+  }));
 };

@@ -8,6 +8,15 @@ export interface ArticleHistoryItem {
   version_id: number | null;
 }
 
+/** CLOB-free metadata returned by GET .../history-summary. */
+export interface ArticleHistorySummaryItem {
+  id: number;
+  title: string;
+  updated_at: string;
+  author_name: string;
+  version_id: number | null;
+}
+
 /** Mirrors web.ArticleDiffResponse (java-backend) field-for-field. */
 export interface ArticleDiff {
   html: string;

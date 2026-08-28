@@ -983,25 +983,6 @@
     "note": ""
   },
   {
-    "name": "article_feedback",
-    "request": {
-      "method": "POST",
-      "path": "/api/articles/1/feedback",
-      "as_user": "operator_tech",
-      "json_body": {
-        "message": "ტიპოგრაფიული შეცდომა სათაურში."
-      },
-      "params": null
-    },
-    "response": {
-      "status_code": 410,
-      "body": {
-        "detail": "ხარვეზის რეპორტირება დეპრეკირებულია"
-      }
-    },
-    "note": "deliberately deprecated in code -- always 410, not a capture bug"
-  },
-  {
     "name": "article_related",
     "request": {
       "method": "GET",
@@ -3160,23 +3141,6 @@
       ]
     },
     "note": ""
-  },
-  {
-    "name": "admin_feedback_list",
-    "request": {
-      "method": "GET",
-      "path": "/api/admin/feedback",
-      "as_user": "content_admin",
-      "json_body": null,
-      "params": null
-    },
-    "response": {
-      "status_code": 410,
-      "body": {
-        "detail": "უკუკავშირის ნახვა დეპრეკირებულია"
-      }
-    },
-    "note": "deliberately deprecated in code -- always 410"
   },
   {
     "name": "admin_articles_stale",

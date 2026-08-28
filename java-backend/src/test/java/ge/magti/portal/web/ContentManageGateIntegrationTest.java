@@ -34,7 +34,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
-/** HTTP proof that all 25 Phase 6 endpoints share the content.manage decision. */
+/** HTTP proof that the 23 content-mutation/lifecycle endpoints share the content.manage decision. */
 @RequiresOracle
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -86,6 +86,8 @@ class ContentManageGateIntegrationTest {
                 new RequestCase("delete news", () -> delete("/api/news/999999999").header("Authorization", auth)),
                 new RequestCase("autosave news", () -> json(patch("/api/news/999999999/autosave"), "{}").header("Authorization", auth)),
                 new RequestCase("news history", () -> get("/api/news/999999999/history").header("Authorization", auth)),
+                new RequestCase("news history summary", () -> get("/api/news/999999999/history-summary").header("Authorization", auth)),
+                new RequestCase("news history detail", () -> get("/api/news/999999999/history/999999999").header("Authorization", auth)),
                 new RequestCase("restore news", () -> post("/api/news/999999999/history/999999999/restore").header("Authorization", auth)),
                 new RequestCase("create video", () -> json(post("/api/videos"), "{\"title\":\"Phase 6\",\"video_url\":\"https://youtu.be/abcdefghijk\"}").header("Authorization", auth)),
                 new RequestCase("update video", () -> json(put("/api/videos/999999999"), "{\"title\":\"Phase 6\",\"video_url\":\"https://youtu.be/abcdefghijk\"}").header("Authorization", auth)),
@@ -98,16 +100,12 @@ class ContentManageGateIntegrationTest {
                         .header("Authorization", auth)),
                 new RequestCase("verify article", () -> post("/api/articles/999999999/verify").header("Authorization", auth)),
                 new RequestCase("article history", () -> get("/api/articles/999999999/history").header("Authorization", auth)),
+                new RequestCase("article history summary", () -> get("/api/articles/999999999/history-summary").header("Authorization", auth)),
+                new RequestCase("article history detail", () -> get("/api/articles/999999999/history/999999999").header("Authorization", auth)),
                 new RequestCase("restore article", () -> post("/api/articles/999999999/history/999999999/restore").header("Authorization", auth)),
                 new RequestCase("stale articles", () -> get("/api/admin/articles/stale").header("Authorization", auth)),
                 new RequestCase("quiz admin", () -> get("/api/articles/999999999/quiz/admin").header("Authorization", auth)),
-                new RequestCase("update quiz admin", () -> json(put("/api/articles/999999999/quiz/admin"), "{\"questions\":[]}").header("Authorization", auth)),
-                new RequestCase("activity", () -> get("/api/statistics/activity").header("Authorization", auth)),
-                new RequestCase("breakdown", () -> get("/api/statistics/breakdown").queryParam("dimension", "role").header("Authorization", auth)),
-                new RequestCase("compliance", () -> get("/api/statistics/compliance").header("Authorization", auth)),
-                new RequestCase("failed searches", () -> get("/api/statistics/failed-searches").header("Authorization", auth)),
-                new RequestCase("kpi", () -> get("/api/statistics/kpi").header("Authorization", auth)),
-                new RequestCase("popular searches", () -> get("/api/statistics/popular-searches").header("Authorization", auth)));
+                new RequestCase("update quiz admin", () -> json(put("/api/articles/999999999/quiz/admin"), "{\"questions\":[]}").header("Authorization", auth)));
     }
 
     private void assertAllForbidden(User caller) throws Exception {

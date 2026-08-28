@@ -54,6 +54,16 @@ describe('AppShell effective-access navigation', () => {
     expect(visible(shell, '/admin/access')).toBe(false);
   });
 
+  it('shows aggregate statistics from stats.view without showing content administration', () => {
+    const shell = shellFor('operator', {
+      role: 'operator', permissions: ['stats.view'], bypass: false, can_publish_announcement: false
+    });
+
+    expect(visible(shell, '/admin/overview')).toBe(true);
+    expect(visible(shell, '/admin/content')).toBe(false);
+    expect(visible(shell, '/admin/access')).toBe(false);
+  });
+
   it('hides content navigation after an effective deny', () => {
     const shell = shellFor('content_admin', {
       role: 'content_admin', permissions: ['articles.edit'], bypass: false, can_publish_announcement: false
@@ -83,6 +93,7 @@ describe('AppShell effective-access navigation', () => {
     expect(visible(operator, '/admin/org/assignments')).toBe(false);
     expect(visible(admin, '/admin/org')).toBe(true);
     expect(visible(admin, '/admin/org/assignments')).toBe(true);
+    expect(visible(admin, '/admin/overview')).toBe(true);
     expect(visible(operator, '/admin/exports')).toBe(false);
     expect(visible(admin, '/admin/exports')).toBe(true);
   });

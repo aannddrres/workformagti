@@ -61,7 +61,7 @@ test.describe('shared components', () => {
     await input.press('ArrowDown');
     await expect(hit).toHaveAttribute('aria-selected', 'true');
     await input.press('Enter');
-    await expect(page).toHaveURL(new RegExp(`/article/${articleId}$`));
+    await expect(page).toHaveURL(new RegExp(`/article/${articleId}(?:\\?.*)?$`));
     await expect(page.locator('div[role="dialog"]')).toHaveCount(0);
 
     // --- failure and retry --------------------------------------------------
@@ -114,7 +114,7 @@ test.describe('shared components', () => {
     // The star sits ON the card, and the card navigates. Its stopPropagation
     // is the only thing keeping a favourite from also being a navigation --
     // so staying put is part of the assertion, not an afterthought.
-    await expect(page).toHaveURL(/\/info$/);
+    await expect(page).toHaveURL(/\/info(?:\?.*)?$/);
 
     const favorites = await request.get('/api/favorites', { headers: auth });
     expect(
@@ -133,8 +133,8 @@ test.describe('shared components', () => {
     ).toBe(false);
 
     // --- the card itself ----------------------------------------------------
-    await card.click();
-    await expect(page).toHaveURL(new RegExp(`/article/${articleId}$`));
+    await card.getByRole('button', { name: title }).click();
+    await expect(page).toHaveURL(new RegExp(`/article/${articleId}(?:\\?.*)?$`));
   });
 
   test('quiz builder: build a quiz through the UI and read it back', async ({ page, request }) => {

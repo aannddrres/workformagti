@@ -1,14 +1,24 @@
 <div class="portal-page">
   <header class="portal-page-header">
     <div>
-      <p class="portal-eyebrow">სისტემური ადმინისტრირება</p>
-      <h1 class="portal-title">სისტემის მიმოხილვა</h1>
-      <p class="portal-subtitle">ყურადღებას საჭიროებული მოვლენები, ცოდნის ბაზის მდგომარეობა და ბოლო ადმინისტრაციული ქმედებები ერთ სამუშაო ხედში.</p>
+      @if (isSystemAdmin()) {
+        <p class="portal-eyebrow">სისტემური ადმინისტრირება</p>
+        <h1 class="portal-title">სისტემის მიმოხილვა</h1>
+        <p class="portal-subtitle">ყურადღებას საჭიროებული მოვლენები, ცოდნის ბაზის მდგომარეობა და ბოლო ადმინისტრაციული ქმედებები ერთ სამუშაო ხედში.</p>
+      } @else {
+        <p class="portal-eyebrow">ანალიტიკა</p>
+        <h1 class="portal-title">კომპანიის საერთო სტატისტიკა</h1>
+        <p class="portal-subtitle">ორგანიზაციის მასშტაბის აგრეგატული მაჩვენებლები სახელობითი თანამშრომლის მონაცემების გარეშე.</p>
+      }
       <p class="mt-2 text-xs text-slate-400">ბოლო განახლება: {{ kaDateTime(lastUpdated()) }}</p>
     </div>
     <div class="flex flex-wrap gap-2">
-      <a routerLink="/admin/access" class="secondary-button"><i class="fa-solid fa-user-plus" aria-hidden="true"></i>ახალი მომხმარებელი</a>
-      <a routerLink="/admin/content" class="primary-button"><i class="fa-solid fa-file-circle-plus" aria-hidden="true"></i>ახალი სტატია</a>
+      @if (isSystemAdmin()) {
+        <a routerLink="/admin/access" class="secondary-button"><i class="fa-solid fa-user-shield" aria-hidden="true"></i>წვდომების მართვა</a>
+      }
+      @if (canManageContent()) {
+        <a routerLink="/admin/content" class="primary-button"><i class="fa-solid fa-file-circle-plus" aria-hidden="true"></i>ახალი სტატია</a>
+      }
       <button type="button" (click)="refresh()" class="secondary-button" aria-label="მონაცემების განახლება">
         <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>განახლება
       </button>
@@ -23,15 +33,17 @@
       </div>
     </div>
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-      <a routerLink="/admin/access" class="surface-card group p-5 transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md dark:hover:border-amber-700">
-        <div class="flex items-start justify-between gap-3">
-          <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300"><i class="fa-solid fa-clock" aria-hidden="true"></i></span>
-          <i class="fa-solid fa-arrow-right text-xs text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-amber-500" aria-hidden="true"></i>
-        </div>
-        <p class="mt-4 text-3xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{{ criticalLoading() ? '—' : (critical()?.total ?? 0) }}</p>
-        <p class="mt-1 text-sm font-bold text-slate-800 dark:text-slate-200">ვადაგადაცილებული ოპერატორი</p>
-        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">სავალდებულო გაცნობის ვადა გასულია</p>
-      </a>
+      @if (isSystemAdmin()) {
+        <a routerLink="/admin/access" class="surface-card group p-5 transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md dark:hover:border-amber-700">
+          <div class="flex items-start justify-between gap-3">
+            <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300"><i class="fa-solid fa-clock" aria-hidden="true"></i></span>
+            <i class="fa-solid fa-arrow-right text-xs text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-amber-500" aria-hidden="true"></i>
+          </div>
+          <p class="mt-4 text-3xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{{ criticalLoading() ? '—' : (critical()?.total ?? 0) }}</p>
+          <p class="mt-1 text-sm font-bold text-slate-800 dark:text-slate-200">ვადაგადაცილებული ოპერატორი</p>
+          <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">სავალდებულო გაცნობის ვადა გასულია</p>
+        </a>
+      }
 
       <a href="#search-gaps" class="surface-card group p-5 transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md dark:hover:border-blue-700">
         <div class="flex items-start justify-between gap-3">
@@ -43,28 +55,33 @@
         <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">ტერმინები, რომლებსაც პასუხი სჭირდება</p>
       </a>
 
-      <a routerLink="/admin/audit" class="surface-card group p-5 transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md dark:hover:border-emerald-700">
-        <div class="flex items-start justify-between gap-3">
-          <span class="flex h-10 w-10 items-center justify-center rounded-lg" [class]="auditChain()?.status === 'tampered' ? 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300'"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i></span>
-          <i class="fa-solid fa-arrow-right text-xs text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-emerald-500" aria-hidden="true"></i>
-        </div>
-        <p class="mt-4 text-xl font-bold text-slate-900 dark:text-slate-100">{{ auditChain() ? (auditChain()!.status === 'ok' ? 'გამართულია' : 'საჭიროა შემოწმება') : 'მოწმდება…' }}</p>
-        <p class="mt-1 text-sm font-bold text-slate-800 dark:text-slate-200">აუდიტის ჯაჭვი</p>
-        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">ბოლო {{ auditChain()?.checked ?? 0 }} ჩანაწერის მთლიანობა</p>
-      </a>
+      @if (isSystemAdmin()) {
+        <a routerLink="/admin/audit" class="surface-card group p-5 transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md dark:hover:border-emerald-700">
+          <div class="flex items-start justify-between gap-3">
+            <span class="flex h-10 w-10 items-center justify-center rounded-lg" [class]="auditChain()?.status === 'tampered' ? 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300'"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i></span>
+            <i class="fa-solid fa-arrow-right text-xs text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-emerald-500" aria-hidden="true"></i>
+          </div>
+          <p class="mt-4 text-xl font-bold text-slate-900 dark:text-slate-100">{{ auditChain() ? (auditChain()!.status === 'ok' ? 'გამართულია' : 'საჭიროა შემოწმება') : 'მოწმდება…' }}</p>
+          <p class="mt-1 text-sm font-bold text-slate-800 dark:text-slate-200">აუდიტის ჯაჭვი</p>
+          <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">ბოლო {{ auditChain()?.checked ?? 0 }} ჩანაწერის მთლიანობა</p>
+        </a>
+      }
 
-      <a routerLink="/admin/content" class="surface-card group p-5 transition hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-md">
-        <div class="flex items-start justify-between gap-3">
-          <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50 text-brand dark:bg-red-950/40 dark:text-red-300"><i class="fa-solid fa-clipboard-check" aria-hidden="true"></i></span>
-          <i class="fa-solid fa-arrow-right text-xs text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-brand" aria-hidden="true"></i>
-        </div>
-        <p class="mt-4 text-3xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{{ kpiLoading() ? '—' : (kpi()?.required_readings ?? 0) }}</p>
-        <p class="mt-1 text-sm font-bold text-slate-800 dark:text-slate-200">აქტიური სავალდებულო მასალა</p>
-        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">სტატუსისა და ვადის სამართავად</p>
-      </a>
+      @if (canManageContent()) {
+        <a routerLink="/admin/content" class="surface-card group p-5 transition hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-md">
+          <div class="flex items-start justify-between gap-3">
+            <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50 text-brand dark:bg-red-950/40 dark:text-red-300"><i class="fa-solid fa-clipboard-check" aria-hidden="true"></i></span>
+            <i class="fa-solid fa-arrow-right text-xs text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-brand" aria-hidden="true"></i>
+          </div>
+          <p class="mt-4 text-3xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{{ kpiLoading() ? '—' : (kpi()?.required_readings ?? 0) }}</p>
+          <p class="mt-1 text-sm font-bold text-slate-800 dark:text-slate-200">აქტიური სავალდებულო მასალა</p>
+          <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">სტატუსისა და ვადის სამართავად</p>
+        </a>
+      }
     </div>
   </section>
 
+  @if (canManageContent()) {
   <section class="mb-7" aria-labelledby="categories-heading">
     <div class="mb-3 flex items-end justify-between gap-3">
       <div>
@@ -90,18 +107,19 @@
       }
     </div>
   </section>
+  }
 
   <section class="mb-7" aria-labelledby="system-heading">
     <h2 id="system-heading" class="mb-3 text-lg font-bold text-slate-900 dark:text-slate-100">სისტემის მოკლე მდგომარეობა</h2>
     <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <a routerLink="/admin/access" class="surface-card p-4">
+      <div class="surface-card p-4">
         <p class="text-xs font-bold text-slate-500 dark:text-slate-400">მომხმარებლები</p>
         <p class="mt-2 text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{{ kpi()?.users ?? '—' }}</p>
-      </a>
-      <a routerLink="/admin/content" class="surface-card p-4">
+      </div>
+      <div class="surface-card p-4">
         <p class="text-xs font-bold text-slate-500 dark:text-slate-400">პუბლიკაციები</p>
         <p class="mt-2 text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{{ kpi()?.articles ?? '—' }}</p>
-      </a>
+      </div>
       <div class="surface-card p-4">
         <p class="text-xs font-bold text-slate-500 dark:text-slate-400">საერთო გაცნობა</p>
         <p class="mt-2 text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{{ compliance() ? compliance()!.read_percentage + '%' : '—' }}</p>
@@ -198,6 +216,7 @@
   </section>
 
   <section class="mb-7 grid grid-cols-1 gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+    @if (isSystemAdmin()) {
     <div class="surface-card p-5">
       <div class="mb-4 flex items-end justify-between gap-3">
         <div>
@@ -222,6 +241,7 @@
         </div>
       }
     </div>
+    }
 
     <div class="surface-card p-5">
       <div class="mb-4 flex items-center justify-between gap-3">

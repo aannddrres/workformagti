@@ -6,9 +6,11 @@ import ge.magti.portal.domain.LeadershipAssignment;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.Team;
 import ge.magti.portal.domain.User;
+import ge.magti.portal.org.OrgDirectoryQueryService;
 import ge.magti.portal.repository.LeadershipAssignmentRepository;
 import ge.magti.portal.repository.TeamRepository;
 import ge.magti.portal.repository.UserRepository;
+import ge.magti.portal.user.UserDirectoryQueryService;
 import ge.magti.portal.util.TbilisiTime;
 import ge.magti.portal.web.AccessDiffComplianceResponse;
 import ge.magti.portal.web.AccessDiffResponse;
@@ -30,24 +32,47 @@ public class AccessDiffService {
     private final UserRepository userRepository;
     private final LeadershipAssignmentRepository assignmentRepository;
     private final TeamRepository teamRepository;
+    private final UserDirectoryQueryService userDirectoryQueryService;
+    private final OrgDirectoryQueryService orgDirectoryQueryService;
 
+    /** DB-free compatibility constructor used by the existing pure unit suite. */
     public AccessDiffService(
             UserRepository userRepository,
             LeadershipAssignmentRepository assignmentRepository,
             TeamRepository teamRepository) {
+        this(userRepository, assignmentRepository, teamRepository, null, null);
+    }
+
+    public AccessDiffService(
+            UserRepository userRepository,
+            LeadershipAssignmentRepository assignmentRepository,
+            TeamRepository teamRepository,
+            UserDirectoryQueryService userDirectoryQueryService) {
+        this(userRepository, assignmentRepository, teamRepository, userDirectoryQueryService, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public AccessDiffService(
+            UserRepository userRepository,
+            LeadershipAssignmentRepository assignmentRepository,
+            TeamRepository teamRepository,
+            UserDirectoryQueryService userDirectoryQueryService,
+            OrgDirectoryQueryService orgDirectoryQueryService) {
         this.userRepository = userRepository;
         this.assignmentRepository = assignmentRepository;
         this.teamRepository = teamRepository;
+        this.userDirectoryQueryService = userDirectoryQueryService;
+        this.orgDirectoryQueryService = orgDirectoryQueryService;
     }
 
     @Transactional(readOnly = true)
     public AccessDiffResponse report() {
-        List<User> allUsers = userRepository.findAll().stream()
+        List<User> allUsers = boundedDirectoryUsers().stream()
                 .sorted(Comparator.comparing(User::getId))
                 .toList();
         List<User> activeUsers = allUsers.stream().filter(User::isActive).toList();
-        List<LeadershipAssignment> activeAssignments = assignmentRepository.findByActiveTrue();
-        List<Team> teams = teamRepository.findAll();
+        List<LeadershipAssignment> activeAssignments = activeAssignments();
+        List<Team> teams = teams();
 
         long gains = 0;
         long losses = 0;
@@ -92,6 +117,29 @@ public class AccessDiffService {
                 TbilisiTime.now(),
                 new AccessDiffTotalsResponse(allUsers.size(), gains, losses, unchanged),
                 List.copyOf(rows));
+    }
+
+    private List<User> boundedDirectoryUsers() {
+        // Production is always database-bounded. The fallback exists only for
+        // the older repository-mock constructor used by DB-free pure tests.
+        return userDirectoryQueryService == null
+                ? userRepository.findAll()
+                : userDirectoryQueryService.listUsersWithinLimit();
+    }
+
+    private List<LeadershipAssignment> activeAssignments() {
+        // Production uses the bounded org module; the fallback is only for
+        // the older repository-mock constructors used by pure tests.
+        return orgDirectoryQueryService == null
+                ? assignmentRepository.findByActiveTrue()
+                : orgDirectoryQueryService.listActiveAssignmentsWithinLimit();
+    }
+
+    private List<Team> teams() {
+        // See activeAssignments(): no Spring production path uses findAll().
+        return orgDirectoryQueryService == null
+                ? teamRepository.findAll()
+                : orgDirectoryQueryService.listTeamsWithinLimit();
     }
 
     private static int legacyScopeCount(List<User> activeUsers, User user) {

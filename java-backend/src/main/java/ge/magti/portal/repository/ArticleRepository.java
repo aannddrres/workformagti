@@ -1,9 +1,12 @@
 package ge.magti.portal.repository;
 
 import ge.magti.portal.domain.Article;
+import ge.magti.portal.article.ArticleReferenceItem;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -30,7 +33,22 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
      * comparisons are never true), same as Python's SQLAlchemy filter --
      * not something this query needs to special-case separately.
      */
-    List<Article> findByStatusAndLastVerifiedAtBeforeOrderByLastVerifiedAtAsc(String status, OffsetDateTime cutoff);
+    @Query("SELECT new ge.magti.portal.article.ArticleReferenceItem("
+            + "a.id, a.title, a.categoryId, a.tags, a.createdAt, a.lastVerifiedAt) "
+            + "FROM Article a WHERE a.status = :status AND a.lastVerifiedAt < :cutoff "
+            + "ORDER BY a.lastVerifiedAt ASC")
+    List<ArticleReferenceItem> findStaleReferences(
+            @Param("status") String status,
+            @Param("cutoff") OffsetDateTime cutoff,
+            Pageable pageable);
 
-    List<Article> findByStatus(String status);
+    @Query("SELECT new ge.magti.portal.article.ArticleReferenceItem("
+            + "a.id, a.title, a.categoryId, a.tags, a.createdAt, a.lastVerifiedAt) "
+            + "FROM Article a WHERE a.status = :status")
+    List<ArticleReferenceItem> findReferencesByStatus(
+            @Param("status") String status,
+            Pageable pageable);
+
+    /** Bounded category-only search fallback; callers supply the hard ceiling. */
+    List<Article> findByCategoryId(Long categoryId, Pageable pageable);
 }

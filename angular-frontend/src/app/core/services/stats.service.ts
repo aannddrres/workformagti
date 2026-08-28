@@ -8,6 +8,7 @@ import {
   CriticalOperatorsResponse,
   DepartmentDashboard,
   GroupUsersResponse,
+  LeadershipOptionsResponse,
   KpiCounts,
   PopularSearch,
   UserProgressItem,
@@ -17,12 +18,18 @@ import {
 export class StatsService {
   private readonly http = inject(HttpClient);
 
-  departmentDashboard(): Observable<DepartmentDashboard> {
-    return this.http.get<DepartmentDashboard>('/api/manager/department-stats');
+  departmentDashboard(teamId?: number | null): Observable<DepartmentDashboard> {
+    const query = teamId == null ? '' : `?team_id=${teamId}`;
+    return this.http.get<DepartmentDashboard>(`/api/manager/department-stats${query}`);
   }
 
-  criticalOperators(): Observable<CriticalOperatorsResponse> {
-    return this.http.get<CriticalOperatorsResponse>('/api/admin/critical-operators');
+  leadershipOptions(): Observable<LeadershipOptionsResponse> {
+    return this.http.get<LeadershipOptionsResponse>('/api/manager/leadership-options');
+  }
+
+  criticalOperators(teamId?: number | null): Observable<CriticalOperatorsResponse> {
+    const query = teamId == null ? '' : `?team_id=${teamId}`;
+    return this.http.get<CriticalOperatorsResponse>(`/api/admin/critical-operators${query}`);
   }
 
   groupUsers(department: string, groupName: string): Observable<GroupUsersResponse> {

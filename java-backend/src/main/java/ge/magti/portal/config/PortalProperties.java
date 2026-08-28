@@ -145,6 +145,8 @@ public class PortalProperties {
 		private final Jwt jwt = new Jwt();
 		@NestedConfigurationProperty
 		private final Cookie cookie = new Cookie();
+		@NestedConfigurationProperty
+		private final Session session = new Session();
 
 		public Jwt getJwt() {
 			return jwt;
@@ -153,12 +155,26 @@ public class PortalProperties {
 		public Cookie getCookie() {
 			return cookie;
 		}
+
+		public Session getSession() {
+			return session;
+		}
+	}
+
+	public static class Session {
+		private long idleMinutes = 30;
+		private long maximumMinutes = 480;
+
+		public long getIdleMinutes() { return idleMinutes; }
+		public void setIdleMinutes(long idleMinutes) { this.idleMinutes = idleMinutes; }
+		public long getMaximumMinutes() { return maximumMinutes; }
+		public void setMaximumMinutes(long maximumMinutes) { this.maximumMinutes = maximumMinutes; }
 	}
 
 	public static class Jwt {
 		private String secret;
 		private String algorithm = "HS256";
-		private long accessTokenExpireMinutes = 60;
+		private long accessTokenExpireMinutes = 480;
 
 		public String getSecret() {
 			return secret;
@@ -187,7 +203,7 @@ public class PortalProperties {
 
 	public static class Cookie {
 		private boolean secure = false;
-		private String sameSite = "lax";
+		private String sameSite = "strict";
 
 		public boolean isSecure() {
 			return secure;

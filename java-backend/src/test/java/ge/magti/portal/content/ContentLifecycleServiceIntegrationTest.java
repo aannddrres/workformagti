@@ -1,7 +1,9 @@
 package ge.magti.portal.content;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.Article;
+import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.Category;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.QuizAttempt;
@@ -11,6 +13,7 @@ import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.StoredFile;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.repository.ArticleRepository;
+import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.CategoryRepository;
 import ge.magti.portal.repository.QuizAttemptRepository;
 import ge.magti.portal.repository.ReadStatusRepository;
@@ -46,6 +49,8 @@ class ContentLifecycleServiceIntegrationTest {
     @Autowired
     private ArticleRepository articleRepository;
     @Autowired
+    private AuditLogRepository auditLogRepository;
+    @Autowired
     private CategoryRepository categoryRepository;
     @Autowired
     private StoredFileRepository storedFileRepository;
@@ -64,8 +69,10 @@ class ContentLifecycleServiceIntegrationTest {
     @PersistenceContext
     private EntityManager entityManager;
 
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     @Test
-    void trashRestoreAndDuePurgePreserveEvidenceAndRemoveOrphanedAttachmentPayload() {
+    void trashRestoreAndDuePurgePreserveEvidenceAndRemoveOrphanedAttachmentPayload() throws Exception {
         User admin = user("lifecycle-admin-" + System.nanoTime() + "@magti.ge", Role.SYSTEM_ADMIN);
         User operator = user("lifecycle-operator-" + System.nanoTime() + "@magti.ge", Role.OPERATOR);
 
@@ -131,11 +138,24 @@ class ContentLifecycleServiceIntegrationTest {
         assertTrue(storedFileRepository.findById(filename).isEmpty(), "trashed attachment must not be served");
         assertEquals(1, lifecycleService.listTrash().stream()
                 .filter(item -> item.itemType().equals("article") && item.itemId().equals(articleId)).count());
+        AuditLog trashAudit = audit("TRASH", articleId);
+        var trashDetails = objectMapper.readTree(trashAudit.getDetails());
+        assertEquals(admin.getId(), trashAudit.getAdminId());
+        assertEquals(admin.getName(), trashAudit.getAdminNameSnapshot());
+        assertEquals(article.getTitle(), trashAudit.getItemNameSnapshot());
+        assertEquals("ACTIVE", trashDetails.path("before").path("lifecycle_state").asText());
+        assertEquals("TRASHED", trashDetails.path("after").path("lifecycle_state").asText());
+        assertEquals(3, trashDetails.path("after").path("version").asInt());
+        assertEquals(1, trashDetails.path("after").path("attachment_reference_count").asInt());
 
         assertEquals(OK, lifecycleService.restore(ARTICLE, articleId, admin));
         entityManager.clear();
         assertTrue(articleRepository.findById(articleId).isPresent());
         assertTrue(storedFileRepository.findById(filename).isPresent());
+        var restoreDetails = objectMapper.readTree(audit("RESTORE_FROM_TRASH", articleId).getDetails());
+        assertEquals("TRASHED", restoreDetails.path("before").path("lifecycle_state").asText());
+        assertEquals("ACTIVE", restoreDetails.path("after").path("lifecycle_state").asText());
+        assertTrue(restoreDetails.path("after").path("purge_after").isNull());
 
         assertEquals(OK, lifecycleService.moveToTrash(ARTICLE, articleId, admin));
         Timestamp due = Timestamp.valueOf(TbilisiTime.now().minusMinutes(1).toLocalDateTime());
@@ -153,6 +173,17 @@ class ContentLifecycleServiceIntegrationTest {
         assertNull(retained.getArticleId());
         assertEquals(articleId, retained.getArticleIdSnapshot());
         assertEquals("აღდგენადი სტატია", retained.getArticleTitleSnapshot());
+        var purgeDetails = objectMapper.readTree(audit("PURGE", articleId).getDetails());
+        assertEquals("TRASHED", purgeDetails.path("before").path("lifecycle_state").asText());
+        assertEquals("PURGED", purgeDetails.path("after").path("lifecycle_state").asText());
+        assertEquals("SUCCESS", purgeDetails.path("result").asText());
+    }
+
+    private AuditLog audit(String action, Long itemId) {
+        return auditLogRepository.findAll().stream()
+                .filter(a -> action.equals(a.getAction()) && "article".equals(a.getItemType())
+                        && itemId.equals(a.getItemId()))
+                .findFirst().orElseThrow();
     }
 
     private User user(String email, Role role) {

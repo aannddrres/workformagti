@@ -1,9 +1,9 @@
 package ge.magti.portal.export;
 
-import ge.magti.portal.domain.ExportJob;
 import ge.magti.portal.repository.ExportJobRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -39,6 +39,7 @@ public class ExportJobCleanupScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(ExportJobCleanupScheduler.class);
     private static final long SWEEP_INTERVAL_MS = 600_000; // 10 minutes
+    private static final int SWEEP_BATCH_SIZE = 500;
 
     private final ExportJobRepository exportJobRepository;
 
@@ -49,15 +50,23 @@ public class ExportJobCleanupScheduler {
     @Scheduled(initialDelay = SWEEP_INTERVAL_MS, fixedDelay = SWEEP_INTERVAL_MS)
     public void sweepExpiredJobs() {
         double now = System.currentTimeMillis() / 1000.0;
-        List<ExportJob> stale = exportJobRepository.findByExpiresAtLessThan(now);
-        if (stale.isEmpty()) {
-            return;
+        int removed = 0;
+        while (true) {
+            List<ExpiredExportJobReference> stale = exportJobRepository.findExpiredReferences(
+                    now, PageRequest.of(0, SWEEP_BATCH_SIZE));
+            if (stale.isEmpty()) {
+                break;
+            }
+            for (ExpiredExportJobReference job : stale) {
+                deleteFileIfPresent(job.path());
+            }
+            exportJobRepository.deleteExpiredByIds(
+                    stale.stream().map(ExpiredExportJobReference::id).toList());
+            removed += stale.size();
         }
-        for (ExportJob job : stale) {
-            deleteFileIfPresent(job.getPath());
+        if (removed > 0) {
+            log.info("export-job cleanup: removed {} expired job(s)", removed);
         }
-        exportJobRepository.deleteAll(stale);
-        log.info("export-job cleanup: removed {} expired job(s)", stale.size());
     }
 
     private void deleteFileIfPresent(String path) {

@@ -21,22 +21,21 @@ export function permissionGuard(permission: string): CanActivateFn {
 
     return profiles.ensureAccessLoaded().pipe(map((access) => {
       if (!access) {
-        return router.createUrlTree(['/']);
+        return router.createUrlTree(['/forbidden']);
       }
       return profiles.hasPermission(permission)
         ? true
-        : router.createUrlTree(['/']);
+        : router.createUrlTree(['/forbidden']);
     }));
   };
 }
 
 export const contentManageGuard = permissionGuard('content.manage');
-export const auditLogGuard = permissionGuard('system.audit');
-
+export const statsViewGuard = permissionGuard('stats.view');
 /** Composite backend decision: content.manage OR active group leadership OR SYSTEM_ADMIN. */
 export const announcementPublisherGuard: CanActivateFn = () => {
   const profiles = inject(UserProfileService);
   const router = inject(Router);
   return profiles.ensureAccessLoaded().pipe(map((access) =>
-    access?.can_publish_announcement === true ? true : router.createUrlTree(['/'])));
+    access?.can_publish_announcement === true ? true : router.createUrlTree(['/forbidden'])));
 };

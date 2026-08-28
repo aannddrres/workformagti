@@ -9,6 +9,7 @@ import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.Team;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.domain.UserPermissionOverride;
+import ge.magti.portal.org.OrgDirectoryQueryService;
 import ge.magti.portal.repository.LeadershipAssignmentRepository;
 import ge.magti.portal.repository.TeamRepository;
 import ge.magti.portal.repository.UserPermissionOverrideRepository;
@@ -22,6 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -94,6 +97,28 @@ class PolicyLayerTest {
     }
 
     @Test
+    void managerHomeTeamIsTheOnlyExportScopeAndTemporaryTeamsStayInteractiveOnly() {
+        User manager = user(91L, Role.MANAGER);
+        manager.setTeamId(10L);
+        LeadershipAssignment acting = leads(manager.getId(), 20L, null);
+        acting.setAssignmentType(AssignmentType.ACTING);
+        Team home = team(10L, 1L);
+        home.setActive(true);
+        Team temporary = team(20L, 1L);
+        temporary.setActive(true);
+        when(assignments.findByUserIdAndActiveTrue(manager.getId())).thenReturn(List.of(acting));
+        when(teams.findAllById(Set.of(10L, 20L))).thenReturn(List.of(home, temporary));
+
+        Scope exportScope = scopeResolver.resolvePrimaryLeadership(manager);
+        assertEquals(Set.of(10L), exportScope.teamIds());
+
+        List<ScopeResolver.LeadershipOption> options = scopeResolver.leadershipOptions(manager);
+        assertEquals(List.of(10L, 20L), options.stream().map(ScopeResolver.LeadershipOption::teamId).toList());
+        assertEquals(AssignmentType.PRIMARY, options.get(0).assignmentType());
+        assertEquals(AssignmentType.ACTING, options.get(1).assignmentType());
+    }
+
+    @Test
     void onlySystemAdminIsUnscoped() {
         assertTrue(scopeResolver.resolve(user(1L, Role.SYSTEM_ADMIN)).unscoped());
         for (Role role : List.of(Role.MANAGER, Role.CONTENT_ADMIN, Role.OPERATOR)) {
@@ -150,6 +175,20 @@ class PolicyLayerTest {
         assertEquals(Set.of(10L), scope.teamIds());
         assertTrue(scope.departmentIds().isEmpty());
         verifyNoInteractions(teams);
+    }
+
+    @Test
+    void productionScopeResolutionUsesTheBoundedPerUserAssignmentSnapshot() {
+        OrgDirectoryQueryService orgDirectory = mock(OrgDirectoryQueryService.class);
+        ScopeResolver bounded = new ScopeResolver(assignments, teams, recorder, orgDirectory);
+        when(orgDirectory.listActiveAssignmentsForUserWithinLimit(1L))
+                .thenReturn(List.of(leads(1L, 10L, null)));
+
+        Scope scope = bounded.resolve(user(1L, Role.MANAGER));
+
+        assertEquals(Set.of(10L), scope.teamIds());
+        verify(orgDirectory).listActiveAssignmentsForUserWithinLimit(1L);
+        verify(assignments, never()).findByUserIdAndActiveTrue(1L);
     }
 
     /** An unplaced person belongs to nobody's scope -- never to everybody's. */
@@ -224,9 +263,19 @@ class PolicyLayerTest {
     /** The case the new rule exists for: content ability without leaving compliance. */
     @Test
     void anOperatorWithContentPermissionsStaysInCompliance() {
-        when(assignments.findByUserIdAndActiveTrue(1L)).thenReturn(List.of());
+        when(assignments.existsByUserIdAndActiveTrue(1L)).thenReturn(false);
 
         assertTrue(eligibility.isEligible(user(1L, Role.OPERATOR)));
+    }
+
+    @Test
+    void activeLeadershipExistenceExcludesAnOperatorWithoutHydratingAssignments() {
+        when(assignments.existsByUserIdAndActiveTrue(1L)).thenReturn(true);
+
+        assertFalse(eligibility.isEligible(user(1L, Role.OPERATOR)));
+
+        verify(assignments).existsByUserIdAndActiveTrue(1L);
+        verify(assignments, never()).findByUserIdAndActiveTrue(1L);
     }
 
     @Test

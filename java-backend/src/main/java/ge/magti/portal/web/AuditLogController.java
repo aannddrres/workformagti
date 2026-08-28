@@ -4,16 +4,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import ge.magti.portal.audit.AuditChainService;
 import ge.magti.portal.audit.AuditLogFilter;
 import ge.magti.portal.audit.AuditLogQueryService;
-import ge.magti.portal.domain.AuditLog;
+import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.export.CsvExportBuilder;
-import ge.magti.portal.repository.AuditLogRepository;
-import ge.magti.portal.repository.UserRepository;
-import ge.magti.portal.security.ManagerScope;
 import ge.magti.portal.security.PermissionChecker;
-import ge.magti.portal.util.TbilisiTime;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +32,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * Mirrors routers/audit_logs.py in full: get_audit_logs (:178-246),
@@ -46,12 +41,9 @@ import java.util.Objects;
  * AuditChainController -> AuditLogController rename that came with this
  * class picking up the other two endpoints.
  *
- * <p>Two distinct access rules coexist here, both ported exactly:
- * {@link #list} uses plain {@code system.audit} (a manager holds it too,
- * but is hard-pinned to their own department -- see {@link #scopeDepartment});
- * {@link #export}, {@link #verify} and {@link #chainHealth} additionally
- * exclude the manager role outright (bulk egress / integrity tooling, not
- * the scoped read view).
+ * <p>Raw audit rows, integrity verification and audit export are deliberately
+ * SYSTEM_ADMIN-only. Managers use the dedicated compliance, reminder and
+ * scoped export surfaces and never receive raw event, IP or session telemetry.
  */
 @RestController
 public class AuditLogController {
@@ -63,18 +55,15 @@ public class AuditLogController {
 
     private final AuditChainService auditChainService;
     private final AuditLogQueryService auditLogQueryService;
-    private final AuditLogRepository auditLogRepository;
+    private final MutationAuditService mutationAuditService;
     private final PermissionChecker permissionChecker;
-    private final UserRepository userRepository;
 
     public AuditLogController(AuditChainService auditChainService, AuditLogQueryService auditLogQueryService,
-            AuditLogRepository auditLogRepository, PermissionChecker permissionChecker,
-            UserRepository userRepository) {
+            MutationAuditService mutationAuditService, PermissionChecker permissionChecker) {
         this.auditChainService = auditChainService;
         this.auditLogQueryService = auditLogQueryService;
-        this.auditLogRepository = auditLogRepository;
+        this.mutationAuditService = mutationAuditService;
         this.permissionChecker = permissionChecker;
-        this.userRepository = userRepository;
     }
 
     @GetMapping("/api/audit-logs")
@@ -89,13 +78,13 @@ public class AuditLogController {
             @RequestParam(defaultValue = "50") int limit,
             @RequestParam(defaultValue = "0") int offset,
             @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireSystemAudit(user);
+        ResponseEntity<Map<String, String>> denial = requireSystemAdmin(user);
         if (denial != null) {
             return denial;
         }
 
         int clampedLimit = Math.max(1, Math.min(limit, 200));
-        List<String> scopeDepartments = scopeDepartments(user);
+        List<String> scopeDepartments = null;
         AuditLogFilter filter = new AuditLogFilter(startDate, endDate, userId, userName, action, category, q);
 
         AuditLogQueryService.Page page = auditLogQueryService.list(filter, scopeDepartments, clampedLimit, offset);
@@ -111,7 +100,6 @@ public class AuditLogController {
         metaFilters.put("offset", offset);
         metaFilters.put("limit", clampedLimit);
         metaFilters.put("result_count", page.rows().size());
-        metaFilters.put("scope_department", scopeDepartments == null ? null : String.join(", ", scopeDepartments));
         writeMetaAudit(user, "VIEW_AUDIT_LOG", metaFilters);
 
         return ResponseEntity.ok()
@@ -141,7 +129,7 @@ public class AuditLogController {
             @RequestParam(required = false) String q,
             @AuthenticationPrincipal User user,
             HttpServletResponse httpResponse) throws IOException {
-        ResponseEntity<Map<String, String>> denial = requireSystemAuditNonManager(user);
+        ResponseEntity<Map<String, String>> denial = requireSystemAdmin(user);
         if (denial != null) {
             httpResponse.setStatus(denial.getStatusCode().value());
             httpResponse.setContentType(MediaType.APPLICATION_JSON_VALUE);
@@ -187,7 +175,7 @@ public class AuditLogController {
 
     @GetMapping("/api/audit-logs/{id}/verify")
     public ResponseEntity<?> verify(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireSystemAuditNonManager(user);
+        ResponseEntity<Map<String, String>> denial = requireSystemAdmin(user);
         if (denial != null) {
             return denial;
         }
@@ -200,43 +188,11 @@ public class AuditLogController {
     @GetMapping("/api/audit-logs/chain-health")
     public ResponseEntity<?> chainHealth(
             @RequestParam(defaultValue = "100") int n, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireSystemAuditNonManager(user);
+        ResponseEntity<Map<String, String>> denial = requireSystemAdmin(user);
         if (denial != null) {
             return denial;
         }
         return ResponseEntity.ok(auditChainService.chainHealth(n));
-    }
-
-    /**
-     * The department strings a caller's audit-log view is pinned to.
-     * {@code null} = unrestricted (system_admin, content_admin); an empty
-     * list = pinned to nothing, i.e. no rows.
-     *
-     * <p>Was a single exact-match string, with two problems fixed together
-     * (audit SEC-13). It under-included a parent-department manager
-     * ("ტექნიკური") to zero rows while their operators sit in
-     * "ტექნიკური — ჯგუფი 03"; and a manager whose {@code department} was
-     * null returned null from here, which this method's own caller reads as
-     * <i>unrestricted</i> -- so the least well-defined account got the
-     * widest view. Both follow from {@link ManagerScope}: the visible users
-     * are resolved with the prefix-aware rule, their departments are what
-     * the query pins to, and an unassigned manager resolves to an empty
-     * list rather than to null.
-     *
-     * <p>Pins to the resolved departments rather than to the resolved user
-     * ids on purpose: the set is a handful of strings regardless of
-     * headcount, where an id list would grow with the team and run at
-     * Oracle's 1000-element {@code IN} limit.
-     */
-    private List<String> scopeDepartments(User user) {
-        if (!ManagerScope.isDepartmentScoped(user)) {
-            return null;
-        }
-        return ManagerScope.visibleActiveUsers(userRepository.findByActiveTrue(), user).stream()
-                .map(User::getDepartment)
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
     }
 
     /**
@@ -254,39 +210,22 @@ public class AuditLogController {
                     nonEmpty.put(entry.getKey(), value);
                 }
             }
-            AuditLog metaLog = new AuditLog();
-            metaLog.setAdminId(actor.getId());
-            metaLog.setAction(action);
-            metaLog.setItemType("audit_log");
-            metaLog.setItemId(actor.getId());
-            metaLog.setTimestamp(TbilisiTime.now());
-            metaLog.setDetails(META_AUDIT_MAPPER.writeValueAsString(nonEmpty));
-            auditLogRepository.save(metaLog);
+            mutationAuditService.recordSuccess(
+                    actor, action, "audit_log", actor.getId(), "Audit trail",
+                    null, nonEmpty);
         } catch (Exception e) {
             logger.error("Failed to write meta-audit row for {} by adminId={}", action, actor.getId(), e);
         }
     }
 
-    private ResponseEntity<Map<String, String>> requireSystemAudit(User user) {
+    private ResponseEntity<Map<String, String>> requireSystemAdmin(User user) {
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("detail", "Could not validate credentials"));
         }
-        if (!permissionChecker.hasPermission(user, Permission.SYSTEM_AUDIT)) {
+        if (user.getRole() != Role.SYSTEM_ADMIN) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
-        }
-        return null;
-    }
-
-    private ResponseEntity<Map<String, String>> requireSystemAuditNonManager(User user) {
-        ResponseEntity<Map<String, String>> denial = requireSystemAudit(user);
-        if (denial != null) {
-            return denial;
-        }
-        if (user.getRole() == Role.MANAGER) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("detail", "ეს ფუნქცია ხელმისაწვდომია მხოლოდ ადმინისტრატორებისთვის"));
+                    .body(Map.of("detail", "ეს ფუნქცია ხელმისაწვდომია მხოლოდ სისტემური ადმინისტრატორისთვის"));
         }
         return null;
     }

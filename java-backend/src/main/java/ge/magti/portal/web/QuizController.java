@@ -1,20 +1,19 @@
 package ge.magti.portal.web;
 
+import ge.magti.portal.article.ArticleTargetQueryService;
+import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.domain.Article;
-import ge.magti.portal.domain.ArticleTargetDepartment;
-import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.QuizAnswer;
 import ge.magti.portal.domain.QuizAttempt;
 import ge.magti.portal.domain.QuizQuestion;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.User;
+import ge.magti.portal.query.CompleteResultGuard;
 import ge.magti.portal.quiz.KnowledgeScoreResult;
 import ge.magti.portal.quiz.KnowledgeScoreService;
 import ge.magti.portal.quiz.QuizGradeResult;
 import ge.magti.portal.quiz.QuizGrader;
 import ge.magti.portal.repository.ArticleRepository;
-import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
-import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.QuizAnswerRepository;
 import ge.magti.portal.repository.QuizAttemptRepository;
 import ge.magti.portal.repository.QuizQuestionRepository;
@@ -33,6 +32,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -60,29 +60,29 @@ public class QuizController {
     private static final String ARTICLE_NOT_FOUND_DETAIL = "სტატია ვერ მოიძებნა";
 
     private final ArticleRepository articleRepository;
-    private final ArticleTargetDepartmentRepository targetDepartmentRepository;
+    private final ArticleTargetQueryService articleTargetQueryService;
     private final QuizQuestionRepository quizQuestionRepository;
     private final QuizAnswerRepository quizAnswerRepository;
     private final QuizAttemptRepository quizAttemptRepository;
-    private final AuditLogRepository auditLogRepository;
+    private final MutationAuditService mutationAuditService;
     private final KnowledgeScoreService knowledgeScoreService;
     private final PermissionChecker permissionChecker;
 
     public QuizController(
             ArticleRepository articleRepository,
-            ArticleTargetDepartmentRepository targetDepartmentRepository,
+            ArticleTargetQueryService articleTargetQueryService,
             QuizQuestionRepository quizQuestionRepository,
             QuizAnswerRepository quizAnswerRepository,
             QuizAttemptRepository quizAttemptRepository,
-            AuditLogRepository auditLogRepository,
+            MutationAuditService mutationAuditService,
             KnowledgeScoreService knowledgeScoreService,
             PermissionChecker permissionChecker) {
         this.articleRepository = articleRepository;
-        this.targetDepartmentRepository = targetDepartmentRepository;
+        this.articleTargetQueryService = articleTargetQueryService;
         this.quizQuestionRepository = quizQuestionRepository;
         this.quizAnswerRepository = quizAnswerRepository;
         this.quizAttemptRepository = quizAttemptRepository;
-        this.auditLogRepository = auditLogRepository;
+        this.mutationAuditService = mutationAuditService;
         this.knowledgeScoreService = knowledgeScoreService;
         this.permissionChecker = permissionChecker;
     }
@@ -115,15 +115,23 @@ public class QuizController {
         if (questions == null || questions.isEmpty()) {
             return unprocessable("ქვიზს უნდა ჰქონდეს მინიმუმ ერთი კითხვა");
         }
+        CompleteResultGuard.enforceSize(questions.size());
+        long totalAnswers = 0;
         for (QuizQuestionAdminDto question : questions) {
             if (question.answers() == null || question.answers().size() < 2) {
                 return unprocessable("ყოველ კითხვას უნდა ჰქონდეს მინიმუმ 2 პასუხი");
+            }
+            totalAnswers += question.answers().size();
+            if (totalAnswers > CompleteResultGuard.MAX_ROWS) {
+                throw new CompleteResultGuard.CompleteResultCardinalityExceededException();
             }
             long correctCount = question.answers().stream().filter(QuizAnswerAdminDto::isCorrect).count();
             if (correctCount != 1) {
                 return unprocessable("ყოველ კითხვას უნდა ჰქონდეს ზუსტად ერთი სწორი პასუხი");
             }
         }
+
+        Map<String, Object> before = quizSnapshot(id);
 
         // Full replace: delete existing questions (cascades to answers at
         // the DB level -- quiz_answers.question_id is ON DELETE CASCADE),
@@ -149,15 +157,29 @@ public class QuizController {
             }
         }
 
-        AuditLog entry = new AuditLog();
-        entry.setAdminId(user.getId());
-        entry.setAction("UPDATE_QUIZ");
-        entry.setItemType("article");
-        entry.setItemId(id);
-        entry.setTimestamp(TbilisiTime.now());
-        auditLogRepository.save(entry);
+        quizQuestionRepository.flush();
+        quizAnswerRepository.flush();
+        mutationAuditService.recordSuccess(
+                user, "UPDATE_QUIZ", "article", id, "Article quiz #" + id,
+                before, quizSnapshot(id));
 
         return ResponseEntity.ok(buildAdminQuizView(id));
+    }
+
+    private Map<String, Object> quizSnapshot(Long articleId) {
+        List<QuizQuestion> questions = CompleteResultGuard.enforce(
+                quizQuestionRepository.findByArticleIdOrderByPosition(
+                        articleId, CompleteResultGuard.sentinelPage()));
+        List<Long> questionIds = questions.stream().map(QuizQuestion::getId).toList();
+        List<QuizAnswer> answers = questionIds.isEmpty()
+                ? List.of() : CompleteResultGuard.enforce(
+                        quizAnswerRepository.findByQuestionIdIn(
+                                questionIds, CompleteResultGuard.sentinelPage()));
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("question_count", questions.size());
+        snapshot.put("answer_count", answers.size());
+        snapshot.put("correct_answer_count", answers.stream().filter(QuizAnswer::isCorrect).count());
+        return snapshot;
     }
 
     @GetMapping("/api/articles/{id}/quiz")
@@ -229,7 +251,10 @@ public class QuizController {
         attempt.setTotalQuestions(grade.totalQuestions());
         attempt.setPassed(grade.passed());
         attempt.setCreatedAt(TbilisiTime.now());
-        quizAttemptRepository.save(attempt);
+        QuizAttempt savedAttempt = quizAttemptRepository.saveAndFlush(attempt);
+        mutationAuditService.recordSuccess(
+                user, "SUBMIT_QUIZ_ATTEMPT", "quiz_attempt", savedAttempt.getId(),
+                article.getTitle(), null, MutationAuditService.quizAttemptSnapshot(savedAttempt));
 
         return ResponseEntity.ok(new QuizAttemptResultResponse(
                 grade.passed(), grade.score(), grade.totalQuestions(), grade.wrongQuestionIds(), attemptNumber));
@@ -266,12 +291,16 @@ public class QuizController {
     // personal score above stays -- it is the caller's own data.
 
     private List<QuizQuestion> loadQuestionsWithAnswers(Long articleId) {
-        List<QuizQuestion> questions = quizQuestionRepository.findByArticleIdOrderByPosition(articleId);
+        List<QuizQuestion> questions = CompleteResultGuard.enforce(
+                quizQuestionRepository.findByArticleIdOrderByPosition(
+                        articleId, CompleteResultGuard.sentinelPage()));
         if (questions.isEmpty()) {
             return questions;
         }
         Set<Long> questionIds = questions.stream().map(QuizQuestion::getId).collect(Collectors.toSet());
-        Map<Long, List<QuizAnswer>> answersByQuestion = quizAnswerRepository.findByQuestionIdIn(questionIds).stream()
+        Map<Long, List<QuizAnswer>> answersByQuestion = CompleteResultGuard.enforce(
+                        quizAnswerRepository.findByQuestionIdIn(
+                                questionIds, CompleteResultGuard.sentinelPage())).stream()
                 .collect(Collectors.groupingBy(QuizAnswer::getQuestionId));
         questions.forEach(q -> q.setAnswers(answersByQuestion.getOrDefault(q.getId(), List.of())));
         return questions;
@@ -289,9 +318,8 @@ public class QuizController {
         if (user.getRole().isContentAdmin()) {
             return null;
         }
-        List<String> targetDepartments = targetDepartmentRepository.findByArticleId(article.getId()).stream()
-                .map(ArticleTargetDepartment::getDepartment)
-                .toList();
+        List<String> targetDepartments =
+                articleTargetQueryService.targetDepartmentsForArticleWithinLimit(article.getId());
         if (!DepartmentMatcher.matches(user.getDepartment(), targetDepartments)) {
             return articleNotFoundMap();
         }

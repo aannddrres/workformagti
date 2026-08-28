@@ -94,6 +94,16 @@ describe('UserEditModal permission lock reasons', () => {
     expect(nonDefaults.every((o: any) => !o.effective && !o.disabled)).toBe(true);
   });
 
+  it('offers stats.view as an independent non-default grant', () => {
+    const component = modalFor('content_admin');
+    const statsView = allOptions(component).find((o: any) => o.value === 'stats.view');
+
+    expect(statsView).toBeDefined();
+    expect(statsView.inherited).toBe(false);
+    expect(statsView.effective).toBe(false);
+    expect(statsView.disabled).toBe(false);
+  });
+
   it('applies an explicit DENY above a content-admin role default', () => {
     const component = modalFor('content_admin', [{ permission: 'content.manage', state: 'DENY' }]);
     const contentManage = allOptions(component).find((o: any) => o.value === 'content.manage');

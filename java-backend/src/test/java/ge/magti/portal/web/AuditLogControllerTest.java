@@ -2,11 +2,9 @@ package ge.magti.portal.web;
 
 import ge.magti.portal.audit.AuditChainService;
 import ge.magti.portal.audit.AuditLogQueryService;
-import ge.magti.portal.domain.Permission;
+import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
-import ge.magti.portal.repository.AuditLogRepository;
-import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.PermissionChecker;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -24,26 +22,22 @@ import static org.mockito.Mockito.when;
 /**
  * Fast, DB-free proof of the authorization branching mirrored from
  * security.py's get_current_user/require_permission: the three failure
- * modes (no token, missing permission, permission-but-excluded-role) in
- * that exact order, each with its exact source detail text, plus the
- * pass-through case. The slower, real-Oracle wiring proof (does
+ * modes (no token and non-system-admin role) plus the pass-through case.
+ * The slower, real-Oracle wiring proof (does
  * {@code @AuthenticationPrincipal} really resolve through the actual
  * filter chain) lives in AuditLogControllerIntegrationTest.
  *
- * <p>Only exercises verify/chainHealth's requireSystemAuditNonManager
- * branching -- list/export's plain requireSystemAudit (no manager
- * exclusion) is covered by the integration test instead, since it needs a
- * real scoped-department query to be meaningful.
+ * Raw audit is a role-only SYSTEM_ADMIN boundary rather than a grantable
+ * capability.
  */
 class AuditLogControllerTest {
 
     private final PermissionChecker permissionChecker = new PermissionChecker();
     private final AuditChainService auditChainService = mock(AuditChainService.class);
     private final AuditLogQueryService auditLogQueryService = mock(AuditLogQueryService.class);
-    private final AuditLogRepository auditLogRepository = mock(AuditLogRepository.class);
-    private final UserRepository userRepository = mock(UserRepository.class);
+    private final MutationAuditService mutationAuditService = mock(MutationAuditService.class);
     private final AuditLogController controller = new AuditLogController(
-            auditChainService, auditLogQueryService, auditLogRepository, permissionChecker, userRepository);
+            auditChainService, auditLogQueryService, mutationAuditService, permissionChecker);
 
     private static User userWith(Role role, Set<String> permissions) {
         User user = new User();
@@ -61,26 +55,23 @@ class AuditLogControllerTest {
     }
 
     @Test
-    void userWithoutThePermissionIsForbiddenWithTheInsufficientPermissionsMessage() {
+    void operatorIsForbiddenByTheSystemAdminOnlyBoundary() {
         User operator = userWith(Role.OPERATOR, Set.of());
 
         ResponseEntity<?> response = controller.verify(1L, operator);
 
         assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
-        assertEquals(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"), response.getBody());
+        assertEquals(Map.of("detail", "ეს ფუნქცია ხელმისაწვდომია მხოლოდ სისტემური ადმინისტრატორისთვის"), response.getBody());
     }
 
     @Test
-    void managerWithThePermissionIsStillForbiddenWithTheAdminsOnlyMessage() {
-        // A manager who somehow holds system.audit (e.g. the scoped list
-        // view's grant) must still be denied THIS tool specifically --
-        // the exact carve-out security.py's exclude_roles documents.
-        User manager = userWith(Role.MANAGER, Set.of(Permission.SYSTEM_AUDIT.value()));
+    void managerIsForbiddenFromRawAudit() {
+        User manager = userWith(Role.MANAGER, Set.of());
 
         ResponseEntity<?> response = controller.chainHealth(100, manager);
 
         assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
-        assertEquals(Map.of("detail", "ეს ფუნქცია ხელმისაწვდომია მხოლოდ ადმინისტრატორებისთვის"), response.getBody());
+        assertEquals(Map.of("detail", "ეს ფუნქცია ხელმისაწვდომია მხოლოდ სისტემური ადმინისტრატორისთვის"), response.getBody());
     }
 
     @Test
@@ -96,15 +87,12 @@ class AuditLogControllerTest {
     }
 
     @Test
-    void contentAdminWithThePermissionReachesTheService() {
-        User contentAdmin = userWith(Role.CONTENT_ADMIN, Set.of(Permission.SYSTEM_AUDIT.value()));
-        when(auditChainService.chainHealth(any(Integer.class))).thenReturn(
-                new AuditChainHealthResponse("ok", 5, 100, 0, 0, java.util.List.of(), 0));
+    void contentAdminIsForbiddenFromRawAudit() {
+        User contentAdmin = userWith(Role.CONTENT_ADMIN, Set.of());
 
         ResponseEntity<?> response = controller.chainHealth(100, contentAdmin);
 
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals("ok", ((AuditChainHealthResponse) response.getBody()).status());
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
     }
 
     @Test

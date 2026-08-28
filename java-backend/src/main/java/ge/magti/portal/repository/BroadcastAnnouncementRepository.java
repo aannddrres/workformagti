@@ -9,6 +9,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 
 public interface BroadcastAnnouncementRepository extends JpaRepository<BroadcastAnnouncement, Long> {
-    List<BroadcastAnnouncement> findByEndedAtIsNullAndEndsAtAfterOrderByPublishedAtDesc(OffsetDateTime now);
+    List<BroadcastAnnouncement> findByEndedAtIsNullAndEndsAtAfterOrderByPublishedAtDesc(
+            OffsetDateTime now, Pageable pageable);
     Page<BroadcastAnnouncement> findAllByOrderByPublishedAtDesc(Pageable pageable);
 }

@@ -47,13 +47,24 @@ import java.util.stream.Stream;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String ACCESS_TOKEN_COOKIE = "access_token";
+    public static final String SESSION_REQUEST_ATTRIBUTE = "portal.session_id";
 
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final PortalSessionService sessionService;
 
-    public JwtAuthenticationFilter(JwtService jwtService, UserRepository userRepository) {
+    @org.springframework.beans.factory.annotation.Autowired
+    public JwtAuthenticationFilter(
+            JwtService jwtService, UserRepository userRepository, PortalSessionService sessionService) {
         this.jwtService = jwtService;
         this.userRepository = userRepository;
+        this.sessionService = sessionService;
+    }
+
+    /** Keeps the DB-free filter tests focused on JWT validation. Browser
+     * session enforcement is covered by the integration/session tests. */
+    JwtAuthenticationFilter(JwtService jwtService, UserRepository userRepository) {
+        this(jwtService, userRepository, null);
     }
 
     @Override
@@ -77,6 +88,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // one, and end up unauthenticated if there is none.
                 continue;
             }
+            String sessionId = claims.get().get(JwtService.SESSION_ID_CLAIM, String.class);
+            if (sessionId != null && sessionService != null
+                    && !sessionService.validateAndTouch(sessionId, user.get().getId())) {
+                continue;
+            }
+            if (sessionId == null && isCookieToken(request, token)) {
+                // Browser cookies are always session-bound. Only explicit
+                // bearer tokens without sid remain available for integration
+                // clients and test automation.
+                continue;
+            }
             if (!user.get().isActive()) {
                 // Mirrors get_current_user raising 403 immediately for a
                 // deactivated account, even though the token itself is
@@ -86,6 +108,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 return;
             }
             authenticate(user.get());
+            if (sessionId != null) {
+                request.setAttribute(SESSION_REQUEST_ATTRIBUTE, sessionId);
+            }
             break;
         }
         filterChain.doFilter(request, response);
@@ -125,5 +150,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         return Stream.of(bearerToken, cookieToken).filter(Objects::nonNull).toList();
+    }
+
+    private boolean isCookieToken(HttpServletRequest request, String token) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) return false;
+        for (Cookie cookie : cookies) {
+            if (ACCESS_TOKEN_COOKIE.equals(cookie.getName()) && token.equals(cookie.getValue())) return true;
+        }
+        return false;
     }
 }

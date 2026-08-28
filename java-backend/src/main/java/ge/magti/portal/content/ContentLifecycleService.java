@@ -1,8 +1,7 @@
 package ge.magti.portal.content;
 
-import ge.magti.portal.domain.AuditLog;
+import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.domain.User;
-import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.util.TbilisiTime;
 import jakarta.persistence.EntityManager;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -13,9 +12,11 @@ import java.sql.Clob;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -39,18 +40,21 @@ public class ContentLifecycleService {
 
     private final JdbcTemplate jdbcTemplate;
     private final ContentDeletionService contentDeletionService;
-    private final AuditLogRepository auditLogRepository;
+    private final MutationAuditService contentMutationAuditService;
     private final EntityManager entityManager;
+    private final LegalHoldAuthority legalHoldAuthority;
 
     public ContentLifecycleService(
             JdbcTemplate jdbcTemplate,
             ContentDeletionService contentDeletionService,
-            AuditLogRepository auditLogRepository,
-            EntityManager entityManager) {
+            MutationAuditService contentMutationAuditService,
+            EntityManager entityManager,
+            LegalHoldAuthority legalHoldAuthority) {
         this.jdbcTemplate = jdbcTemplate;
         this.contentDeletionService = contentDeletionService;
-        this.auditLogRepository = auditLogRepository;
+        this.contentMutationAuditService = contentMutationAuditService;
         this.entityManager = entityManager;
+        this.legalHoldAuthority = legalHoldAuthority;
     }
 
     public enum Status {
@@ -59,7 +63,8 @@ public class ContentLifecycleService {
         NOT_ARCHIVED,
         RECOVERY_EXPIRED,
         PURGE_NOT_DUE,
-        LEGAL_HOLD
+        LEGAL_HOLD,
+        NOT_AUTHORIZED
     }
 
     public enum ItemType {
@@ -134,7 +139,7 @@ public class ContentLifecycleService {
         OffsetDateTime trashedAt = TbilisiTime.now();
         OffsetDateTime purgeAfter = trashedAt.plusDays(RECOVERY_DAYS);
         int updated = jdbcTemplate.update("UPDATE " + type.tableName()
-                        + " SET trashed_at = ?, purge_after = ?, trashed_by = ?, legal_hold = 0"
+                        + " SET trashed_at = ?, purge_after = ?, trashed_by = ?"
                         + " WHERE id = ? AND trashed_at IS NULL",
                 Timestamp.valueOf(trashedAt.toLocalDateTime()),
                 Timestamp.valueOf(purgeAfter.toLocalDateTime()), actor.getId(), itemId);
@@ -143,7 +148,10 @@ public class ContentLifecycleService {
         }
 
         trashUnreferencedFiles(payload.filenames(), actor.getId(), trashedAt, purgeAfter);
-        writeAudit(actor, "TRASH", type, itemId, payload.title());
+        contentMutationAuditService.recordSuccess(
+                actor, "TRASH", type.wireName(), itemId, payload.title(),
+                lifecycleSnapshot(payload, false, null, payload.legalHold(), "ACTIVE"),
+                lifecycleSnapshot(payload, true, purgeAfter, payload.legalHold(), "TRASHED"));
         return Status.OK;
     }
 
@@ -153,26 +161,68 @@ public class ContentLifecycleService {
         if (payload == null) {
             return Status.NOT_FOUND;
         }
+        if (payload.legalHold()) {
+            return Status.LEGAL_HOLD;
+        }
         OffsetDateTime now = TbilisiTime.now();
         if (!payload.purgeAfter().isAfter(now)) {
             return Status.RECOVERY_EXPIRED;
         }
 
         int updated = jdbcTemplate.update("UPDATE " + type.tableName()
-                        + " SET trashed_at = NULL, purge_after = NULL, trashed_by = NULL, legal_hold = 0"
-                        + " WHERE id = ? AND trashed_at IS NOT NULL",
+                        + " SET trashed_at = NULL, purge_after = NULL, trashed_by = NULL"
+                        + " WHERE id = ? AND trashed_at IS NOT NULL AND legal_hold = 0",
                 itemId);
+        if (updated != 1) {
+            return Status.LEGAL_HOLD;
+        }
+        restoreFiles(payload.filenames());
+        contentMutationAuditService.recordSuccess(
+                actor, "RESTORE_FROM_TRASH", type.wireName(), itemId, payload.title(),
+                lifecycleSnapshot(payload, true, payload.purgeAfter(), payload.legalHold(), "TRASHED"),
+                lifecycleSnapshot(payload, false, null, payload.legalHold(), "ACTIVE"));
+        return Status.OK;
+    }
+
+    /**
+     * Sets or releases a hold only on recoverable trash. The authority check
+     * lives in the service as well as the HTTP boundary so internal callers
+     * cannot bypass the externally approved named-identity policy.
+     */
+    @Transactional
+    public Status changeLegalHold(ItemType type, Long itemId, boolean hold, User actor) {
+        if (!legalHoldAuthority.canManage(actor)) {
+            return Status.NOT_AUTHORIZED;
+        }
+        Payload payload = loadPayload(type, itemId, true, true);
+        if (payload == null) {
+            return Status.NOT_FOUND;
+        }
+        if (payload.legalHold() == hold) {
+            return Status.OK;
+        }
+
+        int updated = jdbcTemplate.update("UPDATE " + type.tableName()
+                        + " SET legal_hold = ? WHERE id = ? AND trashed_at IS NOT NULL AND legal_hold = ?",
+                hold ? 1 : 0, itemId, payload.legalHold() ? 1 : 0);
         if (updated != 1) {
             return Status.NOT_FOUND;
         }
-        restoreFiles(payload.filenames());
-        writeAudit(actor, "RESTORE_FROM_TRASH", type, itemId, payload.title());
+
+        contentMutationAuditService.recordSuccess(
+                actor, hold ? "SET_LEGAL_HOLD" : "RELEASE_LEGAL_HOLD",
+                type.wireName(), itemId, payload.title(),
+                lifecycleSnapshot(payload, true, payload.purgeAfter(), payload.legalHold(), "TRASHED"),
+                lifecycleSnapshot(payload, true, payload.purgeAfter(), hold, "TRASHED"));
         return Status.OK;
     }
 
     @Transactional
     public Status purge(ItemType type, Long itemId, User actor) {
-        Payload payload = loadPayload(type, itemId, true);
+        // Serialize purge with legal-hold set/release before touching any
+        // dependent references. The final DELETE remains conditional as a
+        // second fail-closed boundary.
+        Payload payload = loadPayload(type, itemId, true, true);
         if (payload == null) {
             return Status.NOT_FOUND;
         }
@@ -192,44 +242,57 @@ public class ContentLifecycleService {
             return Status.PURGE_NOT_DUE;
         }
         purgeOrphanFiles(payload.filenames());
-        writeAudit(actor, "PURGE", type, itemId, payload.title());
+        contentMutationAuditService.recordSuccess(
+                actor, "PURGE", type.wireName(), itemId, payload.title(),
+                lifecycleSnapshot(payload, true, payload.purgeAfter(), payload.legalHold(), "TRASHED"),
+                lifecycleSnapshot(payload, false, null, false, "PURGED"));
         return Status.OK;
     }
 
     private Payload loadPayload(ItemType type, Long itemId, boolean trashed) {
+        return loadPayload(type, itemId, trashed, false);
+    }
+
+    private Payload loadPayload(ItemType type, Long itemId, boolean trashed, boolean forUpdate) {
         String select = switch (type) {
             case ARTICLE -> "SELECT title, content, attachment_url, "
-                    + "CASE WHEN status = 'archived' THEN 1 ELSE 0 END, purge_after, legal_hold "
+                    + "CASE WHEN status = 'archived' THEN 1 ELSE 0 END, version, purge_after, legal_hold "
                     + "FROM articles WHERE id = ? AND trashed_at IS " + (trashed ? "NOT NULL" : "NULL");
             case NEWS -> "SELECT title, content, attachment_url, "
                     + "CASE WHEN expires_at IS NOT NULL AND expires_at <= ? THEN 1 ELSE 0 END, "
-                    + "purge_after, legal_hold FROM news WHERE id = ? AND trashed_at IS "
+                    + "version, purge_after, legal_hold FROM news WHERE id = ? AND trashed_at IS "
                     + (trashed ? "NOT NULL" : "NULL");
-            case VIDEO -> "SELECT title, CAST(NULL AS VARCHAR2(1)), video_url, is_archived, purge_after, legal_hold "
+            case VIDEO -> "SELECT title, CAST(NULL AS VARCHAR2(1)), video_url, is_archived, "
+                    + "CAST(NULL AS NUMBER), purge_after, legal_hold "
                     + "FROM video_instructions WHERE id = ? AND trashed_at IS " + (trashed ? "NOT NULL" : "NULL");
         };
+        if (forUpdate) {
+            select += " FOR UPDATE";
+        }
         List<Payload> rows;
         if (type == ItemType.NEWS) {
             rows = jdbcTemplate.query(select, ps -> {
                 ps.setTimestamp(1, Timestamp.valueOf(TbilisiTime.now().toLocalDateTime()));
                 ps.setLong(2, itemId);
             }, (rs, rowNum) -> payload(rs.getString(1), clobText(rs.getObject(2)), rs.getString(3),
-                    rs.getInt(4) == 1, rs.getTimestamp(5), rs.getInt(6) == 1));
+                    rs.getInt(4) == 1, rs.getObject(5) == null ? null : rs.getInt(5),
+                    rs.getTimestamp(6), rs.getInt(7) == 1));
         } else {
             rows = jdbcTemplate.query(select, ps -> ps.setLong(1, itemId),
                     (rs, rowNum) -> payload(rs.getString(1), clobText(rs.getObject(2)), rs.getString(3),
-                            rs.getInt(4) == 1, rs.getTimestamp(5), rs.getInt(6) == 1));
+                            rs.getInt(4) == 1, rs.getObject(5) == null ? null : rs.getInt(5),
+                            rs.getTimestamp(6), rs.getInt(7) == 1));
         }
         return rows.isEmpty() ? null : rows.getFirst();
     }
 
     private static Payload payload(
             String title, String content, String directUrl, boolean archived,
-            Timestamp purgeAfter, boolean legalHold) {
+            Integer version, Timestamp purgeAfter, boolean legalHold) {
         Set<String> filenames = new LinkedHashSet<>();
         collectFilenames(content, filenames);
         collectFilenames(directUrl, filenames);
-        return new Payload(title, archived, filenames,
+        return new Payload(title, archived, version, filenames,
                 purgeAfter == null ? null : atTbilisi(purgeAfter), legalHold);
     }
 
@@ -307,22 +370,28 @@ public class ContentLifecycleService {
         return timestamp == null ? null : timestamp.toLocalDateTime().atOffset(TbilisiTime.OFFSET);
     }
 
-    private void writeAudit(User actor, String action, ItemType type, Long itemId, String title) {
-        AuditLog audit = new AuditLog();
-        audit.setAdminId(actor.getId());
-        audit.setAdminNameSnapshot(actor.getName());
-        audit.setAdminEmailSnapshot(actor.getEmail());
-        audit.setAction(action);
-        audit.setItemType(type.wireName());
-        audit.setItemId(itemId);
-        audit.setItemNameSnapshot(title);
-        audit.setTimestamp(TbilisiTime.now());
-        auditLogRepository.save(audit);
+    private static Map<String, Object> lifecycleSnapshot(
+            Payload payload,
+            boolean trashed,
+            OffsetDateTime purgeAfter,
+            boolean legalHold,
+            String lifecycleState) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("title", payload.title());
+        snapshot.put("version", payload.version());
+        snapshot.put("archived", payload.archived());
+        snapshot.put("trashed", trashed);
+        snapshot.put("purge_after", purgeAfter == null ? null : purgeAfter.toString());
+        snapshot.put("legal_hold", legalHold);
+        snapshot.put("attachment_reference_count", payload.filenames().size());
+        snapshot.put("lifecycle_state", lifecycleState);
+        return snapshot;
     }
 
     private record Payload(
             String title,
             boolean archived,
+            Integer version,
             Set<String> filenames,
             OffsetDateTime purgeAfter,
             boolean legalHold) {

@@ -1,14 +1,13 @@
 package ge.magti.portal.web;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import ge.magti.portal.domain.AuditLog;
+import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.domain.ExportJob;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.export.CsvExportBuilder;
 import ge.magti.portal.export.ExportJobWorker;
+import ge.magti.portal.export.LegacyExportJobService;
 import ge.magti.portal.export.ExportQueryService;
 import ge.magti.portal.export.ExportTooLargeException;
 import ge.magti.portal.export.ReadingExportRow;
@@ -16,9 +15,7 @@ import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.ExportJobRepository;
 import ge.magti.portal.security.ManagerScope;
 import ge.magti.portal.security.PermissionChecker;
-import ge.magti.portal.util.TbilisiTime;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import ge.magti.portal.security.ScopeResolver;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -41,7 +38,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.SortedMap;
-import java.util.UUID;
 
 /**
  * Mirrors routers/exports.py's 6 endpoints: the synchronous compliance CSV,
@@ -83,7 +79,7 @@ import java.util.UUID;
  * endpoints pass the caller into {@link ExportQueryService}, which pins a
  * MANAGER to their own department and leaves SYSTEM_ADMIN/CONTENT_ADMIN
  * unscoped. The effective scope is recorded on the audit row -- see
- * {@link #writeAudit}.
+ * {@link #writeInlineAudit}.
  */
 @RestController
 public class ExportController {
@@ -91,24 +87,41 @@ public class ExportController {
     /** Audit-row marker for an export that was not department-scoped (system_admin/content_admin). */
     static final String SCOPE_ALL = "All";
 
-    private static final Logger logger = LoggerFactory.getLogger(ExportController.class);
-    private static final ObjectMapper AUDIT_DETAILS_MAPPER = new ObjectMapper();
-
     private final ExportQueryService exportQueryService;
     private final ExportJobRepository exportJobRepository;
     private final ExportJobWorker exportJobWorker;
-    private final AuditLogRepository auditLogRepository;
+    private final MutationAuditService mutationAuditService;
+    private final LegacyExportJobService exportJobService;
     private final PermissionChecker permissionChecker;
+    private final ScopeResolver scopeResolver;
 
     public ExportController(
             ExportQueryService exportQueryService, ExportJobRepository exportJobRepository,
             ExportJobWorker exportJobWorker, AuditLogRepository auditLogRepository,
             PermissionChecker permissionChecker) {
+        MutationAuditService auditService = new MutationAuditService(auditLogRepository);
         this.exportQueryService = exportQueryService;
         this.exportJobRepository = exportJobRepository;
         this.exportJobWorker = exportJobWorker;
-        this.auditLogRepository = auditLogRepository;
+        this.mutationAuditService = auditService;
+        this.exportJobService = new LegacyExportJobService(exportJobRepository, auditService);
         this.permissionChecker = permissionChecker;
+        this.scopeResolver = null;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ExportController(
+            ExportQueryService exportQueryService, ExportJobRepository exportJobRepository,
+            ExportJobWorker exportJobWorker, MutationAuditService mutationAuditService,
+            LegacyExportJobService exportJobService, PermissionChecker permissionChecker,
+            ScopeResolver scopeResolver) {
+        this.exportQueryService = exportQueryService;
+        this.exportJobRepository = exportJobRepository;
+        this.exportJobWorker = exportJobWorker;
+        this.mutationAuditService = mutationAuditService;
+        this.exportJobService = exportJobService;
+        this.permissionChecker = permissionChecker;
+        this.scopeResolver = scopeResolver;
     }
 
     /** Port of export_readings (routers/exports.py:65-117). */
@@ -118,8 +131,6 @@ public class ExportController {
         if (denial != null) {
             return denial;
         }
-        writeAudit(admin, "EXPORT", "readings");
-
         List<ReadingExportRow> rows;
         try {
             rows = exportQueryService.eligibleReadingRows(admin);
@@ -135,6 +146,7 @@ public class ExportController {
                         r.readAt() != null ? r.readAt().format(fmt) : "N/A"))
                 .toList();
         String csv = CsvExportBuilder.build(headers, tableRows);
+        writeInlineAudit(admin, "EXPORT", "readings", "csv", rows.size());
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=readings_export.csv")
@@ -149,8 +161,6 @@ public class ExportController {
         if (denial != null) {
             return denial;
         }
-        writeAudit(admin, "EXPORT_XLSX", "readings");
-
         List<ReadingExportRow> rows;
         try {
             rows = exportQueryService.eligibleReadingRows(admin);
@@ -162,7 +172,8 @@ public class ExportController {
                 "თანამშრომელი", "დეპარტამენტი", "მასალის ტიპი", "მასალის ID", "სტატუსი", "წაკითხვის თარიღი", "ვადა");
         List<List<Object>> tableRows = readingRowsForSpreadsheet(rows);
 
-        String jobId = enqueueJob(admin, tableRows, headers, "Compliance", "xlsx");
+        String jobId = enqueueJob(
+                admin, tableRows, headers, "Compliance", "xlsx", "EXPORT_XLSX", "readings");
         return ResponseEntity.ok(new ExportJobResponse(jobId));
     }
 
@@ -173,8 +184,6 @@ public class ExportController {
         if (denial != null) {
             return denial;
         }
-        writeAudit(user, "EXPORT_PDF", "readings");
-
         List<ReadingExportRow> rows;
         try {
             rows = exportQueryService.eligibleReadingRows(user);
@@ -185,7 +194,8 @@ public class ExportController {
         List<String> headers = List.of("თანამშრომელი", "დეპარტამენტი", "ტიპი", "ID", "სტატუსი", "წაკითხვა", "ვადა");
         List<List<Object>> tableRows = readingRowsForSpreadsheet(rows);
 
-        String jobId = enqueueJob(user, tableRows, headers, "სავალდებულოდ გასაცნობი სტატუსი", "pdf");
+        String jobId = enqueueJob(
+                user, tableRows, headers, "სავალდებულოდ გასაცნობი სტატუსი", "pdf", "EXPORT_PDF", "readings");
         return ResponseEntity.ok(new ExportJobResponse(jobId));
     }
 
@@ -196,8 +206,6 @@ public class ExportController {
         if (denial != null) {
             return denial;
         }
-        writeAudit(user, "EXPORT_PDF", "team_stats");
-
         SortedMap<String, int[]> byDept = exportQueryService.departmentComplianceTotals(user);
         List<String> headers = List.of("დეპარტამენტი", "სულ მიკუთვნებული", "წაკითხული", "%");
         List<List<Object>> tableRows = new ArrayList<>();
@@ -207,7 +215,9 @@ public class ExportController {
             tableRows.add(List.of(entry.getKey(), String.valueOf(total), String.valueOf(read), formatPercent(read, total)));
         }
 
-        String jobId = enqueueJob(user, tableRows, headers, "გუნდის სტატისტიკა — წაკითხვის პროცენტი", "pdf");
+        String jobId = enqueueJob(
+                user, tableRows, headers, "გუნდის სტატისტიკა — წაკითხვის პროცენტი", "pdf",
+                "EXPORT_PDF", "team_stats");
         return ResponseEntity.ok(new ExportJobResponse(jobId));
     }
 
@@ -336,15 +346,10 @@ public class ExportController {
     }
 
     private String enqueueJob(
-            User owner, List<List<Object>> rows, List<String> headers, String title, String exportType) {
-        String jobId = UUID.randomUUID().toString();
-        ExportJob job = new ExportJob();
-        job.setId(jobId);
-        job.setOwnerUserId(owner == null ? null : owner.getId());
-        job.setStatus("processing");
-        job.setPath(null);
-        job.setExpiresAt(System.currentTimeMillis() / 1000.0 + ExportJobWorker.EXPORT_JOB_TTL_SECONDS);
-        exportJobRepository.saveAndFlush(job);
+            User owner, List<List<Object>> rows, List<String> headers, String title,
+            String exportType, String action, String itemType) {
+        String jobId = exportJobService.register(
+                owner, action, itemType, title, exportType, rows.size(), scopeDepartment(owner));
         exportJobWorker.buildAndStore(jobId, title, headers, rows, exportType);
         return jobId;
     }
@@ -358,37 +363,21 @@ public class ExportController {
      * {@link AuditLogController} already writes, so both bulk-egress paths
      * are greppable as one.
      */
-    private void writeAudit(User actor, String action, String itemType) {
-        AuditLog audit = new AuditLog();
-        audit.setAdminId(actor.getId());
-        audit.setAction(action);
-        audit.setItemType(itemType);
-        audit.setItemId(0L);
-        audit.setTimestamp(TbilisiTime.now());
-        audit.setDetails(scopeDetails(actor));
-        auditLogRepository.save(audit);
+    private void writeInlineAudit(
+            User actor, String action, String itemType, String exportFormat, int rowCount) {
+        Map<String, Object> after = new LinkedHashMap<>();
+        after.put("export_format", exportFormat);
+        after.put("scope_department", scopeDepartment(actor));
+        after.put("row_count", rowCount);
+        after.put("delivery", "INLINE");
+        mutationAuditService.recordSuccess(actor, action, itemType, 0L, itemType, null, after);
     }
 
-    /**
-     * {@code {"scope_department": "..."}} -- the literal department string for
-     * every scoped non-admin caller, {@link #SCOPE_ALL} only for SYSTEM_ADMIN. Written through
-     * Jackson rather than string concatenation because {@code department} is
-     * free text out of the DB. A serialization failure must not block an
-     * export the caller is entitled to, so it degrades to a null
-     * {@code details} and a logged error, matching
-     * {@code AuditLogController.writeMetaAudit}'s best-effort contract.
-     */
-    private static String scopeDetails(User actor) {
-        LinkedHashMap<String, Object> details = new LinkedHashMap<>();
-        details.put("scope_department", ExportQueryService.isDepartmentScoped(actor)
+    /** Literal effective department for a scoped caller, otherwise {@link #SCOPE_ALL}. */
+    private static String scopeDepartment(User actor) {
+        return ExportQueryService.isDepartmentScoped(actor)
                 ? ExportQueryService.scopeDepartmentFor(actor)
-                : SCOPE_ALL);
-        try {
-            return AUDIT_DETAILS_MAPPER.writeValueAsString(details);
-        } catch (JsonProcessingException e) {
-            logger.error("Failed to serialize export audit scope for adminId={}", actor.getId(), e);
-            return null;
-        }
+                : SCOPE_ALL;
     }
 
     private static String formatPercent(int read, int total) {
@@ -463,8 +452,10 @@ public class ExportController {
         }
         // One response for both, deliberately: a caller must not be able to
         // tell "you lack the permission" from "you lead nobody" by probing.
-        if (!permissionChecker.hasPermission(user, Permission.REPORTS_EXPORT)
-                || !ManagerScope.holdsEmployeeDataScope(user)) {
+        boolean hasDataScope = scopeResolver == null
+                ? ManagerScope.holdsEmployeeDataScope(user)
+                : scopeResolver.hasPrimaryLeadership(user);
+        if (!permissionChecker.hasPermission(user, Permission.REPORTS_EXPORT) || !hasDataScope) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
         }

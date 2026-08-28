@@ -3,6 +3,7 @@ import { DatePipe } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ArticlesService } from '../../../core/services/articles.service';
 import { ArticleDiff, ArticleVersionItem } from '../../../core/models/article-history';
+import { PortalDialog } from '../../../shared/portal-dialog/portal-dialog';
 
 /**
  * Reader-facing "ვერსიების ისტორია" overlay -- port of app-core.js's
@@ -18,7 +19,7 @@ import { ArticleDiff, ArticleVersionItem } from '../../../core/models/article-hi
 @Component({
   selector: 'app-article-version-history-overlay',
   standalone: true,
-  imports: [TranslatePipe, DatePipe],
+  imports: [TranslatePipe, DatePipe, PortalDialog],
   templateUrl: './article-version-history-overlay.html'
 })
 export class ArticleVersionHistoryOverlay {
@@ -86,7 +87,7 @@ export class ArticleVersionHistoryOverlay {
   }
 
   private static readonly ROW_BASE =
-    'my-1.5 flex cursor-pointer flex-col gap-1.5 rounded-xl border p-3 transition-all';
+    'my-1.5 flex w-full cursor-pointer flex-col gap-1.5 rounded-xl border p-3 text-left transition-all';
   private static readonly ROW_ACTIVE = 'bg-red-50 border-red-100 dark:bg-red-950/40 dark:border-red-900/60';
   private static readonly ROW_INACTIVE =
     'border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/60';

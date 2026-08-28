@@ -79,7 +79,12 @@ test('article drawer: what the form is set to is what gets saved', async ({ page
   await expect(drawer.locator('app-quiz-builder')).toHaveCount(0);
   const quizToggle = drawer.locator('input[type="checkbox"]').nth(1);
   await quizToggle.check();
-  await expect(drawer.locator('app-quiz-builder')).toBeVisible();
+  const quizBuilder = drawer.locator('app-quiz-builder');
+  await expect(quizBuilder).toBeVisible();
+  await quizBuilder.getByRole('button', { name: 'კითხვის დამატება' }).click();
+  await quizBuilder.locator('textarea').fill(`სატესტო კითხვა ${id}`);
+  await quizBuilder.locator('input[type="text"]').nth(0).fill('სწორი პასუხი');
+  await quizBuilder.locator('input[type="text"]').nth(1).fill('არასწორი პასუხი');
 
   // --- preview device toggle --------------------------------------------
   // previewFrameClass() puts the mobile frame at a literal w-[360px]

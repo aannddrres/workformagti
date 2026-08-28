@@ -3,7 +3,8 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { AdminUsersService } from '../../core/services/admin-users.service';
 import { AdminUser, PermissionDeltaState, PermissionOverrideDelta, PermissionOverrideState } from '../../core/models/admin-user';
 import { defaultPermissionsForRole, PERMISSION_GROUPS } from '../../shared/permission-catalog';
-import { DEPARTMENTS, ROLES } from '../../shared/user-roles';
+import { ROLES } from '../../shared/user-roles';
+import { PortalDialog } from '../../shared/portal-dialog/portal-dialog';
 
 interface PermissionOptionState {
   value: string;
@@ -34,7 +35,7 @@ interface PermissionGroupState {
 @Component({
   selector: 'app-user-edit-modal',
   standalone: true,
-  imports: [TranslatePipe],
+  imports: [TranslatePipe, PortalDialog],
   templateUrl: './user-edit-modal.html'
 })
 export class UserEditModal {
@@ -45,10 +46,9 @@ export class UserEditModal {
   readonly saved = output<void>();
 
   protected readonly roles = ROLES;
-  protected readonly departments = DEPARTMENTS;
 
   protected readonly editRole = signal('operator');
-  protected readonly editDepartment = signal('All');
+  protected readonly editDepartment = signal('');
   protected readonly editPosition = signal('');
   protected readonly editOverrides = signal<Map<string, PermissionOverrideState>>(new Map());
   private originalOverrides = new Map<string, PermissionOverrideState>();
@@ -91,7 +91,7 @@ export class UserEditModal {
     effect(() => {
       const u = this.user();
       this.editRole.set(u.role);
-      this.editDepartment.set(u.department || 'All');
+      this.editDepartment.set(u.department || '');
       this.editPosition.set(u.position || '');
       const overrides = new Map(
         (u.permission_overrides ?? []).map((override) => [override.permission, override.state] as const)
@@ -134,8 +134,8 @@ export class UserEditModal {
     this.usersService
       .update(user.id, {
         role: this.editRole(),
-        department: this.editDepartment() === 'All' ? null : this.editDepartment(),
-        position: this.editPosition() || null,
+        department: user.department,
+        position: user.position,
         // Profile, role and permission decisions share the drawer's original
         // token and are committed by one backend transaction. Never replace
         // this with a token returned by a preliminary profile write: doing so

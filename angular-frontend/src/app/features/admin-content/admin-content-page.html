@@ -1,170 +1,85 @@
 <div class="portal-page">
-@if (actionError()) {
-  <div class="mb-4 flex items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-400">
-    <span>{{ actionError() }}</span>
-    <button (click)="dismissActionError()" [attr.aria-label]="'content.dismiss' | translate" class="shrink-0 text-red-500 hover:text-red-700 dark:text-red-400">
-      <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-    </button>
-  </div>
-}
-
-<header class="portal-page-header">
-  <div>
-    <p class="portal-eyebrow">კონტენტის ადმინისტრირება</p>
-    <h1 class="portal-title">{{ 'content.heading' | translate }}</h1>
-    <p class="portal-subtitle">სტატიები, სიახლეები და ვიდეო ინსტრუქციები ერთ სამუშაო სივრცეში.</p>
-  </div>
-  <div class="flex items-start gap-3">
-    @if (activeTab() === 'articles') {
-      <button (click)="openCreateArticle()" class="primary-button">
-        <i class="fa-solid fa-plus" aria-hidden="true"></i>{{ 'content.articles.new' | translate }}
-      </button>
-    }
-  </div>
-</header>
-
-<div class="mb-5 flex items-center gap-4 rounded-xl border border-slate-200 bg-white px-3 pt-3 dark:border-slate-700 dark:bg-slate-900" role="tablist" aria-label="კონტენტის ტიპები">
-  <button type="button" role="tab" [attr.aria-selected]="activeTab() === 'articles'" (click)="switchTab('articles')" [class]="tabClass('articles')">
-    {{ 'content.tabs.articles' | translate }}
-  </button>
-  <button type="button" role="tab" [attr.aria-selected]="activeTab() === 'news'" (click)="switchTab('news')" [class]="tabClass('news')">
-    {{ 'content.tabs.news' | translate }}
-  </button>
-  <button type="button" role="tab" [attr.aria-selected]="activeTab() === 'videos'" (click)="switchTab('videos')" [class]="tabClass('videos')">
-    {{ 'content.tabs.videos' | translate }}
-  </button>
-</div>
-
-@if (activeTab() === 'articles') {
-  @if (selectionCount() > 0) {
-    <div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand/20 bg-brand/5 px-4 py-3">
-      <p class="text-sm font-bold text-slate-800 dark:text-slate-200">მონიშნულია {{ selectionCount() }} სტატია</p>
-      <div class="flex flex-wrap gap-2">
-        <button type="button" (click)="bulkArchive(true)" class="secondary-button"><i class="fa-solid fa-box-archive" aria-hidden="true"></i>{{ 'content.articles.archive_selected' | translate }}</button>
-        <button type="button" (click)="bulkArchive(false)" class="secondary-button"><i class="fa-solid fa-box-open" aria-hidden="true"></i>{{ 'content.articles.unarchive_selected' | translate }}</button>
-      </div>
+  @if (actionError()) {
+    <div role="alert" class="mb-4 flex items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
+      <span>{{ actionError() }}</span>
+      <button type="button" (click)="dismissActionError()" aria-label="შეტყობინების დახურვა" class="shrink-0"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
     </div>
   }
-  <div class="mb-4 flex flex-wrap gap-3 items-center bg-gray-50 dark:bg-zinc-900 p-4 rounded-xl border border-gray-100 dark:border-zinc-800">
-    <div class="flex-1 min-w-[200px]">
-      <input
-        type="text"
-        [value]="searchQuery()"
-        (input)="searchQuery.set($any($event.target).value); onFilterChange()"
-        [placeholder]="'content.articles.search_placeholder' | translate"
-        class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
-      />
+
+  <header class="portal-page-header">
+    <div>
+      <p class="portal-eyebrow">ჩემი სამუშაო რიგი</p>
+      <h1 class="portal-title">კონტენტის მართვა</h1>
+      <p class="portal-subtitle">სტატიები, სიახლეები და ვიდეოები ერთ რიგში, საერთო სტატუსებითა და მოქმედებებით.</p>
     </div>
-    <div class="w-48">
-      <select
-        (change)="categoryFilter.set($any($event.target).value ? +$any($event.target).value : null); onFilterChange()"
-        class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
-      >
-        <option value="">{{ 'content.articles.all_categories' | translate }}</option>
-        @for (c of categories(); track c.id) {
-          <option [value]="c.id" [attr.selected]="c.id === categoryFilter() ? '' : null">{{ c.name }}</option>
-        }
-      </select>
-      @if (categoriesFailed()) {
-        <p class="mt-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
-          {{ 'content.articles.categories_load_error' | translate }}
-          <button type="button" (click)="loadCategories()" class="ml-1 underline hover:no-underline">
-            {{ 'common.retry' | translate }}
-          </button>
-        </p>
+    <div class="relative flex items-stretch">
+      <button type="button" (click)="openCreateCurrent()" class="primary-button rounded-r-none">{{ createLabel() }}</button>
+      <button type="button" (click)="createMenuOpen.update(open => !open)" class="primary-button rounded-l-none border-l border-white/30 px-3" aria-label="კონტენტის ტიპის არჩევა" [attr.aria-expanded]="createMenuOpen()"><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>
+      @if (createMenuOpen()) {
+        <div class="absolute right-0 top-full z-30 mt-2 w-52 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+          <button type="button" (click)="openCreateArticle()" class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800"><i class="fa-solid fa-file-lines w-4 text-slate-400" aria-hidden="true"></i>+ სტატია</button>
+          <button type="button" (click)="openCreateNews()" class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800"><i class="fa-solid fa-newspaper w-4 text-slate-400" aria-hidden="true"></i>+ სიახლე</button>
+          <button type="button" (click)="openCreateVideo()" class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800"><i class="fa-solid fa-circle-play w-4 text-slate-400" aria-hidden="true"></i>+ ვიდეო</button>
+        </div>
       }
     </div>
-    <div class="w-48">
-      <select
-        (change)="statusFilter.set($any($event.target).value); onFilterChange()"
-        class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
-      >
-        <option value="" [attr.selected]="statusFilter() === '' ? '' : null">{{ 'content.articles.all_statuses' | translate }}</option>
-        <option value="published" [attr.selected]="statusFilter() === 'published' ? '' : null">{{ 'content.status.published' | translate }}</option>
-        <option value="draft" [attr.selected]="statusFilter() === 'draft' ? '' : null">{{ 'content.status.draft' | translate }}</option>
-        <option value="scheduled" [attr.selected]="statusFilter() === 'scheduled' ? '' : null">{{ 'content.status.scheduled' | translate }}</option>
-        <option value="archived" [attr.selected]="statusFilter() === 'archived' ? '' : null">{{ 'content.status.archived' | translate }}</option>
-      </select>
-    </div>
-  </div>
+  </header>
 
-  <div class="overflow-x-auto rounded-2xl border border-gray-100 bg-white dark:bg-zinc-900 dark:border-zinc-800 shadow-sm min-h-[220px]">
-    <table class="w-full text-left text-sm">
-      <thead>
-        <tr class="border-b border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/60 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">
-          <th class="px-5 py-3">{{ 'content.articles.col_title' | translate }}</th>
-          <th class="px-5 py-3">{{ 'content.articles.col_category' | translate }}</th>
-          <th class="px-5 py-3">{{ 'content.articles.col_date' | translate }}</th>
-          <th class="px-5 py-3 text-center">
-            <span class="inline-flex items-center justify-center gap-2">
-              <input
-                type="checkbox"
-                [checked]="allOnPageSelected()"
-                (change)="toggleSelectAllOnPage($any($event.target).checked)"
-                class="h-4 w-4 accent-brand align-middle"
-              />
-              <span>{{ 'content.articles.col_action' | translate }}</span>
-            </span>
-          </th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-gray-100 dark:divide-zinc-800">
-        @if (loading()) {
-          <tr class="animate-pulse">
-            <td class="px-5 py-3" colspan="4"><div class="h-4 bg-gray-200 dark:bg-zinc-700 rounded w-2/3"></div></td>
-          </tr>
-        } @else if (pageArticles().length === 0) {
-          <tr><td colspan="4" class="px-5 py-6 text-center text-gray-500 dark:text-zinc-400">{{ 'content.articles.none_found' | translate }}</td></tr>
+  <section aria-label="კონტენტის რიგის ფილტრები" class="mb-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+    <div class="flex flex-col gap-4 xl:flex-row xl:items-end">
+      <div class="min-w-0 flex-1">
+        <label for="content-search" class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-slate-300">ძიება</label>
+        <div class="relative"><i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true"></i><input id="content-search" type="search" [value]="searchQuery()" (input)="searchQuery.set($any($event.target).value); onFilterChange()" placeholder="ძიება სათაურით..." class="field-control w-full pl-10" /></div>
+      </div>
+      <div class="min-w-52">
+        <label for="content-status" class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-slate-300">სტატუსი</label>
+        <select id="content-status" [value]="statusFilter()" (change)="statusFilter.set($any($event.target).value); onFilterChange()" class="field-control w-full"><option value="">ყველა სტატუსი</option><option value="published">გამოქვეყნებული</option><option value="draft">მონახაზი</option><option value="scheduled">დაგეგმილი</option><option value="archived">არქივი</option></select>
+      </div>
+    </div>
+    <div class="mt-4 flex flex-wrap gap-2" role="tablist" aria-label="კონტენტის ტიპი">
+      <button type="button" role="tab" [attr.aria-selected]="activeTab() === 'all'" (click)="switchTab('all')" [class]="tabClass('all')">ყველა <span class="ml-1 text-xs opacity-70">{{ articles().length + news().length + videos().length }}</span></button>
+      <button type="button" role="tab" [attr.aria-selected]="activeTab() === 'article'" (click)="switchTab('article')" [class]="tabClass('article')">სტატიები</button>
+      <button type="button" role="tab" [attr.aria-selected]="activeTab() === 'news'" (click)="switchTab('news')" [class]="tabClass('news')">სიახლეები</button>
+      <button type="button" role="tab" [attr.aria-selected]="activeTab() === 'video'" (click)="switchTab('video')" [class]="tabClass('video')">ვიდეოები</button>
+    </div>
+  </section>
+
+  <div class="min-h-56 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <table class="w-full min-w-[760px] text-left text-sm">
+      <thead class="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400"><tr><th class="px-5 py-3">კონტენტი</th><th class="px-5 py-3">ტიპი</th><th class="px-5 py-3">სტატუსი</th><th class="px-5 py-3">კატეგორია / აუდიტორია</th><th class="px-5 py-3">თარიღი</th><th class="px-5 py-3 text-right">მოქმედებები</th></tr></thead>
+      <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+        @if (queueLoading()) {
+          @for (item of [1, 2, 3]; track item) { <tr aria-hidden="true" class="animate-pulse"><td colspan="6" class="px-5 py-4"><div class="h-4 w-2/3 rounded bg-slate-200 dark:bg-slate-700"></div></td></tr> }
+        } @else if (pageRows().length === 0) {
+          <tr><td colspan="6" class="px-5 py-12 text-center"><i class="fa-regular fa-folder-open text-2xl text-slate-300" aria-hidden="true"></i><p class="mt-2 font-semibold text-slate-600 dark:text-slate-300">შესაბამისი კონტენტი ვერ მოიძებნა</p><p class="mt-1 text-xs text-slate-400">შეცვალეთ ტიპი, სტატუსი ან საძიებო სიტყვა.</p></td></tr>
         } @else {
-          @for (article of pageArticles(); track article.id) {
-            <tr class="transition-colors hover:bg-gray-50 dark:hover:bg-zinc-800/60" [class.opacity-60]="article.status === 'archived'">
-              <td class="px-5 py-3">
-                <span class="inline-flex items-center gap-2">
-                  <i class="fa-solid fa-file-lines text-gray-400"></i>
-                  {{ article.title }}
-                  <span class="ml-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium border" [class]="statusBadgeClass(article.status)">
-                    {{ 'content.status.' + article.status | translate }}
-                  </span>
-                </span>
-              </td>
-              <td class="px-5 py-3 text-gray-500 dark:text-zinc-400">{{ categoryName(article) }}</td>
-              <td class="px-5 py-3 text-gray-500 dark:text-zinc-400">{{ article.created_at | date: 'dd.MM.yyyy' }}</td>
-              <td class="px-5 py-3 text-center">
-                <div class="flex items-center justify-center gap-3">
-                  <input
-                    type="checkbox"
-                    [checked]="selection().has(article.id)"
-                    (change)="toggleSelected(article.id, $any($event.target).checked)"
-                    class="h-4 w-4 accent-brand"
-                  />
-                  <div class="relative inline-block text-left">
-                    <button (click)="toggleMenu(article.id)" class="text-gray-400 hover:text-gray-600 focus:outline-none p-1 dark:hover:text-gray-200">
-                      <i class="fa-solid fa-ellipsis-vertical text-lg"></i>
-                    </button>
-                    @if (openMenuFor() === article.id) {
-                      <div class="absolute right-0 top-full mt-1 origin-top-right w-48 rounded-xl border border-gray-100 bg-white dark:bg-zinc-800 dark:border-zinc-700 shadow-lg z-20 py-1">
-                        <button (click)="openHistory(article)" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors">
-                          <i class="fa-solid fa-clock-rotate-left text-gray-400 w-4"></i> {{ 'content.articles.action_history' | translate }}
-                        </button>
-                        <button (click)="openEditArticle(article)" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors">
-                          <i class="fa-solid fa-pen-to-square text-gray-400 w-4"></i> {{ 'content.articles.action_edit' | translate }}
-                        </button>
-                        <button (click)="toggleArchive(article)" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors">
-                          @if (article.status === 'archived') {
-                            <i class="fa-solid fa-box-open text-gray-400 w-4"></i> {{ 'content.articles.action_unarchive' | translate }}
-                          } @else {
-                            <i class="fa-solid fa-box-archive text-gray-400 w-4"></i> {{ 'content.articles.action_archive' | translate }}
-                          }
-                        </button>
-                        <button (click)="deleteArticle(article)" [disabled]="article.status !== 'archived'"
-                                [title]="article.status !== 'archived' ? 'ჯერ დაარქივეთ' : 'სანაგვეში გადატანა'"
-                                class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-red-950/30">
-                          <i class="fa-solid fa-trash-can text-red-400 w-4"></i> {{ 'content.articles.action_delete' | translate }}
-                        </button>
+          @for (row of pageRows(); track row.key) {
+            <tr [class.opacity-60]="rowArchived(row)" class="transition hover:bg-slate-50 dark:hover:bg-slate-800/50">
+              <td class="max-w-md px-5 py-3 font-semibold text-slate-800 dark:text-slate-100"><span class="line-clamp-2">{{ row.title }}</span></td>
+              <td class="px-5 py-3"><span class="inline-flex rounded-full border border-slate-200 px-2.5 py-1 text-xs font-bold text-slate-600 dark:border-slate-700 dark:text-slate-300">{{ typeLabel(row.type) }}</span></td>
+              <td class="px-5 py-3"><span class="inline-flex rounded-full border px-2.5 py-1 text-xs font-bold" [class]="statusBadgeClass(row.status)">{{ 'content.status.' + row.status | translate }}</span></td>
+              <td class="max-w-60 px-5 py-3 text-slate-500 dark:text-slate-400"><span class="line-clamp-2">{{ row.context }}</span></td>
+              <td class="whitespace-nowrap px-5 py-3 text-slate-500 dark:text-slate-400">{{ row.createdAt | date:'dd.MM.yyyy' }}</td>
+              <td class="px-5 py-3 text-right">
+                @if (row.type === 'article') {
+                  <div class="relative inline-block">
+                    <button type="button" (click)="toggleMenu(row.id)" class="icon-button" aria-label="სტატიის მოქმედებები" [attr.aria-expanded]="openMenuFor() === row.id"><i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i></button>
+                    @if (openMenuFor() === row.id) {
+                      <div class="absolute right-0 top-full z-20 mt-1 w-48 rounded-xl border border-slate-200 bg-white p-1.5 text-left shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                        <button type="button" (click)="openHistory($any(row.original))" class="queue-action"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>ისტორია</button>
+                        <button type="button" (click)="openEditRow(row)" class="queue-action"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>რედაქტირება</button>
+                        <button type="button" (click)="toggleArchiveRow(row)" class="queue-action"><i [class]="rowArchived(row) ? 'fa-solid fa-box-open' : 'fa-solid fa-box-archive'" aria-hidden="true"></i>{{ rowArchived(row) ? 'არქივიდან ამოღება' : 'დაარქივება' }}</button>
+                        <button type="button" (click)="removeRow(row)" [disabled]="!rowArchived(row)" class="queue-action text-red-600 disabled:opacity-40"><i class="fa-solid fa-trash-can" aria-hidden="true"></i>სანაგვეში გადატანა</button>
                       </div>
                     }
                   </div>
-                </div>
+                } @else {
+                  <div class="inline-flex gap-1">
+                    <button type="button" (click)="openEditRow(row)" class="icon-button" aria-label="რედაქტირება"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button>
+                    <button type="button" (click)="toggleArchiveRow(row)" class="icon-button" [attr.aria-label]="rowArchived(row) ? 'არქივიდან ამოღება' : 'დაარქივება'"><i [class]="rowArchived(row) ? 'fa-solid fa-box-open' : 'fa-solid fa-box-archive'" aria-hidden="true"></i></button>
+                    <button type="button" (click)="removeRow(row)" [disabled]="!rowArchived(row)" class="icon-button text-red-600 disabled:opacity-30" aria-label="სანაგვეში გადატანა"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
+                  </div>
+                }
               </td>
             </tr>
           }
@@ -173,41 +88,12 @@
     </table>
   </div>
 
-  @if (filteredArticles().length > 0) {
-    <div class="flex items-center justify-between px-2 py-3">
-      <span class="text-sm text-gray-500 dark:text-zinc-400">{{ pageStart() }}–{{ pageEnd() }} / {{ filteredArticles().length }}</span>
-      <div class="flex items-center gap-1">
-        <button (click)="goToPage(1)" [disabled]="currentPage() <= 1" class="rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:text-gray-300 dark:disabled:text-zinc-700">
-          <i class="fa-solid fa-angles-left"></i>
-        </button>
-        <button (click)="goToPage(currentPage() - 1)" [disabled]="currentPage() <= 1" class="rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:text-gray-300 dark:disabled:text-zinc-700">
-          <i class="fa-solid fa-chevron-left"></i>
-        </button>
-        @for (p of pageNumbers(); track p) {
-          <button (click)="goToPage(p)" [class]="pageButtonClass(p)">
-            {{ p }}
-          </button>
-        }
-        <button (click)="goToPage(currentPage() + 1)" [disabled]="currentPage() >= totalPages()" class="rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:text-gray-300 dark:disabled:text-zinc-700">
-          <i class="fa-solid fa-chevron-right"></i>
-        </button>
-        <button (click)="goToPage(totalPages())" [disabled]="currentPage() >= totalPages()" class="rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:text-gray-300 dark:disabled:text-zinc-700">
-          <i class="fa-solid fa-angles-right"></i>
-        </button>
-      </div>
-    </div>
+  @if (queueRows().length > 0) {
+    <nav class="mt-3 flex flex-wrap items-center justify-between gap-3 px-2" aria-label="კონტენტის გვერდები"><span class="text-sm text-slate-500">{{ queueStart() }}–{{ queueEnd() }} / {{ queueRows().length }}</span><div class="flex items-center gap-1"><button type="button" (click)="goToPage(currentPage() - 1)" [disabled]="currentPage() <= 1" class="secondary-button px-3" aria-label="წინა გვერდი"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button><span class="px-3 text-sm font-bold text-slate-600 dark:text-slate-300">{{ currentPage() }} / {{ queueTotalPages() }}</span><button type="button" (click)="goToPage(currentPage() + 1)" [disabled]="currentPage() >= queueTotalPages()" class="secondary-button px-3" aria-label="შემდეგი გვერდი"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button></div></nav>
   }
-} @else if (activeTab() === 'news') {
-  <app-news-admin-table />
-} @else {
-  <app-videos-admin-table />
-}
 </div>
 
-@if (editingArticle(); as article) {
-  <app-article-edit-drawer [articleId]="article.id" (closed)="closeArticleDrawer()" (saved)="onArticleSaved()" />
-}
-
-@if (historyForArticleId(); as articleId) {
-  <app-article-history-modal [articleId]="articleId" (closed)="closeHistory()" (restored)="onVersionRestored()" />
-}
+@if (editingArticle(); as article) { <app-article-edit-drawer [articleId]="article.id" (closed)="closeArticleDrawer()" (saved)="onArticleSaved()" /> }
+@if (editingNews(); as item) { <app-news-edit-drawer [newsId]="item.id" (closed)="closeNewsDrawer()" (saved)="onNewsSaved()" /> }
+@if (editingVideo(); as item) { <app-video-edit-drawer [videoId]="item.id" (closed)="closeVideoDrawer()" (saved)="onVideoSaved()" /> }
+@if (historyForArticleId(); as articleId) { <app-article-history-modal [articleId]="articleId" (closed)="closeHistory()" (restored)="onVersionRestored()" /> }

@@ -139,13 +139,6 @@
     "source": "base-layout.html:1791",
     "context": "Admin content-management sub-tab label listing articles (plural, distinct from the singular content-type toggle admin.content.tab_article)."
   },
-  "admin.content.tab_issue_reports": {
-    "ka": "ხარვეზების რეპორტები",
-    "en": "Issue reports",
-    "reviewed": false,
-    "source": "base-layout.html:1797",
-    "context": "Admin content-management sub-tab label (text spans lines 1797-1798). NOTE: the backing API endpoints for this feature are deprecated and return HTTP 410 (see articles.api.feedback_deprecated / articles.api.feedback_view_deprecated) — flagged in README as dead UI that should probably be removed rather than translated."
-  },
   "admin.content.article_search_placeholder": {
     "ka": "ძიება სათაურით...",
     "en": "Search by title...",

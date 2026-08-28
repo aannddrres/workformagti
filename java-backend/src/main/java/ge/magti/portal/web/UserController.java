@@ -1,22 +1,19 @@
 package ge.magti.portal.web;
 
 import ge.magti.portal.announcement.BroadcastAuthorizationService;
-import ge.magti.portal.compliance.ComplianceCalculator;
-import ge.magti.portal.compliance.ReadCountKey;
+import ge.magti.portal.audit.MutationAuditService;
+import ge.magti.portal.compliance.ComplianceProgressQueryService;
 import ge.magti.portal.compliance.ReadingProgress;
-import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.domain.UserPermissionOverride;
-import ge.magti.portal.repository.AuditLogRepository;
-import ge.magti.portal.repository.ReadStatusRepository;
-import ge.magti.portal.repository.RequiredReadingRepository;
-import ge.magti.portal.repository.TeamRepository;
+import ge.magti.portal.org.OrgDirectoryQueryService;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.repository.UserPermissionOverrideRepository;
 import ge.magti.portal.security.PasswordPolicy;
 import ge.magti.portal.security.PermissionChecker;
+import ge.magti.portal.user.UserDirectoryQueryService;
 import ge.magti.portal.util.TbilisiTime;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -66,30 +63,33 @@ import java.time.OffsetDateTime;
 public class UserController {
 
     private final UserRepository userRepository;
-    private final TeamRepository teamRepository;
-    private final AuditLogRepository auditLogRepository;
-    private final RequiredReadingRepository requiredReadingRepository;
-    private final ReadStatusRepository readStatusRepository;
+    private final ComplianceProgressQueryService complianceProgressQueryService;
     private final PasswordEncoder passwordEncoder;
     private final PermissionChecker permissionChecker;
     private final UserPermissionOverrideRepository permissionOverrideRepository;
     private final BroadcastAuthorizationService broadcastAuthorizationService;
+    private final MutationAuditService mutationAuditService;
+    private final UserDirectoryQueryService userDirectoryQueryService;
+    private final OrgDirectoryQueryService orgDirectoryQueryService;
 
     public UserController(
-            UserRepository userRepository, TeamRepository teamRepository, AuditLogRepository auditLogRepository,
-            RequiredReadingRepository requiredReadingRepository, ReadStatusRepository readStatusRepository,
+            UserRepository userRepository,
+            ComplianceProgressQueryService complianceProgressQueryService,
             PasswordEncoder passwordEncoder, PermissionChecker permissionChecker,
             UserPermissionOverrideRepository permissionOverrideRepository,
-            BroadcastAuthorizationService broadcastAuthorizationService) {
+            BroadcastAuthorizationService broadcastAuthorizationService,
+            MutationAuditService mutationAuditService,
+            UserDirectoryQueryService userDirectoryQueryService,
+            OrgDirectoryQueryService orgDirectoryQueryService) {
         this.userRepository = userRepository;
-        this.teamRepository = teamRepository;
-        this.auditLogRepository = auditLogRepository;
-        this.requiredReadingRepository = requiredReadingRepository;
-        this.readStatusRepository = readStatusRepository;
+        this.complianceProgressQueryService = complianceProgressQueryService;
         this.passwordEncoder = passwordEncoder;
         this.permissionChecker = permissionChecker;
         this.permissionOverrideRepository = permissionOverrideRepository;
         this.broadcastAuthorizationService = broadcastAuthorizationService;
+        this.mutationAuditService = mutationAuditService;
+        this.userDirectoryQueryService = userDirectoryQueryService;
+        this.orgDirectoryQueryService = orgDirectoryQueryService;
     }
 
     /** Port of read_users_me (routers/users.py:29-50). */
@@ -99,7 +99,7 @@ public class UserController {
         if (denial != null) {
             return denial;
         }
-        boolean canViewAuditLog = permissionChecker.hasPermission(user, Permission.SYSTEM_AUDIT);
+        boolean canViewAuditLog = user.getRole() == Role.SYSTEM_ADMIN;
         // The permission list has to be the one the gates use. Since the
         // Phase 6 cutover users.permissions decides nothing, so shipping it
         // here would show the account page a set of abilities that no longer
@@ -128,6 +128,7 @@ public class UserController {
         if (denial != null) {
             return denial;
         }
+        Map<String, Object> before = MutationAuditService.userSnapshot(user);
         user.setName(request.name());
         if (request.position() != null) {
             user.setPosition(request.position());
@@ -138,7 +139,15 @@ public class UserController {
         if (request.cardStyle() != null) {
             user.setCardStyle(request.cardStyle());
         }
-        User saved = userRepository.save(user);
+        User saved = userRepository.saveAndFlush(user);
+        mutationAuditService.recordSuccess(
+                user,
+                "UPDATE_USER_PROFILE",
+                "user",
+                saved.getId(),
+                saved.getName(),
+                before,
+                MutationAuditService.userSnapshot(saved));
         return ResponseEntity.ok(UserResponse.from(saved, permissionOverrideRepository.findByUserId(saved.getId())));
     }
 
@@ -151,38 +160,8 @@ public class UserController {
         if (denial != null) {
             return denial;
         }
-        if (user.getHashedPassword() == null
-                || !passwordEncoder.matches(request.currentPassword(), user.getHashedPassword())) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("detail", "მიმდინარე პაროლი არასწორია"));
-        }
-        if (request.newPassword().equals(request.currentPassword())) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("detail", "ახალი პაროლი არ უნდა ემთხვეოდეს ძველს"));
-        }
-        List<String> policyErrors = PasswordPolicy.validate(request.newPassword());
-        if (!policyErrors.isEmpty()) {
-            return passwordPolicyError(policyErrors);
-        }
-
-        user.setHashedPassword(passwordEncoder.encode(request.newPassword()));
-        // SEC-14. Changing a password because you think someone else has it
-        // is worthless if their token keeps working for the rest of its
-        // hour. Ends every session including this one -- the response says
-        // so, since the alternative (reissuing a token here) would mean a
-        // new contract on an endpoint the Angular app does not yet call.
-        user.invalidateIssuedTokens();
-        userRepository.save(user);
-
-        AuditLog audit = new AuditLog();
-        audit.setAdminId(user.getId());
-        audit.setAction("PASSWORD_CHANGE");
-        audit.setItemType("user");
-        audit.setItemId(user.getId());
-        audit.setTimestamp(TbilisiTime.now());
-        auditLogRepository.save(audit);
-
-        return ResponseEntity.ok(Map.of(
-                "detail", "პაროლი წარმატებით შეიცვალა. ყველა სესია დასრულდა — გთხოვთ, თავიდან შეხვიდეთ."));
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                "detail", "პაროლი იმართება კომპანიის Active Directory-ში და პორტალიდან არ იცვლება."));
     }
 
     /** Port of bulk_reassign_roles (routers/users.py:101-184). */
@@ -235,24 +214,31 @@ public class UserController {
             }
         }
 
-        int changed = 0;
+        Map<Long, Map<String, Object>> beforeByUser = new HashMap<>();
+        Map<Long, String> previousRoleByUser = new HashMap<>();
+        List<User> changedUsers = new ArrayList<>();
         for (User u : users) {
             if (u.getRole() == newRole) {
                 continue;
             }
+            beforeByUser.put(u.getId(), MutationAuditService.userSnapshot(u));
             String oldRoleValue = u.getRole().value();
+            previousRoleByUser.put(u.getId(), oldRoleValue);
             u.setRole(newRole);
-
-            AuditLog audit = new AuditLog();
-            audit.setAdminId(admin.getId());
-            audit.setAction("BULK_ROLE_" + oldRoleValue + "_TO_" + newRole.value());
-            audit.setItemType("user");
-            audit.setItemId(u.getId());
-            audit.setTimestamp(TbilisiTime.now());
-            auditLogRepository.save(audit);
-            changed++;
+            changedUsers.add(u);
         }
-        userRepository.saveAll(users);
+        userRepository.saveAllAndFlush(users);
+        for (User changedUser : changedUsers) {
+            mutationAuditService.recordSuccess(
+                    admin,
+                    "BULK_ROLE_" + previousRoleByUser.get(changedUser.getId()) + "_TO_" + newRole.value(),
+                    "user",
+                    changedUser.getId(),
+                    changedUser.getName(),
+                    beforeByUser.get(changedUser.getId()),
+                    MutationAuditService.userSnapshot(changedUser));
+        }
+        int changed = changedUsers.size();
 
         return ResponseEntity.ok(new BulkRoleReassignResponse(
                 newRole.value(), changed, users.size() - changed, request.userIds().size()));
@@ -279,17 +265,26 @@ public class UserController {
                     .body(Map.of("detail", "საკუთარი ანგარიშის დეაქტივაცია არ შეიძლება"));
         }
 
+        if (!request.active() && user.getRole() == Role.SYSTEM_ADMIN) {
+            long remaining = userRepository.countByRoleAndActiveTrueAndIdNotIn(
+                    Role.SYSTEM_ADMIN, List.of(user.getId()));
+            if (remaining == 0) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("detail", "ბოლო სისტემური ადმინისტრატორის დეაქტივაცია შეუძლებელია."));
+            }
+        }
+
+        Map<String, Object> before = MutationAuditService.userSnapshot(user);
         user.setActive(request.active());
-
-        AuditLog audit = new AuditLog();
-        audit.setAdminId(admin.getId());
-        audit.setAction("UPDATE_STATUS_TO_" + String.valueOf(request.active()).toUpperCase());
-        audit.setItemType("user");
-        audit.setItemId(userId);
-        audit.setTimestamp(TbilisiTime.now());
-        auditLogRepository.save(audit);
-
-        User saved = userRepository.save(user);
+        User saved = userRepository.saveAndFlush(user);
+        mutationAuditService.recordSuccess(
+                admin,
+                "UPDATE_STATUS_TO_" + String.valueOf(request.active()).toUpperCase(),
+                "user",
+                userId,
+                saved.getName(),
+                before,
+                MutationAuditService.userSnapshot(saved));
         return ResponseEntity.ok(UserResponse.from(saved, permissionOverrideRepository.findByUserId(userId)));
     }
 
@@ -300,7 +295,7 @@ public class UserController {
         if (denial != null) {
             return denial;
         }
-        List<GroupLeaderResponse> leaders = userRepository.findByRoleOrderByName(Role.MANAGER).stream()
+        List<GroupLeaderResponse> leaders = userDirectoryQueryService.listUsersByRoleWithinLimit(Role.MANAGER).stream()
                 .map(GroupLeaderResponse::from)
                 .toList();
         return ResponseEntity.ok(leaders);
@@ -310,34 +305,24 @@ public class UserController {
     @GetMapping("/api/users")
     public ResponseEntity<?> listUsers(
             @RequestParam(value = "manager_id", required = false) Long managerId,
+            @RequestParam(defaultValue = "0") int skip,
+            @RequestParam(defaultValue = "1000") int limit,
             @AuthenticationPrincipal User admin) {
         ResponseEntity<Map<String, String>> denial = requireSystemAdmin(admin);
         if (denial != null) {
             return denial;
         }
-        List<User> users = managerId != null ? userRepository.findByManagerId(managerId) : userRepository.findAll();
-
-        Map<String, Integer> requiredCountsByDept = new HashMap<>();
-        for (Object[] row : requiredReadingRepository.countGroupedByTargetDepartment()) {
-            requiredCountsByDept.put((String) row[0], ((Number) row[1]).intValue());
+        if (ListQueryBounds.isInvalid(skip, limit)) {
+            return ResponseEntity.badRequest().body(Map.of("detail", ListQueryBounds.INVALID_DETAIL));
         }
-        int allRequired = requiredCountsByDept.getOrDefault("All", 0);
+        List<User> users = userDirectoryQueryService.list(managerId, skip, limit);
 
-        List<Long> userIds = users.stream().map(User::getId).toList();
-        Map<ReadCountKey, Integer> readCountsByUserDept = new HashMap<>();
-        if (!userIds.isEmpty()) {
-            for (Object[] row : readStatusRepository.readCountsByUserAndDepartment(userIds)) {
-                readCountsByUserDept.put(
-                        new ReadCountKey(((Number) row[0]).longValue(), (String) row[1]),
-                        ((Number) row[2]).intValue());
-            }
-        }
+        Map<Long, ReadingProgress> progressByUser = complianceProgressQueryService.progressByUser(users);
 
         Map<Long, List<UserPermissionOverride>> overridesByUser = overridesByUser(users);
         List<UserResponse> responses = new ArrayList<>();
         for (User user : users) {
-            ReadingProgress progress = ComplianceCalculator.computeProgress(
-                    user, allRequired, requiredCountsByDept, readCountsByUserDept);
+            ReadingProgress progress = progressByUser.get(user.getId());
             responses.add(UserResponse.from(
                     user, progress, overridesByUser.getOrDefault(user.getId(), List.of())));
         }
@@ -365,6 +350,7 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", "მომხმარებელი ვერ მოიძებნა"));
         }
         User user = found.get();
+        Map<String, Object> beforeUser = MutationAuditService.userSnapshot(user);
 
         // SEC-12: this endpoint had NEITHER guard that its two siblings
         // apply. bulkReassignRoles refuses to leave zero active system
@@ -383,6 +369,8 @@ public class UserController {
         }
 
         List<PermissionOverrideDelta> deltas = request.overrides();
+        Map<String, Object> beforePermissions = deltas == null ? null : MutationAuditService.permissionSnapshot(
+                permissionOverrideRepository.findByUserId(userId));
         if (deltas != null) {
             if (request.lockVersion() == null) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -427,11 +415,28 @@ public class UserController {
 
         User saved = userRepository.saveAndFlush(user);
         if (deltas != null) {
-            List<String> transitions = applyPermissionDeltas(userId, deltas, admin.getId());
-            if (!deltas.isEmpty()) {
-                auditPermissionUpdate(userId, admin.getId(), transitions);
-            }
+            applyPermissionDeltas(userId, deltas, admin.getId());
             permissionOverrideRepository.flush();
+        }
+        if (userFieldsChanged) {
+            mutationAuditService.recordSuccess(
+                    admin,
+                    "UPDATE_USER_ADMIN",
+                    "user",
+                    saved.getId(),
+                    saved.getName(),
+                    beforeUser,
+                    MutationAuditService.userSnapshot(saved));
+        }
+        if (deltas != null && !deltas.isEmpty()) {
+            mutationAuditService.recordSuccess(
+                    admin,
+                    "UPDATE_PERMISSIONS",
+                    "user",
+                    saved.getId(),
+                    saved.getName(),
+                    beforePermissions,
+                    MutationAuditService.permissionSnapshot(permissionOverrideRepository.findByUserId(userId)));
         }
         return ResponseEntity.ok(UserResponse.from(saved, permissionOverrideRepository.findByUserId(saved.getId())));
     }
@@ -443,7 +448,8 @@ public class UserController {
         if (denial != null) {
             return denial;
         }
-        List<TeamResponse> teams = teamRepository.findAllByOrderByName().stream().map(TeamResponse::from).toList();
+        List<TeamResponse> teams = orgDirectoryQueryService.listTeamsWithinLimit().stream()
+                .map(TeamResponse::from).toList();
         return ResponseEntity.ok(teams);
     }
 
@@ -473,51 +479,8 @@ public class UserController {
         if (denial != null) {
             return denial;
         }
-        List<String> policyErrors = PasswordPolicy.validate(request.password());
-        if (!policyErrors.isEmpty()) {
-            return passwordPolicyError(policyErrors);
-        }
-        Role role;
-        try {
-            role = Role.fromValue(request.roleOrDefault());
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("detail", "უცნობი როლი"));
-        }
-        String lowerEmail = request.email().toLowerCase();
-        if (userRepository.findByEmailIgnoreCase(lowerEmail).isPresent()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("detail", "ეს ელ. ფოსტა უკვე გამოყენებულია"));
-        }
-
-        User user = new User();
-        user.setEmail(lowerEmail);
-        user.setName(request.name());
-        user.setDepartment(request.department());
-        user.setPosition(request.position());
-        user.setPhone(request.phone());
-        user.setRole(role);
-        user.setHashedPassword(passwordEncoder.encode(request.password()));
-        user.setActive(true);
-        user.setTeamId(request.teamId());
-        Set<String> defaultPerms = new LinkedHashSet<>();
-        for (Permission p : Permission.defaultsFor(role)) {
-            defaultPerms.add(p.value());
-        }
-        user.setPermissions(defaultPerms);
-
-        User saved = userRepository.saveAndFlush(user);
-
-        AuditLog audit = new AuditLog();
-        audit.setAdminId(admin.getId());
-        audit.setAction("CREATE_USER");
-        audit.setItemType("user");
-        audit.setItemId(saved.getId());
-        audit.setTimestamp(TbilisiTime.now());
-        auditLogRepository.save(audit);
-
-        // Empty overrides here are the truth, not an omission: a user created
-        // one statement ago has none, and everything they can do comes from
-        // the role default.
-        return ResponseEntity.ok(UserResponse.from(saved, List.<UserPermissionOverride>of()));
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                "detail", "მომხმარებლების შექმნა იმართება კომპანიის Active Directory-იდან სინქრონიზაციით."));
     }
 
     /** Port of admin_reset_password (routers/users.py:431-444). */
@@ -530,32 +493,8 @@ public class UserController {
         if (denial != null) {
             return denial;
         }
-        Optional<User> found = userRepository.findById(userId);
-        if (found.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", "მომხმარებელი ვერ მოიძებნა"));
-        }
-        List<String> policyErrors = PasswordPolicy.validate(request.newPassword());
-        if (!policyErrors.isEmpty()) {
-            return passwordPolicyError(policyErrors);
-        }
-        User user = found.get();
-        user.setHashedPassword(passwordEncoder.encode(request.newPassword()));
-        // SEC-14. An admin resetting someone else's password is usually a
-        // response to a suspected compromise, so cutting the existing
-        // sessions is the point of it. The admin is not the target here, so
-        // this costs nobody their own session.
-        user.invalidateIssuedTokens();
-        userRepository.save(user);
-
-        AuditLog audit = new AuditLog();
-        audit.setAdminId(admin.getId());
-        audit.setAction("PASSWORD_RESET");
-        audit.setItemType("user");
-        audit.setItemId(userId);
-        audit.setTimestamp(TbilisiTime.now());
-        auditLogRepository.save(audit);
-
-        return ResponseEntity.ok(Map.of("detail", "პაროლი წარმატებით აღდგა."));
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                "detail", "პაროლის აღდგენა იმართება კომპანიის Active Directory-ში."));
     }
 
     /** Phase 6 override-aware permission delta with optimistic concurrency. */
@@ -587,10 +526,18 @@ public class UserController {
         }
         user = userRepository.findById(userId).orElseThrow();
 
-        List<String> transitions = applyPermissionDeltas(userId, request.overrides(), admin.getId());
-        auditPermissionUpdate(userId, admin.getId(), transitions);
-
+        Map<String, Object> beforePermissions = MutationAuditService.permissionSnapshot(
+                permissionOverrideRepository.findByUserId(userId));
+        applyPermissionDeltas(userId, request.overrides(), admin.getId());
         permissionOverrideRepository.flush();
+        mutationAuditService.recordSuccess(
+                admin,
+                "UPDATE_PERMISSIONS",
+                "user",
+                userId,
+                user.getName(),
+                beforePermissions,
+                MutationAuditService.permissionSnapshot(permissionOverrideRepository.findByUserId(userId)));
         return ResponseEntity.ok(UserResponse.from(user, permissionOverrideRepository.findByUserId(userId)));
     }
 
@@ -671,23 +618,6 @@ public class UserController {
             permissionOverrideRepository.save(override);
         }
         return transitions;
-    }
-
-    private void auditPermissionUpdate(Long userId, Long actorId, List<String> transitions) {
-        AuditLog audit = new AuditLog();
-        audit.setAdminId(actorId);
-        audit.setAction("UPDATE_PERMISSIONS");
-        audit.setItemType("user");
-        audit.setItemId(userId);
-        // Rule #9 is that granting a content permission is audited. An action
-        // name alone does not say what was granted, to whom it already
-        // belonged, or whether anything moved at all -- and "which permissions
-        // did this person hold on the day they published that article" is the
-        // question the record has to answer later. A no-op delta is recorded
-        // as a no-op rather than as an indistinguishable UPDATE_PERMISSIONS.
-        audit.setDetails(transitions.isEmpty() ? "no change" : String.join(", ", transitions));
-        audit.setTimestamp(TbilisiTime.now());
-        auditLogRepository.save(audit);
     }
 
     private Map<Long, List<UserPermissionOverride>> overridesByUser(List<User> users) {

@@ -220,9 +220,15 @@ class BroadcastControllerIntegrationTest {
                 .filter(row -> "PUBLISH_BROADCAST".equals(row.getAction()) && id == row.getItemId())
                 .findFirst().orElseThrow();
         JsonNode details = objectMapper.readTree(audit.getDetails());
-        assertEquals("ALL_AUTHENTICATED", details.get("audience").asText());
-        assertEquals("CRITICAL", details.get("priority").asText());
-        assertEquals("ოფისი დროებით დაკეტილია", details.get("message").asText());
+        JsonNode after = details.get("after");
+        assertEquals(1, details.get("schema_version").asInt());
+        assertEquals("SUCCESS", details.get("result").asText());
+        assertTrue(details.get("before").isNull());
+        assertEquals("ALL_AUTHENTICATED", after.get("audience").asText());
+        assertEquals("CRITICAL", after.get("priority").asText());
+        assertEquals("ოფისი დროებით დაკეტილია".length(), after.get("message_length").asInt());
+        assertFalse(audit.getDetails().contains("ოფისი დროებით დაკეტილია"),
+                "broadcast bodies must not be duplicated into audit evidence");
         assertEquals(admin.getName(), audit.getAdminNameSnapshot());
     }
 
@@ -251,11 +257,11 @@ class BroadcastControllerIntegrationTest {
         assertTrue(objectMapper.readTree(activeList).isEmpty());
 
         String history = mockMvc.perform(authed(get("/api/broadcasts/history"), tokenFor(admin)))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.total_items").value(2))
+                .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
-        String statuses = objectMapper.readTree(history).get("items").toString();
-        assertTrue(statuses.contains("ended"));
-        assertTrue(statuses.contains("expired"));
+        JsonNode items = objectMapper.readTree(history).get("items");
+        assertTrue(findHistoryItem(items, activeId, "ended"));
+        assertTrue(findHistoryItem(items, expired.getId(), "expired"));
     }
 
     @Test
@@ -293,5 +299,14 @@ class BroadcastControllerIntegrationTest {
                 .andExpect(status().isBadRequest());
         mockMvc.perform(authed(get("/api/broadcasts/history?size=101"), tokenFor(admin)))
                 .andExpect(status().isBadRequest());
+    }
+
+    private static boolean findHistoryItem(JsonNode items, long id, String status) {
+        for (JsonNode item : items) {
+            if (item.get("id").asLong() == id && status.equals(item.get("status").asText())) {
+                return true;
+            }
+        }
+        return false;
     }
 }

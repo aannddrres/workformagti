@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { VideoInstruction, VideoInstructionRequest } from '../models/video';
+import { VideoCommandRequest, VideoInstruction, VideoInstructionRequest } from '../models/video';
 
 @Injectable({ providedIn: 'root' })
 export class VideosService {
@@ -21,6 +21,14 @@ export class VideosService {
 
   update(id: number, request: VideoInstructionRequest): Observable<VideoInstruction> {
     return this.http.put<VideoInstruction>(`/api/videos/${id}`, request);
+  }
+
+  createCommand(request: VideoCommandRequest): Observable<VideoInstruction> {
+    return this.http.post<VideoInstruction>('/api/videos/command', request);
+  }
+
+  updateCommand(id: number, request: VideoCommandRequest): Observable<VideoInstruction> {
+    return this.http.put<VideoInstruction>(`/api/videos/${id}/command`, request);
   }
 
   remove(id: number): Observable<void> {

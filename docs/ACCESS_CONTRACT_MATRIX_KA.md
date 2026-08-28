@@ -1,8 +1,8 @@
 # წვდომის კონტრაქტის მატრიცა
 
 **სტატუსი:** Phase 1 — decision/contract lock **დასრულებულია**; D-1…D-8 დახურულია
-**ბოლო განახლება:** 2026-08-23 (R5 content lifecycle)
-**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 130 endpoint
+**ბოლო განახლება:** 2026-08-26 (SELF keyed-resource isolation evidence lock)
+**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 143 endpoint
 **გეგმა:** `docs/ORG_ACCESS_ARCHITECTURE_PLAN_KA.md` (ფაზები, §9.1 სავალდებულო მტკიცებულებები)
 
 ეს ფაილი არის ორგანიზაციული წვდომის **კონტრაქტი**: თითოეული backend endpoint-ისთვის
@@ -34,8 +34,8 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 არსებული (`domain/Permission.java`):
 
-`articles.edit` · `articles.publish` · `articles.archive` · `videos.archive` ·
-`compliance.assign` · `reports.export` · `system.audit`
+`articles.edit` · `articles.archive` · `videos.archive` ·
+`compliance.assign` · `reports.export`
 
 **ახალი, ამ ფაზაზე დასაფიქსირებელი** (Phase 6 ამატებს კატალოგში):
 
@@ -72,8 +72,7 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 ## ციფრებში
 
-- **130** endpoint (119 + 6 განცალკევებული SYSTEM_ADMIN export endpoint +
-  3 content-trash endpoint + 2 news archive endpoint);
+- **143** endpoint;
 - **39** ატარებს თანამშრომლის საიდენტიფიკაციო მონაცემს (`PII = yes`);
 - **12** უკვე leadership-scoped;
 - **0** ღია გადაწყვეტილება (D-1…D-8 დახურულია).
@@ -88,26 +87,30 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 |---|---|---|---|---|---|---|
 | `GET /api/admin/access-diff` | `AccessDiffController.getAccessDiff` | `requireSystemAdmin` | — | `ORG` | **yes** | Phase 9A. read-only cutover evidence: თითო განსხვავებული მომხმარებლის სახელი, legacy/proposed compliance და scope-ში მხოლოდ მომხმარებელთა რაოდენობები; არც apply და არც scope-ის წევრთა სახელები. |
 
-### Article (24)
+### Article (26)
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
 | `GET /api/admin/articles/stale` | `ArticleController.getStaleArticles` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
 | `GET /api/articles` | `ArticleController.getArticles` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
-| `POST /api/articles` | `ArticleController.createArticle` | `requireArticlesEditPermission`, `requireArticlesPublishPermission` | articles.edit + articles.publish | `ORG-CONTENT` | no | Phase 6: redundant content-admin role-gate მოიხსნა; explicit permission override მუშაობს. |
+| `POST /api/articles` | `ArticleController.createArticle` | `requireArticlesEditPermission` | articles.edit | `ORG-CONTENT` | no | `articles.edit` პირდაპირ გამოქვეყნებასაც მოიცავს; ცალკე publish permission აღარ არსებობს. |
+| `POST /api/articles/command` | `ArticleCommandController.create` | — | articles.edit + compliance.assign | `ORG-CONTENT` | no | სტატია, სავალდებულო დავალება და ქვიზი ერთ ტრანზაქციაში ინახება; gate-ები დელეგირებულ controller ოპერაციებში სრულდება. |
 | `POST /api/articles/bulk-archive` | `ArticleController.bulkArchiveArticles` | `requireArticlesArchivePermission` | articles.archive | `ORG-CONTENT` | no | უკვე permission-ზეა. |
 | `DELETE /api/articles/{id}` | `ArticleController.deleteArticle` | `requireArticlesEditPermission` | articles.edit | `ORG-CONTENT` | no | R5: მხოლოდ უკვე არქივირებული სტატია გადადის 30-დღიან აღდგენად სანაგვეში; hard delete არაა. |
 | `GET /api/articles/{id}` | `ArticleController.getArticle` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
-| `PUT /api/articles/{id}` | `ArticleController.updateArticle` | `requireArticlesEditPermission`, `requireArticlesPublishPermission` | articles.edit + articles.publish | `ORG-CONTENT` | no | Phase 6: redundant content-admin role-gate მოიხსნა; explicit permission override მუშაობს. |
+| `PUT /api/articles/{id}` | `ArticleController.updateArticle` | `requireArticlesEditPermission` | articles.edit | `ORG-CONTENT` | no | `articles.edit` პირდაპირ გამოქვეყნებასაც მოიცავს. |
+| `PUT /api/articles/{id}/command` | `ArticleCommandController.update` | — | articles.edit + compliance.assign | `ORG-CONTENT` | no | სტატიის, დავალებისა და ქვიზის ცვლილება ატომურია; ნებისმიერი ნაწილის უარყოფა მთლიან ცვლილებას rollback-ს უკეთებს. |
 | `POST /api/articles/{id}/archive` | `ArticleController.archiveArticle` | `requireArticlesArchivePermission` | articles.archive | `ORG-CONTENT` | no | უკვე permission-ზეა. |
-| `PATCH /api/articles/{id}/autosave` | `ArticleController.autosaveArticle` | `requireArticlesEditPermission`, `requireArticlesPublishPermission` | articles.edit + articles.publish | `ORG-CONTENT` | no | Phase 6: redundant content-admin role-gate მოიხსნა; explicit permission override მუშაობს. |
+| `PATCH /api/articles/{id}/autosave` | `ArticleController.autosaveArticle` | `requireArticlesEditPermission` | articles.edit | `ORG-CONTENT` | no | Autosave არ აქვეყნებს live ვერსიას; `articles.edit` არის ერთადერთი authoring capability. |
 | `GET /api/articles/{id}/history` | `ArticleController.getArticleHistory` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
-| `GET /api/articles/{id}/history/{historyId}/diff` | `ArticleController.getArticleDiff` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
-| `POST /api/articles/{id}/history/{historyId}/restore` | `ArticleController.restoreArticleVersion` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
-| `GET /api/articles/{id}/note` | `ArticleController.getUserNote` | `requireAuthenticated`, `requireVisibleArticle` | AUTH | `SELF` | no | საკუთარი ჩანაწერი ხილულ კონტენტზე. |
-| `PUT /api/articles/{id}/note` | `ArticleController.putUserNote` | `requireAuthenticated`, `requireVisibleArticle` | AUTH | `SELF` | no | საკუთარი ჩანაწერი ხილულ კონტენტზე. |
+| `GET /api/articles/{id}/history-summary` | `ArticleController.getArticleHistorySummary` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | იგივე history scope; CLOB-free metadata list, content ცალკე selected-detail request-ით. |
+| `GET /api/articles/{id}/history/{historyId}` | `ArticleController.getArticleHistoryItem` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | იგივე history scope; ერთი selected revision payload. `{historyId}` owning article-ზეა scoped; foreign-parent ID 404-ია. |
+| `GET /api/articles/{id}/history/{historyId}/diff` | `ArticleController.getArticleDiff` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით; base და explicit compare history IDs ორივე owning article-ზეა scoped. |
+| `POST /api/articles/{id}/history/{historyId}/restore` | `ArticleController.restoreArticleVersion` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. Foreign-parent history ID 404-ია და target/audit უცვლელია. წესი #9 უცვლელია. |
+| `GET /api/articles/{id}/note` | `ArticleController.getUserNote` | `requireAuthenticated`, `requireVisibleArticle` | AUTH | `SELF` | no | საკუთარი ჩანაწერი ხილულ კონტენტზე; იგივე article-ზე სხვა მომხმარებლის note არ ჩანს და absent value literal JSON `null`-ია. |
+| `PUT /api/articles/{id}/note` | `ArticleController.putUserNote` | `requireAuthenticated`, `requireVisibleArticle` | AUTH | `SELF` | no | ჩანაწერი `(user_id, article_id)` ownership key-ზე ინახება; ორი caller-ის notes ერთმანეთს არ overwrite-ავს. |
 | `POST /api/articles/{id}/read-receipt` | `ArticleController.createArticleReadReceipt` | `requireAuthenticated`, `requireQuizPassed` | AUTH | `SELF` | no | compliance-ის მტკიცებულება; retention purge-იდან გამორიცხული. |
-| `GET /api/articles/{id}/read-receipt/me` | `ArticleController.getMyArticleReadReceiptStatus` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი მონაცემი. |
+| `GET /api/articles/{id}/read-receipt/me` | `ArticleController.getMyArticleReadReceiptStatus` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ caller-ის `(article, version, operator)` receipt; სხვა caller-ის receipt false მდგომარეობას არ ცვლის. |
 | `GET /api/articles/{id}/read-receipts` | `ArticleController.getArticleReadReceipts` | `requireReadEvidenceAccess` | content.evidence | `GROUP` (`SYSTEM_ADMIN`: `ORG`; `content.manage`: aggregate-only) | **yes** | პირველი rollout: მოქმედი ჯგუფის assignment სახელობით rows-ს მხოლოდ საკუთარ ჯგუფზე ხსნის; `content.manage` org-wide საერთო რაოდენობებს, მაგრამ არა სახელებს; `SYSTEM_ADMIN` org-wide სახელობით rows-ს. დეპარტამენტის assignment ჯერ არააქტიურია. email response-ში არ შედის. |
 | `GET /api/articles/{id}/related` | `ArticleController.getRelatedArticles` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
 | `POST /api/articles/{id}/unarchive` | `ArticleController.unarchiveArticle` | `requireArticlesArchivePermission` | articles.archive | `ORG-CONTENT` | no | უკვე permission-ზეა. |
@@ -115,23 +118,27 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | `GET /api/articles/{id}/versions` | `ArticleController.getArticleVersions` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
 | `POST /api/articles/{id}/view` | `ArticleController.trackArticleView` | `requireAuthenticated` | AUTH | `SELF` | no | საკუთარი ჩანაწერი ხილულ კონტენტზე. |
 | `GET /api/articles/{id}/views` | `ArticleController.getArticleViews` | `requireSystemAdmin` | SYSTEM_ADMIN-only log | `ORG` | **yes** | სტატიის უბრალო გახსნა ოფიციალური წაკითხვა არ არის და leadership evidence-ში არ ჩანს. export ცალკე SYSTEM_ADMIN-only log surface-ზე კეთდება. |
-| `GET /api/me/recently-viewed` | `ArticleController.getMyRecentlyViewed` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი მონაცემი. |
+| `GET /api/me/recently-viewed` | `ArticleController.getMyRecentlyViewed` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის view rows dedupe-დება; სხვა caller-ის recently-viewed ჩანაწერი არ ჩანს. |
 
 ### AuditLog (4)
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
-| `GET /api/audit-logs` | `AuditLogController.list` | `requireSystemAudit` | system.audit | `GROUP/DEPT` | **yes** | MANAGER-ს default-ად აქვს `system.audit`; Phase 4-ზე scope assignment-იდან. |
-| `GET /api/audit-logs/chain-health` | `AuditLogController.chainHealth` | `requireSystemAuditNonManager` | system.audit + ORG | `ORG` | **yes** | წესი #14: manager-ს log-ის export ეკრძალება — უკვე ასეა (`requireSystemAuditNonManager`). |
-| `GET /api/audit-logs/export` | `AuditLogController.export` | `requireSystemAuditNonManager` | system.audit + ORG | `ORG` | **yes** | წესი #14: manager-ს log-ის export ეკრძალება — უკვე ასეა (`requireSystemAuditNonManager`). |
-| `GET /api/audit-logs/{id}/verify` | `AuditLogController.verify` | `requireSystemAuditNonManager` | system.audit + ORG | `ORG` | **yes** | წესი #14: manager-ს log-ის export ეკრძალება — უკვე ასეა (`requireSystemAuditNonManager`). |
+| `GET /api/audit-logs` | `AuditLogController.list` | `requireSystemAdmin` | SYSTEM_ADMIN role | `ORG` | **yes** | Raw audit/log მონაცემი მხოლოდ სისტემურ ადმინს აქვს; მენეჯერს რჩება scoped compliance UI. |
+| `GET /api/audit-logs/chain-health` | `AuditLogController.chainHealth` | `requireSystemAdmin` | SYSTEM_ADMIN role | `ORG` | **yes** | Integrity tooling მხოლოდ სისტემური ადმინისთვისაა. |
+| `GET /api/audit-logs/export` | `AuditLogController.export` | `requireSystemAdmin` | SYSTEM_ADMIN role | `ORG` | **yes** | სრული log-export მხოლოდ სისტემური ადმინისთვისაა. |
+| `GET /api/audit-logs/{id}/verify` | `AuditLogController.verify` | `requireSystemAdmin` | SYSTEM_ADMIN role | `ORG` | **yes** | ჩანაწერის integrity verification მხოლოდ სისტემური ადმინისთვისაა. |
 
-### Auth (2)
+### Auth (6)
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
 | `POST /api/auth/login` | `AuthController.login` | — | — | `NONE` | no | ავტორიზაციამდელი; rate limit + `ClientIpResolver`. |
 | `POST /api/auth/logout` | `AuthController.logout` | — | AUTH | `SELF` | no | ზრდის `token_version`-ს (SEC-14). |
+| `POST /api/auth/sso/start` | `AuthController.startCorporateSso` | — | — | `NONE` | no | production SSO adapter fail-closed რეჟიმშია: IT-ის provider configuration-მდე 503. |
+| `POST /api/auth/session/heartbeat` | `PortalSessionController.heartbeat` | — | AUTH | `SELF` | no | global authenticated boundary + caller/session binding: valid-CSRF/no-auth-ზე stable JSON 401; valid token მხოლოდ caller-ის bind-ებულ session `last_seen_at`-ს touch-ავს და სხვა user-ის session-ს არ ცვლის. |
+| `GET /api/auth/sessions` | `PortalSessionController.list` | — | AUTH | `SELF` | **yes** | მხოლოდ მომძახებლის მოქმედი session-ები და მიმდინარე session marker. |
+| `DELETE /api/auth/sessions/{sessionId}` | `PortalSessionController.revoke` | — | AUTH | `SELF` | **yes** | მხოლოდ მომძახებლის session-ის revoke; უცხო valid id established 204 opaque no-op-ია, owner session/token აქტიური რჩება, უცხო list-ში არ ჩანს და success audit არ იწერება. |
 
 ### Category (4)
 
@@ -146,9 +153,9 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
-| `POST /api/compliance/mark-read/{readingId}` | `ComplianceController.markRead` | `requireAuthenticated` | AUTH | `SELF` | no | compliance-ის მტკიცებულება; retention purge-იდან გამორიცხული. |
-| `GET /api/compliance/my-progress` | `ComplianceController.getMyProgress` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი მონაცემი. |
-| `GET /api/compliance/my-readings` | `ComplianceController.getMyReadings` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი მონაცემი. |
+| `POST /api/compliance/mark-read/{readingId}` | `ComplianceController.markRead` | `requireAuthenticated` | AUTH | `SELF` | no | compliance-ის მტკიცებულება; status `(user_id, required_reading_id)`-ზე და versioned receipt caller-ზე bind-დება; სხვა eligible caller `unread` რჩება. Retention purge-იდან გამორიცხულია. |
+| `GET /api/compliance/my-progress` | `ComplianceController.getMyProgress` | `requireAuthenticated` | AUTH | `SELF` | no | eligible-reading total audience წესს მიჰყვება; completed/pending/percentage მხოლოდ caller-ის read-status rows-იდან ითვლება და სხვა caller-ის completion არ ერთვის. |
+| `GET /api/compliance/my-readings` | `ComplianceController.getMyReadings` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი status ერთვის eligible reading-ს; სხვა caller-ის acknowledgement არ ჩანს. |
 | `POST /api/compliance/required-readings` | `ComplianceController.createRequiredReading` | `requireComplianceAssign` | compliance.assign | `ORG-CONTENT` | no | წესი #12: target არის დეპარტამენტი ან `All`, არასოდეს ჯგუფი. |
 | `GET /api/compliance/required-readings/by-item/{itemType}/{itemId}` | `ComplianceController.getRequiredReadingForItem` | `requireComplianceAssign` | compliance.assign | `ORG-CONTENT` | no | Phase 6: read/edit drawer-იც იმავე capability-ით იმართება. |
 | `DELETE /api/compliance/required-readings/{readingId}` | `ComplianceController.deleteRequiredReading` | `requireComplianceAssign` | compliance.assign | `ORG-CONTENT` | no | წესი #12: target არის დეპარტამენტი ან `All`, არასოდეს ჯგუფი. |
@@ -175,9 +182,9 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
-| `GET /api/favorites` | `FavoriteController.getFavorites` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი მონაცემი. |
-| `POST /api/favorites` | `FavoriteController.addFavorite` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი მონაცემი. |
-| `DELETE /api/favorites/{id}` | `FavoriteController.removeFavorite` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი მონაცემი. |
+| `GET /api/favorites` | `FavoriteController.getFavorites` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ caller-ის rows; იმავე item-ზე სხვა caller-ის favorite list-ში არ ჩანს. |
+| `POST /api/favorites` | `FavoriteController.addFavorite` | `requireAuthenticated` | AUTH | `SELF` | no | uniqueness caller+item-ზეა: იგივე item-ზე ორი caller ცალკე favorite row-ს ქმნის. |
+| `DELETE /api/favorites/{id}` | `FavoriteController.removeFavorite` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ caller-ის row; უცხო owner-ის valid favorite ID 404-ია, ხოლო owner row უცვლელი რჩება. საკუთარი delete სხვა caller-ის იმავე-item row-ს არ შლის. |
 
 ### Health (1)
 
@@ -198,31 +205,37 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
-| `GET /api/reminders` | `ReminderController.inbox` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის paginated fixed-template reminder-ები; reply/chat/free text არ არსებობს. |
-| `POST /api/reminders/{reminderId}/read` | `ReminderController.markRead` | `requireAuthenticated` | AUTH | `SELF` | no | ownership lookup უცხო და არარსებულ id-ს ერთნაირ `404`-ად აბრუნებს; განმეორებითი read იდემპოტენტურია. |
+| `GET /api/reminders` | `ReminderController.inbox` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ caller recipient ID-ის paginated fixed-template rows; სხვა recipient-ის reminder ID არ ჩანს; reply/chat/free text არ არსებობს. |
+| `POST /api/reminders/{reminderId}/read` | `ReminderController.markRead` | `requireAuthenticated` | AUTH | `SELF` | no | ownership lookup უცხო და არარსებულ id-ს ერთნაირ `404`-ად აბრუნებს; ერთი caller-ის read state სხვა recipient row-ს არ ცვლის; განმეორებითი read იდემპოტენტურია. |
 | `POST /api/reminders/users/{userId}/send` | `ReminderController.sendManual` | `requireAuthenticated` | AUTH + `ScopeResolver.resolveGroupLeadership` | `GROUP` (`SYSTEM_ADMIN`: `ORG`) | **yes** | PRIMARY/ACTING ჯგუფის უფროსი მხოლოდ საკუთარ აქტიურ წევრს უგზავნის server-owned ფიქსირებულ ტექსტს; 24-საათიანი recipient cooldown, audit და DB lock სავალდებულოა. |
 
-### ContentTrash (3)
+### ContentTrash (5)
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
 | `GET /api/content-trash` | `ContentTrashController.listTrash` | `requireContentManage` | content.manage | `ORG-CONTENT` | **yes** | R5: article/news/video-ის საერთო 30-დღიანი სანაგვე; აჩვენებს ჩამგდები პირის სახელს და legal-hold მდგომარეობას. |
 | `POST /api/content-trash/{itemType}/{itemId}/restore` | `ContentTrashController.restore` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | R5: მხოლოდ 30-დღიანი ფანჯრის შიგნით; მასალა და მისი orphaned attachment ისევ არქივში ბრუნდება. |
 | `DELETE /api/content-trash/{itemType}/{itemId}` | `ContentTrashController.purge` | `requireSystemAdmin` | SYSTEM_ADMIN | `ORG` | no | R5: მხოლოდ ვადის გასვლის შემდეგ, legal hold-ის გარეშე; explicit/manual purge, evidence-safe და სრულად აუდიტირებული. |
+| `POST /api/content-trash/{itemType}/{itemId}/legal-hold` | `ContentTrashController.setLegalHold` | `requireLegalHoldAuthority` | DPO/Legal-approved named authority | `ORG` | no | default allowlist ცარიელია და ყველა როლს fail-closed უარყოფს; set სრულად აუდიტირდება. |
+| `DELETE /api/content-trash/{itemType}/{itemId}/legal-hold` | `ContentTrashController.releaseLegalHold` | `requireLegalHoldAuthority` | DPO/Legal-approved named authority | `ORG` | no | release მხოლოდ recoverable trash-ზეა, named authority-ით და reconstructable audit-ით. |
 
-### News (10)
+### News (12)
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
 | `GET /api/news` | `NewsController.getNews` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
 | `POST /api/news` | `NewsController.createNews` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `POST /api/news/command` | `NewsCommandController.create` | — | content.manage + compliance.assign | `ORG-CONTENT` | no | სიახლე და სავალდებულო დავალება ერთ ტრანზაქციაში ინახება; დელეგირებული gate-ები ძალაში რჩება. |
 | `DELETE /api/news/{id}` | `NewsController.deleteNews` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | R5: მხოლოდ უკვე არქივირებული სიახლე გადადის 30-დღიან აღდგენად სანაგვეში. |
 | `GET /api/news/{id}` | `NewsController.getNewsItem` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
 | `PUT /api/news/{id}` | `NewsController.updateNews` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `PUT /api/news/{id}/command` | `NewsCommandController.update` | — | content.manage + compliance.assign | `ORG-CONTENT` | no | სიახლისა და დავალების ცვლილება ატომურია. |
 | `POST /api/news/{id}/archive` | `NewsController.archiveNews` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | R5: explicit archive; ოპერატორის ხედიდან და search index-იდან იმალება. |
 | `PATCH /api/news/{id}/autosave` | `NewsController.autosaveNews` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
 | `GET /api/news/{id}/history` | `NewsController.getNewsHistory` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
-| `POST /api/news/{id}/history/{historyId}/restore` | `NewsController.restoreNewsVersion` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `GET /api/news/{id}/history-summary` | `NewsController.getNewsHistorySummary` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | იგივე history scope; CLOB-free metadata list, content ცალკე selected-detail request-ით. |
+| `GET /api/news/{id}/history/{historyId}` | `NewsController.getNewsHistoryItem` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | იგივე history scope; ერთი selected revision payload. `{historyId}` owning news-ზეა scoped; foreign-parent ID 404-ია. |
+| `POST /api/news/{id}/history/{historyId}/restore` | `NewsController.restoreNewsVersion` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. Foreign-parent history ID 404-ია და target/audit უცვლელია. წესი #9 უცვლელია. |
 | `POST /api/news/{id}/unarchive` | `NewsController.unarchiveNews` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | R5: explicit unarchive და search reindex. |
 
 ### Org (4)
@@ -238,7 +251,7 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
-| `GET /api/notifications/summary` | `PlatformController.getNotificationsSummary` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი მონაცემი. |
+| `GET /api/notifications/summary` | `PlatformController.getNotificationsSummary` | `requireAuthenticated` | AUTH | `SELF` | no | unread readings/status და reminder count caller ID-ზეა scoped; სხვა recipient-ის unread reminder aggregate-ში არ შედის. |
 | `GET /api/tags` | `PlatformController.getTags` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
 
 ### PolicyDiagnostics (3)
@@ -256,8 +269,8 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | `GET /api/articles/{id}/quiz` | `QuizController.getArticleQuiz` | `requireAuthenticated` | AUTH | `SELF` | no | compliance-ის მტკიცებულება; retention purge-იდან გამორიცხული. |
 | `GET /api/articles/{id}/quiz/admin` | `QuizController.getArticleQuizAdmin` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
 | `PUT /api/articles/{id}/quiz/admin` | `QuizController.updateArticleQuizAdmin` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
-| `POST /api/articles/{id}/quiz/attempt` | `QuizController.submitArticleQuizAttempt` | `requireAuthenticated` | AUTH | `SELF` | no | compliance-ის მტკიცებულება; retention purge-იდან გამორიცხული. |
-| `GET /api/users/me/knowledge-score` | `QuizController.getMyKnowledgeScore` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი მონაცემი. |
+| `POST /api/articles/{id}/quiz/attempt` | `QuizController.submitArticleQuizAttempt` | `requireAuthenticated` | AUTH | `SELF` | no | compliance-ის მტკიცებულება; attempt number `(article_id, version, user_id)`-ზე ითვლება და სხვა caller-ის sequence-ს არ აგრძელებს. Retention purge-იდან გამორიცხული. |
+| `GET /api/users/me/knowledge-score` | `QuizController.getMyKnowledgeScore` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი attempts-ის aggregate; სხვა caller-ის pass/score არ აისახება. |
 
 ### Search (3)
 
@@ -265,23 +278,24 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 |---|---|---|---|---|---|---|
 | `GET /api/search` | `SearchController.search` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
 | `GET /api/search/global` | `SearchController.searchGlobal` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
-| `GET /api/search/history` | `SearchController.searchHistory` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი მონაცემი. |
+| `GET /api/search/history` | `SearchController.searchHistory` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის search-log rows; სხვა caller-ის terms/history არ ჩანს. |
 
-### Stats (12)
+### Stats (13)
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
 | `GET /api/admin/critical-operators` | `StatsController.getCriticalOperators` | `requireManagerOrAdmin` | AUTH + leadership | `GROUP/DEPT` | **yes** | Phase 0: `ManagerScope`. Phase 4: `ScopeResolver`; nested group/department row-ებიც იფილტრება. |
-| `GET /api/admin/departments/{department}/groups/{groupName}/users` | `StatsController.getGroupUsers` | `requireManagerOrAdmin` | AUTH + leadership | `GROUP/DEPT` | **yes** | Phase 0: `ManagerScope`. Phase 4: `ScopeResolver`; nested group/department row-ებიც იფილტრება. |
+| `GET /api/admin/departments/{department}/groups/{groupName}/users` | `StatsController.getGroupUsers` | `requireManagerOrAdmin` | AUTH + leadership | `GROUP/DEPT` | **yes** | Unassigned legacy caller კვლავ `ManagerScope`-ზეა. Assignment-backed caller-ის path ჯერ ერთ active canonical department/team target-ად უნდა resolve-დეს: missing/ambiguous/foreign target 403-ია; valid assigned empty group 200/empty რჩება; rows exact `team_id`-ით იფილტრება. |
 | `GET /api/admin/stats/team/{teamId}` | `StatsController.getAdminTeamStats` | `requireSystemAdmin` | AUTH + leadership | `ORG` | **yes** | Phase 0: SYSTEM_ADMIN-only. Phase 4: `{teamId}` scope-ზე უნდა შემოწმდეს, არა role-ზე. |
 | `GET /api/manager/department-stats` | `StatsController.getDepartmentStats` | `requireManagerOrAdmin` | AUTH + leadership | `GROUP/DEPT` | **yes** | Phase 0: `ManagerScope`. Phase 4: `ScopeResolver`; nested group/department row-ებიც იფილტრება. |
+| `GET /api/manager/leadership-options` | `StatsController.getLeadershipOptions` | `requireManagerOrAdmin` | AUTH + leadership | `GROUP` (`SYSTEM_ADMIN`: `ORG`) | **yes** | ძირითადი გუნდი ნაგულისხმევია; მოქმედი დროებითი ჯგუფები მხოლოდ UI selector-ს აფართოებს და ექსპორტის scope-ში არ შედის. |
 | `GET /api/manager/team-stats` | `StatsController.getTeamStats` | `requireManagerOrAdmin` | AUTH + leadership | `GROUP/DEPT` | **yes** | Phase 0: `ManagerScope`. Phase 4: `ScopeResolver`; nested group/department row-ებიც იფილტრება. |
-| `GET /api/statistics/activity` | `StatsController.getActivityTrend` | `requireContentManage` | stats.view — D-8 resolved, implementation pending | `ORG-AGG` | no | მხოლოდ აგრეგატები; `content.manage`-ისგან უნდა განცალკევდეს. |
-| `GET /api/statistics/breakdown` | `StatsController.getStatisticsBreakdown` | `requireContentManage` | stats.view — D-8 resolved, implementation pending | `ORG-AGG` | no | დაშვებული dimension: department/role/status — `COUNT`, სახელების გარეშე. |
-| `GET /api/statistics/compliance` | `StatsController.getComplianceStatistics` | `requireContentManage` | stats.view — D-8 resolved, implementation pending | `ORG-AGG` | no | მხოლოდ აგრეგატები; `content.manage`-ისგან უნდა განცალკევდეს. |
-| `GET /api/statistics/failed-searches` | `StatsController.getFailedSearches` | `requireContentManage` | stats.view — D-8 resolved, implementation pending | `ORG-AGG` | no | მხოლოდ აგრეგატები; `content.manage`-ისგან უნდა განცალკევდეს. |
-| `GET /api/statistics/kpi` | `StatsController.getKpiCounts` | `requireContentManage` | stats.view — D-8 resolved, implementation pending | `ORG-AGG` | no | მხოლოდ აგრეგატები; `content.manage`-ისგან უნდა განცალკევდეს. |
-| `GET /api/statistics/popular-searches` | `StatsController.getPopularSearches` | `requireContentManage` | stats.view — D-8 resolved, implementation pending | `ORG-AGG` | no | მხოლოდ აგრეგატები; `content.manage`-ისგან უნდა განცალკევდეს. |
+| `GET /api/statistics/activity` | `StatsController.getActivityTrend` | `requireStatsView` | stats.view | `ORG-AGG` | no | D-8 implemented: მხოლოდ აგრეგატები; `content.manage` წვდომას არ ხსნის. |
+| `GET /api/statistics/breakdown` | `StatsController.getStatisticsBreakdown` | `requireStatsView` | stats.view | `ORG-AGG` | no | დაშვებული dimension: department/role/status — `COUNT`, სახელების გარეშე; `content.manage` დამოუკიდებელია. |
+| `GET /api/statistics/compliance` | `StatsController.getComplianceStatistics` | `requireStatsView` | stats.view | `ORG-AGG` | no | მხოლოდ კომპანიის aggregate; სახელობით `/user-progress` კვლავ SYSTEM_ADMIN-only-ია. |
+| `GET /api/statistics/failed-searches` | `StatsController.getFailedSearches` | `requireStatsView` | stats.view | `ORG-AGG` | no | მხოლოდ aggregate terms/count; `content.manage` დამოუკიდებელია. |
+| `GET /api/statistics/kpi` | `StatsController.getKpiCounts` | `requireStatsView` | stats.view | `ORG-AGG` | no | მხოლოდ aggregate counts; `content.manage` დამოუკიდებელია. |
+| `GET /api/statistics/popular-searches` | `StatsController.getPopularSearches` | `requireStatsView` | stats.view | `ORG-AGG` | no | მხოლოდ aggregate terms/count; `content.manage` დამოუკიდებელია. |
 | `GET /api/statistics/user-progress` | `StatsController.getUserProgress` | `requireSystemAdmin` | AUTH + leadership | `ORG` | **yes** | ყველა თანამშრომლის სახელი + დეპარტამენტი + პროცენტი. სწორად SYSTEM_ADMIN-only; Phase 4-ზე scope-ით უნდა გაიხსნას leadership-ისთვის, არა role-ით. |
 
 ### Upload (1)
@@ -294,7 +308,7 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
-| `GET /uploads/{filename}` | `UploadedFileController.serve` | — | AUTH — D-4 resolved, implementation pending | `AUTH` | content-dependent | **სამიზნე:** მხოლოდ ავტორიზებულ თანამშრომელს; დაკოპირებული URL login-ის გარეშე არ იხსნება. მიმდინარე კოდში gate ჯერ არ არის. ინფრასტრუქტურული წინაპირობები: `QUESTIONS_FOR_IT.md` §9. |
+| `GET /uploads/{filename}` | `UploadedFileController.serve` | — | AUTH | `AUTH` | content-dependent | `@AuthenticationPrincipal` null-ზე 401; წარმატებული წვდომა აუდიტირდება და პასუხი `no-store`-ია. |
 
 ### User (14)
 
@@ -304,28 +318,30 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | `POST /api/admin/roles/bulk-reassign` | `UserController.bulkReassignRoles` | `requireSystemAdmin` | org.manage `NEW` | `ORG` | **yes** | SYSTEM_ADMIN. `bulk-reassign` permission override-ს არ შლის (Phase 6). |
 | `GET /api/teams` | `UserController.getTeams` | `requireAuthenticated` | AUTH | `NONE` | no | ორგანიზაციული სტრუქტურა კითხვადია; AD-owned, mutation fail-closed. |
 | `POST /api/teams` | `UserController.createTeam` | `requireSystemAdmin` | — | `NONE` | no | AD-owned: fail-closed `403` (Phase 0). dev fixture მხოლოდ seeder-ით. |
-| `GET /api/me/effective-access` | `UserController.getEffectiveAccess` | `requireAuthenticated` | AUTH | `SELF` | no | Phase 7. მომძახებლის საკუთარი effective permission-ები; `bypass` სისტემური ადმინის შემოვლას აშკარას ხდის. |
+| `GET /api/me/effective-access` | `UserController.getEffectiveAccess` | `requireAuthenticated` | AUTH | `SELF` | no | Phase 7. მომძახებლის საკუთარი effective permission-ები; სხვა caller-ის explicit override არ ერთვის. `bypass` სისტემური ადმინის შემოვლას აშკარას ხდის. |
 | `GET /api/users` | `UserController.listUsers` | `requireSystemAdmin` | org.manage `NEW` | `ORG` | **yes** | SYSTEM_ADMIN. `bulk-reassign` permission override-ს არ შლის (Phase 6). |
 | `POST /api/users` | `UserController.createUserAdmin` | `requireSystemAdmin` | org.manage `NEW` | `ORG` | **yes** | SYSTEM_ADMIN. `bulk-reassign` permission override-ს არ შლის (Phase 6). |
-| `GET /api/users/me` | `UserController.getCurrentUser` | `requireAuthenticated` | AUTH | `SELF` | no | პროფილის endpoint რჩება; Phase 7-ის `/api/me/effective-access` UI authorization-ის ცალკე, `bypass`-ით გამჭვირვალე წყაროა. |
-| `PUT /api/users/me` | `UserController.updateCurrentUser` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი მონაცემი. |
-| `POST /api/users/me/password` | `UserController.changeOwnPassword` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი მონაცემი. |
+| `GET /api/users/me` | `UserController.getCurrentUser` | `requireAuthenticated` | AUTH | `SELF` | no | პროფილის endpoint caller identity-ს აბრუნებს; Phase 7-ის `/api/me/effective-access` UI authorization-ის ცალკე, `bypass`-ით გამჭვირვალე წყაროა. |
+| `PUT /api/users/me` | `UserController.updateCurrentUser` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის დაშვებული profile fields იცვლება; email/role/department და სხვა user უცვლელია. |
+| `POST /api/users/me/password` | `UserController.changeOwnPassword` | `requireAuthenticated` | AUTH | `SELF` | no | AD/directory-owned fail-closed 403; password hash არ იცვლება და success audit არ იწერება. Production local password fallback აკრძალულია. |
 | `PUT /api/users/{userId}` | `UserController.updateUserAdmin` | `requireSystemAdmin` | org.manage `NEW` | `ORG` | **yes** | SYSTEM_ADMIN. Phase 6: profile/role/permission delta ერთ atomic transaction-ში ინახება drawer-ის თავდაპირველი `lock_version`-ით; `bulk-reassign` override-ს არ შლის. |
 | `PUT /api/users/{userId}/permissions` | `UserController.adminUpdatePermissions` | `requireSystemAdmin` | org.manage `NEW` | `ORG` | no | Phase 6: flat replace → `INHERIT`/`ALLOW`/`DENY` delta + required optimistic concurrency token; malformed nested delta `400`-ია. |
 | `POST /api/users/{userId}/reset-password` | `UserController.adminResetPassword` | `requireSystemAdmin` | org.manage `NEW` | `ORG` | **yes** | SYSTEM_ADMIN. `bulk-reassign` permission override-ს არ შლის (Phase 6). |
 | `PUT /api/users/{userId}/status` | `UserController.updateUserStatus` | `requireSystemAdmin` | org.manage `NEW` | `ORG` | **yes** | SYSTEM_ADMIN. `bulk-reassign` permission override-ს არ შლის (Phase 6). |
 
-### Video (7)
+### Video (9)
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
 | `GET /api/videos` | `VideoController.getVideos` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
 | `POST /api/videos` | `VideoController.createVideo` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `POST /api/videos/command` | `VideoCommandController.create` | — | content.manage + compliance.assign | `ORG-CONTENT` | no | ვიდეო და სავალდებულო დავალება ერთ ტრანზაქციაში ინახება; დელეგირებული gate-ები ძალაში რჩება. |
 | `DELETE /api/videos/{id}` | `VideoController.deleteVideo` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | R5: მხოლოდ უკვე არქივირებული ვიდეო გადადის 30-დღიან აღდგენად სანაგვეში. |
 | `PUT /api/videos/{id}` | `VideoController.updateVideo` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
+| `PUT /api/videos/{id}/command` | `VideoCommandController.update` | — | content.manage + compliance.assign | `ORG-CONTENT` | no | ვიდეოსა და დავალების ცვლილება ატომურია. |
 | `POST /api/videos/{id}/archive` | `VideoController.archiveVideo` | `requireVideosArchivePermission` | videos.archive | `ORG-CONTENT` | no | უკვე permission-ზეა. |
 | `POST /api/videos/{id}/unarchive` | `VideoController.unarchiveVideo` | `requireVideosArchivePermission` | videos.archive | `ORG-CONTENT` | no | უკვე permission-ზეა. |
-| `POST /api/videos/{id}/view` | `VideoController.viewVideo` | `requireAuthenticated` | AUTH | `SELF` | no | საკუთარი ჩანაწერი ხილულ კონტენტზე. |
+| `POST /api/videos/{id}/view` | `VideoController.viewVideo` | `requireAuthenticated` | AUTH | `SELF` | no | საკუთარი view count მხოლოდ list-ისავე ხილულ კონტენტზე: non-admin caller-ს archived ან სხვა department target opaque 404-ია და count არ იცვლება; content admin existing all/archived access-ს ინარჩუნებს. |
 ---
 
 ## Export-ის სვეტების allowlist
@@ -484,7 +500,7 @@ download-ზე): განსხვავებული პასუხი end
 ავტორიზებულ თანამშრომელს გაეხსნება. დაკოპირებული `/uploads/<uuid>` URL login-ის
 გარეშე არ მუშაობს; საჯარო/დაცული ტიპების არჩევანი არ ემატება.
 
-მიმდინარე `UploadedFileController.serve` ჯერ საჯაროა. განხორციელების commit-მა
+`UploadedFileController.serve` უკვე მოითხოვს მოქმედ portal session-ს. განხორციელებამ
 უნდა დაამატოს authentication gate, Angular-ის image/download ქცევა და regression
 tests. `QUESTIONS_FOR_IT.md` §9-ში ღია რჩება მხოლოდ ingress/cache/scanning-ის
 ინფრასტრუქტურული ნაწილი.
@@ -528,9 +544,9 @@ ledger-ში ინახება და ძველი message rows ავ�
 მხოლოდ კონტენტის მართვას ეხება და სტატისტიკის წვდომას ავტომატურად აღარ გახსნის.
 SYSTEM_ADMIN ამ ორ უფლებას ერთმანეთისგან დამოუკიდებლად გასცემს.
 
-მიმდინარე კოდში endpoint-ები ჯერ `requireContentManage`-ითაა დაცული. ცვლილება
-ცალკე implementation commit-ში უნდა გაკეთდეს backend/Angular regression
-ტესტებთან ერთად.
+განხორციელებულია: endpoint-ები `requireStatsView`-ითაა დაცული; `content.manage`
+აღარ ხსნის aggregate stats-ს. Backend/Angular regression და permission UI
+იმავე readiness batch-შია მიბმული.
 
 ---
 

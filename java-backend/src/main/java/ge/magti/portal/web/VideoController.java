@@ -1,11 +1,11 @@
 package ge.magti.portal.web;
 
+import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.content.ContentLifecycleService;
-import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.domain.VideoInstruction;
-import ge.magti.portal.repository.AuditLogRepository;
+import ge.magti.portal.query.CompleteResultGuard;
 import ge.magti.portal.repository.VideoInstructionRepository;
 import ge.magti.portal.search.SearchReindexService;
 import ge.magti.portal.security.PermissionChecker;
@@ -40,14 +40,9 @@ import java.util.Optional;
  * videos.archive permission (403, Georgian -- security.py's
  * require_permission).
  *
- * <p><b>Known, deliberate gap:</b> Python's create/update/delete get an
- * automatic audit row from audit_trail.py's SQLAlchemy ORM listener --
- * there is no Java equivalent of that cross-cutting mechanism yet (it
- * would need its own increment, covering Article/News/Category too, not
- * just Video). Only archive/unarchive get an explicit audit write here,
- * exactly matching what routers/videos.py's own code explicitly does
- * (log_audit calls, not the automatic listener) -- create/update/delete
- * are not silently audited today on the Java side.
+ * <p>Create/update/archive/unarchive write reconstructable audit evidence in
+ * the same transaction as the business mutation. Delete delegates the same
+ * fail-closed rule to {@link ContentLifecycleService}.
  *
  * <p>Also deliberately not ported: state.py's search_cache.clear() and
  * SSE _notify() calls -- neither TTL caching nor a real-time broadcast
@@ -60,25 +55,25 @@ public class VideoController {
     private static final String NOT_FOUND_DETAIL = "ვიდეო ვერ მოიძებნა";
 
     private final VideoInstructionRepository videoRepository;
-    private final AuditLogRepository auditLogRepository;
     private final PermissionChecker permissionChecker;
     private final TagSyncService tagSyncService;
     private final SearchReindexService searchReindexService;
     private final ContentLifecycleService contentLifecycleService;
+    private final MutationAuditService contentMutationAuditService;
 
     public VideoController(
             VideoInstructionRepository videoRepository,
-            AuditLogRepository auditLogRepository,
             PermissionChecker permissionChecker,
             TagSyncService tagSyncService,
             SearchReindexService searchReindexService,
-            ContentLifecycleService contentLifecycleService) {
+            ContentLifecycleService contentLifecycleService,
+            MutationAuditService contentMutationAuditService) {
         this.videoRepository = videoRepository;
-        this.auditLogRepository = auditLogRepository;
         this.permissionChecker = permissionChecker;
         this.tagSyncService = tagSyncService;
         this.searchReindexService = searchReindexService;
         this.contentLifecycleService = contentLifecycleService;
+        this.contentMutationAuditService = contentMutationAuditService;
     }
 
     @GetMapping("/api/videos")
@@ -89,8 +84,10 @@ public class VideoController {
         }
 
         List<VideoInstruction> videos = user.getRole().isContentAdmin()
-                ? videoRepository.findAll()
-                : videoRepository.findByArchivedFalse().stream()
+                ? CompleteResultGuard.enforce(
+                        videoRepository.findAll(CompleteResultGuard.sentinelPage()).getContent())
+                : CompleteResultGuard.enforce(
+                        videoRepository.findByArchivedFalse(CompleteResultGuard.sentinelPage())).stream()
                         .filter(v -> DepartmentMatcher.matches(user.getDepartment(), List.of(v.getTargetDepartment())))
                         .toList();
 
@@ -109,6 +106,9 @@ public class VideoController {
             return notFound();
         }
         VideoInstruction video = found.get();
+        if (!isVideoVisibleTo(user, video)) {
+            return notFound();
+        }
         video.setViewsCount(video.getViewsCount() + 1);
         videoRepository.save(video);
         return ResponseEntity.ok(VideoInstructionResponse.from(video));
@@ -129,6 +129,9 @@ public class VideoController {
         VideoInstruction saved = videoRepository.saveAndFlush(video);
         tagSyncService.sync("video", saved.getId(), saved.getTags());
         searchReindexService.reindexVideo(saved);
+        contentMutationAuditService.recordSuccess(
+                user, "CREATE", "video", saved.getId(), saved.getTitle(), null,
+                MutationAuditService.videoSnapshot(saved));
 
         return ResponseEntity.ok(VideoInstructionResponse.from(saved));
     }
@@ -148,10 +151,14 @@ public class VideoController {
             return notFound();
         }
         VideoInstruction video = found.get();
+        Map<String, Object> before = MutationAuditService.videoSnapshot(video);
         applyRequest(video, request);
         VideoInstruction saved = videoRepository.saveAndFlush(video);
         tagSyncService.sync("video", saved.getId(), saved.getTags());
         searchReindexService.reindexVideo(saved);
+        contentMutationAuditService.recordSuccess(
+                user, "UPDATE", "video", saved.getId(), saved.getTitle(), before,
+                MutationAuditService.videoSnapshot(saved));
 
         return ResponseEntity.ok(VideoInstructionResponse.from(saved));
     }
@@ -178,6 +185,7 @@ public class VideoController {
     }
 
     @PostMapping("/api/videos/{id}/archive")
+    @Transactional
     public ResponseEntity<?> archiveVideo(@PathVariable Long id, @AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireVideosArchivePermission(user);
         if (denial != null) {
@@ -193,13 +201,17 @@ public class VideoController {
             return ResponseEntity.ok(VideoInstructionResponse.from(video));
         }
 
+        Map<String, Object> before = MutationAuditService.videoSnapshot(video);
         video.setArchived(true);
-        writeAuditLog(user.getId(), "ARCHIVE", id);
-        VideoInstruction saved = videoRepository.save(video);
+        VideoInstruction saved = videoRepository.saveAndFlush(video);
+        contentMutationAuditService.recordSuccess(
+                user, "ARCHIVE", "video", saved.getId(), saved.getTitle(), before,
+                MutationAuditService.videoSnapshot(saved));
         return ResponseEntity.ok(VideoInstructionResponse.from(saved));
     }
 
     @PostMapping("/api/videos/{id}/unarchive")
+    @Transactional
     public ResponseEntity<?> unarchiveVideo(@PathVariable Long id, @AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireVideosArchivePermission(user);
         if (denial != null) {
@@ -215,9 +227,12 @@ public class VideoController {
             return ResponseEntity.badRequest().body(Map.of("detail", "ვიდეო არ არის არქივში"));
         }
 
+        Map<String, Object> before = MutationAuditService.videoSnapshot(video);
         video.setArchived(false);
-        writeAuditLog(user.getId(), "UNARCHIVE", id);
-        VideoInstruction saved = videoRepository.save(video);
+        VideoInstruction saved = videoRepository.saveAndFlush(video);
+        contentMutationAuditService.recordSuccess(
+                user, "UNARCHIVE", "video", saved.getId(), saved.getTitle(), before,
+                MutationAuditService.videoSnapshot(saved));
         return ResponseEntity.ok(VideoInstructionResponse.from(saved));
     }
 
@@ -229,18 +244,14 @@ public class VideoController {
         video.setTags(request.tags());
     }
 
-    private void writeAuditLog(Long adminId, String action, Long videoId) {
-        AuditLog log = new AuditLog();
-        log.setAdminId(adminId);
-        log.setAction(action);
-        log.setItemType("video");
-        log.setItemId(videoId);
-        log.setTimestamp(TbilisiTime.now());
-        auditLogRepository.save(log);
-    }
-
     private static ResponseEntity<?> notFound() {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", NOT_FOUND_DETAIL));
+    }
+
+    private static boolean isVideoVisibleTo(User user, VideoInstruction video) {
+        return user.getRole().isContentAdmin()
+                || (!video.isArchived()
+                && DepartmentMatcher.matches(user.getDepartment(), List.of(video.getTargetDepartment())));
     }
 
     private static ResponseEntity<Map<String, String>> requireAuthenticated(User user) {

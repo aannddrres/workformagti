@@ -3,8 +3,6 @@ package ge.magti.portal.quiz;
 import ge.magti.portal.repository.QuizAttemptRepository;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-
 /**
  * Port of _compute_knowledge_score (routers/articles.py:877-892), shared by
  * the personal score endpoint and the leaderboard exactly like the Python
@@ -25,12 +23,12 @@ public class KnowledgeScoreService {
     }
 
     public KnowledgeScoreResult compute(Long userId) {
-        List<Object[]> rows = quizAttemptRepository.findPassedGroupedByArticleVersion(userId);
-        int articlesPassed = rows.size();
-        long firstTryPasses = rows.stream()
-                .filter(row -> ((Number) row[2]).intValue() == 1)
-                .count();
-        int score = POINTS_PER_ARTICLE_PASSED * articlesPassed + FIRST_TRY_BONUS * (int) firstTryPasses;
-        return new KnowledgeScoreResult(score, articlesPassed, (int) firstTryPasses);
+        var summary = quizAttemptRepository.summarizePassedByArticleVersion(userId);
+        int articlesPassed = Math.toIntExact(summary.getArticlesPassed().longValue());
+        int firstTryPasses = Math.toIntExact(summary.getFirstTryPasses().longValue());
+        int score = Math.addExact(
+                Math.multiplyExact(POINTS_PER_ARTICLE_PASSED, articlesPassed),
+                Math.multiplyExact(FIRST_TRY_BONUS, firstTryPasses));
+        return new KnowledgeScoreResult(score, articlesPassed, firstTryPasses);
     }
 }

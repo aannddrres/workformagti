@@ -172,6 +172,19 @@ class SearchControllerIntegrationTest {
         mockMvc.perform(get("/api/search/history")).andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void searchRejectsOversizedQueriesBeforeDatabaseOrCacheWork() throws Exception {
+        User operator = createUser("search-query-bounds@magti.ge", Role.OPERATOR, "All");
+        String oversized = "x".repeat(201);
+
+        mockMvc.perform(authed(get("/api/search"), tokenFor(operator)).param("q", oversized))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("საძიებო ტექსტი არ უნდა აღემატებოდეს 200 სიმბოლოს"));
+        mockMvc.perform(authed(get("/api/search/global"), tokenFor(operator)).param("q", oversized))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("საძიებო ტექსტი არ უნდა აღემატებოდეს 200 სიმბოლოს"));
+    }
+
     /**
      * The core value of the trigram index: a genuine mid-word substring
      * match (not a prefix), matching ILIKE '%word%' semantics, plus the
@@ -342,8 +355,9 @@ class SearchControllerIntegrationTest {
     }
 
     @Test
-    void searchHistoryReturnsRecentSearchesMostRecentFirst() throws Exception {
+    void searchHistoryReturnsRecentSearchesMostRecentFirstAndOnlyForTheCaller() throws Exception {
         User operator = createUser("search-op5@magti.ge", Role.OPERATOR, "All");
+        User otherOperator = createUser("search-op5-other@magti.ge", Role.OPERATOR, "All");
         createArticle("პირველი საძიებო სიტყვა", "x", null, "published", false, List.of("All"), TbilisiTime.now());
         createArticle("მეორე საძიებო სიტყვა", "x", null, "published", false, List.of("All"), TbilisiTime.now());
 
@@ -357,6 +371,10 @@ class SearchControllerIntegrationTest {
                 .andExpect(jsonPath("$", hasSize(2)))
                 .andExpect(jsonPath("$[0].search_term").value("მეორე"))
                 .andExpect(jsonPath("$[1].search_term").value("პირველი"));
+
+        mockMvc.perform(authed(get("/api/search/history"), tokenFor(otherOperator)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(0)));
     }
 
     @Test

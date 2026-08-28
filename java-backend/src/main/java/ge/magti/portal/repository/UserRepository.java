@@ -6,8 +6,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import jakarta.persistence.LockModeType;
@@ -55,9 +57,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     /** Mirrors list_users' Block-5 group filter (routers/users.py:274-275). */
     List<User> findByManagerId(Long managerId);
 
-    /** Mirrors get_group_leaders (routers/users.py:246-250). */
-    List<User> findByRoleOrderByName(Role role);
-
     /**
      * Mirrors bulk_reassign_roles' last-admin-protection count
      * (routers/users.py:140-148) -- active system admins not already in the
@@ -68,15 +67,23 @@ public interface UserRepository extends JpaRepository<User, Long> {
     /** Mirrors get_knowledge_leaderboard's scope="team" branch (routers/articles.py:907-908). */
     List<User> findByActiveTrueAndTeamId(Long teamId);
 
-    /** Mirrors get_knowledge_leaderboard's scope="department" branch (routers/articles.py:910), exact match only -- no prefix expansion. */
-    List<User> findByActiveTrueAndDepartment(String department);
+    /** Bounded exact-department candidate query for complete-result compliance. */
+    List<User> findByActiveTrueAndDepartmentOrderByIdAsc(String department, Pageable pageable);
 
     List<User> findByActiveTrue();
+
+    /** Bounded candidate query for complete-result compliance calculations. */
+    List<User> findByActiveTrueAndRoleOrderByIdAsc(Role role, Pageable pageable);
 
     /** Active directory membership counts for the Phase 8 read-only org tree. */
     @Query("SELECT u.teamId, COUNT(u.id) FROM User u "
             + "WHERE u.active = true AND u.teamId IS NOT NULL GROUP BY u.teamId")
     List<Object[]> countActiveGroupedByTeam();
+
+    /** Same aggregate restricted to the already bounded org-structure team snapshot. */
+    @Query("SELECT u.teamId, COUNT(u.id) FROM User u "
+            + "WHERE u.active = true AND u.teamId IN :teamIds GROUP BY u.teamId")
+    List<Object[]> countActiveGroupedByTeamIds(@Param("teamIds") Collection<Long> teamIds);
 
     /** Mirrors _get_eligible_operators' non-"All" branch (routers/articles.py:992-993), exact match only -- no prefix expansion. */
     List<User> findByActiveTrueAndDepartmentIn(List<String> departments);

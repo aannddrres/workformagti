@@ -11,12 +11,14 @@ import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.ReadStatus;
 import ge.magti.portal.domain.RequiredReading;
 import ge.magti.portal.domain.Role;
+import ge.magti.portal.domain.Team;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.export.ExportJobCleanupScheduler;
 import ge.magti.portal.repository.ArticleRepository;
 import ge.magti.portal.repository.ExportJobRepository;
 import ge.magti.portal.repository.ReadStatusRepository;
 import ge.magti.portal.repository.RequiredReadingRepository;
+import ge.magti.portal.repository.TeamRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.JwtService;
 import ge.magti.portal.util.TbilisiTime;
@@ -82,6 +84,8 @@ class ExportControllerIntegrationTest {
     private MockMvc mockMvc;
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private TeamRepository teamRepository;
     @Autowired
     private ArticleRepository articleRepository;
     @Autowired
@@ -154,6 +158,20 @@ class ExportControllerIntegrationTest {
         return jwtService.createAccessToken(Map.of("sub", user.getEmail(), "role", user.getRole().value()));
     }
 
+    /** Assigns the canonical home group used by the production export scope.
+     * Free-text department is display/aggregation data; it must never grant
+     * access by itself. */
+    private void assignHomeTeam(User... users) {
+        Team team = new Team();
+        team.setName("export-test-team-" + System.nanoTime());
+        team.setActive(true);
+        team = teamRepository.saveAndFlush(team);
+        for (User user : users) {
+            user.setTeamId(team.getId());
+            userRepository.saveAndFlush(user);
+        }
+    }
+
     private static MockHttpServletRequestBuilder authed(MockHttpServletRequestBuilder builder, String token) {
         return builder.header("Authorization", "Bearer " + token);
     }
@@ -202,6 +220,7 @@ class ExportControllerIntegrationTest {
         // operator (no reports.export by default) is the denial case instead.
         User admin = createUser("exp-admin1@magti.ge", Role.SYSTEM_ADMIN, "All");
         User manager = createUser("exp-mgr1@magti.ge", Role.MANAGER, "All");
+        assignHomeTeam(manager);
         User operator = createUser("exp-op1@magti.ge", Role.OPERATOR, "სავალდებულო განყოფილება " + System.nanoTime());
         operator.setName("=cmd|'/c calc'!A1");
         userRepository.saveAndFlush(operator);
@@ -251,6 +270,27 @@ class ExportControllerIntegrationTest {
                 .andReturn().getResponse().getContentAsString();
         assertEquals("completed", objectMapper.readTree(statusBody).get("status").asText());
 
+        List<AuditLog> outcomeRows = entityManager.createQuery(
+                        "select a from AuditLog a where a.action = 'EXPORT_JOB_COMPLETED' "
+                                + "order by a.id desc", AuditLog.class)
+                .setMaxResults(50)
+                .getResultList();
+        AuditLog outcome = outcomeRows.stream()
+                .filter(row -> {
+                    try {
+                        return jobId.equals(objectMapper.readTree(row.getDetails())
+                                .at("/after/job_id").asText());
+                    } catch (IOException e) {
+                        throw new IllegalStateException(e);
+                    }
+                })
+                .findFirst().orElseThrow();
+        JsonNode outcomeDetails = objectMapper.readTree(outcome.getDetails());
+        assertEquals("SUCCESS", outcomeDetails.get("result").asText());
+        assertEquals("processing", outcomeDetails.at("/before/status").asText());
+        assertEquals("completed", outcomeDetails.at("/after/status").asText());
+        assertTrue(outcomeDetails.at("/after/byte_size").asInt() > 0);
+
         byte[] xlsxBytes = mockMvc.perform(authed(get("/api/export/download/" + jobId), tokenFor(admin)))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsByteArray();
@@ -287,6 +327,43 @@ class ExportControllerIntegrationTest {
     }
 
     @Test
+    void exportJobStatusAndDownloadRemainOpaqueAndOwnerBoundBetweenManagers() throws Exception {
+        String suffix = Long.toString(System.nanoTime());
+        User owner = createUser("exp-job-owner-" + suffix + "@magti.ge", Role.MANAGER,
+                "ექსპორტის owner " + suffix);
+        User intruder = createUser("exp-job-intruder-" + suffix + "@magti.ge", Role.MANAGER,
+                "ექსპორტის intruder " + suffix);
+        assignHomeTeam(owner);
+        assignHomeTeam(intruder);
+
+        String body = mockMvc.perform(authed(get("/api/export/readings.xlsx"), tokenFor(owner)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String jobId = objectMapper.readTree(body).get("job_id").asText();
+        ExportJob job = exportJobRepository.findById(jobId).orElseThrow();
+        assertEquals(owner.getId(), job.getOwnerUserId());
+        assertEquals("completed", job.getStatus());
+
+        mockMvc.perform(authed(get("/api/export/status/" + jobId), tokenFor(intruder)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("საექსპორტო დავალება ვერ მოიძებნა"));
+        mockMvc.perform(authed(get("/api/export/download/" + jobId), tokenFor(intruder)))
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.status").value("expired"));
+
+        mockMvc.perform(authed(get("/api/export/status/" + jobId), tokenFor(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("completed"));
+        mockMvc.perform(authed(get("/api/export/download/" + jobId), tokenFor(owner)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition",
+                        org.hamcrest.Matchers.containsString("attachment")));
+
+        assertTrue(exportJobRepository.existsById(jobId),
+                "foreign probes and the owner's download must preserve the export job until TTL cleanup");
+    }
+
+    @Test
     void pdfExportRequiresReportsExportPermissionAndRendersGeorgianText() throws Exception {
         User operatorNoPerm = createUser("exp-op3@magti.ge", Role.OPERATOR, "All");
         User manager = createUser("exp-mgr2@magti.ge", Role.MANAGER, "პდფ განყოფილება " + System.nanoTime());
@@ -295,6 +372,7 @@ class ExportControllerIntegrationTest {
         // Manager itself is a management role (excluded from eligibility) --
         // use a separate eligible operator so the export has a data row.
         User eligibleOperator = createUser("exp-op4@magti.ge", Role.OPERATOR, manager.getDepartment());
+        assignHomeTeam(manager, eligibleOperator);
         markRead(eligibleOperator, reading);
 
         mockMvc.perform(authed(get("/api/export/readings.pdf"), tokenFor(operatorNoPerm)))
@@ -361,6 +439,8 @@ class ExportControllerIntegrationTest {
         User ownOperator = createUser("exp-scope-own@magti.ge", Role.OPERATOR, ownDept);
         User otherOperator = createUser("exp-scope-other@magti.ge", Role.OPERATOR, otherDept);
         User admin = createUser("exp-scope-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
+        assignHomeTeam(manager, ownOperator);
+        assignHomeTeam(otherOperator);
 
         Article article = createArticle("სკოუპის სტატია " + System.nanoTime());
         markRead(ownOperator, createReading(article.getId(), ownDept));
@@ -396,6 +476,8 @@ class ExportControllerIntegrationTest {
         User manager = createUser("exp-scope-mgr2@magti.ge", Role.MANAGER, ownDept);
         User ownOperator = createUser("exp-scope-own2@magti.ge", Role.OPERATOR, ownDept);
         User otherOperator = createUser("exp-scope-other2@magti.ge", Role.OPERATOR, otherDept);
+        assignHomeTeam(manager, ownOperator);
+        assignHomeTeam(otherOperator);
 
         Article article = createArticle("სტატის სტატია " + System.nanoTime());
         markRead(ownOperator, createReading(article.getId(), ownDept));
@@ -427,6 +509,7 @@ class ExportControllerIntegrationTest {
         String ownDept = "აუდიტის განყოფილება " + System.nanoTime();
         User manager = createUser("exp-scope-mgr3@magti.ge", Role.MANAGER, ownDept);
         User admin = createUser("exp-scope-admin2@magti.ge", Role.SYSTEM_ADMIN, "All");
+        assignHomeTeam(manager);
 
         mockMvc.perform(authed(get("/api/export/readings"), tokenFor(manager))).andExpect(status().isOk());
         mockMvc.perform(authed(get("/api/export/readings"), tokenFor(admin))).andExpect(status().isOk());
@@ -435,6 +518,24 @@ class ExportControllerIntegrationTest {
                 "a manager's export must be audited as scoped to their department");
         assertEquals(ExportController.SCOPE_ALL, latestExportScope(admin.getId()),
                 "an unscoped role's export must be audited as org-wide");
+
+        String asyncBody = mockMvc.perform(authed(get("/api/export/readings.xlsx"), tokenFor(manager)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String jobId = objectMapper.readTree(asyncBody).path("job_id").asText();
+        List<AuditLog> asyncRows = entityManager.createQuery(
+                        "select a from AuditLog a where a.adminId = :adminId and a.action = 'EXPORT_XLSX' "
+                                + "order by a.id desc", AuditLog.class)
+                .setParameter("adminId", manager.getId())
+                .setMaxResults(1)
+                .getResultList();
+        assertFalse(asyncRows.isEmpty());
+        JsonNode asyncDetails = objectMapper.readTree(asyncRows.getFirst().getDetails());
+        assertEquals("SUCCESS", asyncDetails.path("result").asText());
+        assertEquals(jobId, asyncDetails.path("after").path("job_id").asText());
+        assertEquals(ownDept, asyncDetails.path("after").path("scope_department").asText());
+        assertEquals("xlsx", asyncDetails.path("after").path("export_format").asText());
+        assertTrue(exportJobRepository.existsById(jobId), "job and audit must be registered together");
     }
 
     /**
@@ -486,7 +587,9 @@ class ExportControllerIntegrationTest {
                 .getResultList();
         assertFalse(rows.isEmpty(), "the export must have written an audit row");
         JsonNode details = objectMapper.readTree(rows.get(0).getDetails());
-        return details.path("scope_department").asText(null);
+        assertEquals(1, details.path("schema_version").asInt());
+        assertEquals("SUCCESS", details.path("result").asText());
+        return details.path("after").path("scope_department").asText(null);
     }
 
     /**

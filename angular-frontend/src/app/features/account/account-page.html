@@ -130,7 +130,24 @@
         <section class="surface-card p-6">
           <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100">თემა და უსაფრთხოება</h2>
           <button type="button" (click)="theme.toggle()" class="secondary-button mt-5 w-full justify-between"><span><i class="fa-solid mr-2" [class.fa-moon]="!theme.isDark()" [class.fa-sun]="theme.isDark()" aria-hidden="true"></i>{{ theme.isDark() ? 'ღია თემაზე გადასვლა' : 'მუქ თემაზე გადასვლა' }}</span><span class="status-pill bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200">{{ theme.isDark() ? 'მუქი' : 'ღია' }}</span></button>
-          <div class="mt-5 rounded-xl border border-slate-200 p-4 dark:border-slate-700"><p class="text-sm font-bold text-slate-800 dark:text-slate-200">სესიის მდგომარეობა</p><p class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">მომხმარებლის როლის ან აქტიურობის ცვლილება სერვერზე შემდეგივე მოთხოვნიდან მოქმედებს. სისტემიდან გასვლის ღილაკი ანგარიშის მენიუშია.</p></div>
+          <div class="mt-5 rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+            <p class="text-sm font-bold text-slate-800 dark:text-slate-200">აქტიური სესიები</p>
+            <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">უმოქმედობის ზღვარი 30 წუთია, მაქსიმალური ხანგრძლივობა — 8 საათი.</p>
+            @if (sessionsLoading()) {
+              <div class="mt-4 h-20 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800"></div>
+            } @else {
+              <div class="mt-4 space-y-2">
+                @for (session of sessions(); track session.id) {
+                  <div class="flex flex-wrap items-center gap-3 rounded-lg border border-slate-100 p-3 dark:border-slate-800">
+                    <i class="fa-solid fa-laptop text-slate-400" aria-hidden="true"></i>
+                    <div class="min-w-0 flex-1"><p class="text-sm font-semibold text-slate-700 dark:text-slate-200">{{ sessionDevice(session) }} @if (session.current) { <span class="ml-1 text-xs text-emerald-600">მიმდინარე</span> }</p><p class="mt-0.5 text-xs text-slate-400">ბოლო აქტივობა: {{ dateTime(session.last_seen_at) }} · {{ session.client_ip || 'IP უცნობია' }}</p></div>
+                    @if (!session.current) { <button type="button" class="quiet-button text-red-600" (click)="revokeSession(session)" [disabled]="revokingSessionId() !== null">დასრულება</button> }
+                  </div>
+                } @empty { <p class="text-xs text-slate-400">აქტიური სესია ვერ მოიძებნა.</p> }
+              </div>
+            }
+            @if (sessionError()) { <p role="alert" class="mt-3 text-xs text-red-600 dark:text-red-400">{{ sessionError() }}</p> }
+          </div>
         </section>
       </div>
     }

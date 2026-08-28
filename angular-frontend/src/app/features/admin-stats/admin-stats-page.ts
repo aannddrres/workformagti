@@ -15,6 +15,7 @@ import { AuditChainHealth, AuditLogEntry } from '../../core/models/audit';
 import { formatKaDateTime } from '../../shared/ka-date';
 import { getCategoryIcon } from '../../shared/category-visuals';
 import { formatDepartmentLabel } from '../../shared/department-badge';
+import { UserProfileService } from '../../core/auth/user-profile.service';
 
 type ProgressSort = 'perf_desc' | 'perf_asc' | 'name';
 
@@ -56,11 +57,13 @@ export class AdminStatsPage {
   private readonly statsService = inject(StatsService);
   private readonly translate = inject(TranslateService);
   private readonly authService = inject(AuthService);
+  private readonly profiles = inject(UserProfileService);
   private readonly categoriesService = inject(CategoriesService);
   private readonly articlesService = inject(ArticlesService);
   private readonly auditService = inject(AuditService);
 
   protected readonly isSystemAdmin = computed(() => this.authService.currentUser()?.role === 'admin');
+  protected readonly canManageContent = computed(() => this.profiles.hasPermission('content.manage'));
 
   protected readonly kpi = signal<KpiCounts | null>(null);
   protected readonly kpiLoading = signal(true);
@@ -187,9 +190,11 @@ export class AdminStatsPage {
     this.loadCompliance();
     this.loadPopularSearches();
     this.loadFailedSearches();
-    this.loadCategories();
-    this.loadAuditSummary();
+    if (this.canManageContent()) {
+      this.loadCategories();
+    }
     if (this.isSystemAdmin()) {
+      this.loadAuditSummary();
       this.loadProgress();
       this.loadCriticalOperators();
     }

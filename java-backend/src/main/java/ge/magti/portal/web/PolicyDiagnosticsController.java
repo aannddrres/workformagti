@@ -1,12 +1,13 @@
 package ge.magti.portal.web;
 
-import ge.magti.portal.domain.AuditLog;
+import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.org.OrgBackfillPlan;
 import ge.magti.portal.org.OrgBackfillService;
-import ge.magti.portal.repository.AuditLogRepository;
+import ge.magti.portal.org.OrgDirectoryQueryService;
 import ge.magti.portal.security.PolicyShadowRecorder;
+import ge.magti.portal.user.UserDirectoryQueryService;
 import ge.magti.portal.util.TbilisiTime;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,17 +38,22 @@ import java.util.Map;
 @RestController
 public class PolicyDiagnosticsController {
 
+    private static final String BACKFILL_TOO_LARGE_DETAIL =
+            "აქტიური მომხმარებლების რაოდენობა org backfill-ის უსაფრთხო ზღვარს აჭარბებს";
+    private static final String BACKFILL_ORG_TOO_LARGE_DETAIL =
+            "ორგანიზაციული ჩანაწერების რაოდენობა org backfill-ის უსაფრთხო ზღვარს აჭარბებს";
+
     private final PolicyShadowRecorder shadowRecorder;
     private final OrgBackfillService orgBackfillService;
-    private final AuditLogRepository auditLogRepository;
+    private final MutationAuditService mutationAuditService;
 
     public PolicyDiagnosticsController(
             PolicyShadowRecorder shadowRecorder,
             OrgBackfillService orgBackfillService,
-            AuditLogRepository auditLogRepository) {
+            MutationAuditService mutationAuditService) {
         this.shadowRecorder = shadowRecorder;
         this.orgBackfillService = orgBackfillService;
-        this.auditLogRepository = auditLogRepository;
+        this.mutationAuditService = mutationAuditService;
     }
 
     /**
@@ -96,7 +103,15 @@ public class PolicyDiagnosticsController {
         if (denial != null) {
             return denial;
         }
-        return ResponseEntity.ok(describe(orgBackfillService.plan()));
+        try {
+            return ResponseEntity.ok(describe(orgBackfillService.plan()));
+        } catch (UserDirectoryQueryService.ActiveUserCardinalityExceededException exception) {
+            return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                    .body(Map.of("detail", BACKFILL_TOO_LARGE_DETAIL));
+        } catch (OrgDirectoryQueryService.OrgDirectoryCardinalityExceededException exception) {
+            return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                    .body(Map.of("detail", BACKFILL_ORG_TOO_LARGE_DETAIL));
+        }
     }
 
     /**
@@ -115,20 +130,39 @@ public class PolicyDiagnosticsController {
      * pass.
      */
     @PostMapping("/api/admin/org-backfill/apply")
+    @Transactional
     public ResponseEntity<?> applyBackfill(@AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireSystemAdmin(user);
         if (denial != null) {
             return denial;
         }
 
-        OrgBackfillPlan plan = orgBackfillService.apply(user.getId());
-
-        AuditLog audit = new AuditLog();
-        audit.setAdminId(user.getId());
-        audit.setAction("ORG_BACKFILL_APPLY");
-        audit.setItemType("org_structure");
-        audit.setTimestamp(TbilisiTime.now());
-        auditLogRepository.save(audit);
+        OrgBackfillPlan plan;
+        try {
+            plan = orgBackfillService.apply(user.getId());
+        } catch (UserDirectoryQueryService.ActiveUserCardinalityExceededException exception) {
+            mutationAuditService.recordResult(
+                    user, "ORG_BACKFILL_APPLY", "org_structure", null, "Organization backfill",
+                    "FAILURE", "CARDINALITY_LIMIT", null,
+                    Map.of("max_active_users", UserDirectoryQueryService.MAX_ACTIVE_USERS), null, null);
+            return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                    .body(Map.of("detail", BACKFILL_TOO_LARGE_DETAIL));
+        } catch (OrgDirectoryQueryService.OrgDirectoryCardinalityExceededException exception) {
+            mutationAuditService.recordResult(
+                    user, "ORG_BACKFILL_APPLY", "org_structure", null, "Organization backfill",
+                    "FAILURE", "CARDINALITY_LIMIT", null,
+                    Map.of("max_org_rows", OrgDirectoryQueryService.MAX_ROWS), null, null);
+            return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                    .body(Map.of("detail", BACKFILL_ORG_TOO_LARGE_DETAIL));
+        }
+        mutationAuditService.recordSuccess(
+                user, "ORG_BACKFILL_APPLY", "org_structure", null, "Organization backfill",
+                null, Map.of(
+                        "groups_to_create", plan.teamsToCreate().size(),
+                        "memberships", plan.memberships().size(),
+                        "leaders_resolved", plan.leadership().size(),
+                        "needs_a_decision", plan.issues().size(),
+                        "blocks_cutover", plan.hasUnresolvedIssues()));
 
         return ResponseEntity.ok(describe(plan));
     }

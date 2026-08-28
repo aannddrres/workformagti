@@ -1,8 +1,16 @@
 package ge.magti.portal.web;
 
 import ge.magti.portal.article.ArticleListFilter;
+import ge.magti.portal.article.ArticleListItem;
+import ge.magti.portal.article.ArticleEvidenceCardinalityGuard;
+import ge.magti.portal.article.ArticleHistorySummary;
+import ge.magti.portal.article.ArticleReferenceItem;
+import ge.magti.portal.article.ArticleTargetQueryService;
+import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.content.ContentLifecycleService;
+import ge.magti.portal.content.ArticleHtmlSanitizer;
 import ge.magti.portal.article.ArticleQueryService;
+import ge.magti.portal.article.ArticleViewQueryService;
 import ge.magti.portal.article.EligibleOperatorsService;
 import ge.magti.portal.diff.DiffResult;
 import ge.magti.portal.diff.HtmlDiffer;
@@ -11,7 +19,6 @@ import ge.magti.portal.domain.ArticleHistory;
 import ge.magti.portal.domain.ArticleReadReceipt;
 import ge.magti.portal.domain.ArticleTargetDepartment;
 import ge.magti.portal.domain.ArticleViewLog;
-import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.Category;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.ReadStatus;
@@ -19,12 +26,13 @@ import ge.magti.portal.domain.RequiredReading;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.domain.UserNote;
+import ge.magti.portal.history.HistoryPayloadGuard;
+import ge.magti.portal.query.CompleteResultGuard;
 import ge.magti.portal.repository.ArticleHistoryRepository;
 import ge.magti.portal.repository.ArticleReadReceiptRepository;
 import ge.magti.portal.repository.ArticleRepository;
 import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
 import ge.magti.portal.repository.ArticleViewLogRepository;
-import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.CategoryRepository;
 import ge.magti.portal.repository.ReadStatusRepository;
 import ge.magti.portal.repository.RequiredReadingRepository;
@@ -39,11 +47,13 @@ import ge.magti.portal.util.DepartmentMatcher;
 import ge.magti.portal.util.TbilisiTime;
 import ge.magti.portal.video.TagSyncService;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -84,9 +94,8 @@ import java.util.stream.Collectors;
  * require_permission}).
  *
  * <p><b>Bug #314 fix, user-confirmed 2026-08-13:</b> create/update/autosave/
- * delete now also require {@code articles.edit} (and {@code
- * articles.publish} specifically when the request would set {@code
- * status=published}), on top of the role gate -- see {@link
+ * delete now require {@code articles.edit}, including direct publishing,
+ * on top of the role gate -- see {@link
  * #requireArticlesEditPermission}'s javadoc for why. Deliberately NOT
  * extended to {@code articles.view}: that would mean threading a permission
  * check through {@code assertArticleVisible}, reused by every note/quiz
@@ -95,10 +104,10 @@ import java.util.stream.Collectors;
  * left as a known, documented remaining gap rather than widened
  * opportunistically.
  *
- * <p><b>Known, deliberate gaps, same reasoning as Videos/Categories:</b> no
- * automatic ORM-listener audit row on create/update/delete/autosave (only
- * archive/unarchive/bulk-archive write one explicitly, matching exactly
- * what routers/articles.py's own code does); no TTL cache clearing
+ * <p>Create/update/archive/unarchive/version-restore now write reconstructable
+ * audit evidence in the same transaction as the content, target-department,
+ * tag, search-index and history changes. Delete delegates the same fail-closed
+ * rule to {@link ContentLifecycleService}. There is no TTL cache clearing
  * (search_cache/category_cache); no SSE broadcast (_notify/_notify_revision)
  * -- none of that infrastructure exists in the Java port yet.
  */
@@ -109,11 +118,11 @@ public class ArticleController {
 
     private final ArticleRepository articleRepository;
     private final ArticleTargetDepartmentRepository targetDepartmentRepository;
+    private final ArticleTargetQueryService articleTargetQueryService;
     private final ArticleHistoryRepository articleHistoryRepository;
     private final ArticleReadReceiptRepository articleReadReceiptRepository;
     private final ArticleViewLogRepository articleViewLogRepository;
     private final CategoryRepository categoryRepository;
-    private final AuditLogRepository auditLogRepository;
     private final UserNoteRepository userNoteRepository;
     private final UserRepository userRepository;
     private final RequiredReadingRepository requiredReadingRepository;
@@ -123,18 +132,21 @@ public class ArticleController {
     private final ScopeResolver scopeResolver;
     private final TagSyncService tagSyncService;
     private final ArticleQueryService articleQueryService;
+    private final ArticleViewQueryService articleViewQueryService;
     private final EligibleOperatorsService eligibleOperatorsService;
     private final SearchReindexService searchReindexService;
     private final ContentLifecycleService contentLifecycleService;
+    private final ArticleHtmlSanitizer articleHtmlSanitizer;
+    private final MutationAuditService contentMutationAuditService;
 
     public ArticleController(
             ArticleRepository articleRepository,
             ArticleTargetDepartmentRepository targetDepartmentRepository,
+            ArticleTargetQueryService articleTargetQueryService,
             ArticleHistoryRepository articleHistoryRepository,
             ArticleReadReceiptRepository articleReadReceiptRepository,
             ArticleViewLogRepository articleViewLogRepository,
             CategoryRepository categoryRepository,
-            AuditLogRepository auditLogRepository,
             UserNoteRepository userNoteRepository,
             UserRepository userRepository,
             RequiredReadingRepository requiredReadingRepository,
@@ -144,16 +156,19 @@ public class ArticleController {
             ScopeResolver scopeResolver,
             TagSyncService tagSyncService,
             ArticleQueryService articleQueryService,
+            ArticleViewQueryService articleViewQueryService,
             EligibleOperatorsService eligibleOperatorsService,
             SearchReindexService searchReindexService,
-            ContentLifecycleService contentLifecycleService) {
+            ContentLifecycleService contentLifecycleService,
+            ArticleHtmlSanitizer articleHtmlSanitizer,
+            MutationAuditService contentMutationAuditService) {
         this.articleRepository = articleRepository;
         this.targetDepartmentRepository = targetDepartmentRepository;
+        this.articleTargetQueryService = articleTargetQueryService;
         this.articleHistoryRepository = articleHistoryRepository;
         this.articleReadReceiptRepository = articleReadReceiptRepository;
         this.articleViewLogRepository = articleViewLogRepository;
         this.categoryRepository = categoryRepository;
-        this.auditLogRepository = auditLogRepository;
         this.userNoteRepository = userNoteRepository;
         this.userRepository = userRepository;
         this.requiredReadingRepository = requiredReadingRepository;
@@ -163,9 +178,12 @@ public class ArticleController {
         this.scopeResolver = scopeResolver;
         this.tagSyncService = tagSyncService;
         this.articleQueryService = articleQueryService;
+        this.articleViewQueryService = articleViewQueryService;
         this.eligibleOperatorsService = eligibleOperatorsService;
         this.searchReindexService = searchReindexService;
         this.contentLifecycleService = contentLifecycleService;
+        this.articleHtmlSanitizer = articleHtmlSanitizer;
+        this.contentMutationAuditService = contentMutationAuditService;
     }
 
     @GetMapping("/api/articles")
@@ -180,23 +198,25 @@ public class ArticleController {
         if (denial != null) {
             return denial;
         }
+        if (ListQueryBounds.isInvalid(skip, limit)) {
+            return ResponseEntity.badRequest().body(Map.of("detail", ListQueryBounds.INVALID_DETAIL));
+        }
 
-        List<Article> articles = articleQueryService.listVisible(
+        List<ArticleListItem> articles = articleQueryService.listVisible(
                 new ArticleListFilter(q, categoryId, status), user, skip, limit);
 
         Set<Long> categoryIds = articles.stream()
-                .map(Article::getCategoryId).filter(Objects::nonNull).collect(Collectors.toSet());
+                .map(ArticleListItem::categoryId).filter(Objects::nonNull).collect(Collectors.toSet());
         Map<Long, String> categoryNames = categoryRepository.findAllById(categoryIds).stream()
                 .collect(Collectors.toMap(Category::getId, Category::getName));
 
-        Set<Long> articleIds = articles.stream().map(Article::getId).collect(Collectors.toSet());
-        Map<Long, List<String>> deptsByArticle = targetDepartmentRepository.findByArticleIdIn(articleIds).stream()
-                .collect(Collectors.groupingBy(ArticleTargetDepartment::getArticleId,
-                        Collectors.mapping(ArticleTargetDepartment::getDepartment, Collectors.toList())));
+        Set<Long> articleIds = articles.stream().map(ArticleListItem::id).collect(Collectors.toSet());
+        Map<Long, List<String>> deptsByArticle =
+                articleTargetQueryService.targetDepartmentsByArticleWithinLimit(articleIds);
 
         List<ArticleSummaryResponse> result = articles.stream()
                 .map(a -> ArticleSummaryResponse.from(
-                        a, categoryNames.get(a.getCategoryId()), deptsByArticle.getOrDefault(a.getId(), List.of())))
+                        a, categoryNames.get(a.categoryId()), deptsByArticle.getOrDefault(a.id(), List.of())))
                 .toList();
         return ResponseEntity.ok(result);
     }
@@ -231,13 +251,6 @@ public class ArticleController {
         if (denial != null) {
             return denial;
         }
-        if ("published".equals(request.status())) {
-            denial = requireArticlesPublishPermission(user);
-            if (denial != null) {
-                return denial;
-            }
-        }
-
         Article article = new Article();
         applySharedFields(article, request);
         // Never client-supplied (routers/articles.py:231): the author is
@@ -268,7 +281,12 @@ public class ArticleController {
         history.setUpdatedAt(saved.getCreatedAt());
         articleHistoryRepository.save(history);
 
-        return ResponseEntity.ok(ArticleResponse.from(saved, request.targetDepartments()));
+        List<String> savedTargets = resolveTargetDepartments(saved.getId());
+        contentMutationAuditService.recordSuccess(
+                user, "CREATE", "article", saved.getId(), saved.getTitle(), null,
+                MutationAuditService.articleSnapshot(saved, savedTargets));
+
+        return ResponseEntity.ok(ArticleResponse.from(saved, savedTargets));
     }
 
     @PutMapping("/api/articles/{id}")
@@ -279,18 +297,13 @@ public class ArticleController {
         if (denial != null) {
             return denial;
         }
-        if ("published".equals(request.status())) {
-            denial = requireArticlesPublishPermission(user);
-            if (denial != null) {
-                return denial;
-            }
-        }
-
         Optional<Article> found = articleRepository.findById(id);
         if (found.isEmpty()) {
             return notFound();
         }
         Article article = found.get();
+        List<String> previousTargets = resolveTargetDepartments(id);
+        Map<String, Object> before = MutationAuditService.articleSnapshot(article, previousTargets);
 
         articleHistoryRepository.archiveIfMissing(
                 article.getId(), article.getTitle(), article.getContent(), user.getId(), article.getVersion(),
@@ -321,7 +334,12 @@ public class ArticleController {
         history.setUpdatedAt(saved.getUpdatedAt());
         articleHistoryRepository.save(history);
 
-        return ResponseEntity.ok(ArticleResponse.from(saved, request.targetDepartments()));
+        List<String> savedTargets = resolveTargetDepartments(saved.getId());
+        contentMutationAuditService.recordSuccess(
+                user, "UPDATE", "article", saved.getId(), saved.getTitle(), before,
+                MutationAuditService.articleSnapshot(saved, savedTargets));
+
+        return ResponseEntity.ok(ArticleResponse.from(saved, savedTargets));
     }
 
     /**
@@ -388,18 +406,13 @@ public class ArticleController {
         if (denial != null) {
             return denial;
         }
-        if ("published".equals(body.get("status"))) {
-            denial = requireArticlesPublishPermission(user);
-            if (denial != null) {
-                return denial;
-            }
-        }
-
         Optional<Article> found = articleRepository.findById(id);
         if (found.isEmpty()) {
             return notFound();
         }
         Article article = found.get();
+        List<String> previousTargetDepartments = resolveTargetDepartments(id);
+        Map<String, Object> before = MutationAuditService.articleSnapshot(article, previousTargetDepartments);
 
         if (isReaderVisible(article.getStatus(), article.isDraft(), article.getPublishedAt())) {
             return publishedArticleNotAutosavable();
@@ -421,7 +434,7 @@ public class ArticleController {
             article.setTitle((String) body.get("title"));
         }
         if (body.containsKey("content")) {
-            article.setContent((String) body.get("content"));
+            article.setContent(articleHtmlSanitizer.sanitize((String) body.get("content")));
         }
         if (body.containsKey("category_id")) {
             Object value = body.get("category_id");
@@ -467,9 +480,13 @@ public class ArticleController {
 
         article.setUpdatedAt(TbilisiTime.now());
         Article saved = articleRepository.saveAndFlush(article);
+        List<String> savedTargetDepartments = resolveTargetDepartments(id);
+        contentMutationAuditService.recordSuccess(
+                user, "AUTOSAVE", "article", saved.getId(), saved.getTitle(), before,
+                MutationAuditService.articleSnapshot(saved, savedTargetDepartments));
         searchReindexService.reindexArticle(saved);
 
-        return ResponseEntity.ok(ArticleAutosaveResponse.from(saved, resolveTargetDepartments(id)));
+        return ResponseEntity.ok(ArticleAutosaveResponse.from(saved, savedTargetDepartments));
     }
 
     /**
@@ -540,11 +557,15 @@ public class ArticleController {
             return ResponseEntity.ok(ArticleResponse.from(article, resolveTargetDepartments(id)));
         }
 
+        List<String> targetDepartments = resolveTargetDepartments(id);
+        Map<String, Object> before = MutationAuditService.articleSnapshot(article, targetDepartments);
         article.setStatus("archived");
         article.setUpdatedAt(TbilisiTime.now());
-        writeAuditLog(user.getId(), "ARCHIVE", id);
-        Article saved = articleRepository.save(article);
-        return ResponseEntity.ok(ArticleResponse.from(saved, resolveTargetDepartments(id)));
+        Article saved = articleRepository.saveAndFlush(article);
+        contentMutationAuditService.recordSuccess(
+                user, "ARCHIVE", "article", saved.getId(), saved.getTitle(), before,
+                MutationAuditService.articleSnapshot(saved, targetDepartments));
+        return ResponseEntity.ok(ArticleResponse.from(saved, targetDepartments));
     }
 
     @PostMapping("/api/articles/{id}/unarchive")
@@ -564,11 +585,15 @@ public class ArticleController {
             return ResponseEntity.badRequest().body(Map.of("detail", "სტატია არ არის არქივში"));
         }
 
+        List<String> targetDepartments = resolveTargetDepartments(id);
+        Map<String, Object> before = MutationAuditService.articleSnapshot(article, targetDepartments);
         article.setStatus("published");
         article.setUpdatedAt(TbilisiTime.now());
-        writeAuditLog(user.getId(), "UNARCHIVE", id);
-        Article saved = articleRepository.save(article);
-        return ResponseEntity.ok(ArticleResponse.from(saved, resolveTargetDepartments(id)));
+        Article saved = articleRepository.saveAndFlush(article);
+        contentMutationAuditService.recordSuccess(
+                user, "UNARCHIVE", "article", saved.getId(), saved.getTitle(), before,
+                MutationAuditService.articleSnapshot(saved, targetDepartments));
+        return ResponseEntity.ok(ArticleResponse.from(saved, targetDepartments));
     }
 
     @PostMapping("/api/articles/bulk-archive")
@@ -596,26 +621,15 @@ public class ArticleController {
                 skipped.add(article.getId());
                 continue;
             }
+            List<String> targetDepartments = resolveTargetDepartments(article.getId());
+            Map<String, Object> before = MutationAuditService.articleSnapshot(article, targetDepartments);
             article.setStatus(target);
             article.setUpdatedAt(TbilisiTime.now());
-            // Snapshots set explicitly here, matching routers/articles.py:526-530's
-            // own code exactly -- not gap-dependent like the single-item
-            // archive/unarchive endpoints above, which rely on Python's
-            // automatic ORM-listener audit to fill snapshots (no Java
-            // equivalent of that listener exists yet, so those two stay
-            // snapshot-less, matching what their own explicit log_audit
-            // calls actually pass).
-            AuditLog entry = new AuditLog();
-            entry.setAdminId(user.getId());
-            entry.setAction(request.archive() ? "ARCHIVE" : "UNARCHIVE");
-            entry.setItemType("article");
-            entry.setItemId(article.getId());
-            entry.setTimestamp(TbilisiTime.now());
-            entry.setAdminNameSnapshot(user.getName());
-            entry.setAdminEmailSnapshot(user.getEmail());
-            entry.setItemNameSnapshot(article.getTitle());
-            auditLogRepository.save(entry);
-            articleRepository.save(article);
+            Article saved = articleRepository.saveAndFlush(article);
+            contentMutationAuditService.recordSuccess(
+                    user, request.archive() ? "ARCHIVE" : "UNARCHIVE", "article",
+                    saved.getId(), saved.getTitle(), before,
+                    MutationAuditService.articleSnapshot(saved, targetDepartments));
             updated++;
         }
 
@@ -683,11 +697,15 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        List<String> targetDepartments = resolveTargetDepartments(id);
+        Map<String, Object> before = MutationAuditService.articleSnapshot(article, targetDepartments);
         article.setLastVerifiedAt(TbilisiTime.now());
         article.setUpdatedAt(TbilisiTime.now());
-        writeAuditLog(user.getId(), "VERIFY", id);
-        Article saved = articleRepository.save(article);
-        return ResponseEntity.ok(ArticleResponse.from(saved, resolveTargetDepartments(id)));
+        Article saved = articleRepository.saveAndFlush(article);
+        contentMutationAuditService.recordSuccess(
+                user, "VERIFY", "article", id, saved.getTitle(), before,
+                MutationAuditService.articleSnapshot(saved, targetDepartments));
+        return ResponseEntity.ok(ArticleResponse.from(saved, targetDepartments));
     }
 
     @GetMapping("/api/admin/articles/stale")
@@ -698,11 +716,11 @@ public class ArticleController {
         }
 
         OffsetDateTime cutoff = TbilisiTime.now().minusDays(180);
-        List<StaleArticleResponse> stale = articleRepository
-                .findByStatusAndLastVerifiedAtBeforeOrderByLastVerifiedAtAsc("published", cutoff).stream()
+        List<StaleArticleResponse> stale = CompleteResultGuard.enforce(articleRepository
+                .findStaleReferences("published", cutoff, CompleteResultGuard.sentinelPage())).stream()
                 .map(a -> new StaleArticleResponse(
-                        a.getId(), a.getTitle(), resolveTargetDepartments(a.getId()), a.getLastVerifiedAt(),
-                        Duration.between(a.getLastVerifiedAt(), TbilisiTime.now()).toDays()))
+                        a.id(), a.title(), resolveTargetDepartments(a.id()), a.lastVerifiedAt(),
+                        Duration.between(a.lastVerifiedAt(), TbilisiTime.now()).toDays()))
                 .toList();
         return ResponseEntity.ok(stale);
     }
@@ -727,32 +745,33 @@ public class ArticleController {
             return visibility;
         }
 
-        List<Article> published = articleRepository.findByStatus("published").stream()
-                .filter(a -> !a.getId().equals(id))
+        List<ArticleReferenceItem> published = CompleteResultGuard.enforce(
+                        articleRepository.findReferencesByStatus(
+                                "published", CompleteResultGuard.sentinelPage())).stream()
+                .filter(a -> !a.id().equals(id))
                 .toList();
-        Set<Long> candidateIds = published.stream().map(Article::getId).collect(Collectors.toSet());
-        Map<Long, List<String>> deptsByArticle = targetDepartmentRepository.findByArticleIdIn(candidateIds).stream()
-                .collect(Collectors.groupingBy(ArticleTargetDepartment::getArticleId,
-                        Collectors.mapping(ArticleTargetDepartment::getDepartment, Collectors.toList())));
+        Set<Long> candidateIds = published.stream().map(ArticleReferenceItem::id).collect(Collectors.toSet());
+        Map<Long, List<String>> deptsByArticle =
+                articleTargetQueryService.targetDepartmentsByArticleWithinLimit(candidateIds);
         boolean isAdmin = user.getRole().isContentAdmin();
         // Deliberately exact-match + "All" only, NOT DepartmentMatcher's
         // prefix-aware rule -- routers/articles.py:1596-1601 narrows this
         // one candidate filter differently than get_articles' own list
         // query does, and this port carries that difference forward
         // unchanged rather than unifying it.
-        List<Article> candidates = published.stream()
+        List<ArticleReferenceItem> candidates = published.stream()
                 .filter(a -> isAdmin
-                        || relatedArticleDeptMatches(user.getDepartment(), deptsByArticle.getOrDefault(a.getId(), List.of())))
+                        || relatedArticleDeptMatches(user.getDepartment(), deptsByArticle.getOrDefault(a.id(), List.of())))
                 .toList();
 
-        List<Article> results = new ArrayList<>(candidates.stream()
-                .filter(a -> Objects.equals(a.getCategoryId(), source.getCategoryId()))
+        List<ArticleReferenceItem> results = new ArrayList<>(candidates.stream()
+                .filter(a -> Objects.equals(a.categoryId(), source.getCategoryId()))
                 .limit(4)
                 .toList());
 
         if (results.size() < 4 && source.getTags() != null && !source.getTags().isBlank()) {
             Set<Long> existingIds = new LinkedHashSet<>();
-            results.forEach(a -> existingIds.add(a.getId()));
+            results.forEach(a -> existingIds.add(a.id()));
             List<String> tagList = Arrays.stream(source.getTags().split(","))
                     .map(t -> t.strip().toLowerCase())
                     .filter(t -> !t.isEmpty())
@@ -762,13 +781,13 @@ public class ArticleController {
                     break;
                 }
                 int remaining = 4 - results.size();
-                List<Article> tagMatches = candidates.stream()
-                        .filter(a -> !existingIds.contains(a.getId()))
-                        .filter(a -> a.getTags() != null && a.getTags().toLowerCase().contains(tag))
+                List<ArticleReferenceItem> tagMatches = candidates.stream()
+                        .filter(a -> !existingIds.contains(a.id()))
+                        .filter(a -> a.tags() != null && a.tags().toLowerCase().contains(tag))
                         .limit(remaining)
                         .toList();
-                for (Article a : tagMatches) {
-                    if (existingIds.add(a.getId())) {
+                for (ArticleReferenceItem a : tagMatches) {
+                    if (existingIds.add(a.id())) {
                         results.add(a);
                     }
                 }
@@ -777,15 +796,15 @@ public class ArticleController {
 
         if (results.size() < 4) {
             Set<Long> existingIds = new LinkedHashSet<>();
-            results.forEach(a -> existingIds.add(a.getId()));
+            results.forEach(a -> existingIds.add(a.id()));
             int remaining = 4 - results.size();
-            List<Article> fillMatches = candidates.stream()
-                    .filter(a -> !existingIds.contains(a.getId()))
-                    .sorted(Comparator.comparing(Article::getCreatedAt).reversed())
+            List<ArticleReferenceItem> fillMatches = candidates.stream()
+                    .filter(a -> !existingIds.contains(a.id()))
+                    .sorted(Comparator.comparing(ArticleReferenceItem::createdAt).reversed())
                     .limit(remaining)
                     .toList();
-            for (Article a : fillMatches) {
-                if (existingIds.add(a.getId())) {
+            for (ArticleReferenceItem a : fillMatches) {
+                if (existingIds.add(a.id())) {
                     results.add(a);
                 }
             }
@@ -793,12 +812,13 @@ public class ArticleController {
 
         List<RelatedArticleResponse> response = results.stream()
                 .limit(4)
-                .map(a -> new RelatedArticleResponse(a.getId(), a.getTitle(), a.getCategoryId(), a.getTags()))
+                .map(a -> new RelatedArticleResponse(a.id(), a.title(), a.categoryId(), a.tags()))
                 .toList();
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/api/articles/{id}/history")
+    @Transactional(readOnly = true, isolation = Isolation.SERIALIZABLE)
     public ResponseEntity<?> getArticleHistory(@PathVariable Long id, @AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireContentManage(user);
         if (denial != null) {
@@ -808,7 +828,11 @@ public class ArticleController {
         // No get_or_404 here, matching routers/articles.py:539-565 exactly:
         // a missing article_id isn't checked separately, it just yields zero
         // matching history rows -- an empty list, not a 404.
-        List<ArticleHistory> history = articleHistoryRepository.findByArticleIdOrderByUpdatedAtDesc(id);
+        HistoryPayloadGuard.enforceFullResponseCharacters(
+                articleHistoryRepository.totalContentCharactersByArticleId(id));
+        List<ArticleHistory> history = ArticleEvidenceCardinalityGuard.enforceWithinLimit(
+                articleHistoryRepository.findByArticleIdOrderByUpdatedAtDesc(
+                        id, PageRequest.of(0, ArticleEvidenceCardinalityGuard.MAX_ROWS + 1)));
         Set<Long> authorIds = history.stream().map(ArticleHistory::getUpdatedBy).collect(Collectors.toSet());
         Map<Long, String> namesByUserId = userRepository.findAllById(authorIds).stream()
                 .collect(Collectors.toMap(User::getId, User::getName));
@@ -823,6 +847,59 @@ public class ArticleController {
                         namesByUserId.get(h.getUpdatedBy()), h.getVersionId()))
                 .toList();
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Backward-compatible CLOB-free history list for list-first clients.
+     * The legacy {@code /history} response remains unchanged; first-party UI
+     * uses this endpoint and fetches one full snapshot only on expansion.
+     */
+    @GetMapping("/api/articles/{id}/history-summary")
+    public ResponseEntity<?> getArticleHistorySummary(@PathVariable Long id, @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        if (denial != null) {
+            return denial;
+        }
+
+        List<ArticleHistorySummary> history = ArticleEvidenceCardinalityGuard.enforceWithinLimit(
+                articleHistoryRepository.findSummaryByArticleIdOrderByUpdatedAtDesc(
+                        id, PageRequest.of(0, ArticleEvidenceCardinalityGuard.MAX_ROWS + 1)));
+        Set<Long> authorIds = history.stream().map(ArticleHistorySummary::updatedBy).collect(Collectors.toSet());
+        Map<Long, String> namesByUserId = userRepository.findAllById(authorIds).stream()
+                .collect(Collectors.toMap(User::getId, User::getName));
+
+        List<ArticleHistorySummaryResponse> response = history.stream()
+                .filter(h -> namesByUserId.containsKey(h.updatedBy()))
+                .map(h -> new ArticleHistorySummaryResponse(
+                        h.id(), h.title(), h.updatedAt(), namesByUserId.get(h.updatedBy()), h.versionId()))
+                .toList();
+        return ResponseEntity.ok(response);
+    }
+
+    /** Loads one CLOB snapshot after an admin selects a summary row. */
+    @GetMapping("/api/articles/{id}/history/{historyId}")
+    public ResponseEntity<?> getArticleHistoryItem(
+            @PathVariable Long id, @PathVariable Long historyId, @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        if (denial != null) {
+            return denial;
+        }
+
+        Optional<ArticleHistory> history = articleHistoryRepository.findByIdAndArticleId(historyId, id);
+        if (history.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("detail", "ისტორიის ვერსია ვერ მოიძებნა"));
+        }
+        ArticleHistory row = history.get();
+        Optional<User> author = userRepository.findById(row.getUpdatedBy());
+        if (author.isEmpty()) {
+            // Preserve the legacy list's INNER JOIN semantics.
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("detail", "ისტორიის ვერსია ვერ მოიძებნა"));
+        }
+        return ResponseEntity.ok(new ArticleHistoryItemResponse(
+                row.getId(), row.getTitle(), row.getContent(), row.getUpdatedAt(),
+                author.get().getName(), row.getVersionId()));
     }
 
     @GetMapping("/api/articles/{id}/history/{historyId}/diff")
@@ -891,6 +968,8 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        List<String> targetDepartments = resolveTargetDepartments(id);
+        Map<String, Object> before = MutationAuditService.articleSnapshot(article, targetDepartments);
 
         Optional<ArticleHistory> historyOpt = articleHistoryRepository.findByIdAndArticleId(historyId, id);
         if (historyOpt.isEmpty()) {
@@ -903,7 +982,7 @@ public class ArticleController {
                 article.getUpdatedAt() != null ? article.getUpdatedAt() : TbilisiTime.now());
 
         article.setTitle(history.getTitle());
-        article.setContent(history.getContent());
+        article.setContent(articleHtmlSanitizer.sanitize(history.getContent()));
         article.setVersion(article.getVersion() + 1);
         article.setUpdatedAt(TbilisiTime.now());
         Article saved = articleRepository.saveAndFlush(article);
@@ -918,9 +997,11 @@ public class ArticleController {
         restoredHistory.setUpdatedAt(saved.getUpdatedAt());
         articleHistoryRepository.save(restoredHistory);
 
-        writeAuditLog(user.getId(), "RESTORE", id);
+        contentMutationAuditService.recordSuccess(
+                user, "RESTORE", "article", saved.getId(), saved.getTitle(), before,
+                MutationAuditService.articleSnapshot(saved, targetDepartments));
 
-        return ResponseEntity.ok(ArticleResponse.from(saved, resolveTargetDepartments(id)));
+        return ResponseEntity.ok(ArticleResponse.from(saved, targetDepartments));
     }
 
     @GetMapping("/api/articles/{id}/versions")
@@ -951,9 +1032,11 @@ public class ArticleController {
                 fallbackAuthor, article.getVersion(),
                 article.getUpdatedAt() != null ? article.getUpdatedAt() : TbilisiTime.now());
 
-        List<ArticleHistory> history = articleHistoryRepository.findByArticleIdOrderByVersionIdDesc(id);
+        List<ArticleHistorySummary> history = ArticleEvidenceCardinalityGuard.enforceWithinLimit(
+                articleHistoryRepository.findSummaryByArticleIdOrderByVersionIdDesc(
+                        id, PageRequest.of(0, ArticleEvidenceCardinalityGuard.MAX_ROWS + 1)));
         Set<Long> authorIds = history.stream()
-                .map(ArticleHistory::getUpdatedBy).filter(Objects::nonNull).collect(Collectors.toSet());
+                .map(ArticleHistorySummary::updatedBy).filter(Objects::nonNull).collect(Collectors.toSet());
         Map<Long, String> namesByUserId = userRepository.findAllById(authorIds).stream()
                 .collect(Collectors.toMap(User::getId, User::getName));
 
@@ -962,8 +1045,8 @@ public class ArticleController {
         // updated_by has no matching user, with author_name = null.
         List<ArticleVersionItemResponse> versions = history.stream()
                 .map(h -> new ArticleVersionItemResponse(
-                        h.getVersionId() != null ? h.getVersionId() : 0, h.getTitle(), h.getUpdatedAt(),
-                        namesByUserId.get(h.getUpdatedBy()), h.getId()))
+                        h.versionId() != null ? h.versionId() : 0, h.title(), h.updatedAt(),
+                        namesByUserId.get(h.updatedBy()), h.id()))
                 .sorted(Comparator.comparingInt(ArticleVersionItemResponse::version).reversed())
                 .toList();
         return ResponseEntity.ok(versions);
@@ -1014,7 +1097,10 @@ public class ArticleController {
                 ? eligibleUsers
                 : eligibleUsers.stream().filter(candidate -> namedScope.includesTeam(candidate.getTeamId())).toList();
 
-        List<ArticleReadReceipt> receipts = articleReadReceiptRepository.findByArticleIdSnapshotAndArticleVersion(id, targetVersion);
+        List<ArticleReadReceipt> receipts = ArticleEvidenceCardinalityGuard.enforceWithinLimit(
+                articleReadReceiptRepository.findByArticleIdSnapshotAndArticleVersion(
+                        id, targetVersion,
+                        PageRequest.of(0, ArticleEvidenceCardinalityGuard.MAX_ROWS + 1)));
         Map<Long, ArticleReadReceipt> receiptByOperator = receipts.stream()
                 .filter(r -> r.getOperatorId() != null)
                 .collect(Collectors.toMap(ArticleReadReceipt::getOperatorId, r -> r, (a, b) -> a));
@@ -1051,6 +1137,7 @@ public class ArticleController {
                 rows.add(buildReceiptRow(receipt, dueDate));
             }
         }
+        ArticleEvidenceCardinalityGuard.enforceResponseRowLimit(rows.size());
 
         return ResponseEntity.ok(new ArticleReadReceiptResponse(
                 id, article.getTitle(), targetVersion, eligibleCount, readCount,
@@ -1092,8 +1179,10 @@ public class ArticleController {
         // own list query uses. Only fills gaps: an already-"read"
         // ReadStatus keeps its original read_at.
         String deptPrefix = DepartmentMatcher.splitGroup(user.getDepartment()).prefix();
-        List<RequiredReading> covering = requiredReadingRepository.findByItemTypeAndItemIdAndTargetDepartmentIn(
-                "article", id, List.of(user.getDepartment(), deptPrefix, "All"));
+        List<RequiredReading> covering = CompleteResultGuard.enforce(
+                requiredReadingRepository.findByItemTypeAndItemIdAndTargetDepartmentIn(
+                        "article", id, List.of(user.getDepartment(), deptPrefix, "All"),
+                        CompleteResultGuard.sentinelPage()));
         for (RequiredReading rr : covering) {
             ReadStatus stat = readStatusRepository.findByUserIdAndRequiredReadingId(user.getId(), rr.getId())
                     .orElseGet(() -> {
@@ -1190,24 +1279,18 @@ public class ArticleController {
         }
         Article article = found.get();
 
-        List<ArticleViewLog> all = version != null
-                ? articleViewLogRepository.findByArticleIdSnapshotAndArticleVersionOrderByViewedAtDesc(id, version)
-                : articleViewLogRepository.findByArticleIdSnapshotOrderByViewedAtDesc(id);
-
-        long totalViews = all.size();
-        long uniqueViewers = all.stream().map(ArticleViewLog::getOperatorId).filter(Objects::nonNull).distinct().count();
-
         int safeOffset = Math.max(offset, 0);
         int safeLimit = Math.max(1, Math.min(limit, 200));
-        List<ArticleViewRowResponse> rows = all.stream()
-                .skip(safeOffset)
-                .limit(safeLimit)
+        ArticleViewQueryService.ViewPage page = articleViewQueryService.query(
+                id, version, safeOffset, safeLimit);
+        List<ArticleViewRowResponse> rows = page.rows().stream()
                 .map(v -> new ArticleViewRowResponse(v.getOperatorId(), v.getOperatorNameSnapshot(),
                         v.getOperatorEmailSnapshot(), v.getOperatorDepartmentSnapshot(), v.getArticleVersion(),
                         TbilisiTime.format(v.getViewedAt())))
                 .toList();
 
-        return ResponseEntity.ok(new ArticleViewsResponse(id, article.getVersion(), version, totalViews, uniqueViewers, rows));
+        return ResponseEntity.ok(new ArticleViewsResponse(
+                id, article.getVersion(), version, page.totalViews(), page.uniqueViewers(), rows));
     }
 
     @GetMapping("/api/me/recently-viewed")
@@ -1278,7 +1361,7 @@ public class ArticleController {
 
     private void applySharedFields(Article article, ArticleRequest request) {
         article.setTitle(request.title());
-        article.setContent(request.content());
+        article.setContent(articleHtmlSanitizer.sanitize(request.content()));
         article.setCategoryId(request.categoryId());
         article.setTags(request.tags());
         article.setTargetDepartment(request.legacyTargetDepartment());
@@ -1294,9 +1377,7 @@ public class ArticleController {
     }
 
     private List<String> resolveTargetDepartments(Long articleId) {
-        return targetDepartmentRepository.findByArticleId(articleId).stream()
-                .map(ArticleTargetDepartment::getDepartment)
-                .toList();
+        return articleTargetQueryService.targetDepartmentsForArticleWithinLimit(articleId);
     }
 
     private void replaceTargetDepartments(Long articleId, List<String> departments) {
@@ -1307,16 +1388,6 @@ public class ArticleController {
             row.setDepartment(department);
             targetDepartmentRepository.save(row);
         }
-    }
-
-    private void writeAuditLog(Long adminId, String action, Long articleId) {
-        AuditLog entry = new AuditLog();
-        entry.setAdminId(adminId);
-        entry.setAction(action);
-        entry.setItemType("article");
-        entry.setItemId(articleId);
-        entry.setTimestamp(TbilisiTime.now());
-        auditLogRepository.save(entry);
     }
 
     private static ResponseEntity<?> notFound() {
@@ -1441,9 +1512,9 @@ public class ArticleController {
     }
 
     /**
-     * Bug #314 fix, user-confirmed 2026-08-13: {@code articles.edit}/
-     * {@code articles.publish} were defined, defaulted onto content_admin,
-     * and settable per-user via {@code PUT /api/users/{id}/permissions} --
+     * Bug #314 fix, user-confirmed 2026-08-13: {@code articles.edit} was
+     * defined, defaulted onto content_admin, and settable per-user via
+     * {@code PUT /api/users/{id}/permissions} --
      * but no endpoint ever consulted them (confirmed present in Python too,
      * routers/articles.py's CRUD depends only on {@code get_current_admin_user},
      * never {@code require_permission}). Revoking a content_admin's
@@ -1463,16 +1534,4 @@ public class ArticleController {
         return null;
     }
 
-    /** Same bug #314 fix -- gates specifically flipping an article's status to "published". */
-    private ResponseEntity<Map<String, String>> requireArticlesPublishPermission(User user) {
-        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
-        if (authFailure != null) {
-            return authFailure;
-        }
-        if (!permissionChecker.hasPermission(user, Permission.ARTICLES_PUBLISH)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
-        }
-        return null;
-    }
 }

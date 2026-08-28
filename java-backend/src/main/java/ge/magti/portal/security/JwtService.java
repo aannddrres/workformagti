@@ -46,6 +46,7 @@ public class JwtService {
 	 * user; short claim names are the one place JWT size actually matters.
 	 */
 	public static final String TOKEN_VERSION_CLAIM = "tv";
+	public static final String SESSION_ID_CLAIM = "sid";
 
 	/** Mirrors create_access_token(data={"sub": email, "role": role}). */
 	public String createAccessToken(Map<String, Object> claims) {
@@ -64,6 +65,14 @@ public class JwtService {
 				"sub", user.getEmail(),
 				"role", user.getRole().value(),
 				TOKEN_VERSION_CLAIM, user.getTokenVersion()));
+	}
+
+	public String createAccessTokenFor(ge.magti.portal.domain.User user, String sessionId) {
+		return createAccessToken(Map.of(
+				"sub", user.getEmail(),
+				"role", user.getRole().value(),
+				TOKEN_VERSION_CLAIM, user.getTokenVersion(),
+				SESSION_ID_CLAIM, sessionId));
 	}
 
 	/**

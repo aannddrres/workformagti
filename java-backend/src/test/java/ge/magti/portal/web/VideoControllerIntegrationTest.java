@@ -1,6 +1,7 @@
 package ge.magti.portal.web;
 
 import ge.magti.portal.RequiresOracle;
+import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.Favorite;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
@@ -28,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -117,7 +119,8 @@ class VideoControllerIntegrationTest {
 
         mockMvc.perform(authed(get("/api/videos"), tokenFor(admin)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2));
+                .andExpect(jsonPath("$[*].title").value(
+                        org.hamcrest.Matchers.hasItems("ტექნიკური ვიდეო", "დაარქივებული ვიდეო")));
     }
 
     @Test
@@ -132,9 +135,11 @@ class VideoControllerIntegrationTest {
 
         mockMvc.perform(authed(get("/api/videos"), tokenFor(operator)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[*].title").value(
-                        org.hamcrest.Matchers.containsInAnyOrder("ტექნიკური ვიდეო", "ზოგადი ვიდეო")));
+                        org.hamcrest.Matchers.hasItems("ტექნიკური ვიდეო", "ზოგადი ვიდეო")))
+                .andExpect(jsonPath("$[*].title").value(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.hasItems(
+                                "სხვა განყოფილების ვიდეო", "დაარქივებული ტექნიკური ვიდეო"))));
     }
 
     @Test
@@ -144,7 +149,8 @@ class VideoControllerIntegrationTest {
 
         mockMvc.perform(authed(get("/api/videos"), tokenFor(operator)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$[*].title").value(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.hasItem("ტექნიკური ვიდეო"))));
     }
 
     @Test
@@ -164,6 +170,32 @@ class VideoControllerIntegrationTest {
                 .andExpect(jsonPath("$.views_count").value(1));
 
         assertEquals(1, videoRepository.findById(video.getId()).orElseThrow().getViewsCount());
+    }
+
+    @Test
+    void videoViewFollowsListVisibilityAndRejectedIdsDoNotChangeCounts() throws Exception {
+        String suffix = Long.toString(System.nanoTime());
+        User operator = createUser("video-scope-operator-" + suffix + "@magti.ge", Role.OPERATOR,
+                "ტექნიკური — ჯგუფი 01");
+        User contentAdmin = createUser("video-scope-admin-" + suffix + "@magti.ge", Role.CONTENT_ADMIN,
+                "Content Creation");
+        VideoInstruction foreign = createVideo("უცხო ვიდეო " + suffix, "გაყიდვები", false);
+        VideoInstruction archived = createVideo("არქივის ვიდეო " + suffix, "All", true);
+
+        mockMvc.perform(authed(post("/api/videos/" + foreign.getId() + "/view"), tokenFor(operator)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("ვიდეო ვერ მოიძებნა"));
+        mockMvc.perform(authed(post("/api/videos/" + archived.getId() + "/view"), tokenFor(operator)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("ვიდეო ვერ მოიძებნა"));
+        assertEquals(0, videoRepository.findById(foreign.getId()).orElseThrow().getViewsCount());
+        assertEquals(0, videoRepository.findById(archived.getId()).orElseThrow().getViewsCount());
+
+        mockMvc.perform(authed(post("/api/videos/" + archived.getId() + "/view"), tokenFor(contentAdmin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.views_count").value(1));
+        assertEquals(1, videoRepository.findById(archived.getId()).orElseThrow().getViewsCount(),
+                "content administrators retain the same archived-video access exposed by the list contract");
     }
 
     @Test
@@ -193,6 +225,16 @@ class VideoControllerIntegrationTest {
         long id = new com.fasterxml.jackson.databind.ObjectMapper().readTree(body).get("id").asLong();
         assertEquals(2, tagMappingRepository.findAll().stream()
                 .filter(m -> "video".equals(m.getItemType()) && m.getItemId().equals(id)).count());
+
+        AuditLog createAudit = auditLogRepository.findAll().stream()
+                .filter(a -> "video".equals(a.getItemType()) && Long.valueOf(id).equals(a.getItemId())
+                        && "CREATE".equals(a.getAction()))
+                .findFirst().orElseThrow();
+        var createDetails = new com.fasterxml.jackson.databind.ObjectMapper().readTree(createAudit.getDetails());
+        assertEquals(admin.getId(), createAudit.getAdminId());
+        assertEquals("ახალი ვიდეო", createAudit.getItemNameSnapshot());
+        assertTrue(createDetails.path("before").isNull());
+        assertEquals("ინტერნეტი, პაროლი", createDetails.path("after").path("tags").asText());
     }
 
     @Test
@@ -225,6 +267,14 @@ class VideoControllerIntegrationTest {
                 .map(m -> m.getItemType())
                 .toList();
         assertEquals(2, remainingTagItemTypes.size());
+
+        AuditLog updateAudit = auditLogRepository.findAll().stream()
+                .filter(a -> "video".equals(a.getItemType()) && Long.valueOf(id).equals(a.getItemId())
+                        && "UPDATE".equals(a.getAction()))
+                .findFirst().orElseThrow();
+        var updateDetails = new com.fasterxml.jackson.databind.ObjectMapper().readTree(updateAudit.getDetails());
+        assertEquals("ინტერნეტი, პაროლი", updateDetails.path("before").path("tags").asText());
+        assertEquals("ინტერნეტი, ვიდეო", updateDetails.path("after").path("tags").asText());
     }
 
     @Test
@@ -296,14 +346,36 @@ class VideoControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.is_archived").value(true));
 
-        assertTrue(auditLogRepository.findAll().stream()
-                .anyMatch(a -> "ARCHIVE".equals(a.getAction()) && "video".equals(a.getItemType())
-                        && video.getId().equals(a.getItemId())));
+        AuditLog archiveAudit = auditLogRepository.findAll().stream()
+                .filter(a -> "ARCHIVE".equals(a.getAction()) && "video".equals(a.getItemType())
+                        && video.getId().equals(a.getItemId()))
+                .findFirst().orElseThrow();
+        var archiveDetails = new com.fasterxml.jackson.databind.ObjectMapper().readTree(archiveAudit.getDetails());
+        assertEquals(admin.getId(), archiveAudit.getAdminId());
+        assertEquals(admin.getName(), archiveAudit.getAdminNameSnapshot());
+        assertEquals(video.getTitle(), archiveAudit.getItemNameSnapshot());
+        assertFalse(archiveDetails.path("before").path("archived").asBoolean());
+        assertTrue(archiveDetails.path("after").path("archived").asBoolean());
+        assertEquals("SUCCESS", archiveDetails.path("result").asText());
 
         // Second archive call: idempotent, no error, no duplicate meaning.
         mockMvc.perform(authed(post("/api/videos/" + video.getId() + "/archive"), tokenFor(admin)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.is_archived").value(true));
+        assertEquals(1, auditLogRepository.findAll().stream()
+                .filter(a -> "ARCHIVE".equals(a.getAction()) && video.getId().equals(a.getItemId()))
+                .count());
+
+        mockMvc.perform(authed(post("/api/videos/" + video.getId() + "/unarchive"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.is_archived").value(false));
+        AuditLog unarchiveAudit = auditLogRepository.findAll().stream()
+                .filter(a -> "UNARCHIVE".equals(a.getAction()) && "video".equals(a.getItemType())
+                        && video.getId().equals(a.getItemId()))
+                .findFirst().orElseThrow();
+        var unarchiveDetails = new com.fasterxml.jackson.databind.ObjectMapper().readTree(unarchiveAudit.getDetails());
+        assertTrue(unarchiveDetails.path("before").path("archived").asBoolean());
+        assertFalse(unarchiveDetails.path("after").path("archived").asBoolean());
     }
 
     @Test

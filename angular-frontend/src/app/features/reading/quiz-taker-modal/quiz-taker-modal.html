@@ -1,6 +1,6 @@
 <div class="fixed inset-0 z-[110] flex items-center justify-center p-4">
   <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" (click)="close()"></div>
-  <div class="relative z-10 max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-8 shadow-2xl dark:bg-zinc-900">
+  <div portalDialog portalDialogLabelledBy="quiz-heading" portalDialogDescribedBy="quiz-instructions" (portalDialogClose)="close()" class="relative z-10 max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-8 shadow-2xl dark:bg-zinc-900">
     <button
       type="button"
       (click)="close()"
@@ -10,8 +10,8 @@
       <i class="fa-solid fa-xmark" aria-hidden="true"></i>
     </button>
 
-    <h3 class="mb-1 text-xl font-bold text-gray-800 dark:text-zinc-100">{{ 'readings.quiz.heading' | translate }}</h3>
-    <p class="mb-5 text-sm text-gray-500 dark:text-zinc-400">{{ 'readings.quiz.instructions' | translate }}</p>
+    <h3 id="quiz-heading" class="mb-1 text-xl font-bold text-gray-800 dark:text-zinc-100">{{ 'readings.quiz.heading' | translate }}</h3>
+    <p id="quiz-instructions" class="mb-5 text-sm text-gray-500 dark:text-zinc-400">{{ 'readings.quiz.instructions' | translate }}</p>
 
     @if (loading()) {
       <div class="flex flex-col gap-3">

@@ -30,7 +30,6 @@ public class BroadcastAuthorizationService {
         }
         // Product rule says group leader. A department leadership assignment
         // intentionally does not widen this capability.
-        return leadershipRepository.findByUserIdAndActiveTrue(user.getId()).stream()
-                .anyMatch(assignment -> assignment.getTeamId() != null);
+        return leadershipRepository.existsByUserIdAndTeamIdIsNotNullAndActiveTrue(user.getId());
     }
 }

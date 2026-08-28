@@ -1,16 +1,19 @@
 package ge.magti.portal.web;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.ArticleTargetDepartment;
 import ge.magti.portal.domain.Category;
 import ge.magti.portal.domain.Permission;
+import ge.magti.portal.domain.QuizAttempt;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.repository.ArticleRepository;
 import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
 import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.CategoryRepository;
+import ge.magti.portal.repository.QuizAttemptRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.JwtService;
 import ge.magti.portal.util.TbilisiTime;
@@ -27,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -45,6 +49,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 class QuizControllerIntegrationTest {
 
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     @Autowired
     private MockMvc mockMvc;
     @Autowired
@@ -57,6 +63,8 @@ class QuizControllerIntegrationTest {
     private CategoryRepository categoryRepository;
     @Autowired
     private AuditLogRepository auditLogRepository;
+    @Autowired
+    private QuizAttemptRepository quizAttemptRepository;
     @Autowired
     private JwtService jwtService;
     @Autowired
@@ -189,8 +197,14 @@ class QuizControllerIntegrationTest {
                 .andExpect(jsonPath("$.questions.length()").value(2))
                 .andExpect(jsonPath("$.questions[0].answers[1].is_correct").value(true));
 
-        assertTrue(auditLogRepository.findAll().stream()
-                .anyMatch(a -> "UPDATE_QUIZ".equals(a.getAction()) && article.getId().equals(a.getItemId())));
+        var audit = auditLogRepository.findAll().stream()
+                .filter(a -> "UPDATE_QUIZ".equals(a.getAction()) && article.getId().equals(a.getItemId()))
+                .findFirst().orElseThrow();
+        var details = objectMapper.readTree(audit.getDetails());
+        assertEquals(0, details.at("/before/question_count").asInt());
+        assertEquals(2, details.at("/after/question_count").asInt());
+        assertEquals(4, details.at("/after/answer_count").asInt());
+        assertEquals("SUCCESS", details.get("result").asText());
 
         mockMvc.perform(authed(get("/api/articles/" + article.getId() + "/quiz/admin"), tokenFor(admin)))
                 .andExpect(status().isOk())
@@ -274,6 +288,77 @@ class QuizControllerIntegrationTest {
                 .andExpect(jsonPath("$.score").value(0))
                 .andExpect(jsonPath("$.wrong_question_ids.length()").value(2))
                 .andExpect(jsonPath("$.attempt_number").value(2));
+
+        var attemptAudits = auditLogRepository.findAll().stream()
+                .filter(a -> "SUBMIT_QUIZ_ATTEMPT".equals(a.getAction())
+                        && operator.getId().equals(a.getAdminId()))
+                .toList();
+        assertEquals(2, attemptAudits.size());
+        var firstAttempt = attemptAudits.stream()
+                .map(a -> {
+                    try {
+                        return objectMapper.readTree(a.getDetails());
+                    } catch (java.io.IOException e) {
+                        throw new IllegalStateException(e);
+                    }
+                })
+                .filter(details -> details.at("/after/attempt_number").asInt() == 1)
+                .findFirst().orElseThrow();
+        assertEquals(2, firstAttempt.at("/after/score").asInt());
+        assertTrue(firstAttempt.at("/after/passed").asBoolean());
+        assertEquals("SUCCESS", firstAttempt.get("result").asText());
+    }
+
+    @Test
+    void attemptNumberAndKnowledgeScoreRemainIsolatedPerUser() throws Exception {
+        User admin = createUser("quiz-isolation-admin@magti.ge", Role.CONTENT_ADMIN, "All");
+        Article article = createArticle(true, List.of("All"));
+        String adminBody = mockMvc.perform(authed(put("/api/articles/" + article.getId() + "/quiz/admin"),
+                        tokenFor(admin)).contentType(MediaType.APPLICATION_JSON).content(TWO_QUESTION_PAYLOAD))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        var questions = objectMapper.readTree(adminBody).get("questions");
+        long q1 = questions.get(0).get("id").asLong();
+        long q1CorrectAnswer = questions.get(0).get("answers").get(1).get("id").asLong();
+        long q2 = questions.get(1).get("id").asLong();
+        long q2CorrectAnswer = questions.get(1).get("answers").get(0).get("id").asLong();
+        String correctPayload = "{\"answers\":{\"" + q1 + "\":" + q1CorrectAnswer + ",\"" + q2 + "\":"
+                + q2CorrectAnswer + "}}";
+
+        User firstReader = createUser("quiz-isolation-first@magti.ge", Role.OPERATOR, "All");
+        User secondReader = createUser("quiz-isolation-second@magti.ge", Role.OPERATOR, "All");
+
+        mockMvc.perform(authed(post("/api/articles/" + article.getId() + "/quiz/attempt"), tokenFor(firstReader))
+                        .contentType(MediaType.APPLICATION_JSON).content(correctPayload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.passed").value(true))
+                .andExpect(jsonPath("$.attempt_number").value(1));
+        mockMvc.perform(authed(post("/api/articles/" + article.getId() + "/quiz/attempt"), tokenFor(firstReader))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"answers\":{}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.attempt_number").value(2));
+
+        mockMvc.perform(authed(post("/api/articles/" + article.getId() + "/quiz/attempt"), tokenFor(secondReader))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"answers\":{}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.passed").value(false))
+                .andExpect(jsonPath("$.attempt_number").value(1));
+
+        mockMvc.perform(authed(get("/api/users/me/knowledge-score"), tokenFor(firstReader)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user_id").value(firstReader.getId()))
+                .andExpect(jsonPath("$.score").value(15))
+                .andExpect(jsonPath("$.articles_passed").value(1));
+        mockMvc.perform(authed(get("/api/users/me/knowledge-score"), tokenFor(secondReader)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user_id").value(secondReader.getId()))
+                .andExpect(jsonPath("$.score").value(0))
+                .andExpect(jsonPath("$.articles_passed").value(0));
+
+        assertEquals(2, quizAttemptRepository.countByArticleIdAndArticleVersionAndUserId(
+                article.getId(), article.getVersion(), firstReader.getId()));
+        assertEquals(1, quizAttemptRepository.countByArticleIdAndArticleVersionAndUserId(
+                article.getId(), article.getVersion(), secondReader.getId()));
     }
 
     // ── knowledge score ───────────────────────────────────────────────
@@ -308,6 +393,44 @@ class QuizControllerIntegrationTest {
                 .andExpect(jsonPath("$.score").value(15))
                 .andExpect(jsonPath("$.articles_passed").value(1))
                 .andExpect(jsonPath("$.first_try_passes").value(1));
+    }
+
+    @Test
+    void knowledgeScoreAggregatesDistinctVersionsAndEarliestPassingAttempt() throws Exception {
+        User operator = createUser("qa13@magti.ge", Role.OPERATOR, "All");
+        Article article = createArticle(true, List.of("All"));
+
+        quizAttemptRepository.saveAllAndFlush(List.of(
+                attempt(article, operator, 1, 1, false),
+                attempt(article, operator, 1, 2, true),
+                attempt(article, operator, 1, 3, true),
+                attempt(article, operator, 2, 1, true)));
+
+        mockMvc.perform(authed(get("/api/users/me/knowledge-score"), tokenFor(operator)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.score").value(25))
+                .andExpect(jsonPath("$.articles_passed").value(2))
+                .andExpect(jsonPath("$.first_try_passes").value(1));
+    }
+
+    private static QuizAttempt attempt(
+            Article article,
+            User user,
+            int articleVersion,
+            int attemptNumber,
+            boolean passed) {
+        QuizAttempt attempt = new QuizAttempt();
+        attempt.setArticleId(article.getId());
+        attempt.setArticleIdSnapshot(article.getId());
+        attempt.setArticleTitleSnapshot(article.getTitle());
+        attempt.setArticleVersion(articleVersion);
+        attempt.setUserId(user.getId());
+        attempt.setAttemptNumber(attemptNumber);
+        attempt.setScore(passed ? 1 : 0);
+        attempt.setTotalQuestions(1);
+        attempt.setPassed(passed);
+        attempt.setCreatedAt(TbilisiTime.now());
+        return attempt;
     }
 
 }

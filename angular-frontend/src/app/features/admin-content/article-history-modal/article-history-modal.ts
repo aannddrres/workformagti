@@ -2,7 +2,8 @@ import { Component, computed, effect, inject, input, output, signal } from '@ang
 import { DatePipe } from '@angular/common';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ArticlesService } from '../../../core/services/articles.service';
-import { ArticleDiff, ArticleHistoryItem } from '../../../core/models/article-history';
+import { ArticleDiff, ArticleHistorySummaryItem } from '../../../core/models/article-history';
+import { PortalDialog } from '../../../shared/portal-dialog/portal-dialog';
 
 /**
  * Port of the admin-only "ისტორია" action (frontend_api.js:615) +
@@ -10,7 +11,8 @@ import { ArticleDiff, ArticleHistoryItem } from '../../../core/models/article-hi
  * (app-core.js:3511-3651). Distinct from the reader-facing "ვერსიების
  * ისტორია" overlay on the article detail page (`modal-history-*`,
  * GET .../versions, predecessor-aware compare, no restore) -- this one is
- * admin-only, reads the raw GET .../history list, and can restore.
+ * admin-only, reads the CLOB-free GET .../history-summary list, fetches one
+ * full revision on expansion, and can restore.
  *
  * <p>Python stacks two separate DOM modals (`#history-modal` +
  * `#diff-modal`); folded into one component with an internal diff view
@@ -21,7 +23,7 @@ import { ArticleDiff, ArticleHistoryItem } from '../../../core/models/article-hi
 @Component({
   selector: 'app-article-history-modal',
   standalone: true,
-  imports: [TranslatePipe, DatePipe],
+  imports: [TranslatePipe, DatePipe, PortalDialog],
   templateUrl: './article-history-modal.html'
 })
 export class ArticleHistoryModal {
@@ -32,10 +34,13 @@ export class ArticleHistoryModal {
   readonly closed = output<void>();
   readonly restored = output<void>();
 
-  protected readonly items = signal<ArticleHistoryItem[]>([]);
+  protected readonly items = signal<ArticleHistorySummaryItem[]>([]);
   protected readonly loading = signal(true);
   protected readonly error = signal(false);
   protected readonly expandedId = signal<number | null>(null);
+  protected readonly expandedContent = signal<string | null>(null);
+  protected readonly expandedLoading = signal(false);
+  protected readonly expandedError = signal(false);
 
   protected readonly diffFor = signal<number | null>(null);
   protected readonly diff = signal<ArticleDiff | null>(null);
@@ -62,7 +67,7 @@ export class ArticleHistoryModal {
   private load(articleId: number): void {
     this.loading.set(true);
     this.error.set(false);
-    this.articlesService.history(articleId).subscribe({
+    this.articlesService.historySummary(articleId).subscribe({
       next: (data) => {
         this.items.set(data);
         this.loading.set(false);
@@ -74,19 +79,45 @@ export class ArticleHistoryModal {
     });
   }
 
-  protected versionLabel(item: ArticleHistoryItem, index: number): string {
+  protected versionLabel(item: ArticleHistorySummaryItem, index: number): string {
     return 'V' + (item.version_id ?? index + 1);
   }
 
-  protected toggleExpanded(id: number): void {
-    this.expandedId.update((current) => (current === id ? null : id));
+  protected toggleExpanded(item: ArticleHistorySummaryItem): void {
+    if (this.expandedId() === item.id) {
+      this.expandedId.set(null);
+      this.expandedContent.set(null);
+      this.expandedLoading.set(false);
+      this.expandedError.set(false);
+      return;
+    }
+
+    this.expandedId.set(item.id);
+    this.expandedContent.set(null);
+    this.expandedLoading.set(true);
+    this.expandedError.set(false);
+    this.articlesService.historyItem(this.articleId(), item.id).subscribe({
+      next: (detail) => {
+        // Ignore an older request if the user selected another row meanwhile.
+        if (this.expandedId() === item.id) {
+          this.expandedContent.set(detail.content);
+          this.expandedLoading.set(false);
+        }
+      },
+      error: () => {
+        if (this.expandedId() === item.id) {
+          this.expandedError.set(true);
+          this.expandedLoading.set(false);
+        }
+      }
+    });
   }
 
   protected close(): void {
     this.closed.emit();
   }
 
-  protected showDiff(item: ArticleHistoryItem): void {
+  protected showDiff(item: ArticleHistorySummaryItem): void {
     this.diffFor.set(item.id);
     this.diff.set(null);
     this.diffLoading.set(true);
@@ -108,7 +139,7 @@ export class ArticleHistoryModal {
     this.diff.set(null);
   }
 
-  protected restore(item: ArticleHistoryItem): void {
+  protected restore(item: ArticleHistorySummaryItem): void {
     if (!window.confirm(this.translate.instant('content.history.confirm_restore'))) {
       return;
     }

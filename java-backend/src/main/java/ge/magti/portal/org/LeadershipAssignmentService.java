@@ -1,12 +1,11 @@
 package ge.magti.portal.org;
 
+import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.domain.AssignmentType;
-import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.Department;
 import ge.magti.portal.domain.LeadershipAssignment;
 import ge.magti.portal.domain.Team;
 import ge.magti.portal.domain.User;
-import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.DepartmentRepository;
 import ge.magti.portal.repository.LeadershipAssignmentRepository;
 import ge.magti.portal.repository.TeamRepository;
@@ -16,6 +15,8 @@ import ge.magti.portal.web.LeadershipAssignmentRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+
 /** Transactional, audited lifecycle for manual leadership assignments. */
 @Service
 public class LeadershipAssignmentService {
@@ -24,19 +25,19 @@ public class LeadershipAssignmentService {
     private final UserRepository userRepository;
     private final DepartmentRepository departmentRepository;
     private final TeamRepository teamRepository;
-    private final AuditLogRepository auditLogRepository;
+    private final MutationAuditService mutationAuditService;
 
     public LeadershipAssignmentService(
             LeadershipAssignmentRepository assignmentRepository,
             UserRepository userRepository,
             DepartmentRepository departmentRepository,
             TeamRepository teamRepository,
-            AuditLogRepository auditLogRepository) {
+            MutationAuditService mutationAuditService) {
         this.assignmentRepository = assignmentRepository;
         this.userRepository = userRepository;
         this.departmentRepository = departmentRepository;
         this.teamRepository = teamRepository;
-        this.auditLogRepository = auditLogRepository;
+        this.mutationAuditService = mutationAuditService;
     }
 
     @Transactional
@@ -80,7 +81,7 @@ public class LeadershipAssignmentService {
         assignment.setSource(LeadershipAssignment.Source.MANUAL);
         LeadershipAssignment saved = assignmentRepository.saveAndFlush(assignment);
 
-        writeAudit(saved, actor, "CREATE_LEADERSHIP_ASSIGNMENT", leader, department, team);
+        writeAudit(saved, actor, "CREATE_LEADERSHIP_ASSIGNMENT", leader, department, team, null);
         return saved;
     }
 
@@ -99,10 +100,11 @@ public class LeadershipAssignmentService {
         Team team = assignment.getTeamId() == null ? null
                 : teamRepository.findById(assignment.getTeamId()).orElse(null);
 
+        Map<String, Object> before = MutationAuditService.leadershipSnapshot(assignment);
         assignment.setActive(false);
         assignment.setEndedAt(TbilisiTime.now());
         LeadershipAssignment saved = assignmentRepository.saveAndFlush(assignment);
-        writeAudit(saved, actor, "DEACTIVATE_LEADERSHIP_ASSIGNMENT", leader, department, team);
+        writeAudit(saved, actor, "DEACTIVATE_LEADERSHIP_ASSIGNMENT", leader, department, team, before);
         return saved;
     }
 
@@ -122,20 +124,16 @@ public class LeadershipAssignmentService {
 
     private void writeAudit(
             LeadershipAssignment assignment, User actor, String action, User leader,
-            Department department, Team team) {
+            Department department, Team team, Map<String, Object> before) {
         String scopeName = team == null ? department.getName() : team.getName();
-        AuditLog audit = new AuditLog();
-        audit.setAdminId(actor.getId());
-        audit.setAction(action);
-        audit.setItemType("leadership_assignment");
-        audit.setItemId(assignment.getId());
-        audit.setTimestamp(TbilisiTime.now());
-        audit.setAdminNameSnapshot(actor.getName());
-        audit.setAdminEmailSnapshot(actor.getEmail());
-        audit.setItemNameSnapshot(leader.getName() + " — " + scopeName);
-        audit.setDetails("type=" + assignment.getAssignmentType().name()
-                + ", scope=" + assignment.scope().name() + ", source=" + assignment.getSource().name());
-        auditLogRepository.save(audit);
+        mutationAuditService.recordSuccess(
+                actor,
+                action,
+                "leadership_assignment",
+                assignment.getId(),
+                leader.getName() + " — " + scopeName,
+                before,
+                MutationAuditService.leadershipSnapshot(assignment));
     }
 
     public static class InvalidAssignmentException extends RuntimeException {

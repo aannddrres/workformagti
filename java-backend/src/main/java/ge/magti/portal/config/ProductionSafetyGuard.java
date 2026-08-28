@@ -100,6 +100,23 @@ public class ProductionSafetyGuard {
 							+ "portal.app-env=production -- the auth cookie would be sent over plain HTTP. "
 							+ "Set COOKIE_SECURE=true (requires HTTPS).");
 		}
+
+		if (!"strict".equalsIgnoreCase(properties.getSecurity().getCookie().getSameSite())) {
+			throw new IllegalStateException(
+					"portal.security.cookie.same-site (COOKIE_SAMESITE) must be strict in production "
+							+ "because the portal uses an httpOnly authentication cookie.");
+		}
+
+		long idleMinutes = properties.getSecurity().getSession().getIdleMinutes();
+		long maximumMinutes = properties.getSecurity().getSession().getMaximumMinutes();
+		if (idleMinutes <= 0 || maximumMinutes <= 0 || idleMinutes > maximumMinutes) {
+			throw new IllegalStateException(
+					"portal.security.session must have positive idle/maximum values and idle must not exceed maximum");
+		}
+		if (properties.getSecurity().getJwt().getAccessTokenExpireMinutes() > maximumMinutes) {
+			throw new IllegalStateException(
+					"JWT lifetime must not exceed the portal session maximum lifetime");
+		}
 	}
 
 	private void rejectWeakSecret(String secret) {

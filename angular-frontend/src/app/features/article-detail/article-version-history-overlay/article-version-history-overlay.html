@@ -1,8 +1,8 @@
 <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
   <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" (click)="close()"></div>
-  <div class="relative z-10 flex h-[80vh] w-[90vw] max-w-4xl flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-zinc-800 dark:bg-zinc-900">
+  <div portalDialog portalDialogLabelledBy="version-history-heading" (portalDialogClose)="close()" class="relative z-10 flex h-[80vh] w-[90vw] max-w-4xl flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-zinc-800 dark:bg-zinc-900">
     <div class="mb-4 flex shrink-0 items-center justify-between border-b border-gray-100 pb-4 dark:border-zinc-800">
-      <h3 class="text-lg font-bold text-gray-900 dark:text-zinc-100">{{ 'articles.version_history.heading' | translate }}</h3>
+      <h3 id="version-history-heading" class="text-lg font-bold text-gray-900 dark:text-zinc-100">{{ 'articles.version_history.heading' | translate }}</h3>
       <button
         type="button"
         (click)="close()"
@@ -27,7 +27,7 @@
       <div class="flex flex-1 flex-col gap-4 overflow-hidden md:flex-row">
         <div class="max-h-40 w-full shrink-0 space-y-1.5 overflow-y-auto border-b border-gray-100 pb-3 dark:border-zinc-800 md:max-h-none md:w-64 md:border-b-0 md:border-r md:pb-0 md:pr-3">
           @for (item of versions(); track item.history_id; let i = $index) {
-            <div (click)="selectVersion(item)" [class]="rowClass(item)">
+            <button type="button" (click)="selectVersion(item)" [class]="rowClass(item)">
               <div class="flex items-center justify-between gap-2">
                 @switch (badgeKey(item, i)) {
                   @case ('current') {
@@ -51,7 +51,7 @@
                 {{ 'articles.version_history.editor_label' | translate }}: {{ item.author_name || ('articles.version_history.unknown_author' | translate) }}
               </div>
               <div class="text-[9px] text-gray-400 dark:text-zinc-500">{{ item.updated_at | date: 'dd.MM.yyyy HH:mm' }}</div>
-            </div>
+            </button>
           }
         </div>
 

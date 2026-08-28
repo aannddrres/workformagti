@@ -1,16 +1,22 @@
 package ge.magti.portal.security;
 
 import ge.magti.portal.domain.LeadershipAssignment;
+import ge.magti.portal.domain.AssignmentType;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.Team;
 import ge.magti.portal.domain.User;
+import ge.magti.portal.org.OrgDirectoryQueryService;
 import ge.magti.portal.repository.LeadershipAssignmentRepository;
 import ge.magti.portal.repository.TeamRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
+import java.util.Comparator;
+import java.util.Map;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -50,14 +56,26 @@ public class ScopeResolver {
     private final LeadershipAssignmentRepository leadershipAssignmentRepository;
     private final TeamRepository teamRepository;
     private final PolicyShadowRecorder shadowRecorder;
+    private final OrgDirectoryQueryService orgDirectoryQueryService;
 
     public ScopeResolver(
             LeadershipAssignmentRepository leadershipAssignmentRepository,
             TeamRepository teamRepository,
             PolicyShadowRecorder shadowRecorder) {
+        this(leadershipAssignmentRepository, teamRepository, shadowRecorder, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    /** DB-free compatibility constructor used by the existing pure unit suite. */
+    public ScopeResolver(
+            LeadershipAssignmentRepository leadershipAssignmentRepository,
+            TeamRepository teamRepository,
+            PolicyShadowRecorder shadowRecorder,
+            OrgDirectoryQueryService orgDirectoryQueryService) {
         this.leadershipAssignmentRepository = leadershipAssignmentRepository;
         this.teamRepository = teamRepository;
         this.shadowRecorder = shadowRecorder;
+        this.orgDirectoryQueryService = orgDirectoryQueryService;
     }
 
     /** The caller's scope over other employees' personal and statistical data. */
@@ -69,15 +87,14 @@ public class ScopeResolver {
             return Scope.all();
         }
 
-        List<LeadershipAssignment> assignments =
-                leadershipAssignmentRepository.findByUserIdAndActiveTrue(caller.getId());
+        List<LeadershipAssignment> assignments = activeAssignmentsFor(caller.getId());
         if (assignments.isEmpty()) {
             return Scope.none();
         }
 
         boolean hasDepartmentAssignment = assignments.stream()
                 .anyMatch(assignment -> assignment.getDepartmentId() != null);
-        List<Team> teams = hasDepartmentAssignment ? teamRepository.findAll() : List.of();
+        List<Team> teams = hasDepartmentAssignment ? teamsForDepartments(assignments) : List.of();
         return resolveFromSnapshot(caller, assignments, teams);
     }
 
@@ -98,11 +115,104 @@ public class ScopeResolver {
             return Scope.all();
         }
 
-        Set<Long> directTeamIds = leadershipAssignmentRepository.findByUserIdAndActiveTrue(caller.getId()).stream()
+        Set<Long> directTeamIds = activeAssignmentsFor(caller.getId()).stream()
                 .map(LeadershipAssignment::getTeamId)
                 .filter(Objects::nonNull)
                 .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        if (caller.getRole() == Role.MANAGER && caller.getTeamId() != null) {
+            directTeamIds.add(caller.getTeamId());
+        }
         return Scope.of(directTeamIds, Set.of());
+    }
+
+    /**
+     * Resolves the old department/group URL to one canonical active team.
+     * Production always has the bounded organization service; the empty
+     * fallback keeps repository-mock tests fail-closed.
+     */
+    public Optional<Long> resolveLegacyGroupPath(String departmentName, String teamName) {
+        return orgDirectoryQueryService == null
+                ? Optional.empty()
+                : orgDirectoryQueryService.resolveUniqueActiveTeamId(departmentName, teamName);
+    }
+
+    /** Export scope excludes ACTING assignments by product rule. */
+    public Scope resolvePrimaryLeadership(User caller) {
+        if (caller == null || !caller.isActive()) return Scope.none();
+        if (caller.getRole() == Role.SYSTEM_ADMIN) return Scope.all();
+        // The manager's users.team_id is the single canonical home team.
+        // Temporary leadership assignments widen the interactive statistics
+        // selector, but must never widen exports.
+        if (caller.getRole() == Role.MANAGER && caller.getTeamId() != null) {
+            return Scope.of(Set.of(caller.getTeamId()), Set.of());
+        }
+        List<LeadershipAssignment> primary = activeAssignmentsFor(caller.getId()).stream()
+                .filter(assignment -> assignment.getAssignmentType() == AssignmentType.PRIMARY)
+                .toList();
+        if (primary.isEmpty()) return Scope.none();
+        boolean hasDepartment = primary.stream().anyMatch(assignment -> assignment.getDepartmentId() != null);
+        return resolveFromSnapshot(caller, primary, hasDepartment ? teamsForDepartments(primary) : List.of());
+    }
+
+    public boolean hasPrimaryLeadership(User caller) {
+        Scope scope = resolvePrimaryLeadership(caller);
+        return scope.unscoped() || !scope.readsNobody();
+    }
+
+    private List<Team> teamsForDepartments(List<LeadershipAssignment> assignments) {
+        Set<Long> departmentIds = assignments.stream()
+                .map(LeadershipAssignment::getDepartmentId)
+                .filter(Objects::nonNull)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        if (departmentIds.isEmpty()) {
+            return List.of();
+        }
+        if (orgDirectoryQueryService != null) {
+            return orgDirectoryQueryService.listTeamsInDepartmentsWithinLimit(departmentIds);
+        }
+        // Production always uses the bounded org module. This fallback exists
+        // only for the repository-mock constructor above.
+        return teamRepository.findAll().stream()
+                .filter(team -> departmentIds.contains(team.getDepartmentId()))
+                .toList();
+    }
+
+    public record LeadershipOption(Long teamId, String teamName, AssignmentType assignmentType) {}
+
+    /** Active direct group assignments, primary first, for the manager
+     * workspace selector. Duplicate rows collapse to the stronger PRIMARY
+     * assignment so the UI never offers the same group twice. */
+    public List<LeadershipOption> leadershipOptions(User caller) {
+        if (caller == null || caller.getRole() != Role.MANAGER || !caller.isActive()) return List.of();
+        Map<Long, AssignmentType> assignmentByTeam = new LinkedHashMap<>();
+        if (caller.getTeamId() != null) {
+            assignmentByTeam.put(caller.getTeamId(), AssignmentType.PRIMARY);
+        }
+        for (LeadershipAssignment assignment : activeAssignmentsFor(caller.getId())) {
+            Long teamId = assignment.getTeamId();
+            if (teamId == null) continue;
+            assignmentByTeam.merge(teamId, assignment.getAssignmentType(),
+                    (left, right) -> left == AssignmentType.PRIMARY || right == AssignmentType.PRIMARY
+                            ? AssignmentType.PRIMARY : AssignmentType.ACTING);
+        }
+        Map<Long, Team> teams = new LinkedHashMap<>();
+        for (Team team : teamRepository.findAllById(assignmentByTeam.keySet())) teams.put(team.getId(), team);
+        return assignmentByTeam.entrySet().stream()
+                .filter(entry -> teams.containsKey(entry.getKey()) && teams.get(entry.getKey()).isActive())
+                .map(entry -> new LeadershipOption(entry.getKey(), teams.get(entry.getKey()).getName(), entry.getValue()))
+                .sorted(Comparator
+                        .comparing((LeadershipOption option) -> option.assignmentType() != AssignmentType.PRIMARY)
+                        .thenComparing(LeadershipOption::teamName, String.CASE_INSENSITIVE_ORDER))
+                .toList();
+    }
+
+    private List<LeadershipAssignment> activeAssignmentsFor(Long userId) {
+        // Spring production wiring always supplies the bounded org seam. The
+        // repository fallback keeps the pure repository-mock constructor used
+        // by the existing DB-free policy suite.
+        return orgDirectoryQueryService == null
+                ? leadershipAssignmentRepository.findByUserIdAndActiveTrue(userId)
+                : orgDirectoryQueryService.listActiveAssignmentsForUserWithinLimit(userId);
     }
 
     /**

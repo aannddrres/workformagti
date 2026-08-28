@@ -31,6 +31,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -205,6 +206,22 @@ class ComplianceControllerIntegrationTest {
         mockMvc.perform(authed(get("/api/compliance/required-readings/by-item/article/" + article.getId()), tokenFor(admin)))
                 .andExpect(status().isOk())
                 .andExpect(content().string("null"));
+
+        List<String> actions = auditLogRepository.findAll().stream()
+                .filter(a -> "required_reading".equals(a.getItemType())
+                        && Long.valueOf(readingId).equals(a.getItemId()))
+                .map(a -> a.getAction())
+                .toList();
+        assertTrue(actions.containsAll(List.of(
+                "CREATE_REQUIRED_READING", "UPDATE_REQUIRED_READING", "DELETE_REQUIRED_READING")));
+        for (var audit : auditLogRepository.findAll().stream()
+                .filter(a -> "required_reading".equals(a.getItemType())
+                        && Long.valueOf(readingId).equals(a.getItemId()))
+                .toList()) {
+            var details = objectMapper.readTree(audit.getDetails());
+            assertEquals(1, details.get("schema_version").asInt());
+            assertEquals("SUCCESS", details.get("result").asText());
+        }
     }
 
     @Test
@@ -264,8 +281,9 @@ class ComplianceControllerIntegrationTest {
     }
 
     @Test
-    void myProgressComputesPercentage() throws Exception {
+    void myProgressComputesOnlyTheCallersPercentage() throws Exception {
         User operator = createUser("comp-op4@magti.ge", Role.OPERATOR, "ოფისი");
+        User otherOperator = createUser("comp-op4-other@magti.ge", Role.OPERATOR, "ოფისი");
         Article a1 = createArticle("პირველი", false);
         Article a2 = createArticle("მეორე", false);
         RequiredReading r1 = createReading("article", a1.getId(), "ოფისი", TbilisiTime.now().plusDays(5));
@@ -278,6 +296,13 @@ class ComplianceControllerIntegrationTest {
                 .andExpect(jsonPath("$.read_completed").value(1))
                 .andExpect(jsonPath("$.pending").value(1))
                 .andExpect(jsonPath("$.percentage").value(50));
+
+        mockMvc.perform(authed(get("/api/compliance/my-progress"), tokenFor(otherOperator)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total_mandatory").value(2))
+                .andExpect(jsonPath("$.read_completed").value(0))
+                .andExpect(jsonPath("$.pending").value(2))
+                .andExpect(jsonPath("$.percentage").value(0));
     }
 
     @Test
@@ -296,6 +321,62 @@ class ComplianceControllerIntegrationTest {
         assertTrue(articleReadReceiptRepository
                 .findByArticleIdSnapshotAndArticleVersionAndOperatorId(article.getId(), 1, operator.getId())
                 .isPresent(), "mark-read of an article must also write the versioned read receipt");
+        var audit = auditLogRepository.findAll().stream()
+                .filter(a -> "MARK_REQUIRED_READING_READ".equals(a.getAction())
+                        && operator.getId().equals(a.getAdminId()))
+                .findFirst().orElseThrow();
+        var details = objectMapper.readTree(audit.getDetails());
+        assertTrue(details.get("before").isNull());
+        assertEquals("read", details.at("/after/status").asText());
+        assertEquals(reading.getId().longValue(), details.at("/after/required_reading_id").asLong());
+        assertEquals("SUCCESS", details.get("result").asText());
+    }
+
+    @Test
+    void sameRequiredReadingStatusAndReceiptRemainIsolatedPerUser() throws Exception {
+        User firstReader = createUser("comp-isolation-first@magti.ge", Role.OPERATOR, "ოფისი");
+        User secondReader = createUser("comp-isolation-second@magti.ge", Role.OPERATOR, "ოფისი");
+        Article article = createArticle("ორი მკითხველის მტკიცებულება", false);
+        RequiredReading reading = createReading(
+                "article", article.getId(), "ოფისი", TbilisiTime.now().plusDays(5));
+
+        mockMvc.perform(authed(post("/api/compliance/mark-read/" + reading.getId()), tokenFor(firstReader)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("read"));
+
+        assertTrue(readStatusRepository
+                .findByUserIdAndRequiredReadingId(firstReader.getId(), reading.getId()).isPresent());
+        assertTrue(readStatusRepository
+                .findByUserIdAndRequiredReadingId(secondReader.getId(), reading.getId()).isEmpty(),
+                "one caller's acknowledgement must not create another caller's status");
+        assertTrue(articleReadReceiptRepository
+                .findByArticleIdSnapshotAndArticleVersionAndOperatorId(
+                        article.getId(), article.getVersion(), firstReader.getId()).isPresent());
+        assertTrue(articleReadReceiptRepository
+                .findByArticleIdSnapshotAndArticleVersionAndOperatorId(
+                        article.getId(), article.getVersion(), secondReader.getId()).isEmpty());
+
+        String secondReaderBody = mockMvc.perform(
+                        authed(get("/api/compliance/my-readings"), tokenFor(secondReader)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        var secondReaderRows = objectMapper.readTree(secondReaderBody);
+        var secondReaderRow = java.util.stream.StreamSupport.stream(secondReaderRows.spliterator(), false)
+                .filter(row -> row.path("reading").path("id").asLong() == reading.getId())
+                .findFirst()
+                .orElseThrow();
+        assertEquals("unread", secondReaderRow.path("status").asText());
+
+        mockMvc.perform(authed(post("/api/compliance/mark-read/" + reading.getId()), tokenFor(secondReader)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("read"));
+
+        assertEquals(2, readStatusRepository.findAll().stream()
+                .filter(row -> reading.getId().equals(row.getRequiredReadingId()))
+                .count());
+        assertTrue(articleReadReceiptRepository
+                .findByArticleIdSnapshotAndArticleVersionAndOperatorId(
+                        article.getId(), article.getVersion(), secondReader.getId()).isPresent());
     }
 
     @Test
@@ -360,9 +441,12 @@ class ComplianceControllerIntegrationTest {
                         .content(requiredReadingJson("article", article.getId(), "All", "2030-09-01T00:00:00+04:00")))
                 .andExpect(status().isOk());
 
-        List<Reminder> op1Inbox = reminderRepository.findByRecipientUserIdOrderByCreatedAtDesc(op1.getId());
-        List<Reminder> op2Inbox = reminderRepository.findByRecipientUserIdOrderByCreatedAtDesc(op2.getId());
-        List<Reminder> adminInbox = reminderRepository.findByRecipientUserIdOrderByCreatedAtDesc(admin.getId());
+        List<Reminder> op1Inbox = reminderRepository
+                .findByRecipientUserIdOrderByCreatedAtDesc(op1.getId(), PageRequest.of(0, 1_000)).getContent();
+        List<Reminder> op2Inbox = reminderRepository
+                .findByRecipientUserIdOrderByCreatedAtDesc(op2.getId(), PageRequest.of(0, 1_000)).getContent();
+        List<Reminder> adminInbox = reminderRepository
+                .findByRecipientUserIdOrderByCreatedAtDesc(admin.getId(), PageRequest.of(0, 1_000)).getContent();
 
         assertEquals(1, op1Inbox.size());
         assertEquals(1, op2Inbox.size());
@@ -392,11 +476,14 @@ class ComplianceControllerIntegrationTest {
                         .content(requiredReadingJson("article", article.getId(), "ოფისი", "2030-09-01T00:00:00+04:00")))
                 .andExpect(status().isOk());
 
-        assertEquals(1, reminderRepository.findByRecipientUserIdOrderByCreatedAtDesc(operator.getId()).size(),
+        assertEquals(1, reminderRepository.findByRecipientUserIdOrderByCreatedAtDesc(
+                operator.getId(), PageRequest.of(0, 1_000)).getContent().size(),
                 "the eligible operator must still be notified");
-        assertTrue(reminderRepository.findByRecipientUserIdOrderByCreatedAtDesc(manager.getId()).isEmpty(),
+        assertTrue(reminderRepository.findByRecipientUserIdOrderByCreatedAtDesc(
+                manager.getId(), PageRequest.of(0, 1_000)).isEmpty(),
                 "a manager is excluded from required reading everywhere else -- notifying them is a message with no matching task");
-        assertTrue(reminderRepository.findByRecipientUserIdOrderByCreatedAtDesc(otherContentAdmin.getId()).isEmpty(),
+        assertTrue(reminderRepository.findByRecipientUserIdOrderByCreatedAtDesc(
+                otherContentAdmin.getId(), PageRequest.of(0, 1_000)).isEmpty(),
                 "same for content admins, who are also a management role here");
     }
 
@@ -539,10 +626,14 @@ class ComplianceControllerIntegrationTest {
 
         // The deadline decides who counts as overdue; before BL-04 this
         // endpoint wrote no audit row at all, so moving it left no record.
-        assertTrue(auditLogRepository.findAll().stream()
-                        .anyMatch(a -> "UPDATE_REQUIRED_READING".equals(a.getAction())
-                                && reading.getId().equals(a.getItemId())
-                                && admin.getId().equals(a.getAdminId())),
-                "changing a deadline must be attributable");
+        var audit = auditLogRepository.findAll().stream()
+                .filter(a -> "UPDATE_REQUIRED_READING".equals(a.getAction())
+                        && reading.getId().equals(a.getItemId())
+                        && admin.getId().equals(a.getAdminId()))
+                .findFirst().orElseThrow();
+        var details = objectMapper.readTree(audit.getDetails());
+        assertEquals("All", details.at("/before/target_department").asText());
+        assertEquals("ოფისი", details.at("/after/target_department").asText());
+        assertEquals("SUCCESS", details.get("result").asText());
     }
 }

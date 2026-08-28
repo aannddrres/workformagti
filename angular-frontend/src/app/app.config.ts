@@ -5,7 +5,6 @@ import { provideTranslateService } from '@ngx-translate/core';
 import { provideTranslateHttpLoader } from '@ngx-translate/http-loader';
 
 import { routes } from './app.routes';
-import { authInterceptor } from './core/auth/auth.interceptor';
 import { apiBaseUrlInterceptor } from './core/http/api-base-url.interceptor';
 import { unauthorizedInterceptor } from './core/http/unauthorized.interceptor';
 
@@ -16,7 +15,7 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes, withInMemoryScrolling({ scrollPositionRestoration: 'top', anchorScrolling: 'enabled' })),
-    provideHttpClient(withInterceptors([apiBaseUrlInterceptor, authInterceptor, unauthorizedInterceptor])),
+    provideHttpClient(withInterceptors([apiBaseUrlInterceptor, unauthorizedInterceptor])),
     provideTranslateService({ lang: 'ka', fallbackLang: 'ka' }),
     provideTranslateHttpLoader({ prefix: '/i18n/', suffix: '.json' })
   ]

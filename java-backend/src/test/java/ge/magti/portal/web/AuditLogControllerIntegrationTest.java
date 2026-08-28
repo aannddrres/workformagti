@@ -139,22 +139,14 @@ class AuditLogControllerIntegrationTest {
                 .andExpect(jsonPath("$.status").value("ok"));
     }
 
-    /**
-     * A manager now holds system.audit by default (Permission.java's
-     * DEFAULTS_BY_ROLE, fixed 2026-08-06 after a live parity check found
-     * managers couldn't reach the audit log at all -- a real Python
-     * capability, restored). So this 403 comes from the manager-specific
-     * exclusion (requireSystemAuditNonManager), not the earlier generic
-     * "no permission" gate -- a different, correct message.
-     */
     @Test
-    void managerIsForbiddenFromChainHealthDespiteHoldingThePermission() throws Exception {
+    void managerIsForbiddenFromChainHealth() throws Exception {
         String token = loginAndGetToken("manager@magti.ge", "10.20.0.3");
 
         mockMvc.perform(get("/api/audit-logs/chain-health")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.detail").value("ეს ფუნქცია ხელმისაწვდომია მხოლოდ ადმინისტრატორებისთვის"));
+                .andExpect(jsonPath("$.detail").value("ეს ფუნქცია ხელმისაწვდომია მხოლოდ სისტემური ადმინისტრატორისთვის"));
     }
 
     @Test
@@ -203,15 +195,11 @@ class AuditLogControllerIntegrationTest {
         writeAuditRow(group02Actor.getId(), "LOGIN", "user", group02Actor.getId(), null);
 
         User group01Manager = createUser("audit.group01manager@magti.ge", Role.MANAGER,
-                group01Dept, Set.of(Permission.SYSTEM_AUDIT));
+                group01Dept, Set.of());
 
-        String body = mockMvc.perform(get("/api/audit-logs")
+        mockMvc.perform(get("/api/audit-logs")
                         .header("Authorization", "Bearer " + tokenFor(group01Manager)))
-                .andExpect(status().isOk())
-                .andExpect(header().string("X-Total-Count", "1"))
-                .andExpect(jsonPath("$[0].admin_id").value(group01Actor.getId()))
-                .andReturn().getResponse().getContentAsString();
-        assertFalse(body.contains("\"admin_id\":" + group02Actor.getId()));
+                .andExpect(status().isForbidden());
     }
 
     /**
@@ -234,16 +222,11 @@ class AuditLogControllerIntegrationTest {
         writeAuditRow(foreignActor.getId(), "LOGIN", "user", foreignActor.getId(), null);
 
         User parentManager = createUser("audit.parentmanager@magti.ge", Role.MANAGER,
-                parentDept, Set.of(Permission.SYSTEM_AUDIT));
+                parentDept, Set.of());
 
-        String body = mockMvc.perform(get("/api/audit-logs")
+        mockMvc.perform(get("/api/audit-logs")
                         .header("Authorization", "Bearer " + tokenFor(parentManager)))
-                .andExpect(status().isOk())
-                .andExpect(header().string("X-Total-Count", "1"))
-                .andExpect(jsonPath("$[0].admin_id").value(childActor.getId()))
-                .andReturn().getResponse().getContentAsString();
-        assertFalse(body.contains("\"admin_id\":" + foreignActor.getId()),
-                "the widening must reach the subtree and stop there");
+                .andExpect(status().isForbidden());
     }
 
     /**
@@ -259,12 +242,11 @@ class AuditLogControllerIntegrationTest {
         writeAuditRow(actor.getId(), "LOGIN", "user", actor.getId(), null);
 
         User unassignedManager = createUser("audit.nodeptmanager@magti.ge", Role.MANAGER,
-                null, Set.of(Permission.SYSTEM_AUDIT));
+                null, Set.of());
 
         mockMvc.perform(get("/api/audit-logs")
                         .header("Authorization", "Bearer " + tokenFor(unassignedManager)))
-                .andExpect(status().isOk())
-                .andExpect(header().string("X-Total-Count", "0"));
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -310,12 +292,15 @@ class AuditLogControllerIntegrationTest {
         assertEquals(1, metaRows.size());
         assertEquals("audit_log", metaRows.get(0).getItemType());
         assertEquals(admin.getId(), metaRows.get(0).getItemId());
+        var details = new ObjectMapper().readTree(metaRows.get(0).getDetails());
+        assertEquals(1, details.get("schema_version").asInt());
+        assertEquals("SUCCESS", details.get("result").asText());
+        assertTrue(details.get("before").isNull());
     }
 
     @Test
-    void exportStreamsFormulaInjectionSanitizedCsvForContentAdmin() throws Exception {
-        User contentAdmin = createUser("audit.contentadmin@magti.ge", Role.CONTENT_ADMIN, "All",
-                Set.of(Permission.SYSTEM_AUDIT));
+    void exportStreamsFormulaInjectionSanitizedCsvForSystemAdmin() throws Exception {
+        User contentAdmin = createUser("audit.contentadmin@magti.ge", Role.SYSTEM_ADMIN, "All", Set.of());
         writeAuditRow(contentAdmin.getId(), "UPDATE", "system", 0L, "=cmd|'/c calc'!A1");
 
         String csv = mockMvc.perform(get("/api/audit-logs/export")
@@ -336,12 +321,11 @@ class AuditLogControllerIntegrationTest {
 
     @Test
     void exportIsForbiddenForAManagerEvenWithThePermission() throws Exception {
-        User manager = createUser("audit.exportmanager@magti.ge", Role.MANAGER, "All",
-                Set.of(Permission.SYSTEM_AUDIT));
+        User manager = createUser("audit.exportmanager@magti.ge", Role.MANAGER, "All", Set.of());
 
         mockMvc.perform(get("/api/audit-logs/export")
                         .header("Authorization", "Bearer " + tokenFor(manager)))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.detail").value("ეს ფუნქცია ხელმისაწვდომია მხოლოდ ადმინისტრატორებისთვის"));
+                .andExpect(jsonPath("$.detail").value("ეს ფუნქცია ხელმისაწვდომია მხოლოდ სისტემური ადმინისტრატორისთვის"));
     }
 }

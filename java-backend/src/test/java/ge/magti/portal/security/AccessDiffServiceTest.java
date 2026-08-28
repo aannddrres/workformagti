@@ -5,9 +5,11 @@ import ge.magti.portal.domain.LeadershipAssignment;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.Team;
 import ge.magti.portal.domain.User;
+import ge.magti.portal.org.OrgDirectoryQueryService;
 import ge.magti.portal.repository.LeadershipAssignmentRepository;
 import ge.magti.portal.repository.TeamRepository;
 import ge.magti.portal.repository.UserRepository;
+import ge.magti.portal.user.UserDirectoryQueryService;
 import ge.magti.portal.web.AccessDiffResponse;
 import org.junit.jupiter.api.Test;
 
@@ -15,6 +17,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -109,5 +112,39 @@ class AccessDiffServiceTest {
         verify(teams, never()).save(any(Team.class));
         verify(teams, never()).delete(any(Team.class));
         verify(teams, never()).deleteAll();
+    }
+
+    @Test
+    void productionConstructorUsesTheBoundedDirectorySnapshot() {
+        UserDirectoryQueryService directory = mock(UserDirectoryQueryService.class);
+        OrgDirectoryQueryService orgDirectory = mock(OrgDirectoryQueryService.class);
+        AccessDiffService bounded = new AccessDiffService(
+                users, assignments, teams, directory, orgDirectory);
+        when(directory.listUsersWithinLimit()).thenReturn(List.of());
+        when(orgDirectory.listActiveAssignmentsWithinLimit()).thenReturn(List.of());
+        when(orgDirectory.listTeamsWithinLimit()).thenReturn(List.of());
+
+        bounded.report();
+
+        verify(directory).listUsersWithinLimit();
+        verify(users, never()).findAll();
+        verify(assignments, never()).findByActiveTrue();
+        verify(teams, never()).findAll();
+    }
+
+    @Test
+    void oversizedOrgSnapshotFailsBeforeAReportCanBeReturned() {
+        UserDirectoryQueryService directory = mock(UserDirectoryQueryService.class);
+        OrgDirectoryQueryService orgDirectory = mock(OrgDirectoryQueryService.class);
+        AccessDiffService bounded = new AccessDiffService(
+                users, assignments, teams, directory, orgDirectory);
+        when(directory.listUsersWithinLimit()).thenReturn(List.of());
+        when(orgDirectory.listActiveAssignmentsWithinLimit()).thenThrow(
+                new OrgDirectoryQueryService.OrgDirectoryCardinalityExceededException());
+
+        assertThrows(OrgDirectoryQueryService.OrgDirectoryCardinalityExceededException.class,
+                bounded::report);
+
+        verify(orgDirectory, never()).listTeamsWithinLimit();
     }
 }

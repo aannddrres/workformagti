@@ -26,6 +26,7 @@ import ge.magti.portal.stats.GroupMemberCompletion;
 import ge.magti.portal.stats.OperatorStatsBuilder;
 import ge.magti.portal.stats.TeamMemberCompletion;
 import ge.magti.portal.stats.TeamStatsBuilder;
+import ge.magti.portal.user.UserDirectoryQueryService;
 import ge.magti.portal.util.DepartmentGroup;
 import ge.magti.portal.util.DepartmentMatcher;
 import ge.magti.portal.util.TbilisiTime;
@@ -48,6 +49,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Mirrors routers/stats.py -- all 12 statistics/dashboard endpoints. Reuses
@@ -82,6 +84,7 @@ public class StatsController {
     private final ArticleViewLogRepository articleViewLogRepository;
     private final ScopeResolver scopeResolver;
     private final PermissionChecker permissionChecker;
+    private final UserDirectoryQueryService userDirectoryQueryService;
 
     public StatsController(
             ComplianceQueryService complianceQueryService,
@@ -95,7 +98,7 @@ public class StatsController {
             ArticleViewLogRepository articleViewLogRepository) {
         this(complianceQueryService, userRepository, searchLogRepository, requiredReadingRepository,
                 readStatusRepository, articleRepository, videoInstructionRepository, auditLogRepository,
-                articleViewLogRepository, null, new PermissionChecker());
+                articleViewLogRepository, null, new PermissionChecker(), null);
     }
 
     /** Phase 3 shadow only; the nine-argument constructor above keeps the DB-free tests unchanged. */
@@ -111,7 +114,8 @@ public class StatsController {
             AuditLogRepository auditLogRepository,
             ArticleViewLogRepository articleViewLogRepository,
             ScopeResolver scopeResolver,
-            PermissionChecker permissionChecker) {
+            PermissionChecker permissionChecker,
+            UserDirectoryQueryService userDirectoryQueryService) {
         this.scopeResolver = scopeResolver;
         this.complianceQueryService = complianceQueryService;
         this.userRepository = userRepository;
@@ -123,12 +127,13 @@ public class StatsController {
         this.auditLogRepository = auditLogRepository;
         this.articleViewLogRepository = articleViewLogRepository;
         this.permissionChecker = permissionChecker;
+        this.userDirectoryQueryService = userDirectoryQueryService;
     }
 
     /** Port of get_popular_searches (routers/stats.py:94-116). */
     @GetMapping("/api/statistics/popular-searches")
     public ResponseEntity<?> getPopularSearches(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = requireStatsView(user);
         if (denial != null) {
             return denial;
         }
@@ -141,7 +146,7 @@ public class StatsController {
     /** Port of get_failed_searches (routers/stats.py:119-134). */
     @GetMapping("/api/statistics/failed-searches")
     public ResponseEntity<?> getFailedSearches(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = requireStatsView(user);
         if (denial != null) {
             return denial;
         }
@@ -154,7 +159,7 @@ public class StatsController {
     /** Port of get_compliance_statistics (routers/stats.py:137-224). */
     @GetMapping("/api/statistics/compliance")
     public ResponseEntity<?> getComplianceStatistics(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = requireStatsView(user);
         if (denial != null) {
             return denial;
         }
@@ -200,12 +205,19 @@ public class StatsController {
 
     /** Port of get_user_progress (routers/stats.py:341-391) -- system-admin only, unlike every other endpoint here. */
     @GetMapping("/api/statistics/user-progress")
-    public ResponseEntity<?> getUserProgress(@AuthenticationPrincipal User user) {
+    public ResponseEntity<?> getUserProgress(
+            @RequestParam(defaultValue = "0") int skip,
+            @RequestParam(defaultValue = "1000") int limit,
+            @AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireSystemAdmin(user);
         if (denial != null) {
             return denial;
         }
-        List<ComplianceRecord> records = complianceQueryService.computeCompliance();
+        if (ListQueryBounds.isInvalid(skip, limit)) {
+            return ResponseEntity.badRequest().body(Map.of("detail", ListQueryBounds.INVALID_DETAIL));
+        }
+        List<ComplianceRecord> records = complianceQueryService.computeComplianceForUsers(
+                userDirectoryQueryService.listActiveOperators(skip, limit));
         List<UserProgressItemResponse> results = records.stream()
                 .map(r -> new UserProgressItemResponse(
                         r.user().getId(), r.user().getName(), r.user().getDepartment(),
@@ -222,7 +234,9 @@ public class StatsController {
         if (denial != null) {
             return denial;
         }
-        List<Long> ids = userRepository.findByActiveTrueAndTeamId(teamId).stream().map(User::getId).toList();
+        List<Long> ids = boundedActiveUsers().stream()
+                .filter(candidate -> teamId.equals(candidate.getTeamId()))
+                .map(User::getId).toList();
         List<ComplianceRecord> records = complianceQueryService.computeCompliance(ids, null);
         List<TeamMemberCompletion> members = TeamStatsBuilder.buildTeamMemberCompletions(records);
         int avg = TeamStatsBuilder.averagePercentage(records);
@@ -252,12 +266,13 @@ public class StatsController {
         String dept;
         List<User> candidates;
         if (user.getRole() == Role.SYSTEM_ADMIN) {
+            List<User> active = boundedActiveUsers();
             if (department != null && !department.isBlank()) {
                 dept = department;
-                candidates = userRepository.findByActiveTrueAndDepartment(dept);
+                candidates = active.stream().filter(candidate -> dept.equals(candidate.getDepartment())).toList();
             } else {
                 dept = "All";
-                candidates = userRepository.findByActiveTrue();
+                candidates = active;
             }
         } else {
             // RBAC: a manager is hard-pinned to their own department, even if a
@@ -265,9 +280,22 @@ public class StatsController {
             // parent-department manager sees their sub-groups and a sub-group
             // manager still sees only their own group (SEC-13).
             dept = user.getDepartment();
-            List<User> active = userRepository.findByActiveTrue();
-            candidates = shadowScope("scope.team-stats", user, active,
-                    ManagerScope.visibleActiveUsers(active, user));
+            List<User> active = boundedActiveUsers();
+            List<ScopeResolver.LeadershipOption> options = scopeResolver == null
+                    ? List.of() : scopeResolver.leadershipOptions(user);
+            if (!options.isEmpty()) {
+                Long selectedTeamId = teamId != null ? teamId : options.getFirst().teamId();
+                if (!scopeResolver.resolveGroupLeadership(user).includesTeam(selectedTeamId)) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(Map.of("detail", "არჩეული ჯგუფი თქვენს აქტიურ დანიშვნებში არ შედის"));
+                }
+                candidates = active.stream()
+                        .filter(candidate -> selectedTeamId.equals(candidate.getTeamId()))
+                        .toList();
+            } else {
+                candidates = shadowScope("scope.team-stats", user, active,
+                        ManagerScope.visibleActiveUsers(active, user));
+            }
         }
 
         if (teamId != null) {
@@ -317,15 +345,28 @@ public class StatsController {
      * lives.
      */
     @GetMapping("/api/manager/department-stats")
-    public ResponseEntity<?> getDepartmentStats(@AuthenticationPrincipal User user) {
+    public ResponseEntity<?> getDepartmentStats(
+            @RequestParam(name = "team_id", required = false) Long teamId,
+            @AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireManagerOrAdmin(user);
         if (denial != null) {
             return denial;
         }
         if (user.getRole() == Role.MANAGER) {
-            List<User> active = userRepository.findByActiveTrue();
-            List<Long> ids = shadowScope("scope.department-stats", user, active,
-                    ManagerScope.visibleActiveUsers(active, user)).stream()
+            List<User> active = boundedActiveUsers();
+            List<User> visible;
+            if (scopeResolver != null && !scopeResolver.leadershipOptions(user).isEmpty()) {
+                Long selectedTeamId = teamId != null ? teamId : scopeResolver.leadershipOptions(user).getFirst().teamId();
+                if (!scopeResolver.resolveGroupLeadership(user).includesTeam(selectedTeamId)) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(Map.of("detail", "არჩეული ჯგუფი თქვენს აქტიურ დანიშვნებში არ შედის"));
+                }
+                visible = active.stream().filter(candidate -> selectedTeamId.equals(candidate.getTeamId())).toList();
+            } else {
+                visible = shadowScope("scope.department-stats", user, active,
+                        ManagerScope.visibleActiveUsers(active, user));
+            }
+            List<Long> ids = visible.stream()
                     .map(User::getId)
                     .toList();
             List<ComplianceRecord> records = complianceQueryService.computeCompliance(ids, null);
@@ -337,6 +378,29 @@ public class StatsController {
         }
         return ResponseEntity.ok(DepartmentStatsBuilder.build(
                 complianceQueryService.computeCompliance(), TbilisiTime.now()));
+    }
+
+    /** DB-free controller tests and internal callers use the default group. */
+    public ResponseEntity<?> getDepartmentStats(User user) {
+        return getDepartmentStats(null, user);
+    }
+
+    @GetMapping("/api/manager/leadership-options")
+    public ResponseEntity<?> getLeadershipOptions(@AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireManagerOrAdmin(user);
+        if (denial != null) return denial;
+        if (user.getRole() == Role.SYSTEM_ADMIN) {
+            return ResponseEntity.ok(new LeadershipOptionsResponse(List.of(), null, true));
+        }
+        List<ScopeResolver.LeadershipOption> groups = scopeResolver == null
+                ? List.of() : scopeResolver.leadershipOptions(user);
+        Long defaultTeamId = groups.stream()
+                .filter(group -> group.assignmentType() == ge.magti.portal.domain.AssignmentType.PRIMARY)
+                .map(ScopeResolver.LeadershipOption::teamId)
+                .findFirst()
+                .orElse(groups.isEmpty() ? null : groups.getFirst().teamId());
+        boolean canExport = scopeResolver != null && scopeResolver.hasPrimaryLeadership(user);
+        return ResponseEntity.ok(new LeadershipOptionsResponse(groups, defaultTeamId, canExport));
     }
 
     /**
@@ -368,16 +432,26 @@ public class StatsController {
      * shared rule rather than at each of its five call sites.
      */
     @GetMapping("/api/admin/critical-operators")
-    public ResponseEntity<?> getCriticalOperators(@AuthenticationPrincipal User user) {
+    public ResponseEntity<?> getCriticalOperators(
+            @RequestParam(name = "team_id", required = false) Long teamId,
+            @AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireManagerOrAdmin(user);
         if (denial != null) {
             return denial;
         }
         List<ComplianceRecord> records;
         if (user.getRole() == Role.MANAGER) {
-            List<User> active = userRepository.findByActiveTrue();
-            List<Long> ids = shadowScope("scope.critical-operators", user, active,
-                    ManagerScope.visibleActiveUsers(active, user)).stream()
+            List<User> active = boundedActiveUsers();
+            List<User> visible = shadowScope("scope.critical-operators", user, active,
+                    ManagerScope.visibleActiveUsers(active, user));
+            if (teamId != null && scopeResolver != null) {
+                if (!scopeResolver.resolveGroupLeadership(user).includesTeam(teamId)) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(Map.of("detail", "არჩეული ჯგუფი თქვენს აქტიურ დანიშვნებში არ შედის"));
+                }
+                visible = active.stream().filter(candidate -> teamId.equals(candidate.getTeamId())).toList();
+            }
+            List<Long> ids = visible.stream()
                     .map(User::getId)
                     .toList();
             records = complianceQueryService.computeCompliance(ids, null);
@@ -386,6 +460,10 @@ public class StatsController {
         }
         List<CriticalOperator> operators = OperatorStatsBuilder.buildCriticalOperators(records);
         return ResponseEntity.ok(new CriticalOperatorsResponse(operators, operators.size(), TbilisiTime.now()));
+    }
+
+    public ResponseEntity<?> getCriticalOperators(User user) {
+        return getCriticalOperators(null, user);
     }
 
     /**
@@ -409,18 +487,34 @@ public class StatsController {
         if (denial != null) {
             return denial;
         }
-        if (user.getRole() == Role.MANAGER) {
-            DepartmentGroup ownGroup = DepartmentMatcher.splitGroup(user.getDepartment());
-            String ownBucket = DepartmentBuckets.match(ownGroup.prefix());
-            if (!Objects.equals(department, ownBucket) || !Objects.equals(groupName, ownGroup.groupLabel())) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(Map.of("detail", "Not enough permissions to perform this action"));
-            }
-        }
-        List<User> candidates = userRepository.findByActiveTrue().stream()
+        List<User> candidates = boundedActiveUsers().stream()
                 .filter(ComplianceCalculator::isEligible)
                 .toList();
         List<User> matched = OperatorStatsBuilder.filterUsersInGroup(candidates, department, groupName);
+        if (user.getRole() == Role.MANAGER) {
+            if (scopeResolver != null && !scopeResolver.leadershipOptions(user).isEmpty()) {
+                Optional<Long> requestedTeamId = scopeResolver.resolveLegacyGroupPath(department, groupName);
+                if (requestedTeamId.isEmpty()
+                        || !scopeResolver.resolveGroupLeadership(user).includesTeam(requestedTeamId.get())) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(Map.of("detail", "Not enough permissions to perform this action"));
+                }
+                // Free-text department strings are transitional data, not an
+                // authorization identity. Keep only members bound to the
+                // canonical team proven above; stale/null/foreign bindings
+                // cannot leak through a path-string match.
+                matched = matched.stream()
+                        .filter(candidate -> requestedTeamId.get().equals(candidate.getTeamId()))
+                        .toList();
+            } else {
+                DepartmentGroup ownGroup = DepartmentMatcher.splitGroup(user.getDepartment());
+                String ownBucket = DepartmentBuckets.match(ownGroup.prefix());
+                if (!Objects.equals(department, ownBucket) || !Objects.equals(groupName, ownGroup.groupLabel())) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(Map.of("detail", "Not enough permissions to perform this action"));
+                }
+            }
+        }
         List<Long> ids = matched.stream().map(User::getId).toList();
         List<ComplianceRecord> records = complianceQueryService.computeCompliance(ids, null);
         List<GroupMemberCompletion> users = OperatorStatsBuilder.buildGroupUserCompletions(records);
@@ -434,7 +528,7 @@ public class StatsController {
             @RequestParam(defaultValue = "day") String bucket,
             @RequestParam(required = false) String category,
             @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = requireStatsView(user);
         if (denial != null) {
             return denial;
         }
@@ -488,7 +582,7 @@ public class StatsController {
     @GetMapping("/api/statistics/breakdown")
     public ResponseEntity<?> getStatisticsBreakdown(
             @RequestParam String dimension, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = requireStatsView(user);
         if (denial != null) {
             return denial;
         }
@@ -513,7 +607,7 @@ public class StatsController {
     /** Port of get_kpi_counts (routers/stats.py:930-965). */
     @GetMapping("/api/statistics/kpi")
     public ResponseEntity<?> getKpiCounts(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = requireStatsView(user);
         if (denial != null) {
             return denial;
         }
@@ -542,12 +636,21 @@ public class StatsController {
                 : scopeResolver.shadowCompare(decision, caller, candidates, legacyVisible);
     }
 
-    private ResponseEntity<Map<String, String>> requireContentManage(User user) {
+    private List<User> boundedActiveUsers() {
+        // The null branch exists only for the legacy DB-free constructor used
+        // by pure controller tests. Spring production wiring always supplies
+        // the bounded Oracle query service.
+        return userDirectoryQueryService == null
+                ? userRepository.findByActiveTrue()
+                : userDirectoryQueryService.listActiveUsersWithinLimit();
+    }
+
+    private ResponseEntity<Map<String, String>> requireStatsView(User user) {
         ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
         if (authFailure != null) {
             return authFailure;
         }
-        if (!permissionChecker.hasPermission(user, Permission.CONTENT_MANAGE)) {
+        if (!permissionChecker.hasPermission(user, Permission.STATS_VIEW)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
         }

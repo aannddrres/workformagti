@@ -1,6 +1,6 @@
 <div class="fixed inset-0 z-50 flex justify-end">
   <button type="button" class="absolute inset-0 bg-slate-950/45 backdrop-blur-[1px]" aria-label="დახურვა" (click)="close()"></button>
-  <aside class="relative z-10 h-full w-full max-w-2xl overflow-y-auto border-l border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 lg:p-8" aria-label="მომხმარებლის დეტალები">
+  <aside portalDialog portalDialogLabelledBy="user-editor-heading" (portalDialogClose)="close()" class="relative z-10 h-full w-full max-w-2xl overflow-y-auto border-l border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 lg:p-8">
     <button
       type="button"
       (click)="close()"
@@ -11,7 +11,7 @@
     </button>
     <header class="mb-6 border-b border-slate-100 pb-5 pr-10 dark:border-slate-800">
       <p class="portal-eyebrow">მომხმარებლის დეტალები</p>
-      <h3 class="text-2xl font-bold text-gray-800 dark:text-zinc-100">{{ 'users.edit_heading' | translate }}</h3>
+      <h3 id="user-editor-heading" class="text-2xl font-bold text-gray-800 dark:text-zinc-100">{{ 'users.edit_heading' | translate }}</h3>
       <p class="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{{ user().name }}</p>
       <p class="text-xs text-gray-400 dark:text-zinc-500">{{ user().email }}</p>
     </header>
@@ -34,8 +34,9 @@
         <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700 dark:border-red-800/60 dark:bg-red-950/40 dark:text-red-300">{{ msg }}</div>
       }
       <div>
-        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'users.field_role' | translate }}</label>
+        <label for="user-edit-role" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'users.field_role' | translate }}</label>
         <select
+          id="user-edit-role"
           (change)="onEditRoleChange($event)"
           class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
         >
@@ -45,24 +46,14 @@
         </select>
       </div>
       <div>
-        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'users.field_department' | translate }}</label>
-        <select
-          (change)="editDepartment.set($any($event.target).value)"
-          class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
-        >
-          @for (dept of departments; track dept) {
-            <option [value]="dept" [attr.selected]="dept === editDepartment() ? '' : null">{{ dept === 'All' ? ('users.dept_all' | translate) : dept }}</option>
-          }
-        </select>
+        <p class="mb-1.5 text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'users.field_department' | translate }}</p>
+        <div class="surface-card-muted px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-200">{{ editDepartment() || 'დეპარტამენტი არ არის სინქრონებული' }}</div>
+        <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400">იმართება კომპანიის AD-დან</p>
       </div>
       <div>
-        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'users.field_position' | translate }}</label>
-        <input
-          type="text"
-          [value]="editPosition()"
-          (input)="editPosition.set($any($event.target).value)"
-          class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
-        />
+        <p class="mb-1.5 text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'users.field_position' | translate }}</p>
+        <div class="surface-card-muted px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-200">{{ editPosition() || '—' }}</div>
+        <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400">იმართება კომპანიის AD-დან</p>
       </div>
 
       <div>
@@ -101,6 +92,7 @@
                       </span>
                     </div>
                     <select
+                      [attr.aria-label]="'users.perm_' + option.label | translate"
                       class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
                       [disabled]="option.disabled"
                       (change)="setPermissionOverride(option.value, $any($event.target).value)"

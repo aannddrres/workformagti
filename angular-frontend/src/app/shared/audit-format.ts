@@ -62,7 +62,6 @@ const ITEM_TYPE_LABELS: Record<string, string> = {
   news: 'სიახლე',
   video: 'ვიდეო',
   category: 'კატეგორია',
-  feedback: 'უკუკავშირი',
   required_reading: 'სავალდებულო გაცნობა',
   user: 'მომხმარებელი',
   readings: 'გაცნობის ჩანაწერები',

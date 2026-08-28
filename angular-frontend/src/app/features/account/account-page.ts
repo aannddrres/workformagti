@@ -10,6 +10,7 @@ import { formatDepartmentLabel } from '../../shared/department-badge';
 import { BroadcastBanner } from '../../shared/broadcast-banner/broadcast-banner';
 import { ReminderService } from '../../core/services/reminder.service';
 import { ReminderEntry, ReminderType } from '../../core/models/reminder';
+import { PortalSessionApi, PortalSessionEntry } from '../../core/services/portal-session.service';
 
 type AccountTab = 'profile' | 'evidence' | 'notifications' | 'settings';
 
@@ -27,6 +28,7 @@ export class AccountPage {
   private readonly compliance = inject(ComplianceService);
   private readonly reminderService = inject(ReminderService);
   private readonly router = inject(Router);
+  private readonly sessionApi = inject(PortalSessionApi);
 
   protected readonly activeTab = signal<AccountTab>('profile');
   protected readonly progress = signal<MyProgress | null>(null);
@@ -38,6 +40,10 @@ export class AccountPage {
   protected readonly reminderPage = signal(0);
   protected readonly reminderTotalPages = signal(0);
   protected readonly readingReminderId = signal<number | null>(null);
+  protected readonly sessions = signal<PortalSessionEntry[]>([]);
+  protected readonly sessionsLoading = signal(true);
+  protected readonly sessionError = signal<string | null>(null);
+  protected readonly revokingSessionId = signal<string | null>(null);
 
   protected readonly overdueReadings = computed(() => this.readings().filter((item) => item.is_overdue));
   protected readonly completedReadings = computed(() => this.readings().filter((item) => item.status === 'read'));
@@ -54,6 +60,31 @@ export class AccountPage {
       error: () => this.loadingEvidence.set(false)
     });
     this.loadReminders(true);
+    this.loadSessions();
+  }
+
+  protected revokeSession(session: PortalSessionEntry): void {
+    if (session.current || this.revokingSessionId()) return;
+    this.revokingSessionId.set(session.id);
+    this.sessionError.set(null);
+    this.sessionApi.revoke(session.id).subscribe({
+      next: () => {
+        this.sessions.update((items) => items.filter((item) => item.id !== session.id));
+        this.revokingSessionId.set(null);
+      },
+      error: () => {
+        this.revokingSessionId.set(null);
+        this.sessionError.set('სესიის დასრულება ვერ მოხერხდა.');
+      }
+    });
+  }
+
+  protected sessionDevice(session: PortalSessionEntry): string {
+    const agent = session.user_agent ?? '';
+    if (/mobile|android|iphone/i.test(agent)) return 'მობილური მოწყობილობა';
+    if (/windows/i.test(agent)) return 'Windows კომპიუტერი';
+    if (/macintosh|mac os/i.test(agent)) return 'Mac კომპიუტერი';
+    return 'უცნობი მოწყობილობა';
   }
 
   protected selectTab(tab: AccountTab): void {
@@ -71,10 +102,8 @@ export class AccountPage {
 
   protected permissionLabel(permission: string): string {
     return ({
-      'system.audit': 'აუდიტის ნახვა',
       'articles.view': 'ცოდნის ბაზის ნახვა',
       'articles.edit': 'სტატიების რედაქტირება',
-      'articles.publish': 'სტატიების გამოქვეყნება',
       'articles.archive': 'სტატიების არქივირება',
       'videos.archive': 'ვიდეოების არქივირება',
       'compliance.assign': 'გაცნობის დავალებების მართვა',
@@ -135,6 +164,13 @@ export class AccountPage {
         this.reminderError.set('შეხსენებების ჩატვირთვა ვერ მოხერხდა.');
         this.loadingReminders.set(false);
       }
+    });
+  }
+
+  private loadSessions(): void {
+    this.sessionApi.list().subscribe({
+      next: (items) => { this.sessions.set(items); this.sessionsLoading.set(false); },
+      error: () => { this.sessionsLoading.set(false); this.sessionError.set('აქტიური სესიების ჩატვირთვა ვერ მოხერხდა.'); }
     });
   }
 }

@@ -28,8 +28,8 @@ describe('NewsEditDrawer due-date validation', () => {
     const component = fixture.componentInstance as any;
 
     const newsService = TestBed.inject(NewsService);
-    const createSpy = vi.spyOn(newsService, 'create');
-    const updateSpy = vi.spyOn(newsService, 'update');
+    const createSpy = vi.spyOn(newsService, 'createCommand');
+    const updateSpy = vi.spyOn(newsService, 'updateCommand');
 
     component.isMandatory.set(true);
     component.dueDate.set('');
@@ -47,7 +47,7 @@ describe('NewsEditDrawer due-date validation', () => {
     const component = fixture.componentInstance as any;
 
     const newsService = TestBed.inject(NewsService);
-    const createSpy = vi.spyOn(newsService, 'create').mockReturnValue(of({ id: 1, title: 'x' } as any));
+    const createSpy = vi.spyOn(newsService, 'createCommand').mockReturnValue(of({ id: 1, title: 'x' } as any));
 
     component.isMandatory.set(true);
     component.dueDate.set('2030-01-01');
@@ -64,7 +64,7 @@ describe('NewsEditDrawer due-date validation', () => {
     const component = fixture.componentInstance as any;
 
     const newsService = TestBed.inject(NewsService);
-    const createSpy = vi.spyOn(newsService, 'create').mockReturnValue(of({ id: 1, title: 'x' } as any));
+    const createSpy = vi.spyOn(newsService, 'createCommand').mockReturnValue(of({ id: 1, title: 'x' } as any));
 
     component.isMandatory.set(false);
     component.dueDate.set('');

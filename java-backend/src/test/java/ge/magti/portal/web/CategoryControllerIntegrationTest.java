@@ -2,11 +2,13 @@ package ge.magti.portal.web;
 
 import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.Article;
+import ge.magti.portal.domain.AuditLog;
 import ge.magti.portal.domain.Category;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.repository.ArticleRepository;
+import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.CategoryRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.JwtService;
@@ -21,6 +23,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
+import java.util.Comparator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -51,6 +54,8 @@ class CategoryControllerIntegrationTest {
     private CategoryRepository categoryRepository;
     @Autowired
     private ArticleRepository articleRepository;
+    @Autowired
+    private AuditLogRepository auditLogRepository;
     @Autowired
     private JwtService jwtService;
     @Autowired
@@ -160,6 +165,29 @@ class CategoryControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[*].id").value(
                         org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem((int) id))));
+
+        var audits = auditLogRepository.findAll().stream()
+                .filter(a -> "category".equals(a.getItemType()) && Long.valueOf(id).equals(a.getItemId()))
+                .sorted(Comparator.comparing(AuditLog::getId))
+                .toList();
+        assertEquals(java.util.List.of("CREATE", "UPDATE", "DELETE"),
+                audits.stream().map(AuditLog::getAction).toList());
+        assertTrue(audits.stream().allMatch(a -> admin.getId().equals(a.getAdminId())
+                        && admin.getName().equals(a.getAdminNameSnapshot())
+                        && admin.getEmail().equals(a.getAdminEmailSnapshot())),
+                "every category mutation must retain the actor snapshot");
+
+        AuditLog updateAudit = audits.get(1);
+        var updateDetails = new com.fasterxml.jackson.databind.ObjectMapper().readTree(updateAudit.getDetails());
+        assertEquals("SUCCESS", updateDetails.path("result").asText());
+        assertEquals("ახალი კატეგორია", updateDetails.path("before").path("name").asText());
+        assertEquals("განახლებული კატეგორია", updateDetails.path("after").path("name").asText());
+
+        AuditLog deleteAudit = audits.get(2);
+        var deleteDetails = new com.fasterxml.jackson.databind.ObjectMapper().readTree(deleteAudit.getDetails());
+        assertTrue(deleteDetails.path("before").path("active").asBoolean());
+        assertTrue(!deleteDetails.path("after").path("active").asBoolean());
+        assertEquals("განახლებული კატეგორია", deleteAudit.getItemNameSnapshot());
     }
 
     @Test
