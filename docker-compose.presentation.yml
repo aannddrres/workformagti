@@ -59,7 +59,12 @@ services:
       ORACLE_DB_USER: magti_app
       ORACLE_DB_PASSWORD: ${PRESENTATION_DB_PASSWORD:?missing PRESENTATION_DB_PASSWORD}
       APP_ENV: development
-      ALLOW_DEV_LOGIN: "false"
+      # Turned on so the four persona buttons on /login actually work: the demo
+      # database has no usable password path (loginPersona sends no password) and
+      # corporate SSO is not wired up yet. The stack is published on 127.0.0.1
+      # only. Set back to "false" for a stakeholder demo where password-less
+      # sign-in would misrepresent the product.
+      ALLOW_DEV_LOGIN: "true"
       SECRET_KEY: ${PRESENTATION_JWT_SECRET:?missing PRESENTATION_JWT_SECRET}
       COOKIE_SECURE: "false"
       ROLLOUT_LEADERSHIP_SCOPE: "true"
