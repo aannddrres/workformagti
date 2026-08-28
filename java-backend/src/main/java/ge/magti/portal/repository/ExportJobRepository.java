@@ -29,7 +29,7 @@ public interface ExportJobRepository extends JpaRepository<ExportJob, String> {
      * distinct "not yours" would confirm the job exists to somebody who may
      * not know it does.
      *
-     * <p>A row with a NULL {@code created_by} -- written before {@code V36}
+     * <p>A row with a NULL {@code created_by} -- written before {@code V46}
      * -- never matches, which is the intended answer: nobody owns it.
      */
     Optional<ExportJob> findByIdAndCreatedBy(String id, Long createdBy);

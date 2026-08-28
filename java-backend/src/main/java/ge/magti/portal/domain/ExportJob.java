@@ -49,11 +49,11 @@ public class ExportJob {
     private String status = "processing";
 
     /**
-     * Who asked for this export (DEC-P03, {@code V36}). The download and
+     * Who asked for this export (DEC-P03, {@code V46}). The download and
      * status endpoints match on it, so a job is readable only by the caller
      * whose scope produced its contents.
      *
-     * <p>Nullable for rows written before V36, which have no owner to
+     * <p>Nullable for rows written before V46, which have no owner to
      * attribute. Those read as "not yours" and get the same
      * "expired -- regenerate" answer a swept row does; with a one-hour TTL
      * the whole legacy population is gone within an hour of deploying.

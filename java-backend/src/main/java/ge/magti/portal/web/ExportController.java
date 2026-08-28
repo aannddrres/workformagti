@@ -252,7 +252,7 @@ public class ExportController {
         }
         Optional<ExportJob> jobOpt = exportJobRepository.findByIdAndCreatedBy(jobId, user.getId());
         if (jobOpt.isEmpty()) {
-            // A swept row, a bad id, another caller's job and a pre-V36 row
+            // A swept row, a bad id, another caller's job and a pre-V46 row
             // with no owner all land here; all four mean "regenerate", which
             // is what the expired message says. Answering the third of them
             // differently would confirm the job exists (DEC-P03).

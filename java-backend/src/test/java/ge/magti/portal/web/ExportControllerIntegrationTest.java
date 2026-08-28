@@ -295,7 +295,7 @@ class ExportControllerIntegrationTest {
      * <p>Two managers, both holding {@code reports.export} by default, in
      * different departments -- so the job's contents differ by
      * {@link ge.magti.portal.export.ExportQueryService}'s scoping and the one
-     * who did not ask for it must not read it. Before {@code V36} the second
+     * who did not ask for it must not read it. Before {@code V46} the second
      * manager got the file.
      */
     @Test
@@ -324,7 +324,7 @@ class ExportControllerIntegrationTest {
     }
 
     /**
-     * A row written before {@code V36} has no owner, so it belongs to nobody
+     * A row written before {@code V46} has no owner, so it belongs to nobody
      * -- including the caller who would have created it. With a one-hour TTL
      * the entire legacy population ages out within an hour of deploying, and
      * serving those rows to anyone holding the permission would keep DEC-P03

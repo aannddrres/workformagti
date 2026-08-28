@@ -119,7 +119,7 @@ class ExportJobOwnershipTest {
                 .thenReturn(Optional.empty());
     }
 
-    /** A pre-V36 row: present, and owned by nobody at all. */
+    /** A pre-V46 row: present, and owned by nobody at all. */
     private void unownedJobExists() {
         ExportJob stored = completedJob(0L);
         stored.setCreatedBy(null);
@@ -172,7 +172,7 @@ class ExportJobOwnershipTest {
     }
 
     /**
-     * A row written before {@code V36} has {@code created_by} NULL, so the
+     * A row written before {@code V46} has {@code created_by} NULL, so the
      * scoped query matches nobody and every caller is told to regenerate.
      * Deliberate: there is no owner to attribute, and with a one-hour TTL
      * ({@link ExportJobWorker#EXPORT_JOB_TTL_SECONDS}) the whole legacy

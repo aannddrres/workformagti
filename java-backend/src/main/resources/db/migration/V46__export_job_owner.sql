@@ -1,3 +1,12 @@
+-- Numbered V46, not V36, and the gap is deliberate. This branch is cut from
+-- main, where V35 is the ceiling -- but the active line (r5-complete-r6,
+-- codex/phase6-content-gates, codex/readiness-report) already carries a
+-- V36__org_structure_expand.sql, a V36_1 alongside it, and migrations through
+-- V42, with V43-V45 in progress. Two files claiming V36 do not merge into a
+-- warning: Flyway refuses to start at all on a duplicate version, which takes
+-- the whole backend down on the first boot after the merge. V46 clears
+-- everything currently in flight. Flyway does not care about the gap.
+--
 -- DEC-P03: export_jobs had no owner column at all, so
 -- GET /api/export/download/{jobId} could only ever authorize on the
 -- reports.export permission -- and the contents of a job are scoped to

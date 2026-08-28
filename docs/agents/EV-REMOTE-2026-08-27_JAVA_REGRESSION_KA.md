@@ -306,7 +306,7 @@ audit trail, referrer).
 თუ ჩამომტვირთავი შეიძლება სხვა იყოს, ვიდრე შემქმნელი.
 
 **არ შევცვალე.** გამოსწორება მოითხოვს ახალ Flyway migration-ს
-(`V36`: `export_jobs.created_by` + backfill/nullable სტრატეგია) და ეხება
+(`V46`: `export_jobs.created_by` + backfill/nullable სტრატეგია) და ეხება
 დადასტურებულ **export** flow-ს → საჭიროა ცალკე გადაწყვეტილება
 (შემოთავაზებული იდენტიფიკატორი: **`DEC-P03`**).
 
@@ -905,7 +905,7 @@ DB-free suite: **257 → 283** (+26). ხუთი ახალი build gate:
 | P0-A18 Video/Access 20/20 ხელახალი დადასტურება | `External` — იგივე |
 | 30 endpoint-ის negative/IDOR ტესტი (§11.3) | `External` — ყველა negative ტესტი `@RequiresOracle`-ია |
 | EV-229-თან შედარება, `DEC-P01`/`DEC-P02` სტატუსი | დოკუმენტები ამ repo-ში არ არსებობს (§0) |
-| `DEC-P03` fix (export ownership + `V36`) | გადაწყვეტილება |
+| `DEC-P03` fix (export ownership + `V46`) | გადაწყვეტილება |
 | `DEC-P04` fix (`APP_ENV` trim) | გადაწყვეტილება |
 
 ### 15.4 შემდეგი ნაბიჯები, პრიორიტეტით
@@ -1145,7 +1145,7 @@ mvn -B -DskipTests package → BUILD SUCCESS, JAR 93 096 357 ბაიტი
 
 ---
 
-## 18. `DEC-P03` — გასწორებულია (`V36` + ownership-scoped query)
+## 18. `DEC-P03` — გასწორებულია (`V46` + ownership-scoped query)
 
 ამ სესიის **პირველი სქემის ცვლილება**. მომხმარებლის პირდაპირი
 გადაწყვეტილებით.
@@ -1167,7 +1167,7 @@ mvn -B -DskipTests package → BUILD SUCCESS, JAR 93 096 357 ბაიტი
 იმავეს, რასაც უცნობ id-ზე. ცალკე „not yours" პასუხი დაუდასტურებდა job-ის
 არსებობას იმას, ვინც შეიძლება მხოლოდ ეჭვობდეს.
 
-**2. pre-`V36` row (created_by NULL) არავის ეკუთვნის.**
+**2. pre-`V46` row (created_by NULL) არავის ეკუთვნის.**
 scoped query მას ვერასდროს იჭერს. TTL 1 საათია
 (`ExportJobWorker.EXPORT_JOB_TTL_SECONDS`), ე.ი. მთელი legacy პოპულაცია
 deploy-იდან ერთ საათში ქრება. მათი მომსახურება ყველასთვის, ვისაც
@@ -1227,7 +1227,7 @@ mvn -B -DskipTests package → BUILD SUCCESS, JAR 93 097 889 ბაიტი
 
 ### 18.5 ⚠️ რაც **ვერ** გადამოწმდა
 
-`V36` **არ გაშვებულა** — ამ გარემოში Oracle არ არსებობს. ე.ი.
+`V46` **არ გაშვებულა** — ამ გარემოში Oracle არ არსებობს. ე.ი.
 გადაუმოწმებელია: migration-ის SQL, FK-ის შექმნა, JPA mapping-ის შესაბამისობა
 (`ddl-auto=validate` boot-ზე გაასწორებდა, თუ არ ემთხვევა), და ორივე ახალი
 integration ტესტი.
@@ -1355,7 +1355,7 @@ mvn -B test -Dgroups=oracle
 ```
 
 `ORACLE_DB_URL`-ის დაყენების გარეშე. **მაგრამ ეს ამ გარემოს blocker-ს არ
-ხსნის** — აქ registry დაბლოკილია, ე.ი. სრული regression, P0-A18 და `V36`
+ხსნის** — აქ registry დაბლოკილია, ე.ი. სრული regression, P0-A18 და `V46`
 კვლავ **`External`**.
 
 ---
@@ -1389,7 +1389,7 @@ endpoint principal · endpoint guard (bytecode) · permission liveness (ორ�
 |---|---|---|
 | `DEC-P04` | `APP_ENV=production ` (ჰარისით) გამორთავდა ყველა შემოწმებას **და** dev login-ს მისაწვდომს ხდიდა | §16 |
 | `DEC-P05` | `APP_ENV=prod` / typo-ები — იგივე fail-open; გასწორდა **ინვერსიით** (dev-სია), არა alias-ების სიით | §17 |
-| `DEC-P03` | `export_jobs`-ს owner სვეტი არ ჰქონდა → სხვისი export-ის ჩამოტვირთვა; `V36` + scoped query | §18 |
+| `DEC-P03` | `export_jobs`-ს owner სვეტი არ ჰქონდა → სხვისი export-ის ჩამოტვირთვა; `V46` + scoped query | §18 |
 
 **Testcontainers** (ციკლი 9) — Oracle-ის blocker მოხსნილია დეველოპერის
 მანქანაზე; CI უცვლელი (§19).
@@ -1401,7 +1401,7 @@ endpoint principal · endpoint guard (bytecode) · permission liveness (ორ�
 | სრული Java/Oracle regression (257 ტესტი) | `External` — registry დაბლოკილია ამ გარემოში (§5, §19.4) |
 | P0-A18 Video/Access 20/20 | `External` — იგივე |
 | 30 endpoint-ის negative/IDOR ტესტი (§11.3) | `External` — ყველა negative ტესტი `@RequiresOracle`-ია |
-| **`V36`-ის ვალიდაცია** | `External` — migration **არასდროს გაშვებულა** (§18.5) |
+| **`V46`-ის ვალიდაცია** | `External` — migration **არასდროს გაშვებულა** (§18.5) |
 | `DEC-P01`, `DEC-P02` | გადაწყვეტილება |
 | EV-229-თან შედარება | 7 დოკუმენტი ამ repo-ში არ არსებობს (§0) |
 
@@ -1410,7 +1410,7 @@ endpoint principal · endpoint guard (bytecode) · permission liveness (ორ�
 1. **გაშვება Oracle-იან მანქანაზე.** ეს ერთი ნაბიჯი ხურავს ოთხ ხაზს
    §20.3-იდან. Testcontainers-ის შემდეგ საკმარისია `mvn -B test` მანქანაზე,
    სადაც Docker registry ღიაა — `ORACLE_DB_URL` აღარაა საჭირო.
-   **`V36` პირველად სწორედ იქ გაეშვება.**
+   **`V46` პირველად სწორედ იქ გაეშვება.**
 2. `DEC-P01` / `DEC-P02` გადაწყვეტილება (ორივე ტესტში ჩამაგრებულია —
    დახურვა იძულებით მოითხოვს allowlist ჩანაწერის წაშლას).
 3. 7 enterprise-readiness დოკუმენტის commit Windows workspace-იდან.
@@ -1640,3 +1640,59 @@ placeholder **უარყოფილი იქნება** და რა წ
 განზრახ აირჩიოს პილოტისთვის — ე.ი. **ცალკე გადაწყვეტილებაა**, არა Java-ს
 guard-ის პორტი (Java-ს ეს შემთხვევა არ აქვს, ის მხოლოდ Oracle-ს იყენებს).
 `DEC-P07`-ის კანდიდატი.
+
+---
+
+## 23. სამუშაო ბაზის შეუსაბამობა — აღმოჩენილი 2026-08-28
+
+### 23.1 რა აღმოჩნდა
+
+მომხმარებლის `git status --short`-მა აჩვენა **~200 modified + ~80 untracked**
+ფაილი მის ლეპტოპზე. ეს სესია მთელი დროის განმავლობაში `main`-ზე იდგა
+(`4bf6e62`, **2026-08-20**) — ე.ი. **რვა დღით ჩამორჩენილ snapshot-ზე**.
+
+ნამდვილი სამუშაო ხაზი remote-ზეც ჩანს:
+
+| branch | უმაღლესი მიგრაცია | თარიღი |
+|---|---|---|
+| `origin/main` (ჩემი ბაზა) | V35 | 2026-08-20 |
+| `claude/r5-complete-r6-planning-5exzf2` | **V42** | 2026-08-23 |
+| `codex/phase6-content-gates` | **V42** | 2026-08-23 |
+| `codex/readiness-report-2026-08-23` | **V42** | 2026-08-23 |
+
+ლეპტოპზე ამათ ზემოთ კიდევ V43–V45 untracked-ია.
+
+### 23.2 `V36` → `V46` (გასწორებული)
+
+ჩემი `V36__export_job_owner.sql` **ეჯახებოდა** — სამივე აქტიურ branch-ს უკვე
+აქვს `V36__org_structure_expand.sql` და `V36_1__legacy_permission_override_backfill.sql`.
+
+ორი ერთნაირი ვერსია Flyway-სთვის **გაფრთხილება არაა** — ის საერთოდ უარს
+ამბობს გაშვებაზე, ე.ი. შერწყმის შემდეგ პირველივე boot-ზე backend ეცემა.
+გადანომრილია **V46**-ად (V43–V45-ის ზემოთ; Flyway ხარვეზს არ აქცევს
+ყურადღებას). ყველა javadoc მითითება განახლდა.
+
+### 23.3 შვიდი დოკუმენტი — მოიძებნა
+
+§0-ში დაფიქსირებული „შვიდი `ENTERPRISE_READINESS_*_KA.md` არ არსებობს"
+**სწორი იყო ამ გარემოსთვის და მცდარი პროექტისთვის**: ისინი მომხმარებლის
+ლეპტოპზე **untracked**-ია, ე.ი. arasდროს ყოფილა commit-ში. EV-229-თან
+შედარება კვლავ შეუძლებელია, მაგრამ მიზეზი სხვაა, ვიდრე მეგონა.
+
+### 23.4 14 ფაილი, რომელიც ორივე მხარემ შეცვალა
+
+`nginx.conf.template` · `package.json` · `i18n/{ka,en}.json` ·
+`app.routes.ts` · `role.guard.ts` · admin-content-ის 4 შაბლონი ·
+`admin-audit-page.html` · `PortalProperties.java` ·
+`ExportJobRepository.java` · `ExportController.java`
+
+ე.ი. `git pull` ამ branch-ისა **უარყოფილი იქნებოდა**. შერწყმა ხელით
+გადასაწყვეტია და მანამდე უნდა დადგინდეს, რომელი გასწორება უკვე გაკეთდა
+აქტიურ ხაზზე.
+
+### 23.5 დასკვნა
+
+ამ სესიის Python-ის მხარე (`DEC-P04/P05/P06`) და DB-free build gate-ები
+დამოუკიდებელია და ძალაში რჩება. **frontend-ის ციკლები (CSP, i18n, a11y,
+FE-09) აქტიურ ხაზთან უნდა გადამოწმდეს** — შესაძლოა იქ უკვე გადაწყვეტილია
+ან სხვაგვარად გადაწყდა.
