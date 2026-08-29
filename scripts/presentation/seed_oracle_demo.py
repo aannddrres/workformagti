@@ -33,6 +33,7 @@ from common import (
     EXPECTED_ASSETS,
     EXPECTED_ASSET_BYTES,
     EXPECTED_NEWS,
+    EXPECTED_FLYWAY_VERSION,
     EXPECTED_ORACLE_CONTEXT,
     EXPECTED_VIDEOS,
     SanitizationStats,
@@ -244,9 +245,10 @@ def verify_oracle_context(cursor: oracledb.Cursor) -> None:
     migrations = [(str(version), int(success)) for version, success in cursor.fetchall()]
     failed = [version for version, success in migrations if success != 1]
     latest = migrations[-1][0] if migrations else None
-    if failed or latest != "42":
+    if failed or latest != EXPECTED_FLYWAY_VERSION:
         raise PresentationSafetyError(
-            f"Presentation requires successful Flyway through V42 exactly; latest={latest!r}, failed={failed!r}"
+            f"Presentation requires successful Flyway through V{EXPECTED_FLYWAY_VERSION} exactly; "
+            f"latest={latest!r}, failed={failed!r}"
         )
 
     invalid = int(_scalar(

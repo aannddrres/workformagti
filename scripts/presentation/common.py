@@ -44,6 +44,24 @@ EXPECTED_DSN = "oracle:1521/XEPDB1"
 EXPECTED_ORACLE_USER = "magti_app"
 EXPECTED_CONFIRMATION = "LOCAL_ONLY_MAGTI_PRESENTATION_V1"
 EXPECTED_ORACLE_CONTEXT = ("MAGTI_APP", "XEPDB1", "XEPDB1")
+
+# The exact Flyway version this seeder was written against. It is an equality
+# check, not a minimum, on purpose: the seeder writes rows directly into a
+# schema it cannot see the source of, so a migration it has not been reviewed
+# against must stop it rather than silently produce a half-correct database.
+#
+# Raising this is a deliberate act. Before changing it, read every migration
+# between the old value and the new one and confirm none of them removes a
+# table the seeder writes, or adds a NOT NULL column without a default to one.
+#
+# 42 -> 45 (2026-08-29), reviewed for exactly that:
+#   V43 drops knowledge_feedback  -- the seeder never writes it
+#   V44 adds portal_sessions      -- new table, nothing here touches it
+#   V45 adds articles.read_time   -- NOT NULL but DEFAULT 1, so the existing
+#                                    article inserts still satisfy it
+# Found because a fresh presentation/UAT stack could not be seeded at all
+# while the guard sat at 42 and the schema had moved to 45.
+EXPECTED_FLYWAY_VERSION = "45"
 SEARCH_ENTITY_TYPES = {
     "article": "ARTICLE",
     "news": "NEWS",
