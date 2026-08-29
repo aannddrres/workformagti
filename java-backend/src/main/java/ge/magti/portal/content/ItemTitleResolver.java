@@ -67,17 +67,20 @@ public class ItemTitleResolver {
         Map<ItemKey, ItemDetail> details = new HashMap<>();
         if (!articleIds.isEmpty()) {
             for (Article a : articleRepository.findAllById(articleIds)) {
-                details.put(new ItemKey("article", a.getId()), new ItemDetail(a.getTitle(), ""));
+                details.put(new ItemKey("article", a.getId()),
+                        new ItemDetail(a.getTitle(), "", a.getUpdatedAt()));
             }
         }
         if (!newsIds.isEmpty()) {
             for (News n : newsRepository.findAllById(newsIds)) {
-                details.put(new ItemKey("news", n.getId()), new ItemDetail(n.getTitle(), ""));
+                // News carries no updated_at, only created_at -- see ItemDetail.
+                details.put(new ItemKey("news", n.getId()), new ItemDetail(n.getTitle(), "", null));
             }
         }
         if (!videoIds.isEmpty()) {
             for (VideoInstruction v : videoInstructionRepository.findAllById(videoIds)) {
-                details.put(new ItemKey("video", v.getId()), new ItemDetail(v.getTitle(), v.getVideoUrl()));
+                details.put(new ItemKey("video", v.getId()),
+                        new ItemDetail(v.getTitle(), v.getVideoUrl(), null));
             }
         }
         return details;

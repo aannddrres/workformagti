@@ -308,6 +308,8 @@
       "status_read": "Read",
       "status_overdue": "Overdue",
       "status_unread": "Unread",
+      "changed_since_read": "Material updated",
+      "changed_since_read_hint": "This material was edited after you acknowledged it. Your acknowledgement still stands, but you have not read the current version.",
       "action_mark_read": "I've read and understood",
       "quiz_gate_message": "\"{{title}}\" requires passing its quiz to confirm reading.",
       "start_quiz": "Start quiz",

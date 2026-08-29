@@ -63,6 +63,20 @@
               <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-600 dark:bg-zinc-800 dark:text-zinc-300">{{ 'readings.page.status_unread' | translate }}</span>
             }
 
+            <!-- The acknowledgement above stays valid: it records that this
+                 person read this material on a date, and that is the evidence
+                 the whole compliance story rests on. What it stopped saying,
+                 once the text was edited, is that they read the CURRENT
+                 version -- so the row says it out loud instead. -->
+            @if (item.changed_since_read) {
+              <span
+                class="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+                [title]="'readings.page.changed_since_read_hint' | translate">
+                <i class="fa-solid fa-rotate" aria-hidden="true"></i>
+                {{ 'readings.page.changed_since_read' | translate }}
+              </span>
+            }
+
             <!-- The "mark as read" button used to sit here, which let an
                  obligation be cleared in one click without the item ever being
                  opened. Confirmation now lives at the end of the material

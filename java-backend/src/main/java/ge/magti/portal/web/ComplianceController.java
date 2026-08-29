@@ -147,8 +147,17 @@ public class ComplianceController {
             String itemTitle = detail != null ? detail.title()
                     : (r.getItemTitleSnapshot() != null ? r.getItemTitleSnapshot() : ("Item #" + r.getItemId()));
             String itemContent = detail != null ? detail.content() : "Content not available.";
+            // F-2: flag material edited after this operator acknowledged it.
+            // The acknowledgement stays valid -- it records a real event on a
+            // real date -- but the list now says the text has moved on, so
+            // "read" no longer quietly means "read the current version".
+            boolean changedSinceRead = readAt != null
+                    && detail != null
+                    && detail.updatedAt() != null
+                    && detail.updatedAt().isAfter(readAt);
             results.add(new MyReadingResponse(
-                    RequiredReadingResponse.from(r), currentStatus, readAt, isOverdue, itemTitle, itemContent));
+                    RequiredReadingResponse.from(r), currentStatus, readAt, isOverdue,
+                    itemTitle, itemContent, changedSinceRead));
         }
         return ResponseEntity.ok(results);
     }

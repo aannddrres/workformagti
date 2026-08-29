@@ -16,6 +16,8 @@ export interface MyReading {
   is_overdue: boolean;
   item_title: string | null;
   item_content: string | null;
+  /** The material was edited after this operator acknowledged it. */
+  changed_since_read: boolean;
 }
 
 /** Mirrors web.MyProgressResponse. */
