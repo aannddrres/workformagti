@@ -46,6 +46,12 @@ const ACTION_LABELS: Record<string, string> = {
   UPDATE_REQUIRED_READING: 'სავალდებულო გაცნობის განახლება',
   UPDATE_QUIZ: 'ქვიზის განახლება',
   UPLOAD: 'ფაილის ატვირთვა',
+  FILE_ACCESS: 'ფაილის გახსნა',
+  FILE_ACCESS_DENIED: 'ფაილზე წვდომა აიკრძალა',
+  // DEC-P01 shadow mode. The label says "would have" out loud because the
+  // whole point of the row is that nothing was actually refused -- and the
+  // person reading this list is deciding whether to make it real.
+  FILE_ACCESS_SHADOW_DENY: 'ფაილზე წვდომა აიკრძალებოდა (shadow)',
   EXPORT: 'ექსპორტი',
   EXPORT_XLSX: 'Excel-ის ექსპორტი',
   EXPORT_PDF: 'PDF-ის ექსპორტი',
@@ -66,6 +72,7 @@ const ITEM_TYPE_LABELS: Record<string, string> = {
   user: 'მომხმარებელი',
   readings: 'გაცნობის ჩანაწერები',
   file: 'ფაილი',
+  stored_file: 'ატვირთული ფაილი',
   system: 'სისტემა',
   audit_log: 'აუდიტის ჩანაწერი',
   team_stats: 'გუნდის სტატისტიკა',

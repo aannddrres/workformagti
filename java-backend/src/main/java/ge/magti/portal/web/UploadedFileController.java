@@ -77,11 +77,20 @@ public class UploadedFileController {
                 // Same 404 the article itself answers. A 403 would confirm the
                 // file exists, which is the one thing a caller guessing names
                 // is trying to learn.
-                recordDenied(user, filename, decision);
+                recordDecision(user, filename, decision, "FILE_ACCESS_DENIED", "DENIED");
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("detail", "ფაილი ვერ მოიძებნა"));
             }
             // Shadow: say what would have happened, serve the file anyway.
+            //
+            // Recorded in the audit log as well as the application log, under
+            // an action of its own so a query can never mistake "would have
+            // refused" for "did refuse". The log line alone is not enough to
+            // run this on production: the app runs as several replicas, the
+            // line is INFO among everything else, and whoever decides to
+            // promote the flag needs a countable answer to "did shadow deny
+            // anyone legitimate", not a grep across pods.
+            recordDecision(user, filename, decision, "FILE_ACCESS_SHADOW_DENY", "SHADOW");
             logger.info("File entitlement (shadow) would deny [{}] {} for user {} ({})",
                     decision, filename, user.getId(), user.getDepartment());
         }
@@ -110,14 +119,26 @@ public class UploadedFileController {
      * A refusal is audited as deliberately as a success: a run of these for
      * one person is the shape a scraped-URL attempt would take, and there is
      * nowhere else it would be visible.
+     *
+     * <p>Shadow uses the same row with a different action and result, so the
+     * two are one query apart and never one filter apart. The department is
+     * written into the payload because the review question is about groups of
+     * people ("is one department losing pictures?"), and a user's department
+     * can have changed by the time anyone reads the row.
      */
-    private void recordDenied(User user, String filename, FileAccessPolicy.Decision decision) {
+    private void recordDecision(
+            User user,
+            String filename,
+            FileAccessPolicy.Decision decision,
+            String action,
+            String result) {
         Map<String, Object> after = new LinkedHashMap<>();
         after.put("stored_filename", filename);
         after.put("decision", decision.name());
+        after.put("department", user.getDepartment());
         mutationAuditService.recordResult(
-                user, "FILE_ACCESS_DENIED", "stored_file", 0L, filename,
-                "DENIED", decision.name(), null, after, null, null);
+                user, action, "stored_file", 0L, filename,
+                result, decision.name(), null, after, null, null);
     }
 
     private static MediaType parseOrOctetStream(String contentType) {

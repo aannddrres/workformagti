@@ -1021,12 +1021,32 @@ sign-off.
 
 ### CUT-05 — rollout flags-ის ოპერირება — P0
 
-**კითხვა Platform/Ops-სთვის:** `ROLLOUT_LEADERSHIP_SCOPE` და
-`ROLLOUT_COMPLIANCE_ELIGIBILITY` ვინ ცვლის, ცალ-ცალკე როგორ deployდება,
-configuration history სად ჩანს და rollback რამდენ ხანშია შესაძლებელი?
+**კითხვა Platform/Ops-სთვის:** `ROLLOUT_LEADERSHIP_SCOPE`,
+`ROLLOUT_COMPLIANCE_ELIGIBILITY` და `ROLLOUT_FILE_ENTITLEMENT` ვინ ცვლის,
+ცალ-ცალკე როგორ deployდება, configuration history სად ჩანს და rollback
+რამდენ ხანშია შესაძლებელი?
 
 **მოსაწოდებელი პასუხი/მტკიცებულება:** env/config owner, change audit, restart/rollout procedure
 და rollback drill.
+
+**დამატება (2026-08-29):** პირველი ორისგან განსხვავებით,
+`ROLLOUT_FILE_ENTITLEMENT` **ნამდვილად ცვლის ქცევას** და პროდაქშენზე shadow-ით
+ეშვება. მისი ჩართვის გადაწყვეტილება 14-დღიან სამუშაო ფანჯარას და `audit_logs`-ის
+`FILE_ACCESS_SHADOW_DENY` ჩანაწერების განხილვას ეყრდნობა
+(კრიტერიუმი: `docs/ROLLOUT_ROLLBACK_KA.md` → „DEC-P01").
+
+განხილვის უმეტესობა IT-ს არ ეხება: `FILE_ACCESS_SHADOW_DENY` ჩანაწერები
+პორტალის აუდიტის გვერდიდან იკითხება (`action:` ტოკენი ძებნის ველში), ე.ი.
+სისტემური ადმინისტრატორი დამოუკიდებლად ართმევს თავს და DB-წვდომა არ სჭირდება.
+
+**რჩება ერთი დამოკიდებულება — application log:** კრიტერიუმის ერთ-ერთი პუნქტი
+`WARN`-ის არარსებობას ამოწმებს
+(`stored_file_references had no row for ... healing from scan`). თუ log
+aggregation არ არის ან replica-ების ლოგი არ ინახება, ეს პუნქტი შეუმოწმებელი
+რჩება და enforcement-ის ჩართვა ბრმა იქნება.
+
+**კითხვა:** სად და რამდენ ხანს ინახება backend-ის application log, და როგორ
+მოვძებნოთ მასში კონკრეტული ტექსტი ყველა replica-ს გაშვებით?
 
 ### CUT-06 — პლატფორმის rollback შესაძლებლობები — P0
 

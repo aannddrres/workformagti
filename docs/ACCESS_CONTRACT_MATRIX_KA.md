@@ -308,7 +308,7 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
-| `GET /uploads/{filename}` | `UploadedFileController.serve` | — | AUTH | `AUTH` | content-dependent | `@AuthenticationPrincipal` null-ზე 401; წარმატებული წვდომა აუდიტირდება და პასუხი `no-store`-ია. |
+| `GET /uploads/{filename}` | `UploadedFileController.serve` | — | AUTH | `AUTH` | content-dependent | `@AuthenticationPrincipal` null-ზე 401; წარმატებული წვდომა აუდიტირდება და პასუხი `no-store`-ია. ავთენტიფიკაციის **შემდეგ** `FileAccessPolicy` ამოწმებს, აქვს თუ არა წვდომა მიმთითებელ კონტენტზე (DEC-P01) — უარი 404-ია. enforcement `ROLLOUT_FILE_ENTITLEMENT`-ზეა: `false` = shadow (ითვლება და აუდიტში იწერება `FILE_ACCESS_SHADOW_DENY`-ად, ფაილი მაინც გაიცემა). იხ. `docs/ROLLOUT_ROLLBACK_KA.md`. |
 
 ### User (14)
 
@@ -504,6 +504,21 @@ download-ზე): განსხვავებული პასუხი end
 უნდა დაამატოს authentication gate, Angular-ის image/download ქცევა და regression
 tests. `QUESTIONS_FOR_IT.md` §9-ში ღია რჩება მხოლოდ ingress/cache/scanning-ის
 ინფრასტრუქტურული ნაწილი.
+
+**დამატება (2026-08-29) — ავთენტიფიკაცია საკმარისი არ აღმოჩნდა.** UAT-ის
+ადვერსარიულმა რაუნდმა (`docs/uat/UAT_06_ADVERSARIAL_KA.md`, F-1) აჩვენა, რომ
+ავთენტიფიცირებული ოფისის ოპერატორი **ტექნიკურის** სტატიის სურათს ტვირთავდა —
+იმ სტატიისას, რომელიც მას 404-ს პასუხობს. ე.ი. ფაილს იცავდა მხოლოდ 64-სიმბოლოიანი
+სახელის გამოცნობის სირთულე, სახელები კი ვრცელდება.
+
+პროდუქტის მფლობელის გადაწყვეტილება: **ფაილი მიჰყვება იმ კონტენტის აუდიტორიას,
+რომელიც მასზე მიუთითებს** (ვარიანტი „ბ"). `FileAccessPolicy` + `V46`-ის
+`stored_file_references`. მიმთითებლის ხილვადობა `ArticleVisibility`-ს ებარება —
+იმავე პრედიკატს, რომელსაც `ArticleController` იყენებს, რომ ფაილმა და სტატიამ
+„ხილვადობაზე" ერთმანეთს არ დაუპირისპირდნენ.
+
+პროდაქშენზე **ჯერ shadow-ით** გადის (`ROLLOUT_FILE_ENTITLEMENT=false`);
+ჩართვის კრიტერიუმი და განხილვის query — `docs/ROLLOUT_ROLLBACK_KA.md`.
 
 ### D-5. `content.manage`-ის მარცვლოვნება — ✅ გადაწყვეტილია (2026-08-22)
 

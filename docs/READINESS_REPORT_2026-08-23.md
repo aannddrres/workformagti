@@ -99,6 +99,42 @@ public ResponseEntity<?> serve(@PathVariable("filename") String filename) {
 - **Verification:** Anonymous GET is a direct controller path with no principal parameter and no guard; the controller comment at lines 25–41 explicitly confirms public access. IT question 9 remains unanswered.
 - **Required fix:** Decide the protected-attachment contract; enforce authentication and content audience authorization; prevent cache leakage; migrate inline-image rendering to token-aware loading; add anonymous, wrong-role, wrong-department and revoked-user negative tests.
 
+> **განკარგვა (2026-08-29) — მიგნება ძალაშია, ტექსტი მოძველდა.**
+>
+> ზემოთ მოყვანილი კოდი დღეს აღარ არსებობს. ორ ნაბიჯად გასწორდა:
+>
+> 1. **ავთენტიფიკაცია** — `UploadedFileController.serve` იღებს
+>    `@AuthenticationPrincipal`-ს და principal-ის გარეშე 401-ს აბრუნებს;
+>    პასუხი `no-store`-ია და წვდომა აუდიტში იწერება.
+> 2. **აუდიტორია** — UAT-ის ადვერსარიულმა რაუნდმა აჩვენა, რომ ეს საკმარისი
+>    არაა: ავთენტიფიცირებულმა ოფისის ოპერატორმა ჩამოტვირთა **ტექნიკურის**
+>    სტატიის სურათი (`docs/uat/UAT_06_ADVERSARIAL_KA.md`, F-1). აქედან
+>    DEC-P01: *ფაილი იკითხება მაშინ, როცა იკითხება ის, რაც მასზე მიუთითებს.*
+>    `FileAccessPolicy` + `FileReferenceIndex` (`V46`), ხილვადობა
+>    `ArticleVisibility`-ს ებარება — იმავე პრედიკატს, რომელსაც სტატიის
+>    endpoint იყენებს.
+>
+> `Required fix`-ის სიიდან **ღიად რჩება ერთი პუნქტი:** enforcement
+> პროდაქშენზე ჯერ არ არის ჩართული. იქ იგივე წესი shadow-ით გადის
+> (`ROLLOUT_FILE_ENTITLEMENT=false`) — გადაწყვეტილება ითვლება და აუდიტში
+> `FILE_ACCESS_SHADOW_DENY`-ად იწერება, ფაილი კი მაინც გაიცემა. ე.ი.
+> **RTA-002 პროდაქშენზე დღემდე ღიაა**, ოღონდ ახლა გაზომვადია.
+> ჩართვის კრიტერიუმი: `docs/ROLLOUT_ROLLBACK_KA.md` → „DEC-P01".
+>
+> `Required fix`-ის დანარჩენი პუნქტები: cache leakage — `no-store` +
+> `Content-Security-Policy: default-src 'none'; sandbox`; inline-image
+> rendering — credential httpOnly cookie-ია (`auth.service.ts:15-20`),
+> ამიტომ `<img src="/uploads/...">` თავისით ავთენტიფიცირდება და ცალკე
+> token-aware loader არ სჭირდება.
+>
+> **negative tests — ნაწილობრივ:** anonymous და wrong-department ორივე
+> რეჟიმზე დაფარულია (`FileEntitlement{Shadow,Enforced}IntegrationTest`,
+> `UploadControllerIntegrationTest`). wrong-role და revoked-user **ამ
+> endpoint-ზე ცალკე ტესტი არ აქვს** — მექანიზმი საერთოა
+> (`JwtAuthenticationFilter` ავტორიზაციას ყოველ მოთხოვნაზე ბაზიდან
+> კითხულობს, `token_version`-ის ჩათვლით) და UAT-ში ხელით დადასტურდა
+> (`UAT_06`, რაუნდი 4), მაგრამ ავტომატური regression აქ ჯერ არ არის.
+
 ### RTA-003 — Stored XSS-ით ადმინისტრატორის signed JWT იპარება
 
 - **Severity:** `BLOCKER`
@@ -525,7 +561,7 @@ private ResponseEntity<Map<String, String>> requireContentManage(User user) {
 | SEC-05 | The audit trail records the proxy's IP address, not the user's | `ნაწილობრივ` | trusted-hop resolver exists: `ClientIpResolver.java:71-99`; `TRUSTED_PROXIES` defaults empty and IT answer absent: `application.yml:106-108` |
 | SEC-06 | Three of nine permissions are decoration only | `დაფიქსირებულია` | unenforced catalog entries removed and coverage gates enforcement: `Permission.java:33-59`; `PermissionEnforcementCoverageTest.java:16-92` |
 | SEC-07 | The production guard can be satisfied with a placeholder secret | `დაფიქსირებულია` | weak/placeholder secrets rejected: `ProductionSafetyGuard.java:17-155`; `ProductionSafetyGuardTest.java:15-111` |
-| SEC-08 | Uploaded files are readable by anyone, with no login | `არ არის დაფიქსირებული` | controller intentionally public: `UploadedFileController.java:25-41,52-66`; RTA-002 |
+| SEC-08 | Uploaded files are readable by anyone, with no login | `ნაწილობრივ` | ავთენტიფიკაცია დაფიქსირებულია: `UploadedFileController.java:61-64` (401 principal-ის გარეშე), პასუხი `no-store`, წვდომა აუდიტირდება. აუდიტორია: `FileAccessPolicy` + `ArticleVisibility`, ტესტები `FileEntitlementEnforcedIntegrationTest`/`FileEntitlementShadowIntegrationTest`. `ნაწილობრივ` — არა კოდის, არამედ **rollout-ის** გამო: აუდიტორიის enforcement პროდაქშენზე `ROLLOUT_FILE_ENTITLEMENT`-ს უკან shadow-შია. იხ. RTA-002-ის ქვემოთ დამატებული განკარგვა |
 | SEC-09 | The upload allowlist checks a header the client controls | `დაფიქსირებულია` | magic-byte verification: `UploadController.java:40-51,120`; `FileTypeVerifierTest.java:10-92` |
 | SEC-10 | The audit chain detects application-level tampering, not database-level tampering | `არ არის დაფიქსირებული` | insert-only, unkeyed DB chain: `V28__audit_hash_chain.sql:114-139`; RTA-014 |
 | SEC-11 | Broadcast reaches nobody in a sub-group | `აღარ ვრცელდება` | targeted-message model was replaced by durable company-wide broadcast: `V38__create_broadcasts.sql:1-4`; no subgroup recipient expansion path remains |
