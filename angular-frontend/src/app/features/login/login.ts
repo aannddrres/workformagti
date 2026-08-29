@@ -26,6 +26,25 @@ export class Login {
     { email: 'admin@magti.ge', label: 'სისტემური ადმინი', icon: 'fa-shield-halved' }
   ];
 
+  /**
+   * UAT signs in as any seeded account by address rather than through the
+   * four fixed persona buttons, because an acceptance run needs eleven
+   * named people across three departments and both manager levels.
+   *
+   * Reuses {@link loginPersona} instead of adding a second authentication
+   * path: the backend already accepts any password while dev login is on,
+   * so a password field here would be theatre. Gated by the same `isLocal`
+   * check as the persona buttons, so nothing new is exposed off loopback.
+   */
+  loginByEmail(email: string): void {
+    const address = email.trim().toLowerCase();
+    if (!address) {
+      this.errorMessage.set('შეიყვანეთ ელფოსტა');
+      return;
+    }
+    this.loginPersona(address);
+  }
+
   loginPersona(email: string): void {
     if (this.submitting()) return;
     this.submitting.set(true);

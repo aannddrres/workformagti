@@ -1,0 +1,140 @@
+# Fully isolated, laptop-only UAT stack for the WS6-02 acceptance run.
+# Managed through ./uat.ps1; do not reuse this file as a deployment manifest.
+#
+# Deliberately a third stack rather than a reuse of the presentation one:
+# UAT writes test data, changes user departments and deactivates accounts,
+# and none of that may reach the demo everyone else looks at. Separate
+# compose project, separate Oracle volume, separate ports.
+#
+#   local        8080  (smoke)
+#   presentation 8081  (demo)
+#   uat          8082  (this)
+#
+# The tool services reuse the presentation images unchanged and only point
+# them at this database, so there is one seeding implementation, not two.
+# That is why the environment keys below are still PRESENTATION_* -- they
+# are the Python's own contract (scripts/presentation/common.py:43-45), and
+# renaming them here would mean forking the seeder.
+name: magti-portal-uat
+
+x-uat-tool: &uat-tool
+  image: magti-portal-presentation-tools:local
+  build:
+    context: ./scripts/presentation
+  depends_on:
+    backend:
+      condition: service_healthy
+  environment: &uat-tool-environment
+    APP_ENV: development
+    ORACLE_DB_DSN: oracle:1521/XEPDB1
+    ORACLE_DB_USER: magti_app
+    ORACLE_DB_PASSWORD: ${UAT_DB_PASSWORD:?missing UAT_DB_PASSWORD}
+    # Fixed safety marker, not a secret: common.py refuses to seed without
+    # this exact string, which is what stops the seeder ever being pointed
+    # at something that is not a local throwaway database.
+    PRESENTATION_SEED_CONFIRM: LOCAL_ONLY_MAGTI_PRESENTATION_V1
+    PRESENTATION_DEMO_PASSWORD: ${UAT_DEMO_PASSWORD:?missing UAT_DEMO_PASSWORD}
+    PRESENTATION_SOURCE_DB: /source/magti_portal.db
+    PRESENTATION_SOURCE_UPLOADS: /source/uploads
+    PRESENTATION_ARTIFACT_DIR: /artifacts
+    PRESENTATION_API_BASE_URL: http://backend:8080
+    PRESENTATION_REQUIRE_RO_MOUNTS: "true"
+  volumes:
+    - ./magti_portal.db:/source/magti_portal.db:ro
+    - ./uploads:/source/uploads:ro
+    - ./.uat-artifacts:/artifacts
+  profiles: ["tools"]
+  restart: "no"
+
+services:
+  oracle:
+    image: gvenzl/oracle-xe:21-slim-faststart
+    environment:
+      ORACLE_PASSWORD: ${UAT_SYS_PASSWORD:?missing UAT_SYS_PASSWORD}
+      APP_USER: magti_app
+      APP_USER_PASSWORD: ${UAT_DB_PASSWORD:?missing UAT_DB_PASSWORD}
+    volumes:
+      - uat-oracle-data:/opt/oracle/oradata
+    ports:
+      # Loopback only, and a different host port from the demo stack so both
+      # can run at once.
+      - "127.0.0.1:1524:1521"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 10s
+      retries: 40
+      start_period: 90s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./java-backend
+    depends_on:
+      oracle:
+        condition: service_healthy
+    environment:
+      ORACLE_DB_URL: jdbc:oracle:thin:@oracle:1521/XEPDB1
+      ORACLE_DB_USER: magti_app
+      ORACLE_DB_PASSWORD: ${UAT_DB_PASSWORD:?missing UAT_DB_PASSWORD}
+      APP_ENV: development
+      # UAT signs in by e-mail with any password. This is a deliberate,
+      # recorded limitation of this run: it exercises every functional path,
+      # but it is NOT authentication evidence -- the sign-off package states
+      # so, and the acceptance matrix rows for auth stay open on it.
+      ALLOW_DEV_LOGIN: "true"
+      SECRET_KEY: ${UAT_JWT_SECRET:?missing UAT_JWT_SECRET}
+      COOKIE_SECURE: "false"
+      ROLLOUT_LEADERSHIP_SCOPE: "true"
+      ROLLOUT_COMPLIANCE_ELIGIBILITY: "true"
+    expose:
+      - "8080"
+    # A brand-new Oracle volume makes the first Spring startup materially
+    # slower while Flyway applies every migration; keep the production probe
+    # but allow that one-time cold start.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:8080/api/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+      start_period: 180s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./angular-frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      BACKEND_HOST: backend
+      BACKEND_PORT: "8080"
+    ports:
+      - "127.0.0.1:8082:8080"
+    restart: unless-stopped
+
+  # The 602-person demo population, org tree and content. Identical to the
+  # presentation seeder, pointed at this database.
+  seeder:
+    <<: *uat-tool
+
+  # The eleven named UAT accounts, layered on top of the population above.
+  accounts:
+    image: magti-portal-uat-tools:local
+    build:
+      context: ./scripts/uat
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      APP_ENV: development
+      ORACLE_DB_DSN: oracle:1521/XEPDB1
+      ORACLE_DB_USER: magti_app
+      ORACLE_DB_PASSWORD: ${UAT_DB_PASSWORD:?missing UAT_DB_PASSWORD}
+      UAT_SEED_CONFIRM: LOCAL_ONLY_MAGTI_UAT_V1
+    profiles: ["tools"]
+    restart: "no"
+
+volumes:
+  uat-oracle-data:
+    name: magti-portal-uat-oracle-data

@@ -1,0 +1,5 @@
+# Pinned to the same versions the presentation tools use, so the two images
+# cannot disagree about how a password hash or an Oracle row is written.
+bcrypt==4.0.1
+oracledb==4.0.2
+passlib==1.7.4

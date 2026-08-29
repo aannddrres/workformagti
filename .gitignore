@@ -38,6 +38,13 @@ scripts/load/tokens.json
 .presentation.env
 .presentation-artifacts/
 
+# Same, for the UAT stack. .uat-artifacts holds the evidence captured during
+# an acceptance run -- screenshots and, crucially, downloaded compliance
+# EXPORTS, which contain real names, departments and reading histories for
+# every person in the seeded organisation. That must never reach the repo.
+.uat.env
+.uat-artifacts/
+
 # Generated knowledge-graph output (graphify skill): 18 MB of AST caches and
 # a rebuilt graph.json/graph.html. Regenerated from the source tree on demand.
 graphify-out/
