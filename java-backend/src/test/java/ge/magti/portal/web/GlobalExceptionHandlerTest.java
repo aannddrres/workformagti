@@ -2,10 +2,13 @@ package ge.magti.portal.web;
 
 import ge.magti.portal.user.UserDirectoryQueryService;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.HashSet;
@@ -114,5 +117,54 @@ class GlobalExceptionHandlerTest {
         assertNotNull(response.getBody());
         assertTrue(response.getBody().get("detail").contains("უსაფრთხო დამუშავების ზღვარს"));
         assertFalse(response.getBody().containsKey("correlation_id"));
+    }
+
+    /**
+     * Found by an adversarial UAT pass: GET /api/articles/notanumber matched
+     * /api/articles/{id}, failed to bind, and answered 500 with a correlation
+     * id -- so a stale bookmark counted against the WS3-04 "API error rate
+     * <1%" release gate.
+     */
+    @Test
+    void anUnbindablePathParameterBecomesA400WithoutCorrelationId() {
+        ResponseEntity<Map<String, String>> response = handler.handleUnbindableParameter(
+                new MethodArgumentTypeMismatchException(
+                        "notanumber", Long.class, "id", null, new NumberFormatException()));
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertFalse(response.getBody().containsKey("correlation_id"),
+                "a client typo is not something an operator needs to investigate");
+    }
+
+    @Test
+    void anUnbindableParameterResponseNeverEchoesTheOffendingValue() {
+        ResponseEntity<Map<String, String>> response = handler.handleUnbindableParameter(
+                new MethodArgumentTypeMismatchException(
+                        "' OR 1=1 --", Long.class, "id", null, new NumberFormatException()));
+
+        assertNotNull(response.getBody());
+        assertFalse(String.join(" ", response.getBody().values()).contains("OR 1=1"),
+                "reflecting caller input back is how a stable message becomes an injection surface");
+    }
+
+    @Test
+    void aWrongMethodBecomesA405ThatNamesWhatIsAllowed() {
+        ResponseEntity<Map<String, String>> response = handler.handleWrongMethod(
+                new HttpRequestMethodNotSupportedException("GET", Set.of("POST", "PUT")));
+
+        assertEquals(HttpStatus.METHOD_NOT_ALLOWED, response.getStatusCode());
+        String allow = response.getHeaders().getFirst(HttpHeaders.ALLOW);
+        assertNotNull(allow, "RFC 9110 requires a 405 to name the allowed methods");
+        assertTrue(allow.contains("POST") && allow.contains("PUT"));
+    }
+
+    @Test
+    void aWrongMethodWithNoKnownAlternativesStillAnswers405() {
+        ResponseEntity<Map<String, String>> response = handler.handleWrongMethod(
+                new HttpRequestMethodNotSupportedException("TRACE"));
+
+        assertEquals(HttpStatus.METHOD_NOT_ALLOWED, response.getStatusCode());
+        assertNotNull(response.getBody());
     }
 }

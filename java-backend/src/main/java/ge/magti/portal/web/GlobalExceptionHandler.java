@@ -9,12 +9,15 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.Map;
@@ -99,6 +102,51 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleInvalidRequestBody(Exception exception) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
                 "detail", "მოთხოვნის მონაცემები არასწორია"));
+    }
+
+    /**
+     * A path or query parameter that will not bind to its declared type is a
+     * client error, the parameter-shaped twin of the malformed body above.
+     *
+     * <p>Found by an adversarial UAT pass: {@code GET /api/articles/notanumber}
+     * matches {@code /api/articles/{id}}, fails to parse as a Long, and
+     * reached {@link #handleUnexpected} -- so a stale bookmark or a crawler
+     * produced a 500 with a correlation id and a stack trace. The same held
+     * for news, videos, and an integer overflow.
+     *
+     * <p>That mattered beyond tidiness: WS3-04 sets a hard release gate at
+     * "API error rate <1%", and k6 fails the build on it, so client mistakes
+     * were inflating the server-error rate. Real failures were also getting
+     * harder to find in a log filling with these.
+     *
+     * <p>This is narrow on purpose and does <b>not</b> reopen the
+     * {@code IllegalArgumentException → 400} question argued against above.
+     * Spring raises this exception only while binding caller-supplied request
+     * values, never from server state, so blaming the caller is correct here
+     * in a way it is not there.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, String>> handleUnbindableParameter(
+            MethodArgumentTypeMismatchException exception) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                "detail", "მოთხოვნის პარამეტრი არასწორია"));
+    }
+
+    /**
+     * The route exists but not for this method -- 405, and per RFC 9110 a 405
+     * must name what is allowed, so the header is not optional decoration.
+     *
+     * <p>Same UAT finding as above: a GET on a POST-only path answered 500.
+     */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<Map<String, String>> handleWrongMethod(
+            HttpRequestMethodNotSupportedException exception) {
+        ResponseEntity.BodyBuilder response = ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED);
+        String[] supported = exception.getSupportedMethods();
+        if (supported != null && supported.length > 0) {
+            response.header(HttpHeaders.ALLOW, String.join(", ", supported));
+        }
+        return response.body(Map.of("detail", "მოთხოვნის მეთოდი არ არის დაშვებული"));
     }
 
     /** Missing API/static routes are ordinary 404s, not unexpected server failures. */
