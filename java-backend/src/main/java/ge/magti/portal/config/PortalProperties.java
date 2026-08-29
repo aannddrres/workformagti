@@ -81,6 +81,7 @@ public class PortalProperties {
 	public static class Rollout {
 		private boolean leadershipScopeEnabled = false;
 		private boolean complianceEligibilityEnabled = false;
+		private boolean fileEntitlementEnabled = false;
 
 		public boolean isLeadershipScopeEnabled() {
 			return leadershipScopeEnabled;
@@ -96,6 +97,25 @@ public class PortalProperties {
 
 		public void setComplianceEligibilityEnabled(boolean complianceEligibilityEnabled) {
 			this.complianceEligibilityEnabled = complianceEligibilityEnabled;
+		}
+
+		/**
+		 * DEC-P01 enforcement for /uploads/{filename}: serve a file only when
+		 * content the caller may read references it.
+		 *
+		 * <p>Off means shadow: the decision is still computed and logged, and
+		 * the file is still served. That order matters here more than usual.
+		 * The index this rule reads is maintained by every content save, and a
+		 * save path that forgot to maintain it would not fail loudly -- it
+		 * would quietly make pictures vanish from articles that are otherwise
+		 * fine. Shadow first turns that from an outage into a log line.
+		 */
+		public boolean isFileEntitlementEnabled() {
+			return fileEntitlementEnabled;
+		}
+
+		public void setFileEntitlementEnabled(boolean fileEntitlementEnabled) {
+			this.fileEntitlementEnabled = fileEntitlementEnabled;
 		}
 	}
 

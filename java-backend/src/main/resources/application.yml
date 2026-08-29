@@ -111,6 +111,11 @@ portal:
     # Separate Phase 5 rollback boundary. The proposed compliance rule stays
     # in shadow mode until the gated cutover explicitly wires this switch.
     compliance-eligibility-enabled: ${ROLLOUT_COMPLIANCE_ELIGIBILITY:false}
+    # DEC-P01. Off = shadow: the entitlement decision is computed and logged
+    # for every /uploads request, and the file is served regardless. Turn on
+    # only once the log shows no legitimate view being denied -- a missed
+    # save path shows up here as vanished images, not as an error.
+    file-entitlement-enabled: ${ROLLOUT_FILE_ENTITLEMENT:false}
   retention:
     # Comma-separated exact SSO email identities approved by DPO/Legal to set
     # or release content legal holds. Empty by default: hold mutation fails

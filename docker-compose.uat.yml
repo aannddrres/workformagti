@@ -87,6 +87,10 @@ services:
       COOKIE_SECURE: "false"
       ROLLOUT_LEADERSHIP_SCOPE: "true"
       ROLLOUT_COMPLIANCE_ELIGIBILITY: "true"
+      # DEC-P01 enforced here so UAT exercises the real rule. Shadow first
+      # showed one would-be denial across ~190 legitimate file views by five
+      # roles, and that one was the deliberate cross-department probe.
+      ROLLOUT_FILE_ENTITLEMENT: "true"
     expose:
       - "8080"
     # A brand-new Oracle volume makes the first Spring startup materially

@@ -3,6 +3,7 @@ package ge.magti.portal.web;
 import ge.magti.portal.article.ArticleListFilter;
 import ge.magti.portal.article.ArticleListItem;
 import ge.magti.portal.article.ArticleEvidenceCardinalityGuard;
+import ge.magti.portal.article.ArticleVisibility;
 import ge.magti.portal.article.ArticleHistorySummary;
 import ge.magti.portal.article.ArticleReferenceItem;
 import ge.magti.portal.article.ArticleTargetQueryService;
@@ -44,6 +45,7 @@ import ge.magti.portal.security.PermissionChecker;
 import ge.magti.portal.security.Scope;
 import ge.magti.portal.security.ScopeResolver;
 import ge.magti.portal.util.DepartmentMatcher;
+import ge.magti.portal.storage.FileReferenceIndex;
 import ge.magti.portal.util.TbilisiTime;
 import ge.magti.portal.video.TagSyncService;
 import jakarta.validation.Valid;
@@ -138,6 +140,7 @@ public class ArticleController {
     private final ContentLifecycleService contentLifecycleService;
     private final ArticleHtmlSanitizer articleHtmlSanitizer;
     private final MutationAuditService contentMutationAuditService;
+    private final FileReferenceIndex fileReferenceIndex;
 
     public ArticleController(
             ArticleRepository articleRepository,
@@ -161,7 +164,8 @@ public class ArticleController {
             SearchReindexService searchReindexService,
             ContentLifecycleService contentLifecycleService,
             ArticleHtmlSanitizer articleHtmlSanitizer,
-            MutationAuditService contentMutationAuditService) {
+            MutationAuditService contentMutationAuditService,
+            FileReferenceIndex fileReferenceIndex) {
         this.articleRepository = articleRepository;
         this.targetDepartmentRepository = targetDepartmentRepository;
         this.articleTargetQueryService = articleTargetQueryService;
@@ -184,6 +188,7 @@ public class ArticleController {
         this.contentLifecycleService = contentLifecycleService;
         this.articleHtmlSanitizer = articleHtmlSanitizer;
         this.contentMutationAuditService = contentMutationAuditService;
+        this.fileReferenceIndex = fileReferenceIndex;
     }
 
     @GetMapping("/api/articles")
@@ -282,6 +287,9 @@ public class ArticleController {
         articleHistoryRepository.save(history);
 
         List<String> savedTargets = resolveTargetDepartments(saved.getId());
+        // DEC-P01: keep stored_file_references in step with what this
+        // content now points at, in the same transaction as the save.
+        fileReferenceIndex.sync("article", saved.getId(), saved.getContent(), saved.getAttachmentUrl());
         contentMutationAuditService.recordSuccess(
                 user, "CREATE", "article", saved.getId(), saved.getTitle(), null,
                 MutationAuditService.articleSnapshot(saved, savedTargets));
@@ -335,6 +343,9 @@ public class ArticleController {
         articleHistoryRepository.save(history);
 
         List<String> savedTargets = resolveTargetDepartments(saved.getId());
+        // DEC-P01: keep stored_file_references in step with what this
+        // content now points at, in the same transaction as the save.
+        fileReferenceIndex.sync("article", saved.getId(), saved.getContent(), saved.getAttachmentUrl());
         contentMutationAuditService.recordSuccess(
                 user, "UPDATE", "article", saved.getId(), saved.getTitle(), before,
                 MutationAuditService.articleSnapshot(saved, savedTargets));
@@ -481,6 +492,9 @@ public class ArticleController {
         article.setUpdatedAt(TbilisiTime.now());
         Article saved = articleRepository.saveAndFlush(article);
         List<String> savedTargetDepartments = resolveTargetDepartments(id);
+        // DEC-P01: keep stored_file_references in step with what this
+        // content now points at, in the same transaction as the save.
+        fileReferenceIndex.sync("article", saved.getId(), saved.getContent(), saved.getAttachmentUrl());
         contentMutationAuditService.recordSuccess(
                 user, "AUTOSAVE", "article", saved.getId(), saved.getTitle(), before,
                 MutationAuditService.articleSnapshot(saved, savedTargetDepartments));
@@ -997,6 +1011,9 @@ public class ArticleController {
         restoredHistory.setUpdatedAt(saved.getUpdatedAt());
         articleHistoryRepository.save(restoredHistory);
 
+        // DEC-P01: keep stored_file_references in step with what this
+        // content now points at, in the same transaction as the save.
+        fileReferenceIndex.sync("article", saved.getId(), saved.getContent(), saved.getAttachmentUrl());
         contentMutationAuditService.recordSuccess(
                 user, "RESTORE", "article", saved.getId(), saved.getTitle(), before,
                 MutationAuditService.articleSnapshot(saved, targetDepartments));
@@ -1395,22 +1412,15 @@ public class ArticleController {
     }
 
     /** Port of _assert_article_visible (routers/articles.py:61-94). */
+    /**
+     * The predicate itself now lives in {@link ArticleVisibility}, because
+     * {@code /uploads/{filename}} needs the same answer before serving a file
+     * that an article carries (DEC-P01). This wrapper keeps the 404-shaped
+     * response every caller in here already expects.
+     */
     private static ResponseEntity<Map<String, String>> assertArticleVisible(
             Article article, List<String> targetDepartments, User user) {
-        if (user.getRole().isContentAdmin()) {
-            return null;
-        }
-        if (!DepartmentMatcher.matches(user.getDepartment(), targetDepartments)) {
-            return notFoundMap();
-        }
-        if ("published".equals(article.getStatus())) {
-            return null;
-        }
-        if ("scheduled".equals(article.getStatus()) && article.getPublishedAt() != null
-                && !article.getPublishedAt().isAfter(TbilisiTime.now())) {
-            return null;
-        }
-        return notFoundMap();
+        return ArticleVisibility.isVisible(article, targetDepartments, user) ? null : notFoundMap();
     }
 
     /** Combines the get_or_404 + _assert_article_visible pair every note/quiz-style child route repeats. */

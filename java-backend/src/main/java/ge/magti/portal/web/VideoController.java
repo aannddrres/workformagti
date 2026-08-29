@@ -10,6 +10,7 @@ import ge.magti.portal.repository.VideoInstructionRepository;
 import ge.magti.portal.search.SearchReindexService;
 import ge.magti.portal.security.PermissionChecker;
 import ge.magti.portal.util.DepartmentMatcher;
+import ge.magti.portal.storage.FileReferenceIndex;
 import ge.magti.portal.util.TbilisiTime;
 import ge.magti.portal.video.TagSyncService;
 import ge.magti.portal.video.YoutubeUrlNormalizer;
@@ -60,6 +61,7 @@ public class VideoController {
     private final SearchReindexService searchReindexService;
     private final ContentLifecycleService contentLifecycleService;
     private final MutationAuditService contentMutationAuditService;
+    private final FileReferenceIndex fileReferenceIndex;
 
     public VideoController(
             VideoInstructionRepository videoRepository,
@@ -67,13 +69,15 @@ public class VideoController {
             TagSyncService tagSyncService,
             SearchReindexService searchReindexService,
             ContentLifecycleService contentLifecycleService,
-            MutationAuditService contentMutationAuditService) {
+            MutationAuditService contentMutationAuditService,
+            FileReferenceIndex fileReferenceIndex) {
         this.videoRepository = videoRepository;
         this.permissionChecker = permissionChecker;
         this.tagSyncService = tagSyncService;
         this.searchReindexService = searchReindexService;
         this.contentLifecycleService = contentLifecycleService;
         this.contentMutationAuditService = contentMutationAuditService;
+        this.fileReferenceIndex = fileReferenceIndex;
     }
 
     @GetMapping("/api/videos")
@@ -129,6 +133,9 @@ public class VideoController {
         VideoInstruction saved = videoRepository.saveAndFlush(video);
         tagSyncService.sync("video", saved.getId(), saved.getTags());
         searchReindexService.reindexVideo(saved);
+        // DEC-P01: keep stored_file_references in step with what this
+        // content now points at, in the same transaction as the save.
+        fileReferenceIndex.sync("video", saved.getId(), saved.getVideoUrl());
         contentMutationAuditService.recordSuccess(
                 user, "CREATE", "video", saved.getId(), saved.getTitle(), null,
                 MutationAuditService.videoSnapshot(saved));
@@ -156,6 +163,9 @@ public class VideoController {
         VideoInstruction saved = videoRepository.saveAndFlush(video);
         tagSyncService.sync("video", saved.getId(), saved.getTags());
         searchReindexService.reindexVideo(saved);
+        // DEC-P01: keep stored_file_references in step with what this
+        // content now points at, in the same transaction as the save.
+        fileReferenceIndex.sync("video", saved.getId(), saved.getVideoUrl());
         contentMutationAuditService.recordSuccess(
                 user, "UPDATE", "video", saved.getId(), saved.getTitle(), before,
                 MutationAuditService.videoSnapshot(saved));

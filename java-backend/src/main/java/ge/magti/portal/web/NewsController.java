@@ -17,6 +17,7 @@ import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.search.SearchReindexService;
 import ge.magti.portal.security.PermissionChecker;
 import ge.magti.portal.util.DepartmentMatcher;
+import ge.magti.portal.storage.FileReferenceIndex;
 import ge.magti.portal.util.TbilisiTime;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -78,6 +79,7 @@ public class NewsController {
     private final PermissionChecker permissionChecker;
     private final ArticleHtmlSanitizer articleHtmlSanitizer;
     private final MutationAuditService contentMutationAuditService;
+    private final FileReferenceIndex fileReferenceIndex;
 
     public NewsController(
             NewsRepository newsRepository,
@@ -88,7 +90,8 @@ public class NewsController {
             ContentLifecycleService contentLifecycleService,
             PermissionChecker permissionChecker,
             ArticleHtmlSanitizer articleHtmlSanitizer,
-            MutationAuditService contentMutationAuditService) {
+            MutationAuditService contentMutationAuditService,
+            FileReferenceIndex fileReferenceIndex) {
         this.newsRepository = newsRepository;
         this.newsHistoryRepository = newsHistoryRepository;
         this.userRepository = userRepository;
@@ -98,6 +101,7 @@ public class NewsController {
         this.permissionChecker = permissionChecker;
         this.articleHtmlSanitizer = articleHtmlSanitizer;
         this.contentMutationAuditService = contentMutationAuditService;
+        this.fileReferenceIndex = fileReferenceIndex;
     }
 
     /** Port of get_news_item (routers/news.py:23-44). */
@@ -163,6 +167,9 @@ public class NewsController {
         news.setCreatedAt(TbilisiTime.now());
         News saved = newsRepository.saveAndFlush(news);
         searchReindexService.reindexNews(saved);
+        // DEC-P01: keep stored_file_references in step with what this
+        // content now points at, in the same transaction as the save.
+        fileReferenceIndex.sync("news", saved.getId(), saved.getContent(), saved.getAttachmentUrl());
         contentMutationAuditService.recordSuccess(
                 user, "CREATE", "news", saved.getId(), saved.getTitle(), null,
                 MutationAuditService.newsSnapshot(saved));
@@ -197,6 +204,9 @@ public class NewsController {
 
         News saved = newsRepository.saveAndFlush(news);
         searchReindexService.reindexNews(saved);
+        // DEC-P01: keep stored_file_references in step with what this
+        // content now points at, in the same transaction as the save.
+        fileReferenceIndex.sync("news", saved.getId(), saved.getContent(), saved.getAttachmentUrl());
         contentMutationAuditService.recordSuccess(
                 user, "UPDATE", "news", saved.getId(), saved.getTitle(), before,
                 MutationAuditService.newsSnapshot(saved));
@@ -326,6 +336,9 @@ public class NewsController {
         }
 
         News saved = newsRepository.saveAndFlush(news);
+        // DEC-P01: keep stored_file_references in step with what this
+        // content now points at, in the same transaction as the save.
+        fileReferenceIndex.sync("news", saved.getId(), saved.getContent(), saved.getAttachmentUrl());
         contentMutationAuditService.recordSuccess(
                 user, "AUTOSAVE", "news", saved.getId(), saved.getTitle(), before,
                 MutationAuditService.newsSnapshot(saved));
@@ -431,6 +444,9 @@ public class NewsController {
 
         News saved = newsRepository.saveAndFlush(news);
         searchReindexService.reindexNews(saved);
+        // DEC-P01: keep stored_file_references in step with what this
+        // content now points at, in the same transaction as the save.
+        fileReferenceIndex.sync("news", saved.getId(), saved.getContent(), saved.getAttachmentUrl());
         contentMutationAuditService.recordSuccess(
                 user, "RESTORE_VERSION", "news", saved.getId(), saved.getTitle(), before,
                 MutationAuditService.newsSnapshot(saved));
