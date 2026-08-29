@@ -15,6 +15,49 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "DENY" always;
 
+    # ---- Caching -------------------------------------------------------
+    #
+    # Nothing here sent Cache-Control at all, so browsers fell back to
+    # heuristic freshness (RFC 9111 4.2.2) for every file. That is wrong in
+    # both directions: fingerprinted bundles that can never change were
+    # revalidated needlessly, while the files copied verbatim out of public/
+    # keep their names across deployments and so could be served stale. A UAT
+    # run hit exactly that -- a new translation key rendered on screen as the
+    # raw key while nginx was already serving the updated ka.json.
+    #
+    # `expires` rather than `add_header Cache-Control`, deliberately:
+    # add_header does NOT inherit into a location that declares its own, so
+    # a cache-control block written that way would silently drop the CSP and
+    # every security header above for the paths it matched. `expires` sets
+    # the same header without touching that inheritance. The cost is that
+    # `immutable` cannot be expressed this way -- worth losing, next to
+    # duplicating the CSP into four blocks where it could drift out of step.
+
+    # Content-addressed by the build: the name changes whenever the bytes do.
+    location ~* "^/(?:chunk|main|polyfills|styles|scripts)-[A-Za-z0-9_-]{8,}\.(?:js|css)$" {
+        expires 1y;
+    }
+
+    # Where the build rewrites CSS-referenced assets, also fingerprinted
+    # (fa-solid-900-EFITDVWS.woff2).
+    location ^~ /media/ {
+        expires 1y;
+    }
+
+    # index.html is the document that names every hashed bundle, so caching
+    # it caches the whole release. Always revalidate.
+    location = /index.html {
+        expires -1;
+    }
+
+    # Copied verbatim out of public/, so these keep their names forever:
+    # translations, the Georgian fonts, the company mark. Revalidate every
+    # time -- ETag turns that into a 304, which costs nothing next to showing
+    # someone last release's wording.
+    location ~* "^/(?:i18n|fonts)/|^/(?:favicon\.ico|magticom-logo(?:-white)?\.png)$" {
+        expires -1;
+    }
+
     # Angular SPA: unknown paths fall back to index.html so client-side
     # routing (Angular Router) handles them, matching how the dev server
     # and Python's original server-rendered base-layout.html both avoid a
