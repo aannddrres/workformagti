@@ -22,6 +22,15 @@ import { AuthService } from '../auth/auth.service';
  * The login request itself is exempt: a wrong password is a 401 that the
  * login form reports inline, and bouncing to /login from /login would replace
  * that message with a silent reload.
+ *
+ * Logout is exempt for a different reason. Since PO-20 (2026-08-31) it needs
+ * a live session, so signing out of one the server has already ended answers
+ * 401 -- and that 401 is the expected end of a logout, not a session dying
+ * mid-task. Without the exemption this interceptor would race
+ * IdleSessionService to the router and win, replacing
+ * "?reason=session-expired" with a bare redirect and dropping the only
+ * explanation the operator gets for why they are back at the login screen.
+ * AuthService.logout() clears local state on that 401 by itself.
  */
 export const unauthorizedInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
@@ -29,7 +38,8 @@ export const unauthorizedInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(req).pipe(
     catchError((error: unknown) => {
-      const isAuthEndpoint = req.url.includes('/api/auth/login');
+      const isAuthEndpoint =
+        req.url.includes('/api/auth/login') || req.url.includes('/api/auth/logout');
       if (error instanceof HttpErrorResponse && error.status === 401 && !isAuthEndpoint) {
         auth.clearSession();
         const returnUrl = router.url;

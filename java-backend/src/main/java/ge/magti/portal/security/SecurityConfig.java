@@ -83,8 +83,13 @@ public class SecurityConfig {
 	static final String[] ANONYMOUS_PROBES = {
 			"/actuator/health", "/actuator/health/**", "/actuator/prometheus"};
 
-	/** The only POST paths reachable without a token: sign-in, and an idempotent sign-out. */
-	static final String[] ANONYMOUS_POST = {"/api/auth/login", "/api/auth/sso/start", "/api/auth/logout"};
+	/**
+	 * The only POST paths reachable without a token, and both are the act of
+	 * getting one. Logout was here until PO-20 (2026-08-31); it now requires
+	 * a live session, because the frontend no longer leaves anybody sitting
+	 * in a tab whose token has died.
+	 */
+	static final String[] ANONYMOUS_POST = {"/api/auth/login", "/api/auth/sso/start"};
 
 	@Bean
 	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {

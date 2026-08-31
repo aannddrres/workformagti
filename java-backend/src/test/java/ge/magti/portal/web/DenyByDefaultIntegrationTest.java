@@ -124,18 +124,17 @@ class DenyByDefaultIntegrationTest {
     }
 
     /**
-     * Logout is on the anonymous allowlist, so the filter chain lets it
-     * through without a token -- but it is still a POST, and CSRF applies.
-     * SecurityConfig exempts only login and sso/start from CSRF (and any
-     * request carrying a bearer header), on the ground that those two are the
-     * only calls a browser makes before it can hold a token. Logout is not
-     * one of them: a page that can log out has already been issued the CSRF
-     * cookie.
+     * Logout came OFF the anonymous allowlist with PO-20 (2026-08-31), so the
+     * deny-by-default floor now covers it like any other endpoint. Two
+     * separate refusals stack here and both matter: no token is 401 from the
+     * chain, and no CSRF token is 403 before that -- a cross-site page must
+     * not be able to end somebody's session even if it somehow had one.
      */
     @Test
-    void logoutSucceedsWithoutATokenButStillNeedsItsCsrfToken() throws Exception {
-        assertEquals(200,
-                mockMvc.perform(post("/api/auth/logout").with(csrf())).andReturn().getResponse().getStatus());
+    void logoutIsNoLongerReachableWithoutASession() throws Exception {
+        assertEquals(401,
+                mockMvc.perform(post("/api/auth/logout").with(csrf())).andReturn().getResponse().getStatus(),
+                "logging out is an action on a session; without one there is nothing to end");
         assertEquals(403,
                 mockMvc.perform(post("/api/auth/logout")).andReturn().getResponse().getStatus(),
                 "a cross-site POST must not be able to end somebody's session");

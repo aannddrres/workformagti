@@ -164,11 +164,35 @@ public class AuthController {
      * turn "my token expired while the tab was open" into a dead-end for
      * the frontend's own logout path.
      */
+    /**
+     * Ends the caller's session, and every other session they hold.
+     *
+     * <p><b>Requires a live session (PO-20 / DEC-P02, 2026-08-31).</b> This
+     * used to answer an anonymous caller too, so that a tab whose token had
+     * expired could still ask the server to clear its httpOnly cookie --
+     * JavaScript cannot delete that cookie itself.
+     *
+     * <p>That case no longer arises. The frontend ejects the operator before
+     * they can sit in a dead tab: {@code IdleSessionService} signs them out
+     * after thirty idle minutes, and {@code unauthorizedInterceptor} sends
+     * them to the login page on the first 401 from any request -- which is
+     * what a revoked session, a deactivated account, a role change or the
+     * eight-hour maximum all produce.
+     *
+     * <p>What is given up is small and stated: with no live session the
+     * server cannot clear the cookie, so a dead one stays in the browser
+     * until its own expiry. It authenticates nothing -- the token inside it
+     * is exactly the token that was just refused.
+     */
     @PostMapping("/api/auth/logout")
     @Transactional
     public ResponseEntity<Map<String, String>> logout(
             @AuthenticationPrincipal User user, HttpServletRequest request, HttpServletResponse httpResponse) {
-        if (user != null) {
+        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        if (denial != null) {
+            return denial;
+        }
+        {
             String sessionId = (String) request.getAttribute(JwtAuthenticationFilter.SESSION_REQUEST_ATTRIBUTE);
             boolean sessionRevoked = sessionId != null && sessionService.revoke(sessionId, user.getId());
             long tokenVersionBefore = user.getTokenVersion();
@@ -203,6 +227,13 @@ public class AuthController {
                 .build();
         httpResponse.addHeader(HttpHeaders.SET_COOKIE, cleared.toString());
         return ResponseEntity.ok(Map.of("detail", "Logged out"));
+    }
+
+    private static ResponseEntity<Map<String, String>> requireAuthenticated(User user) {
+        if (user != null) {
+            return null;
+        }
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("detail", "Could not validate credentials"));
     }
 
     /** Mirrors audit_trail.py's actor_context_middleware bounding user_agent to

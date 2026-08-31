@@ -136,7 +136,7 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
 | `POST /api/auth/login` | `AuthController.login` | — | — | `NONE` | no | ავტორიზაციამდელი; rate limit + `ClientIpResolver`. |
-| `POST /api/auth/logout` | `AuthController.logout` | — | AUTH | `SELF` | no | ზრდის `token_version`-ს (SEC-14). |
+| `POST /api/auth/logout` | `AuthController.logout` | `requireAuthenticated` | AUTH | `SELF` | no | ზრდის `token_version`-ს (SEC-14). PO-20 (2026-08-31): მოქმედ სესიას მოითხოვს; ანონიმური idempotent გასვლა მოხსნილია, რადგან frontend ვადაგასულ ჩანართში აღარავის ტოვებს. |
 | `POST /api/auth/sso/start` | `AuthController.startCorporateSso` | — | — | `NONE` | no | production SSO adapter fail-closed რეჟიმშია: IT-ის provider configuration-მდე 503. |
 | `POST /api/auth/session/heartbeat` | `PortalSessionController.heartbeat` | `requireAuthenticated` | AUTH | `SELF` | no | global authenticated boundary + caller/session binding: valid-CSRF/no-auth-ზე stable JSON 401; valid token მხოლოდ caller-ის bind-ებულ session `last_seen_at`-ს touch-ავს და სხვა user-ის session-ს არ ცვლის. |
 | `GET /api/auth/sessions` | `PortalSessionController.list` | `requireAuthenticated` | AUTH | `SELF` | **yes** | მხოლოდ მომძახებლის მოქმედი session-ები და მიმდინარე session marker. |

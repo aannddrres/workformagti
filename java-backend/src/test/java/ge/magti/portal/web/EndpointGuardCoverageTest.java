@@ -113,14 +113,6 @@ class EndpointGuardCoverageTest {
             // Issues the token. There is no caller to refuse yet; abuse is
             // bounded by LoginRateLimiter instead.
             "POST /api/auth/login",
-            // DEC-P02, the logout contract. Null-tolerant on purpose
-            // (AuthController:136-141): logging out when already logged out
-            // is not an error, and a 401 here would strand the frontend's
-            // own logout path when a token expires in an open tab. It does
-            // take the principal, so the sibling test passes -- this is the
-            // one endpoint where the two guards legitimately disagree.
-            // REVISIT with DEC-P02, not before.
-            "POST /api/auth/logout",
             // Liveness/readiness probe. Returns only status strings, and a
             // probe that needed a token could not be used by a load balancer.
             "GET /api/health",

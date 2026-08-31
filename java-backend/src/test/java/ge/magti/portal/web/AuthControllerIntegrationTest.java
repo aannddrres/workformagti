@@ -172,7 +172,16 @@ class AuthControllerIntegrationTest {
 
     @Test
     void logoutClearsTheCookie() throws Exception {
-        mockMvc.perform(post("/api/auth/logout").with(csrf()))
+        // Signed in first: since PO-20 the endpoint refuses an anonymous
+        // caller, so the cookie clear can only be observed on a live session.
+        String loginBody = mockMvc.perform(withIp(post("/api/auth/login"), "10.0.0.31")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"content@magti.ge\",\"password\":\"anything\"}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String token = JsonPath.read(loginBody, "$.access_token");
+
+        mockMvc.perform(post("/api/auth/logout").with(csrf()).header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(cookie().maxAge("access_token", 0));
     }
@@ -236,11 +245,21 @@ class AuthControllerIntegrationTest {
                 .andExpect(status().isUnauthorized());
     }
 
-    /** Logging out when you are already logged out is not an error. */
+    /**
+     * PO-20 / DEC-P02 (2026-08-31): logging out needs a live session.
+     *
+     * <p>It used to answer an anonymous caller, so that a tab whose token had
+     * expired could still have the server clear its httpOnly cookie. That tab
+     * no longer exists: IdleSessionService signs the operator out after
+     * thirty idle minutes, and unauthorizedInterceptor sends them to /login
+     * on the first 401 from anything. What is given up is the cookie clear --
+     * a dead cookie stays in the browser until it expires, authenticating
+     * nothing.
+     */
     @Test
-    void logoutWithoutATokenStillSucceeds() throws Exception {
+    void logoutWithoutATokenIsRefused() throws Exception {
         mockMvc.perform(post("/api/auth/logout").with(csrf()))
-                .andExpect(status().isOk())
+                .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.detail").isNotEmpty());
     }
 

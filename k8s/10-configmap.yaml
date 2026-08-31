@@ -77,18 +77,34 @@ data:
   ROLLOUT_LEADERSHIP_SCOPE: "false"
   ROLLOUT_COMPLIANCE_ELIGIBILITY: "false"
 
-  # DEC-P01, and the one to leave alone at first.
+  # DEC-P01, enforced from day one. Product owner decision, 2026-08-31.
   #
-  # false = SHADOW: the file-entitlement decision is computed and written to
-  # the audit log as FILE_ACCESS_SHADOW_DENY, and the file is served anyway.
-  # That is the deliberate first-fortnight posture on production. The rule
-  # reads an index maintained by every content save, and a save path that
-  # stopped maintaining it would not fail loudly -- pictures would quietly
-  # vanish from articles. Shadow turns that from an outage into a log line.
+  # true = ENFORCED: an uploaded file opens only for someone who may read the
+  # content that references it. false = SHADOW: the same decision is computed
+  # and written to the audit log as FILE_ACCESS_SHADOW_DENY, but the file is
+  # served anyway.
   #
-  # The promotion criterion is written down: docs/ROLLOUT_ROLLBACK_KA.md,
-  # section "DEC-P01".
-  ROLLOUT_FILE_ENTITLEMENT: "false"
+  # A fortnight of shadow was offered and declined, with the reasoning stated:
+  # a file reaching somebody it was not written for is the thing this portal
+  # exists to prevent, and delaying that by two weeks to buy observation is
+  # the wrong trade for a call centre. Recorded in
+  # docs/PRODUCT_OWNER_DECISIONS_KA.md as PO-19.
+  #
+  # WHAT TO WATCH IN WEEK ONE, since the observation window was not taken.
+  # The rule reads an index maintained by every content save. If a save path
+  # ever stopped maintaining it, the failure is SILENT: pictures vanish from
+  # articles with no error, and nobody reports what looks like an article
+  # that simply has no picture. Two signals catch it:
+  #
+  #   - audit action FILE_ACCESS_DENIED, in the admin audit screen. A denial
+  #     against a file inside an article the person CAN read is a bug, not a
+  #     policy hit.
+  #   - the application log, WARN "healing from scan" -- the index missing an
+  #     entry it had to rebuild.
+  #
+  # Rolling back is one value and a restart: set this to "false" and the
+  # portal returns to shadow within a rollout. See docs/ROLLOUT_ROLLBACK_KA.md.
+  ROLLOUT_FILE_ENTITLEMENT: "true"
 
   # ---- Legal hold ----------------------------------------------------
   #
