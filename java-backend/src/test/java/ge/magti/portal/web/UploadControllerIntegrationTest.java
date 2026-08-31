@@ -219,4 +219,40 @@ class UploadControllerIntegrationTest {
         mockMvc.perform(authed(multipart("/api/upload").file(note), tokenFor(admin)))
                 .andExpect(status().isOk());
     }
+
+    /**
+     * A polyglot -- a byte-valid PNG with an executable payload appended --
+     * passes the magic-byte check and is stored, because its header genuinely
+     * is a PNG. That is fine only as long as it can never be interpreted as
+     * anything but an image when served. The 2026-08-31 adversarial round
+     * confirmed this defence live; this test makes it a build-time guarantee,
+     * because the two headers below are the whole reason a stored polyglot is
+     * inert, and nothing else asserted them.
+     */
+    @Test
+    void aStoredPolyglotIsServedAsAnInertImage() throws Exception {
+        User admin = createUser("up7@magti.ge", Role.CONTENT_ADMIN);
+        byte[] script = "<script>alert(document.cookie)</script>".getBytes(StandardCharsets.UTF_8);
+        byte[] polyglot = new byte[PNG_BYTES.length + script.length];
+        System.arraycopy(PNG_BYTES, 0, polyglot, 0, PNG_BYTES.length);
+        System.arraycopy(script, 0, polyglot, PNG_BYTES.length, script.length);
+        // The client even lies about the extension; the server must ignore it.
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "evil.php.png", "image/png", polyglot);
+
+        String body = mockMvc.perform(authed(multipart("/api/upload").file(file), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        var json = objectMapper.readTree(body);
+        String url = json.get("url").asText();
+        // The stored name is a server-minted UUID.png -- the ".php" is gone.
+        assertTrue(json.get("filename").asText().endsWith(".png"),
+                "the server, not the client filename, decides the extension");
+
+        mockMvc.perform(get(url).header("Authorization", "Bearer " + tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "image/png"))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andExpect(header().string("Content-Security-Policy", "default-src 'none'; sandbox"));
+    }
 }

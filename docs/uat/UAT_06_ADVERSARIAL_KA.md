@@ -563,3 +563,63 @@ GET /i18n/ka.json              -> ძველი ფაილი, ქეში�
 დაგეგმილი) → **hard-delete (204)**; `uat.newbie`-ს დროებითი ლიმიტი →
 თავისით აღდგა. ბაზაში 123 სტატია — ზუსტად საწყისი მდგომარეობა. დარჩა
 ერთი მიუბმელი ატვირთული ფაილი, რომელიც ყველასთვის 404-ია (inert).
+
+---
+
+# დამატებითი გამკვრივება — 2026-08-31
+
+ადვერსარიული რაუნდის შემდეგ კიდევ ოთხი მიმართულება შემოწმდა.
+
+## ა. მავნე ფაილის ატვირთვა — 0 გვერდის ავლა
+
+`content_admin`-ით შვიდი მცდელობა (ატვირთვა მხოლოდ `content.manage`-ს
+აქვს, ე.ი. ოპერატორი ვერც კი ცდის):
+
+| მცდელობა | შედეგი | |
+|---|---|---|
+| HTML `text/html`-ად | **415** (ტიპი დაუშვებელია) | ✅ |
+| SVG `onload`+`<script>`-ით | **415** (SVG allow-list-ში არაა) | ✅ |
+| სკრიპტი `image/png`-ად (magic არ ემთხვევა) | **415** (MISMATCH) | ✅ |
+| HTML `application/x-php`-ად | **415** | ✅ |
+| 11 MB ფაილი | **413** | ✅ |
+| პოლიგლოტი `evil.php.png` (ვალიდური PNG + სკრიპტი) | ინახება `UUID.png`-ად, გაიცემა `Content-Type: image/png` + `X-Content-Type-Options: nosniff` + `Content-Security-Policy: default-src 'none'; sandbox` → **ბრაუზერში ინერტული** | ✅ |
+
+**გაფართოებას სერვერი ირჩევს, არა client-ის სახელი** — `.php`/`.svg`/`.html`
+ვერ გაძვრება. შენახვა არ არის რისკი; გაშვება რისკია — და გაშვება სამმაგად
+დაბლოკილია (allow-list, nosniff, CSP sandbox).
+
+## ბ. Stored-XSS სტატიის შიგთავსში — სუფთა
+
+რედაქტორის სახელით შევქმენი სტატია ათი XSS-დატვირთვით (`<script>`,
+`<img onerror>`, `<svg onload>`, `javascript:` ბმული, `<iframe>`,
+`<body onload>`, `<input onfocus>`, inline `style`). სერვერ-მხარის
+სანიტაიზერმა (Jsoup relaxed) **ყველა საშიში ელემენტი მოაშორა**; ოპერატორს
+გაცემულ შიგთავსში 0 საშიში ტოკენი დარჩა. ლეგიტიმური `<b>`, `<p>`, `https`
+ბმული — გადარჩა. (სატესტო სტატია → hard-delete.)
+
+## გ. დამოკიდებულებები + საიდუმლოები — სუფთა
+
+- ფრონტენდის ბიბლიოთეკები: `npm audit` → **0 დაუცველობა** (prod და dev).
+- backend: Spring Boot 4.1 / Java 21 (თანამედროვე); მუდმივი CVE-კონტროლი
+  Dependabot-ით (`.github/dependabot.yml`).
+- საიდუმლოები: სამუშაო ხეშიც და 404 კომიტის **მთელ ისტორიაშიც** — 0.
+  არც `.env`/გასაღების ფაილი აიტვირთა ოდესმე, არც ტოკენის ხელმოწერა.
+- ℹ️ ღია: backend-ის *ერთჯერადი offline* CVE-სკანი (OWASP dependency-check
+  + NVD) — არ არსებობს; დამატება სურვილისამებრ.
+
+## დ. ავტომატიზაცია — რეგრესია დაცულია
+
+ამ საზღვრების უმეტესობა უკვე დაცულია ავტომატურად (833 backend-ტესტი,
+28+ უსაფრთხოების ფაილი: `DenyByDefaultIntegrationTest`,
+`FileEntitlementEnforcedIntegrationTest`, `UploadControllerIntegrationTest`,
+`ArticleHtmlSanitizerTest` და ა.შ.). ორი **ნამდვილი ხარვეზი** დაიხურა:
+
+1. **`UploadControllerIntegrationTest#aStoredPolyglotIsServedAsAnInertImage`**
+   — გაცემული ფაილის `nosniff` + CSP `sandbox` header-ები აქამდე არსად
+   ტესტდებოდა; სწორედ ისინი ხდიან პოლიგლოტს უვნებელს. თუ წაიშლება, build
+   ჩავარდება.
+2. **`ArticleHtmlSanitizerTest#stripsTheAdversarialEventHandlerBattery`**
+   — დღევანდელი XSS-ბატარეა (`img onerror`, `svg onload`, `iframe`,
+   `body onload`, `input onfocus`) მუდმივ ტესტად ჩაიწერა.
+
+ორივე ახალი ტესტი მწვანეა (სანიტაიზერი 3/3; ატვირთვა 8/8).

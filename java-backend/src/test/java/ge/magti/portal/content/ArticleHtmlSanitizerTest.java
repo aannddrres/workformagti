@@ -24,6 +24,32 @@ class ArticleHtmlSanitizerTest {
                 .doesNotContain("script", "onclick", "onmouseover", "style=", "javascript:");
     }
 
+    /**
+     * The exact battery the 2026-08-31 adversarial round planted in an
+     * article as a content editor -- event handlers on images and inputs,
+     * an auto-firing SVG/body load, and a nested frame. Every one is an
+     * attribute or tag Jsoup's relaxed safelist drops; this pins that so a
+     * later safelist tweak that re-admitted any of them would fail the build
+     * rather than reach an operator's browser. The benign text around each
+     * payload is expected to survive.
+     */
+    @Test
+    void stripsTheAdversarialEventHandlerBattery() {
+        String clean = sanitizer.sanitize("""
+                <img src="x" onerror="alert('a')">
+                <svg onload="alert('b')"></svg>
+                <iframe src="javascript:alert('c')"></iframe>
+                <body onload="alert('d')">
+                <input autofocus onfocus="alert('e')">
+                <b>დარჩენადი ტექსტი</b>
+                """);
+
+        assertThat(clean)
+                .doesNotContain("onerror", "onload", "onfocus", "autofocus",
+                        "<svg", "<iframe", "javascript:", "alert")
+                .contains("<b>დარჩენადი ტექსტი</b>");
+    }
+
     @Test
     void preservesPrivateRelativeUploadsAndSafeExternalLinks() {
         String clean = sanitizer.sanitize("""
