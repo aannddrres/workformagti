@@ -1,5 +1,5 @@
 beautifulsoup4==4.15.0
-bcrypt==4.0.1
+bcrypt==5.0.0
 httpx==0.28.1
 oracledb==4.0.2
 passlib==1.7.4
