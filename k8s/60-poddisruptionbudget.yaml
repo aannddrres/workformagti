@@ -1,0 +1,34 @@
+# Keeps a node drain from taking the portal down.
+#
+# Without these, a routine node upgrade can evict every replica of a
+# Deployment at once. minAvailable: 1 tells the cluster to move them one at
+# a time instead -- which only works because both Deployments run more than
+# one replica. If either is ever scaled to 1, its PDB blocks drains rather
+# than protecting anything; scale first, then drain.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: portal-backend
+  namespace: "<<< IT-01 >>>"
+  labels:
+    app.kubernetes.io/name: portal-backend
+    app.kubernetes.io/part-of: magti-portal
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: portal-backend
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: portal-frontend
+  namespace: "<<< IT-01 >>>"
+  labels:
+    app.kubernetes.io/name: portal-frontend
+    app.kubernetes.io/part-of: magti-portal
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: portal-frontend

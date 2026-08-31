@@ -1,0 +1,58 @@
+# The single way in.
+#
+# One rule, not three: nginx inside the frontend pod already proxies /api
+# and /uploads to the backend Service, so the ingress does not route them
+# and must not try to. Splitting them here would put the API on a different
+# path through the proxy chain than the page that calls it, and the session
+# cookie is SameSite=strict -- same origin is not an aesthetic choice.
+#
+# TLS TERMINATES HERE. The pods listen on plain HTTP inside the cluster, and
+# the backend refuses to start with COOKIE_SECURE=false, so the session
+# cookie will only ever be sent over HTTPS. If this ingress is served over
+# plain HTTP the portal will appear to be broken at login, which is the
+# intended failure: nobody's session should travel in the clear.
+#
+# HSTS belongs here too, on whatever terminates TLS -- not in the pod's
+# nginx, which cannot know whether it is behind TLS.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: magti-portal
+  namespace: "<<< IT-01 >>>"
+  labels:
+    app.kubernetes.io/name: magti-portal
+    app.kubernetes.io/part-of: magti-portal
+  annotations:
+    # <<< IT-13 >>>
+    #
+    # Two settings this application actually needs, whatever the controller
+    # is called locally. For ingress-nginx the names are given; for another
+    # controller find the equivalent:
+    #
+    #   proxy-body-size: 11m
+    #     Uploads are capped at 10MB by the application and 11MB by Spring's
+    #     transport limit. An ingress default of 1m rejects a 4MB PDF before
+    #     the app ever sees it, and the user is told nothing useful.
+    #
+    #   proxy-read-timeout: 120
+    #     An export of the whole company is built synchronously into the
+    #     response. The default 60s is enough today and will not stay enough.
+    nginx.ingress.kubernetes.io/proxy-body-size: "11m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+spec:
+  ingressClassName: "<<< IT-11 >>>"
+  tls:
+    - hosts:
+        - "<<< IT-12 >>>"
+      secretName: "<<< IT-14 >>>"
+  rules:
+    - host: "<<< IT-12 >>>"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: portal-frontend
+                port:
+                  number: 80

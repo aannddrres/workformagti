@@ -1,0 +1,147 @@
+# The Spring Boot API.
+#
+# Stateless: since PR-03 nothing in this application writes to a filesystem
+# at all -- uploads and generated exports live in Oracle as BLOBs. That is
+# why there is no PersistentVolumeClaim anywhere in this directory, and why
+# the root filesystem below can be read-only. It also means a pod can be
+# killed and replaced at any moment with nothing to drain.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portal-backend
+  namespace: "<<< IT-01 >>>"
+  labels:
+    app.kubernetes.io/name: portal-backend
+    app.kubernetes.io/part-of: magti-portal
+spec:
+  # See IT-09. Two is the floor for a rolling update to mean anything.
+  #
+  # Note on the first start: every pod runs Flyway before serving. Flyway
+  # takes an exclusive lock on its history table, so simultaneous pods
+  # serialise -- one applies the migrations, the others see the recorded
+  # version and skip. Nothing races, but the first pod of a release that
+  # carries new migrations is slower to become ready, which is what the
+  # startupProbe budget below is for.
+  replicas: 2
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: portal-backend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: portal-backend
+        app.kubernetes.io/part-of: magti-portal
+    spec:
+      # Spread pods across nodes where the cluster allows it, so one node
+      # going away does not take the whole API with it.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: portal-backend
+      securityContext:
+        # The image already drops to uid 1000 (java-backend/Dockerfile).
+        # Stated here as well so a cluster policy that checks the manifest
+        # rather than the image is satisfied, and so this is visible to a
+        # reviewer who is not reading Dockerfiles.
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: backend
+          image: "<<< IT-02 >>>"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: portal-backend-config
+            - secretRef:
+                name: portal-backend-secrets
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            # The JVM needs a writable /tmp (class data, PDFBox and POI
+            # scratch space while an export is being built). emptyDir, not a
+            # volume: it is genuinely temporary and must not survive the pod.
+            - name: tmp
+              mountPath: /tmp
+            # The image creates /app/logs. Logging goes to stdout, but the
+            # directory exists, so give it somewhere to be under a read-only
+            # root rather than discovering at 3am that it is not writable.
+            - name: logs
+              mountPath: /app/logs
+          # Liveness must NOT depend on Oracle. /api/health does check the
+          # database and returns 503 when it is unreachable -- correct for
+          # readiness, wrong for liveness, where it would turn a database
+          # blip into a cluster-wide restart loop that makes the outage
+          # worse. Actuator's liveness group is process-only, by design
+          # (application.yml:89-93).
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # Readiness DOES include the database: a pod that cannot reach
+          # Oracle can serve nothing useful and should be taken out of the
+          # Service rather than answering requests with errors.
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # Covers Flyway on a release that carries new migrations. While
+          # this is running the liveness probe is not, so a slow first start
+          # cannot be mistaken for a hung process. 5s x 60 = 5 minutes.
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          resources:
+            # See IT-10 -- these are a starting point from the 600-user load
+            # test, not a measurement of this cluster.
+            #
+            # The heap follows the memory LIMIT: the image sets
+            # MaxRAMPercentage=75, so limit 1.5Gi gives roughly a 1.1Gi heap
+            # with the rest for metaspace, thread stacks and the direct
+            # buffers an export allocates. Raising the limit raises the heap
+            # automatically; there is no -Xmx to keep in step.
+            requests:
+              cpu: "250m"
+              memory: "768Mi"
+            limits:
+              # No CPU limit on purpose: a JVM throttled mid-request by the
+              # CFS quota shows up as unexplained latency, and the request
+              # above is what actually reserves capacity. Add one only if
+              # cluster policy requires it.
+              memory: "1536Mi"
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: logs
+          emptyDir: {}
+      # Long enough for an in-flight export download to finish rather than
+      # being cut off mid-file.
+      terminationGracePeriodSeconds: 45

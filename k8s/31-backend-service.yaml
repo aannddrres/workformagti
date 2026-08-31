@@ -1,0 +1,24 @@
+# Cluster-internal only. Nothing outside the namespace reaches the API
+# directly: the browser talks to the frontend pod, whose nginx proxies /api
+# and /uploads here (angular-frontend/nginx.conf.template).
+#
+# The NAME MATTERS. The frontend image defaults BACKEND_HOST to
+# "portal-backend" (angular-frontend/Dockerfile), so renaming this Service
+# means setting BACKEND_HOST on the frontend Deployment to match.
+apiVersion: v1
+kind: Service
+metadata:
+  name: portal-backend
+  namespace: "<<< IT-01 >>>"
+  labels:
+    app.kubernetes.io/name: portal-backend
+    app.kubernetes.io/part-of: magti-portal
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: portal-backend
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP

@@ -77,6 +77,39 @@ db:
 - **Verification:** `git ls-files` found no Deployment/Service/Ingress/Helm manifest; root Dockerfile/compose resolve to Python/PostgreSQL; `docs/PRODUCTION_HANDOVER.md:3-13` explicitly says it is not deployable for the target.
 - **Required fix:** Produce immutable target images and production manifests; answer IT topology questions; define PostgreSQL→Oracle migration/reconciliation; run staging deploy, smoke, rollback and cutover rehearsal by a second operator; publish the tested handover.
 
+> **განკარგვა (2026-08-31) — ნაწილობრივ დაიხურა.**
+>
+> `Required fix`-ის სიიდან შესრულდა:
+>
+> - **immutable target images** — `java-backend/Dockerfile` და
+>   `angular-frontend/Dockerfile` აწყობილია, ორივე non-root-ით
+>   (uid 1000 / uid 101, **ცოცხალ კონტეინერზე გადამოწმებული**),
+>   health check-ებით და K8s-ისთვის მორგებული JVM პარამეტრებით. image
+>   ნაგულისხმევად `APP_ENV=production`-ია და `ProductionSafetyGuard`
+>   უარს ამბობს ჩართვაზე სუსტი secret-ით ან dev-login-ით.
+> - **production manifests** — `k8s/`: Deployment, Service, Ingress,
+>   ConfigMap, PodDisruptionBudget, kustomization. `kubectl kustomize`
+>   სუფთად აეწყობა, 8 რესურსი. PersistentVolume არ სჭირდება — PR-03-ის
+>   შემდეგ backend ფაილურ სისტემაზე არაფერს წერს.
+>
+> **ღიად რჩება:**
+>
+> - **IT topology questions** — მანიფესტებში 12 ადგილია მონიშნული
+>   `<<< IT-NN >>>`-ით. ეს განზრახაა: გამოცნობით შევსება უარესია, ვიდრე
+>   ცარიელი, რადგან ერთი არასწორი მნიშვნელობა (მაგ. `TRUSTED_PROXIES`)
+>   ჩუმად ტოვებს ხვრელს. იხ. `k8s/README_KA.md`.
+> - **staging deploy / smoke / rollback rehearsal** — კლასტერზე წვდომის
+>   გარეშე შეუძლებელია.
+> - **PostgreSQL→Oracle migration** — *აღარ ვრცელდება.* Python-სტეკი
+>   პროდაქშენში არასოდეს განთავსებულა (არსად არსებობს `.env`, არც
+>   go-live git-ისტორიაში), ე.ი. გადასატანი რეალური მონაცემი არ არსებობს.
+>   რეალური მომხმარებლები AD-ის JIT-provisioning-ით შეიქმნებიან პირველი
+>   შესვლისას.
+> - **root `docker-compose.yml`** ისევ Python-სტეკს უშვებს. CLAUDE.md-ის
+>   მიხედვით legacy 30-დღიანი read-only ფანჯრისთვისაა შენახული, მაგრამ
+>   ამ მიგნების „operator follows the root compose" სცენარი ამით არ
+>   იხსნება — ცალკე გადასაწყვეტია.
+
 ### RTA-002 — დანართები ავთენტიკაციის გარეშე იკითხება
 
 - **Severity:** `BLOCKER`

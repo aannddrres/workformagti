@@ -1,0 +1,100 @@
+# Non-secret backend configuration.
+#
+# Everything here is safe to read in a code review and in `kubectl describe`.
+# Anything that would not be is in the Secret instead -- see 20-secret.EXAMPLE.yaml.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portal-backend-config
+  namespace: "<<< IT-01 >>>"
+  labels:
+    app.kubernetes.io/name: portal-backend
+    app.kubernetes.io/part-of: magti-portal
+data:
+  # ---- Environment posture -------------------------------------------
+  #
+  # Anything that is not one of development/dev/local/test gets the
+  # production posture, so this value is belt and braces: the image already
+  # ships APP_ENV=production and PortalProperties defaults to it.
+  APP_ENV: "production"
+
+  # The password-less test-account login. ProductionSafetyGuard REFUSES TO
+  # BOOT if this is true while APP_ENV is production, so setting it here
+  # would not quietly expose the portal -- it would fail the rollout. Stated
+  # explicitly anyway, because the audit finding (SEC-01) was precisely that
+  # this used to be enabled by omission.
+  ALLOW_DEV_LOGIN: "false"
+
+  # ---- Session cookie ------------------------------------------------
+  #
+  # COOKIE_SECURE=true means the browser only sends the session cookie over
+  # HTTPS. The guard refuses to boot with it false in production, so if TLS
+  # is not terminated in front of this service yet, the app will not start
+  # -- deliberately, because a session cookie on plain HTTP is the whole
+  # authentication of the portal travelling in the clear.
+  COOKIE_SECURE: "true"
+  COOKIE_SAMESITE: "strict"
+
+  # ---- Database ------------------------------------------------------
+  #
+  # The password is NOT here. Only the address and the user.
+  ORACLE_DB_URL: "<<< IT-04 >>>"
+  ORACLE_DB_USER: "<<< IT-05 >>>"
+
+  # Tuned against a 600-concurrent-user load test (2026-08-14). Raise only
+  # after checking Oracle's own `processes` parameter: pool size is
+  # per-pod, so the cluster total is this number times the replica count.
+  DB_POOL_MAX_SIZE: "30"
+  DB_POOL_MIN_IDLE: "10"
+  DB_CONNECTION_TIMEOUT_MS: "10000"
+  DB_VALIDATION_TIMEOUT_MS: "5000"
+  DB_LEAK_DETECTION_MS: "60000"
+
+  # ---- Who may be believed about the caller's IP ----------------------
+  #
+  # Comma-separated addresses or CIDR ranges of the proxy/ingress in front
+  # of this service, and nothing else.
+  #
+  # EMPTY IS SAFE BUT LOSSY. Left empty, X-Forwarded-For is ignored entirely
+  # and every request appears to come from the ingress: the audit log records
+  # the proxy rather than the employee, and login rate limiting puts the whole
+  # company in one bucket, so ten wrong passwords anywhere can lock out
+  # everyone. Filling this in is not optional for a real deployment.
+  #
+  # Trusting blindly would be worse, which is why there is no default.
+  TRUSTED_PROXIES: "<<< IT-06 >>>"
+
+  # ---- Session lifetime ----------------------------------------------
+  SESSION_IDLE_MINUTES: "30"
+  SESSION_MAXIMUM_MINUTES: "480"
+  ACCESS_TOKEN_EXPIRE_MINUTES: "480"
+
+  # ---- Rollout switches ----------------------------------------------
+  #
+  # All three default to the safe/legacy behaviour. See
+  # docs/ROLLOUT_ROLLBACK_KA.md before changing any of them; they are
+  # independent on purpose, so one can be rolled back without moving another.
+  ROLLOUT_LEADERSHIP_SCOPE: "false"
+  ROLLOUT_COMPLIANCE_ELIGIBILITY: "false"
+
+  # DEC-P01, and the one to leave alone at first.
+  #
+  # false = SHADOW: the file-entitlement decision is computed and written to
+  # the audit log as FILE_ACCESS_SHADOW_DENY, and the file is served anyway.
+  # That is the deliberate first-fortnight posture on production. The rule
+  # reads an index maintained by every content save, and a save path that
+  # stopped maintaining it would not fail loudly -- pictures would quietly
+  # vanish from articles. Shadow turns that from an outage into a log line.
+  #
+  # The promotion criterion is written down: docs/ROLLOUT_ROLLBACK_KA.md,
+  # section "DEC-P01".
+  ROLLOUT_FILE_ENTITLEMENT: "false"
+
+  # ---- Legal hold ----------------------------------------------------
+  #
+  # Exact SSO email identities approved by DPO/Legal to set or release a
+  # content legal hold. Empty means hold mutation fails closed for every
+  # role, which is the correct state until that decision exists.
+  # Do not put real identities in git -- if this is ever filled in, move it
+  # to the Secret.
+  LEGAL_HOLD_AUTHORIZED_EMAILS: ""

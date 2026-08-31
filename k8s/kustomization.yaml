@@ -1,0 +1,31 @@
+# Applies everything in one command once the placeholders are filled in:
+#
+#   kubectl apply -k k8s/
+#
+# The Secret is deliberately NOT listed. It is created out of band so its
+# values never enter git -- see 20-secret.EXAMPLE.yaml for the command.
+#
+# No namespace manifest either: creating namespaces is usually a
+# platform-team action with quotas and network policy attached, so this
+# assumes the namespace already exists rather than inventing one.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: "<<< IT-01 >>>"
+
+resources:
+  - 10-configmap.yaml
+  - 30-backend-deployment.yaml
+  - 31-backend-service.yaml
+  - 40-frontend-deployment.yaml
+  - 41-frontend-service.yaml
+  - 50-ingress.yaml
+  - 60-poddisruptionbudget.yaml
+
+# `labels`, not the older `commonLabels`: the latter is deprecated and also
+# wrote itself into selectors, which makes a label change on an existing
+# Deployment a rejected update rather than a rollout.
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: magti-portal
+    includeSelectors: false
