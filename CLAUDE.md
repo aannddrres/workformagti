@@ -89,9 +89,27 @@ none is a deployment manifest.
   `isProduction()` is the complement of a short development allowlist, so a
   typo or an unknown environment name fails **safe**.
 
+## The legacy knowledge base
+
+The 122 real articles from the retired portal (roaming tariffs, GPON
+parameters, the porting procedure) live in `magti_portal.db` and are brought
+into Oracle by `scripts/import_legacy_content.py` — content only, no users,
+no invented org, idempotent, dry-run by default. They arrive as
+`status='draft'` and are released gradually from the admin content queue.
+
+**`is_draft` is not `status='draft'`.** `is_draft` is the personal-autosave
+flag, and `GET /api/articles` hides a row carrying it from everyone but its
+author — content administrators included. Content meant for several editors to
+manage must have `is_draft = false`; the editorial state goes in `status`.
+This was got wrong once, on the first import, and made all 122 articles
+visible to exactly one account.
+
+`legacy_content_imports` (V47) maps source id to target id, which is what
+makes a second run update rather than duplicate.
+
 ## The Python that is left
 
-Three tools, and nothing else. They are not the old application; they are
+Four tools, and nothing else. They are not the old application; they are
 current tooling that happens to be written in Python, and they are
 load-bearing.
 
@@ -99,6 +117,7 @@ load-bearing.
   API. Reads content from `magti_portal.db`.
 - `scripts/uat/seed_uat_accounts.py` — the eleven named UAT accounts.
 - `scripts/seed_phase8_org_fixtures.py` — Oracle org fixtures.
+- `scripts/import_legacy_content.py` — the legacy knowledge base, above.
 
 `tests/` holds the three test files that cover them; CI runs them in the
 `seeder-tools` job. `requirements-dev.txt` pins the same versions the seeder
@@ -121,7 +140,7 @@ Do not commit or delete it. `uploads/` (gitignored) is its companion.
   `flyway_schema_history` before applying anything, so simultaneous instances
   serialise — one applies, the other sees the recorded version and skips.
   Plain `CREATE TABLE` / `ALTER TABLE` is correct. The highest migration is
-  currently `V46`.
+  currently `V47`.
 - **Never commit secrets.** Every environment takes them from `${VAR}`
   substitution, and each compose file uses `:?` so a missing value fails the
   start rather than defaulting. In Kubernetes they come from a Secret created

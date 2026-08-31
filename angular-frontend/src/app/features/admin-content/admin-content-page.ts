@@ -3,8 +3,9 @@ import { DatePipe } from '@angular/common';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ArticlesService } from '../../core/services/articles.service';
 import { CategoriesService } from '../../core/services/categories.service';
-import { ArticleSummary } from '../../core/models/article';
+import { ArticleBulkResponse, ArticleBulkStatus, ArticleSummary } from '../../core/models/article';
 import { Category } from '../../core/models/category';
+import { DEPARTMENTS } from '../../shared/user-roles';
 import { ArticleEditDrawer } from './article-edit-drawer/article-edit-drawer';
 import { ArticleHistoryModal } from './article-history-modal/article-history-modal';
 import { NewsEditDrawer } from './news-edit-drawer/news-edit-drawer';
@@ -83,15 +84,39 @@ export class AdminContentPage {
   protected readonly statusFilter = signal('');
 
   protected readonly currentPage = signal(1);
-  protected readonly selection = signal<Set<number>>(new Set());
+
   /**
-   * Drives the bulk buttons' enabled state and their labels.
+   * Selected ARTICLE ids. Not news or video ids, and the queue reflects that
+   * by giving only article rows a checkbox.
    *
-   * bulkArchive() has always returned early on an empty selection, so the
-   * buttons looked live, did nothing when pressed, and said nothing about
-   * why — the user is left to guess that a selection was required.
+   * The bulk endpoints are article endpoints. Letting a news row into a
+   * selection would produce a request that silently did nothing for part of
+   * it -- the ids would simply not be found -- and the user would be told
+   * "3 updated" for a batch of five.
    */
+  protected readonly selection = signal<Set<number>>(new Set());
   protected readonly selectionCount = computed(() => this.selection().size);
+
+  /** The article rows on the current page -- the only selectable ones. */
+  protected readonly selectableRows = computed(() =>
+    this.pageRows().filter((row) => row.type === 'article')
+  );
+
+  protected readonly allSelectableSelected = computed(() => {
+    const rows = this.selectableRows();
+    return rows.length > 0 && rows.every((row) => this.selection().has(row.id));
+  });
+
+  /** Result of the last bulk call, shown instead of a silent refresh. */
+  protected readonly bulkNotice = signal<string | null>(null);
+  protected readonly bulkBusy = signal(false);
+
+  /**
+   * The audiences a batch can be aimed at. The same list the single-article
+   * drawer offers, so a bulk change cannot produce a department the editor
+   * could not have typed by hand.
+   */
+  protected readonly bulkDepartmentOptions = DEPARTMENTS;
 
   protected readonly queueRows = computed<QueueRow[]>(() => {
     const articleRows: QueueRow[] = this.articles().map((item) => ({
@@ -292,12 +317,17 @@ export class AdminContentPage {
   protected toggleSelectAllOnPage(checked: boolean): void {
     this.selection.update((current) => {
       const next = new Set(current);
-      for (const a of this.pageArticles()) {
-        if (checked) next.add(a.id);
-        else next.delete(a.id);
+      for (const row of this.selectableRows()) {
+        if (checked) next.add(row.id);
+        else next.delete(row.id);
       }
       return next;
     });
+  }
+
+  protected clearSelection(): void {
+    this.selection.set(new Set());
+    this.bulkNotice.set(null);
   }
 
   protected toggleSelected(id: number, checked: boolean): void {
@@ -423,19 +453,74 @@ export class AdminContentPage {
     });
   }
 
-  protected bulkArchive(archive: boolean): void {
+  /**
+   * Move every selected article to one status.
+   *
+   * Confirmation is asked for publishing and only for publishing. Sending
+   * something back to draft or the archive takes it away from readers and is
+   * undone by the opposite button; publishing puts it in front of six hundred
+   * people, and that is the direction worth a second look.
+   */
+  protected bulkStatus(status: ArticleBulkStatus): void {
     const ids = [...this.selection()];
     if (ids.length === 0) return;
-    const message = this.translate.instant(
-      archive ? 'content.articles.confirm_bulk_archive' : 'content.articles.confirm_bulk_unarchive',
-      { count: ids.length }
+    if (status === 'published' && !window.confirm(`გამოქვეკნდეს ${ids.length} მასალა. გავაგრძელოთ?`)) {
+      return;
+    }
+    this.runBulk(this.articlesService.bulkStatus(ids, status), ids.length);
+  }
+
+  /** Re-file the selection into another category. */
+  protected bulkCategory(rawValue: string): void {
+    const ids = [...this.selection()];
+    const categoryId = Number(rawValue);
+    if (ids.length === 0 || !rawValue || Number.isNaN(categoryId)) return;
+    this.runBulk(this.articlesService.bulkRetarget(ids, { categoryId }), ids.length);
+  }
+
+  /** Re-aim the selection at another department. */
+  protected bulkDepartment(rawValue: string): void {
+    const ids = [...this.selection()];
+    if (ids.length === 0 || !rawValue) return;
+    this.runBulk(
+      this.articlesService.bulkRetarget(ids, { targetDepartments: [rawValue] }),
+      ids.length
     );
-    if (!window.confirm(message)) return;
+  }
+
+  /**
+   * One place for what every bulk call does afterwards.
+   *
+   * The response is reported rather than swallowed: a batch is partial by
+   * nature -- an article already in the requested state is skipped -- and
+   * refreshing the list without saying so leaves the user counting rows to
+   * work out what happened.
+   */
+  private runBulk(request: Observable<ArticleBulkResponse>, requested: number): void {
     this.actionError.set(null);
-    this.articlesService.bulkArchive(ids, archive).subscribe({
-      next: () => this.loadArticles(),
-      error: (err) => this.actionError.set(err?.error?.detail ?? this.translate.instant('content.articles.bulk_archive_failed'))
+    this.bulkNotice.set(null);
+    this.bulkBusy.set(true);
+    request.subscribe({
+      next: (result) => {
+        this.bulkBusy.set(false);
+        const skipped = result.skipped_ids?.length ?? 0;
+        this.bulkNotice.set(
+          skipped === 0
+            ? `განახლდა ${result.updated} მასალა.`
+            : `განახლდა ${result.updated} მასალა, ${skipped} გამოტოვებული (უკვე ამ მდგომარეობაში იყო).`
+        );
+        this.selection.set(new Set());
+        this.loadArticles();
+      },
+      error: (err) => {
+        this.bulkBusy.set(false);
+        this.actionError.set(err?.error?.detail ?? 'მასობრივი ოპერაცია ვერ შესრულდა');
+      }
     });
+  }
+
+  protected dismissBulkNotice(): void {
+    this.bulkNotice.set(null);
   }
 
   protected dismissActionError(): void {

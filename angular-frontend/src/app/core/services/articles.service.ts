@@ -4,6 +4,8 @@ import { Observable } from 'rxjs';
 import {
   Article,
   ArticleBulkArchiveResponse,
+  ArticleBulkResponse,
+  ArticleBulkStatus,
   ArticleCommandRequest,
   ArticleRequest,
   ArticleSummary,
@@ -101,6 +103,33 @@ export class ArticlesService {
       ids,
       archive,
     });
+  }
+
+  /**
+   * Move a batch to one editorial status.
+   *
+   * The general form of bulkArchive, which could only swing between archived
+   * and published. Releasing the imported knowledge base a few articles at a
+   * time needs draft as a holding state in both directions.
+   */
+  bulkStatus(ids: number[], status: ArticleBulkStatus): Observable<ArticleBulkResponse> {
+    return this.http.post<ArticleBulkResponse>('/api/articles/bulk-status', { ids, status });
+  }
+
+  /**
+   * Re-file a batch: a different category, a different audience, or both.
+   *
+   * Undefined means "leave alone" on each field, so changing the audience does
+   * not silently move the category as well.
+   */
+  bulkRetarget(
+    ids: number[],
+    changes: { categoryId?: number; targetDepartments?: string[] }
+  ): Observable<ArticleBulkResponse> {
+    const body: Record<string, unknown> = { ids };
+    if (changes.categoryId !== undefined) body['category_id'] = changes.categoryId;
+    if (changes.targetDepartments !== undefined) body['target_departments'] = changes.targetDepartments;
+    return this.http.post<ArticleBulkResponse>('/api/articles/bulk-retarget', body);
   }
 
   get(id: number): Observable<Article> {

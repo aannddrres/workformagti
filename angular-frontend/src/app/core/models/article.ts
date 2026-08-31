@@ -65,6 +65,21 @@ export interface ArticleBulkArchiveResponse {
   skipped_ids: number[];
 }
 
+/** The editorial states a batch can be moved between. Mirrors the backend pattern. */
+export type ArticleBulkStatus = 'draft' | 'published' | 'archived';
+
+/**
+ * Mirrors web.ArticleBulkResponse.
+ *
+ * skipped_ids is not an error list -- an id already in the requested state, or
+ * one that no longer exists, is reported rather than failing the batch. The UI
+ * says so instead of claiming everything worked.
+ */
+export interface ArticleBulkResponse {
+  updated: number;
+  skipped_ids: number[];
+}
+
 /** Mirrors web.ArticleResponse -- the full/detail shape (has content, no category_name). */
 export interface Article {
   id: number;
