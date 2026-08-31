@@ -31,7 +31,21 @@ public final class ControllerEndpoints {
     private ControllerEndpoints() {
     }
 
-    /** Every {@code @RestController} on the classpath, main sources included. */
+    /**
+     * Every {@code @RestController} the product ships.
+     *
+     * <p>Classpath scanning, so it sees the test sources too -- and a test
+     * that needs an endpoint of its own declares one as a nested
+     * {@code @RestController}. {@link DenyByDefaultIntegrationTest} declares
+     * a deliberately UNGUARDED one, because the case it proves is exactly the
+     * endpoint whose author forgot the guard, and it must reach the filter
+     * chain to prove the chain stops it.
+     *
+     * <p>Counting that fixture as a product endpoint would make the two
+     * coverage tests report a permanent finding that is a test fixture, and
+     * the honest way to silence it is not an exemption entry naming this one
+     * class -- it is to stop scanning fixtures at all.
+     */
     public static List<Class<?>> restControllers() {
         ClassPathScanningCandidateComponentProvider scanner =
                 new ClassPathScanningCandidateComponentProvider(false);
@@ -40,12 +54,26 @@ public final class ControllerEndpoints {
         List<Class<?>> found = new ArrayList<>();
         for (BeanDefinition definition : scanner.findCandidateComponents("ge.magti.portal")) {
             try {
-                found.add(Class.forName(definition.getBeanClassName()));
+                Class<?> candidate = Class.forName(definition.getBeanClassName());
+                if (declaredInsideATest(candidate)) {
+                    continue;
+                }
+                found.add(candidate);
             } catch (ClassNotFoundException e) {
                 throw new IllegalStateException("scanned but unloadable: " + definition.getBeanClassName(), e);
             }
         }
         return found;
+    }
+
+    /** A controller nested in a test class is a fixture, not a shipped endpoint. */
+    private static boolean declaredInsideATest(Class<?> candidate) {
+        for (Class<?> owner = candidate; owner != null; owner = owner.getEnclosingClass()) {
+            if (owner.getSimpleName().endsWith("Test")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

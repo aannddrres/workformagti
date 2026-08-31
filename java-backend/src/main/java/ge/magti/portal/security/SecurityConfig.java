@@ -41,6 +41,32 @@ public class SecurityConfig {
 		this.portalProperties = portalProperties;
 	}
 
+	/**
+	 * The only GET paths reachable without a token.
+	 *
+	 * <p>Named rather than written inline because this array IS the anonymous
+	 * surface: the chain denies by default, so whether an endpoint can be
+	 * reached without credentials is decided here and nowhere else. A pattern
+	 * that is broader than it looks -- {@code "/api/auth/**"} where two
+	 * explicit paths were meant -- reopens every future endpoint under it, and
+	 * nothing at runtime would say so. {@link AnonymousSurfaceTest} reads
+	 * these two arrays and refuses to let them disagree with
+	 * {@code docs/ACCESS_CONTRACT_MATRIX_KA.md}.
+	 */
+	static final String[] ANONYMOUS_GET = {"/api/health"};
+
+	/**
+	 * Operational probes. Separate from {@link #ANONYMOUS_GET} because they
+	 * are Actuator's, not the API's: they carry no portal data, appear in no
+	 * access contract row, and exist for the orchestrator rather than for a
+	 * caller. Keeping them apart is what lets the contract check above be
+	 * exact instead of carrying a permanent exception.
+	 */
+	static final String[] ANONYMOUS_PROBES = {"/actuator/health", "/actuator/health/**"};
+
+	/** The only POST paths reachable without a token: sign-in, and an idempotent sign-out. */
+	static final String[] ANONYMOUS_POST = {"/api/auth/login", "/api/auth/sso/start", "/api/auth/logout"};
+
 	@Bean
 	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 		CookieCsrfTokenRepository csrfRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
@@ -72,10 +98,9 @@ public class SecurityConfig {
 							response.getWriter().write("{\"detail\":\"Could not validate credentials\"}");
 						}))
 				.authorizeHttpRequests(auth -> auth
-						.requestMatchers(HttpMethod.POST,
-								"/api/auth/login", "/api/auth/sso/start", "/api/auth/logout").permitAll()
-						.requestMatchers(HttpMethod.GET, "/api/health", "/actuator/health", "/actuator/health/**")
-						.permitAll()
+						.requestMatchers(HttpMethod.POST, ANONYMOUS_POST).permitAll()
+						.requestMatchers(HttpMethod.GET, ANONYMOUS_GET).permitAll()
+						.requestMatchers(HttpMethod.GET, ANONYMOUS_PROBES).permitAll()
 						.anyRequest().authenticated());
 		return http.build();
 	}

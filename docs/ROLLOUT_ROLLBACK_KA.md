@@ -1,34 +1,58 @@
 # Rollout flag-ების rollback — Phase 4/5 და DEC-P01
 
-**სტატუსი:** სამივე გადამრთველი არსებობს; Phase 4/5-ის ორი ჯერ მხოლოდ
-configuration-ია, DEC-P01-ის ერთი კი ნამდვილად მოქმედებს და პროდაქშენზე
-shadow-ითაა გაშვებული
-**განახლებულია:** 2026-08-29
+**სტატუსი:** სამივე გადამრთველი არსებობს; Phase 4/5-ის ორს **არაფერი
+კითხულობს** (და მათი ქცევა ისედაც ჩართულია — ე.ი. rollback-ის ბერკეტი არ
+არსებობს), DEC-P01-ის ერთი კი ნამდვილად მოქმედებს და პროდაქშენზე shadow-ითაა
+გაშვებული
+**განახლებულია:** 2026-08-31
 
 ## გადამრთველები
 
-| env | `false` — rollback მდგომარეობა | `true` — cutover მდგომარეობა |
-|---|---|---|
-| `ROLLOUT_LEADERSHIP_SCOPE` | Phase 4-ის ძველი `ManagerScope` ქცევა | leadership assignment-ზე დაფუძნებული `ScopeResolver` |
-| `ROLLOUT_COMPLIANCE_ELIGIBILITY` | Phase 5-ის ძველი `ComplianceCalculator` ქცევა | `ComplianceEligibilityService` |
-| `ROLLOUT_FILE_ENTITLEMENT` | shadow — გადაწყვეტილება ითვლება და აღირიცხება, ფაილი მაინც გაიცემა | `FileAccessPolicy`-ის enforcement `/uploads/{filename}`-ზე (DEC-P01) |
+| env | `false` | `true` | კოდი კითხულობს? |
+|---|---|---|---|
+| `ROLLOUT_LEADERSHIP_SCOPE` | — | — | **არა** |
+| `ROLLOUT_COMPLIANCE_ELIGIBILITY` | — | — | **არა** |
+| `ROLLOUT_FILE_ENTITLEMENT` | shadow — გადაწყვეტილება ითვლება და აღირიცხება, ფაილი მაინც გაიცემა | `FileAccessPolicy`-ის enforcement `/uploads/{filename}`-ზე (DEC-P01) | **დიახ** |
 
 სამივე მნიშვნელობის default არის `false`. გადამრთველები ერთმანეთისგან
 დამოუკიდებელია: compliance-ის rollback-მა leadership scope არ უნდა შეცვალოს და
 პირიქით. მნიშვნელობა startup-ზე იკითხება, ამიტომ env-ის ცვლილების შემდეგ
 application instance-ები ჩვეულებრივი rollout/restart-ით უნდა განახლდეს.
 
-> პირველი ორი flag Phase 9A-ში მხოლოდ configuration-ად არსებობს. არცერთი
-> `shadowCompare` call site მათ ჯერ არ კითხულობს და `true` დღესაც legacy პასუხს
-> აბრუნებს. enforcement-ის wiring მხოლოდ Phase 4/5-ის gated დავალებაა.
+> ### პირველ ორ გადამრთველს არაფერი კითხულობს (2026-08-31)
+>
+> `RolloutSwitchWiringTest` ამას ახლა ყოველ build-ზე ამოწმებს: `main`-ში
+> `isLeadershipScopeEnabled()` და `isComplianceEligibilityEnabled()` არსად
+> გამოიძახება. ორივე მნიშვნელობა ბაინდდება, ლოგშიც ჩანს, და **ქცევაზე არ
+> მოქმედებს** — არც `true`, არც `false`.
+>
+> ეს იმაზე მეტია, ვიდრე „ჯერ არ არის გაყვანილი". ქცევა, რომელსაც ეს ორი
+> უნდა მართავდეს, **უკვე ჩართულია და გადამრთველის გარეშე**:
+> `ExportQueryService`-ი და `StatsController`-ი leadership assignment-ებს
+> უპირობოდ იყენებენ, როცა ისინი არსებობს. ე.ი. `false`-ზე დაბრუნება
+> **არაფერს დააბრუნებს უკან**.
+>
+> ორივე `docker-compose.presentation.yml`-სა და `docker-compose.uat.yml`-ში
+> `"true"`-დაა დაყენებული. ესეც უეფექტოა, მაგრამ განზრახ არ შეცვლილა: მათი
+> `"false"`-ზე გადაყვანა ვითომ-rollback-ს კიდევ უფრო დამაჯერებელს გახდიდა.
+>
+> **ე.ი. ქვემოთ აღწერილი „ქცევის rollback-ის პროცედურა" პირველ ორ flag-ზე
+> არ მუშაობს.** გადაწყვეტილება საჭიროა — ან wiring გაკეთდეს (რაც
+> ავტორიზაციის ცვლილებაა და ცალკე მიღებას მოითხოვს), ან ორივე flag მოიხსნას
+> და დოკუმენტმა მხოლოდ DEC-P01 დატოვოს. იხ.
+> `claude/r5-complete-r6-planning`, სადაც wiring-ის ერთი ვარიანტი დაწერილია
+> (`ScopeResolver.decide()` + `LeadershipRolloutGuard`).
 >
 > **`ROLLOUT_FILE_ENTITLEMENT` გამონაკლისია** — მას `UploadedFileController`
 > ნამდვილად კითხულობს და `true` ქცევას ცვლის. იხ. ქვემოთ, DEC-P01.
 
 ## ქცევის rollback-ის პროცედურა
 
-> ეს პროცედურა Phase 4/5-ის ორ flag-ს ეხება. `ROLLOUT_FILE_ENTITLEMENT`-ის
-> rollback ცალკეა აღწერილი — იხ. „DEC-P01" ქვემოთ.
+> **ეს პროცედურა დღეს არ მუშაობს** — იხ. ზემოთ. Phase 4/5-ის ორ flag-ს
+> არაფერი კითხულობს, ამიტომ ქვემოთ აღწერილი ნაბიჯები აღწერს იმას, რაც
+> wiring-ის შემდეგ მოხდებოდა, და არა იმას, რაც დღეს მოხდება.
+> `ROLLOUT_FILE_ENTITLEMENT`-ის rollback ცალკეა და **მუშაობს** — იხ.
+> „DEC-P01" ქვემოთ.
 
 1. დაადგინე რომელი policy ქმნის პრობლემას: leadership scope თუ compliance.
 2. მხოლოდ შესაბამისი env დააბრუნე `false`-ზე; მეორე flag უცვლელი დატოვე.

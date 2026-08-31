@@ -5,6 +5,32 @@ on:
     branches: ["**"]
   pull_request:
 
+# One run per branch. Pushing three commits in a row used to start three full
+# runs and let all three finish, when only the last one's result could matter.
+# main is exempt: cancelling there would leave the trunk unverified, which is
+# the one place that must never happen.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+# The two jobs below that need an Oracle are most of what a full run costs,
+# and every push to every branch was paying it. That is what exhausted the
+# account's Actions allowance on 2026-08-22, with a week of the billing
+# period left and every branch's CI dead from then on.
+#
+# They are now restricted to the two moments the answer is load-bearing: a
+# pull request (the review gate) and main (the trunk). A plain branch push
+# still runs the fast jobs -- the Python suite and its lint, the DB-free Java
+# suite, and the Angular build with its i18n and typecheck guards -- so a
+# typo is still caught in a couple of minutes.
+#
+# The trade-off is stated rather than hidden: between pushing to a branch and
+# opening a pull request, nothing verifies the Oracle-backed behaviour except
+# running it locally. scripts/verify-like-ci.sh runs exactly what these jobs
+# run, so that is a repeatable claim rather than a promise.
+#
+# Brought across from claude/r5-complete-r6-planning, which is where the
+# allowance ran out and where this was worked out.
 jobs:
   # What is left of Python after the legacy FastAPI stack was deleted
   # (2026-08-31): the seeders that fill the demo and UAT environments, and
@@ -149,6 +175,7 @@ jobs:
   # wheels are off. timeout-minutes stays as a backstop against a container
   # that never reports healthy holding a runner to the 6-hour job limit.
   java-integration:
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     name: Java integration tests (Oracle)
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -229,6 +256,7 @@ jobs:
           if-no-files-found: warn
 
   e2e:
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     name: End-to-end (Angular + Spring Boot + Oracle)
     runs-on: ubuntu-latest
     timeout-minutes: 35
