@@ -82,15 +82,30 @@ public class SearchQueryService {
     public record GlobalSearchResult(List<Article> articles, List<News> news, List<VideoInstruction> videos) {
     }
 
-    /** Splits on whitespace, drops blanks -- matches Python's {@code q.split()} + {@code if w.strip()} exactly. */
+    /**
+     * Splits on whitespace, then strips leading/trailing punctuation from each
+     * token, dropping any that empties out.
+     *
+     * <p>The strip is the one deliberate divergence from Python's plain
+     * {@code q.split()}: without it a trailing {@code ?} or {@code !} stayed
+     * glued to the word, so {@code "ინტერნეტი?"} looked for the trigram
+     * {@code "ტი?"} -- which no indexed article contains -- and returned zero,
+     * while {@code "ინტერნეტი"} returned dozens. An operator typing a natural
+     * question got nothing. Only edge punctuation is removed; interior
+     * characters are kept, so {@code "Wi-Fi"} and {@code "A/B"} survive intact.
+     */
+    private static final java.util.regex.Pattern EDGE_PUNCTUATION =
+            java.util.regex.Pattern.compile("^[^\\p{L}\\p{N}]+|[^\\p{L}\\p{N}]+$");
+
     public static List<String> splitWords(String q) {
         List<String> words = new ArrayList<>();
         if (q == null) {
             return words;
         }
         for (String part : q.trim().split("\\s+")) {
-            if (!part.isBlank()) {
-                words.add(part);
+            String trimmed = EDGE_PUNCTUATION.matcher(part).replaceAll("");
+            if (!trimmed.isBlank()) {
+                words.add(trimmed);
             }
         }
         return words;
