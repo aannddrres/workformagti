@@ -28,4 +28,4 @@ httpx==0.28.1
 # 4.1 and later -- the same pin scripts/presentation/requirements.txt
 # carries, and the reason it carries it.
 passlib==1.7.4
-bcrypt==4.0.1
+bcrypt==5.0.0
