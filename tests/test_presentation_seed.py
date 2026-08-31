@@ -197,7 +197,17 @@ def test_compose_and_reset_are_scoped_to_the_presentation_project() -> None:
 
     assert "name: magti-portal-presentation" in compose
     assert "127.0.0.1:8081:8080" in compose
-    assert "ALLOW_DEV_LOGIN: \"false\"" in compose
+    # Dev login is ON here, deliberately: the four persona buttons on /login
+    # are how the demo is driven, loginPersona sends no real password, and
+    # corporate SSO is not wired up. This assertion used to require "false"
+    # and silently stopped matching when the stack was changed to make those
+    # buttons work -- so it was asserting a state the file had not been in
+    # for some time.
+    #
+    # What actually keeps this safe is the line above: the stack is published
+    # on 127.0.0.1 only. Both are pinned here so that turning one off without
+    # the other fails the build rather than a demo.
+    assert "ALLOW_DEV_LOGIN: \"true\"" in compose
     assert "magti-portal-presentation-oracle-data" in compose
     assert "./magti_portal.db:/source/magti_portal.db:ro" in compose
     assert "./uploads:/source/uploads:ro" in compose

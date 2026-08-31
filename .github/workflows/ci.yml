@@ -6,7 +6,18 @@ on:
   pull_request:
 
 jobs:
-  test:
+  # What is left of Python after the legacy FastAPI stack was deleted
+  # (2026-08-31): the seeders that fill the demo and UAT environments, and
+  # the Phase 8 Oracle fixture seeder. This job used to run the whole legacy
+  # application's suite -- 31 test files against an app that no longer
+  # exists -- and was for a long time the ONLY thing CI ran, which is how
+  # the Java and Angular halves went untested on every push (audit PR-01).
+  #
+  # Kept rather than deleted because these tools are still load-bearing:
+  # nothing else fills a demo database, and a seeder that silently stops
+  # working is discovered in front of an audience.
+  seeder-tools:
+    name: Seeder tooling (Python)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,8 +30,10 @@ jobs:
         run: pip install -r requirements-dev.txt
 
       - name: Lint (ruff)
-        run: ruff check .
+        run: ruff check scripts/ tests/
 
+      # The Oracle-backed fixture tests skip themselves unless
+      # RUN_ORACLE_FIXTURE_TESTS=true, so this runs green without a database.
       - name: Run tests
         run: pytest tests/ -q
 

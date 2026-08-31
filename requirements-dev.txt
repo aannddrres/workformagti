@@ -1,6 +1,31 @@
-# Dev/test-only tooling — never needed in the production Docker image.
--r requirements.txt
-
-pytest==9.1.1
+# Tooling for the Python that is LEFT after the legacy stack was removed
+# (2026-08-31): the presentation/UAT seeders and the Phase 8 Oracle fixture
+# seeder. There is no application here any more, so there is no
+# requirements.txt to include -- what the seeders need at runtime lives with
+# them, in scripts/presentation/requirements.txt and scripts/uat/requirements.txt,
+# because they are built into their own container images.
+#
+# The shared pins below MATCH those files deliberately. A test run that
+# parsed article HTML with a different BeautifulSoup than the image does
+# would be testing something the seeder never executes -- the same reason
+# scripts/uat/requirements.txt pins itself to the presentation image's
+# versions rather than picking its own.
+pytest==8.4.2
 ruff==0.15.22
+
+# scripts/seed_phase8_org_fixtures.py talks to Oracle directly.
 oracledb==4.0.2
+
+# tests/test_presentation_seed.py exercises scripts/presentation/common.py,
+# which parses stored article HTML.
+beautifulsoup4==4.15.0
+
+# The seeders call the running API over HTTP.
+httpx==0.28.1
+
+# scripts/seed_phase8_org_fixtures.py hashes the passwords it writes.
+# bcrypt is pinned to 4.0.1 because passlib 1.7.4 breaks against bcrypt
+# 4.1 and later -- the same pin scripts/presentation/requirements.txt
+# carries, and the reason it carries it.
+passlib==1.7.4
+bcrypt==4.0.1
