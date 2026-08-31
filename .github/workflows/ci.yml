@@ -121,6 +121,26 @@ jobs:
       - name: Install
         run: npm ci
 
+      # A known-vulnerable dependency that SHIPS fails the build. Runs before
+      # the build because it needs nothing built and because a vulnerable
+      # dependency is not something to discover after spending three minutes
+      # compiling it.
+      #
+      # Production dependencies only. A dev-only advisory is real but it does
+      # not reach a user, and gating a hotfix on the build toolchain's
+      # transitive test library is how a security gate gets switched off.
+      # Those are reported by the step below and by Dependabot
+      # (.github/dependabot.yml), which opens a pull request for them.
+      - name: Vulnerable shipped dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      # Dev dependencies, reported and not enforced. They execute on this
+      # runner and on developer machines during a build, so a compromised one
+      # matters -- it just is not a reason to stop a release at 2am.
+      - name: Advisories in build tooling (report only)
+        continue-on-error: true
+        run: npm audit --audit-level=high
+
       # Before the build, because it needs no build and a missing key is
       # cheaper to report on its own than buried under bundle output.
       - name: Translations complete

@@ -1,0 +1,107 @@
+# Dependency advisories, so a vulnerability in something this project
+# depends on surfaces here rather than in an IT security review.
+#
+# Nothing was watching before this. A critical advisory against Spring Boot,
+# Angular or the Oracle driver would have gone unnoticed until somebody
+# happened to read the news -- which is exactly the question a telecom's
+# security team asks first, and the one answer worth having ready.
+#
+# Two mechanisms, deliberately, because they catch different things:
+#
+#   - THIS file raises an alert and opens a pull request for a dependency
+#     with a known advisory, across every ecosystem below. It costs no CI
+#     minutes and works on private repositories.
+#   - The frontend CI job additionally runs `npm audit` as a hard gate, so a
+#     vulnerable production dependency cannot be merged while a Dependabot
+#     pull request sits unread.
+#
+# Grouped and weekly on purpose: a separate pull request per patch bump, every
+# day, is how dependency automation gets muted -- and a muted alert is worse
+# than none, because it looks like coverage.
+version: 2
+updates:
+  # The backend is what faces the network and holds the data, so it is the
+  # one worth checking most often.
+  - package-ecosystem: maven
+    directory: /java-backend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # Spring Boot's modules move together; separate pull requests for each
+      # would not build.
+      spring:
+        patterns:
+          - "org.springframework*"
+          - "org.springframework.boot*"
+      other-backend:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "org.springframework*"
+          - "org.springframework.boot*"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: npm
+    directory: /angular-frontend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # Same reasoning as Spring: the Angular packages are version-locked to
+      # each other and the CLI refuses a mixed set.
+      angular:
+        patterns:
+          - "@angular*"
+          - "@angular-devkit*"
+      other-frontend:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "@angular*"
+          - "@angular-devkit*"
+    commit-message:
+      prefix: "chore(deps)"
+
+  # The four seeder/import tools. They never run in production, but they hold
+  # real credentials while they run and they parse content from an untrusted
+  # source database, so their parsers are worth watching.
+  # Written as three entries rather than one with `directories`, because a
+  # config GitHub rejects is silently no coverage at all -- and this file's
+  # whole purpose is to not be the thing nobody was watching.
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: pip
+    directory: /scripts/presentation
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: pip
+    directory: /scripts/uat
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "chore(deps)"
+
+  # The actions the CI workflow runs. A compromised action reads every secret
+  # the job can see, which for the integration jobs is the database password.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(ci)"
