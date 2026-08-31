@@ -515,3 +515,71 @@ jobs:
             angular-frontend/test-results/
           retention-days: 7
           if-no-files-found: warn
+
+  # Supply-chain: a Software Bill of Materials for each half of what ships, and
+  # a point-in-time scan of both against known advisories. Dependabot already
+  # opens PRs for vulnerable dependencies over time and the frontend job gates
+  # `npm audit` -- but nothing produced an SBOM (the artifact procurement and
+  # security reviews now ask for by name: EU CRA, US EO 14028), and nothing
+  # gave the BACKEND a point-in-time "is anything vulnerable right now" check.
+  # This job is both. The SBOMs are uploaded even when the scan fails, so a
+  # reviewer can always fetch the exact dependency inventory.
+  supply-chain:
+    name: SBOM and vulnerability scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: angular-frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: angular-frontend/package-lock.json
+
+      # CycloneDX SBOM of the backend's runtime + compile dependencies (not
+      # test/build tooling). The plugin is bound to `package`, but the goal is
+      # invoked directly here so no jar has to be built just to list deps.
+      - name: Backend SBOM (CycloneDX)
+        working-directory: java-backend
+        run: mvn -B cyclonedx:makeAggregateBom
+
+      - name: Frontend SBOM (CycloneDX)
+        working-directory: angular-frontend
+        run: |
+          npm ci
+          npm run sbom
+
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@v0.2.3
+        with:
+          version: v0.58.1
+
+      # Scan each SBOM for advisories. --ignore-unfixed keeps the gate on
+      # things a version bump can actually fix, so the build breaks on an
+      # actionable advisory, not on an upstream one with no release yet.
+      # Same severity floor the frontend `npm audit` gate already uses.
+      - name: Scan backend SBOM
+        run: trivy sbom java-backend/target/bom.json
+             --exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL
+
+      - name: Scan frontend SBOM
+        run: trivy sbom angular-frontend/bom.json
+             --exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL
+
+      # Always upload, even if a scan above failed: the inventory is the point.
+      - name: Upload SBOMs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: |
+            java-backend/target/bom.json
+            angular-frontend/bom.json
+          retention-days: 90
+          if-no-files-found: error

@@ -230,6 +230,36 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
+			<!--
+			 A CycloneDX Software Bill of Materials: the exact list of every
+			 dependency (and its version) this backend ships, in the machine
+			 format procurement and security teams now ask for by name (EU CRA,
+			 US EO 14028). Bound to `package`, so `mvn package` drops
+			 target/bom.json alongside the jar with no extra command. The CI
+			 supply-chain job then scans that file for known advisories: the
+			 point-in-time backend check Dependabot's rolling PRs never gave.
+			-->
+			<plugin>
+				<groupId>org.cyclonedx</groupId>
+				<artifactId>cyclonedx-maven-plugin</artifactId>
+				<version>2.9.1</version>
+				<configuration>
+					<projectType>application</projectType>
+					<outputFormat>json</outputFormat>
+					<outputName>bom</outputName>
+					<!-- what actually ships: runtime + compile, not test/build tooling -->
+					<includeTestScope>false</includeTestScope>
+					<schemaVersion>1.5</schemaVersion>
+				</configuration>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>makeAggregateBom</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
 

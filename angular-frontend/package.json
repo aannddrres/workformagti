@@ -11,7 +11,8 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "test:e2e": "playwright test",
-    "check:i18n": "node scripts/check-i18n.mjs"
+    "check:i18n": "node scripts/check-i18n.mjs",
+    "sbom": "npx --yes @cyclonedx/cyclonedx-npm --output-format JSON --output-file bom.json"
   },
   "private": true,
   "packageManager": "npm@11.17.0",
