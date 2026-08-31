@@ -3,12 +3,7 @@ package ge.magti.portal.security;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
-import java.time.Instant;
-import java.util.Deque;
 import java.util.Locale;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedDeque;
 
 /**
  * Login throttling. Descended from state.py's slowapi
@@ -42,27 +37,25 @@ import java.util.concurrent.ConcurrentLinkedDeque;
  *       office NAT does not throttle honest users.
  * </ul>
  *
- * <h2>What is still true at more than one replica</h2>
+ * <h2>The counts are shared across replicas (2026-08-31)</h2>
  *
- * The counters are in-memory per JVM. With <i>n</i> replicas the effective
- * limits are <i>n</i>x these numbers, because a load balancer spreads
- * attempts across pods that cannot see each other's state. This is
- * deliberately not solved with Redis here: the Java backend has no Redis
- * dependency, no deployment manifest exists in this repository to wire one
- * into, and adding infrastructure that cannot be tested from here would be
- * the same mistake rejected for PR-03 -- code that looks fixed while the
- * working half lives somewhere nobody can see. It is recorded as a real
- * limit in docs/QUESTIONS_FOR_IT.md instead.
+ * They were an in-memory map per JVM, which multiplied every limit above by
+ * the replica count: with the two replicas the deployment declares, "ten a
+ * minute" was twenty. The number was small, but a control that does not do
+ * what its own documentation says is the part worth fixing -- the same
+ * defect class as a rollback switch nothing reads.
  *
- * <p>Worth stating plainly, though: <i>n</i>x10 per account is a far smaller
- * problem than the 10-for-everyone it replaces. The multi-replica weakness
- * is bounded and per-account; the old behaviour was a company-wide outage
- * one wrong password away.
+ * <p>They now live in {@code login_attempts} (V48) behind
+ * {@link LoginAttemptStore}, so every pod counts into the same place. No new
+ * infrastructure: the login this guards already reads the user from that
+ * database on the same request. Redis was the obvious answer and was not
+ * taken, because it would mean asking IT to run a service for a table of
+ * throwaway counters.
  *
  * <p>(The Python original had the same shape of flaw for a different reason
  * -- migration doc §5 bug #15, its count fragmented across gunicorn's 4
- * worker processes. Spring Boot's single JVM removes that specific
- * fragmentation; it does not remove this one.)
+ * worker processes. This fixes both fragmentations, per-process and
+ * per-pod.)
  */
 @Component
 public class LoginRateLimiter {
@@ -71,18 +64,11 @@ public class LoginRateLimiter {
     static final int MAX_ATTEMPTS_PER_ADDRESS = 60;
     private static final Duration WINDOW = Duration.ofMinutes(1);
 
-    /**
-     * Guards against unbounded growth: every distinct key allocates a deque,
-     * and the key includes attacker-controlled input (the email). Without a
-     * ceiling, a script posting random addresses is a slow memory leak. When
-     * the cap is hit the map is cleared wholesale rather than evicted
-     * cleverly -- it costs at most one extra window of attempts, and a
-     * simple bound that is obviously correct beats an LRU that is only
-     * probably correct on this path.
-     */
-    private static final int MAX_TRACKED_KEYS = 10_000;
+    private final LoginAttemptStore store;
 
-    private final Map<String, Deque<Instant>> attemptsByKey = new ConcurrentHashMap<>();
+    public LoginRateLimiter(LoginAttemptStore store) {
+        this.store = store;
+    }
 
     /**
      * Returns true if this login attempt may proceed, false if the caller
@@ -99,27 +85,10 @@ public class LoginRateLimiter {
 
         // Both must be consumed: checking the account counter first and
         // returning early would let the address counter never advance.
-        boolean accountOk = consume("acct|" + normalizedEmail + "|" + normalizedAddress, MAX_ATTEMPTS_PER_ACCOUNT);
-        boolean addressOk = consume("addr|" + normalizedAddress, MAX_ATTEMPTS_PER_ADDRESS);
+        boolean accountOk = store.tryConsume(
+                "acct|" + normalizedEmail + "|" + normalizedAddress, MAX_ATTEMPTS_PER_ACCOUNT, WINDOW);
+        boolean addressOk = store.tryConsume(
+                "addr|" + normalizedAddress, MAX_ATTEMPTS_PER_ADDRESS, WINDOW);
         return accountOk && addressOk;
-    }
-
-    private boolean consume(String key, int maxAttempts) {
-        if (attemptsByKey.size() > MAX_TRACKED_KEYS) {
-            attemptsByKey.clear();
-        }
-        Deque<Instant> attempts = attemptsByKey.computeIfAbsent(key, k -> new ConcurrentLinkedDeque<>());
-        Instant windowStart = Instant.now().minus(WINDOW);
-
-        synchronized (attempts) {
-            while (!attempts.isEmpty() && attempts.peekFirst().isBefore(windowStart)) {
-                attempts.pollFirst();
-            }
-            if (attempts.size() >= maxAttempts) {
-                return false;
-            }
-            attempts.addLast(Instant.now());
-            return true;
-        }
     }
 }

@@ -40,6 +40,16 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
+		<!-- Metrics in a form an operator can actually graph. Actuator alone
+			 answers only "up" or "down"; with this on the classpath the same
+			 endpoint set gains /actuator/prometheus, which is request rate,
+			 latency percentiles, error counts by status, JVM heap and the
+			 Hikari pool. Version comes from the Spring Boot BOM, matching
+			 the micrometer-core the starter already pulls in. -->
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-registry-prometheus</artifactId>
+		</dependency>
 		<!-- Re-added 2026-07-30: real Oracle dev instance now exists
 			 (localhost:1521/orclpdb1, see docs/JAVA_ORACLE_ANGULAR_MIGRATION.md
 			 Phase 1b). Schema is Flyway-owned, not Hibernate-owned, see

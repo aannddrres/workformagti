@@ -7,7 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LoginRateLimiterTest {
 
-    private final LoginRateLimiter limiter = new LoginRateLimiter();
+    /** In-memory store: this suite pins the POLICY, not where the counts live. */
+    private final LoginRateLimiter limiter = new LoginRateLimiter(new InMemoryLoginAttemptStore());
 
     @Test
     void allowsUpToTenAttemptsPerAccountThenRejectsTheEleventh() {

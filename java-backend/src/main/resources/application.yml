@@ -80,7 +80,18 @@ management:
   endpoints:
     web:
       exposure:
-        include: health
+        # health + prometheus, and nothing else. Health answers "up or down";
+        # prometheus is what makes the space between them visible -- request
+        # rate, latency, error counts by status, JVM heap, the Hikari pool.
+        # Without it an operator running this for 600 people can see only
+        # that the pods are alive, which is the state every incident starts
+        # in and none of them ends in.
+        #
+        # Everything else stays closed. /actuator/env would print the
+        # resolved configuration including the datasource URL, /actuator/
+        # heapdump would hand out the process memory, and neither has an
+        # operational use that health and metrics do not already serve.
+        include: health,prometheus
   endpoint:
     health:
       show-details: never
@@ -91,6 +102,19 @@ management:
           include: livenessState
         readiness:
           include: readinessState,db
+  metrics:
+    tags:
+      # Every series carries which instance produced it, so two replicas
+      # showing different behaviour can be told apart rather than averaged
+      # into one misleading line.
+      application: magti-portal
+  observations:
+    annotations:
+      enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
 
 # Mirrors config.py's Settings class -- same env var names, same
 # insecure-but-workable local defaults, so a real deployment overrides them

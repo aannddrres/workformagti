@@ -34,6 +34,18 @@ spec:
       maxUnavailable: 0
   template:
     metadata:
+      # Scrape annotations for the widely-used Prometheus pod-discovery
+      # convention. If your Prometheus uses ServiceMonitor/PodMonitor
+      # (kube-prometheus-stack) instead, these are ignored and harmless --
+      # point a PodMonitor at port 8080, path /actuator/prometheus.
+      #
+      # /actuator is NOT routed by the Ingress and NOT proxied by the
+      # frontend's nginx, so this endpoint answers only from inside the
+      # cluster. Keep it that way: see SecurityConfig.ANONYMOUS_PROBES.
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: /actuator/prometheus
       labels:
         app.kubernetes.io/name: portal-backend
         app.kubernetes.io/part-of: magti-portal

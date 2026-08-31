@@ -56,13 +56,32 @@ public class SecurityConfig {
 	static final String[] ANONYMOUS_GET = {"/api/health"};
 
 	/**
-	 * Operational probes. Separate from {@link #ANONYMOUS_GET} because they
-	 * are Actuator's, not the API's: they carry no portal data, appear in no
-	 * access contract row, and exist for the orchestrator rather than for a
-	 * caller. Keeping them apart is what lets the contract check above be
-	 * exact instead of carrying a permanent exception.
+	 * Operational probes and metrics. Separate from {@link #ANONYMOUS_GET}
+	 * because they are Actuator's, not the API's: they carry no portal data,
+	 * appear in no access contract row, and exist for the orchestrator and
+	 * the monitoring system rather than for a caller. Keeping them apart is
+	 * what lets the contract check above be exact instead of carrying a
+	 * permanent exception.
+	 *
+	 * <p><b>These are reachable without a token, and that is only safe
+	 * because nothing routes them from outside.</b> The Ingress publishes
+	 * the frontend Service, and the frontend's nginx proxies exactly
+	 * {@code /api/} and {@code /uploads/} -- not {@code /actuator}. So these
+	 * paths answer only to callers already inside the cluster: the kubelet
+	 * running the probes, and Prometheus scraping the pod directly. A
+	 * scraper cannot hold a portal login, which is why this is an allowlist
+	 * entry rather than a guarded endpoint.
+	 *
+	 * <p>The metrics themselves carry no personal data: request series are
+	 * keyed by the TEMPLATED route ({@code /api/articles/{id}}), never the
+	 * resolved one, so no article id, department or email reaches them.
+	 *
+	 * <p>Anyone changing the Ingress to route {@code /actuator} publicly is
+	 * undoing this reasoning. k8s/README_KA.md says so where the routing is
+	 * configured.
 	 */
-	static final String[] ANONYMOUS_PROBES = {"/actuator/health", "/actuator/health/**"};
+	static final String[] ANONYMOUS_PROBES = {
+			"/actuator/health", "/actuator/health/**", "/actuator/prometheus"};
 
 	/** The only POST paths reachable without a token: sign-in, and an idempotent sign-out. */
 	static final String[] ANONYMOUS_POST = {"/api/auth/login", "/api/auth/sso/start", "/api/auth/logout"};

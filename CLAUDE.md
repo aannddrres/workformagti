@@ -65,6 +65,11 @@ none is a deployment manifest.
   readable when content that references it is readable). **Nothing in the
   backend writes to a filesystem at all** — which is why the Kubernetes
   manifests need no PersistentVolume.
+- `java-backend/.../security/LoginAttemptStore.java` — the login throttle's
+  counts live in Oracle (`login_attempts`, V48), not in each JVM. They were
+  per-process, which multiplied every documented limit by the replica count.
+  `InMemoryLoginAttemptStore` exists for the fast policy tests and is
+  deliberately not a bean.
 - `java-backend/.../security/ClientIpResolver.java` — resolves the real
   caller behind a proxy for rate limiting and the audit log. **Needs
   `TRUSTED_PROXIES` set in production or `X-Forwarded-For` is ignored**
@@ -140,7 +145,7 @@ Do not commit or delete it. `uploads/` (gitignored) is its companion.
   `flyway_schema_history` before applying anything, so simultaneous instances
   serialise — one applies, the other sees the recorded version and skips.
   Plain `CREATE TABLE` / `ALTER TABLE` is correct. The highest migration is
-  currently `V47`.
+  currently `V48`.
 - **Never commit secrets.** Every environment takes them from `${VAR}`
   substitution, and each compose file uses `:?` so a missing value fails the
   start rather than defaulting. In Kubernetes they come from a Secret created
