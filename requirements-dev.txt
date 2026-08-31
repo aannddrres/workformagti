@@ -11,7 +11,7 @@
 # scripts/uat/requirements.txt pins itself to the presentation image's
 # versions rather than picking its own.
 pytest==8.4.2
-ruff==0.15.22
+ruff==0.16.5
 
 # scripts/seed_phase8_org_fixtures.py talks to Oracle directly.
 oracledb==4.0.2
