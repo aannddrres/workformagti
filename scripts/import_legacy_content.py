@@ -241,11 +241,97 @@ def _record(cursor, source_type: str, source_id: int, target_id: int, batch: str
 
 
 # --------------------------------------------------------------------------
+# adopting content that is already there
+# --------------------------------------------------------------------------
+
+
+def _adopt_existing(
+    cursor, source: sqlite3.Connection, batch: str, now: datetime, apply: bool
+) -> dict[str, dict[int, int]]:
+    """Link rows that are already in the target to the source rows they came from.
+
+    For a database this importer has never touched but whose content arrived
+    by another route. The demo/UAT seeder (scripts/presentation) reads the
+    same 122 source articles and writes them straight to Oracle without
+    recording anything in ``legacy_content_imports`` -- so a first --apply
+    there would insert a second copy of all 122, and of their categories.
+
+    Matching is by exact title (articles) and exact name (categories), and an
+    ambiguous match is REFUSED rather than resolved. Two rows sharing a title
+    is precisely the case where a guess links the source row to the wrong one
+    and the next re-run silently overwrites an article nobody meant to touch.
+    ``categories.name`` in particular carries no unique constraint.
+
+    Nothing is modified here beyond the map; the ordinary import then treats
+    every adopted row as an update.
+    """
+    adopted: dict[str, dict[int, int]] = {SOURCE_TYPE_CATEGORY: {}, SOURCE_TYPE_ARTICLE: {}}
+    ambiguous: list[str] = []
+
+    def _match(source_type: str, rows: list[tuple[int, str]], sql: str, column: str) -> None:
+        already = _existing_map(cursor, source_type)
+        for source_id, value in rows:
+            if source_id in already:
+                continue
+            cursor.execute(sql, **{column: value})
+            found = [int(row[0]) for row in cursor.fetchall()]
+            if len(found) > 1:
+                ambiguous.append(f"{source_type} {source_id}: {value!r} matches {len(found)} rows")
+                continue
+            if not found:
+                continue
+            adopted[source_type][source_id] = found[0]
+
+    category_rows = source.execute(
+        "SELECT id, name FROM categories WHERE id IN ("
+        "  SELECT DISTINCT category_id FROM articles "
+        "  WHERE id BETWEEN ? AND ? AND category_id IS NOT NULL"
+        ") ORDER BY id",
+        (SOURCE_ARTICLE_MIN_ID, SOURCE_ARTICLE_MAX_ID),
+    ).fetchall()
+    _match(
+        SOURCE_TYPE_CATEGORY,
+        [(int(row["id"]), str(row["name"])) for row in category_rows],
+        "SELECT id FROM categories WHERE name = :name",
+        "name",
+    )
+    _match(
+        SOURCE_TYPE_ARTICLE,
+        [(int(row["id"]), str(row["title"])) for row in source_articles(source)],
+        "SELECT id FROM articles WHERE title = :title AND trashed_at IS NULL",
+        "title",
+    )
+
+    if ambiguous:
+        raise ImportError_(
+            "--adopt-existing cannot decide which row to adopt:\n  "
+            + "\n  ".join(ambiguous)
+            + "\nResolve the duplicates, or import without --adopt-existing."
+        )
+
+    # Written only once every match came out unambiguous. Closing the
+    # connection would roll a partial map back anyway, but a half-adopted
+    # database is not a state anyone should have to reason about.
+    if apply:
+        for source_type, matches in adopted.items():
+            for source_id, target_id in matches.items():
+                _record(cursor, source_type, source_id, target_id, batch, now)
+    return adopted
+
+
+# --------------------------------------------------------------------------
 # the import itself
 # --------------------------------------------------------------------------
 
 
-def _import_categories(cursor, source: sqlite3.Connection, batch: str, now: datetime, apply: bool) -> dict[int, int]:
+def _import_categories(
+    cursor,
+    source: sqlite3.Connection,
+    batch: str,
+    now: datetime,
+    apply: bool,
+    adopted: dict[int, int] | None = None,
+) -> dict[int, int]:
     rows = source.execute(
         "SELECT * FROM categories WHERE id IN ("
         "  SELECT DISTINCT category_id FROM articles "
@@ -254,7 +340,10 @@ def _import_categories(cursor, source: sqlite3.Connection, batch: str, now: date
         (SOURCE_ARTICLE_MIN_ID, SOURCE_ARTICLE_MAX_ID),
     ).fetchall()
 
-    existing = _existing_map(cursor, SOURCE_TYPE_CATEGORY) if apply else {}
+    # Read on a dry run too: it is a SELECT, and a dry run that reports 122
+    # articles as "created" when they are all already mapped is the one
+    # sentence of the report anybody actually reads.
+    existing = {**_existing_map(cursor, SOURCE_TYPE_CATEGORY), **(adopted or {})}
     mapping: dict[int, int] = {}
     created = 0
 
@@ -371,6 +460,7 @@ def _import_articles(
     batch: str,
     now: datetime,
     apply: bool,
+    adopted: dict[int, int] | None = None,
 ) -> dict[str, Any]:
     articles = source_articles(source)
     histories = source_histories(source)
@@ -383,7 +473,7 @@ def _import_articles(
     ):
         targets[int(row["article_id"])].append(normalize_department(row["department"]))
 
-    existing = _existing_map(cursor, SOURCE_TYPE_ARTICLE) if apply else {}
+    existing = {**_existing_map(cursor, SOURCE_TYPE_ARTICLE), **(adopted or {})}
     stats: dict[int, SanitizationStats] = {}
     mapping: dict[int, int] = {}
     texts: dict[int, tuple[str, str, str | None]] = {}
@@ -617,11 +707,17 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         _verify_schema(cursor)
         author_id, author_email = _resolve_author(cursor, args.author_email)
 
-        categories = _import_categories(cursor, source, batch, now, args.apply)
+        adopted: dict[str, dict[int, int]] = {SOURCE_TYPE_CATEGORY: {}, SOURCE_TYPE_ARTICLE: {}}
+        if args.adopt_existing:
+            adopted = _adopt_existing(cursor, source, batch, now, args.apply)
+
+        categories = _import_categories(
+            cursor, source, batch, now, args.apply, adopted[SOURCE_TYPE_CATEGORY]
+        )
         files = _import_files(cursor, valid_assets, uploads, author_id, batch, now, args.apply)
         result = _import_articles(
             cursor, source, categories["mapping"], valid_assets,
-            author_id, args.status, batch, now, args.apply,
+            author_id, args.status, batch, now, args.apply, adopted[SOURCE_TYPE_ARTICLE],
         )
         indexed = _index_for_search(cursor, result["mapping"], result["texts"], args.apply)
 
@@ -639,6 +735,10 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "target": _dsn_from_env(),
         "author": author_email,
         "status": args.status,
+        "adopted": {
+            "categories": len(adopted[SOURCE_TYPE_CATEGORY]),
+            "articles": len(adopted[SOURCE_TYPE_ARTICLE]),
+        },
         "categories": {"found": categories["found"], "created": categories["created"]},
         "files": {"created": files["created"], "missing": len(files["missing"])},
         "articles": {
@@ -664,6 +764,15 @@ def main(argv: list[str] | None = None) -> int:
         choices=("draft", "published"),
         default="draft",
         help="status for NEWLY imported articles (default: draft). Never changes one already imported.",
+    )
+    parser.add_argument(
+        "--adopt-existing",
+        action="store_true",
+        help=(
+            "adopt articles/categories already in the target that match a source row by "
+            "title/name, instead of inserting a second copy. For a database seeded by "
+            "another route (the demo and UAT stacks). Refuses on an ambiguous match."
+        ),
     )
     parser.add_argument("--author-email", default=None, help="attribute the import to this user")
     parser.add_argument("--source-db", default=str(DEFAULT_SOURCE_DB))

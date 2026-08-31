@@ -464,7 +464,7 @@ export class AdminContentPage {
   protected bulkStatus(status: ArticleBulkStatus): void {
     const ids = [...this.selection()];
     if (ids.length === 0) return;
-    if (status === 'published' && !window.confirm(`გამოქვეკნდეს ${ids.length} მასალა. გავაგრძელოთ?`)) {
+    if (status === 'published' && !window.confirm(`გამოქვეყნდეს ${ids.length} მასალა. გავაგრძელოთ?`)) {
       return;
     }
     this.runBulk(this.articlesService.bulkStatus(ids, status), ids.length);
