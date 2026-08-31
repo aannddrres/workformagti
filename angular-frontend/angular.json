@@ -51,7 +51,10 @@
               "optimization": {
                 "scripts": true,
                 "fonts": true,
-                "styles": { "minify": true, "inlineCritical": false }
+                "styles": {
+                  "minify": true,
+                  "inlineCritical": false
+                }
               },
               "fileReplacements": [
                 {

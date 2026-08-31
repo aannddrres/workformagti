@@ -4,16 +4,26 @@
 # needed. BACKEND_HOST defaults to a plausible in-cluster Kubernetes
 # Service DNS name; override it with a real one once IT confirms the
 # actual Service name (docs/QUESTIONS_FOR_IT.md #4).
+#
+# ---- On where the security headers live ------------------------------
+#
+# `add_header` does not inherit into a level that declares one of its own.
+# Two branches solved that opposite ways and the merge produced both at
+# once: a server-level set AND a location-level set. That is worse than
+# either, because the level that then inherited the server-level headers was
+# /api/ and /uploads/ -- the two that proxy to Spring Boot, which sets its
+# own. nginx appends rather than replaces, and a response carrying
+# `X-Frame-Options: DENY` twice is treated by browsers as carrying none, so
+# the doubling would have removed protection from the uploaded files that
+# most need it.
+#
+# Resolved the location-level way. Nothing is declared at server level, so
+# the proxied locations inherit nothing and Spring stays the sole author of
+# its own headers. The static locations each say what they need.
 server {
     listen 8080;
     server_name _;
     root /usr/share/nginx/html;
-
-    add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src https://www.youtube.com https://www.youtube-nocookie.com" always;
-    add_header Referrer-Policy "no-referrer" always;
-    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-Frame-Options "DENY" always;
 
     # ---- Caching -------------------------------------------------------
     #
@@ -25,29 +35,26 @@ server {
     # run hit exactly that -- a new translation key rendered on screen as the
     # raw key while nginx was already serving the updated ka.json.
     #
-    # `expires` rather than `add_header Cache-Control`, deliberately:
-    # add_header does NOT inherit into a location that declares its own, so
-    # a cache-control block written that way would silently drop the CSP and
-    # every security header above for the paths it matched. `expires` sets
-    # the same header without touching that inheritance. The cost is that
-    # `immutable` cannot be expressed this way -- worth losing, next to
-    # duplicating the CSP into four blocks where it could drift out of step.
+    # `expires` rather than `add_header Cache-Control`, deliberately: it sets
+    # the header without entering the inheritance rules described above. The
+    # cost is that `immutable` cannot be expressed this way.
+    #
+    # These three locations serve subresources -- scripts, stylesheets,
+    # fonts, images, JSON. CSP and X-Frame-Options govern documents and do
+    # nothing on a response that is never one; `nosniff` is the header that
+    # actually matters here, and it is the one they carry.
 
     # Content-addressed by the build: the name changes whenever the bytes do.
     location ~* "^/(?:chunk|main|polyfills|styles|scripts)-[A-Za-z0-9_-]{8,}\.(?:js|css)$" {
         expires 1y;
+        add_header X-Content-Type-Options "nosniff" always;
     }
 
     # Where the build rewrites CSS-referenced assets, also fingerprinted
     # (fa-solid-900-EFITDVWS.woff2).
     location ^~ /media/ {
         expires 1y;
-    }
-
-    # index.html is the document that names every hashed bundle, so caching
-    # it caches the whole release. Always revalidate.
-    location = /index.html {
-        expires -1;
+        add_header X-Content-Type-Options "nosniff" always;
     }
 
     # Copied verbatim out of public/, so these keep their names forever:
@@ -56,16 +63,83 @@ server {
     # someone last release's wording.
     location ~* "^/(?:i18n|fonts)/|^/(?:favicon\.ico|magticom-logo(?:-white)?\.png)$" {
         expires -1;
+        add_header X-Content-Type-Options "nosniff" always;
     }
 
     # Angular SPA: unknown paths fall back to index.html so client-side
     # routing (Angular Router) handles them, matching how the dev server
     # and Python's original server-rendered base-layout.html both avoid a
     # hard 404 on a deep link/refresh.
+    #
+    # After the three locations above, the only file this block ever serves
+    # is index.html -- everything the build emits is either fingerprinted or
+    # matched there (verified against dist/: favicon.ico, fonts/, i18n/,
+    # index.html, magticom-logo*.png, media/). That is why there is no
+    # separate `location = /index.html`: it would only split one document
+    # across two blocks and duplicate the CSP into a second place to drift.
     location / {
         try_files $uri $uri/ /index.html;
+
+        # index.html names every hashed bundle, so caching it caches the whole
+        # release.
+        expires -1;
+
+        # The Python app these replaced set five of these on every response
+        # (main.py's security_headers middleware). The port to Angular+nginx
+        # dropped all of them; this is the surface nginx actually owns.
+        #
+        # `always` so they survive error responses too; without it nginx only
+        # adds them to 200/204/301/302/304.
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Referrer-Policy "no-referrer" always;
+        add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
+
+        # CSP, verified against the real production bundle rather than
+        # written from the spec:
+        #
+        #   script-src 'self'   -- the build emits exactly one <script src>
+        #                          and no inline handler, so no 'unsafe-inline'
+        #                          is needed. This only holds while
+        #                          optimization.styles.inlineCritical is false
+        #                          (angular.json): with it on, Angular inlines
+        #                          critical CSS and swaps the real stylesheet
+        #                          in with onload="this.media='all'" -- an
+        #                          inline handler that this directive blocks,
+        #                          leaving the app rendered with no styles at
+        #                          all. Measured, not assumed.
+        #   style-src 'unsafe-inline'
+        #                       -- kept. The other branch tightened this to
+        #                          'self' on the grounds that component styles
+        #                          are extracted into styles-*.css, which is
+        #                          true. What is not settled is whether
+        #                          anything still needs inline styles at
+        #                          runtime; the app is full of [style.width.%]
+        #                          and [style.stroke] bindings, and while those
+        #                          compile to CSSOM writes that CSP does not
+        #                          govern, that is an argument, not a
+        #                          measurement. Tightening it belongs behind a
+        #                          browser check, not inside a merge.
+        #   img-src img.youtube -- video thumbnails (shared/youtube.ts:50).
+        #                          Taken from the other branch: without it the
+        #                          thumbnail on every video card fails to load
+        #                          under this CSP.
+        #   frame-src youtube   -- the embedded player
+        #                          (video-detail-page.html:20).
+        #
+        # frame-ancestors 'none' is the modern form of the X-Frame-Options
+        # above; both are here because they are read by different browsers.
+        #
+        # No HSTS: this server listens on plain HTTP and TLS terminates in
+        # front of it, so the header belongs on whatever does the terminating
+        # (see docs/QUESTIONS_FOR_IT.md #4 -- the ingress is still unconfirmed).
+        add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://img.youtube.com; font-src 'self'; connect-src 'self'; media-src 'self'; frame-src https://www.youtube.com https://www.youtube-nocookie.com" always;
     }
 
+    # No add_header below this line, deliberately -- see the note at the top.
+    # Spring Boot sets its own on both of these (Spring Security's defaults,
+    # plus an explicit nosniff and a sandbox CSP on uploads,
+    # UploadedFileController:92-93).
     location /api/ {
         proxy_pass http://${BACKEND_HOST}:${BACKEND_PORT}/api/;
         proxy_set_header Host $host;

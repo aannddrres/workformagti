@@ -281,7 +281,10 @@
       "dismiss": "Dismiss"
     },
     "confirm_delete_message": "Delete this message? This cannot be undone.",
-    "delete_failed": "Delete failed"
+    "delete_failed": "Delete failed",
+    "retry": "Try again",
+    "close_label": "Close",
+    "remove_attachment_label": "Remove attachment"
   },
   "favorites": {
     "page": {
@@ -560,7 +563,8 @@
       "mandatory_unknown": "Unknown — do not save without checking",
       "categories_load_error": "Could not load categories.",
       "quiz_load_error": "Could not load the quiz questions — the empty list below does not mean there are none.",
-      "quiz_save_error": "The article was saved, but its quiz questions were not."
+      "quiz_save_error": "The article was saved, but its quiz questions were not.",
+      "actions_menu_label": "Actions menu"
     },
     "quiz": {
       "add_question": "Add question",
@@ -622,7 +626,13 @@
       "diff_failed": "Could not load the comparison.",
       "no_diff": "No changes found."
     },
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "pagination": {
+      "first_label": "First page",
+      "prev_label": "Previous page",
+      "next_label": "Next page",
+      "last_label": "Last page"
+    }
   },
   "categories": {
     "heading": "Category Management",

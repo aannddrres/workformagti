@@ -127,8 +127,11 @@ deprecated; install httpx2 instead` — harmless today, worth revisiting if
 
 - **`admin@magti.ge` (and 5 other seeded emails) accept ANY password
   locally.** `security.py`'s JIT/test-account bypass skips password
-  verification entirely whenever `APP_ENV != "production"` — which is the
-  default. This is intentional for local dev (see README §5), but don't
+  verification entirely whenever `APP_ENV` names a development environment
+  (`development`, `dev`, `local`, `test` — see `config.py`'s
+  `_DEVELOPMENT_ENVIRONMENTS`), which is the default. It used to be anything
+  that was not exactly `production`, so `prod`, a typo, or a trailing space
+  left the bypass live. This is intentional for local dev (see README §5), but don't
   mistake it for a bug, and don't rely on it as a real auth check when
   testing anything security-related — use `docker-compose.yml`
   (`APP_ENV=production` via `.env`) for that.

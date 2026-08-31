@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -120,6 +121,77 @@ class AuthenticationServiceTest {
         when(userRepository.findByEmailIgnoreCase("admin@magti.ge")).thenReturn(Optional.empty());
 
         assertTrue(service.authenticate("admin@magti.ge", "any-password").isEmpty());
+        verify(userRepository, never()).save(any());
+    }
+
+    /**
+     * DEC-P04, from the side that actually hands out tokens.
+     *
+     * <p>This gate is {@code !properties.isProduction()}, which until the fix
+     * was {@code equalsIgnoreCase} with no trimming -- so
+     * {@code APP_ENV=production } with one trailing space, a value .env files
+     * and docker compose both preserve, was not production and the bypass
+     * became eligible. {@link ge.magti.portal.config.ProductionSafetyGuard}
+     * would normally refuse to boot that combination, except it reads the
+     * same method and skipped its checks for the same reason: both halves of
+     * SEC-01 fell to one invisible character.
+     *
+     * <p>allow-dev-login is left ON here on purpose. That is the dangerous
+     * configuration, and the point is that a production APP_ENV refuses the
+     * bypass however the value is spaced.
+     */
+    @Test
+    void whitespaceAroundAProductionAppEnvDoesNotReEnableTheBypass() {
+        when(userRepository.findByEmailIgnoreCase("admin@magti.ge")).thenReturn(Optional.empty());
+
+        for (String spelling : List.of(" production", "production ", "  PRODUCTION  ", "\tproduction\n")) {
+            properties.setAppEnv(spelling);
+
+            assertTrue(service.authenticate("admin@magti.ge", "any-password").isEmpty(),
+                    "APP_ENV=[" + spelling + "] handed out a password-less admin login");
+        }
+        verify(userRepository, never()).save(any());
+    }
+
+    /**
+     * DEC-P05, from the side that hands out tokens. A shorthand or a typo in
+     * APP_ENV must not be a way to reach the bypass.
+     *
+     * <p>{@code prod} is the one this repo's own SEC-01 comment has named
+     * since the beginning; {@code produciton} is the same mistake with
+     * nobody to have thought of it in advance. Both used to be
+     * "not production" and therefore eligible, and the boot-time guard that
+     * would have refused the combination read the same method and skipped
+     * for the same reason.
+     *
+     * <p>allow-dev-login stays ON here on purpose: that is the dangerous
+     * configuration, and the point is that only a named development
+     * environment unlocks it.
+     */
+    @Test
+    void anUnrecognisedAppEnvDoesNotEnableTheBypass() {
+        when(userRepository.findByEmailIgnoreCase("admin@magti.ge")).thenReturn(Optional.empty());
+
+        for (String spelling : List.of("prod", "produciton", "staging", "qa", "anything-at-all")) {
+            properties.setAppEnv(spelling);
+
+            assertTrue(service.authenticate("admin@magti.ge", "any-password").isEmpty(),
+                    "APP_ENV=[" + spelling + "] handed out a password-less admin login");
+        }
+        verify(userRepository, never()).save(any());
+    }
+
+    /** Same gate, for the empty value: absent and blank must both fail safe. */
+    @Test
+    void aBlankAppEnvDoesNotEnableTheBypass() {
+        when(userRepository.findByEmailIgnoreCase("admin@magti.ge")).thenReturn(Optional.empty());
+
+        for (String spelling : List.of("", "   ")) {
+            properties.setAppEnv(spelling);
+
+            assertTrue(service.authenticate("admin@magti.ge", "any-password").isEmpty(),
+                    "APP_ENV=[" + spelling + "] handed out a password-less admin login");
+        }
         verify(userRepository, never()).save(any());
     }
 

@@ -1,6 +1,7 @@
 package ge.magti.portal;
 
 import org.junit.jupiter.api.Tag;
+import org.springframework.context.annotation.Import;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -22,9 +23,16 @@ import java.lang.annotation.Target;
  * <p><b>Add this to every new {@code @SpringBootTest}.</b>
  * {@link OracleTagCoverageTest} fails the build if one is missing, so the
  * unit job cannot silently start erroring on a DB-less runner.
+ *
+ * <p>It also imports {@link OracleTestcontainer}, which starts one when the
+ * machine has no other -- so a developer with only Docker can run this half
+ * of the suite, without twenty test classes each having to say so. With
+ * {@code ORACLE_DB_URL} set (CI's oracle job, or a local instance) that
+ * import contributes nothing and the existing datasource is used unchanged.
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Tag("oracle")
+@Import(OracleTestcontainer.class)
 public @interface RequiresOracle {
 }

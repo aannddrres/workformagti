@@ -38,6 +38,10 @@ import static org.mockito.Mockito.when;
  * to its own status, and pin the thing the audit actually cared about: a
  * second download of the same job id still works.
  *
+ * <p>Every job here is owned by its caller (DEC-P03) so that the four
+ * responses stay distinguishable; who may open a job at all is
+ * {@link ExportJobOwnershipTest}'s question, not this one's.
+ *
  * <p>The real-Oracle, real-HTTP version of the double download is
  * {@code ExportControllerIntegrationTest.xlsxExportDownloadsTwiceAndKeepsItsJobRow};
  * this one runs on every push, including on a machine with no database.
@@ -54,11 +58,36 @@ class ExportControllerDownloadTest {
             mock(AuditLogRepository.class),
             new PermissionChecker());
 
+    /**
+     * Has an id since DEC-P03: the download and status lookups are scoped to
+     * the caller, so a caller with no identity owns nothing and every case
+     * below would collapse into "expired" -- which is exactly what the
+     * ownership rule should do, and exactly what would hide the four
+     * responses this class exists to tell apart.
+     */
+    private static final long EXPORTER_ID = 42L;
+
     private static User exporter() {
         User user = new User();
+        user.setId(EXPORTER_ID);
         user.setRole(Role.SYSTEM_ADMIN);
         user.setPermissions(Set.of(Permission.REPORTS_EXPORT.value()));
         return user;
+    }
+
+    /**
+     * The job exists AND belongs to {@link #exporter()}.
+     *
+     * <p>Ownership is stamped on the row and judged by {@code maySeeJob},
+     * rather than folded into the query: {@code export_jobs.owner_user_id}
+     * (V36) is the column, and the classified-export rule needs the row in
+     * hand to read {@code export_family} before deciding. Giving the job an
+     * owner here rather than leaning on the SYSTEM_ADMIN branch keeps these
+     * four responses under test whichever way that branch is later settled.
+     */
+    private void ownedJobIs(ExportJob job) {
+        job.setOwnerUserId(EXPORTER_ID);
+        when(exportJobRepository.findById("job-1")).thenReturn(Optional.of(job));
     }
 
     private static ExportJob job(String status, byte[] content, double expiresAt) {
@@ -83,8 +112,7 @@ class ExportControllerDownloadTest {
     /** The acceptance criterion: the same id downloads twice, unchanged. */
     @Test
     void aCompletedJobCanBeDownloadedMoreThanOnce() {
-        when(exportJobRepository.findById("job-1"))
-                .thenReturn(Optional.of(job("completed", FILE_BYTES, inAnHour())));
+        ownedJobIs(job("completed", FILE_BYTES, inAnHour()));
 
         ResponseEntity<?> first = controller.downloadExport("job-1", exporter());
         ResponseEntity<?> second = controller.downloadExport("job-1", exporter());
@@ -103,8 +131,7 @@ class ExportControllerDownloadTest {
      */
     @Test
     void downloadingNeverDeletesTheJob() {
-        when(exportJobRepository.findById("job-1"))
-                .thenReturn(Optional.of(job("completed", FILE_BYTES, inAnHour())));
+        ownedJobIs(job("completed", FILE_BYTES, inAnHour()));
 
         controller.downloadExport("job-1", exporter());
 
@@ -114,8 +141,7 @@ class ExportControllerDownloadTest {
 
     @Test
     void aStillBuildingJobIsAcceptedNotNotFound() {
-        when(exportJobRepository.findById("job-1"))
-                .thenReturn(Optional.of(job("processing", null, inAnHour())));
+        ownedJobIs(job("processing", null, inAnHour()));
 
         ResponseEntity<?> response = controller.downloadExport("job-1", exporter());
 
@@ -125,8 +151,7 @@ class ExportControllerDownloadTest {
 
     @Test
     void aFailedJobSaysFailedInsteadOfNotReadyYet() {
-        when(exportJobRepository.findById("job-1"))
-                .thenReturn(Optional.of(job("failed", null, inAnHour())));
+        ownedJobIs(job("failed", null, inAnHour()));
 
         ResponseEntity<?> response = controller.downloadExport("job-1", exporter());
 
@@ -137,8 +162,7 @@ class ExportControllerDownloadTest {
     @Test
     void anExpiredJobIsGoneEvenIfItsRowSurvivedTheSweep() {
         double anHourAgo = System.currentTimeMillis() / 1000.0 - 3600;
-        when(exportJobRepository.findById("job-1"))
-                .thenReturn(Optional.of(job("completed", FILE_BYTES, anHourAgo)));
+        ownedJobIs(job("completed", FILE_BYTES, anHourAgo));
 
         ResponseEntity<?> response = controller.downloadExport("job-1", exporter());
 
@@ -166,7 +190,7 @@ class ExportControllerDownloadTest {
         ExportJob legacy = job("completed", null, inAnHour());
         legacy.setFilename(null);
         legacy.setPath("/app/uploads/exports/export_job-1.xlsx");
-        when(exportJobRepository.findById("job-1")).thenReturn(Optional.of(legacy));
+        ownedJobIs(legacy);
 
         ResponseEntity<?> response = controller.downloadExport("job-1", exporter());
 

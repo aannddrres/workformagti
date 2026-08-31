@@ -4,10 +4,11 @@ import { authGuard } from './core/auth/auth.guard';
 import { announcementPublisherGuard, contentManageGuard } from './core/auth/permission.guard';
 import { adminOverviewGuard, roleGuard } from './core/auth/role.guard';
 import { landingGuard } from './core/auth/landing.guard';
-
-const MANAGER_ROLES = ['admin', 'manager'];
-const MANAGEMENT_ROLES = ['admin', 'content_admin', 'manager'];
-const ADMIN_ONLY = ['admin'];
+// The role sets live in one file now rather than being re-declared per
+// consumer. The guards themselves stayed on this side of the merge: the
+// admin area moved from role lists to capability guards (contentManageGuard,
+// adminOverviewGuard), so auditLogGuard no longer exists to import.
+import { ADMIN_ONLY, MANAGEMENT_ROLES, MANAGER_ROLES } from './core/auth/roles';
 
 export const routes: Routes = [
   {

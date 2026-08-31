@@ -17,7 +17,10 @@ import { UserProfileService } from './user-profile.service';
  * Capability checks deliberately live in permission.guard.ts. This helper
  * remains for the Phase 4/5 role boundaries and admin-only screens.
  */
-export function roleGuard(allowRoles?: string[], denyRoles?: string[]): CanActivateFn {
+export function roleGuard(
+  allowRoles?: readonly string[],
+  denyRoles?: readonly string[]
+): CanActivateFn {
   return () => {
     const auth = inject(AuthService);
     const router = inject(Router);

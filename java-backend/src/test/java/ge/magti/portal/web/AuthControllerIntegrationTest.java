@@ -96,8 +96,16 @@ class AuthControllerIntegrationTest {
 
     @Test
     void loginWithKnownTestEmailIssuesTokenAndSetsCookie() throws Exception {
-        User account = userRepository.findByEmailIgnoreCase("content@magti.ge").orElseThrow();
-        int before = audits("LOGIN", account.getId()).size();
+        // Looked up AFTER the login, not before. This account is
+        // JIT-provisioned on first sign-in, so on a database nobody has used
+        // yet it does not exist until the request below creates it -- which
+        // is exactly the state OracleTestcontainer boots for a developer who
+        // has Docker and no local Oracle. Reading it first passed only
+        // because the shared dev database had been logged into at some point,
+        // which is a dependency on history rather than on the code.
+        int before = userRepository.findByEmailIgnoreCase("content@magti.ge")
+                .map(existing -> audits("LOGIN", existing.getId()).size())
+                .orElse(0);
 
         mockMvc.perform(withIp(post("/api/auth/login"), "10.0.0.1")
                         .header("User-Agent", "auth-audit-test")
@@ -109,6 +117,7 @@ class AuthControllerIntegrationTest {
                 .andExpect(cookie().exists("access_token"))
                 .andExpect(cookie().httpOnly("access_token", true));
 
+        User account = userRepository.findByEmailIgnoreCase("content@magti.ge").orElseThrow();
         assertEquals(before + 1, audits("LOGIN", account.getId()).size());
         AuditLog audit = latestAudit("LOGIN", account.getId());
         JsonNode details = objectMapper.readTree(audit.getDetails());

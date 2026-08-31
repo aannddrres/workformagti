@@ -136,9 +136,9 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | `POST /api/auth/login` | `AuthController.login` | — | — | `NONE` | no | ავტორიზაციამდელი; rate limit + `ClientIpResolver`. |
 | `POST /api/auth/logout` | `AuthController.logout` | — | AUTH | `SELF` | no | ზრდის `token_version`-ს (SEC-14). |
 | `POST /api/auth/sso/start` | `AuthController.startCorporateSso` | — | — | `NONE` | no | production SSO adapter fail-closed რეჟიმშია: IT-ის provider configuration-მდე 503. |
-| `POST /api/auth/session/heartbeat` | `PortalSessionController.heartbeat` | — | AUTH | `SELF` | no | global authenticated boundary + caller/session binding: valid-CSRF/no-auth-ზე stable JSON 401; valid token მხოლოდ caller-ის bind-ებულ session `last_seen_at`-ს touch-ავს და სხვა user-ის session-ს არ ცვლის. |
-| `GET /api/auth/sessions` | `PortalSessionController.list` | — | AUTH | `SELF` | **yes** | მხოლოდ მომძახებლის მოქმედი session-ები და მიმდინარე session marker. |
-| `DELETE /api/auth/sessions/{sessionId}` | `PortalSessionController.revoke` | — | AUTH | `SELF` | **yes** | მხოლოდ მომძახებლის session-ის revoke; უცხო valid id established 204 opaque no-op-ია, owner session/token აქტიური რჩება, უცხო list-ში არ ჩანს და success audit არ იწერება. |
+| `POST /api/auth/session/heartbeat` | `PortalSessionController.heartbeat` | `requireAuthenticated` | AUTH | `SELF` | no | global authenticated boundary + caller/session binding: valid-CSRF/no-auth-ზე stable JSON 401; valid token მხოლოდ caller-ის bind-ებულ session `last_seen_at`-ს touch-ავს და სხვა user-ის session-ს არ ცვლის. |
+| `GET /api/auth/sessions` | `PortalSessionController.list` | `requireAuthenticated` | AUTH | `SELF` | **yes** | მხოლოდ მომძახებლის მოქმედი session-ები და მიმდინარე session marker. |
+| `DELETE /api/auth/sessions/{sessionId}` | `PortalSessionController.revoke` | `requireAuthenticated` | AUTH | `SELF` | **yes** | მხოლოდ მომძახებლის session-ის revoke; უცხო valid id established 204 opaque no-op-ია, owner session/token აქტიური რჩება, უცხო list-ში არ ჩანს და success audit არ იწერება. |
 
 ### Category (4)
 
@@ -493,6 +493,25 @@ row-ები fail-closed რჩება და არსებული TTL-�
 სხვისი job და არარსებული job **ერთნაირად** პასუხობს (`404` status-ზე, `410`
 download-ზე): განსხვავებული პასუხი endpoint-ს აქცევდა oracle-ად იმისთვის,
 რომელი job id არსებობს.
+
+**შენიშვნა `SYSTEM_ADMIN` bypass-ზე (2026-08-29, merge).**
+`claude/enterprise-readiness-verify` ხაზმა იგივე პრობლემა დამოუკიდებლად
+გადაწყვიტა, ოღონდ **bypass-ის გარეშე**: მისი არგუმენტი ის იყო, რომ
+`ExportQueryService`-ში `SYSTEM_ADMIN` ისედაც scope-გარეშეა, ე.ი. მისი
+საკუთარი ექსპორტი სხვისის ზედსიმრავლეა და სხვისი job-ის გახსნა არასოდეს
+სჭირდება — სამაგიეროდ ამის დაშვება არღვევს SEC-02-ის მთავარ მონაპოვარს:
+აუდიტის ჩანაწერს, რომელიც პასუხობს *ვისი* პერსონალური მონაცემი გავიდა და
+*ვინ* წაიღო.
+
+არგუმენტი ძლიერია, მაგრამ D-3 უკვე გადაწყვეტილია და ის ხაზი ამ
+გადაწყვეტილებამდე იყო აღებული. merge-მა შეინარჩუნა **აქ ჩაწერილი ქცევა**
+(`ExportControllerScopeGateTest.aJobWithNoRecordedOwnerIsNobodysExceptTheAdmins`
+სწორედ მას ამოწმებს). გამკაცრება ღია წინადადებაა და პროდუქტის მფლობელის
+გადასაწყვეტია, არა merge-ის.
+
+ერთი დაზუსტება მაინც შევიდა: `export_family = ADMIN_*` job-ებზე bypass **არ
+მოქმედებს** (`V41`), ე.ი. ყველაზე მგრძნობიარე ექსპორტები უკვე მკაცრად
+მფლობელზეა მიბმული.
 
 ### D-4. `GET /uploads/{filename}` — ✅ გადაწყვეტილია (2026-08-22)
 

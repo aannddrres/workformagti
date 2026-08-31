@@ -50,6 +50,7 @@ import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.UUID;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executor;
@@ -324,6 +325,74 @@ class ExportControllerIntegrationTest {
         mockMvc.perform(authed(get("/api/export/status/" + jobId), tokenFor(admin)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("completed"));
+    }
+
+    /**
+     * DEC-P03, end to end: the column, the JPA mapping and the scoped query
+     * have to agree, which is the part {@link ExportJobOwnershipTest} mocks
+     * away.
+     *
+     * <p>Two managers, both holding {@code reports.export} by default, in
+     * different departments -- so the job's contents differ by
+     * {@link ge.magti.portal.export.ExportQueryService}'s scoping and the one
+     * who did not ask for it must not read it. Before {@code V46} the second
+     * manager got the file.
+     */
+    @Test
+    void anExportJobIsReadableOnlyByTheManagerWhoAskedForIt() throws Exception {
+        User owner = createUser("exp-owner@magti.ge", Role.MANAGER, "ტექნიკური " + System.nanoTime());
+        User otherManager = createUser("exp-other@magti.ge", Role.MANAGER, "გაყიდვები " + System.nanoTime());
+        // Both need a team, or requireReportsExport refuses them at the data
+        // scope before ownership is ever consulted and this reads as a 403.
+        // The permission alone stopped being enough after Phase 0: a grant
+        // must not create a scope.
+        assignHomeTeam(owner, otherManager);
+
+        String body = mockMvc.perform(authed(get("/api/export/readings.xlsx"), tokenFor(owner)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String jobId = objectMapper.readTree(body).get("job_id").asText();
+
+        assertEquals(owner.getId(), exportJobRepository.findById(jobId).orElseThrow().getOwnerUserId(),
+                "the job row must record the caller who asked for it");
+
+        mockMvc.perform(authed(get("/api/export/download/" + jobId), tokenFor(owner)))
+                .andExpect(status().isOk());
+
+        // Same permission, same role, different person: indistinguishable
+        // from an id that never existed, so nothing confirms the job is real.
+        mockMvc.perform(authed(get("/api/export/download/" + jobId), tokenFor(otherManager)))
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.status").value("expired"));
+        mockMvc.perform(authed(get("/api/export/status/" + jobId), tokenFor(otherManager)))
+                .andExpect(status().isNotFound());
+    }
+
+    /**
+     * A row written before {@code V36} has no owner, so it belongs to nobody
+     * -- including the caller who would have created it. With a one-hour TTL
+     * the entire legacy population ages out within an hour of deploying, and
+     * serving those rows to anyone holding the permission would keep DEC-P03
+     * open for exactly that window.
+     */
+    @Test
+    void aJobRowWithNoOwnerIsDownloadableByNobody() throws Exception {
+        User manager = createUser("exp-legacy@magti.ge", Role.MANAGER, "ტექნიკური " + System.nanoTime());
+        // Reaches the ownership check only with a data scope -- see above.
+        assignHomeTeam(manager);
+
+        ExportJob legacy = new ExportJob();
+        legacy.setId(UUID.randomUUID().toString());
+        legacy.setOwnerUserId(null);
+        legacy.setStatus("completed");
+        legacy.setFilename("export_legacy.xlsx");
+        legacy.setContent(new byte[] {1, 2, 3});
+        legacy.setExpiresAt(System.currentTimeMillis() / 1000.0 + 3600);
+        exportJobRepository.saveAndFlush(legacy);
+
+        mockMvc.perform(authed(get("/api/export/download/" + legacy.getId()), tokenFor(manager)))
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.status").value("expired"));
     }
 
     @Test

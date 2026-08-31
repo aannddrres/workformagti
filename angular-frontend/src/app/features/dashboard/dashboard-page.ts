@@ -16,8 +16,7 @@ import { isRecentlyPublished } from '../../shared/category-visuals';
 import { buildRecursiveCategoryCounts, descendantCategoryIds } from '../../shared/category-tree';
 import { isReaderVisibleArticle } from '../../shared/article-visibility';
 import { BroadcastBanner } from '../../shared/broadcast-banner/broadcast-banner';
-
-const MANAGEMENT_ROLES = ['admin', 'content_admin', 'manager'];
+import { MANAGEMENT_ROLES } from '../../core/auth/roles';
 
 /**
  * Port of page-dashboard (base-layout.html:501-739). The original is a

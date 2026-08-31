@@ -35,12 +35,14 @@ public class PortalSessionController {
 
     @PostMapping("/api/auth/session/heartbeat")
     public ResponseEntity<?> heartbeat(@AuthenticationPrincipal User user) {
-        return user == null ? unauthorized() : ResponseEntity.noContent().build();
+        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        return denial != null ? denial : ResponseEntity.noContent().build();
     }
 
     @GetMapping("/api/auth/sessions")
     public ResponseEntity<?> list(@AuthenticationPrincipal User user, HttpServletRequest request) {
-        if (user == null) return unauthorized();
+        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        if (denial != null) return denial;
         String current = (String) request.getAttribute(JwtAuthenticationFilter.SESSION_REQUEST_ATTRIBUTE);
         return ResponseEntity.ok(sessionService.list(user.getId()).stream()
                 .map(session -> PortalSessionResponse.from(session, current)).toList());
@@ -52,7 +54,8 @@ public class PortalSessionController {
             @PathVariable String sessionId,
             @AuthenticationPrincipal User user,
             HttpServletRequest request) {
-        if (user == null) return unauthorized();
+        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        if (denial != null) return denial;
         if (sessionService.revoke(sessionId, user.getId())) {
             mutationAuditService.recordResult(
                     user,
@@ -76,7 +79,23 @@ public class PortalSessionController {
         return userAgent.length() > 500 ? userAgent.substring(0, 500) : userAgent;
     }
 
-    private static ResponseEntity<Map<String, String>> unauthorized() {
+    /**
+     * The house denial helper, named the way every other controller names
+     * its own -- {@code require*}, private, returning the response or null.
+     *
+     * <p>It was an {@code unauthorized()} called from a ternary, which is the
+     * same check spelled differently. That mattered once
+     * {@code EndpointGuardCoverageTest} arrived: it reads controller bytecode
+     * looking for a call to a {@code require*} helper, found none here, and
+     * reported all three of these endpoints as reachable by anyone. They were
+     * not -- every one of them refuses a null principal and scopes its query
+     * to {@code user.getId()} -- but a guard a build-time check cannot see is
+     * one nobody can rely on either.
+     */
+    private static ResponseEntity<Map<String, String>> requireAuthenticated(User user) {
+        if (user != null) {
+            return null;
+        }
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("detail", "Could not validate credentials"));
     }
 }
