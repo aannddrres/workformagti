@@ -12,7 +12,7 @@ seeder:
     placeholder matches none of the Georgian departments content is
     targeted at, so such a user opens a portal that is almost entirely
     empty. This project has already lost time to exactly that trap once.
-  * The demo seeder builds a whole 602-person organisation from the
+  * The demo seeder builds a whole 605-person organisation from the
     approved SQLite baseline and refuses to run against a database that
     already has one. UAT accounts have to layer on top of that, not
     replace it.

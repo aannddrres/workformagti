@@ -77,9 +77,17 @@ public class AuthenticationService {
         // allow-dev-login opt-in. !isProduction() alone was satisfied by any
         // environment that was not exactly "production" -- including a
         // deployment whose manifest simply omitted APP_ENV.
+        // The "presentation." prefix is the demo org's own accounts (the ~600
+        // seeded operators/leaders behind docker-compose.presentation.yml).
+        // Like test_operator_, it lets the login screen's persona picker sign
+        // in as any of them without shipping their bcrypt password to the
+        // browser -- and it rides the exact same two guards, so it is inert in
+        // production (isProduction()) and off unless allow-dev-login is set.
         boolean isTestAccount = !properties.isProduction()
                 && properties.getSecurity().isAllowDevLogin()
-                && (lowerEmail.startsWith("test_operator_") || DEV_TEST_EMAILS.contains(lowerEmail));
+                && (lowerEmail.startsWith("test_operator_")
+                        || lowerEmail.startsWith("presentation.")
+                        || DEV_TEST_EMAILS.contains(lowerEmail));
 
         User user = userRepository.findByEmailIgnoreCase(lowerEmail)
                 .orElseGet(() -> isTestAccount ? jitProvision(lowerEmail) : null);

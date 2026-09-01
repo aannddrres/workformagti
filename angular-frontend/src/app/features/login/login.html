@@ -14,20 +14,91 @@
 
       @if (isLocal) {
         <div>
-          <p class="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">ლოკალური სატესტო პერსონა</p>
+          <p class="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">აირჩიეთ როლი</p>
           <div class="grid grid-cols-2 gap-2">
-            @for (persona of personas; track persona.email) {
-              <button type="button" [disabled]="submitting()" (click)="loginPersona(persona.email)" class="secondary-button min-h-20 flex-col justify-center text-center">
-                <i class="fa-solid" [class]="persona.icon" aria-hidden="true"></i>
-                <span>{{ persona.label }}</span>
+            @for (option of roleOptions; track option.value) {
+              <button
+                type="button"
+                [disabled]="submitting()"
+                (click)="setRole(option.value)"
+                [attr.aria-pressed]="role() === option.value"
+                class="secondary-button min-h-20 flex-col justify-center text-center"
+                [class.ring-2]="role() === option.value"
+                [class.ring-red-500]="role() === option.value">
+                <i class="fa-solid" [class]="option.icon" aria-hidden="true"></i>
+                <span>{{ option.label }}</span>
               </button>
             }
           </div>
+
+          @if (role(); as selectedRole) {
+            <div class="mt-4 flex flex-col gap-3">
+              <!-- Content admin: pick which of the four. -->
+              @if (selectedRole === 'content_admin') {
+                <label class="block">
+                  <span class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">კონტენტ-ადმინი</span>
+                  <select [disabled]="submitting()" (change)="setPerson($any($event.target).value)"
+                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-slate-400 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
+                    <option value="">— აირჩიეთ —</option>
+                    @for (slot of contentSlots; track slot) {
+                      <option [value]="slot">კონტენტ-ადმინი {{ slot }}</option>
+                    }
+                  </select>
+                </label>
+              }
+
+              <!-- Leader / operator: department, then group. -->
+              @if (selectedRole === 'manager' || selectedRole === 'operator') {
+                <label class="block">
+                  <span class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">დეპარტამენტი</span>
+                  <select [disabled]="submitting()" (change)="setDept($any($event.target).value)"
+                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-slate-400 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
+                    <option value="">— აირჩიეთ —</option>
+                    @for (option of deptOptions; track option.value) {
+                      <option [value]="option.value">{{ option.label }}</option>
+                    }
+                  </select>
+                </label>
+
+                @if (dept()) {
+                  <label class="block">
+                    <span class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">ჯგუფი</span>
+                    <select [disabled]="submitting()" (change)="setGroup($any($event.target).value)"
+                      class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-slate-400 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
+                      <option value="">— აირჩიეთ —</option>
+                      @for (g of groups; track g) {
+                        <option [value]="g">ჯგუფი {{ g < 10 ? '0' + g : g }}</option>
+                      }
+                    </select>
+                  </label>
+                }
+
+                <!-- Which of the ten operators in the chosen group. -->
+                @if (selectedRole === 'operator' && group()) {
+                  <label class="block">
+                    <span class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">ოპერატორი</span>
+                    <select [disabled]="submitting()" (change)="setPerson($any($event.target).value)"
+                      class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-slate-400 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
+                      <option value="">— აირჩიეთ —</option>
+                      @for (slot of operatorSlots; track slot) {
+                        <option [value]="slot">ოპერატორი {{ slot < 10 ? '0' + slot : slot }}</option>
+                      }
+                    </select>
+                  </label>
+                }
+              }
+
+              <button type="button" [disabled]="submitting() || !canSubmit()" (click)="submitSelected()"
+                class="primary-button w-full justify-center py-3">
+                <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>
+                {{ submitting() ? 'შესვლა…' : 'შესვლა' }}
+              </button>
+            </div>
+          }
+
           <p class="mt-3 text-xs leading-5 text-slate-500 dark:text-slate-400">პაროლი არ გამოიყენება. ეს არჩევანი ხელმისაწვდომია მხოლოდ loopback მისამართზე და backend-ის development რეჟიმში.</p>
 
-          <!-- Acceptance testing needs more identities than four buttons can
-               carry: eleven named accounts across three departments and both
-               manager levels. Same loopback gate as the buttons above. -->
+          <!-- Escape hatch: sign in as any seeded account by address. -->
           <div class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700">
             <label for="uat-email" class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">სხვა ანგარიშით შესვლა</label>
             <div class="flex gap-2">

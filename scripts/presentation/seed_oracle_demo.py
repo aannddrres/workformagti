@@ -343,12 +343,22 @@ def _safe_attachment(value: str | None, valid_assets: set[str]) -> str | None:
 
 
 def _create_central_users(cursor: oracledb.Cursor, now: datetime, password_hash: str) -> tuple[int, int, dict[str, SeedUser]]:
+    # content2..4 exist so the login picker can offer four content admins.
+    # Every other demo account signs in through the dev-login gate -- the six
+    # named personas by allowlist, everyone else by the "presentation." prefix
+    # -- but these three are neither, so they must actually hold the persona
+    # password for the picker's local-persona sign-in to match. admin@ and
+    # content@ keep the demo password (their allowlist entry ignores it anyway).
+    persona_hash = _PASSWORDS.hash("local-persona")
     rows = (
-        ("admin@magti.ge", "სისტემური ადმინი", "ადმინისტრაცია", "სისტემური ადმინისტრატორი", "admin"),
-        ("content@magti.ge", "კონტენტის ადმინისტრატორი", "კონტენტი", "კონტენტ-ადმინი", "content_admin"),
+        ("admin@magti.ge", "სისტემური ადმინი", "ადმინისტრაცია", "სისტემური ადმინისტრატორი", "admin", password_hash),
+        ("content@magti.ge", "კონტენტის ადმინისტრატორი", "კონტენტი", "კონტენტ-ადმინი", "content_admin", password_hash),
+        ("content2@magti.ge", "სადემო კონტენტ-ადმინი 02", "კონტენტი", "კონტენტ-ადმინი", "content_admin", persona_hash),
+        ("content3@magti.ge", "სადემო კონტენტ-ადმინი 03", "კონტენტი", "კონტენტ-ადმინი", "content_admin", persona_hash),
+        ("content4@magti.ge", "სადემო კონტენტ-ადმინი 04", "კონტენტი", "კონტენტ-ადმინი", "content_admin", persona_hash),
     )
     users: dict[str, SeedUser] = {}
-    for email, name, department, position, role in rows:
+    for email, name, department, position, role, phash in rows:
         user_id = _insert_id(
             cursor,
             "INSERT INTO users (email,name,department,position,role,is_active,last_active,hashed_password,permissions) "
@@ -360,7 +370,7 @@ def _create_central_users(cursor: oracledb.Cursor, now: datetime, password_hash:
             position=position,
             role=role,
             last_active=now - timedelta(minutes=5),
-            password_hash=password_hash,
+            password_hash=phash,
             permissions=_json(ROLE_PERMISSIONS[role]),
         )
         users[email] = SeedUser(user_id, email, name, department, None, None, role, True)
@@ -513,8 +523,8 @@ def _create_organisation(
         updated_by=admin_id,
     )
 
-    if len(users) != 602:
-        raise PresentationSafetyError(f"Organisation generation produced {len(users)} users, expected 602")
+    if len(users) != 605:
+        raise PresentationSafetyError(f"Organisation generation produced {len(users)} users, expected 605")
     return department_ids, team_ids
 
 
@@ -1407,7 +1417,7 @@ def _collect_counts(cursor: oracledb.Cursor) -> dict[str, int]:
 def _assert_baseline_counts(cursor: oracledb.Cursor) -> dict[str, int]:
     counts = _collect_counts(cursor)
     exact = {
-        "users": 602,
+        "users": 605,
         "teams": 15,
         "categories": 11,
         "articles": 125,
@@ -1673,7 +1683,7 @@ def verify_database(
 
     counts = _collect_counts(cursor)
     minima = {
-        "users": 602, "teams": 15, "categories": 11, "articles": 125,
+        "users": 605, "teams": 15, "categories": 11, "articles": 125,
         "article_history": 135, "stored_files": 429, "news": 5,
         "video_instructions": 3, "article_view_logs": 4500, "search_logs": 1200,
         "favorites": 800, "required_readings": 6, "broadcasts": 4,

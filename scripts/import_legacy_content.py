@@ -13,7 +13,7 @@ content, and it is deliberately unable to do this job:
 
   * it refuses any target that is not a local throwaway, by design;
   * it requires the database to be EMPTY and aborts otherwise;
-  * it invents 602 employees, four personas and a shared demo password.
+  * it invents 605 employees, four personas and a shared demo password.
 
 Those are the right rules for a demo and the wrong ones for a real import.
 The sanitisation and asset handling are shared (``scripts/presentation/common.py``),

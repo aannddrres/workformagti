@@ -93,6 +93,47 @@ class AuthenticationServiceTest {
         assertEquals(Role.OPERATOR, result.get().getRole());
     }
 
+    @Test
+    void presentationPrefixBypassesPasswordForAnExistingDemoAccount() {
+        // A real seeded demo operator, hashed with the presentation password.
+        // The persona picker signs in with "local-persona", which is NOT that
+        // password -- the prefix bypass is what lets it through in the demo.
+        User demoOperator = new User();
+        demoOperator.setEmail("presentation.tech.g02.op05@magti.ge");
+        demoOperator.setRole(Role.OPERATOR);
+        demoOperator.setDepartment("ტექნიკური — ჯგუფი 02");
+        demoOperator.setActive(true);
+        demoOperator.setHashedPassword("$2a$presentation-password-hash");
+        when(userRepository.findByEmailIgnoreCase("presentation.tech.g02.op05@magti.ge"))
+                .thenReturn(Optional.of(demoOperator));
+
+        User result = service.authenticate("presentation.tech.g02.op05@magti.ge", "local-persona").orElseThrow();
+
+        assertEquals(Role.OPERATOR, result.getRole());
+        // Its group department must be left exactly as seeded -- the bypass
+        // must not rewrite a presentation account the way it canonicalises the
+        // six named personas.
+        assertEquals("ტექნიკური — ჯგუფი 02", result.getDepartment());
+        verify(passwordEncoder, never()).matches(anyString(), anyString());
+    }
+
+    @Test
+    void presentationPrefixIsInertInProduction() {
+        properties.setAppEnv("production");
+        User demoOperator = new User();
+        demoOperator.setEmail("presentation.tech.g02.op05@magti.ge");
+        demoOperator.setRole(Role.OPERATOR);
+        demoOperator.setActive(true);
+        demoOperator.setHashedPassword("$2a$presentation-password-hash");
+        when(userRepository.findByEmailIgnoreCase("presentation.tech.g02.op05@magti.ge"))
+                .thenReturn(Optional.of(demoOperator));
+        when(passwordEncoder.matches("local-persona", "$2a$presentation-password-hash")).thenReturn(false);
+
+        // In production the prefix earns nothing: it falls through to the real
+        // bcrypt check, which the persona password fails.
+        assertTrue(service.authenticate("presentation.tech.g02.op05@magti.ge", "local-persona").isEmpty());
+    }
+
     /**
      * The acceptance criterion for SEC-01: a PortalProperties nobody has
      * configured must not accept a password-less login. Before the fix this
