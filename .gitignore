@@ -36,6 +36,10 @@ scripts/load/tokens.json
 # Local-only presentation stack credentials and generated verification reports.
 .presentation.env
 .presentation-artifacts/
+# Generated demo identities (fictional names/positions/phones for the ~600
+# seeded accounts). Produced on demand by generate_identities.py and applied
+# to the demo DB -- output, not source.
+scripts/presentation/generated_identities.csv
 
 # Same, for the UAT stack. .uat-artifacts holds the evidence captured during
 # an acceptance run -- screenshots and, crucially, downloaded compliance
