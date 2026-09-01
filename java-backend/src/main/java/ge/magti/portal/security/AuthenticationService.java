@@ -141,6 +141,16 @@ public class AuthenticationService {
                 || override.department().equals(user.getDepartment())) {
             return;
         }
+        // Do not downgrade a seeded group ("ტექნიკური — ჯგუფი 01") to its bare
+        // parent ("ტექნიკური"). This override exists to migrate a legacy
+        // English department to Georgian, not to erase the specific group the
+        // demo seeder placed the persona in -- doing so moved manager@/tech@
+        // out of ჯგუფი 01 into a phantom bare-named "group" and skewed the
+        // department rollup a manager sees.
+        String current = user.getDepartment();
+        if (current != null && current.startsWith(override.department() + " ")) {
+            return;
+        }
         user.setDepartment(override.department());
         userRepository.save(user);
     }

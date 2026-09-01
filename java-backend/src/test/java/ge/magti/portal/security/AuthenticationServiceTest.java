@@ -84,6 +84,25 @@ class AuthenticationServiceTest {
     }
 
     @Test
+    void doesNotDowngradeASeededGroupToItsBareParentDepartment() {
+        // manager@ / tech@ / info@ are seeded into ჯგუფი 01, but their JIT
+        // override department is the bare parent. Signing in must NOT rewrite
+        // the specific group away -- that moved them into a phantom
+        // bare-named group and skewed the manager rollup.
+        User seededGroupMember = new User();
+        seededGroupMember.setEmail("tech@magti.ge");
+        seededGroupMember.setRole(Role.OPERATOR);
+        seededGroupMember.setDepartment("ტექნიკური — ჯგუფი 01");
+        seededGroupMember.setActive(true);
+        when(userRepository.findByEmailIgnoreCase("tech@magti.ge")).thenReturn(Optional.of(seededGroupMember));
+
+        User result = service.authenticate("tech@magti.ge", "anything").orElseThrow();
+
+        assertEquals("ტექნიკური — ჯგუფი 01", result.getDepartment());
+        verify(userRepository, never()).save(seededGroupMember);
+    }
+
+    @Test
     void testOperatorPrefixAlsoBypassesPasswordAsGenericOperator() {
         when(userRepository.findByEmailIgnoreCase("test_operator_42@magti.ge")).thenReturn(Optional.empty());
 
