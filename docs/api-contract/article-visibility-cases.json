@@ -1,0 +1,83 @@
+{
+  "$comment": [
+    "The lifecycle half of 'may a reader see this article', written once and run",
+    "twice: by ge.magti.portal.article.ArticleVisibilityParityTest against",
+    "ArticleVisibility.java, and by article-visibility.spec.ts against",
+    "angular-frontend/src/app/shared/article-visibility.ts.",
+    "",
+    "Only the clause both sides actually evaluate is listed here -- status and",
+    "publishedAt. The backend additionally decides audience (DepartmentMatcher)",
+    "and lets content administrators through; the frontend additionally hides",
+    "is_draft rows. Those are not duplicated between the two and so are not",
+    "compared here; each is tested on its own side.",
+    "",
+    "publishedAt is relative on purpose. The backend compares against",
+    "TbilisiTime.now() (a fixed +04:00 offset) and the browser against the",
+    "viewer's local clock, so the two agree for a viewer in Georgia and can",
+    "differ by hours for one elsewhere. Every case below is a full day either",
+    "side of now, which keeps the fixture about the rule rather than about the",
+    "clock. That boundary difference is real and deliberate -- the product is",
+    "Georgia-only -- but it is the reason not to add a 'one second ago' case."
+  ],
+  "cases": [
+    {
+      "name": "published, with a past date",
+      "status": "published",
+      "publishedAt": "past",
+      "visible": true
+    },
+    {
+      "name": "published, with no date at all",
+      "status": "published",
+      "publishedAt": null,
+      "visible": true,
+      "why": "published short-circuits before the date is looked at"
+    },
+    {
+      "name": "published, with a future date",
+      "status": "published",
+      "publishedAt": "future",
+      "visible": true,
+      "why": "same short-circuit; status wins over a stale future date"
+    },
+    {
+      "name": "scheduled, moment has passed",
+      "status": "scheduled",
+      "publishedAt": "past",
+      "visible": true,
+      "why": "nothing flips the status column, so the date is the truth"
+    },
+    {
+      "name": "scheduled, moment has not arrived",
+      "status": "scheduled",
+      "publishedAt": "future",
+      "visible": false
+    },
+    {
+      "name": "scheduled, with no date",
+      "status": "scheduled",
+      "publishedAt": null,
+      "visible": false,
+      "why": "a schedule with no moment never arrives"
+    },
+    {
+      "name": "draft",
+      "status": "draft",
+      "publishedAt": "past",
+      "visible": false
+    },
+    {
+      "name": "archived",
+      "status": "archived",
+      "publishedAt": "past",
+      "visible": false
+    },
+    {
+      "name": "an unrecognised status",
+      "status": "in_review",
+      "publishedAt": "past",
+      "visible": false,
+      "why": "both sides allow-list rather than deny-list, so a new status is invisible until it is handled"
+    }
+  ]
+}

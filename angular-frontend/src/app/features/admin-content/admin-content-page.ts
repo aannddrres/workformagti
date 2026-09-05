@@ -467,7 +467,7 @@ export class AdminContentPage {
     if (status === 'published' && !window.confirm(`გამოქვეყნდეს ${ids.length} მასალა. გავაგრძელოთ?`)) {
       return;
     }
-    this.runBulk(this.articlesService.bulkStatus(ids, status), ids.length);
+    this.runBulk(this.articlesService.bulkStatus(ids, status));
   }
 
   /** Re-file the selection into another category. */
@@ -475,17 +475,14 @@ export class AdminContentPage {
     const ids = [...this.selection()];
     const categoryId = Number(rawValue);
     if (ids.length === 0 || !rawValue || Number.isNaN(categoryId)) return;
-    this.runBulk(this.articlesService.bulkRetarget(ids, { categoryId }), ids.length);
+    this.runBulk(this.articlesService.bulkRetarget(ids, { categoryId }));
   }
 
   /** Re-aim the selection at another department. */
   protected bulkDepartment(rawValue: string): void {
     const ids = [...this.selection()];
     if (ids.length === 0 || !rawValue) return;
-    this.runBulk(
-      this.articlesService.bulkRetarget(ids, { targetDepartments: [rawValue] }),
-      ids.length
-    );
+    this.runBulk(this.articlesService.bulkRetarget(ids, { targetDepartments: [rawValue] }));
   }
 
   /**
@@ -496,7 +493,7 @@ export class AdminContentPage {
    * refreshing the list without saying so leaves the user counting rows to
    * work out what happened.
    */
-  private runBulk(request: Observable<ArticleBulkResponse>, requested: number): void {
+  private runBulk(request: Observable<ArticleBulkResponse>): void {
     this.actionError.set(null);
     this.bulkNotice.set(null);
     this.bulkBusy.set(true);

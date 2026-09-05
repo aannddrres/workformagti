@@ -1,3 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- quill@2.0.2 declares no
+ * `types` or `typings` entry, so its editor instance and its Delta payloads
+ * arrive untyped. The three `any`s below are all at that boundary; everything
+ * this file does with them is checked by hand against Quill's structured API
+ * (formatLine + deleteText, never innerHTML) so that undo/redo survives.
+ * Remove this once Quill ships declarations or @types/quill covers v2.
+ */
 import {
   AfterViewInit,
   Component,

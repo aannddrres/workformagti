@@ -759,11 +759,11 @@ PO-სგან არ მოითხოვება security/privacy/legal ris
 ### 19.1 შიდა პირველწყაროები
 
 - `docs/PRODUCT_UX_REQUIREMENTS_KA.md` — product/UX/accessibility/retention/roles/scale მოთხოვნები.
-- `docs/UX_IMPLEMENTATION_DECISIONS_2026-08-24_KA.md` — ბოლო UX/flow გადაწყვეტილებები.
+- `docs/archive/audits/UX_IMPLEMENTATION_DECISIONS_2026-08-24_KA.md` — ბოლო UX/flow გადაწყვეტილებები.
 - `docs/ACCESS_CONTRACT_MATRIX_KA.md` — endpoint/role/scope/export/audit contract; 2026-08-24 მდგომარეობა.
 - `docs/PROJECT_TECHNOLOGY_GUIDE_KA.md` — აქტიური Angular/Spring Boot/Oracle target და rollout guidance.
-- `docs/READINESS_REPORT_2026-08-23.md` — ისტორიული launch findings; გამოყენებულია მხოლოდ current-code revalidation-ით.
-- `docs/ARCHITECTURE.md` — legacy context; წინააღმდეგობისას current target docs/code სჯობს.
+- `docs/archive/audits/READINESS_REPORT_2026-08-23.md` — ისტორიული launch findings; გამოყენებულია მხოლოდ current-code revalidation-ით.
+- `docs/archive/legacy-stack/ARCHITECTURE.md` — legacy context; წინააღმდეგობისას current target docs/code სჯობს.
 - `docs/PRODUCT_OWNER_DECISIONS_KA.md`, `docs/IMPLEMENTATION_PLAN_KA.md` — დახურული გადაწყვეტილებები და production integration/cutover sequence.
 - Angular routes/package/config; backend controllers/services/security/domain; Flyway V1–V45; Java/Angular/E2E test inventory — capability/status-ის მთავარი მტკიცებულება.
 

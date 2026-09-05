@@ -2,7 +2,7 @@
 
 Read-only catalog of every user-facing Georgian string found in the live
 frontend/backend source, built as the seed data for Angular's
-`@ngx-translate/core` infrastructure (see `docs/JAVA_ORACLE_ANGULAR_MIGRATION.md`
+`@ngx-translate/core` infrastructure (see `docs/archive/migration/JAVA_ORACLE_ANGULAR_MIGRATION.md`
 §3a). **No live source file was modified to produce this catalog** — every
 value here was copied by reading `static/js/app-core.js`, `base-layout.html`,
 `static/js/app-renderers.js`, `static/js/audit-dashboard.js`,

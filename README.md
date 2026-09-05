@@ -4,8 +4,8 @@ A knowledge base and compliance-tracking system for Magti's ~600-person call
 centre: articles and news, mandatory reading with quizzes, department-scoped
 visibility, an audit trail, and exports for managers.
 
-**Stack:** Angular 22 (`angular-frontend/`) · Spring Boot 3 + Flyway
-(`java-backend/`) · Oracle 19c.
+**Stack:** Angular 22 (`angular-frontend/`) · Java 21 + Spring Boot 4.1 +
+Flyway (`java-backend/`) · Oracle.
 
 > The original FastAPI/PostgreSQL implementation, with its server-rendered
 > HTML and vanilla JS, was removed on 2026-08-31. It is in git history if it
@@ -44,16 +44,30 @@ and are published on `127.0.0.1` only. Neither is a deployment manifest.
 
 ## Tests
 
+One command runs what CI runs, in CI's order, and refuses to report success
+for a job it could not run here:
+
 ```bash
-cd java-backend && ./mvnw test          # 848 tests; needs Oracle, or Docker
-cd angular-frontend && npx ng test      # 100 tests, no browser needed
-cd angular-frontend && npm run check:i18n
-python -m pytest tests/ -q              # the seeder tooling
+scripts/verify-like-ci.sh fast
 ```
 
-The Java suite needs a database. Set `ORACLE_DB_URL` to point at one, or
-leave it unset and it will use a local Oracle if one answers — and start a
-throwaway container if none does.
+`fast` is the three jobs every branch push runs; `oracle` is the Oracle-backed
+Java suite; no argument runs both. The Oracle jobs are gated to pull requests
+and `main`, so between a branch push and a PR this script is the verification.
+
+The pieces, if you want one alone:
+
+```bash
+cd java-backend && ./mvnw test -DexcludedGroups=oracle   # fast, no database
+cd java-backend && ./mvnw test -Dgroups=oracle           # the Oracle half
+cd angular-frontend && npx ng test --watch=false
+cd angular-frontend && npm run lint && npm run check:i18n
+python -m pytest tests/ -q                               # the seeder tooling
+```
+
+Plain `./mvnw test` runs both halves. Set `ORACLE_DB_URL` to point at a
+database, or leave it unset and it uses a local Oracle if one answers — and
+starts a throwaway container if none does, which is slow.
 
 CI runs all of these plus a Playwright E2E job that drives the real browser
 against the real backend against a real Oracle.
@@ -75,19 +89,17 @@ Magti's registry are tracked in `docs/QUESTIONS_FOR_IT.md`.
 
 ## Where the documentation is
 
-`docs/` has accumulated a great deal. Before trusting a file, check what kind
-it is:
+**[`docs/README.md`](docs/README.md)** is the index. It lists every document
+once, with its date and what kind it is — decision, reference, plan,
+acceptance, or dated history — so you can tell how far to trust a file before
+you read it. A build test keeps that index complete: a document with no row,
+or a row pointing at nothing, fails CI.
 
-| Kind | Files | Trust |
-|---|---|---|
-| **Decisions** | `PRODUCT_OWNER_DECISIONS_KA.md`, `ACCESS_CONTRACT_MATRIX_KA.md`, `ENTERPRISE_READINESS_DECISIONS_KA.md` | Authoritative. Code follows these |
-| **Plans** | `IMPLEMENTATION_PLAN_KA.md`, `UI_UX_REDESIGN_PLAN_KA.md`, `ROLLOUT_ROLLBACK_KA.md` | Intent, and how to undo it |
-| **Audits** | `READINESS_REPORT_2026-08-23.md`, `OPUS5_AUDIT_*.md` | Dated snapshots. Findings keep their original text; what changed since is appended as a disposition |
-| **Acceptance** | `ENTERPRISE_READINESS_ACCEPTANCE_MATRIX_KA.md`, `uat/` | What has actually been proven, and by what evidence |
-| **For IT** | `QUESTIONS_FOR_IT.md`, `IT_DISCOVERY_*` | Open questions only they can answer |
+Dated history lives in `docs/archive/` and is never corrected in place. An
+audit's finding is never resolved by deleting it; if something in a dated
+report is no longer true, a dated disposition is appended underneath and the
+original text stays.
 
-`CLAUDE.md` holds the working rules for this repository.
-
-An audit's finding is never resolved by deleting it. If something in a dated
-report is no longer true, the report says so underneath it and keeps the
-original.
+**[`AGENTS.md`](AGENTS.md)** holds the working rules for this repository — the
+commands, the invariants, and what not to change casually. It is read by
+Claude Code, Codex, Cursor and Copilot alike; `CLAUDE.md` imports it.

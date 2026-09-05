@@ -11,13 +11,13 @@
 | DEC-002 | Confirmed | ოთხი canonical role; ერთ მომხმარებელს ერთი primary role; per-user ALLOW/DENY override; custom role builder და multi-role migration scope-ში არაა | `PRODUCT_OWNER_DECISIONS_KA.md`; `ACCESS_CONTRACT_MATRIX_KA.md` |
 | DEC-003 | Confirmed | მინიმუმ ერთი active `SYSTEM_ADMIN` დაცულია; raw audit მხოლოდ `SYSTEM_ADMIN`-ისთვის | execution plan §5; `ACCESS_CONTRACT_MATRIX_KA.md` |
 | DEC-004 | Confirmed | `content.manage` ერთიანი capability-ა create/publish/edit-any/categories ოპერაციებისთვის | `PRODUCT_OWNER_DECISIONS_KA.md` |
-| DEC-005 | Confirmed | `stats.view` `content.manage`-ისგან დამოუკიდებელი capability-ა; aggregate-only access named staff-ს არ ხსნის | `UX_IMPLEMENTATION_DECISIONS_2026-08-24_KA.md`; `ACCESS_CONTRACT_MATRIX_KA.md` |
+| DEC-005 | Confirmed | `stats.view` `content.manage`-ისგან დამოუკიდებელი capability-ა; aggregate-only access named staff-ს არ ხსნის | `docs/archive/audits/UX_IMPLEMENTATION_DECISIONS_2026-08-24_KA.md`; `ACCESS_CONTRACT_MATRIX_KA.md` |
 | DEC-006 | Confirmed | Named read evidence აქტიური leadership scope-ით; first rollout — group leaders + `SYSTEM_ADMIN`; leadership-ის გარეშე Content Manager aggregate-only | `PRODUCT_OWNER_DECISIONS_KA.md`; `ORG_ACCESS_ARCHITECTURE_PLAN_KA.md` |
 | DEC-007 | Confirmed | Acting/temporary manager approved scoped screens-ს იყენებს, მაგრამ export არასოდეს აქვს; primary manager export მხოლოდ canonical primary team-ზე | `PRODUCT_OWNER_DECISIONS_KA.md`; `ACCESS_CONTRACT_MATRIX_KA.md` |
 | DEC-008 | Confirmed | Manager export ზუსტად 8 ქართული სვეტია: სახელი, დეპარტამენტი, ჯგუფი, მასალის სათაური/ტიპი, სტატუსი, წაკითხვის დრო, ვადა; IDs/email/raw logs აკრძალულია | `PRODUCT_OWNER_DECISIONS_KA.md` |
 | DEC-009 | Confirmed | SYSTEM_ADMIN export ოჯახები განცალკევებულია და სრულად auditable; credential/secret/private key/session material export-ში არ შედის | `PRODUCT_OWNER_DECISIONS_KA.md` |
 | DEC-010 | Confirmed, narrower than new plan | Uploaded attachment მხოლოდ active authenticated employee-სთვისაა; public/protected toggle არ შეიძლება. PO-02/Access Matrix current scope=`AUTH`; content-dependent object scope იქ დადასტურებული არ არის | `PRODUCT_OWNER_DECISIONS_KA.md` PO-02; `ACCESS_CONTRACT_MATRIX_KA.md` D-4 |
-| DEC-011 | Confirmed | Feedback აღარ ბრუნდება; broadcast company-wide passive-ია, targeting/chat-ის გარეშე | `UX_IMPLEMENTATION_DECISIONS_2026-08-24_KA.md` |
+| DEC-011 | Confirmed | Feedback აღარ ბრუნდება; broadcast company-wide passive-ია, targeting/chat-ის გარეშე | `docs/archive/audits/UX_IMPLEMENTATION_DECISIONS_2026-08-24_KA.md` |
 | DEC-012 | Confirmed | Deleted content/user read/quiz/compliance evidence ინახება; trash 30 დღე recoverable; automatic purge policy approvalამდე არა; legal hold purge-ს ბლოკავს | `PRODUCT_OWNER_DECISIONS_KA.md`; execution plan WS5 |
 | DEC-013 | Confirmed + External duration | Business audit 1 წელი active Oracle-ში, შემდეგ protected multi-year archive; total retention DPO/Legal-ს ეკუთვნის | `PRODUCT_OWNER_DECISIONS_KA.md`; `QUESTIONS_FOR_IT.md` |
 | DEC-014 | Confirmed | Export artifact TTL 1 საათია | `PRODUCT_OWNER_DECISIONS_KA.md` |

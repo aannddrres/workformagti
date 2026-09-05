@@ -17,7 +17,7 @@ import java.time.OffsetDateTime;
  *
  * <p>{@code autoApply = true}: every {@code OffsetDateTime} entity field
  * gets this automatically, since the migration doc counts 25 such columns
- * across the schema (docs/JAVA_ORACLE_ANGULAR_MIGRATION.md Phase 1b) -- all
+ * across the schema (docs/archive/migration/JAVA_ORACLE_ANGULAR_MIGRATION.md Phase 1b) -- all
  * of them need the exact same treatment, not a one-off {@code @Convert}.
  */
 @Converter(autoApply = true)

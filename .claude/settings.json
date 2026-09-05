@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git ls-files *)",
+      "Bash(git grep *)",
+      "Bash(git branch *)",
+      "Bash(git worktree list *)",
+      "Bash(./mvnw *)",
+      "Bash(cd java-backend && ./mvnw *)",
+      "PowerShell(.\\mvnw.cmd *)",
+      "Bash(java -version)",
+      "Bash(npm ci)",
+      "Bash(npm run *)",
+      "Bash(npx ng *)",
+      "Bash(npx playwright *)",
+      "Bash(node --version)",
+      "Bash(npm --version)",
+      "Bash(python -m pytest *)",
+      "Bash(python -m ruff *)",
+      "Bash(pip install -r requirements-dev.txt)",
+      "Bash(scripts/verify-like-ci.sh *)",
+      "Bash(scripts/run-local.sh *)",
+      "Bash(scripts/seed-demo-content.sh *)",
+      "Bash(docker compose *)",
+      "Bash(docker info *)",
+      "Bash(docker version *)",
+      "Bash(docker ps *)",
+      "Bash(docker context ls)",
+      "PowerShell(.\\presentation.ps1 *)",
+      "PowerShell(.\\uat.ps1 *)"
+    ],
+    "deny": [
+      "Bash(sc.exe *)",
+      "Bash(reg.exe *)",
+      "Bash(schtasks *)",
+      "Read(./.env)",
+      "Read(./.presentation.env)",
+      "Read(./.uat.env)"
+    ]
+  }
+}

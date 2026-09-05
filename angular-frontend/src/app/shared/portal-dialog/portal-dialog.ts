@@ -15,6 +15,11 @@ import { ConfigurableFocusTrap, ConfigurableFocusTrapFactory } from '@angular/cd
  * Visual layout stays with the owning feature; modal semantics never do.
  */
 @Directive({
+  // This selector predates the linter and is applied in eleven templates.
+  // Renaming it to `appPortalDialog` is a twelve-file rename with no
+  // behavioural change, not worth bundling into an unrelated commit.
+  // Anything new must use the `app` prefix.
+  // eslint-disable-next-line @angular-eslint/directive-selector
   selector: '[portalDialog]',
   standalone: true,
   host: {

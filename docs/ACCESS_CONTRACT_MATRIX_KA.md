@@ -538,8 +538,18 @@ tests. `QUESTIONS_FOR_IT.md` §9-ში ღია რჩება მხოლ�
 იმავე პრედიკატს, რომელსაც `ArticleController` იყენებს, რომ ფაილმა და სტატიამ
 „ხილვადობაზე" ერთმანეთს არ დაუპირისპირდნენ.
 
-პროდაქშენზე **ჯერ shadow-ით** გადის (`ROLLOUT_FILE_ENTITLEMENT=false`);
-ჩართვის კრიტერიუმი და განხილვის query — `docs/ROLLOUT_ROLLBACK_KA.md`.
+პროდაქშენზე enforcement **პირველივე დღიდან ჩართულია**
+(`ROLLOUT_FILE_ENTITLEMENT: "true"`, `k8s/10-configmap.yaml`): shadow-ის
+ორკვირიანი ფანჯარა პროდუქტის მფლობელმა მოხსნა. shadow (`false`) rollback-ის
+გზად რჩება; დაკვირვების სიგნალები და უკან დაბრუნება — `docs/ROLLOUT_ROLLBACK_KA.md`.
+
+> **შესწორება (2026-09-05).** აქამდე ეს აბზაცი წერდა, რომ პროდაქშენზე „ჯერ
+> shadow-ით გადის (`ROLLOUT_FILE_ENTITLEMENT=false`)". 2026-08-31-ის
+> გადაწყვეტილებამდე ეს სწორი იყო; შემდეგ `k8s/10-configmap.yaml` შეიცვალა და
+> ეს აბზაცი ჩამორჩა. `PRODUCT_OWNER_DECISIONS_KA.md`,
+> `ROLLOUT_ROLLBACK_KA.md` და `ENTERPRISE_READINESS_ACCEPTANCE_MATRIX_KA.md`
+> სწორად წერდნენ — ე.ი. ერთი და იგივე დროშა ორნაირად ეწერა ორ ისეთ
+> დოკუმენტში, რომელიც ორივე „ჭეშმარიტების წყაროდაა" გამოცხადებული.
 
 ### D-5. `content.manage`-ის მარცვლოვნება — ✅ გადაწყვეტილია (2026-08-22)
 

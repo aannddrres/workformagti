@@ -4,7 +4,11 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "types": [
-      "vitest/globals"
+      "vitest/globals",
+      // article-visibility.spec.ts reads the shared parity fixture from
+      // docs/api-contract/ at test time. Spec scope only -- the app
+      // bundle still has no Node types.
+      "node"
     ]
   },
   "include": [

@@ -1,7 +1,7 @@
 # k6 load test — Java backend
 
 Load-tests the isolated Java+Oracle test instance (default `:8090`), never
-production. See `docs/JAVA_ORACLE_ANGULAR_MIGRATION.md` ("Test 4") for the
+production. See `docs/archive/migration/JAVA_ORACLE_ANGULAR_MIGRATION.md` ("Test 4") for the
 full write-up and results from the run this was built for.
 
 ## Run

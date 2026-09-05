@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 /**
  * Mirrors security.py's {@code authenticate_user} (security.py:177-227)
  * exactly, including its dev-only conveniences -- see
- * docs/JAVA_ORACLE_ANGULAR_MIGRATION.md and the
+ * docs/archive/migration/JAVA_ORACLE_ANGULAR_MIGRATION.md and the
  * auth-bypass-intentional-pending-ad memory: the password-less bypass for
  * known test emails is deliberate, not a bug, kept until real Active
  * Directory integration replaces this whole login step.

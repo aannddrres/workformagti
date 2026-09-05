@@ -13,8 +13,19 @@ backups/
 archives/
 .env
 .claude/*
-!.claude/skills/
 !.claude/launch.json
+!.claude/settings.json
+# Repo-authored skills live under .claude/skills/ as real files and are
+# tracked. The five below are NTFS junctions into .agents/skills/ -- git
+# followed them and committed a second, byte-identical copy (226 files,
+# 2.8 MB, the same tree object as .agents/skills/). One copy is enough;
+# scripts/link-skills recreates the junctions on a fresh clone.
+!.claude/skills/
+.claude/skills/angular-developer/
+.claude/skills/db/
+.claude/skills/debugging-wizard/
+.claude/skills/java-architect/
+.claude/skills/test-master/
 scripts/legacy/
 _server_log.txt
 logs/

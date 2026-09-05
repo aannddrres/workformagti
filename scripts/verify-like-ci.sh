@@ -62,10 +62,14 @@ if [ "$MODE" = "all" ] || [ "$MODE" = "fast" ]; then
   step "java-unit (DB-free)"
   (cd java-backend && ./mvnw -B test -DexcludedGroups=oracle)
 
-  step "frontend (i18n guard, production build, unit tests)"
+  step "frontend (i18n guard, lint, production build, unit tests)"
   (cd angular-frontend && npm ci >/dev/null)
-  # Plain Node, no Angular CLI -- so this one runs even where the build cannot.
+  # Plain Node, no Angular CLI -- so these two run even where the build cannot.
   (cd angular-frontend && npm run check:i18n)
+  # Added with the CI step, 2026-09-05. Kept next to check:i18n rather than in
+  # the block below because ESLint needs no Angular CLI either, so a machine
+  # whose Node the CLI rejects still gets linted.
+  (cd angular-frontend && npm run lint)
 
   # Nothing pins the Node version, and the Angular CLI refuses a release one
   # patch old. Rather than let the CLI's own message look like a broken repo,

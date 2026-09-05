@@ -146,6 +146,17 @@ jobs:
       - name: Translations complete
         run: npm run check:i18n
 
+      # Added 2026-09-05. This half of the codebase had no linter at all --
+      # no config, no script, no step -- while the Java half was held to
+      # eight coverage tests. The rule set is the recommended baseline and
+      # nothing more, so it gates from its first commit rather than being
+      # switched off on its second. Prettier is configured and has a
+      # `format:check` script, but is deliberately NOT gated here: 188 of 211
+      # files predate any formatting pass, and reformatting them belongs in
+      # its own commit rather than in whichever one happened to add the step.
+      - name: Lint
+        run: npm run lint
+
       - name: Build
         run: npx ng build --configuration production
 
@@ -189,7 +200,7 @@ jobs:
         run: npx ng test --watch=false
 
   # Gating. Proven green on commit 905e8db: 221 tests, 0 failures, 0 errors,
-  # in a 2m52s job (Flyway applies all 30 migrations into a fresh XE 21c, so
+  # in a 2m52s job (Flyway applies every migration into a fresh XE 21c, so
   # this also exercises the migrations themselves on every push). Was
   # advisory only until a run had actually passed; it has, so the training
   # wheels are off. timeout-minutes stays as a backstop against a container
