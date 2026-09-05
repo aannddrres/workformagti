@@ -8,7 +8,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 // No JPA/DataSource auto-configuration to exclude: spring-boot-starter-data-jpa
 // is deliberately not a dependency yet (see pom.xml's comment) -- no Oracle
 // dev environment exists (decided 2026-07-29, see
-// docs/JAVA_ORACLE_ANGULAR_MIGRATION.md Phase 1). Re-add that starter once
+// docs/archive/migration/JAVA_ORACLE_ANGULAR_MIGRATION.md Phase 1). Re-add that starter once
 // entities/repositories are ready to be wired to a real datasource.
 //
 // @EnableAsync backs ExportJobWorker (mirrors FastAPI's BackgroundTasks for

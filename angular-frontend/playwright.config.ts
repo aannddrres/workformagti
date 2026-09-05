@@ -10,7 +10,7 @@ const reportDirectory = process.env.PLAYWRIGHT_REPORT_DIR ?? 'playwright-report'
  *
  * In CI: E2E_BASE_URL points at the stack the workflow brings up itself, so
  * the same specs run against a real Oracle on every push. They had never
- * been run before that job existed -- docs/TEST_PLAN_AND_RESULTS.md still
+ * been run before that job existed -- docs/archive/migration/TEST_PLAN_AND_RESULTS.md still
  * records Test 3 as not started, and the reason was always the setup cost,
  * not the specs.
  */

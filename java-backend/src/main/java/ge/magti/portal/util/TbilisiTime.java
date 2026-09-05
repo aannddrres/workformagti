@@ -14,7 +14,7 @@ import java.time.ZoneOffset;
  * than converting to UTC. The one change from the Python side is that the
  * zone is now explicit in the type ({@link OffsetDateTime}) instead of a
  * naive value with the offset silently assumed -- closing the exact risk
- * this class was written to flag (docs/JAVA_ORACLE_ANGULAR_MIGRATION.md
+ * this class was written to flag (docs/archive/migration/JAVA_ORACLE_ANGULAR_MIGRATION.md
  * finding #17): code that mishandles an unmarked timestamp as UTC.
  */
 public final class TbilisiTime {

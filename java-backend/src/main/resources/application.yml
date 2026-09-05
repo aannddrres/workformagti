@@ -16,7 +16,7 @@ spring:
     driver-class-name: oracle.jdbc.OracleDriver
     # Spring Boot's default (10) queued up requests for a free connection
     # under concurrent load -- a k6 run at 600 concurrent users (2026-08-14,
-    # see docs/JAVA_ORACLE_ANGULAR_MIGRATION.md "Test 4") showed 0% request
+    # see docs/archive/migration/JAVA_ORACLE_ANGULAR_MIGRATION.md "Test 4") showed 0% request
     # failures but p95/p99 latency in the seconds. Oracle's own processes
     # limit (640 on the dev instance; check `v$parameter` before raising
     # further on a shared/production instance) is nowhere near the

@@ -9,7 +9,7 @@ import java.util.Set;
  * The single, merged permission catalog for the Java port.
  *
  * <p>The Python app carries two disjoint RBAC catalogs that were never meant
- * to coexist (known bug #5, docs/JAVA_ORACLE_ANGULAR_MIGRATION.md): 8
+ * to coexist (known bug #5, docs/archive/migration/JAVA_ORACLE_ANGULAR_MIGRATION.md): 8
  * dot-named permissions checked against users.permissions (a plain JSON
  * string list, models.py:43, defined security.py:363-370), and a separate
  * 13 colon-named permissions seeded into Role/Permission/RolePermission DB

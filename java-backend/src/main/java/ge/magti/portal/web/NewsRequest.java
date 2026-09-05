@@ -11,7 +11,7 @@ import java.time.OffsetDateTime;
  * create and update, exactly as Python does.
  *
  * <p><b>Two confirmed live bugs, flagged to and fixed per the user's
- * explicit choice, 2026-08-04</b> (see docs/JAVA_ORACLE_ANGULAR_MIGRATION.md's
+ * explicit choice, 2026-08-04</b> (see docs/archive/migration/JAVA_ORACLE_ANGULAR_MIGRATION.md's
  * News section for the full writeup):
  * <ul>
  *   <li>{@code author_id} is not a field here at all -- Python's schema has

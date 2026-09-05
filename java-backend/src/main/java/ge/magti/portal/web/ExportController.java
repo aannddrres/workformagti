@@ -62,7 +62,7 @@ import java.util.SortedMap;
  * <p><b>Bug #313 fix:</b> Python gated CSV/XLSX on system_admin-only while
  * PDF used the broader {@code reports.export} permission (routers/exports.py
  * :67,124,249 -- a pre-existing inconsistency, not a Java-port regression).
- * Confirmed live (docs/TEST_PLAN_AND_RESULTS.md §2.1, asymmetry #2): a
+ * Confirmed live (docs/archive/migration/TEST_PLAN_AND_RESULTS.md §2.1, asymmetry #2): a
  * manager with {@code reports.export} was denied CSV/XLSX but allowed the
  * exact same data as PDF. Reconciled onto the permission-based gate for all
  * three -- managers already had full PDF access to this data, so this only

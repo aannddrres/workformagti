@@ -420,7 +420,7 @@ public class StatsController {
      * <p><b>Bug #312 fix:</b> that manager-access fix opened this endpoint up
      * without ever scoping the query, so any manager got the exact same
      * org-wide, cross-department list as content_admin/system_admin --
-     * confirmed live (docs/TEST_PLAN_AND_RESULTS.md §2.1, asymmetry #1): a
+     * confirmed live (docs/archive/migration/TEST_PLAN_AND_RESULTS.md §2.1, asymmetry #1): a
      * manager in "ტექნიკური — ჯგუფი 03" saw an overdue operator from
      * "ტექნიკური — ჯგუფი 01". Now hard-pinned to the calling manager's own
      * department via {@link ManagerScope}, the same rule {@link #getTeamStats}

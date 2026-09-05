@@ -325,7 +325,7 @@ JSON response ← Java ← Nginx ← Angular ეკრანი
 | 11. ალტერნატივა | memory-only access token + refresh cookie; server-side session. |
 | 12. რატომ ალტერნატივა | token theft window მცირდება; session-ს ცენტრალური revoke მარტივდება. |
 | 13. არჩევანის შეფასება | მიმდინარე dual path მუშაობს, მაგრამ security architecture review სჭირდება, განსაკუთრებით IdP-ისას. |
-| 14. PO-მ იცოდეს | `docs/ARCHITECTURE.md`-ის „unsigned shell localStorage-ში“ მტკიცება მიმდინარე კოდს ეწინააღმდეგება. |
+| 14. PO-მ იცოდეს | `docs/archive/legacy-stack/ARCHITECTURE.md`-ის „unsigned shell localStorage-ში“ მტკიცება მიმდინარე კოდს ეწინააღმდეგება. |
 | 15. Development | ერთი მკაფიო auth transport, expiry/revoke/CSRF/XSS tests. |
 | 16. IT/სხვა | Security — threat model; IT — HTTPS/domain/proxy; PO — session UX. |
 | 17. დაიმახსოვრე | **localStorage-ს გვერდის კოდი ხედავს, HttpOnly cookie-ს — არა; ამიტომ მათი რისკები განსხვავდება.** |
@@ -1209,7 +1209,7 @@ Magti base/
 | `docs/QUESTIONS_FOR_IT.md` | ღია ინფრასტრუქტურული კითხვები | deploy/auth/storage planning | ვარაუდით ნუ შეავსებ |
 | root Python/`static/` | legacy implementation | parity/cutover/history | current stack-ში ნუ აურევ |
 | root `Dockerfile`, `docker-compose.yml` | legacy PostgreSQL/Redis/FastAPI | old runtime | new production config-ად ნუ გამოიყენებ |
-| `docs/ARCHITECTURE.md`, `README.md`, `CLAUDE.md` | შერეული/მოძველებული აღწერები | ისტორია/კონტექსტი | კოდზე მაღალ source of truth-ად ნუ ჩათვლი |
+| `docs/archive/legacy-stack/ARCHITECTURE.md`, `README.md`, `CLAUDE.md` | შერეული/მოძველებული აღწერები | ისტორია/კონტექსტი | კოდზე მაღალ source of truth-ად ნუ ჩათვლი |
 
 ## 10.3 სწრაფი კვლევის გზა
 
@@ -1255,13 +1255,13 @@ Magti base/
 
 | წყარო/მოლოდინი | რეალური კოდი | დასკვნა |
 |---|---|---|
-| `README.md` და `docs/ARCHITECTURE.md` საკუთარ თავს მიმდინარე აღწერად წარმოაჩენს და FastAPI/PostgreSQL/Redis/static frontend-ს აღწერს | active migration მიმართულება `angular-frontend` + `java-backend` + Oracle-ია | docs არსებითად **LEGACY/მოძველებულია** |
-| `docs/ARCHITECTURE.md`: localStorage-ში მხოლოდ unsigned shell | Angular სრულ signed JWT-ს `magti_token`-ად ინახავს | security-sensitive წინააღმდეგობა; კოდს აქვს უპირატესობა |
-| `docs/ARCHITECTURE.md`: bilingual/Compose-centric architecture | პროდუქტის target Georgian-only და on-prem K8s; K8s manifest არ არის | ენობრივი და deployment აღწერა მოძველებული/target-ისგან განსხვავებულია |
+| `README.md` და `docs/archive/legacy-stack/ARCHITECTURE.md` საკუთარ თავს მიმდინარე აღწერად წარმოაჩენს და FastAPI/PostgreSQL/Redis/static frontend-ს აღწერს | active migration მიმართულება `angular-frontend` + `java-backend` + Oracle-ია | docs არსებითად **LEGACY/მოძველებულია** |
+| `docs/archive/legacy-stack/ARCHITECTURE.md`: localStorage-ში მხოლოდ unsigned shell | Angular სრულ signed JWT-ს `magti_token`-ად ინახავს | security-sensitive წინააღმდეგობა; კოდს აქვს უპირატესობა |
+| `docs/archive/legacy-stack/ARCHITECTURE.md`: bilingual/Compose-centric architecture | პროდუქტის target Georgian-only და on-prem K8s; K8s manifest არ არის | ენობრივი და deployment აღწერა მოძველებული/target-ისგან განსხვავებულია |
 | `CLAUDE.md`: უმაღლესი migration V35 | რეალურად 37 script და უმაღლესი V36.1 | version inventory მოძველებულია |
 | `SecurityConfig` კომენტარი: business endpoint ჯერ არაა | source-ში 120 mapping annotation | კომენტარი მოძველებულია; manual gate coverage კრიტიკულია |
 | `PortalBackendApplication`/ზოგი კომენტარი ძველ მდგომარეობას აღწერს | მიმდინარე modules/features გაცილებით ფართოა | კომენტარი source of truth არაა |
-| `docs/TEST_PLAN_AND_RESULTS.md`: E2E/load „TBD/not started“ | CI-ს სრული Playwright job აქვს; migration log k6 შესრულებასაც აღნიშნავს | test status დოკუმენტი მოძველებულია; k6 მაინც CI gate არაა |
+| `docs/archive/migration/TEST_PLAN_AND_RESULTS.md`: E2E/load „TBD/not started“ | CI-ს სრული Playwright job აქვს; migration log k6 შესრულებასაც აღნიშნავს | test status დოკუმენტი მოძველებულია; k6 მაინც CI gate არაა |
 | `docs/PRODUCT_UX_REQUIREMENTS_KA.md`: Georgian-only, mobile out | `en.json`, language switch E2E და mobile menu E2E ჯერ არსებობს | transitional code; PO გადაწყვეტილების cleanup ჯერ დარჩენილია |
 | target leadership-based manager scope და rollout switches | call sites legacy free-text department scope-ს enforce-ავს; ახალი resolver shadow result-ს არ აბრუნებს | **PLANNED**, არა implemented cutover |
 | target authenticated attachments | upload controller public permitAll მოდელშია | D-4 ჯერ არ შესრულებულა |
