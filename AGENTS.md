@@ -136,8 +136,9 @@ could easily become, several. Read the file before writing a second copy.
 
 - **Surgical edits only.** Never rewrite a whole file; cite file and line.
 - **Re-gating an endpoint means editing `docs/ACCESS_CONTRACT_MATRIX_KA.md` in
-  the same commit.** Six tests read the source and the document against each
-  other and fail the build on any mismatch.
+  the same commit.** A row of coverage tests reads the source and the document
+  against each other and fails the build on any mismatch; they are listed in
+  `java-backend/AGENTS.md`.
 - **Flyway migrations are not individually idempotent and must not carry
   `IF NOT EXISTS`-style guards.** Flyway takes an exclusive lock on
   `flyway_schema_history` before applying anything, so simultaneous instances

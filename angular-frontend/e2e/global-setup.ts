@@ -1,4 +1,4 @@
-import { request as playwrightRequest, FullConfig } from '@playwright/test';
+import { request as playwrightRequest } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { E2E_PASSWORD, SHARED_PERSONAS, TOKEN_CACHE } from './helpers';
@@ -17,7 +17,7 @@ import { E2E_PASSWORD, SHARED_PERSONAS, TOKEN_CACHE } from './helpers';
  * This deliberately does not weaken the limiter for tests. The limiter is a
  * real defence and CI is the one place it gets exercised under load.
  */
-export default async function globalSetup(config: FullConfig): Promise<void> {
+export default async function globalSetup(): Promise<void> {
   const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:4201';
   const context = await playwrightRequest.newContext({ baseURL });
   const tokens: Record<string, string> = {};

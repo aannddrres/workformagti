@@ -146,7 +146,11 @@ export class GlobalSearch {
   onDocumentKeydown(event: KeyboardEvent): void {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
       event.preventDefault();
-      this.open() ? this.close() : this.openPalette();
+      if (this.open()) {
+        this.close();
+      } else {
+        this.openPalette();
+      }
       return;
     }
     if (event.key === 'Escape' && this.open()) {

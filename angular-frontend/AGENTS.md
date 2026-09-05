@@ -11,8 +11,19 @@ npm ci && npx ng test --watch=false && npm run check:i18n
 ```
 
 Unit tests are Vitest through `@angular/build:unit-test` — no Karma, no
-browser, no display needed. `npm run lint` and `npm run format:check` gate
-style. `npx ng build --configuration production` is what CI builds, and CI
+browser, no display needed.
+
+`npm run lint` is gated in CI and is clean; keep it that way. Its rule set is
+the recommended baseline and nothing more, chosen so it could gate from the
+first commit instead of being switched off on the second — tighten it by
+turning rules on one at a time, with the fixes in the same commit.
+
+`npm run format:check` exists and **fails today**: 188 of 211 files predate
+any formatting pass, so Prettier has never been run over this codebase. It is
+deliberately not in CI. Running `npm run format` is a 188-file diff and
+belongs in a commit of its own, on a clean tree — not folded into a feature.
+
+`npx ng build --configuration production` is what CI builds, and CI
 additionally greps the built `index.html` for inline event handlers and inline
 script bodies, because `nginx.conf.template` serves `script-src 'self'` and
 re-enabling `optimization.styles.inlineCritical` would silently break it.

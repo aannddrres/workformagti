@@ -1,6 +1,6 @@
 # ტესტების კატალოგი — მიგრაციის მისაღები სპეციფიკაცია
 
-დანართი [`JAVA_ORACLE_ANGULAR_MIGRATION.md`](../JAVA_ORACLE_ANGULAR_MIGRATION.md)-ის, ფაზა 0.4-ის. სრული, ფაილ-ფაილზე გავლილი კატალოგი
+დანართი [`JAVA_ORACLE_ANGULAR_MIGRATION.md`](../archive/migration/JAVA_ORACLE_ANGULAR_MIGRATION.md)-ის, ფაზა 0.4-ის. სრული, ფაილ-ფაილზე გავლილი კატალოგი
 **103 ტესტ ფუნქციის** (4,661 ხაზი, 27 ტესტ-ფაილი + `conftest.py`/`factories.py`), თითოეულზე — რომელ კონკრეტულ ბიზნეს-წესს ან
 საზღვარს ამოწმებს, არა უბრალოდ ფუნქციის სახელი.
 
