@@ -200,7 +200,7 @@ jobs:
         run: npx ng test --watch=false
 
   # Gating. Proven green on commit 905e8db: 221 tests, 0 failures, 0 errors,
-  # in a 2m52s job (Flyway applies all 30 migrations into a fresh XE 21c, so
+  # in a 2m52s job (Flyway applies every migration into a fresh XE 21c, so
   # this also exercises the migrations themselves on every push). Was
   # advisory only until a run had actually passed; it has, so the training
   # wheels are off. timeout-minutes stays as a backstop against a container
