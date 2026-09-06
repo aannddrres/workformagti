@@ -20,18 +20,25 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Until 2026-09-06 {@link ArticleVisibility} did not look at {@code is_draft}
  * at all. That did not show up as a wrong article list, because
  * {@code ArticleQueryService}'s SQL carries the same rule in its own
- * {@code WHERE} clause and the lists were correct. It showed up one layer
- * down, on the two callers that ask this class instead of running that query:
+ * {@code WHERE} clause and every list was correct. It showed up everywhere
+ * this class is asked instead of that query — eleven endpoints:
  *
  * <ul>
- *   <li>{@code storage/FileAccessPolicy} — {@code /uploads/{filename}}, the
- *       DEC-P01 entitlement gate, which is <b>enforcing in production</b>
- *       ({@code ROLLOUT_FILE_ENTITLEMENT=true}). An article carrying
+ *   <li><b>{@code GET /api/articles/{id}}</b>, through
+ *       {@code ArticleController#assertArticleVisible}. An article carrying
  *       {@code is_draft = true} together with {@code status = 'published'} was
- *       hidden from every reader list and had its attachments served anyway,
- *       to anyone in its target departments.
- *   <li>{@code ArticleController#requireVisibleArticle} — the per-article note
- *       endpoints, which treated the same row as readable.
+ *       hidden from every list and returned <b>in full</b> by id, to anyone in
+ *       its target departments. This is the one that matters, and it was
+ *       under-stated as "the note endpoints" when the defect was first written
+ *       up; the record is corrected here rather than quietly.
+ *   <li>Eight more reaching the same helper — {@code /related},
+ *       {@code /versions}, the history {@code /diff}, {@code /read-receipt}
+ *       and its {@code /me}, {@code /view}, {@code /me/recently-viewed}, and
+ *       both {@code /note} routes.
+ *   <li>{@code storage/FileAccessPolicy} — {@code /uploads/{filename}}, the
+ *       DEC-P01 entitlement gate, <b>enforcing in production</b>
+ *       ({@code ROLLOUT_FILE_ENTITLEMENT=true}), which served that draft's
+ *       attachments on the same reasoning.
  * </ul>
  *
  * <p>That pair of values is not exotic. {@code ArticleRequest.isDraftOrDefault}
@@ -59,8 +66,9 @@ class ArticleVisibilityDraftTest {
     void anotherPersonsDraftIsInvisibleEvenWhenItsStatusSaysPublished() {
         assertFalse(ArticleVisibility.isVisible(
                 draftBySomebodyElse("published"), TARGETED_AT_EVERYONE, operator(AUTHOR_ID)),
-                "is_draft is the personal-autosave flag, so it outranks status. This exact pair was "
-                        + "readable through /uploads/{filename} until 2026-09-06.");
+                "is_draft is the personal-autosave flag, so it outranks status. Until 2026-09-06 this "
+                        + "exact pair came back in full from GET /api/articles/{id} to anyone in the "
+                        + "target departments, and its attachments from /uploads/{filename}.");
     }
 
     /**

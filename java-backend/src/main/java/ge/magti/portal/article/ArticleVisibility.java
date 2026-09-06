@@ -38,11 +38,14 @@ public final class ArticleVisibility {
         // hides a row from everyone but its author, content administrators
         // included. This clause was missing until 2026-09-06, and its absence
         // did not show up as a wrong list -- ArticleQueryService's SQL carries
-        // the same rule and the lists were correct -- but as a weaker answer
-        // on the two callers that ask this class instead: /uploads/{filename}
-        // (DEC-P01, enforcing in production) served a still-private draft's
-        // attachments to anyone in its target departments, and the note
-        // endpoints treated that draft as readable. Ordered before the
+        // the same rule, so every list was correct -- but as a weaker answer
+        // everywhere this class is asked instead of that query. That is ten
+        // endpoints in ArticleController, through assertArticleVisible and
+        // requireVisibleArticle, plus /uploads/{filename} via
+        // FileAccessPolicy (DEC-P01, enforcing in production). The one that
+        // matters most is GET /api/articles/{id}: another author's private
+        // draft, if its status happened to say published, came back in full
+        // to anyone in its target departments. Ordered before the
         // content-admin bypass on purpose; the list query hides another
         // author's draft from administrators too, and two answers to one
         // question is what this class exists to prevent.
