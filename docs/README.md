@@ -75,7 +75,6 @@
 | ფაილი | რაზეა |
 |---|---|
 | [`api-contract/`](api-contract/) | `openapi.json` და `golden_master_v1.json` — API-ის ჩაწერილი ფორმა. `article-visibility-cases.json` — შემთხვევები, რომლებზეც Java-ს და Angular-ის ხილვადობის წესები უნდა ემთხვეოდნენ |
-| [`api-contract/test_acceptance_catalog.md`](api-contract/test_acceptance_catalog.md) | 103 მიღების ტესტის კატალოგი, მიგრაციის დროიდან (2026-07-29) |
 | [`i18n-catalog/README.md`](i18n-catalog/README.md) | ქართული სტრიქონების კატალოგის წარმომავლობა (2026-08-06). ამოღებულია უკვე წაშლილი `static/js` და `routers/`-იდან |
 | [`wireframes/`](wireframes/) | `system-admin-wireframes.html` |
 
@@ -155,4 +154,5 @@
 |---|---|---|
 | [`JAVA_ORACLE_ANGULAR_MIGRATION.md`](archive/migration/JAVA_ORACLE_ANGULAR_MIGRATION.md) | 2026-08-14 | მიგრაციის მთავარი ჟურნალი — repo-ს ყველაზე დიდი ფაილი |
 | [`TEST_PLAN_AND_RESULTS.md`](archive/migration/TEST_PLAN_AND_RESULTS.md) | 2026-08-13 | მიგრაციის ტესტ-გეგმა და შედეგები |
+| [`test_acceptance_catalog.md`](archive/migration/test_acceptance_catalog.md) | 2026-07-29 | 103 ტესტის კატალოგი — **წაშლილი Python-ის სეიტის**, არა ახლის |
 | [`SPECIFICATION.md`](archive/migration/SPECIFICATION.md) | 2026-07-18 | 2026-ის თავდაპირველი ერთგვერდიანი ბრიფი, საიდანაც ყველაფერი დაიწყო |
