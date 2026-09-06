@@ -33,6 +33,21 @@ public final class ArticleVisibility {
      *                          in rather than fetched here.
      */
     public static boolean isVisible(Article article, List<String> targetDepartments, User user) {
+        // is_draft is the personal-autosave flag, not editorial state: it
+        // hides a row from everyone but its author, content administrators
+        // included. This clause was missing until 2026-09-06, and its absence
+        // did not show up as a wrong list -- ArticleQueryService's SQL carries
+        // the same rule and the lists were correct -- but as a weaker answer
+        // on the two callers that ask this class instead: /uploads/{filename}
+        // (DEC-P01, enforcing in production) served a still-private draft's
+        // attachments to anyone in its target departments, and the note
+        // endpoints treated that draft as readable. Ordered before the
+        // content-admin bypass on purpose; the list query hides another
+        // author's draft from administrators too, and two answers to one
+        // question is what this class exists to prevent.
+        if (article.isDraft() && !isAuthor(article, user)) {
+            return false;
+        }
         if (user.getRole().isContentAdmin()) {
             return true;
         }
@@ -47,5 +62,15 @@ public final class ArticleVisibility {
         return "scheduled".equals(article.getStatus())
                 && article.getPublishedAt() != null
                 && !article.getPublishedAt().isAfter(TbilisiTime.now());
+    }
+
+    /**
+     * Null-safe on both sides, and deliberately so: an article with no author
+     * belongs to nobody rather than to everybody, which is the same direction
+     * {@code ArticleQueryService}'s {@code a.authorId = :userId} resolves to
+     * for a null column.
+     */
+    private static boolean isAuthor(Article article, User user) {
+        return article.getAuthorId() != null && article.getAuthorId().equals(user.getId());
     }
 }

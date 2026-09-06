@@ -5,11 +5,19 @@
     "ArticleVisibility.java, and by article-visibility.spec.ts against",
     "angular-frontend/src/app/shared/article-visibility.ts.",
     "",
-    "Only the clause both sides actually evaluate is listed here -- status and",
-    "publishedAt. The backend additionally decides audience (DepartmentMatcher)",
-    "and lets content administrators through; the frontend additionally hides",
-    "is_draft rows. Those are not duplicated between the two and so are not",
-    "compared here; each is tested on its own side.",
+    "Only the clause both sides actually evaluate is listed here -- status,",
+    "publishedAt and isDraft. The backend additionally decides audience",
+    "(DepartmentMatcher) and lets content administrators through; that is not",
+    "duplicated between the two and so is not compared here.",
+    "",
+    "isDraft is optional and defaults to false, which is what every case",
+    "written before 2026-09-06 means. It joined this fixture the day",
+    "ArticleVisibility.java was found not to evaluate it at all: the lists were",
+    "right because their SQL carries the rule separately, but /uploads and the",
+    "note endpoints ask this rule directly and got the weaker answer. The one",
+    "case the two sides cannot share is the author's own draft -- the frontend",
+    "surfaces have no author to compare against -- so that stays in",
+    "ArticleVisibilityDraftTest on the Java side.",
     "",
     "publishedAt is relative on purpose. The backend compares against",
     "TbilisiTime.now() (a fixed +04:00 offset) and the browser against the",
@@ -78,6 +86,22 @@
       "publishedAt": "past",
       "visible": false,
       "why": "both sides allow-list rather than deny-list, so a new status is invisible until it is handled"
+    },
+    {
+      "name": "somebody else's autosave draft that says published",
+      "status": "published",
+      "publishedAt": "past",
+      "isDraft": true,
+      "visible": false,
+      "why": "is_draft is the personal-autosave flag and outranks status; this exact pair was readable through /uploads until 2026-09-06"
+    },
+    {
+      "name": "somebody else's autosave draft that is scheduled and due",
+      "status": "scheduled",
+      "publishedAt": "past",
+      "isDraft": true,
+      "visible": false,
+      "why": "the draft clause is evaluated before the date, so a due schedule cannot publish a private draft"
     }
   ]
 }
