@@ -34,26 +34,39 @@ public final class ArticleVisibility {
      *                          in rather than fetched here.
      */
     public static boolean isVisible(Article article, List<String> targetDepartments, User user) {
-        // is_draft is the personal-autosave flag, not editorial state: it
-        // hides a row from everyone but its author, content administrators
-        // included. This clause was missing until 2026-09-06, and its absence
-        // did not show up as a wrong list -- ArticleQueryService's SQL carries
+        // Content administrators read everything, drafts included. See the
+        // note below on why this line sits above the draft clause and not
+        // under it -- it is an open product question, not a settled one.
+        if (user.getRole().isContentAdmin()) {
+            return true;
+        }
+        // is_draft is the personal-autosave flag, not editorial state. This
+        // clause was missing entirely until 2026-09-06, and its absence did
+        // not show up as a wrong list -- ArticleQueryService's SQL carries
         // the same rule, so every list was correct -- but as a weaker answer
         // everywhere this class is asked instead of that query. That is ten
         // endpoints in ArticleController, through assertArticleVisible and
-        // requireVisibleArticle, plus /uploads/{filename} via
-        // FileAccessPolicy (DEC-P01, enforcing in production). The one that
-        // matters most is GET /api/articles/{id}: another author's private
-        // draft, if its status happened to say published, came back in full
-        // to anyone in its target departments. Ordered before the
-        // content-admin bypass on purpose; the list query hides another
-        // author's draft from administrators too, and two answers to one
-        // question is what this class exists to prevent.
+        // requireVisibleArticle, plus /uploads/{filename} via FileAccessPolicy
+        // (DEC-P01, enforcing in production). The one that mattered is
+        // GET /api/articles/{id}: another author's private draft, if its
+        // status happened to say published, came back in full to any of the
+        // ~600 operators in its target departments.
+        //
+        // OPEN QUESTION, deliberately left as it was found. The repository
+        // documents this rule as "hides a row from everyone but its author,
+        // content administrators included", and ArticleQueryService's
+        // "a.isDraft = false OR a.authorId = :userId" implements exactly that
+        // -- outside its :isAdmin branch, so an administrator's own list hides
+        // a colleague's draft. But ArticleControllerIntegrationTest's
+        // adminCanSeeADraftArticleById asserts the opposite for a direct
+        // fetch, deliberately and by name. Those two have disagreed since
+        // before this clause existed; each went through a different code
+        // path, so nothing made them meet. Putting the draft check above the
+        // bypass would settle it in the document's favour and change what
+        // administrators can open -- a product decision, not a bug fix, so it
+        // is not taken here. Where it lands, this is the line that moves.
         if (article.isDraft() && !isAuthor(article, user)) {
             return false;
-        }
-        if (user.getRole().isContentAdmin()) {
-            return true;
         }
         if (!DepartmentMatcher.matches(user.getDepartment(), targetDepartments)) {
             return false;

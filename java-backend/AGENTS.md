@@ -35,7 +35,7 @@ the enforcement, and they are the pattern to extend rather than replace.
 | `docs/DocumentedFactsTest` | A version or migration number stated in an agent-facing document no longer matches the build |
 | `docs/DocsIndexCoverageTest` | A file under `docs/` is missing from `docs/README.md`, or a link there does not resolve |
 | `article/ArticleVisibilityParityTest` | The Java visibility rule and its Angular mirror disagree on a case in `docs/api-contract/article-visibility-cases.json` |
-| `article/ArticleVisibilityDraftTest` | `ArticleVisibility` stops hiding another author's `is_draft` row, or starts hiding the author's own |
+| `article/ArticleVisibilityDraftTest` | `ArticleVisibility` stops hiding another author's `is_draft` row from an operator, or starts hiding the author's own. Also pins the unsettled half: an administrator *can* still open a colleague's draft by id |
 | `web/ArticleRequestDraftConsistencyTest` | Create/update accepts `is_draft: true` beside a reader-visible status again |
 | `util/DepartmentVisibilityTargetsTest` | A seventh place builds `List.of(user.getDepartment(), …)` inline — it throws on a null department |
 | `web/ControllerGuardConsolidationTest` | A controller re-declares `requireAuthenticated` or `requireContentManage`, or the `requireSystemAdmin` inventory shifts |
