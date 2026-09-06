@@ -112,6 +112,19 @@ could easily become, several. Read the file before writing a second copy.
   disagree. Its reader-facing subset is mirrored in
   `angular-frontend/src/app/shared/article-visibility.ts`, and the cases both
   must agree on are pinned in `docs/api-contract/article-visibility-cases.json`.
+  It did not evaluate `is_draft` at all until 2026-09-06, so another
+  author's private draft — if its status said `published` — came back in
+  full from `GET /api/articles/{id}` to any operator in its target
+  departments. **Open question, deliberately not settled:** the draft check
+  sits *below* the content-admin bypass, so an administrator can still open
+  a colleague's draft by id even though their own list hides it.
+  `ArticleVisibilityDraftTest` records both sides.
+- `util/DepartmentMatcher.visibilityTargets` — the department values a
+  caller's content is delivered by. Six places built this list inline, and
+  `List.of` throws on the null department the schema allows.
+- `web/Guards.java` — `requireAuthenticated` and `requireContentManage`, once
+  written 23 times between them. `requireSystemAdmin` is deliberately still
+  nine copies; `ControllerGuardConsolidationTest` says why.
 - `security/ClientIpResolver.java` — the real caller behind a proxy, for rate
   limiting and the audit log. Needs `TRUSTED_PROXIES` set in production or
   `X-Forwarded-For` is ignored (a deliberately safe default).

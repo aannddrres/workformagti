@@ -41,7 +41,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <p>Audience and the content-administrator bypass are not in the fixture —
  * the frontend does not evaluate them, so there is nothing to keep in step.
  * Here they are neutralised: the article targets {@code "All"} and the user is
- * an operator, which isolates status and date.
+ * an operator, which isolates status, date and {@code is_draft}.
+ *
+ * <p>The author's own draft is the one case the two sides cannot share, since
+ * a list screen has no author to compare against. It lives in
+ * {@link ArticleVisibilityDraftTest} instead, next to the rest of the clause
+ * this fixture only half covers.
  */
 class ArticleVisibilityParityTest {
 
@@ -95,6 +100,10 @@ class ArticleVisibilityParityTest {
         return new ObjectMapper().readTree(Files.readString(CASES)).get("cases");
     }
 
+    /** Any id that is not {@link #READER_ID}: the fixture's drafts are somebody else's. */
+    private static final long OTHER_AUTHOR_ID = 999L;
+    private static final long READER_ID = 42L;
+
     private static Article article(JsonNode c) {
         Article article = new Article();
         article.setStatus(c.get("status").asText());
@@ -102,11 +111,19 @@ class ArticleVisibilityParityTest {
         if (when != null && !when.isNull()) {
             article.setPublishedAt("past".equals(when.asText()) ? PAST : FUTURE);
         }
+        // Absent means false -- every case written before isDraft joined the
+        // fixture means exactly that, and spelling it out in each would be
+        // noise. The author is deliberately not the reader, so a draft case
+        // asks the shared question rather than the author's-own-draft one.
+        JsonNode draft = c.get("isDraft");
+        article.setDraft(draft != null && draft.asBoolean());
+        article.setAuthorId(OTHER_AUTHOR_ID);
         return article;
     }
 
     private static User operator() {
         User user = new User();
+        user.setId(READER_ID);
         user.setRole(Role.OPERATOR);
         user.setDepartment("ტექნიკური");
         return user;

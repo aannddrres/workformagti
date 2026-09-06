@@ -41,7 +41,7 @@ public class FavoriteController {
     /** Port of get_favorites (routers/favorites.py:14-42). */
     @GetMapping("/api/favorites")
     public ResponseEntity<?> getFavorites(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -60,7 +60,7 @@ public class FavoriteController {
     @PostMapping("/api/favorites")
     @Transactional
     public ResponseEntity<?> addFavorite(@Valid @RequestBody FavoriteRequest request, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -75,7 +75,7 @@ public class FavoriteController {
     /** Port of remove_favorite (routers/favorites.py:92-122). */
     @DeleteMapping("/api/favorites/{id}")
     public ResponseEntity<?> removeFavorite(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -87,11 +87,4 @@ public class FavoriteController {
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 
-    private static ResponseEntity<Map<String, String>> requireAuthenticated(User user) {
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("detail", "Could not validate credentials"));
-        }
-        return null;
-    }
 }

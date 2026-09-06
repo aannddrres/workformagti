@@ -82,7 +82,7 @@ public class VideoController {
 
     @GetMapping("/api/videos")
     public ResponseEntity<?> getVideos(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -100,7 +100,7 @@ public class VideoController {
 
     @PostMapping("/api/videos/{id}/view")
     public ResponseEntity<?> viewVideo(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -122,7 +122,7 @@ public class VideoController {
     @Transactional
     public ResponseEntity<?> createVideo(
             @Valid @RequestBody VideoInstructionRequest request, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
         }
@@ -148,7 +148,7 @@ public class VideoController {
     public ResponseEntity<?> updateVideo(
             @PathVariable Long id, @Valid @RequestBody VideoInstructionRequest request,
             @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
         }
@@ -176,7 +176,7 @@ public class VideoController {
     @DeleteMapping("/api/videos/{id}")
     @Transactional
     public ResponseEntity<?> deleteVideo(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
         }
@@ -264,28 +264,8 @@ public class VideoController {
                 && DepartmentMatcher.matches(user.getDepartment(), List.of(video.getTargetDepartment())));
     }
 
-    private static ResponseEntity<Map<String, String>> requireAuthenticated(User user) {
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("detail", "Could not validate credentials"));
-        }
-        return null;
-    }
-
-    private ResponseEntity<Map<String, String>> requireContentManage(User user) {
-        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
-        if (authFailure != null) {
-            return authFailure;
-        }
-        if (!permissionChecker.hasPermission(user, Permission.CONTENT_MANAGE)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
-        }
-        return null;
-    }
-
     private ResponseEntity<Map<String, String>> requireVideosArchivePermission(User user) {
-        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> authFailure = Guards.requireAuthenticated(user);
         if (authFailure != null) {
             return authFailure;
         }

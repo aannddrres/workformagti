@@ -106,7 +106,7 @@ public class ComplianceController {
     /** Port of get_my_readings (routers/compliance.py:30-113). */
     @GetMapping("/api/compliance/my-readings")
     public ResponseEntity<?> getMyReadings(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -116,10 +116,9 @@ public class ComplianceController {
             return ResponseEntity.ok(List.of());
         }
 
-        String deptPrefix = DepartmentMatcher.splitGroup(user.getDepartment()).prefix();
         List<RequiredReading> readings = CompleteResultGuard.enforce(
                 requiredReadingRepository.findByTargetDepartmentIn(
-                        List.of(user.getDepartment(), deptPrefix, "All"),
+                        DepartmentMatcher.visibilityTargets(user.getDepartment()),
                         CompleteResultGuard.sentinelPage()));
         if (readings.isEmpty()) {
             return ResponseEntity.ok(List.of());
@@ -165,7 +164,7 @@ public class ComplianceController {
     /** Port of get_my_progress (routers/compliance.py:116-143). */
     @GetMapping("/api/compliance/my-progress")
     public ResponseEntity<?> getMyProgress(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -183,7 +182,7 @@ public class ComplianceController {
     @PostMapping("/api/compliance/mark-read/{readingId}")
     @Transactional
     public ResponseEntity<?> markRead(@PathVariable("readingId") Long readingId, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -385,14 +384,6 @@ public class ComplianceController {
         return dueDate == null ? null : dueDate.withOffsetSameInstant(TbilisiTime.OFFSET);
     }
 
-    private static ResponseEntity<Map<String, String>> requireAuthenticated(User user) {
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("detail", "Could not validate credentials"));
-        }
-        return null;
-    }
-
     /**
      * SEC-06: {@code compliance.assign} sat in the catalog as a switch the
      * admin UI offered, validated and persisted -- and consulted nowhere.
@@ -404,7 +395,7 @@ public class ComplianceController {
      * the same capability instead of a separate role-only rule.
      */
     private ResponseEntity<Map<String, String>> requireComplianceAssign(User user) {
-        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> authFailure = Guards.requireAuthenticated(user);
         if (authFailure != null) {
             return authFailure;
         }

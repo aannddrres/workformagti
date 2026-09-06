@@ -18,7 +18,6 @@ import ge.magti.portal.repository.TagRepository;
 import ge.magti.portal.util.DepartmentMatcher;
 import ge.magti.portal.util.TbilisiTime;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -71,7 +70,7 @@ public class PlatformController {
     /** Port of get_tags (routers/platform.py:269-281). */
     @GetMapping("/api/tags")
     public ResponseEntity<?> getTags(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -83,7 +82,7 @@ public class PlatformController {
     /** Port of get_notifications_summary (routers/platform.py:125-197). */
     @GetMapping("/api/notifications/summary")
     public ResponseEntity<?> getNotificationsSummary(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -92,10 +91,9 @@ public class PlatformController {
 
         List<UnreadReadingSummaryItem> unreadReadings = new ArrayList<>();
         if (!ComplianceCalculator.MANAGEMENT_ROLES.contains(user.getRole())) {
-            String deptPrefix = DepartmentMatcher.splitGroup(user.getDepartment()).prefix();
             List<RequiredReading> readings = CompleteResultGuard.enforce(
                     requiredReadingRepository.findByTargetDepartmentIn(
-                            List.of(user.getDepartment(), deptPrefix, "All"),
+                            DepartmentMatcher.visibilityTargets(user.getDepartment()),
                             CompleteResultGuard.sentinelPage()));
             if (!readings.isEmpty()) {
                 Map<ItemKey, ItemDetail> details = itemTitleResolver.resolveDetailsBulk(
@@ -126,11 +124,11 @@ public class PlatformController {
         // prefix-aware match the readings half above (and NewsQueryService's
         // own GET /api/news) already use -- a sub-group operator's bell icon
         // silently dropped news targeted at their parent department.
-        String newsDeptPrefix = DepartmentMatcher.splitGroup(user.getDepartment()).prefix();
         List<News> newsList = Role.CONTENT_ADMIN_ROLES.contains(user.getRole())
                 ? newsRepository.findByCreatedAtGreaterThanEqualOrderByCreatedAtDesc(sevenDaysAgo, PageRequest.of(0, 10))
                 : newsRepository.findByCreatedAtGreaterThanEqualAndTargetDepartmentInOrderByCreatedAtDesc(
-                        sevenDaysAgo, List.of(user.getDepartment(), newsDeptPrefix, "All"), PageRequest.of(0, 10));
+                        sevenDaysAgo, DepartmentMatcher.visibilityTargets(user.getDepartment()),
+                        PageRequest.of(0, 10));
         List<RecentNewsSummaryItem> recentNews = newsList.stream()
                 .map(n -> new RecentNewsSummaryItem(n.getId(), n.getTitle(), n.getTargetDepartment(), n.getCreatedAt()))
                 .toList();
@@ -140,11 +138,4 @@ public class PlatformController {
         return ResponseEntity.ok(new NotificationsSummaryResponse(unreadReadings, recentNews, (int) unreadReminders));
     }
 
-    private static ResponseEntity<Map<String, String>> requireAuthenticated(User user) {
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("detail", "Could not validate credentials"));
-        }
-        return null;
-    }
 }

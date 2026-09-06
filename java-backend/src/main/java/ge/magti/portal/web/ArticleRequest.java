@@ -1,6 +1,9 @@
 package ge.magti.portal.web;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import ge.magti.portal.article.ArticleVisibility;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -69,8 +72,54 @@ public record ArticleRequest(
         return visibleToServiceCenter != null && visibleToServiceCenter;
     }
 
+    /**
+     * Absent means "not a draft" when the status asks for readers, and "a
+     * draft" otherwise.
+     *
+     * <p>This used to be an unconditional {@code true}, independent of status,
+     * and that is the trap it now closes. {@code POST /api/articles} with
+     * {@code status: "published"} and no {@code is_draft} produced a row that
+     * every reader list hid — {@code is_draft} is the personal-autosave flag,
+     * so it hides a row from everyone but its author — while the caller had
+     * plainly asked for it to be published. Nothing reported an error; the
+     * article simply was not there. That is the same shape as the incident
+     * that left 122 imported articles visible to one account, and
+     * {@code bulkSetArticleStatus} already resolves it the same way, clearing
+     * the flag when it publishes.
+     *
+     * <p>The Angular editor always sends the field
+     * ({@code article-edit-drawer.ts}), so nothing in the product changes;
+     * what changes is what a seeder, an import or a screen written later gets
+     * when it forgets.
+     */
     public boolean isDraftOrDefault() {
-        return isDraft == null || isDraft;
+        if (isDraft != null) {
+            return isDraft;
+        }
+        return !ArticleVisibility.isPublishedByLifecycle(statusOrDefault(), publishedAt);
+    }
+
+    /**
+     * Refuses the one combination the default above cannot rescue: an
+     * explicit {@code is_draft: true} together with a status that asks for
+     * readers.
+     *
+     * <p>Coercing that would be guessing at which of the two the caller meant.
+     * Refusing says so, and a 400 here is strictly better than the alternative
+     * this endpoint had until 2026-09-06 — a stored row that claims to be
+     * published, appears in no list, and whose attachments were served by
+     * {@code /uploads/{filename}} regardless.
+     *
+     * <p>A draft that is merely <i>scheduled</i> for a future moment is not
+     * this case and stays allowed: it is not reader-visible yet, so there is
+     * no contradiction to refuse.
+     */
+    @AssertTrue(message = "დაუშვებელია პირადი მონახაზი (is_draft) გამოქვეყნებულ სტატუსთან ერთად — "
+            + "ან გამორთეთ მონახაზი, ან დატოვეთ სტატუსი draft")
+    @JsonIgnore
+    public boolean isDraftAndStatusConsistent() {
+        return !Boolean.TRUE.equals(isDraft)
+                || !ArticleVisibility.isPublishedByLifecycle(statusOrDefault(), publishedAt);
     }
 
     public boolean quizEnabledOrDefault() {

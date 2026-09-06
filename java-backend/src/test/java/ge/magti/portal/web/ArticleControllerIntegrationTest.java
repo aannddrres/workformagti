@@ -1204,13 +1204,14 @@ class ArticleControllerIntegrationTest {
     // ── history / diff / restore / versions ──────────────────────────
 
     private long createArticleViaApi(String token, String title, String content, Long categoryId) throws Exception {
-        // is_draft must be set explicitly: ArticleRequest defaults it to
-        // true (matching Python's own ArticleBase schema default) when
-        // absent, regardless of status -- the two fields are independent.
-        // Omitting this made every article this helper creates a draft,
-        // which EligibleOperatorsService.forArticle correctly treats as
-        // "nobody is eligible to read this yet" (found via a failing test,
-        // not assumed).
+        // is_draft is sent explicitly, though since 2026-09-06 it no longer
+        // has to be: ArticleRequest's absent-value default follows the status
+        // instead of being an unconditional true. Kept as it was because a
+        // fixture that leans on a default is asserting the default rather
+        // than the behaviour under test -- and because the failure this
+        // originally worked around was silent: every article the helper
+        // created was a draft, which EligibleOperatorsService.forArticle
+        // correctly treats as "nobody is eligible to read this yet".
         String body = mockMvc.perform(authed(post("/api/articles"), token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"title\":\"" + title + "\",\"content\":\"" + content + "\",\"category_id\":"

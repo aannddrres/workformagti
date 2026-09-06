@@ -15,18 +15,18 @@ import java.nio.file.Path;
  * <p>The marker is {@code AGENTS.md} beside a {@code docs/} directory —
  * together specific enough that no subdirectory can be mistaken for the root.
  */
-final class RepoRoot {
+public final class RepoRoot {
 
     private static final Path ROOT = locate();
 
     private RepoRoot() {
     }
 
-    static Path path(String relative) {
+    public static Path path(String relative) {
         return ROOT.resolve(relative);
     }
 
-    static Path root() {
+    public static Path root() {
         return ROOT;
     }
 

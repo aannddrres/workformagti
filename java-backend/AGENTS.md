@@ -35,6 +35,10 @@ the enforcement, and they are the pattern to extend rather than replace.
 | `docs/DocumentedFactsTest` | A version or migration number stated in an agent-facing document no longer matches the build |
 | `docs/DocsIndexCoverageTest` | A file under `docs/` is missing from `docs/README.md`, or a link there does not resolve |
 | `article/ArticleVisibilityParityTest` | The Java visibility rule and its Angular mirror disagree on a case in `docs/api-contract/article-visibility-cases.json` |
+| `article/ArticleVisibilityDraftTest` | `ArticleVisibility` stops hiding another author's `is_draft` row from an operator, or starts hiding the author's own. Also pins the unsettled half: an administrator *can* still open a colleague's draft by id |
+| `web/ArticleRequestDraftConsistencyTest` | Create/update accepts `is_draft: true` beside a reader-visible status again |
+| `util/DepartmentVisibilityTargetsTest` | A seventh place builds `List.of(user.getDepartment(), …)` inline — it throws on a null department |
+| `web/ControllerGuardConsolidationTest` | A controller re-declares `requireAuthenticated` or `requireContentManage`, or the `requireSystemAdmin` inventory shifts |
 
 Each carries a test that guards itself against passing vacuously. Five
 `V*MigrationShapeTest` classes pin the shape of specific migrations; there is
@@ -66,5 +70,15 @@ Boot 4 — relevant if you touch Flyway wiring.
   hides a half-applied migration, which is the one case you want to fail loud.
 - **Never add `@PreAuthorize`.** This module gates in handler bodies, and the
   coverage tests above assume that.
+- **Never re-declare `requireAuthenticated` or `requireContentManage` in a
+  controller.** They live in `web/Guards.java`; they were once written 16 and 7
+  times over. `requireSystemAdmin` is still nine local copies with four
+  different denial messages — that is known, recorded in
+  `ControllerGuardConsolidationTest`, and waiting on a decision about what a
+  refused caller should be told, not on someone noticing.
+- **Never set `is_draft` from a status, or a status from `is_draft`.** They are
+  independent columns and the request boundary already refuses the one
+  combination that cannot mean anything (`ArticleRequest`). `is_draft` hides a
+  row from everyone but its author, administrators included.
 - **Never move a gate without editing `docs/ACCESS_CONTRACT_MATRIX_KA.md` in
   the same commit.** The build stops you, but knowing why saves the argument.

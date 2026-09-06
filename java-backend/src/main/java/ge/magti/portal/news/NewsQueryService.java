@@ -1,7 +1,6 @@
 package ge.magti.portal.news;
 
 import ge.magti.portal.domain.User;
-import ge.magti.portal.util.DepartmentGroup;
 import ge.magti.portal.util.DepartmentMatcher;
 import ge.magti.portal.util.TbilisiTime;
 import jakarta.persistence.EntityManager;
@@ -58,8 +57,7 @@ public class NewsQueryService {
     private EntityManager entityManager;
 
     public List<NewsListItem> listVisible(User user, int skip, int limit) {
-        DepartmentGroup group = DepartmentMatcher.splitGroup(user.getDepartment());
-        List<String> depts = List.of(user.getDepartment(), group.prefix(), "All");
+        List<String> depts = DepartmentMatcher.visibilityTargets(user.getDepartment());
 
         TypedQuery<NewsListItem> query = entityManager.createQuery(LIST_JPQL, NewsListItem.class);
         query.setParameter("userId", user.getId());

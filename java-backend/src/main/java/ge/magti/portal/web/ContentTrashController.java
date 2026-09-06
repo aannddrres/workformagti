@@ -4,7 +4,6 @@ import ge.magti.portal.content.ContentLifecycleService;
 import ge.magti.portal.content.ContentLifecycleService.ItemType;
 import ge.magti.portal.content.ContentLifecycleService.Status;
 import ge.magti.portal.content.LegalHoldAuthority;
-import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.security.PermissionChecker;
@@ -38,7 +37,7 @@ public class ContentTrashController {
 
     @GetMapping("/api/content-trash")
     public ResponseEntity<?> listTrash(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
         }
@@ -49,7 +48,7 @@ public class ContentTrashController {
     public ResponseEntity<?> restore(
             @PathVariable String itemType, @PathVariable Long itemId,
             @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
         }
@@ -125,16 +124,6 @@ public class ContentTrashController {
         }
         if (!legalHoldAuthority.canManage(user)) {
             return error(HttpStatus.FORBIDDEN, "legal hold მართვის უფლება არ გაქვთ");
-        }
-        return null;
-    }
-
-    private ResponseEntity<Map<String, String>> requireContentManage(User user) {
-        if (user == null) {
-            return error(HttpStatus.UNAUTHORIZED, "Could not validate credentials");
-        }
-        if (!permissionChecker.hasPermission(user, Permission.CONTENT_MANAGE)) {
-            return error(HttpStatus.FORBIDDEN, "წვდომა უარყოფილია: არასაკმარისი უფლებები");
         }
         return null;
     }

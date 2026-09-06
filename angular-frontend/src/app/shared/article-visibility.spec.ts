@@ -51,6 +51,9 @@ describe('article-visibility parity with the backend rule', () => {
     name: string;
     status: string;
     publishedAt: 'past' | 'future' | null;
+    // Optional, defaulting to false: every case written before is_draft joined
+    // the fixture means exactly that. See the fixture's own note.
+    isDraft?: boolean;
     visible: boolean;
   }
 
@@ -78,7 +81,7 @@ describe('article-visibility parity with the backend rule', () => {
         isReaderVisibleArticle({
           status: testCase.status,
           published_at: dateFor(testCase.publishedAt),
-          is_draft: false,
+          is_draft: testCase.isDraft ?? false,
         }),
       ).toBe(testCase.visible);
     });

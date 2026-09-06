@@ -6,7 +6,6 @@ import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.QuizAnswer;
 import ge.magti.portal.domain.QuizAttempt;
 import ge.magti.portal.domain.QuizQuestion;
-import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.query.CompleteResultGuard;
 import ge.magti.portal.quiz.KnowledgeScoreResult;
@@ -89,7 +88,7 @@ public class QuizController {
 
     @GetMapping("/api/articles/{id}/quiz/admin")
     public ResponseEntity<?> getArticleQuizAdmin(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
         }
@@ -103,7 +102,7 @@ public class QuizController {
     @Transactional
     public ResponseEntity<?> updateArticleQuizAdmin(
             @PathVariable Long id, @RequestBody QuizAdminUpdate payload, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
         }
@@ -184,7 +183,7 @@ public class QuizController {
 
     @GetMapping("/api/articles/{id}/quiz")
     public ResponseEntity<?> getArticleQuiz(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -212,7 +211,7 @@ public class QuizController {
     @Transactional
     public ResponseEntity<?> submitArticleQuizAttempt(
             @PathVariable Long id, @RequestBody QuizAttemptSubmitRequest payload, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -262,7 +261,7 @@ public class QuizController {
 
     @GetMapping("/api/users/me/knowledge-score")
     public ResponseEntity<?> getMyKnowledgeScore(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -345,23 +344,4 @@ public class QuizController {
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(Map.of("detail", detail));
     }
 
-    private static ResponseEntity<Map<String, String>> requireAuthenticated(User user) {
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("detail", "Could not validate credentials"));
-        }
-        return null;
-    }
-
-    private ResponseEntity<Map<String, String>> requireContentManage(User user) {
-        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
-        if (authFailure != null) {
-            return authFailure;
-        }
-        if (!permissionChecker.hasPermission(user, Permission.CONTENT_MANAGE)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
-        }
-        return null;
-    }
 }
