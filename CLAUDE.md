@@ -6,9 +6,15 @@ than two copies that drift. Everything there applies here.
 
 @AGENTS.md
 
-Nested files cover each half and are read automatically when you work inside
-them: `java-backend/AGENTS.md`, `angular-frontend/AGENTS.md`,
-`scripts/AGENTS.md`.
+Nested notes cover each half and load when you touch a file in that directory:
+`java-backend/AGENTS.md`, `angular-frontend/AGENTS.md`, `scripts/AGENTS.md`.
+
+Each sits beside a one-line `CLAUDE.md` that does nothing but `@AGENTS.md`.
+That shim is load-bearing, not clutter: Claude Code discovers nested
+`CLAUDE.md` and never looks for `AGENTS.md`, while Codex and Cursor do the
+opposite. Delete a shim and the notes stay perfectly visible to one tool and
+invisible to the other — `DocumentedFactsTest` fails the build if one goes
+missing.
 
 ## Claude-specific
 

@@ -5,11 +5,13 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -84,6 +86,44 @@ class DocumentedFactsTest {
         int highest = highestMigration();
         assertStates(ROOT_AGENTS, "`V" + highest + "`", "the Stack table");
         assertStates(BACKEND_AGENTS, "`V" + (highest + 1) + "`", "the \"Adding a migration\" section");
+    }
+
+    /**
+     * Every nested {@code AGENTS.md} needs a {@code CLAUDE.md} beside it.
+     *
+     * <p>Claude Code reads {@code CLAUDE.md} and does not read {@code AGENTS.md};
+     * the cross-tool convention is the other way round. A nested {@code AGENTS.md}
+     * on its own is therefore invisible to Claude Code and fully visible to Codex,
+     * which is the worst of both — the file exists, the root document promises it
+     * loads automatically, and for one of the two tools it silently does not. That
+     * was true here for a day. The one-line shim that imports the sibling keeps a
+     * single copy of the content and satisfies both.
+     *
+     * <p>The repository root is exempt: its {@code CLAUDE.md} is written by hand
+     * and carries Claude-specific sections beyond the import.
+     */
+    @Test
+    void everyNestedAgentsFileHasAClaudeShimBesideIt() throws IOException {
+        List<String> unreachable = new ArrayList<>();
+        try (Stream<Path> walk = Files.walk(RepoRoot.root(), 3)) {
+            for (Path agents : walk.filter(p -> p.getFileName().toString().equals("AGENTS.md"))
+                    .filter(p -> !p.getParent().equals(RepoRoot.root()))
+                    .filter(p -> !p.toString().contains("node_modules")
+                            && !p.toString().contains(".agents")
+                            && !p.toString().contains("target"))
+                    .toList()) {
+                Path shim = agents.resolveSibling("CLAUDE.md");
+                if (!Files.exists(shim)) {
+                    unreachable.add(RepoRoot.root().relativize(agents).toString().replace('\\', '/'));
+                } else if (!Files.readString(shim).contains("@AGENTS.md")) {
+                    unreachable.add(RepoRoot.root().relativize(shim).toString().replace('\\', '/')
+                            + " (exists but does not import @AGENTS.md)");
+                }
+            }
+        }
+        assertEquals(List.of(), unreachable,
+                "Claude Code reads CLAUDE.md, not AGENTS.md, so these are invisible to it while Codex reads "
+                        + "them fine. Add a CLAUDE.md beside each containing a single @AGENTS.md import.");
     }
 
     /**
