@@ -1,89 +1,70 @@
 # java-backend — notes for coding agents
 
 Spring Boot 4.1.0 on Java 21, Maven wrapper, Oracle via Flyway. Root package
-`ge.magti.portal`. See the repository root `AGENTS.md` for the product, the
-cross-cutting rules and how to run the whole stack.
+`ge.magti.portal`. The product, the cross-cutting rules and how to run the
+whole stack are in the repository root `AGENTS.md`.
 
-## The test loop
+## Commands
 
 ```bash
 ./mvnw -B test -DexcludedGroups=oracle
 ```
 
-That is the fast, database-free half and where you should iterate. The other
-half needs Oracle:
+The fast, database-free half, and where to iterate. `-Dgroups=oracle` is the
+other half. There are no Maven profiles — the split is entirely by JUnit tag,
+and `@RequiresOracle` starts a Testcontainer **only** when `ORACLE_DB_URL` is
+unset and nothing answers at the configured URL. Point it at a running
+instance and it is used instead, which is far faster. On Windows, `.\mvnw.cmd`.
 
-```bash
-./mvnw -B test -Dgroups=oracle
-```
+## Authorization is not annotation-driven
 
-There are no Maven profiles — the split is entirely by JUnit tag. `@RequiresOracle`
-is `@Tag("oracle")` plus `@Import(OracleTestcontainer.class)`; the container
-starts **only** when `ORACLE_DB_URL` is unset and nothing answers at the
-configured URL. Point `ORACLE_DB_URL` at a running instance and it is used
-instead, which is much faster.
+`SecurityConfig` is `anyRequest().permitAll()` and there is not one
+`@PreAuthorize` in the module; every handler gates itself with a `require*`
+call. Nothing in the framework enforces that — the coverage tests below are
+the enforcement, and they are the pattern to extend rather than replace.
 
-On Windows use `.\mvnw.cmd`. Source encoding is pinned to UTF-8 on purpose —
-there are Georgian literals in the source.
-
-## Packages
-
-`web` is by far the largest (28 controllers plus their request/response
-records). `domain` holds JPA entities, `repository` the Spring Data
-interfaces. The rest are small and single-purpose: `security`, `export`,
-`stats`, `article`, `content`, `compliance`, `org`, `storage`, `quiz`,
-`audit`, `search`, `reminder`, `news`, `diff`, `config`, `video`,
-`announcement`, `util`.
-
-Authorization is **not** annotation-driven. `SecurityConfig` is
-`anyRequest().permitAll()` and there is not one `@PreAuthorize` in the module;
-every handler gates itself with a `require*` call. That is why the coverage
-tests below exist — they are the enforcement.
-
-## The guardrail tests
-
-These read the source (or the bytecode, or a document) and fail the build on a
-mismatch. They are the reason this codebase has stayed consistent, and they
-are the pattern to extend rather than replace.
-
-| Test | Enforces |
+| Test | Fails when |
 |---|---|
-| `security/AccessContractCoverageTest` | Every `@*Mapping` has a row in `docs/ACCESS_CONTRACT_MATRIX_KA.md`, every row still matches an endpoint, and no gate changed without the document changing with it. A fourth test guards the parser itself so the other three cannot pass vacuously. |
-| `web/EndpointPrincipalCoverageTest` | Every handler takes `@AuthenticationPrincipal User`. Carries a three-entry allowlist of deliberately public endpoints, checked for staleness in both directions. |
-| `web/EndpointGuardCoverageTest` | Every handler's call closure — followed through private helpers via ASM — contains at least one recognised `require*` guard. |
-| `domain/PermissionEnforcementCoverageTest` | Every entry in the `Permission` catalog is actually consulted by a `hasPermission` call. Stops SEC-06 reopening, where three permissions were admin switches consulted by nothing. |
-| `web/ResponseShapeContractTest` | Pins the exact JSON key set of every response record carrying employee identity. Adding or renaming a field fails the build. SEC-03 was a right gate with the wrong payload shape. |
-| `OracleTagCoverageTest` | Every `@SpringBootTest` carries `@RequiresOracle`, so the CI unit/integration split stays honest. |
-| `config/RolloutSwitchWiringTest` | Every `ROLLOUT_*` switch is described in `docs/ROLLOUT_ROLLBACK_KA.md`. |
-| `docs/DocumentedFactsTest` | Versions and counts stated in `AGENTS.md` and `README.md` still match `pom.xml`, `package.json` and the migration folder. |
-| `docs/DocsIndexCoverageTest` | Every file under `docs/` has a row in `docs/README.md`, every row points at a file that exists, and every relative link in `docs/` resolves. |
-| `article/ArticleVisibilityParityTest` | The Java rule and the Angular mirror agree on every case in `docs/api-contract/article-visibility-cases.json`. |
+| `security/AccessContractCoverageTest` | An endpoint has no row in `docs/ACCESS_CONTRACT_MATRIX_KA.md`, a row has no endpoint, or a gate changed without the document changing with it |
+| `web/EndpointPrincipalCoverageTest` | A handler does not take `@AuthenticationPrincipal User`. Three endpoints are deliberately public and allowlisted |
+| `web/EndpointGuardCoverageTest` | A handler's call closure, followed through private helpers via ASM, contains no `require*` guard |
+| `domain/PermissionEnforcementCoverageTest` | A `Permission` catalog entry is consulted by nothing. SEC-06 was three permissions rendered as admin switches that gated nothing |
+| `web/ResponseShapeContractTest` | A response record carrying employee identity gained or renamed a field. SEC-03 was a right gate with the wrong payload shape |
+| `OracleTagCoverageTest` | A `@SpringBootTest` lacks `@RequiresOracle`, which would break the CI unit/integration split |
+| `config/RolloutSwitchWiringTest` | A `ROLLOUT_*` switch is not described in `docs/ROLLOUT_ROLLBACK_KA.md` |
+| `docs/DocumentedFactsTest` | A version or migration number stated in an agent-facing document no longer matches the build |
+| `docs/DocsIndexCoverageTest` | A file under `docs/` is missing from `docs/README.md`, or a link there does not resolve |
+| `article/ArticleVisibilityParityTest` | The Java visibility rule and its Angular mirror disagree on a case in `docs/api-contract/article-visibility-cases.json` |
 
-Also present: five `V*MigrationShapeTest` classes asserting the shape of
-specific migrations. There is no Flyway **checksum** test, and no ArchUnit.
+Each carries a test that guards itself against passing vacuously. Five
+`V*MigrationShapeTest` classes pin the shape of specific migrations; there is
+no Flyway **checksum** test, and no ArchUnit.
 
-## Adding a migration
+## Migrations
 
-Next is `V49`. `V37` does not exist — the numbering skips it, deliberately.
+Next is `V49`. `V37` does not exist — the numbering skips it deliberately, so
+do not fill the gap.
 
-Migrations must **not** carry `IF NOT EXISTS`-style guards: Flyway takes an
-exclusive lock on `flyway_schema_history` before applying anything, so
-simultaneous instances serialise. Plain `CREATE TABLE` / `ALTER TABLE` is
-correct.
+Three Oracle facts that cost time to rediscover. The container is XE **21c**,
+not 23ai: 23ai's native `BOOLEAN` breaks `ddl-auto=validate` against this
+schema's `NUMBER(1)` flags. A local PDB can come back `MOUNTED` after a host
+restart, presenting as a connection failure — `ALTER PLUGGABLE DATABASE
+ORCLPDB1 OPEN;`. And if a delete starts returning 500, look for a child table
+whose foreign key lacks `ON DELETE CASCADE` before suspecting the handler;
+that was the real cause once, with read receipts as the wrong first suspect.
 
-Two Oracle-specific traps worth knowing. The CI service container is Oracle XE
-**21c**, not 23ai — 23ai's native `BOOLEAN` breaks `ddl-auto=validate` against
-this schema's `NUMBER(1)` flags. And a local PDB can come back `MOUNTED` after
-a host restart, which looks like a connection failure:
-`ALTER PLUGGABLE DATABASE ORCLPDB1 OPEN;`.
+Flyway's auto-configuration moved to its own module (`spring-boot-flyway`) in
+Boot 4 — relevant if you touch Flyway wiring.
 
-If a delete starts returning 500, check for a child table whose foreign key
-lacks `ON DELETE CASCADE` before suspecting the handler — that was the real
-cause once, and read receipts were the wrong first suspect.
+## Never
 
-## Boot 4.1 notes
-
-Flyway auto-configuration moved to its own module (`spring-boot-flyway`) in
-Boot 4. `jackson-databind` is a compile-scope dependency on purpose, for
-`PermissionsConverter`. The CycloneDX plugin is bound to `package` and writes
-`target/bom.json`, which the `supply-chain` CI job scans with Trivy.
+- **Never edit a migration that has been applied.** Add a new one. No checksum
+  test catches it here; Flyway does, at startup, in whichever environment
+  applied it first.
+- **Never write `IF NOT EXISTS`-style guards** in a migration. Flyway locks
+  `flyway_schema_history` before applying, so instances serialise. A guard
+  hides a half-applied migration, which is the one case you want to fail loud.
+- **Never add `@PreAuthorize`.** This module gates in handler bodies, and the
+  coverage tests above assume that.
+- **Never move a gate without editing `docs/ACCESS_CONTRACT_MATRIX_KA.md` in
+  the same commit.** The build stops you, but knowing why saves the argument.
