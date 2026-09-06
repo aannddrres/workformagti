@@ -2,7 +2,7 @@
 
 **სტატუსი:** Phase 1 — decision/contract lock **დასრულებულია**; D-1…D-8 დახურულია
 **ბოლო განახლება:** 2026-08-26 (SELF keyed-resource isolation evidence lock)
-**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 143 endpoint
+**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 149 endpoint
 **გეგმა:** `docs/ORG_ACCESS_ARCHITECTURE_PLAN_KA.md` (ფაზები, §9.1 სავალდებულო მტკიცებულებები)
 
 ეს ფაილი არის ორგანიზაციული წვდომის **კონტრაქტი**: თითოეული backend endpoint-ისთვის
@@ -72,7 +72,7 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 ## ციფრებში
 
-- **143** endpoint;
+- **149** endpoint;
 - **39** ატარებს თანამშრომლის საიდენტიფიკაციო მონაცემს (`PII = yes`);
 - **12** უკვე leadership-scoped;
 - **0** ღია გადაწყვეტილება (D-1…D-8 დახურულია).

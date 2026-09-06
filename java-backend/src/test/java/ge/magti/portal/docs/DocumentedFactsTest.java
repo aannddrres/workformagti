@@ -89,6 +89,41 @@ class DocumentedFactsTest {
     }
 
     /**
+     * The endpoint count the access matrix states about itself.
+     *
+     * <p>This class deliberately does not pin counts, because a number that
+     * moves on most commits gets edited into agreement rather than believed.
+     * This one is the exception, and for a specific reason: adding or removing
+     * an endpoint <i>already</i> obliges you to edit
+     * {@code ACCESS_CONTRACT_MATRIX_KA.md}, because
+     * {@link ge.magti.portal.security.AccessContractCoverageTest} fails
+     * otherwise. Correcting the summary in the same edit costs nothing, and
+     * the alternative is what was true until 2026-09-06: 149 machine-checked
+     * rows underneath a sentence announcing 143, in the document this project
+     * treats as the authority on who may call what. The rows were right the
+     * whole time; only the prose drifted, which is the more misleading half
+     * for a person skimming.
+     */
+    @Test
+    void theMatrixStatesItsOwnEndpointCountCorrectly() throws IOException {
+        int actual = 0;
+        Path sources = RepoRoot.path("java-backend/src/main/java");
+        try (Stream<Path> walk = Files.walk(sources)) {
+            for (Path java : walk.filter(p -> p.toString().endsWith("Controller.java")).toList()) {
+                Matcher m = Pattern.compile("@(Get|Post|Put|Delete|Patch)Mapping").matcher(Files.readString(java));
+                while (m.find()) {
+                    actual++;
+                }
+            }
+        }
+        String matrix = Files.readString(RepoRoot.path("docs/ACCESS_CONTRACT_MATRIX_KA.md"));
+        assertTrue(matrix.contains("**" + actual + "** endpoint"),
+                "docs/ACCESS_CONTRACT_MATRIX_KA.md summarises its own size, and the source now has "
+                        + actual + " @*Mapping annotations. Update the \"ციფრებში\" section and the "
+                        + "\"წყარო\" line to say " + actual + ".");
+    }
+
+    /**
      * Every nested {@code AGENTS.md} needs a {@code CLAUDE.md} beside it.
      *
      * <p>Claude Code reads {@code CLAUDE.md} and does not read {@code AGENTS.md};
