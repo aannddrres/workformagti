@@ -112,6 +112,15 @@ could easily become, several. Read the file before writing a second copy.
   disagree. Its reader-facing subset is mirrored in
   `angular-frontend/src/app/shared/article-visibility.ts`, and the cases both
   must agree on are pinned in `docs/api-contract/article-visibility-cases.json`.
+  It evaluates `is_draft` *before* the content-admin bypass: it did not
+  evaluate it at all until 2026-09-06, which left a private draft's
+  attachments downloadable through `/uploads`.
+- `util/DepartmentMatcher.visibilityTargets` — the department values a
+  caller's content is delivered by. Six places built this list inline, and
+  `List.of` throws on the null department the schema allows.
+- `web/Guards.java` — `requireAuthenticated` and `requireContentManage`, once
+  written 23 times between them. `requireSystemAdmin` is deliberately still
+  nine copies; `ControllerGuardConsolidationTest` says why.
 - `security/ClientIpResolver.java` — the real caller behind a proxy, for rate
   limiting and the audit log. Needs `TRUSTED_PROXIES` set in production or
   `X-Forwarded-For` is ignored (a deliberately safe default).
