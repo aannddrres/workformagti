@@ -1323,10 +1323,9 @@ public class ArticleController {
         // reuses the same [dept, deptPrefix, "All"] pattern get_articles'
         // own list query uses. Only fills gaps: an already-"read"
         // ReadStatus keeps its original read_at.
-        String deptPrefix = DepartmentMatcher.splitGroup(user.getDepartment()).prefix();
         List<RequiredReading> covering = CompleteResultGuard.enforce(
                 requiredReadingRepository.findByItemTypeAndItemIdAndTargetDepartmentIn(
-                        "article", id, List.of(user.getDepartment(), deptPrefix, "All"),
+                        "article", id, DepartmentMatcher.visibilityTargets(user.getDepartment()),
                         CompleteResultGuard.sentinelPage()));
         for (RequiredReading rr : covering) {
             ReadStatus stat = readStatusRepository.findByUserIdAndRequiredReadingId(user.getId(), rr.getId())

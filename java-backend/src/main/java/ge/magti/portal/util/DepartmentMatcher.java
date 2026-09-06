@@ -1,6 +1,8 @@
 package ge.magti.portal.util;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
@@ -34,6 +36,15 @@ import java.util.regex.Pattern;
 public final class DepartmentMatcher {
 
     private static final String GROUP_KEYWORD = "ჯგუფი"; // "ჯგუფი"
+
+    /**
+     * The target value that means "everyone". Public because
+     * {@link #visibilityTargets} puts it in a list callers pass to a query,
+     * and a second spelling of it somewhere else would be a silent hole.
+     * {@code ManagerScope} keeps its own copy on purpose — there the same
+     * string must <b>not</b> act as a wildcard, and its javadoc says why.
+     */
+    public static final String WILDCARD_TARGET = "All";
 
     /** Public: routers/stats.py's _group_full_department reuses this same delimiter to reconstruct a full department string. */
     public static final String CANONICAL_DELIMITER = "—"; // em dash "—"
@@ -88,6 +99,46 @@ public final class DepartmentMatcher {
     }
 
     /**
+     * The target-department values a caller's own content is delivered by:
+     * their department, its parent prefix, and the {@code "All"} wildcard.
+     *
+     * <p>Six places built this list inline as
+     * {@code List.of(user.getDepartment(), prefix, "All")} — article and news
+     * lists, required readings on an article, the compliance page and two
+     * halves of the home page. {@code List.of} rejects a null element, and
+     * {@code users.department} is nullable ({@code V3__create_users.sql:13}),
+     * so a caller with no department did not get an empty list or a refusal:
+     * all six threw {@code NullPointerException} and answered 500.
+     *
+     * <p>Nobody hit it, for a reason with an expiry date. Every account today
+     * is created by the development JIT path, which always writes a
+     * department, and {@code PUT /api/users/{id}} refuses to blank one. Real
+     * accounts will arrive from Active Directory instead, where the attribute
+     * is routinely empty — so this is a crash waiting on a feature rather
+     * than a theoretical one.
+     *
+     * <p>A null department resolves to {@code ["All"]}, which is the same
+     * answer {@link #matches} already gives such a caller: wildcard-targeted
+     * content and nothing else. The list is deduplicated, so a department with
+     * no group suffix does not repeat itself; for every non-null input the
+     * result is otherwise exactly what the inline expression produced.
+     */
+    public static List<String> visibilityTargets(String rawDepartment) {
+        List<String> targets = new ArrayList<>(3);
+        if (rawDepartment != null) {
+            targets.add(rawDepartment);
+        }
+        String prefix = splitGroup(rawDepartment).prefix();
+        if (!prefix.isEmpty() && !targets.contains(prefix)) {
+            targets.add(prefix);
+        }
+        if (!targets.contains(WILDCARD_TARGET)) {
+            targets.add(WILDCARD_TARGET);
+        }
+        return List.copyOf(targets);
+    }
+
+    /**
      * True if {@code userDepartment} matches any of {@code targets}, with
      * prefix support for sub-groups (a target of "ტექნიკური" matches a user
      * department of "ტექნიკური — ჯგუფი 03"), matching
@@ -98,7 +149,7 @@ public final class DepartmentMatcher {
     public static boolean matches(String userDepartment, Collection<String> targets) {
         DepartmentGroup userGroup = splitGroup(userDepartment);
         for (String target : targets) {
-            if ("All".equals(target)) {
+            if (WILDCARD_TARGET.equals(target)) {
                 return true;
             }
             boolean exactMatch = Objects.equals(userDepartment, target);

@@ -92,10 +92,9 @@ public class PlatformController {
 
         List<UnreadReadingSummaryItem> unreadReadings = new ArrayList<>();
         if (!ComplianceCalculator.MANAGEMENT_ROLES.contains(user.getRole())) {
-            String deptPrefix = DepartmentMatcher.splitGroup(user.getDepartment()).prefix();
             List<RequiredReading> readings = CompleteResultGuard.enforce(
                     requiredReadingRepository.findByTargetDepartmentIn(
-                            List.of(user.getDepartment(), deptPrefix, "All"),
+                            DepartmentMatcher.visibilityTargets(user.getDepartment()),
                             CompleteResultGuard.sentinelPage()));
             if (!readings.isEmpty()) {
                 Map<ItemKey, ItemDetail> details = itemTitleResolver.resolveDetailsBulk(
@@ -126,11 +125,11 @@ public class PlatformController {
         // prefix-aware match the readings half above (and NewsQueryService's
         // own GET /api/news) already use -- a sub-group operator's bell icon
         // silently dropped news targeted at their parent department.
-        String newsDeptPrefix = DepartmentMatcher.splitGroup(user.getDepartment()).prefix();
         List<News> newsList = Role.CONTENT_ADMIN_ROLES.contains(user.getRole())
                 ? newsRepository.findByCreatedAtGreaterThanEqualOrderByCreatedAtDesc(sevenDaysAgo, PageRequest.of(0, 10))
                 : newsRepository.findByCreatedAtGreaterThanEqualAndTargetDepartmentInOrderByCreatedAtDesc(
-                        sevenDaysAgo, List.of(user.getDepartment(), newsDeptPrefix, "All"), PageRequest.of(0, 10));
+                        sevenDaysAgo, DepartmentMatcher.visibilityTargets(user.getDepartment()),
+                        PageRequest.of(0, 10));
         List<RecentNewsSummaryItem> recentNews = newsList.stream()
                 .map(n -> new RecentNewsSummaryItem(n.getId(), n.getTitle(), n.getTargetDepartment(), n.getCreatedAt()))
                 .toList();

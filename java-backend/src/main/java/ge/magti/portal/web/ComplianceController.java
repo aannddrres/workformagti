@@ -116,10 +116,9 @@ public class ComplianceController {
             return ResponseEntity.ok(List.of());
         }
 
-        String deptPrefix = DepartmentMatcher.splitGroup(user.getDepartment()).prefix();
         List<RequiredReading> readings = CompleteResultGuard.enforce(
                 requiredReadingRepository.findByTargetDepartmentIn(
-                        List.of(user.getDepartment(), deptPrefix, "All"),
+                        DepartmentMatcher.visibilityTargets(user.getDepartment()),
                         CompleteResultGuard.sentinelPage()));
         if (readings.isEmpty()) {
             return ResponseEntity.ok(List.of());
