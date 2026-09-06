@@ -18,7 +18,6 @@ import ge.magti.portal.repository.TagRepository;
 import ge.magti.portal.util.DepartmentMatcher;
 import ge.magti.portal.util.TbilisiTime;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -71,7 +70,7 @@ public class PlatformController {
     /** Port of get_tags (routers/platform.py:269-281). */
     @GetMapping("/api/tags")
     public ResponseEntity<?> getTags(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -83,7 +82,7 @@ public class PlatformController {
     /** Port of get_notifications_summary (routers/platform.py:125-197). */
     @GetMapping("/api/notifications/summary")
     public ResponseEntity<?> getNotificationsSummary(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -139,11 +138,4 @@ public class PlatformController {
         return ResponseEntity.ok(new NotificationsSummaryResponse(unreadReadings, recentNews, (int) unreadReminders));
     }
 
-    private static ResponseEntity<Map<String, String>> requireAuthenticated(User user) {
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("detail", "Could not validate credentials"));
-        }
-        return null;
-    }
 }

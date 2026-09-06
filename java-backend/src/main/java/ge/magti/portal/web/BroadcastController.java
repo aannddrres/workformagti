@@ -34,7 +34,7 @@ public class BroadcastController {
 
     @GetMapping("/api/broadcasts")
     public ResponseEntity<?> getActive(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) return denial;
         OffsetDateTime now = TbilisiTime.now();
         List<BroadcastResponse> response = broadcastService.active().stream()
@@ -90,14 +90,10 @@ public class BroadcastController {
     }
 
     private ResponseEntity<Map<String, String>> requireAnnouncementPublisher(User user) {
-        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> authFailure = Guards.requireAuthenticated(user);
         if (authFailure != null) return authFailure;
         return authorization.canPublish(user) ? null
                 : error(HttpStatus.FORBIDDEN, "ამ მოქმედებისთვის საკმარისი უფლება არ გაქვთ");
-    }
-
-    private static ResponseEntity<Map<String, String>> requireAuthenticated(User user) {
-        return user == null ? error(HttpStatus.UNAUTHORIZED, "Could not validate credentials") : null;
     }
 
     private static ResponseEntity<Map<String, String>> error(HttpStatus status, String detail) {

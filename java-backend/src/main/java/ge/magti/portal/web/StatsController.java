@@ -646,7 +646,7 @@ public class StatsController {
     }
 
     private ResponseEntity<Map<String, String>> requireStatsView(User user) {
-        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> authFailure = Guards.requireAuthenticated(user);
         if (authFailure != null) {
             return authFailure;
         }
@@ -658,7 +658,7 @@ public class StatsController {
     }
 
     private static ResponseEntity<Map<String, String>> requireSystemAdmin(User user) {
-        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> authFailure = Guards.requireAuthenticated(user);
         if (authFailure != null) {
             return authFailure;
         }
@@ -670,7 +670,7 @@ public class StatsController {
     }
 
     private static ResponseEntity<Map<String, String>> requireManagerOrAdmin(User user) {
-        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> authFailure = Guards.requireAuthenticated(user);
         if (authFailure != null) {
             return authFailure;
         }
@@ -681,11 +681,4 @@ public class StatsController {
         return null;
     }
 
-    private static ResponseEntity<Map<String, String>> requireAuthenticated(User user) {
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("detail", "Could not validate credentials"));
-        }
-        return null;
-    }
 }

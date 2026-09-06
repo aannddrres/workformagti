@@ -5,7 +5,6 @@ import ge.magti.portal.content.ContentLifecycleService;
 import ge.magti.portal.content.ArticleHtmlSanitizer;
 import ge.magti.portal.domain.News;
 import ge.magti.portal.domain.NewsHistory;
-import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.history.HistoryPayloadGuard;
 import ge.magti.portal.query.CompleteResultGuard;
@@ -107,7 +106,7 @@ public class NewsController {
     /** Port of get_news_item (routers/news.py:23-44). */
     @GetMapping("/api/news/{id}")
     public ResponseEntity<?> getNewsItem(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -138,7 +137,7 @@ public class NewsController {
             @RequestParam(defaultValue = "0") int skip,
             @RequestParam(defaultValue = "20") int limit,
             @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -155,7 +154,7 @@ public class NewsController {
     @PostMapping("/api/news")
     @Transactional
     public ResponseEntity<?> createNews(@Valid @RequestBody NewsRequest request, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
         }
@@ -181,7 +180,7 @@ public class NewsController {
     @Transactional
     public ResponseEntity<?> updateNews(
             @PathVariable Long id, @Valid @RequestBody NewsRequest request, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
         }
@@ -217,7 +216,7 @@ public class NewsController {
     @DeleteMapping("/api/news/{id}")
     @Transactional
     public ResponseEntity<?> deleteNews(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
         }
@@ -237,7 +236,7 @@ public class NewsController {
     @PostMapping("/api/news/{id}/archive")
     @Transactional
     public ResponseEntity<?> archiveNews(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
         }
@@ -261,7 +260,7 @@ public class NewsController {
     @PostMapping("/api/news/{id}/unarchive")
     @Transactional
     public ResponseEntity<?> unarchiveNews(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
         }
@@ -288,7 +287,7 @@ public class NewsController {
     @Transactional
     public ResponseEntity<?> autosaveNews(
             @PathVariable Long id, @RequestBody Map<String, Object> body, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
         }
@@ -350,7 +349,7 @@ public class NewsController {
     @GetMapping("/api/news/{id}/history")
     @Transactional(readOnly = true, isolation = Isolation.SERIALIZABLE)
     public ResponseEntity<?> getNewsHistory(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
         }
@@ -373,7 +372,7 @@ public class NewsController {
     /** CLOB-free list companion; the legacy full-history wire remains unchanged. */
     @GetMapping("/api/news/{id}/history-summary")
     public ResponseEntity<?> getNewsHistorySummary(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
         }
@@ -396,7 +395,7 @@ public class NewsController {
     @GetMapping("/api/news/{id}/history/{historyId}")
     public ResponseEntity<?> getNewsHistoryItem(
             @PathVariable Long id, @PathVariable Long historyId, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
         }
@@ -417,7 +416,7 @@ public class NewsController {
     @Transactional
     public ResponseEntity<?> restoreNewsVersion(
             @PathVariable Long id, @PathVariable("historyId") Long historyId, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
         }
@@ -477,23 +476,4 @@ public class NewsController {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", NOT_FOUND_DETAIL));
     }
 
-    private static ResponseEntity<Map<String, String>> requireAuthenticated(User user) {
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("detail", "Could not validate credentials"));
-        }
-        return null;
-    }
-
-    private ResponseEntity<Map<String, String>> requireContentManage(User user) {
-        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
-        if (authFailure != null) {
-            return authFailure;
-        }
-        if (!permissionChecker.hasPermission(user, Permission.CONTENT_MANAGE)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
-        }
-        return null;
-    }
 }

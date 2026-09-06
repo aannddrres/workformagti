@@ -30,7 +30,7 @@ public class ReminderController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size,
             @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, Object>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) return denial;
         if (page < 0 || size < 1 || size > 100) {
             return error(HttpStatus.BAD_REQUEST, "page უნდა იყოს 0 ან მეტი, size — 1-დან 100-მდე");
@@ -44,7 +44,7 @@ public class ReminderController {
     @PostMapping("/api/reminders/{reminderId}/read")
     public ResponseEntity<?> markRead(
             @PathVariable long reminderId, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, Object>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) return denial;
         try {
             return ResponseEntity.ok(ReminderResponse.from(reminderService.markRead(reminderId, user)));
@@ -57,7 +57,7 @@ public class ReminderController {
     @PostMapping("/api/reminders/users/{userId}/send")
     public ResponseEntity<?> sendManual(
             @PathVariable long userId, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, Object>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) return denial;
         try {
             return ResponseEntity.status(HttpStatus.CREATED)
@@ -74,10 +74,6 @@ public class ReminderController {
             body.put("retry_at", e.retryAt());
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(body);
         }
-    }
-
-    private static ResponseEntity<Map<String, Object>> requireAuthenticated(User user) {
-        return user == null ? error(HttpStatus.UNAUTHORIZED, "Could not validate credentials") : null;
     }
 
     private static ResponseEntity<Map<String, Object>> error(HttpStatus status, String detail) {

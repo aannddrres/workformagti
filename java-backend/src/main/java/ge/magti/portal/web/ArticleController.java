@@ -199,7 +199,7 @@ public class ArticleController {
             @RequestParam(name = "category_id", required = false) Long categoryId,
             @RequestParam(required = false) String status,
             @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -228,7 +228,7 @@ public class ArticleController {
 
     @GetMapping("/api/articles/{id}")
     public ResponseEntity<?> getArticle(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -780,7 +780,7 @@ public class ArticleController {
 
     @GetMapping("/api/articles/{id}/note")
     public ResponseEntity<?> getUserNote(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -804,7 +804,7 @@ public class ArticleController {
     @Transactional
     public ResponseEntity<?> putUserNote(
             @PathVariable Long id, @Valid @RequestBody UserNoteRequest request, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -829,7 +829,7 @@ public class ArticleController {
     @PostMapping("/api/articles/{id}/verify")
     @Transactional
     public ResponseEntity<?> verifyArticle(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
         }
@@ -852,7 +852,7 @@ public class ArticleController {
 
     @GetMapping("/api/admin/articles/stale")
     public ResponseEntity<?> getStaleArticles(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
         }
@@ -869,7 +869,7 @@ public class ArticleController {
 
     @GetMapping("/api/articles/{id}/related")
     public ResponseEntity<?> getRelatedArticles(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -962,7 +962,7 @@ public class ArticleController {
     @GetMapping("/api/articles/{id}/history")
     @Transactional(readOnly = true, isolation = Isolation.SERIALIZABLE)
     public ResponseEntity<?> getArticleHistory(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
         }
@@ -998,7 +998,7 @@ public class ArticleController {
      */
     @GetMapping("/api/articles/{id}/history-summary")
     public ResponseEntity<?> getArticleHistorySummary(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
         }
@@ -1022,7 +1022,7 @@ public class ArticleController {
     @GetMapping("/api/articles/{id}/history/{historyId}")
     public ResponseEntity<?> getArticleHistoryItem(
             @PathVariable Long id, @PathVariable Long historyId, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
         }
@@ -1050,7 +1050,7 @@ public class ArticleController {
             @RequestParam(name = "compare_history_id", required = false) Long compareHistoryId,
             @RequestParam(name = "compare_to_predecessor", defaultValue = "false") boolean compareToPredecessor,
             @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -1100,7 +1100,7 @@ public class ArticleController {
     @Transactional
     public ResponseEntity<?> restoreArticleVersion(
             @PathVariable Long id, @PathVariable Long historyId, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
         }
@@ -1152,7 +1152,7 @@ public class ArticleController {
     @GetMapping("/api/articles/{id}/versions")
     @Transactional
     public ResponseEntity<?> getArticleVersions(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -1292,7 +1292,7 @@ public class ArticleController {
     @PostMapping("/api/articles/{id}/read-receipt")
     @Transactional
     public ResponseEntity<?> createArticleReadReceipt(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -1349,7 +1349,7 @@ public class ArticleController {
 
     @GetMapping("/api/articles/{id}/read-receipt/me")
     public ResponseEntity<?> getMyArticleReadReceiptStatus(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -1375,7 +1375,7 @@ public class ArticleController {
 
     @PostMapping("/api/articles/{id}/view")
     public ResponseEntity<?> trackArticleView(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -1439,7 +1439,7 @@ public class ArticleController {
 
     @GetMapping("/api/me/recently-viewed")
     public ResponseEntity<?> getMyRecentlyViewed(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -1579,16 +1579,8 @@ public class ArticleController {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", NOT_FOUND_DETAIL));
     }
 
-    private static ResponseEntity<Map<String, String>> requireAuthenticated(User user) {
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("detail", "Could not validate credentials"));
-        }
-        return null;
-    }
-
     private static ResponseEntity<Map<String, String>> requireContentAdmin(User user) {
-        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> authFailure = Guards.requireAuthenticated(user);
         if (authFailure != null) {
             return authFailure;
         }
@@ -1600,7 +1592,7 @@ public class ArticleController {
     }
 
     private ResponseEntity<Map<String, String>> requireReadEvidenceAccess(User user) {
-        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> authFailure = Guards.requireAuthenticated(user);
         if (authFailure != null) {
             return authFailure;
         }
@@ -1613,7 +1605,7 @@ public class ArticleController {
     }
 
     private static ResponseEntity<Map<String, String>> requireSystemAdmin(User user) {
-        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> authFailure = Guards.requireAuthenticated(user);
         if (authFailure != null) {
             return authFailure;
         }
@@ -1624,20 +1616,8 @@ public class ArticleController {
         return null;
     }
 
-    private ResponseEntity<Map<String, String>> requireContentManage(User user) {
-        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
-        if (authFailure != null) {
-            return authFailure;
-        }
-        if (!permissionChecker.hasPermission(user, Permission.CONTENT_MANAGE)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
-        }
-        return null;
-    }
-
     private ResponseEntity<Map<String, String>> requireArticlesArchivePermission(User user) {
-        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> authFailure = Guards.requireAuthenticated(user);
         if (authFailure != null) {
             return authFailure;
         }
@@ -1660,7 +1640,7 @@ public class ArticleController {
      * PermissionChecker} pattern as {@link #requireArticlesArchivePermission}.
      */
     private ResponseEntity<Map<String, String>> requireArticlesEditPermission(User user) {
-        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> authFailure = Guards.requireAuthenticated(user);
         if (authFailure != null) {
             return authFailure;
         }

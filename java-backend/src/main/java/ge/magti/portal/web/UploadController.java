@@ -1,7 +1,6 @@
 package ge.magti.portal.web;
 
 import ge.magti.portal.audit.MutationAuditService;
-import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.storage.FileStorageService;
 import ge.magti.portal.security.PermissionChecker;
@@ -90,7 +89,7 @@ public class UploadController {
     @Transactional
     public ResponseEntity<?> uploadFile(
             @RequestParam("file") MultipartFile file, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
         }
@@ -139,15 +138,4 @@ public class UploadController {
         return ResponseEntity.ok(new UploadResponse("/uploads/" + uniqueFilename, uniqueFilename));
     }
 
-    private ResponseEntity<Map<String, String>> requireContentManage(User user) {
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("detail", "Could not validate credentials"));
-        }
-        if (!permissionChecker.hasPermission(user, Permission.CONTENT_MANAGE)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
-        }
-        return null;
-    }
 }

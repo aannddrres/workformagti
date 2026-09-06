@@ -2,7 +2,6 @@ package ge.magti.portal.web;
 
 import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.domain.Category;
-import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.query.CompleteResultGuard;
 import ge.magti.portal.repository.ArticleRepository;
@@ -70,7 +69,7 @@ public class CategoryController {
 
     @GetMapping("/api/categories")
     public ResponseEntity<?> getCategories(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -86,7 +85,7 @@ public class CategoryController {
     @Transactional
     public ResponseEntity<?> createCategory(
             @Valid @RequestBody CategoryRequest request, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
         }
@@ -125,7 +124,7 @@ public class CategoryController {
     public ResponseEntity<?> updateCategory(
             @PathVariable Long id, @Valid @RequestBody CategoryRequest request,
             @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
         }
@@ -151,7 +150,7 @@ public class CategoryController {
     @DeleteMapping("/api/categories/{id}")
     @Transactional
     public ResponseEntity<?> deleteCategory(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireContentManage(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
         }
@@ -263,23 +262,4 @@ public class CategoryController {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", NOT_FOUND_DETAIL));
     }
 
-    private static ResponseEntity<Map<String, String>> requireAuthenticated(User user) {
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("detail", "Could not validate credentials"));
-        }
-        return null;
-    }
-
-    private ResponseEntity<Map<String, String>> requireContentManage(User user) {
-        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
-        if (authFailure != null) {
-            return authFailure;
-        }
-        if (!permissionChecker.hasPermission(user, Permission.CONTENT_MANAGE)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
-        }
-        return null;
-    }
 }

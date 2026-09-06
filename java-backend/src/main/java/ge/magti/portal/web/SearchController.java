@@ -13,7 +13,6 @@ import ge.magti.portal.search.GlobalSearchCache;
 import ge.magti.portal.search.SearchQueryService;
 import ge.magti.portal.util.TbilisiTime;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -66,7 +65,7 @@ public class SearchController {
             @RequestParam String q,
             @RequestParam(name = "category_id", required = false) Long categoryId,
             @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -90,7 +89,7 @@ public class SearchController {
     /** Port of global_search_all (routers/search.py:204-256), incl. the 60s TTL cache + single-flight. */
     @GetMapping("/api/search/global")
     public ResponseEntity<?> searchGlobal(@RequestParam String q, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -129,7 +128,7 @@ public class SearchController {
     /** Port of get_search_history (routers/search.py:258-285). */
     @GetMapping("/api/search/history")
     public ResponseEntity<?> searchHistory(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -191,11 +190,4 @@ public class SearchController {
         return q != null && q.strip().length() > MAX_QUERY_LENGTH;
     }
 
-    private static ResponseEntity<Map<String, String>> requireAuthenticated(User user) {
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("detail", "Could not validate credentials"));
-        }
-        return null;
-    }
 }

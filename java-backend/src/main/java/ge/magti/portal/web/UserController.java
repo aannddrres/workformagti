@@ -95,7 +95,7 @@ public class UserController {
     /** Port of read_users_me (routers/users.py:29-50). */
     @GetMapping("/api/users/me")
     public ResponseEntity<?> getCurrentUser(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -111,7 +111,7 @@ public class UserController {
     /** The authenticated caller's effective capabilities for client-side access decisions. */
     @GetMapping("/api/me/effective-access")
     public ResponseEntity<?> getEffectiveAccess(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -124,7 +124,7 @@ public class UserController {
     @Transactional
     public ResponseEntity<?> updateCurrentUser(
             @Valid @RequestBody UserSelfUpdateRequest request, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -156,7 +156,7 @@ public class UserController {
     @Transactional
     public ResponseEntity<?> changeOwnPassword(
             @Valid @RequestBody PasswordChangeRequest request, @AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -444,7 +444,7 @@ public class UserController {
     /** Port of get_teams (routers/users.py:337-346). */
     @GetMapping("/api/teams")
     public ResponseEntity<?> getTeams(@AuthenticationPrincipal User user) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -637,14 +637,6 @@ public class UserController {
                 .body(Map.of("detail", "პაროლი ვერ აკმაყოფილებს მოთხოვნებს: " + String.join(", ", errors)));
     }
 
-    private static ResponseEntity<Map<String, String>> requireAuthenticated(User user) {
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("detail", "Could not validate credentials"));
-        }
-        return null;
-    }
-
     /**
      * SEC-12: the last-active-admin check, extracted so
      * {@link #updateUserAdmin} and {@link #bulkReassignRoles} cannot drift
@@ -667,7 +659,7 @@ public class UserController {
     }
 
     private static ResponseEntity<Map<String, String>> requireSystemAdmin(User user) {
-        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> authFailure = Guards.requireAuthenticated(user);
         if (authFailure != null) {
             return authFailure;
         }

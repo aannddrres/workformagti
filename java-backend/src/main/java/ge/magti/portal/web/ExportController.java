@@ -395,14 +395,6 @@ public class ExportController {
                         e.getRowCount(), e.getMaxRows())));
     }
 
-    private static ResponseEntity<Map<String, String>> requireAuthenticated(User user) {
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("detail", "Could not validate credentials"));
-        }
-        return null;
-    }
-
     /**
      * Two independent questions, both of which have to pass.
      *
@@ -446,7 +438,7 @@ public class ExportController {
     }
 
     private ResponseEntity<Map<String, String>> requireReportsExport(User user) {
-        ResponseEntity<Map<String, String>> authFailure = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> authFailure = Guards.requireAuthenticated(user);
         if (authFailure != null) {
             return authFailure;
         }

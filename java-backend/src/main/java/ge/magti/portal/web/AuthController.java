@@ -188,7 +188,7 @@ public class AuthController {
     @Transactional
     public ResponseEntity<Map<String, String>> logout(
             @AuthenticationPrincipal User user, HttpServletRequest request, HttpServletResponse httpResponse) {
-        ResponseEntity<Map<String, String>> denial = requireAuthenticated(user);
+        ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
         if (denial != null) {
             return denial;
         }
@@ -227,13 +227,6 @@ public class AuthController {
                 .build();
         httpResponse.addHeader(HttpHeaders.SET_COOKIE, cleared.toString());
         return ResponseEntity.ok(Map.of("detail", "Logged out"));
-    }
-
-    private static ResponseEntity<Map<String, String>> requireAuthenticated(User user) {
-        if (user != null) {
-            return null;
-        }
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("detail", "Could not validate credentials"));
     }
 
     /** Mirrors audit_trail.py's actor_context_middleware bounding user_agent to
