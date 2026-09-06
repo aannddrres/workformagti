@@ -509,14 +509,14 @@ public class ArticleController {
      * applies, kept in step with it deliberately: "someone might have read
      * this" is exactly what makes a silent rewrite dangerous (BL-03).
      */
+    /**
+     * The status-and-date clause now comes from {@link ArticleVisibility}
+     * rather than being spelled out a second time here; only the
+     * {@code is_draft} short-circuit stays, because this helper answers the
+     * reader-surface question where nobody is the author.
+     */
     private static boolean isReaderVisible(String status, boolean isDraft, OffsetDateTime publishedAt) {
-        if (isDraft) {
-            return false;
-        }
-        if ("published".equals(status)) {
-            return true;
-        }
-        return "scheduled".equals(status) && publishedAt != null && !publishedAt.isAfter(TbilisiTime.now());
+        return !isDraft && ArticleVisibility.isPublishedByLifecycle(status, publishedAt);
     }
 
     private static OffsetDateTime prospectivePublishedAt(Map<String, Object> body, Article article) {

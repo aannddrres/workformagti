@@ -5,6 +5,7 @@ import ge.magti.portal.domain.User;
 import ge.magti.portal.util.DepartmentMatcher;
 import ge.magti.portal.util.TbilisiTime;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -54,14 +55,35 @@ public final class ArticleVisibility {
         if (!DepartmentMatcher.matches(user.getDepartment(), targetDepartments)) {
             return false;
         }
-        if ("published".equals(article.getStatus())) {
+        // Ownership is already settled above, so what is left is the
+        // status-and-date clause alone.
+        return isPublishedByLifecycle(article.getStatus(), article.getPublishedAt());
+    }
+
+    /**
+     * The status-and-date half of the rule, with no opinion about
+     * {@code is_draft} or about audience.
+     *
+     * <p>Extracted so that the three backend places that need this exact
+     * question share one answer. It had been written out three times: here,
+     * in {@code ArticleController#isReaderVisible} (which guards autosave),
+     * and implicitly in {@code ArticleQueryService}'s JPQL. The SQL copy has
+     * to stay -- the database cannot call this -- but it sits beside the
+     * fixture that pins both, and the other two now do not.
+     *
+     * <p>A scheduled article becomes readable once its moment has passed:
+     * nothing flips the {@code status} column on a timer, so the date is the
+     * truth. Unrecognised statuses are invisible; this allow-lists rather
+     * than deny-lists, so a status added later stays hidden until it is
+     * handled here on purpose.
+     */
+    public static boolean isPublishedByLifecycle(String status, OffsetDateTime publishedAt) {
+        if ("published".equals(status)) {
             return true;
         }
-        // A scheduled article is readable once its moment has passed. The
-        // status column is not flipped by anything, so the date is the truth.
-        return "scheduled".equals(article.getStatus())
-                && article.getPublishedAt() != null
-                && !article.getPublishedAt().isAfter(TbilisiTime.now());
+        return "scheduled".equals(status)
+                && publishedAt != null
+                && !publishedAt.isAfter(TbilisiTime.now());
     }
 
     /**
