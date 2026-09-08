@@ -56,6 +56,17 @@ intermittent 403s on `public/i18n/*.json` and other static assets.
 path needs adding there, or it 404s in development only and works in the built
 image — the worst shape of bug to find late.
 
+**A UI change can leave the E2E suite red for weeks without anyone seeing
+it.** The Oracle and E2E jobs run only on pull requests and `main`, so a
+branch push is green while they are broken. Two changes did exactly that and
+were found on 2026-09-08, ten and twenty-one days late: `ac5cc7e` replaced the
+four login persona buttons with the cascading picker (six specs still clicked
+the old buttons) and `c541c58` made a parent category with an active child
+undeletable (one spec still asserted the orphan that delete used to leave).
+Both were correct changes with stale tests behind them. `e2e/helpers.ts`
+`signInAsPersona` now holds the login screen's clicks in one place, so the
+next change to that screen breaks one file rather than six.
+
 ## Checking it in a browser
 
 For anything visible, look at the running app rather than reading the source.
@@ -76,3 +87,6 @@ view does not mean "an error just now".
   first commit. Tighten it one rule at a time, fixes in the same commit.
 - **Never add a translation key to only one of the two files.**
 - **Never "simplify" the `cd /d` in `dev-serve.cmd`.**
+- **Never write the login screen's own controls into a spec.** Drive it
+  through `signInAsPersona`, which names the account and resolves the clicks.
+  Six specs encoded the buttons directly and all six broke on one UI change.
