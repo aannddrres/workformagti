@@ -2,18 +2,19 @@ import { test, expect } from '@playwright/test';
 import { apiLogin, runId, seedTokenIntoPage } from './helpers';
 
 /**
- * The category tree: create a parent and a child, expand, edit, then delete
- * the parent and deal with the child it leaves behind.
+ * The category tree: create a parent and a child, expand, edit, and then take
+ * the pair apart in the only order the backend allows.
  *
- * That last part is the reason this is one test rather than three. Deleting
- * a category reassigns its ARTICLES but not its child categories
- * (admin-categories-page.ts:20-25), so removing a parent strands its child
- * as an "orphan" -- and the orphan row has its own edit and delete buttons,
- * which no fixture can produce any other way. Walking the whole lifecycle
- * covers the warning row honestly instead of leaving it as the one branch
- * nothing reaches.
+ * It is one test rather than three because each step needs the state the last
+ * one left. The ending changed on 2026-08-28: this used to delete the parent
+ * and assert on the "orphan" row that left behind, and c541c58 made that
+ * impossible -- a parent with an active child is refused with 409
+ * (CategoryController.java:173), precisely so nothing is ever stranded. The
+ * orphan row still exists in the template for data that predates the guard,
+ * and nothing here can reach it any more; that is the honest position, not a
+ * gap to paper over with a fixture the product cannot produce.
  */
-test('categories: create, nest, expand, edit, and the orphan a deleted parent leaves', async ({
+test('categories: create, nest, expand, edit, and the delete order the tree allows', async ({
   page,
   request
 }) => {
@@ -94,34 +95,43 @@ test('categories: create, nest, expand, edit, and the orphan a deleted parent le
     child.id
   );
 
-  // --- delete the parent, and meet the orphan ---------------------------
+  // --- deleting a parent that still has a child is refused --------------
+  // Until c541c58 (2026-08-28) this succeeded and stranded the child as an
+  // "orphan". The subcategory guard (CategoryController.java:173) answers
+  // 409 now, on purpose, so that orphan state can no longer be produced
+  // through the product at all -- and the assertions that used to follow it
+  // here could not pass against any build newer than that fix.
   page.once('dialog', (dialog) => dialog.accept());
-  await parentRow.getByRole('button', { name: 'წაშლა' }).click();
-  await expect(page.locator('tr', { hasText: parentName })).toHaveCount(0);
+  const [refused] = await Promise.all([
+    page.waitForResponse(
+      (r) => /\/api\/categories\/\d+$/.test(r.url()) && r.request().method() === 'DELETE'
+    ),
+    parentRow.getByRole('button', { name: 'წაშლა' }).click()
+  ]);
+  expect(refused.status(), 'a parent with an active child must not be deletable').toBe(409);
 
-  // The child outlived its parent and is now flagged, not silently lost.
-  const orphanRow = page.locator('tr', { hasText: renamed });
-  await expect(orphanRow).toHaveCount(1);
-  await expect(orphanRow.getByText('ობოლი')).toBeVisible();
-
-  // Refresh must not make it disappear either -- this is server state, not a
-  // rendering artefact.
+  // The refusal leaves the page on its generic error banner; a refresh has to
+  // bring back a tree that never changed.
   await page.getByRole('button', { name: 'განახლება' }).click();
+  await expect(parentRow).toHaveCount(1);
   await expect(page.locator('tr', { hasText: renamed })).toHaveCount(1);
 
-  // --- the orphan row's own controls ------------------------------------
-  const orphanRenamed = `${renamed} საბოლოო`;   // not 'ობოლი' -- that is the badge's own text
-  await orphanRow.getByRole('button', { name: 'რედაქტ.' }).click();
-  await form.locator('input[type="text"]').first().fill(orphanRenamed);
-  await page.getByRole('button', { name: 'შენახვა' }).click();
-  await expect(page.locator('tr', { hasText: orphanRenamed })).toHaveCount(1);
+  // --- child first, then the parent: the order the guard leaves open -----
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.locator('tr', { hasText: renamed }).getByRole('button', { name: 'წაშლა' }).click();
+  await expect(page.locator('tr', { hasText: renamed })).toHaveCount(0);
 
   page.once('dialog', (dialog) => dialog.accept());
-  await page.locator('tr', { hasText: orphanRenamed }).getByRole('button', { name: 'წაშლა' }).click();
-  await expect(page.locator('tr', { hasText: orphanRenamed })).toHaveCount(0);
+  await parentRow.getByRole('button', { name: 'წაშლა' }).click();
+  await expect(parentRow).toHaveCount(0);
 
+  const remaining = await listing();
   expect(
-    (await listing()).some((c: { id: number }) => c.id === child.id),
-    'the row left the table but the category is still in the database'
+    remaining.some((c: { id: number }) => c.id === child.id),
+    'the child row left the table but the category is still in the database'
+  ).toBe(false);
+  expect(
+    remaining.some((c: { id: number }) => c.id === parent.id),
+    'the parent row left the table but the category is still in the database'
   ).toBe(false);
 });

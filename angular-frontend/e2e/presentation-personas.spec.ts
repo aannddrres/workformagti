@@ -1,29 +1,37 @@
 import { test, expect } from '@playwright/test';
-import { apiLogin, seedTokenIntoPage } from './helpers';
+import { apiLogin, seedTokenIntoPage, signInAsPersona } from './helpers';
 
+// Where each persona is meant to land. The clicks that get there live in
+// signInAsPersona -- nino@magti.ge arrives through the screen's e-mail
+// escape hatch because the picker's first operator slot is tech@ or info@,
+// and the other three through the cascading selects.
 const PRESENTATION_PERSONAS = [
-  { email: 'nino@magti.ge', label: 'ოპერატორი', landing: /\/$/ },
-  { email: 'manager@magti.ge', label: 'მენეჯერი', landing: /\/manager$/ },
-  { email: 'content@magti.ge', label: 'კონტენტ-ადმინი', landing: /\/admin\/content$/ },
-  { email: 'admin@magti.ge', label: 'სისტემური ადმინი', landing: /\/admin\/overview$/ }
+  { email: 'nino@magti.ge', landing: /\/$/ },
+  { email: 'manager@magti.ge', landing: /\/manager$/ },
+  { email: 'content@magti.ge', landing: /\/admin\/content$/ },
+  { email: 'admin@magti.ge', landing: /\/admin\/overview$/ }
 ];
 
 test.describe('presentation personas', () => {
   for (const persona of PRESENTATION_PERSONAS) {
     test(`${persona.email} authenticates through the loopback persona chooser`, async ({ page }) => {
-      await page.goto('/login');
-      await expect(page.locator('input[type="email"], input[type="password"]')).toHaveCount(0);
-
-      const [login] = await Promise.all([
-        page.waitForResponse((response) => response.url().includes('/api/auth/login')),
-        page.getByRole('button', { name: persona.label, exact: true }).click()
-      ]);
+      const login = await signInAsPersona(page, persona.email);
 
       expect(login.status()).toBe(200);
       await expect(page).toHaveURL(persona.landing);
       await expect(page.getByRole('button', { name: 'ანგარიშის მენიუ' })).toBeVisible();
     });
   }
+
+  // This screen must never collect a password, whichever path signs you in.
+  // It replaces an assertion that no e-mail field existed either, which the
+  // escape hatch has made false on purpose (login.html:108).
+  test('no path through the chooser asks for a password', async ({ page }) => {
+    await page.goto('/login');
+    await expect(page.locator('input[type="password"]')).toHaveCount(0);
+    await page.getByRole('button', { name: 'ოპერატორი', exact: true }).click();
+    await expect(page.locator('input[type="password"]')).toHaveCount(0);
+  });
 
   test('operator is redirected away from administration', async ({ page }) => {
     const token = await apiLogin(page.request, 'info@magti.ge');
