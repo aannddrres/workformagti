@@ -186,7 +186,11 @@ test.describe('audit log', () => {
     // --- open by clicking the row, close with the X ------------------------
     await row.click();
     await expect(page.getByText('ლოგის დეტალები')).toBeVisible();
-    await page.getByRole('button', { name: 'დეტალების დახურვა' }).click();
+    // The X is labelled from shared.close_label -- plain "დახურვა", the same
+    // caption every dialog uses -- so it is scoped to the drawer rather than
+    // named uniquely. It was looked up as "დეტალების დახურვა", which has
+    // never existed anywhere in src/.
+    await page.getByRole('dialog').getByRole('button', { name: 'დახურვა', exact: true }).click();
     await expect(page.getByText('ლოგის დეტალები')).toBeHidden();
 
     // --- the shield icon opens the drawer AND verifies in one click --------

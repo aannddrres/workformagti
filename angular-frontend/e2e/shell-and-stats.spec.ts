@@ -165,7 +165,16 @@ test.describe('admin dashboard and videos', () => {
     // position among the page's tables. `.last()` would have been a guess, and
     // guessed selectors have cost three CI cycles on this branch already.
     const progressTable = page.locator('table').filter({ hasText: 'მომხმარებელი' });
-    const namesOf = () => progressTable.locator('tbody tr td:first-child').allInnerTexts();
+    // allInnerTexts() reads once and never retries, so it has to be given a
+    // populated table to read. Changing the sort re-renders these rows, and
+    // reading straight after the select caught the empty frame in between --
+    // reported as "no progress rows to sort" while the page in the failure
+    // screenshot plainly had eight. The wait is the fix; the row count below
+    // is still the assertion.
+    const namesOf = async () => {
+      await expect(progressTable.locator('tbody tr').first()).toBeVisible();
+      return progressTable.locator('tbody tr td:first-child').allInnerTexts();
+    };
 
     await sortSelect.selectOption('name');
     const byName = await namesOf();

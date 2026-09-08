@@ -17,8 +17,16 @@ test.describe('role management', () => {
   test('bulk reassignment changes only the selected directory user', async ({ page, request }) => {
     test.setTimeout(120_000);
     const token = await apiLogin(request, 'admin@magti.ge');
+    // tech@magti.ge is JIT-provisioned by its FIRST login and is not one of
+    // the SHARED_PERSONAS global-setup signs in, so against a fresh database
+    // it does not exist yet -- the directory lookup below came back undefined
+    // and the test died on "cannot read properties of undefined". Only
+    // department-visibility.spec.ts signed it in, and that runs later.
+    // info@magti.ge is a shared persona and is already there.
+    await apiLogin(request, 'tech@magti.ge');
     const target = (await users(request, token)).find((user) => user.email === 'tech@magti.ge')!;
     const untouched = (await users(request, token)).find((user) => user.email === 'info@magti.ge')!;
+    expect(target, 'tech@magti.ge was not provisioned by its first login').toBeTruthy();
     expect(target.role).toBe('operator');
     expect(untouched.role).toBe('operator');
 

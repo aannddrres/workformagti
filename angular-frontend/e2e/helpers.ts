@@ -279,3 +279,71 @@ export async function seedTokenIntoPage(page: Page, token: string): Promise<void
   await page.goto('/');
   await expect(page).not.toHaveURL(/\/login/);
 }
+
+/**
+ * The account each picker path resolves to -- the inverse of
+ * {@code Login.resolvedEmail} (login.ts:62). If that method changes, this is
+ * the one place a spec should have to follow it to.
+ */
+const PICKER_PATHS: Record<string, { role: string; dept?: string; group?: number; person?: number }> = {
+  'admin@magti.ge': { role: 'სისტემური ადმინი' },
+  'content@magti.ge': { role: 'კონტენტ-ადმინი', person: 1 },
+  'manager@magti.ge': { role: 'ჯგუფის უფროსი', dept: 'ტექნიკური', group: 1 },
+  'tech@magti.ge': { role: 'ოპერატორი', dept: 'ტექნიკური', group: 1, person: 1 },
+  'info@magti.ge': { role: 'ოპერატორი', dept: 'საინფორმაციო', group: 1, person: 1 }
+};
+
+/**
+ * Signs in through the login screen the way a person does, and resolves with
+ * the /api/auth/login response so a caller can assert on it.
+ *
+ * The screen stopped being four fixed persona buttons in ac5cc7e: it is a
+ * cascading picker now -- role, then department and group, then which of the
+ * ten operators -- because the demo org has 602 accounts and four buttons
+ * could reach none of the seeded leaders or operators. Six specs drove the
+ * old screen and were not updated with it; that alone is why the E2E job
+ * failed, three months after it was made to pass.
+ *
+ * So specs name the ACCOUNT and this resolves the clicks. The next change to
+ * the picker is one edit here rather than six, and the failure it produces
+ * names {@link PICKER_PATHS} rather than a button caption in six files.
+ *
+ * An address the picker cannot reach -- nino@magti.ge is one; the picker's
+ * first operator slot is tech@ or info@ -- falls through to the screen's own
+ * "სხვა ანგარიშით შესვლა" field. That is the same dev-login path behind the
+ * same loopback gate, not a test-only back door.
+ */
+export async function signInAsPersona(page: Page, email: string) {
+  await page.goto('/login');
+  const path = PICKER_PATHS[email];
+  const loginResponse = page.waitForResponse((r) => r.url().includes('/api/auth/login'));
+
+  if (path) {
+    // Scoped through the <label> rather than getByLabel: the <select> sits
+    // INSIDE its label here, so the label's text content carries every option
+    // caption with it and an exact-name match would never hit.
+    const selectFor = (labelText: string) =>
+      page.locator('label', { hasText: labelText }).locator('select');
+
+    await page.getByRole('button', { name: path.role, exact: true }).click();
+    if (path.dept) {
+      await selectFor('დეპარტამენტი').selectOption({ label: path.dept });
+    }
+    if (path.group) {
+      await selectFor('ჯგუფი').selectOption(String(path.group));
+    }
+    if (path.person) {
+      // The person select is captioned with the role itself: "ოპერატორი" for
+      // an operator, "კონტენტ-ადმინი" for a content admin.
+      await selectFor(path.role).selectOption(String(path.person));
+    }
+    // Two buttons on this screen read "შესვლა"; the picker's is the primary
+    // one, the escape hatch's is secondary.
+    await page.locator('button.primary-button', { hasText: 'შესვლა' }).click();
+  } else {
+    await page.locator('#uat-email').fill(email);
+    await page.locator('button.secondary-button', { hasText: 'შესვლა' }).click();
+  }
+
+  return loginResponse;
+}

@@ -43,7 +43,14 @@ test('manager dashboard is scoped, interactive and export-fail-closed without a 
   expect(groupUsers.status()).toBe(200);
   const groupDialog = page.getByRole('dialog');
   await expect(groupDialog).toBeVisible();
-  await expect(groupDialog.getByText('ნიკოლოზი აღდგომელაძე')).toBeVisible();
+  // Assert the dialog shows the members the SERVER just returned, rather than
+  // a name typed into the spec. This used to look for "ნიკოლოზი აღდგომელაძე",
+  // which appears nowhere in this repository: it was a row in whichever
+  // developer database the spec was written against, so it could only pass
+  // there and failed against every fresh Oracle -- CI's included.
+  const members = (await groupUsers.json()).users as { first_name: string }[];
+  expect(members.length, 'the group the dashboard offered has no members to show').toBeGreaterThan(0);
+  await expect(groupDialog.getByText(members[0].first_name).first()).toBeVisible();
   await groupDialog.getByRole('button', { name: 'დახურვა' }).click();
 
   // A manager who has no canonical primary team (or is acting-only) must
