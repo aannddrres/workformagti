@@ -212,6 +212,14 @@
     @apply flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-slate-200 px-6 py-12 text-center text-sm text-slate-600 dark:border-slate-700 dark:text-slate-400;
   }
 
+  /* The same treatment as .empty-state for the failure case, which had the
+   * identical problem: a bare red <p>, centred on one screen and left-aligned
+   * on the next. Padding is lighter than the empty state because three of
+   * these sit inside small dashboard widgets. */
+  .error-state {
+    @apply flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-red-200 px-6 py-8 text-center text-sm text-red-700 dark:border-red-900/60 dark:text-red-300;
+  }
+
   .dialog-backdrop {
     @apply bg-slate-950/55 backdrop-blur-sm animate-overlay-in;
   }

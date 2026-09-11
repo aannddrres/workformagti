@@ -10,7 +10,10 @@
       }
     </div>
   } @else if (errorMessage()) {
-    <p class="text-sm text-red-700">{{ errorMessage() }}</p>
+    <div role="alert" class="error-state">
+      <i class="fa-solid fa-triangle-exclamation text-2xl" aria-hidden="true"></i>
+      <p>{{ errorMessage() }}</p>
+    </div>
   } @else if (items()!.length === 0) {
     <p class="text-sm text-slate-600 dark:text-slate-400">{{ 'dashboard.news_preview.empty' | translate }}</p>
   } @else {

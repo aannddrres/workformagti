@@ -19,7 +19,10 @@
       }
     </div>
   } @else if (errorMessage()) {
-    <p class="col-span-full text-sm text-red-700">{{ errorMessage() }}</p>
+    <div role="alert" class="error-state">
+      <i class="fa-solid fa-triangle-exclamation text-2xl" aria-hidden="true"></i>
+      <p>{{ errorMessage() }}</p>
+    </div>
   } @else if (filtered().length === 0) {
     <div class="empty-state">
       <i class="fa-regular fa-circle-play text-2xl" aria-hidden="true"></i>

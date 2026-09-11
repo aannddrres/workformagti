@@ -8,7 +8,10 @@
       }
     </div>
   } @else if (errorMessage()) {
-    <p class="py-8 text-center text-sm text-red-700">{{ errorMessage() }}</p>
+    <div role="alert" class="error-state">
+      <i class="fa-solid fa-triangle-exclamation text-2xl" aria-hidden="true"></i>
+      <p>{{ errorMessage() }}</p>
+    </div>
   } @else if (groups().length === 0) {
     <div class="empty-state">
       <i class="fa-regular fa-star text-2xl" aria-hidden="true"></i>
