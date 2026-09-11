@@ -15,7 +15,7 @@
     </nav>
   </header>
 
-  <section class="mb-6 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-200">
+  <section class="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-200">
     <div class="flex gap-3">
       <i class="fa-solid fa-building-shield mt-1" aria-hidden="true"></i>
       <div>
@@ -29,7 +29,7 @@
   @if (loading()) {
     <div class="grid gap-4 lg:grid-cols-3" aria-label="იტვირთება">
       @for (item of [1, 2, 3]; track item) {
-        <div class="h-56 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800"></div>
+        <div class="h-56 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800"></div>
       }
     </div>
   } @else if (error(); as message) {

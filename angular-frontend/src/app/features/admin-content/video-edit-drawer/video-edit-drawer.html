@@ -1,6 +1,6 @@
-<div class="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" (click)="close()"></div>
+<div class="fixed inset-0 z-40 bg-black/40 animate-overlay-in backdrop-blur-sm" (click)="close()"></div>
 
-<div portalDialog portalDialogLabelledBy="video-editor-heading" (portalDialogClose)="close()" class="fixed inset-0 z-50 flex w-full flex-col bg-white dark:bg-slate-900">
+<div portalDialog portalDialogLabelledBy="video-editor-heading" (portalDialogClose)="close()" class="animate-panel-in fixed inset-0 z-50 flex w-full flex-col bg-white dark:bg-slate-900">
   <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-4">
     <h3 id="video-editor-heading" class="text-xl font-bold text-slate-800 dark:text-slate-100">
       {{ (isEditing ? 'content.videos.edit_title' : 'content.videos.new_title') | translate }}
@@ -20,7 +20,7 @@
           required
           [value]="title()"
           (input)="title.set($any($event.target).value)"
-          class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+          class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
         />
       </div>
 
@@ -34,11 +34,11 @@
             [value]="videoUrl()"
             (input)="videoUrl.set($any($event.target).value)"
             placeholder="https://example.com/video.mp4"
-            class="flex-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            class="flex-1 w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
           />
           <input #fileInput type="file" accept="video/mp4" class="hidden" (change)="onFileInputChange($event)" />
           <button type="button" (click)="fileInput.click()" [disabled]="uploading()"
-            class="shrink-0 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-normal text-slate-600 shadow-sm hover:bg-slate-50 flex items-center gap-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
+            class="shrink-0 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-normal text-slate-600 shadow-e1 hover:bg-slate-50 flex items-center gap-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
             <i class="fa-solid fa-upload"></i> {{ (uploading() ? 'content.articles.uploading' : 'content.articles.upload') | translate }}
           </button>
         </div>
@@ -51,7 +51,7 @@
             id="video-category"
             required
             (change)="category.set($any($event.target).value)"
-            class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
           >
             <option value="" disabled [attr.selected]="category() === '' ? '' : null">{{ 'content.videos.select_category' | translate }}</option>
             @for (c of categories(); track c.id) {
@@ -72,7 +72,7 @@
           <select
             id="video-department"
             (change)="targetDepartment.set($any($event.target).value)"
-            class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
           >
             @for (d of departments; track d) {
               <option [value]="d" [attr.selected]="d === targetDepartment() ? '' : null">
@@ -83,7 +83,7 @@
         </div>
       </div>
 
-      <div class="flex flex-col gap-2 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-4">
+      <div class="flex flex-col gap-2 rounded-lg border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-4">
         <div class="flex items-center gap-3">
           <input id="video-mandatory" type="checkbox" [checked]="isMandatory()" (change)="isMandatory.set($any($event.target).checked)" class="h-4 w-4 accent-brand" />
                 @if (mandatoryUnknown()) {
@@ -100,7 +100,7 @@
                 type="date"
                 [value]="dueDate()"
                 (input)="dueDate.set($any($event.target).value)"
-                class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-800 focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
               />
             </div>
           }
@@ -114,10 +114,10 @@
         @if (saveError()) {
           <span class="text-xs text-red-700 mr-auto">{{ saveError() }}</span>
         }
-        <button type="button" (click)="close()" class="rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-normal text-slate-600 shadow-sm hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
+        <button type="button" (click)="close()" class="rounded-lg border border-slate-300 bg-white px-6 py-2.5 text-sm font-normal text-slate-600 shadow-e1 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
           {{ 'content.cancel' | translate }}
         </button>
-        <button type="submit" [disabled]="saving()" class="rounded-xl bg-brand dark:bg-brand-700 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:opacity-60">
+        <button type="submit" [disabled]="saving()" class="rounded-lg bg-brand dark:bg-brand-700 px-6 py-2.5 text-sm font-semibold text-white shadow-e1 hover:bg-brand-700 disabled:opacity-60">
           {{ (saving() ? 'content.saving' : 'content.save') | translate }}
         </button>
       </div>

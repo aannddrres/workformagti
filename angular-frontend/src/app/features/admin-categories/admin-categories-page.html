@@ -9,14 +9,14 @@
       <button
         type="button"
         (click)="refresh()"
-        class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-normal text-slate-600 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+        class="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-normal text-slate-600 shadow-e1 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
       >
         <i class="fa-solid fa-rotate mr-1.5" aria-hidden="true"></i>{{ 'categories.refresh' | translate }}
       </button>
       <button
         type="button"
         (click)="openCreateForm()"
-        class="rounded-xl bg-brand dark:bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-700"
+        class="rounded-lg bg-brand dark:bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white shadow-e1 hover:bg-brand-700"
       >
         <i class="fa-solid fa-plus mr-1.5" aria-hidden="true"></i>{{ 'categories.new' | translate }}
       </button>
@@ -26,7 +26,7 @@
   @if (formOpen()) {
     <form
       (submit)="submit($event)"
-      class="mb-6 grid grid-cols-1 gap-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/60 md:grid-cols-2 md:items-end lg:grid-cols-3"
+      class="mb-6 grid grid-cols-1 gap-4 rounded-lg border border-slate-100 bg-white p-5 shadow-e1 dark:border-slate-800 dark:bg-slate-900/60 md:grid-cols-2 md:items-end lg:grid-cols-3"
     >
       <div>
         <label class="mb-1.5 block text-sm font-normal text-slate-700 dark:text-slate-300">{{ 'categories.field_name' | translate }}</label>
@@ -35,7 +35,7 @@
           required
           [value]="name()"
           (input)="onNameInput($event)"
-          class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+          class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
         />
       </div>
       <div>
@@ -45,7 +45,7 @@
           [value]="slug()"
           (input)="onSlugInput($event)"
           placeholder="{{ 'categories.slug_placeholder' | translate }}"
-          class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+          class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
         />
       </div>
       <div>
@@ -56,9 +56,9 @@
             [value]="icon()"
             (input)="onIconInput($event)"
             placeholder="{{ 'categories.icon_placeholder' | translate }}"
-            class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
           />
-          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-lg dark:bg-slate-800">
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-slate-50 text-lg dark:bg-slate-800">
             <i [class]="iconPreviewClass()" class="text-slate-600 dark:text-slate-400" aria-hidden="true"></i>
           </span>
         </div>
@@ -67,7 +67,7 @@
         <label class="mb-1.5 block text-sm font-normal text-slate-700 dark:text-slate-300">{{ 'categories.field_color' | translate }}</label>
         <select
           (change)="onPastelColorChange($event)"
-          class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+          class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
         >
           @for (opt of pastelColorOptions; track opt.value) {
             <option [value]="opt.value" [attr.selected]="opt.value === pastelColor() ? '' : null">{{ opt.labelKey | translate }}</option>
@@ -78,7 +78,7 @@
         <label class="mb-1.5 block text-sm font-normal text-slate-700 dark:text-slate-300">{{ 'categories.field_parent' | translate }}</label>
         <select
           (change)="onParentChange($event)"
-          class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+          class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
         >
           <option value="" [attr.selected]="parentId() === null ? '' : null">{{ 'categories.no_parent' | translate }}</option>
           @for (p of parentOptions(); track p.id) {
@@ -90,12 +90,12 @@
         <button
           type="button"
           (click)="closeForm()"
-          class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-normal text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+          class="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-normal text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
         >{{ 'content.cancel' | translate }}</button>
         <button
           type="submit"
           [disabled]="saving()"
-          class="rounded-xl bg-brand dark:bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+          class="rounded-lg bg-brand dark:bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
         >{{ saving() ? ('content.saving' | translate) : ('content.save' | translate) }}</button>
       </div>
       @if (saveError(); as msg) {
@@ -105,17 +105,17 @@
   }
 
   @if (loading()) {
-    <div class="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
+    <div class="overflow-hidden rounded-lg border border-slate-100 bg-white shadow-e1 dark:border-slate-800 dark:bg-slate-900/60">
       @for (i of [1, 2, 3, 4]; track i) {
         <div class="animate-pulse border-b border-slate-100 px-5 py-4 last:border-0 dark:border-slate-800">
-          <div class="h-4 w-1/3 rounded bg-slate-200/60 dark:bg-slate-800/60"></div>
+          <div class="h-4 w-1/3 rounded-sm bg-slate-200/60 dark:bg-slate-800/60"></div>
         </div>
       }
     </div>
   } @else if (error()) {
-    <div class="rounded-2xl border border-slate-100 bg-white p-6 text-center text-sm text-red-700 dark:border-slate-800 dark:bg-slate-900/60 dark:text-red-400">{{ 'categories.load_error' | translate }}</div>
+    <div class="rounded-lg border border-slate-100 bg-white p-6 text-center text-sm text-red-700 dark:border-slate-800 dark:bg-slate-900/60 dark:text-red-400">{{ 'categories.load_error' | translate }}</div>
   } @else {
-    <div class="overflow-x-auto rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
+    <div class="overflow-x-auto rounded-lg border border-slate-100 bg-white shadow-e1 dark:border-slate-800 dark:bg-slate-900/60">
       <table class="w-full text-left text-sm">
         <thead>
           <tr class="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
@@ -151,8 +151,8 @@
               <td class="px-5 py-3 text-slate-600 dark:text-slate-400">#{{ parent.id }}</td>
               <td class="px-5 py-3 text-slate-600 dark:text-slate-400">—</td>
               <td class="px-5 py-3 text-center">
-                <button type="button" (click)="openEditForm(parent)" class="rounded-lg border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">{{ 'categories.edit' | translate }}</button>
-                <button type="button" (click)="deleteCategory(parent)" class="ml-1 rounded-lg border border-danger/30 px-3 py-1 text-xs font-semibold text-danger hover:bg-danger/[0.06] dark:border-danger/40 dark:hover:bg-danger/10">{{ 'categories.delete' | translate }}</button>
+                <button type="button" (click)="openEditForm(parent)" class="rounded-md border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">{{ 'categories.edit' | translate }}</button>
+                <button type="button" (click)="deleteCategory(parent)" class="ml-1 rounded-md border border-danger/30 px-3 py-1 text-xs font-semibold text-danger hover:bg-danger/[0.06] dark:border-danger/40 dark:hover:bg-danger/10">{{ 'categories.delete' | translate }}</button>
               </td>
             </tr>
             @if (isExpanded(parent.id)) {
@@ -161,13 +161,13 @@
                   <td class="px-5 py-2 pl-12">
                     <span class="mr-2 text-slate-600 dark:text-slate-400">└─</span>
                     <span class="text-slate-800 dark:text-slate-200">{{ child.name }}</span>
-                    <span class="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-400">{{ 'categories.subcategory' | translate }}</span>
+                    <span class="ml-2 rounded-sm bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-400">{{ 'categories.subcategory' | translate }}</span>
                   </td>
                   <td class="px-5 py-2 text-slate-600 dark:text-slate-400">#{{ child.id }}</td>
                   <td class="px-5 py-2 text-slate-600 dark:text-slate-400">{{ parent.name }}</td>
                   <td class="px-5 py-2 text-center">
-                    <button type="button" (click)="openEditForm(child)" class="rounded-lg border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">{{ 'categories.edit' | translate }}</button>
-                    <button type="button" (click)="deleteCategory(child)" class="ml-1 rounded-lg border border-danger/30 px-3 py-1 text-xs font-semibold text-danger hover:bg-danger/[0.06] dark:border-danger/40 dark:hover:bg-danger/10">{{ 'categories.delete' | translate }}</button>
+                    <button type="button" (click)="openEditForm(child)" class="rounded-md border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">{{ 'categories.edit' | translate }}</button>
+                    <button type="button" (click)="deleteCategory(child)" class="ml-1 rounded-md border border-danger/30 px-3 py-1 text-xs font-semibold text-danger hover:bg-danger/[0.06] dark:border-danger/40 dark:hover:bg-danger/10">{{ 'categories.delete' | translate }}</button>
                   </td>
                 </tr>
               }
@@ -178,13 +178,13 @@
               <td class="px-5 py-3">
                 <span class="mr-2 text-amber-700">⚠</span>
                 <span class="font-normal text-slate-800 dark:text-slate-100">{{ orphan.name }}</span>
-                <span class="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">{{ 'categories.orphan' | translate }}</span>
+                <span class="ml-2 rounded-sm bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">{{ 'categories.orphan' | translate }}</span>
               </td>
               <td class="px-5 py-3 text-slate-600 dark:text-slate-400">#{{ orphan.id }}</td>
               <td class="px-5 py-3 text-slate-600 dark:text-slate-400">{{ 'categories.orphan_parent' | translate: { id: orphan.parent_id } }}</td>
               <td class="px-5 py-3 text-center">
-                <button type="button" (click)="openEditForm(orphan)" class="rounded-lg border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">{{ 'categories.edit' | translate }}</button>
-                <button type="button" (click)="deleteCategory(orphan)" class="ml-1 rounded-lg border border-danger/30 px-3 py-1 text-xs font-semibold text-danger hover:bg-danger/[0.06] dark:border-danger/40 dark:hover:bg-danger/10">{{ 'categories.delete' | translate }}</button>
+                <button type="button" (click)="openEditForm(orphan)" class="rounded-md border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">{{ 'categories.edit' | translate }}</button>
+                <button type="button" (click)="deleteCategory(orphan)" class="ml-1 rounded-md border border-danger/30 px-3 py-1 text-xs font-semibold text-danger hover:bg-danger/[0.06] dark:border-danger/40 dark:hover:bg-danger/10">{{ 'categories.delete' | translate }}</button>
               </td>
             </tr>
           }

@@ -13,7 +13,7 @@
   </header>
 
   @if (error()) {
-    <div role="alert" class="mb-4 flex items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+    <div role="alert" class="mb-4 flex items-start justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
       <span>{{ error() }}</span>
       <button type="button" (click)="dismissError()" aria-label="შეცდომის დახურვა">
         <i class="fa-solid fa-xmark" aria-hidden="true"></i>
@@ -21,12 +21,12 @@
     </div>
   }
 
-  <div class="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+  <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
     <strong>მნიშვნელოვანი:</strong> საბოლოო წაშლა მხოლოდ სისტემურ ადმინისტრატორს შეუძლია 30 დღის გასვლის შემდეგ.
     legal hold-ის მქონე ჩანაწერი არ იშლება. წაკითხვის, ნახვის, ქვიზისა და audit-ის მტკიცებულება რჩება.
   </div>
 
-  <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+  <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-e1 dark:border-slate-700 dark:bg-slate-900">
     <table class="w-full text-left text-sm">
       <thead>
         <tr class="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 dark:border-slate-700 dark:bg-slate-800">

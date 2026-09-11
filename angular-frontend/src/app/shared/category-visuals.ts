@@ -33,22 +33,29 @@ export function getCategoryIcon(categoryName: string | null | undefined, titleTe
 }
 
 export interface CategoryCardStyles {
-  borderHover: string;
-  borderAccent: string;
-  iconBg: string;
-  textAccent: string;
+  /**
+   * The one place a category hue survives: a pale chip behind the card's
+   * icon. Cards, borders and hover titles are neutral now.
+   *
+   * Seven hues used to run at once -- a coloured 4px left border, a coloured
+   * icon tile, a coloured hover title and a coloured hover border, per card --
+   * which on a compliance portal read as decoration rather than as a system.
+   * None of them had a `dark:` variant, and the fallback painted
+   * `group-hover:text-black`, i.e. invisible, in dark mode.
+   */
+  chip: string;
 }
 
 export function getCategoryCardStyles(categoryName: string | null | undefined): CategoryCardStyles {
   const name = (categoryName || '').toLowerCase();
-  if (name.includes('როუმინგ')) return { borderHover: 'hover:border-blue-200', borderAccent: 'border-l-4 border-l-blue-500', iconBg: 'bg-blue-50 text-blue-600', textAccent: 'group-hover:text-blue-700' };
-  if (name.includes('ინტერნეტ') || name.includes('isp')) return { borderHover: 'hover:border-emerald-200', borderAccent: 'border-l-4 border-l-emerald-500', iconBg: 'bg-emerald-50 text-emerald-700', textAccent: 'group-hover:text-emerald-700' };
-  if (name.includes('iptv') || name.includes('ტელევიზ')) return { borderHover: 'hover:border-purple-200', borderAccent: 'border-l-4 border-l-purple-500', iconBg: 'bg-purple-50 text-purple-600', textAccent: 'group-hover:text-purple-700' };
-  if (name.includes('ტექნიკურ') || name.includes('მხარდაჭერ')) return { borderHover: 'hover:border-orange-200', borderAccent: 'border-l-4 border-l-orange-500', iconBg: 'bg-orange-50 text-orange-700', textAccent: 'group-hover:text-orange-700' };
-  if (name.includes('ბილინგ') || name.includes('გადახდ')) return { borderHover: 'hover:border-teal-200', borderAccent: 'border-l-4 border-l-teal-500', iconBg: 'bg-teal-50 text-teal-600', textAccent: 'group-hover:text-teal-700' };
-  if (name.includes('ლოიალობ') || name.includes('ქულებ')) return { borderHover: 'hover:border-pink-200', borderAccent: 'border-l-4 border-l-pink-500', iconBg: 'bg-pink-50 text-pink-600', textAccent: 'group-hover:text-pink-700' };
-  if (name.includes('მობილურ') || name.includes('სიმ')) return { borderHover: 'hover:border-cyan-200', borderAccent: 'border-l-4 border-l-cyan-500', iconBg: 'bg-cyan-50 text-cyan-600', textAccent: 'group-hover:text-cyan-700' };
-  return { borderHover: 'hover:border-brand/40', borderAccent: '', iconBg: 'bg-slate-50 text-slate-600', textAccent: 'group-hover:text-black' };
+  if (name.includes('როუმინგ')) return { chip: 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300' };
+  if (name.includes('ინტერნეტ') || name.includes('isp')) return { chip: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300' };
+  if (name.includes('iptv') || name.includes('ტელევიზ')) return { chip: 'bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300' };
+  if (name.includes('ტექნიკურ') || name.includes('მხარდაჭერ')) return { chip: 'bg-orange-50 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300' };
+  if (name.includes('ბილინგ') || name.includes('გადახდ')) return { chip: 'bg-teal-50 text-teal-700 dark:bg-teal-950/50 dark:text-teal-300' };
+  if (name.includes('ლოიალობ') || name.includes('ქულებ')) return { chip: 'bg-pink-50 text-pink-700 dark:bg-pink-950/50 dark:text-pink-300' };
+  if (name.includes('მობილურ') || name.includes('სიმ')) return { chip: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-950/50 dark:text-cyan-300' };
+  return { chip: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' };
 }
 
 /** Standardized "new" badge window -- the original app used two different

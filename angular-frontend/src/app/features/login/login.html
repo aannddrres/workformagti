@@ -1,5 +1,5 @@
 <div class="flex min-h-screen items-center justify-center bg-slate-50 px-4 dark:bg-slate-900">
-  <div class="w-full max-w-sm rounded-2xl border border-slate-100 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-800">
+  <div class="w-full max-w-sm rounded-lg border border-slate-100 bg-white p-8 shadow-e1 dark:border-slate-800 dark:bg-slate-800">
     <!-- The login screen carried no company mark at all before this. -->
     <div class="mb-6"><app-logo size="lg" /></div>
     <h1 class="mb-1 text-2xl font-semibold text-slate-800 dark:text-slate-100">{{ 'auth.login_page.heading' | translate }}</h1>
@@ -9,7 +9,7 @@
 
     <div class="flex flex-col gap-4">
       @if (errorMessage()) {
-        <p role="alert" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">{{ errorMessage() }}</p>
+        <p role="alert" class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">{{ errorMessage() }}</p>
       }
 
       @if (isLocal) {
@@ -38,7 +38,7 @@
                 <label class="block">
                   <span class="mb-1 block text-xs font-normal text-slate-600 dark:text-slate-400">კონტენტ-ადმინი</span>
                   <select [disabled]="submitting()" (change)="setPerson($any($event.target).value)"
-                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-slate-400 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
+                    class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-slate-400 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
                     <option value="">— აირჩიეთ —</option>
                     @for (slot of contentSlots; track slot) {
                       <option [value]="slot">კონტენტ-ადმინი {{ slot }}</option>
@@ -52,7 +52,7 @@
                 <label class="block">
                   <span class="mb-1 block text-xs font-normal text-slate-600 dark:text-slate-400">დეპარტამენტი</span>
                   <select [disabled]="submitting()" (change)="setDept($any($event.target).value)"
-                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-slate-400 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
+                    class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-slate-400 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
                     <option value="">— აირჩიეთ —</option>
                     @for (option of deptOptions; track option.value) {
                       <option [value]="option.value">{{ option.label }}</option>
@@ -64,7 +64,7 @@
                   <label class="block">
                     <span class="mb-1 block text-xs font-normal text-slate-600 dark:text-slate-400">ჯგუფი</span>
                     <select [disabled]="submitting()" (change)="setGroup($any($event.target).value)"
-                      class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-slate-400 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
+                      class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-slate-400 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
                       <option value="">— აირჩიეთ —</option>
                       @for (g of groups; track g) {
                         <option [value]="g">ჯგუფი {{ g < 10 ? '0' + g : g }}</option>
@@ -78,7 +78,7 @@
                   <label class="block">
                     <span class="mb-1 block text-xs font-normal text-slate-600 dark:text-slate-400">ოპერატორი</span>
                     <select [disabled]="submitting()" (change)="setPerson($any($event.target).value)"
-                      class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-slate-400 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
+                      class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-slate-400 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
                       <option value="">— აირჩიეთ —</option>
                       @for (slot of operatorSlots; track slot) {
                         <option [value]="slot">ოპერატორი {{ slot < 10 ? '0' + slot : slot }}</option>
@@ -110,7 +110,7 @@
                 placeholder="uat.operator1@magti.ge"
                 [disabled]="submitting()"
                 (keyup.enter)="loginByEmail(emailField.value)"
-                class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-500 focus:border-slate-400 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100" />
+                class="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-500 focus:border-slate-400 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100" />
               <button type="button" [disabled]="submitting()" (click)="loginByEmail(emailField.value)" class="secondary-button shrink-0">
                 შესვლა
               </button>

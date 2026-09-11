@@ -1,8 +1,8 @@
 @if (announcements().length > 0) {
   <section class="mb-6 space-y-2" aria-label="საერთო ინფორმაცია" aria-live="polite">
     @for (announcement of announcements(); track announcement.id) {
-      <article class="flex items-start gap-3 rounded-xl border px-4 py-3" [class]="cardClass(announcement.priority)">
-        <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/60 dark:bg-black/10">
+      <article class="flex items-start gap-3 rounded-lg border px-4 py-3" [class]="cardClass(announcement.priority)">
+        <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/60 dark:bg-black/10">
           <i class="fa-solid" [class]="icon(announcement.priority)" aria-hidden="true"></i>
         </span>
         <div class="min-w-0 flex-1">

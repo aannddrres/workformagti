@@ -1,10 +1,10 @@
 <div class="mb-4 flex justify-end">
-  <button (click)="openCreate()" class="rounded-xl bg-brand dark:bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700">
+  <button (click)="openCreate()" class="rounded-lg bg-brand dark:bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white shadow-e1 transition-colors hover:bg-brand-700">
     + {{ 'content.videos.new' | translate }}
   </button>
 </div>
 
-<div class="overflow-x-auto rounded-2xl border border-slate-100 bg-white dark:bg-slate-900 dark:border-slate-800 shadow-sm">
+<div class="overflow-x-auto rounded-lg border border-slate-100 bg-white dark:bg-slate-900 dark:border-slate-800 shadow-e1">
   <table class="w-full text-left text-sm">
     <thead>
       <tr class="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
@@ -16,7 +16,7 @@
     </thead>
     <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
       @if (loading()) {
-        <tr class="animate-pulse"><td class="px-5 py-3" colspan="4"><div class="h-4 bg-slate-200 dark:bg-slate-700 rounded w-2/3"></div></td></tr>
+        <tr class="animate-pulse"><td class="px-5 py-3" colspan="4"><div class="h-4 bg-slate-200 dark:bg-slate-700 rounded-sm w-2/3"></div></td></tr>
       } @else if (items().length === 0) {
         <tr><td colspan="4" class="px-5 py-6 text-center text-slate-600 dark:text-slate-400">{{ 'content.videos.none_found' | translate }}</td></tr>
       } @else {

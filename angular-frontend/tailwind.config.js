@@ -19,6 +19,7 @@ module.exports = {
         brand: {
           DEFAULT: 'rgb(var(--brand-600) / <alpha-value>)',
           50: 'rgb(var(--brand-50) / <alpha-value>)',
+          accent: 'rgb(var(--brand-accent) / <alpha-value>)',
           600: 'rgb(var(--brand-600) / <alpha-value>)',
           700: 'rgb(var(--brand-700) / <alpha-value>)'
         },
@@ -35,6 +36,51 @@ module.exports = {
       // above and below the x-height, so it needs the extra leading. Before
       // this the app used eight named steps plus twenty one-off bracket
       // values; `design-rules.spec.ts` now allows only what is listed here.
+      // Three elevations, named for the job rather than a t-shirt size, because
+      // the old set had five named tiers plus five one-off bracket values and
+      // `shadow-xl` and `shadow-2xl` were used about equally -- so modals did
+      // not share a height. e1 rests, e2 floats over the page, e3 sits over a
+      // backdrop. Dark mode leans on surface lightness and borders instead;
+      // a shadow on a near-black canvas is not visible either way.
+      // Three durations and two curves, so motion is a decision rather than
+      // whatever Tailwind's 150ms default happened to be. `standard` is the
+      // ease everything entering or settling uses; `exit` is faster out than
+      // in, which is how dismissal should feel.
+      // DEFAULT is set too, so a bare `transition` -- which is most of them --
+      // lands on the scale instead of Tailwind's unchosen 150ms and its own
+      // easing. 120ms suits the hover feedback that bare `transition` is
+      // nearly always used for; anything that moves asks for base or slow.
+      transitionDuration: { DEFAULT: '120ms', fast: '120ms', base: '180ms', slow: '240ms' },
+      transitionTimingFunction: {
+        DEFAULT: 'cubic-bezier(0.2, 0, 0, 1)',
+        standard: 'cubic-bezier(0.2, 0, 0, 1)',
+        exit: 'cubic-bezier(0.4, 0, 1, 1)'
+      },
+      keyframes: {
+        'overlay-in': { from: { opacity: '0' }, to: { opacity: '1' } },
+        'panel-in': {
+          from: { opacity: '0', transform: 'translateY(0.5rem) scale(0.985)' },
+          to: { opacity: '1', transform: 'none' }
+        }
+      },
+      animation: {
+        'overlay-in': 'overlay-in 120ms cubic-bezier(0.2, 0, 0, 1)',
+        'panel-in': 'panel-in 180ms cubic-bezier(0.2, 0, 0, 1)'
+      },
+      boxShadow: {
+        e1: '0 1px 2px rgb(15 23 42 / 0.05)',
+        e2: '0 4px 14px -3px rgb(15 23 42 / 0.12)',
+        e3: '0 18px 44px -10px rgb(15 23 42 / 0.28)'
+      },
+      // Three radii. There were ten, including a `rounded-[10px]` that only the
+      // three core control classes could reach, so a button had a corner no
+      // other element could match.
+      borderRadius: {
+        sm: '0.375rem',   //  6px -- chips, small controls
+        DEFAULT: '0.375rem',
+        md: '0.625rem',   // 10px -- buttons, inputs, rows
+        lg: '0.875rem'    // 14px -- cards, panels, dialogs
+      },
       fontSize: {
         xs: ['0.75rem', { lineHeight: '1.125rem' }],    // 12 / 18  -- the floor
         sm: ['0.875rem', { lineHeight: '1.3125rem' }],  // 14 / 21  -- UI default

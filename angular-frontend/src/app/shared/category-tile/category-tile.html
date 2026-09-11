@@ -1,16 +1,16 @@
 <a
   [routerLink]="['/category', routeKey()]"
-  class="group relative flex h-full w-full flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white px-3 py-1.5 text-center shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:scale-[1.01] hover:shadow-[0_0_12px_rgba(227,6,19,0.15)] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand dark:border-slate-700 dark:bg-slate-900/60 md:px-3.5 md:py-2.5"
+  class="group relative flex h-full w-full flex-col justify-between overflow-hidden rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-center shadow-e1 transition duration-slow ease-standard hover:-translate-y-0.5 hover:scale-[1.01] hover:shadow-e2 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent dark:border-slate-700 dark:bg-slate-900/60 md:px-3.5 md:py-2.5"
 >
-  <span class="absolute inset-x-0 top-0 h-[2px] origin-left scale-x-0 bg-brand transition-transform duration-300 ease-out group-hover:scale-x-100"></span>
+  <span class="absolute inset-x-0 top-0 h-[2px] origin-left scale-x-0 bg-brand transition-transform duration-slow ease-standard group-hover:scale-x-100"></span>
   @if (hasRecent()) {
     <span
-      class="absolute right-4 top-4 h-2 w-2 rounded-full bg-brand shadow-[0_0_6px_rgb(var(--brand-600)/0.5)]"
+      class="absolute right-4 top-4 h-2 w-2 rounded-full bg-brand"
       [title]="'articles.category_tile.recent_indicator' | translate"
     ></span>
   }
   <div class="mt-0.5 flex w-full flex-col items-center gap-1">
-    <span class="cat-tile-icon mb-1 flex h-9 w-9 items-center justify-center rounded-xl bg-slate-50 text-lg text-slate-600 shadow-sm transition-colors duration-300 group-hover:text-brand dark:bg-slate-800 dark:text-slate-400 md:h-11 md:w-11 md:text-xl">
+    <span class="cat-tile-icon mb-1 flex h-9 w-9 items-center justify-center rounded-lg bg-slate-50 text-lg text-slate-600 shadow-e1 transition-colors duration-slow group-hover:text-brand-accent dark:bg-slate-800 dark:text-slate-400 md:h-11 md:w-11 md:text-xl">
       <i class="fa-solid" [class]="icon()" aria-hidden="true"></i>
     </span>
     <span class="text-xs font-bold leading-snug tracking-tight text-slate-800 transition-colors group-hover:text-slate-950 dark:text-slate-200 dark:group-hover:text-white md:text-sm">{{ category().name }}</span>

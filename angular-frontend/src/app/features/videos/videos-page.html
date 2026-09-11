@@ -7,7 +7,7 @@
       [placeholder]="'videos.page.search_placeholder' | translate"
       [value]="searchQuery()"
       (input)="onSearchInput($any($event.target).value)"
-      class="w-full rounded-xl border border-slate-200 bg-white py-3 pl-5 pr-12 text-sm text-slate-800 placeholder-slate-400 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+      class="w-full rounded-lg border border-slate-200 bg-white py-3 pl-5 pr-12 text-sm text-slate-800 placeholder-slate-400 focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
     />
     <i class="fa-solid fa-magnifying-glass pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 text-slate-600 dark:text-slate-400"></i>
   </div>
@@ -15,7 +15,7 @@
   @if (videos() === null && !errorMessage()) {
     <div class="mb-10 grid grid-cols-1 gap-6 md:grid-cols-3">
       @for (i of [1, 2, 3]; track i) {
-        <div class="aspect-video animate-pulse rounded-2xl border border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-900"></div>
+        <div class="aspect-video animate-pulse rounded-lg border border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-900"></div>
       }
     </div>
   } @else if (errorMessage()) {
@@ -30,7 +30,7 @@
           (keydown.enter)="open(video.id)"
           tabindex="0"
           role="button"
-          class="video-card group cursor-pointer overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition-all hover:border-slate-200 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand dark:border-slate-800 dark:bg-slate-900"
+          class="video-card group cursor-pointer overflow-hidden rounded-lg border border-slate-100 bg-white shadow-e1 transition hover:border-slate-200 hover:shadow-e2 focus:outline-none focus:ring-2 focus:ring-brand-accent dark:border-slate-800 dark:bg-slate-900"
         >
           <div class="relative flex aspect-video w-full items-center justify-center bg-[#1a1a2e]">
             @if (thumbnailFor(video); as thumb) {
@@ -43,7 +43,7 @@
             <div class="relative z-10 flex h-14 w-14 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm transition-transform group-hover:scale-110 group-hover:bg-white/30">
               <i class="fa-solid fa-play ml-1 text-xl"></i>
             </div>
-            <div class="absolute bottom-4 right-4 z-10 flex items-center gap-2 rounded bg-black/40 px-2.5 py-1 backdrop-blur-sm">
+            <div class="absolute bottom-4 right-4 z-10 flex items-center gap-2 rounded-sm bg-black/40 animate-overlay-in px-2.5 py-1 backdrop-blur-sm">
               <span class="text-xs font-normal text-white/90">{{ 'videos.page.views_label' | translate: { count: video.views_count } }}</span>
               <i class="fa-solid fa-eye text-base text-white/90"></i>
             </div>

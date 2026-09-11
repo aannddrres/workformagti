@@ -7,7 +7,7 @@
     </div>
   </header>
 
-  <section class="mb-6 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-950 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100">
+  <section class="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-950 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100">
     განცხადება არ არის პირადი შეტყობინება და „გავეცანი“ დადასტურებას არ ითხოვს. ოფიციალური გაცნობისთვის გამოიყენეთ სავალდებულო სტატია ან სიახლე. აუდიტორია ყოველთვის მთელი კომპანიაა.
   </section>
 
@@ -16,12 +16,12 @@
     <form class="mt-4 grid gap-4 lg:grid-cols-[1fr_220px_240px]" [formGroup]="form" (ngSubmit)="submit()">
       <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 lg:row-span-2">
         ტექსტი
-        <textarea data-broadcast-message formControlName="message" rows="5" maxlength="2000" class="mt-1.5 w-full resize-y rounded-xl border border-slate-300 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900" placeholder="მაგალითად: ოფისი დროებით დაკეტილია"></textarea>
+        <textarea data-broadcast-message formControlName="message" rows="5" maxlength="2000" class="mt-1.5 w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900" placeholder="მაგალითად: ოფისი დროებით დაკეტილია"></textarea>
         <span class="mt-1 block text-right text-xs font-normal text-slate-600 dark:text-slate-400">{{ form.controls.message.value.length }} / 2000</span>
       </label>
       <label class="text-sm font-semibold text-slate-700 dark:text-slate-300">
         პრიორიტეტი
-        <select data-broadcast-priority formControlName="priority" class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900">
+        <select data-broadcast-priority formControlName="priority" class="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900">
           <option value="NORMAL">ჩვეულებრივი</option>
           <option value="IMPORTANT">მნიშვნელოვანი</option>
           <option value="CRITICAL">კრიტიკული</option>
@@ -29,7 +29,7 @@
       </label>
       <label class="text-sm font-semibold text-slate-700 dark:text-slate-300">
         დასრულების დრო
-        <input data-broadcast-ends-at type="datetime-local" formControlName="endsAt" [min]="minEndTime" class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900" />
+        <input data-broadcast-ends-at type="datetime-local" formControlName="endsAt" [min]="minEndTime" class="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900" />
       </label>
       <div class="flex items-end lg:col-span-2">
         <button data-publish-broadcast type="submit" class="primary-button" [disabled]="saving()">
@@ -41,10 +41,10 @@
   </section>
 
   @if (error(); as message) {
-    <p role="alert" class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">{{ message }}</p>
+    <p role="alert" class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">{{ message }}</p>
   }
   @if (success(); as message) {
-    <p role="status" class="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">{{ message }}</p>
+    <p role="status" class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">{{ message }}</p>
   }
 
   <section class="surface-card overflow-hidden">

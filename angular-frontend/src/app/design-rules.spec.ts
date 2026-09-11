@@ -154,6 +154,28 @@ describe('design rules', () => {
     expect(offenders).toEqual([]);
   });
 
+  /** Ten radii and five shadow tiers plus five bracket one-offs is not an
+   *  elevation system: `shadow-xl` and `shadow-2xl` were used about equally,
+   *  so no two dialogs sat at the same height. Three of each now, and
+   *  `rounded-[10px]` -- a corner only the three core control classes could
+   *  reach -- is gone. */
+  it('uses only the three radii and the three elevations', () => {
+    const radii = scan(/\b(?:[a-z-]+:)*rounded-(?:xl|2xl|3xl|\[[^\]]+\])/g, () => true);
+    const shadows = scan(/\b(?:[a-z-]+:)*shadow-(?:sm|md|lg|xl|2xl|\[[^\]]+\])/g, () => true);
+    expect([...radii, ...shadows]).toEqual([]);
+  });
+
+  /** `transition-all` animates layout properties as well as paint ones, which
+   *  is what makes a hover lift stutter; 649 rendered elements carried it.
+   *  Every use only needed colour, shadow and transform, which bare
+   *  `transition` covers. Durations come from the three tokens rather than
+   *  Tailwind's 150ms default, which was never chosen. */
+  it('never animates every property, and takes durations from the scale', () => {
+    const all = scan(/\b(?:[a-z-]+:)*transition-all\b/g, () => true);
+    const raw = scan(/\b(?:[a-z-]+:)*duration-\d+\b/g, () => true);
+    expect([...all, ...raw]).toEqual([]);
+  });
+
   /** Three neutral ramps ran at once -- slate 977, zinc 809, gray 744 -- and 42
    *  files mixed two or three of them. slate is blue-tinted and zinc is not, so
    *  two admin screens one click apart read as two different products. slate

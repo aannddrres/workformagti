@@ -87,7 +87,7 @@ export class ArticleVersionHistoryOverlay {
   }
 
   private static readonly ROW_BASE =
-    'my-1.5 flex w-full cursor-pointer flex-col gap-1.5 rounded-xl border p-3 text-left transition-all';
+    'my-1.5 flex w-full cursor-pointer flex-col gap-1.5 rounded-lg border p-3 text-left transition';
   private static readonly ROW_ACTIVE = 'bg-red-50 border-red-100 dark:bg-red-950/40 dark:border-red-900/60';
   private static readonly ROW_INACTIVE =
     'border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60';

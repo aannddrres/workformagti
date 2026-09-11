@@ -112,14 +112,14 @@ export class AdminRolesPage {
 
   cardClass(role: string): string {
     return role === this.activeRole()
-      ? 'flex items-center gap-3 rounded-2xl border p-4 text-left shadow-sm transition-colors border-brand bg-red-50 ring-1 ring-brand dark:bg-red-950/20'
-      : 'flex items-center gap-3 rounded-2xl border p-4 text-left shadow-sm transition-colors border-slate-200 bg-white hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800';
+      ? 'flex items-center gap-3 rounded-lg border p-4 text-left shadow-e1 transition-colors border-brand-accent bg-red-50 ring-1 ring-brand-accent dark:bg-red-950/20'
+      : 'flex items-center gap-3 rounded-lg border p-4 text-left shadow-e1 transition-colors border-slate-200 bg-white hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800';
   }
 
   cardIconClass(role: string): string {
     return role === this.activeRole()
-      ? 'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand dark:bg-brand-700 text-white'
-      : 'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400';
+      ? 'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand dark:bg-brand-700 text-white'
+      : 'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400';
   }
 
   selectRole(role: string): void {

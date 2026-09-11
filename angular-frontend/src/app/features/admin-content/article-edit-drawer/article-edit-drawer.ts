@@ -242,12 +242,12 @@ export class ArticleEditDrawer {
   }
 
   protected dropzoneClass(): string {
-    const base = 'rounded-xl border-2 border-dashed p-3 transition-colors';
-    return this.dropzoneActive() ? `${base} border-brand bg-red-50 dark:bg-red-950/20` : `${base} border-slate-200 dark:border-slate-700`;
+    const base = 'rounded-lg border-2 border-dashed p-3 transition-colors';
+    return this.dropzoneActive() ? `${base} border-brand-accent bg-red-50 dark:bg-red-950/20` : `${base} border-slate-200 dark:border-slate-700`;
   }
 
   protected previewFrameClass(): string {
-    const base = 'bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden transition-all';
+    const base = 'bg-white dark:bg-slate-900 rounded-lg shadow-e1 border border-slate-200 dark:border-slate-800 overflow-hidden transition';
     return this.previewDevice() === 'mobile' ? `${base} w-[360px]` : `${base} w-full`;
   }
 

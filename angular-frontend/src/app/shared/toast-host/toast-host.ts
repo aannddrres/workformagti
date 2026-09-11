@@ -23,7 +23,7 @@ import { ToastService } from '../../core/notifications/toast.service';
     >
       @for (toast of toastService.toasts(); track toast.id) {
         <div
-          class="pointer-events-auto flex items-start gap-3 rounded-xl border p-3 shadow-lg"
+          class="pointer-events-auto flex items-start gap-3 rounded-lg border p-3 shadow-e3"
           [class]="
             toast.kind === 'error'
               ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/70 dark:text-red-300'

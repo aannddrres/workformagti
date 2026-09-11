@@ -146,7 +146,7 @@ export class TeamStatsPage {
       return { bar: 'bg-emerald-500', text: 'text-emerald-700 dark:text-emerald-400' };
     }
     if (pct < 30) {
-      return { bar: 'bg-brand', text: 'text-brand dark:text-red-400' };
+      return { bar: 'bg-brand', text: 'text-brand-accent dark:text-red-400' };
     }
     return { bar: 'bg-amber-400', text: 'text-amber-700 dark:text-amber-400' };
   }

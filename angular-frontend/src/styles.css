@@ -31,6 +31,18 @@
   --brand-500: 237 27 47; /* official public Magticom mark */
   --brand-600: 200 16 46; /* accessible interactive derivative */
   --brand-700: 151 12 35;
+
+  /* The brand has to do two jobs and one value cannot do both. As a filled
+   * surface it must stay dark enough to carry white text (luminance <= 0.175);
+   * as text or a border on the dark canvas it must be light enough to read
+   * against it (luminance >= 0.183). Those windows do not overlap, which is
+   * why --brand-600 was previously redefined to rose-400 in dark mode: that
+   * fixed the text and silently broke every filled button, where white on it
+   * measured 2.69:1. --brand-600 is now the filled surface in both themes and
+   * --brand-accent is the readable-on-canvas one. In dark it is Magti red
+   * lightened in place -- hsl(350, 85%, 42%) -> 74% -- rather than a borrowed
+   * Tailwind pink. */
+  --brand-accent: 200 16 46;
   --focus-ring: 126 14 32;
 
   /* Danger: destructive, irreversible actions only — delete, and nothing else.
@@ -38,7 +50,7 @@
    * Separate from --brand even though both are red today, because they answer
    * different questions. Brand says "this is Magti"; danger says "this cannot
    * be undone". Before this they were literally the same utility: the delete
-   * controls in the news and video admin tables used hover:text-brand, so the
+   * controls in the news and video admin tables used hover:text-brand-accent, so the
    * button that destroys a record was painted in exactly the colour of the
    * primary "create" button beside it.
    *
@@ -81,8 +93,9 @@
  * brand tint has an obvious home rather than being patched inline. */
 .dark {
   --brand-50: 48 22 28; /* red-tinted wash that still sits above --surface */
-  --brand-600: 251 113 133;
-  --brand-700: 151 12 35;
+  --brand-600: 200 16 46; /* the filled surface: unchanged, so white still reads on it */
+  --brand-700: 222 18 52; /* hover goes lighter on a dark canvas, not darker */
+  --brand-accent: 245 132 151; /* 8.3:1 on the canvas, 7.3:1 on a card */
   --focus-ring: 255 155 164;
   /* Lifted slightly on dark surfaces, where the light-mode red loses contrast. */
   --danger-600: 248 113 113;
@@ -167,7 +180,7 @@
   }
 
   .portal-eyebrow {
-    @apply mb-1 text-xs font-bold uppercase tracking-[0.14em] text-brand;
+    @apply mb-1 text-xs font-bold uppercase tracking-[0.14em] text-brand-accent;
   }
 
   .portal-title {
@@ -179,39 +192,35 @@
   }
 
   .surface-card {
-    @apply rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.035)] dark:border-slate-700 dark:bg-slate-900;
+    @apply rounded-lg border border-slate-200 bg-white shadow-e1 dark:border-slate-700 dark:bg-slate-900;
   }
 
   .surface-card-muted {
-    @apply rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/70;
+    @apply rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/70;
   }
 
   .primary-button {
-    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-[10px] bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50;
-  }
-
-  .dark .primary-button {
-    background: rgb(var(--brand-700));
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-e1 transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .secondary-button {
-    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-[10px] border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800;
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-e1 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800;
   }
 
   .quiet-button {
-    @apply inline-flex min-h-9 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white;
+    @apply inline-flex min-h-9 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white;
   }
 
   .icon-button {
-    @apply inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white;
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white;
   }
 
   .queue-action {
-    @apply flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed dark:text-slate-200 dark:hover:bg-slate-800;
+    @apply flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed dark:text-slate-200 dark:hover:bg-slate-800;
   }
 
   .field-control {
-    @apply min-h-10 rounded-[10px] border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm transition placeholder:text-slate-500 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/10 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100;
+    @apply min-h-10 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-e1 transition placeholder:text-slate-500 focus:border-brand-accent focus:outline-none focus:ring-2 focus:ring-brand-accent/10 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100;
   }
 
   .status-pill {
@@ -219,7 +228,7 @@
   }
 
   .table-shell {
-    @apply overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.035)] dark:border-slate-700 dark:bg-slate-900;
+    @apply overflow-hidden rounded-lg border border-slate-200 bg-white shadow-e1 dark:border-slate-700 dark:bg-slate-900;
   }
 
   .table-shell table {

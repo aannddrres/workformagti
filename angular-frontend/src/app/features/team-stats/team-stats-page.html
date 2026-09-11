@@ -4,7 +4,7 @@
     <div class="flex flex-wrap items-center gap-3">
       @if (leadershipGroups().length > 1) {
         <label class="sr-only" for="managed-team">მართვადი გუნდი</label>
-        <select id="managed-team" [value]="selectedTeamId()" (change)="selectTeam($any($event.target).value)" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+        <select id="managed-team" [value]="selectedTeamId()" (change)="selectTeam($any($event.target).value)" class="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-e1 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
           @for (group of leadershipGroups(); track group.teamId) {
             <option [value]="group.teamId">{{ group.teamName }} — {{ group.assignmentType === 'PRIMARY' ? 'ძირითადი' : 'დროებითი' }}</option>
           }
@@ -14,14 +14,14 @@
       }
       <button
         (click)="toggleSort()"
-        class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-normal text-slate-600 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
+        class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-normal text-slate-600 shadow-e1 transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
       >
         <i class="fa-solid fa-arrow-down-wide-short" aria-hidden="true"></i>
         {{ (sortMode() === 'compliance' ? 'manager.page.sort_by_name' : 'manager.page.sort_by_compliance') | translate }}
       </button>
       <button
         (click)="refresh()"
-        class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-normal text-slate-600 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
+        class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-normal text-slate-600 shadow-e1 transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
       >
         <i class="fa-solid fa-rotate-right" aria-hidden="true"></i> {{ 'manager.page.refresh' | translate }}
       </button>
@@ -32,21 +32,21 @@
   @if (loading()) {
     <div class="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
       @for (i of [1, 2, 3]; track i) {
-        <div class="h-24 animate-pulse rounded-2xl border border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-900/60"></div>
+        <div class="h-24 animate-pulse rounded-lg border border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-900/60"></div>
       }
     </div>
     <div class="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3">
       @for (i of [1, 2, 3]; track i) {
-        <div class="h-64 animate-pulse rounded-2xl border border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-900/60"></div>
+        <div class="h-64 animate-pulse rounded-lg border border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-900/60"></div>
       }
     </div>
   } @else if (errorMessage()) {
-    <div class="rounded-2xl border border-slate-100 bg-white p-8 text-center text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-400">
-      <i class="fa-solid fa-triangle-exclamation mr-1.5 text-brand" aria-hidden="true"></i>{{ errorMessage() }}
+    <div class="rounded-lg border border-slate-100 bg-white p-8 text-center text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-400">
+      <i class="fa-solid fa-triangle-exclamation mr-1.5 text-brand-accent" aria-hidden="true"></i>{{ errorMessage() }}
     </div>
   } @else if (dashboard(); as data) {
     <div class="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-      <div class="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
+      <div class="rounded-lg border border-slate-100 bg-white p-5 shadow-e1 dark:border-slate-800 dark:bg-slate-900/60">
         <p class="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">{{ 'manager.page.ribbon_compliance' | translate }}</p>
         <p class="mt-3 text-2xl font-semibold tabular-nums text-slate-800 dark:text-slate-100">{{ data.insights.global_compliance }}%</p>
         <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">{{ 'manager.page.ribbon_compliance_hint' | translate: { count: data.insights.total_members } }}</p>
@@ -56,16 +56,16 @@
         (keydown.enter)="openCriticalModal()"
         tabindex="0"
         role="button"
-        class="cursor-pointer rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900/60 dark:hover:bg-slate-800/80"
+        class="cursor-pointer rounded-lg border border-slate-100 bg-white p-5 shadow-e1 transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900/60 dark:hover:bg-slate-800/80"
       >
         <p class="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">{{ 'manager.page.ribbon_critical' | translate }}</p>
         <p
           class="mt-3 text-2xl font-semibold tabular-nums"
-          [class]="data.insights.critical_operators > 0 ? 'text-brand dark:text-red-400' : 'text-slate-800 dark:text-slate-100'"
+          [class]="data.insights.critical_operators > 0 ? 'text-brand-accent dark:text-red-400' : 'text-slate-800 dark:text-slate-100'"
         >{{ data.insights.critical_operators }}</p>
         <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">{{ 'manager.page.ribbon_critical_hint' | translate }}</p>
       </div>
-      <div class="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
+      <div class="rounded-lg border border-slate-100 bg-white p-5 shadow-e1 dark:border-slate-800 dark:bg-slate-900/60">
         <p class="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">{{ 'manager.page.ribbon_output' | translate }}</p>
         <p class="mt-3 text-2xl font-semibold tabular-nums text-slate-800 dark:text-slate-100">{{ data.insights.total_output_volume }}</p>
         <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">{{ 'manager.page.ribbon_output_hint' | translate }}</p>
@@ -75,7 +75,7 @@
     <div class="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3">
       @for (dept of data.departments; track dept.name) {
         @if (dept.is_empty) {
-          <div class="flex flex-col rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-5 dark:border-slate-800 dark:bg-slate-900/30">
+          <div class="flex flex-col rounded-lg border border-dashed border-slate-200 bg-slate-50/50 p-5 dark:border-slate-800 dark:bg-slate-900/30">
             <div class="flex items-center justify-between">
               <h3 class="text-lg font-semibold text-slate-600 dark:text-slate-400">{{ dept.name }}</h3>
               <span class="text-xs text-slate-600 dark:text-slate-400">{{ 'manager.page.groups_count' | translate: { count: 0 } }}</span>
@@ -85,7 +85,7 @@
             </div>
           </div>
         } @else {
-          <div class="flex flex-col rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
+          <div class="flex flex-col rounded-lg border border-slate-100 bg-white p-5 shadow-e1 dark:border-slate-800 dark:bg-slate-900/60">
             <div class="mb-1 flex items-start justify-between gap-2">
               <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100">{{ dept.name }}</h3>
               <span class="shrink-0 text-2xl font-semibold tabular-nums" [class]="tierText(dept.compliance, true)">{{ dept.compliance }}%</span>
@@ -93,11 +93,11 @@
             <p class="mb-3 text-xs text-slate-600 dark:text-slate-400">
               {{ 'manager.page.dept_meta' | translate: { groups: dept.group_count, members: dept.member_count } }}
               @if (dept.critical_count > 0) {
-                · <span class="font-semibold text-brand dark:text-red-400">{{ 'manager.page.critical_count' | translate: { count: dept.critical_count } }}</span>
+                · <span class="font-semibold text-brand-accent dark:text-red-400">{{ 'manager.page.critical_count' | translate: { count: dept.critical_count } }}</span>
               }
             </p>
             <div class="mb-4 h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-              <div class="h-full rounded-full transition-[width] duration-700" [class]="tierBar(dept.compliance, true)" [style.width.%]="dept.compliance"></div>
+              <div class="h-full rounded-full transition-[width] duration-slow" [class]="tierBar(dept.compliance, true)" [style.width.%]="dept.compliance"></div>
             </div>
             <div class="divide-y divide-slate-50 dark:divide-slate-800/70">
               @for (group of sortedGroups(dept); track group.name) {
@@ -106,14 +106,14 @@
                   (keydown.enter)="openGroupModal(dept, group)"
                   tabindex="0"
                   role="button"
-                  class="cursor-pointer rounded-lg px-1 py-2.5 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                  class="cursor-pointer rounded-md px-1 py-2.5 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
                 >
                   <div class="mb-1.5 flex items-center justify-between gap-2 text-sm">
                     <span class="truncate font-normal text-slate-700 dark:text-slate-300">
                       {{ group.name }}
                       <span class="ml-1.5 text-xs font-normal text-slate-600 dark:text-slate-400">· {{ group.member_count }}</span>
                       @if (group.critical_count > 0) {
-                        <span class="ml-2 inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-brand dark:bg-red-950/40 dark:text-red-400">{{ 'manager.page.critical_badge' | translate: { count: group.critical_count } }}</span>
+                        <span class="ml-2 inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-brand-accent dark:bg-red-950/40 dark:text-red-400">{{ 'manager.page.critical_badge' | translate: { count: group.critical_count } }}</span>
                       }
                     </span>
                     <span class="inline-flex shrink-0 items-center gap-1.5">
@@ -122,7 +122,7 @@
                     </span>
                   </div>
                   <div class="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                    <div class="h-full rounded-full transition-[width] duration-700" [class]="tierBar(group.compliance, group.member_count > 0)" [style.width.%]="group.compliance"></div>
+                    <div class="h-full rounded-full transition-[width] duration-slow" [class]="tierBar(group.compliance, group.member_count > 0)" [style.width.%]="group.compliance"></div>
                   </div>
                 </div>
               }
@@ -134,7 +134,7 @@
   }
 
   @if (canExportPrimary()) {
-  <div class="mt-8 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
+  <div class="mt-8 rounded-lg border border-slate-100 bg-white p-5 shadow-e1 dark:border-slate-800 dark:bg-slate-900/60">
     <h3 class="mb-1 text-lg font-semibold text-slate-800 dark:text-slate-100">{{ 'manager.page.export_heading' | translate }}</h3>
     <p class="mb-4 text-xs text-slate-600 dark:text-slate-400">{{ 'manager.page.export_subtitle' | translate }}</p>
 
@@ -143,7 +143,7 @@
         type="button"
         (click)="exportCsv()"
         [disabled]="exportingCsv() || asyncExport() !== null"
-        class="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-normal text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+        class="flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-normal text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
       >
         @if (exportingCsv()) {
           <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
@@ -157,7 +157,7 @@
         type="button"
         (click)="exportXlsx()"
         [disabled]="exportingCsv() || asyncExport() !== null"
-        class="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-normal text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+        class="flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-normal text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
       >
         @if (asyncExport()?.kind === 'xlsx') {
           <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
@@ -171,7 +171,7 @@
         type="button"
         (click)="exportPdf()"
         [disabled]="exportingCsv() || asyncExport() !== null"
-        class="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-normal text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+        class="flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-normal text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
       >
         @if (asyncExport()?.kind === 'pdf') {
           <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
@@ -185,7 +185,7 @@
         type="button"
         (click)="exportTeamStatsPdf()"
         [disabled]="exportingCsv() || asyncExport() !== null"
-        class="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-normal text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+        class="flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-normal text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
       >
         @if (asyncExport()?.kind === 'team_stats_pdf') {
           <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
@@ -212,7 +212,7 @@
 
   @if (criticalModalOpen()) {
     <div
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-overlay-in p-4"
       (click)="closeCriticalModal()"
       (keydown.escape)="closeCriticalModal()"
     >
@@ -221,7 +221,7 @@
         portalDialogLabelledBy="critical-operators-heading"
         (portalDialogClose)="closeCriticalModal()"
         (click)="$event.stopPropagation()"
-        class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-900"
+        class="animate-panel-in w-full max-w-md rounded-lg bg-white p-6 shadow-e3 dark:bg-slate-900"
       >
         <div class="mb-4 flex items-center justify-between">
           <h3 id="critical-operators-heading" class="text-lg font-bold text-slate-800 dark:text-slate-100">{{ 'manager.page.critical_modal_title' | translate }}</h3>
@@ -262,7 +262,7 @@
 
   @if (groupModalOpen()) {
     <div
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-overlay-in p-4"
       (click)="closeGroupModal()"
       (keydown.escape)="closeGroupModal()"
     >
@@ -271,7 +271,7 @@
         portalDialogLabelledBy="group-members-heading"
         (portalDialogClose)="closeGroupModal()"
         (click)="$event.stopPropagation()"
-        class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-900"
+        class="animate-panel-in w-full max-w-md rounded-lg bg-white p-6 shadow-e3 dark:bg-slate-900"
       >
         <div class="mb-4 flex items-center justify-between">
           <h3 id="group-members-heading" class="text-lg font-bold text-slate-800 dark:text-slate-100">{{ groupModalTitle() }}</h3>

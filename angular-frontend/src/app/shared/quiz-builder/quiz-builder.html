@@ -1,17 +1,17 @@
 <div class="flex flex-col gap-4">
   @for (question of questions(); track $index; let qi = $index) {
-    <div class="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+    <div class="rounded-md border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
       <div class="flex items-start gap-2">
         <textarea
           rows="2"
-          class="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+          class="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
           [placeholder]="'content.quiz.question_placeholder' | translate"
           [value]="question.question_text"
           (input)="updateQuestionText(qi, $any($event.target).value)"
         ></textarea>
         <button
           type="button"
-          class="mt-1 text-slate-600 dark:text-slate-400 hover:text-brand"
+          class="mt-1 text-slate-600 dark:text-slate-400 hover:text-brand-accent"
           [attr.aria-label]="'content.quiz.remove_question' | translate"
           (click)="removeQuestion(qi)"
         >
@@ -32,14 +32,14 @@
             />
             <input
               type="text"
-              class="flex-1 rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+              class="flex-1 rounded-md border border-slate-300 px-2.5 py-1.5 text-sm focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
               [placeholder]="'content.quiz.answer_placeholder' | translate"
               [value]="answer.answer_text"
               (input)="updateAnswerText(qi, ai, $any($event.target).value)"
             />
             <button
               type="button"
-              class="text-slate-600 dark:text-slate-400 hover:text-brand"
+              class="text-slate-600 dark:text-slate-400 hover:text-brand-accent"
               [attr.aria-label]="'content.quiz.remove_answer' | translate"
               (click)="removeAnswer(qi, ai)"
             >
@@ -51,7 +51,7 @@
 
       <button
         type="button"
-        class="mt-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-brand"
+        class="mt-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-brand-accent"
         (click)="addAnswer(qi)"
       >
         <i class="fa-solid fa-plus mr-1"></i>{{ 'content.quiz.add_answer' | translate }}
@@ -61,7 +61,7 @@
 
   <button
     type="button"
-    class="self-start rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-brand hover:text-brand dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+    class="self-start rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-e1 transition hover:border-brand-accent hover:text-brand-accent dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
     (click)="addQuestion()"
   >
     <i class="fa-solid fa-plus mr-1"></i>{{ 'content.quiz.add_question' | translate }}
