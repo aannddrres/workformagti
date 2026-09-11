@@ -9,7 +9,7 @@
       "home": "Home",
       "team_stats": "Team Statistics",
       "section_kb": "Knowledge Base",
-      "mandatory_reading": "Mandatory Reading",
+      "mandatory_reading": "Mandatory reading",
       "video_instructions": "Video Instructions",
       "news": "News",
       "section_personal": "Personal Space",
@@ -107,6 +107,9 @@
     "perm_admin_bypass_note": "A system administrator holds every permission by definition — the controls below cannot restrict them. Change the role to restrict access.",
     "admin_page": {
       "status_error": "Could not change status"
+    },
+    "profile": {
+      "tab_profile": "My profile"
     }
   },
   "search": {

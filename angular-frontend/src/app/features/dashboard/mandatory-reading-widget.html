@@ -1,4 +1,4 @@
-<div class="rounded-2xl border border-gray-150 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+<div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
   <h3 class="mb-4 text-sm font-bold uppercase tracking-wide text-gray-700 dark:text-zinc-300">
     {{ 'dashboard.mandatory_reading.heading' | translate }}
   </h3>
@@ -10,13 +10,13 @@
       }
     </div>
   } @else if (errorMessage()) {
-    <p class="text-sm text-red-500">{{ errorMessage() }}</p>
+    <p class="text-sm text-red-700">{{ errorMessage() }}</p>
   } @else if (unread().length === 0) {
     <div class="flex items-center gap-3 rounded-xl bg-emerald-50 p-4 dark:bg-emerald-950/30">
-      <i class="fa-solid fa-circle-check text-lg text-emerald-500"></i>
+      <i class="fa-solid fa-circle-check text-lg text-emerald-700"></i>
       <div>
         <p class="text-sm font-semibold text-emerald-700 dark:text-emerald-400">{{ 'dashboard.mandatory_reading.empty_heading' | translate }}</p>
-        <p class="text-xs text-emerald-600/80 dark:text-emerald-500/70">{{ 'dashboard.mandatory_reading.empty_body' | translate }}</p>
+        <p class="text-xs text-emerald-700/80 dark:text-emerald-500/70">{{ 'dashboard.mandatory_reading.empty_body' | translate }}</p>
       </div>
     </div>
   } @else {
@@ -37,7 +37,7 @@
         <li>
           <a
             [routerLink]="itemLink(reading)"
-            class="flex items-center gap-3 rounded-xl border border-transparent px-2 py-2 transition-colors hover:border-gray-150 hover:bg-gray-50 dark:hover:border-zinc-800 dark:hover:bg-zinc-800/50"
+            class="flex items-center gap-3 rounded-xl border border-transparent px-2 py-2 transition-colors hover:border-gray-200 hover:bg-gray-50 dark:hover:border-zinc-800 dark:hover:bg-zinc-800/50"
           >
             <span
               class="h-2 w-2 shrink-0 rounded-full"
@@ -45,7 +45,7 @@
             ></span>
             <span class="flex-1 truncate text-sm text-gray-700 dark:text-zinc-300">{{ reading.item_title }}</span>
             @if (reading.reading.due_date) {
-              <span class="shrink-0 text-xs text-gray-400 dark:text-zinc-500">{{ dueLabel(reading) }}</span>
+              <span class="shrink-0 text-xs text-gray-600 dark:text-zinc-400">{{ dueLabel(reading) }}</span>
             }
           </a>
         </li>

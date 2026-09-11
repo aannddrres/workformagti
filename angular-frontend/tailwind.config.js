@@ -18,6 +18,7 @@ module.exports = {
         // read as a brand decision in every file that used it.
         brand: {
           DEFAULT: 'rgb(var(--brand-600) / <alpha-value>)',
+          50: 'rgb(var(--brand-50) / <alpha-value>)',
           600: 'rgb(var(--brand-600) / <alpha-value>)',
           700: 'rgb(var(--brand-700) / <alpha-value>)'
         },

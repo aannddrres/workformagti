@@ -5,7 +5,7 @@
     <h3 id="video-editor-heading" class="text-xl font-bold text-gray-800 dark:text-zinc-100">
       {{ (isEditing ? 'content.videos.edit_title' : 'content.videos.new_title') | translate }}
     </h3>
-    <button type="button" (click)="close()" [attr.aria-label]="'shared.close_label' | translate" class="text-gray-500 hover:text-gray-700 dark:text-zinc-400">
+    <button type="button" (click)="close()" [attr.aria-label]="'shared.close_label' | translate" class="text-gray-600 hover:text-gray-700 dark:text-zinc-400">
       <i class="fa-solid fa-xmark text-xl" aria-hidden="true"></i>
     </button>
   </div>
@@ -59,7 +59,7 @@
             }
           </select>
           @if (categoriesFailed()) {
-            <p class="mt-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+            <p class="mt-1.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
               {{ 'content.articles.categories_load_error' | translate }}
               <button type="button" (click)="loadCategories()" class="ml-1 underline hover:no-underline">
                 {{ 'shared.retry' | translate }}
@@ -87,7 +87,7 @@
         <div class="flex items-center gap-3">
           <input id="video-mandatory" type="checkbox" [checked]="isMandatory()" (change)="isMandatory.set($any($event.target).checked)" class="h-4 w-4 accent-brand" />
                 @if (mandatoryUnknown()) {
-                  <span class="ml-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                  <span class="ml-2 text-xs font-semibold text-amber-700 dark:text-amber-400">
                     {{ 'content.articles.mandatory_unknown' | translate }}
                   </span>
                 }
@@ -106,18 +106,18 @@
           }
         </div>
         @if (dueDateError()) {
-          <p class="text-xs text-red-600">{{ 'content.articles.mandatory_due_date_required' | translate }}</p>
+          <p class="text-xs text-red-700">{{ 'content.articles.mandatory_due_date_required' | translate }}</p>
         }
       </div>
 
       <div class="flex justify-end gap-3 pt-2 items-center">
         @if (saveError()) {
-          <span class="text-xs text-red-600 mr-auto">{{ saveError() }}</span>
+          <span class="text-xs text-red-700 mr-auto">{{ saveError() }}</span>
         }
         <button type="button" (click)="close()" class="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-sm font-medium text-gray-600 shadow-sm hover:bg-gray-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200">
           {{ 'content.cancel' | translate }}
         </button>
-        <button type="submit" [disabled]="saving()" class="rounded-xl bg-brand px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:opacity-60">
+        <button type="submit" [disabled]="saving()" class="rounded-xl bg-brand dark:bg-brand-700 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:opacity-60">
           {{ (saving() ? 'content.saving' : 'content.save') | translate }}
         </button>
       </div>

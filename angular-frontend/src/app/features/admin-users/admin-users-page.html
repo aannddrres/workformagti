@@ -5,10 +5,10 @@
     } @else {
       <div>
         <h3 class="text-lg font-bold text-slate-900 dark:text-slate-100">მომხმარებლები</h3>
-        <p class="text-sm text-slate-500 dark:text-slate-400">როლი, დეპარტამენტი, სტატუსი და ინდივიდუალური უფლებები ერთ ცხრილში.</p>
+        <p class="text-sm text-slate-600 dark:text-slate-400">როლი, დეპარტამენტი, სტატუსი და ინდივიდუალური უფლებები ერთ ცხრილში.</p>
       </div>
     }
-    <p class="max-w-md text-right text-xs leading-5 text-slate-500 dark:text-slate-400">
+    <p class="max-w-md text-right text-xs leading-5 text-slate-600 dark:text-slate-400">
       მომხმარებლები და მათი ორგანიზაციული მონაცემები ავტომატურად სინქრონდება კომპანიის AD-დან.
     </p>
   </div>
@@ -16,7 +16,7 @@
   <div class="mb-4 grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900 md:grid-cols-2 xl:grid-cols-[minmax(260px,1fr)_220px_180px_220px]">
     <label class="relative block">
       <span class="sr-only">მომხმარებლის ძიება</span>
-      <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400" aria-hidden="true"></i>
+      <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-600 dark:text-slate-400" aria-hidden="true"></i>
       <input type="search" [value]="query()" (input)="onQueryChange($event)" placeholder="სახელი, ელფოსტა ან დეპარტამენტი" class="field-control w-full pl-9" />
     </label>
     <select (change)="onGroupFilterChange($event)" class="field-control w-full">
@@ -33,7 +33,7 @@
       <option value="inactive">გათიშული</option>
     </select>
     @if (groupLeadersFailed()) {
-      <button type="button" (click)="loadGroupLeaders()" class="text-left text-xs font-semibold text-amber-600 underline dark:text-amber-400">{{ 'users.group_leaders_load_error' | translate }}</button>
+      <button type="button" (click)="loadGroupLeaders()" class="text-left text-xs font-semibold text-amber-700 underline dark:text-amber-400">{{ 'users.group_leaders_load_error' | translate }}</button>
     }
   </div>
 
@@ -54,9 +54,9 @@
         </tbody>
       </table>
     } @else if (error()) {
-      <div class="px-5 py-10 text-center text-sm text-red-500 dark:text-red-400">{{ 'users.load_error' | translate }}</div>
+      <div class="px-5 py-10 text-center text-sm text-red-700 dark:text-red-400">{{ 'users.load_error' | translate }}</div>
     } @else if (!filteredUsers().length) {
-      <div class="px-5 py-10 text-center text-sm text-gray-400 dark:text-zinc-500">{{ 'users.no_data' | translate }}</div>
+      <div class="px-5 py-10 text-center text-sm text-gray-600 dark:text-zinc-400">{{ 'users.no_data' | translate }}</div>
     } @else {
       <table class="min-w-[1100px]">
         <thead>
@@ -76,17 +76,17 @@
               <td class="px-5 py-3.5">
                 <button type="button" (click)="openEditModal(user)" class="block max-w-[300px] text-left">
                   <span class="block truncate font-bold text-slate-800 hover:text-brand dark:text-slate-100">{{ user.name }}</span>
-                  <span class="mt-0.5 block truncate text-xs text-slate-500 dark:text-slate-400">{{ user.email }}</span>
+                  <span class="mt-0.5 block truncate text-xs text-slate-600 dark:text-slate-400">{{ user.email }}</span>
                 </button>
               </td>
-              <td class="px-5 py-3 text-gray-500 dark:text-zinc-400">{{ departmentLabel(user.department) }}</td>
+              <td class="px-5 py-3 text-gray-600 dark:text-zinc-400">{{ departmentLabel(user.department) }}</td>
               <td class="px-5 py-3">
                 <span class="status-pill bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                   {{ 'users.role_' + user.role | translate }}
                 </span>
               </td>
               <td class="px-5 py-3">
-                <span class="status-pill" [class]="user.is_active ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'">
+                <span class="status-pill" [class]="user.is_active ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'">
                   <span class="h-1.5 w-1.5 rounded-full" [class]="user.is_active ? 'bg-emerald-500' : 'bg-slate-400'"></span>{{ user.is_active ? 'აქტიური' : 'გათიშული' }}
                 </span>
               </td>
@@ -94,14 +94,14 @@
                 @if (overdueCount(user) > 0) {
                   <span class="status-pill bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"><i class="fa-solid fa-clock" aria-hidden="true"></i>{{ overdueCount(user) }}</span>
                 } @else {
-                  <span class="text-slate-300 dark:text-slate-600">—</span>
+                  <span class="text-slate-600 dark:text-slate-400">—</span>
                 }
               </td>
-              <td class="px-5 py-3 text-xs text-slate-500 dark:text-slate-400">{{ lastActiveLabel(user.last_active) }}</td>
+              <td class="px-5 py-3 text-xs text-slate-600 dark:text-slate-400">{{ lastActiveLabel(user.last_active) }}</td>
               <td class="px-5 py-3 text-center">
                 <div class="flex items-center justify-center gap-1">
                   @if (isSelf(user)) {
-                    <span class="text-xs text-gray-400 dark:text-zinc-500">{{ 'users.you' | translate }}</span>
+                    <span class="text-xs text-gray-600 dark:text-zinc-400">{{ 'users.you' | translate }}</span>
                   } @else {
                     <button
                       type="button"
@@ -122,7 +122,7 @@
     }
   </div>
   @if (filteredUsers().length > pageSize) {
-    <div class="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500 dark:text-slate-400">
+    <div class="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600 dark:text-slate-400">
       <span>ნაჩვენებია {{ (currentPage() - 1) * pageSize + 1 }}–{{ currentPage() * pageSize > filteredUsers().length ? filteredUsers().length : currentPage() * pageSize }} / {{ filteredUsers().length }}</span>
       <div class="flex items-center gap-2">
         <button type="button" (click)="setPage(currentPage() - 1)" [disabled]="currentPage() === 1" class="secondary-button">წინა</button>

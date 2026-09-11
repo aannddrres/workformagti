@@ -29,7 +29,7 @@
   <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
     <table class="w-full text-left text-sm">
       <thead>
-        <tr class="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:border-slate-700 dark:bg-slate-800">
+        <tr class="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 dark:border-slate-700 dark:bg-slate-800">
           <th class="px-5 py-3">ტიპი და სათაური</th>
           <th class="px-5 py-3">სანაგვეში გადაიტანა</th>
           <th class="px-5 py-3">აღდგენის ბოლო ვადა</th>
@@ -38,22 +38,22 @@
       </thead>
       <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
         @if (loading()) {
-          <tr><td colspan="4" class="px-5 py-8 text-center text-slate-500">იტვირთება…</td></tr>
+          <tr><td colspan="4" class="px-5 py-8 text-center text-slate-600 dark:text-slate-400">იტვირთება…</td></tr>
         } @else if (items().length === 0) {
-          <tr><td colspan="4" class="px-5 py-8 text-center text-slate-500">სანაგვე ცარიელია</td></tr>
+          <tr><td colspan="4" class="px-5 py-8 text-center text-slate-600 dark:text-slate-400">სანაგვე ცარიელია</td></tr>
         } @else {
           @for (item of items(); track item.item_type + ':' + item.item_id) {
             <tr>
               <td class="px-5 py-4">
                 <div class="font-semibold text-slate-900 dark:text-slate-100">{{ item.title }}</div>
-                <div class="mt-1 text-xs text-slate-500">{{ itemTypeLabel(item.item_type) }} · ID {{ item.item_id }}</div>
+                <div class="mt-1 text-xs text-slate-600 dark:text-slate-400">{{ itemTypeLabel(item.item_type) }} · ID {{ item.item_id }}</div>
                 @if (item.legal_hold) {
                   <span class="mt-2 inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">legal hold</span>
                 }
               </td>
               <td class="px-5 py-4 text-slate-600 dark:text-slate-300">
                 <div>{{ item.trashed_by_name || 'უცნობი მომხმარებელი' }}</div>
-                <div class="text-xs text-slate-500">{{ item.trashed_at | date: 'dd.MM.yyyy HH:mm' }}</div>
+                <div class="text-xs text-slate-600 dark:text-slate-400">{{ item.trashed_at | date: 'dd.MM.yyyy HH:mm' }}</div>
               </td>
               <td class="px-5 py-4 text-slate-600 dark:text-slate-300">{{ item.purge_after | date: 'dd.MM.yyyy HH:mm' }}</td>
               <td class="px-5 py-4">

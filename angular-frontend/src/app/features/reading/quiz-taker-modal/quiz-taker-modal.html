@@ -5,13 +5,13 @@
       type="button"
       (click)="close()"
       [attr.aria-label]="'readings.quiz.close' | translate"
-      class="absolute right-5 top-5 text-xl text-gray-400 hover:text-gray-700 dark:text-zinc-500 dark:hover:text-zinc-200"
+      class="absolute right-5 top-5 text-xl text-gray-600 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200"
     >
       <i class="fa-solid fa-xmark" aria-hidden="true"></i>
     </button>
 
     <h3 id="quiz-heading" class="mb-1 text-xl font-bold text-gray-800 dark:text-zinc-100">{{ 'readings.quiz.heading' | translate }}</h3>
-    <p id="quiz-instructions" class="mb-5 text-sm text-gray-500 dark:text-zinc-400">{{ 'readings.quiz.instructions' | translate }}</p>
+    <p id="quiz-instructions" class="mb-5 text-sm text-gray-600 dark:text-zinc-400">{{ 'readings.quiz.instructions' | translate }}</p>
 
     @if (loading()) {
       <div class="flex flex-col gap-3">
@@ -20,7 +20,7 @@
         }
       </div>
     } @else if (loadError()) {
-      <p class="text-sm text-red-500 dark:text-red-400">{{ 'readings.quiz.load_failed' | translate }}</p>
+      <p class="text-sm text-red-700 dark:text-red-400">{{ 'readings.quiz.load_failed' | translate }}</p>
     } @else if (quiz(); as q) {
       <div class="flex flex-col gap-5">
         @for (question of q.questions; track question.id; let qi = $index) {
@@ -56,7 +56,7 @@
         type="button"
         (click)="submit()"
         [disabled]="submitting() || selectedAnswers().size < q.questions.length"
-        class="mt-6 w-full rounded-xl bg-brand py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-brand-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+        class="mt-6 w-full rounded-xl bg-brand dark:bg-brand-700 py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-brand-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
       >
         @if (submitting()) {
           <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>

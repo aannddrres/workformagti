@@ -10,9 +10,9 @@
 
   <div class="flex min-h-screen">
     <aside
-      class="fixed inset-y-0 left-0 z-40 flex w-[264px] shrink-0 -translate-x-full flex-col border-r border-slate-200 bg-white transition-[width,transform] duration-200 dark:border-slate-800 dark:bg-slate-950 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0"
+      class="fixed inset-y-0 left-0 z-40 flex w-[18rem] shrink-0 -translate-x-full flex-col border-r border-slate-200 bg-white transition-[width,transform] duration-200 dark:border-slate-800 dark:bg-slate-950 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0"
       [class.translate-x-0]="mobileMenuOpen()"
-      [class.lg:w-[84px]]="sidebarCollapsed()"
+      [class.lg:w-[5.25rem]]="sidebarCollapsed()"
       [attr.aria-hidden]="isMobile() && !mobileMenuOpen() ? 'true' : null"
       [attr.inert]="isMobile() && !mobileMenuOpen() ? '' : null"
     >
@@ -21,12 +21,12 @@
           <app-logo />
         </div>
         @if (sidebarCollapsed()) {
-          <span class="hidden h-9 w-9 items-center justify-center rounded-lg bg-brand text-xs font-black tracking-wide text-white lg:flex">M</span>
+          <span class="hidden h-9 w-9 items-center justify-center rounded-lg bg-brand dark:bg-brand-700 text-xs font-black tracking-wide text-white lg:flex">M</span>
         }
         <button
           type="button"
           (click)="toggleSidebar()"
-          class="hidden h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-100 lg:flex"
+          class="hidden h-9 w-9 items-center justify-center rounded-lg text-slate-600 dark:text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-100 lg:flex"
           [attr.aria-label]="sidebarCollapsed() ? 'მენიუს გაშლა' : 'მენიუს შეკუმშვა'"
         >
           <i class="fa-solid" [class.fa-angles-left]="!sidebarCollapsed()" [class.fa-angles-right]="sidebarCollapsed()" aria-hidden="true"></i>
@@ -38,7 +38,7 @@
           @if (sectionVisible(section)) {
             <section>
               <p
-                class="mb-2 px-3 text-[0.65rem] font-bold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500"
+                class="mb-2 px-3 text-xs font-bold uppercase tracking-[0.16em] text-slate-600 dark:text-slate-400"
                 [class.lg:hidden]="sidebarCollapsed()"
               >{{ section.label }}</p>
               <div class="space-y-1">
@@ -74,7 +74,7 @@
           <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-xs font-bold text-white dark:bg-white dark:text-slate-900">{{ initials() }}</span>
           <span class="min-w-0" [class.lg:hidden]="sidebarCollapsed()">
             <span class="block truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{{ profiles.profile()?.name || auth.currentUser()?.email }}</span>
-            <span class="block truncate text-xs text-slate-500 dark:text-slate-400">{{ roleLabel() }}</span>
+            <span class="block truncate text-xs text-slate-600 dark:text-slate-400">{{ roleLabel() }}</span>
           </span>
         </a>
       </div>
@@ -85,13 +85,13 @@
         <button
           type="button"
           (click)="toggleMobileMenu()"
-          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 lg:hidden"
+          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 lg:hidden"
           aria-label="მენიუს გახსნა"
         ><i class="fa-solid fa-bars" aria-hidden="true"></i></button>
 
         <div class="hidden min-w-0 shrink-0 xl:block">
           <p class="truncate text-sm font-bold text-slate-800 dark:text-slate-100">{{ pageTitle() }}</p>
-          <p class="text-xs text-slate-400">ცოდნა და შესაბამისობა</p>
+          <p class="text-xs text-slate-600 dark:text-slate-400">ცოდნა და შესაბამისობა</p>
         </div>
 
         <div class="mx-auto min-w-0 flex-1 lg:max-w-[760px]">
@@ -102,14 +102,14 @@
           <button
             type="button"
             (click)="toggleFontMenu()"
-            class="flex h-10 min-w-10 items-center justify-center rounded-lg px-2 text-sm font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+            class="flex h-10 min-w-10 items-center justify-center rounded-lg px-2 text-sm font-bold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
             [attr.aria-expanded]="fontMenuOpen()"
             aria-label="შრიფტის ზომა"
             title="შრიფტის ზომა"
-          >A<span class="ml-0.5 text-[0.65rem]">{{ fontScale.scale() * 100 | number:'1.0-0' }}%</span></button>
+          >A<span class="ml-0.5 text-xs">{{ fontScale.scale() * 100 | number:'1.0-0' }}%</span></button>
           @if (fontMenuOpen()) {
             <div class="absolute right-0 top-12 z-50 w-44 rounded-xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900">
-              <p class="px-2 pb-2 pt-1 text-xs font-bold text-slate-500">შრიფტის ზომა</p>
+              <p class="px-2 pb-2 pt-1 text-xs font-bold text-slate-600 dark:text-slate-400">შრიფტის ზომა</p>
               @for (option of fontScale.options; track option.value) {
                 <button
                   type="button"
@@ -129,7 +129,7 @@
         <button
           type="button"
           (click)="theme.toggle()"
-          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
           [attr.aria-label]="'nav.topbar.theme_toggle' | translate"
           [title]="'nav.topbar.theme_toggle' | translate"
         >
@@ -144,18 +144,18 @@
             [attr.aria-expanded]="accountMenuOpen()"
             aria-label="ანგარიშის მენიუ"
           >
-            <span class="flex h-7 w-7 items-center justify-center rounded-md bg-slate-900 text-[0.65rem] font-bold text-white dark:bg-white dark:text-slate-900">{{ initials() }}</span>
-            <i class="fa-solid fa-chevron-down text-[0.65rem] text-slate-400" aria-hidden="true"></i>
+            <span class="flex h-7 w-7 items-center justify-center rounded-md bg-slate-900 text-xs font-bold text-white dark:bg-white dark:text-slate-900">{{ initials() }}</span>
+            <i class="fa-solid fa-chevron-down text-xs text-slate-600 dark:text-slate-400" aria-hidden="true"></i>
           </button>
           @if (accountMenuOpen()) {
             <div class="absolute right-0 top-12 z-50 w-72 rounded-xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900">
               <div class="border-b border-slate-100 px-3 py-3 dark:border-slate-800">
                 <p class="truncate text-sm font-bold text-slate-900 dark:text-slate-100">{{ profiles.profile()?.name || 'მომხმარებელი' }}</p>
-                <p class="truncate text-xs text-slate-500 dark:text-slate-400">{{ auth.currentUser()?.email }}</p>
-                <span class="mt-2 inline-flex rounded-full bg-slate-100 px-2 py-1 text-[0.7rem] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{{ roleLabel() }}</span>
+                <p class="truncate text-xs text-slate-600 dark:text-slate-400">{{ auth.currentUser()?.email }}</p>
+                <span class="mt-2 inline-flex rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{{ roleLabel() }}</span>
               </div>
               <a routerLink="/profile" class="mt-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">
-                <i class="fa-solid fa-user-gear w-4 text-slate-400" aria-hidden="true"></i> პირადი კაბინეტი
+                <i class="fa-solid fa-user-gear w-4 text-slate-600 dark:text-slate-400" aria-hidden="true"></i> პირადი კაბინეტი
               </a>
               <button type="button" (click)="logout()" class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-danger hover:bg-red-50 dark:hover:bg-red-950/30">
                 <i class="fa-solid fa-right-from-bracket w-4" aria-hidden="true"></i> სისტემიდან გასვლა

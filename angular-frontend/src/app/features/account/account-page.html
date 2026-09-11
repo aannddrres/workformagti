@@ -10,7 +10,7 @@
         <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-900 text-sm font-bold text-white dark:bg-white dark:text-slate-900">{{ profile.name.slice(0, 2).toUpperCase() }}</span>
         <span>
           <span class="block text-sm font-bold text-slate-900 dark:text-slate-100">{{ profile.name }}</span>
-          <span class="block text-xs text-slate-500 dark:text-slate-400">{{ roleLabel(profile.role) }}</span>
+          <span class="block text-xs text-slate-600 dark:text-slate-400">{{ roleLabel(profile.role) }}</span>
         </span>
       </div>
     }
@@ -19,10 +19,10 @@
   <app-broadcast-banner />
 
   <div class="mb-6 flex flex-wrap gap-1 rounded-xl border border-slate-200 bg-white p-1.5 dark:border-slate-700 dark:bg-slate-900" role="tablist" aria-label="პირადი კაბინეტის განყოფილებები">
-    <button type="button" role="tab" (click)="selectTab('profile')" [attr.aria-selected]="activeTab() === 'profile'" [class]="activeTab() === 'profile' ? 'rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-bold text-white dark:bg-white dark:text-slate-900' : 'rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800'">პროფილი და წვდომა</button>
-    <button type="button" role="tab" (click)="selectTab('evidence')" [attr.aria-selected]="activeTab() === 'evidence'" [class]="activeTab() === 'evidence' ? 'rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-bold text-white dark:bg-white dark:text-slate-900' : 'rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800'">ჩემი გაცნობა</button>
-    <button type="button" role="tab" (click)="selectTab('notifications')" [attr.aria-selected]="activeTab() === 'notifications'" [class]="activeTab() === 'notifications' ? 'rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-bold text-white dark:bg-white dark:text-slate-900' : 'rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800'">შეხსენებები @if (unreadReminderCount() > 0) { <span class="ml-1 rounded-full bg-brand px-1.5 py-0.5 text-[10px] font-bold text-white">{{ unreadReminderCount() }}</span> }</button>
-    <button type="button" role="tab" (click)="selectTab('settings')" [attr.aria-selected]="activeTab() === 'settings'" [class]="activeTab() === 'settings' ? 'rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-bold text-white dark:bg-white dark:text-slate-900' : 'rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800'">გარემო და უსაფრთხოება</button>
+    <button type="button" role="tab" (click)="selectTab('profile')" [attr.aria-selected]="activeTab() === 'profile'" [class]="activeTab() === 'profile' ? 'rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-bold text-white dark:bg-white dark:text-slate-900' : 'rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800'">პროფილი და წვდომა</button>
+    <button type="button" role="tab" (click)="selectTab('evidence')" [attr.aria-selected]="activeTab() === 'evidence'" [class]="activeTab() === 'evidence' ? 'rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-bold text-white dark:bg-white dark:text-slate-900' : 'rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800'">ჩემი გაცნობა</button>
+    <button type="button" role="tab" (click)="selectTab('notifications')" [attr.aria-selected]="activeTab() === 'notifications'" [class]="activeTab() === 'notifications' ? 'rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-bold text-white dark:bg-white dark:text-slate-900' : 'rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800'">შეხსენებები @if (unreadReminderCount() > 0) { <span class="ml-1 rounded-full bg-brand dark:bg-brand-700 px-1.5 py-0.5 text-xs font-bold text-white">{{ unreadReminderCount() }}</span> }</button>
+    <button type="button" role="tab" (click)="selectTab('settings')" [attr.aria-selected]="activeTab() === 'settings'" [class]="activeTab() === 'settings' ? 'rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-bold text-white dark:bg-white dark:text-slate-900' : 'rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800'">გარემო და უსაფრთხოება</button>
   </div>
 
   @if (profiles.profile(); as profile) {
@@ -31,17 +31,17 @@
         <section class="surface-card p-6">
           <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100">სამუშაო პროფილი</h2>
           <dl class="mt-5 space-y-4 text-sm">
-            <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">სახელი და გვარი</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-200">{{ profile.name }}</dd></div>
-            <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">კორპორაციული ელფოსტა</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-200">{{ profile.email }}</dd></div>
-            <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">დეპარტამენტი / ჯგუფი</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-200">{{ departmentLabel(profile.department) }}</dd></div>
-            <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">პოზიცია</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-200">{{ profile.position || 'არ არის მითითებული' }}</dd></div>
-            <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-400">ბოლო აქტივობა</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-200">{{ dateTime(profile.last_active) }}</dd></div>
+            <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-slate-400">სახელი და გვარი</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-200">{{ profile.name }}</dd></div>
+            <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-slate-400">კორპორაციული ელფოსტა</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-200">{{ profile.email }}</dd></div>
+            <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-slate-400">დეპარტამენტი / ჯგუფი</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-200">{{ departmentLabel(profile.department) }}</dd></div>
+            <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-slate-400">პოზიცია</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-200">{{ profile.position || 'არ არის მითითებული' }}</dd></div>
+            <div><dt class="text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-slate-400">ბოლო აქტივობა</dt><dd class="mt-1 font-semibold text-slate-800 dark:text-slate-200">{{ dateTime(profile.last_active) }}</dd></div>
           </dl>
         </section>
 
         <section class="surface-card p-6">
           <div class="flex flex-wrap items-start justify-between gap-3">
-            <div><h2 class="text-lg font-bold text-slate-900 dark:text-slate-100">მოქმედი წვდომა</h2><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">ინტერფეისი აჩვენებს სერვერიდან მიღებულ რეალურ უფლებებს.</p></div>
+            <div><h2 class="text-lg font-bold text-slate-900 dark:text-slate-100">მოქმედი წვდომა</h2><p class="mt-1 text-sm text-slate-600 dark:text-slate-400">ინტერფეისი აჩვენებს სერვერიდან მიღებულ რეალურ უფლებებს.</p></div>
             <span class="status-pill bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">{{ roleLabel(profile.role) }}</span>
           </div>
           @if (profile.role === 'admin') {
@@ -52,11 +52,11 @@
           <div class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
             @for (permission of profile.permissions; track permission) {
               <div class="surface-card-muted flex items-center gap-3 p-3.5">
-                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300"><i class="fa-solid fa-check" aria-hidden="true"></i></span>
+                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"><i class="fa-solid fa-check" aria-hidden="true"></i></span>
                 <span class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ permissionLabel(permission) }}</span>
               </div>
             } @empty {
-              <p class="col-span-full py-5 text-center text-sm text-slate-400">დამატებითი უფლება არ არის მინიჭებული.</p>
+              <p class="col-span-full py-5 text-center text-sm text-slate-600 dark:text-slate-400">დამატებითი უფლება არ არის მინიჭებული.</p>
             }
           </div>
         </section>
@@ -64,20 +64,20 @@
     } @else if (activeTab() === 'evidence') {
       <section class="surface-card overflow-hidden">
         <div class="grid grid-cols-1 gap-3 border-b border-slate-100 p-5 dark:border-slate-800 sm:grid-cols-3">
-          <div class="surface-card-muted p-4"><p class="text-xs font-bold text-slate-500">სულ</p><p class="mt-2 text-2xl font-bold">{{ progress()?.total_mandatory ?? 0 }}</p></div>
-          <div class="surface-card-muted p-4"><p class="text-xs font-bold text-slate-500">დასრულებული</p><p class="mt-2 text-2xl font-bold text-emerald-600">{{ progress()?.read_completed ?? 0 }}</p></div>
-          <div class="surface-card-muted p-4"><p class="text-xs font-bold text-slate-500">მიმდინარე / დაგვიანებული</p><p class="mt-2 text-2xl font-bold text-amber-600">{{ progress()?.pending ?? 0 }} / {{ overdueReadings().length }}</p></div>
+          <div class="surface-card-muted p-4"><p class="text-xs font-bold text-slate-600 dark:text-slate-400">სულ</p><p class="mt-2 text-2xl font-bold">{{ progress()?.total_mandatory ?? 0 }}</p></div>
+          <div class="surface-card-muted p-4"><p class="text-xs font-bold text-slate-600 dark:text-slate-400">დასრულებული</p><p class="mt-2 text-2xl font-bold text-emerald-700">{{ progress()?.read_completed ?? 0 }}</p></div>
+          <div class="surface-card-muted p-4"><p class="text-xs font-bold text-slate-600 dark:text-slate-400">მიმდინარე / დაგვიანებული</p><p class="mt-2 text-2xl font-bold text-amber-700">{{ progress()?.pending ?? 0 }} / {{ overdueReadings().length }}</p></div>
         </div>
         @if (loadingEvidence()) {
           <div class="m-5 h-40 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800"></div>
         } @else if (readings().length === 0) {
-          <div class="p-10 text-center"><i class="fa-solid fa-circle-check text-3xl text-emerald-500" aria-hidden="true"></i><p class="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300">თქვენთვის სავალდებულო მასალა არ არის.</p></div>
+          <div class="p-10 text-center"><i class="fa-solid fa-circle-check text-3xl text-emerald-700" aria-hidden="true"></i><p class="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300">თქვენთვის სავალდებულო მასალა არ არის.</p></div>
         } @else {
           <div class="divide-y divide-slate-100 dark:divide-slate-800">
             @for (item of readings(); track item.reading.id) {
               <div class="flex flex-wrap items-center gap-4 px-5 py-4">
-                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" [class]="item.is_overdue ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300' : item.status === 'read' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300'"><i class="fa-solid" [class.fa-clock]="item.is_overdue" [class.fa-check]="!item.is_overdue && item.status === 'read'" [class.fa-book-open]="!item.is_overdue && item.status !== 'read'" aria-hidden="true"></i></span>
-                <div class="min-w-0 flex-1"><p class="truncate text-sm font-bold text-slate-800 dark:text-slate-200">{{ item.item_title || 'მასალა #' + item.reading.item_id }}</p><p class="mt-1 text-xs text-slate-500">{{ item.status === 'read' ? 'დასრულდა: ' + dateTime(item.read_at) : 'ვადა: ' + dateTime(item.reading.due_date) }}</p></div>
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" [class]="item.is_overdue ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' : item.status === 'read' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'"><i class="fa-solid" [class.fa-clock]="item.is_overdue" [class.fa-check]="!item.is_overdue && item.status === 'read'" [class.fa-book-open]="!item.is_overdue && item.status !== 'read'" aria-hidden="true"></i></span>
+                <div class="min-w-0 flex-1"><p class="truncate text-sm font-bold text-slate-800 dark:text-slate-200">{{ item.item_title || 'მასალა #' + item.reading.item_id }}</p><p class="mt-1 text-xs text-slate-600 dark:text-slate-400">{{ item.status === 'read' ? 'დასრულდა: ' + dateTime(item.read_at) : 'ვადა: ' + dateTime(item.reading.due_date) }}</p></div>
                 <span class="status-pill" [class]="item.is_overdue ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' : item.status === 'read' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'">{{ item.is_overdue ? 'ვადაგადაცილებული' : item.status === 'read' ? 'დასრულებული' : 'მიმდინარე' }}</span>
               </div>
             }
@@ -88,23 +88,23 @@
       <section class="surface-card overflow-hidden">
         <div class="border-b border-slate-100 px-5 py-4 dark:border-slate-800">
           <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100">სავალდებულო მასალის შეხსენებები</h2>
-          <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">ეს არის სისტემის ფიქსირებული, ერთმხრივი შეხსენებები — პასუხი და პირადი მიმოწერა არ არსებობს.</p>
+          <p class="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-400">ეს არის სისტემის ფიქსირებული, ერთმხრივი შეხსენებები — პასუხი და პირადი მიმოწერა არ არსებობს.</p>
         </div>
         @if (loadingReminders() && reminders().length === 0) {
           <div class="m-5 h-36 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800"></div>
         } @else if (reminderError() && reminders().length === 0) {
-          <div class="p-8 text-center"><p class="text-sm text-red-600 dark:text-red-400">{{ reminderError() }}</p></div>
+          <div class="p-8 text-center"><p class="text-sm text-red-700 dark:text-red-400">{{ reminderError() }}</p></div>
         } @else if (reminders().length === 0) {
-          <div class="p-10 text-center"><i class="fa-regular fa-bell-slash text-3xl text-slate-300" aria-hidden="true"></i><p class="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300">შეხსენებები არ არის.</p></div>
+          <div class="p-10 text-center"><i class="fa-regular fa-bell-slash text-3xl text-slate-600 dark:text-slate-400" aria-hidden="true"></i><p class="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300">შეხსენებები არ არის.</p></div>
         } @else {
           <div class="divide-y divide-slate-100 dark:divide-slate-800">
             @for (reminder of reminders(); track reminder.id) {
               <article class="flex flex-wrap items-center gap-4 px-5 py-4" [class.bg-brand-50]="reminder.read_at === null">
-                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" [class]="reminder.type === 'OVERDUE' ? 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300' : reminder.type === 'DUE_SOON' ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300'"><i class="fa-solid" [class.fa-triangle-exclamation]="reminder.type === 'OVERDUE'" [class.fa-clock]="reminder.type === 'DUE_SOON'" [class.fa-book-open]="reminder.type === 'ASSIGNMENT'" [class.fa-user-group]="reminder.type === 'MANUAL'" aria-hidden="true"></i></span>
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" [class]="reminder.type === 'OVERDUE' ? 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300' : reminder.type === 'DUE_SOON' ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'"><i class="fa-solid" [class.fa-triangle-exclamation]="reminder.type === 'OVERDUE'" [class.fa-clock]="reminder.type === 'DUE_SOON'" [class.fa-book-open]="reminder.type === 'ASSIGNMENT'" [class.fa-user-group]="reminder.type === 'MANUAL'" aria-hidden="true"></i></span>
                 <div class="min-w-0 flex-1">
                   <div class="flex flex-wrap items-center gap-2"><p class="text-sm font-bold text-slate-800 dark:text-slate-200">{{ reminderTypeLabel(reminder.type) }}</p>@if (reminder.read_at === null) { <span class="status-pill bg-brand/10 text-brand">ახალი</span> }</div>
                   <p class="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">{{ reminder.content }}</p>
-                  <p class="mt-1 text-xs text-slate-400">{{ dateTime(reminder.created_at) }} · {{ reminder.triggered_by_name }}</p>
+                  <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">{{ dateTime(reminder.created_at) }} · {{ reminder.triggered_by_name }}</p>
                 </div>
                 <button type="button" class="secondary-button" (click)="openReminder(reminder)" [disabled]="readingReminderId() !== null">@if (readingReminderId() === reminder.id) { <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> } {{ reminder.item_id !== null ? 'მასალის გახსნა' : reminder.read_at === null ? 'წაკითხულად მონიშვნა' : 'წაკითხულია' }}</button>
               </article>
@@ -113,14 +113,14 @@
           @if (reminderPage() + 1 < reminderTotalPages()) {
             <div class="border-t border-slate-100 p-4 text-center dark:border-slate-800"><button type="button" class="secondary-button" (click)="loadMoreReminders()" [disabled]="loadingReminders()">{{ loadingReminders() ? 'იტვირთება…' : 'მეტის ჩატვირთვა' }}</button></div>
           }
-          @if (reminderError()) { <p class="p-4 text-center text-sm text-red-600 dark:text-red-400">{{ reminderError() }}</p> }
+          @if (reminderError()) { <p class="p-4 text-center text-sm text-red-700 dark:text-red-400">{{ reminderError() }}</p> }
         }
       </section>
     } @else {
       <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <section class="surface-card p-6">
           <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100">ინტერფეისის ზომა</h2>
-          <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">ზომა ინახება ამ კომპიუტერზე და მოქმედებს მთელ პორტალზე.</p>
+          <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">ზომა ინახება ამ კომპიუტერზე და მოქმედებს მთელ პორტალზე.</p>
           <div class="mt-5 grid grid-cols-3 gap-2">
             @for (option of fontScale.options; track option.value) {
               <button type="button" (click)="fontScale.set(option.value)" [class]="fontScale.scale() === option.value ? 'rounded-lg border border-brand bg-brand/10 px-3 py-3 text-sm font-bold text-brand' : 'rounded-lg border border-slate-200 px-3 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800'">{{ option.label }}</button>
@@ -132,21 +132,21 @@
           <button type="button" (click)="theme.toggle()" class="secondary-button mt-5 w-full justify-between"><span><i class="fa-solid mr-2" [class.fa-moon]="!theme.isDark()" [class.fa-sun]="theme.isDark()" aria-hidden="true"></i>{{ theme.isDark() ? 'ღია თემაზე გადასვლა' : 'მუქ თემაზე გადასვლა' }}</span><span class="status-pill bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200">{{ theme.isDark() ? 'მუქი' : 'ღია' }}</span></button>
           <div class="mt-5 rounded-xl border border-slate-200 p-4 dark:border-slate-700">
             <p class="text-sm font-bold text-slate-800 dark:text-slate-200">აქტიური სესიები</p>
-            <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">უმოქმედობის ზღვარი 30 წუთია, მაქსიმალური ხანგრძლივობა — 8 საათი.</p>
+            <p class="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-400">უმოქმედობის ზღვარი 30 წუთია, მაქსიმალური ხანგრძლივობა — 8 საათი.</p>
             @if (sessionsLoading()) {
               <div class="mt-4 h-20 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800"></div>
             } @else {
               <div class="mt-4 space-y-2">
                 @for (session of sessions(); track session.id) {
                   <div class="flex flex-wrap items-center gap-3 rounded-lg border border-slate-100 p-3 dark:border-slate-800">
-                    <i class="fa-solid fa-laptop text-slate-400" aria-hidden="true"></i>
-                    <div class="min-w-0 flex-1"><p class="text-sm font-semibold text-slate-700 dark:text-slate-200">{{ sessionDevice(session) }} @if (session.current) { <span class="ml-1 text-xs text-emerald-600">მიმდინარე</span> }</p><p class="mt-0.5 text-xs text-slate-400">ბოლო აქტივობა: {{ dateTime(session.last_seen_at) }} · {{ session.client_ip || 'IP უცნობია' }}</p></div>
-                    @if (!session.current) { <button type="button" class="quiet-button text-red-600" (click)="revokeSession(session)" [disabled]="revokingSessionId() !== null">დასრულება</button> }
+                    <i class="fa-solid fa-laptop text-slate-600 dark:text-slate-400" aria-hidden="true"></i>
+                    <div class="min-w-0 flex-1"><p class="text-sm font-semibold text-slate-700 dark:text-slate-200">{{ sessionDevice(session) }} @if (session.current) { <span class="ml-1 text-xs text-emerald-700">მიმდინარე</span> }</p><p class="mt-0.5 text-xs text-slate-600 dark:text-slate-400">ბოლო აქტივობა: {{ dateTime(session.last_seen_at) }} · {{ session.client_ip || 'IP უცნობია' }}</p></div>
+                    @if (!session.current) { <button type="button" class="quiet-button text-red-700" (click)="revokeSession(session)" [disabled]="revokingSessionId() !== null">დასრულება</button> }
                   </div>
-                } @empty { <p class="text-xs text-slate-400">აქტიური სესია ვერ მოიძებნა.</p> }
+                } @empty { <p class="text-xs text-slate-600 dark:text-slate-400">აქტიური სესია ვერ მოიძებნა.</p> }
               </div>
             }
-            @if (sessionError()) { <p role="alert" class="mt-3 text-xs text-red-600 dark:text-red-400">{{ sessionError() }}</p> }
+            @if (sessionError()) { <p role="alert" class="mt-3 text-xs text-red-700 dark:text-red-400">{{ sessionError() }}</p> }
           </div>
         </section>
       </div>

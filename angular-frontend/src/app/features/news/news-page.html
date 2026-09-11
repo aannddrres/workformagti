@@ -3,7 +3,7 @@
 
   <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
     <div class="relative w-full md:w-[40%]">
-      <i class="fa-solid fa-magnifying-glass pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+      <i class="fa-solid fa-magnifying-glass pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 dark:text-zinc-400"></i>
       <input
         type="search"
         [placeholder]="'news.page.search_placeholder' | translate"
@@ -14,7 +14,7 @@
     </div>
     <div class="flex flex-wrap items-center gap-3">
       <div class="flex items-center gap-2">
-        <i class="fa-solid fa-sliders text-gray-400"></i>
+        <i class="fa-solid fa-sliders text-gray-600 dark:text-zinc-400"></i>
         <select
           (change)="onDeptFilterChange($any($event.target).value)"
           class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-600 shadow-sm focus:border-brand focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400"
@@ -27,7 +27,7 @@
         </select>
       </div>
       <div class="flex items-center gap-2">
-        <i class="fa-solid fa-arrow-down-a-z text-gray-400"></i>
+        <i class="fa-solid fa-arrow-down-a-z text-gray-600 dark:text-zinc-400"></i>
         <select
           (change)="onSortChange($any($event.target).value)"
           class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-600 shadow-sm focus:border-brand focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400"
@@ -41,12 +41,12 @@
         (click)="toggleFavoritesOnly()"
         [attr.aria-pressed]="favoritesOnly()"
         class="flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium shadow-sm transition-colors focus:outline-none"
-        [class]="favoritesOnly() ? 'border-yellow-300 bg-yellow-50 text-yellow-600 dark:border-yellow-700 dark:bg-yellow-950/30' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400'"
+        [class]="favoritesOnly() ? 'border-yellow-300 bg-yellow-50 text-yellow-700 dark:border-yellow-700 dark:bg-yellow-950/30' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400'"
       >
         @if (favoritesOnly()) {
-          <i class="fa-solid fa-star text-yellow-500"></i>
+          <i class="fa-solid fa-star text-yellow-700"></i>
         } @else {
-          <i class="fa-regular fa-star text-gray-400"></i>
+          <i class="fa-regular fa-star text-gray-600 dark:text-zinc-400"></i>
         }
         <span>{{ 'favorites.news_toggle' | translate }}</span>
       </button>
@@ -60,9 +60,9 @@
       }
     </div>
   } @else if (errorMessage()) {
-    <p class="py-8 text-center text-sm text-red-500">{{ errorMessage() }}</p>
+    <p class="py-8 text-center text-sm text-red-700">{{ errorMessage() }}</p>
   } @else if (filteredItems().length === 0) {
-    <p class="py-8 text-center text-sm text-gray-500 dark:text-zinc-400">{{ 'news.page.empty' | translate }}</p>
+    <p class="py-8 text-center text-sm text-gray-600 dark:text-zinc-400">{{ 'news.page.empty' | translate }}</p>
   } @else {
     <div class="mb-6 flex flex-col gap-4">
       @for (item of filteredItems(); track item.id) {
@@ -81,9 +81,9 @@
               <h4 class="truncate font-bold text-gray-800 dark:text-zinc-100" [title]="item.title">{{ item.title }}</h4>
               <div class="mt-1 flex flex-wrap items-center gap-2">
                 <span class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium" [class]="badgeFor(item).colorClass">{{ badgeFor(item).label }}</span>
-                <span class="text-[12px] text-gray-400 dark:text-zinc-500"><i aria-hidden="true" class="fa-regular fa-clock mr-1"></i>{{ dateLabel(item) }}</span>
+                <span class="text-[12px] text-gray-600 dark:text-zinc-400"><i aria-hidden="true" class="fa-regular fa-clock mr-1"></i>{{ dateLabel(item) }}</span>
                 @if (isMyDepartment(item)) {
-                  <span class="ml-2 inline-flex items-center rounded-md border border-brand/20 bg-brand/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand">
+                  <span class="ml-2 inline-flex items-center rounded-md border border-brand/20 bg-brand/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-brand">
                     {{ 'news.page.my_department' | translate }}
                   </span>
                 }

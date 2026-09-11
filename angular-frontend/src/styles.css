@@ -27,6 +27,7 @@
  * opacity modifiers keep working (`bg-brand/10`, `dark:bg-brand/20`).
  * ------------------------------------------------------------------------- */
 :root {
+  --brand-50: 251 236 238; /* 8% brand over white -- selected rows, callout washes */
   --brand-500: 237 27 47; /* official public Magticom mark */
   --brand-600: 200 16 46; /* accessible interactive derivative */
   --brand-700: 151 12 35;
@@ -74,6 +75,7 @@
  * on both surfaces. Declared explicitly anyway so a future dark-mode-specific
  * brand tint has an obvious home rather than being patched inline. */
 .dark {
+  --brand-50: 48 22 28; /* red-tinted wash that still sits above --surface */
   --brand-600: 251 113 133;
   --brand-700: 151 12 35;
   --focus-ring: 255 155 164;
@@ -176,7 +178,7 @@
   }
 
   .portal-subtitle {
-    @apply mt-1 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400;
+    @apply mt-1 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-400;
   }
 
   .surface-card {
@@ -204,7 +206,7 @@
   }
 
   .icon-button {
-    @apply inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white;
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white;
   }
 
   .queue-action {
@@ -212,7 +214,7 @@
   }
 
   .field-control {
-    @apply min-h-10 rounded-[10px] border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm transition placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/10 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100;
+    @apply min-h-10 rounded-[10px] border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm transition placeholder:text-slate-500 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/10 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100;
   }
 
   .status-pill {
@@ -228,7 +230,7 @@
   }
 
   .table-shell thead {
-    @apply sticky top-0 z-10 bg-slate-50/95 text-xs font-bold text-slate-500 backdrop-blur dark:bg-slate-800/95 dark:text-slate-400;
+    @apply sticky top-0 z-10 bg-slate-50/95 text-xs font-bold text-slate-600 backdrop-blur dark:bg-slate-800/95 dark:text-slate-400;
   }
 
   .table-shell tbody {

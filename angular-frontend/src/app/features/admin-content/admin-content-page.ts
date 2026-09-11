@@ -36,7 +36,7 @@ const STATUS_BADGE: Record<string, string> = {
   published: 'bg-emerald-50 text-emerald-700 border-emerald-100',
   draft: 'bg-gray-50 text-gray-700 border-gray-100',
   scheduled: 'bg-blue-50 text-blue-700 border-blue-100',
-  archived: 'bg-gray-100 text-gray-500 border-gray-200'
+  archived: 'bg-gray-100 text-gray-600 border-gray-200'
 };
 
 /**
@@ -269,12 +269,12 @@ export class AdminContentPage {
   protected tabClass(tab: ContentType): string {
     return this.activeTab() === tab
       ? 'border-b-2 border-brand px-4 pb-3 text-sm font-semibold text-brand'
-      : 'border-b-2 border-transparent px-4 pb-3 text-sm font-medium text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-100';
+      : 'border-b-2 border-transparent px-4 pb-3 text-sm font-medium text-gray-600 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-100';
   }
 
   protected pageButtonClass(page: number): string {
     return page === this.currentPage()
-      ? 'rounded-lg px-3 py-1.5 text-sm font-medium bg-brand text-white shadow-sm'
+      ? 'rounded-lg px-3 py-1.5 text-sm font-medium bg-brand dark:bg-brand-700 text-white shadow-sm'
       : 'rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800';
   }
 

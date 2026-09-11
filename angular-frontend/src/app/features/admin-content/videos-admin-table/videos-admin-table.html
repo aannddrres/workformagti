@@ -1,5 +1,5 @@
 <div class="mb-4 flex justify-end">
-  <button (click)="openCreate()" class="rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700">
+  <button (click)="openCreate()" class="rounded-xl bg-brand dark:bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700">
     + {{ 'content.videos.new' | translate }}
   </button>
 </div>
@@ -7,7 +7,7 @@
 <div class="overflow-x-auto rounded-2xl border border-gray-100 bg-white dark:bg-zinc-900 dark:border-zinc-800 shadow-sm">
   <table class="w-full text-left text-sm">
     <thead>
-      <tr class="border-b border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/60 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">
+      <tr class="border-b border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/60 text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-zinc-400">
         <th class="px-5 py-3">{{ 'content.videos.col_title' | translate }}</th>
         <th class="px-5 py-3">{{ 'content.videos.col_category' | translate }}</th>
         <th class="px-5 py-3">{{ 'content.news.col_department' | translate }}</th>
@@ -18,22 +18,22 @@
       @if (loading()) {
         <tr class="animate-pulse"><td class="px-5 py-3" colspan="4"><div class="h-4 bg-gray-200 dark:bg-zinc-700 rounded w-2/3"></div></td></tr>
       } @else if (items().length === 0) {
-        <tr><td colspan="4" class="px-5 py-6 text-center text-gray-500 dark:text-zinc-400">{{ 'content.videos.none_found' | translate }}</td></tr>
+        <tr><td colspan="4" class="px-5 py-6 text-center text-gray-600 dark:text-zinc-400">{{ 'content.videos.none_found' | translate }}</td></tr>
       } @else {
         @for (item of items(); track item.id) {
           <tr class="transition-colors hover:bg-gray-50 dark:hover:bg-zinc-800/60" [class.opacity-60]="item.is_archived">
-            <td class="px-5 py-3"><span class="inline-flex items-center gap-2"><i class="fa-solid fa-circle-play text-gray-400"></i>{{ item.title }} @if (item.is_archived) { <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs">არქივი</span> }</span></td>
-            <td class="px-5 py-3 text-gray-500 dark:text-zinc-400">{{ item.category || '—' }}</td>
-            <td class="px-5 py-3 text-gray-500 dark:text-zinc-400">{{ departmentLabel(item.target_department) }}</td>
+            <td class="px-5 py-3"><span class="inline-flex items-center gap-2"><i class="fa-solid fa-circle-play text-gray-600 dark:text-zinc-400"></i>{{ item.title }} @if (item.is_archived) { <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs">არქივი</span> }</span></td>
+            <td class="px-5 py-3 text-gray-600 dark:text-zinc-400">{{ item.category || '—' }}</td>
+            <td class="px-5 py-3 text-gray-600 dark:text-zinc-400">{{ departmentLabel(item.target_department) }}</td>
             <td class="px-5 py-3">
               <div class="flex items-center justify-center gap-3">
-                <button (click)="openEdit(item)" class="text-gray-400 hover:text-blue-500 transition-colors" [attr.aria-label]="'content.articles.action_edit' | translate">
+                <button (click)="openEdit(item)" class="text-gray-600 dark:text-zinc-400 hover:text-blue-500 transition-colors" [attr.aria-label]="'content.articles.action_edit' | translate">
                   <i class="fa-solid fa-pen-to-square"></i>
                 </button>
-                <button (click)="toggleArchive(item)" class="text-gray-400 hover:text-amber-600 transition-colors" [attr.aria-label]="item.is_archived ? 'არქივიდან ამოღება' : 'დაარქივება'">
+                <button (click)="toggleArchive(item)" class="text-gray-600 dark:text-zinc-400 hover:text-amber-700 transition-colors" [attr.aria-label]="item.is_archived ? 'არქივიდან ამოღება' : 'დაარქივება'">
                   <i [class]="item.is_archived ? 'fa-solid fa-box-open' : 'fa-solid fa-box-archive'"></i>
                 </button>
-                <button (click)="remove(item)" [disabled]="!item.is_archived" class="text-gray-400 hover:text-danger transition-colors disabled:cursor-not-allowed disabled:opacity-30" aria-label="სანაგვეში გადატანა" [title]="!item.is_archived ? 'ჯერ დაარქივეთ' : 'სანაგვეში გადატანა'">
+                <button (click)="remove(item)" [disabled]="!item.is_archived" class="text-gray-600 dark:text-zinc-400 hover:text-danger transition-colors disabled:cursor-not-allowed disabled:opacity-30" aria-label="სანაგვეში გადატანა" [title]="!item.is_archived ? 'ჯერ დაარქივეთ' : 'სანაგვეში გადატანა'">
                   <i class="fa-solid fa-trash-can"></i>
                 </button>
               </div>

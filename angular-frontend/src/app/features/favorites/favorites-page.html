@@ -8,9 +8,9 @@
       }
     </div>
   } @else if (errorMessage()) {
-    <p class="py-8 text-center text-sm text-red-500">{{ errorMessage() }}</p>
+    <p class="py-8 text-center text-sm text-red-700">{{ errorMessage() }}</p>
   } @else if (groups().length === 0) {
-    <p class="py-8 text-center text-sm text-gray-500 dark:text-zinc-400">{{ 'favorites.page.empty' | translate }}</p>
+    <p class="py-8 text-center text-sm text-gray-600 dark:text-zinc-400">{{ 'favorites.page.empty' | translate }}</p>
   } @else {
     <div class="space-y-8">
       @for (group of groups(); track group.type) {
@@ -32,7 +32,7 @@
                   type="button"
                   (click)="remove(favorite, $event)"
                   [attr.aria-label]="'favorites.page.remove' | translate"
-                  class="relative z-10 ml-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-red-50 hover:text-danger focus:outline-none focus:ring-2 focus:ring-danger dark:text-zinc-500 dark:hover:bg-red-950/30"
+                  class="relative z-10 ml-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-red-50 hover:text-danger focus:outline-none focus:ring-2 focus:ring-danger dark:text-zinc-400 dark:hover:bg-red-950/30"
                 >
                   <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                 </button>

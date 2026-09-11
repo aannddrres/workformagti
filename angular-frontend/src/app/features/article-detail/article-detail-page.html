@@ -10,7 +10,7 @@
       </button>
 
       <nav
-        class="hidden min-w-0 items-center gap-2 text-sm text-slate-500 md:flex dark:text-slate-400"
+        class="hidden min-w-0 items-center gap-2 text-sm text-slate-600 md:flex dark:text-slate-400"
         [attr.aria-label]="'articles.detail_page.breadcrumb_label' | translate"
       >
         <a routerLink="/info" class="shrink-0 font-semibold transition hover:text-brand">
@@ -18,7 +18,7 @@
         </a>
         @for (category of categoryPath(); track category.id) {
           <i
-            class="fa-solid fa-chevron-right text-[9px] text-slate-300 dark:text-slate-600"
+            class="fa-solid fa-chevron-right text-xs text-slate-600 dark:text-slate-400"
             aria-hidden="true"
           ></i>
           <a
@@ -61,7 +61,7 @@
     </div>
   } @else if (notFound()) {
     <p
-      class="rounded-xl border border-dashed border-slate-200 bg-white/40 p-8 text-center text-sm font-medium text-slate-400 dark:border-zinc-700 dark:bg-zinc-800/40"
+      class="rounded-xl border border-dashed border-slate-200 bg-white/40 p-8 text-center text-sm font-medium text-slate-600 dark:text-slate-400 dark:border-zinc-700 dark:bg-zinc-800/40"
     >
       {{ 'articles.detail_page.not_found' | translate }}
     </p>
@@ -72,7 +72,7 @@
       <header class="border-b border-slate-100 px-6 py-7 dark:border-slate-800 sm:px-10 sm:py-9">
         <div class="mx-auto max-w-[780px]">
           @if (metaLine()) {
-            <div class="mb-3 text-xs font-semibold leading-5 text-slate-500 dark:text-slate-400">
+            <div class="mb-3 text-xs font-semibold leading-5 text-slate-600 dark:text-slate-400">
               {{ metaLine() }}
             </div>
           }
@@ -128,7 +128,7 @@
               [queryParams]="navigationQueryParams()"
               class="group rounded-xl border border-slate-200 p-4 transition hover:border-brand/30 hover:bg-brand/[0.025] dark:border-slate-700"
             >
-              <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{
+              <span class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">{{
                 relatedCategoryName(related)
               }}</span>
               <span
@@ -152,7 +152,7 @@
             [queryParams]="navigationQueryParams()"
             class="rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-brand/30 dark:border-slate-700 dark:bg-slate-900"
           >
-            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400"
+            <span class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400"
               >← {{ 'articles.detail_page.previous_article' | translate }}</span
             >
             <span class="mt-1 block text-sm font-semibold text-slate-800 dark:text-slate-100">{{
@@ -168,7 +168,7 @@
             [queryParams]="navigationQueryParams()"
             class="rounded-xl border border-slate-200 bg-white p-4 text-right shadow-sm transition hover:border-brand/30 dark:border-slate-700 dark:bg-slate-900"
           >
-            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400"
+            <span class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400"
               >{{ 'articles.detail_page.next_article' | translate }} →</span
             >
             <span class="mt-1 block text-sm font-semibold text-slate-800 dark:text-slate-100">{{

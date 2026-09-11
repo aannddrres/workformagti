@@ -68,20 +68,20 @@
       <h2 class="font-bold text-slate-900 dark:text-slate-100">მოქმედი და ისტორიული დანიშვნები</h2>
     </header>
     @if (loading()) {
-      <div class="p-8 text-center text-sm text-slate-400">იტვირთება…</div>
+      <div class="p-8 text-center text-sm text-slate-600 dark:text-slate-400">იტვირთება…</div>
     } @else {
       <div class="overflow-x-auto">
         <table class="w-full text-left text-sm">
-          <thead class="bg-slate-50 text-xs uppercase tracking-wider text-slate-500 dark:bg-slate-900">
+          <thead class="bg-slate-50 text-xs uppercase tracking-wider text-slate-600 dark:text-slate-400 dark:bg-slate-900">
             <tr><th class="px-5 py-3">ლიდერი</th><th class="px-5 py-3">Scope</th><th class="px-5 py-3">ტიპი</th><th class="px-5 py-3">წყარო</th><th class="px-5 py-3">სტატუსი</th><th class="px-5 py-3"></th></tr>
           </thead>
           <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
             @for (assignment of assignments(); track assignment.id) {
               <tr [class.opacity-60]="!assignment.is_active">
-                <td class="px-5 py-3"><strong>{{ assignment.user_name }}</strong><span class="block text-xs text-slate-400">{{ assignment.user_email }}</span></td>
+                <td class="px-5 py-3"><strong>{{ assignment.user_name }}</strong><span class="block text-xs text-slate-600 dark:text-slate-400">{{ assignment.user_email }}</span></td>
                 <td class="px-5 py-3">{{ assignment.department_name || assignment.team_name }}</td>
                 <td class="px-5 py-3 font-mono text-xs">{{ assignment.assignment_type }}</td>
-                <td class="px-5 py-3 text-xs text-slate-500">{{ assignment.source }}</td>
+                <td class="px-5 py-3 text-xs text-slate-600 dark:text-slate-400">{{ assignment.source }}</td>
                 <td class="px-5 py-3">{{ assignment.is_active ? 'აქტიური' : 'დასრულებული' }}</td>
                 <td class="px-5 py-3 text-right">
                   @if (assignment.is_active) {
@@ -90,7 +90,7 @@
                 </td>
               </tr>
             } @empty {
-              <tr><td colspan="6" class="px-5 py-8 text-center text-slate-400">დანიშვნები ჯერ არ არის.</td></tr>
+              <tr><td colspan="6" class="px-5 py-8 text-center text-slate-600 dark:text-slate-400">დანიშვნები ჯერ არ არის.</td></tr>
             }
           </tbody>
         </table>

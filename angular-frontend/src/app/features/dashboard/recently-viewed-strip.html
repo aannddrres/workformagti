@@ -10,20 +10,20 @@
       }
     </div>
   } @else if (errorMessage()) {
-    <p class="text-sm text-red-500">{{ errorMessage() }}</p>
+    <p class="text-sm text-red-700">{{ errorMessage() }}</p>
   } @else if (items()!.length === 0) {
-    <p class="text-sm text-gray-500 dark:text-zinc-400">{{ 'dashboard.recently_viewed.empty' | translate }}</p>
+    <p class="text-sm text-gray-600 dark:text-zinc-400">{{ 'dashboard.recently_viewed.empty' | translate }}</p>
   } @else {
     <div class="flex flex-wrap gap-2">
       @for (item of items(); track item.article_id) {
         <button
           type="button"
           (click)="open(item.article_id)"
-          class="flex items-center gap-2 rounded-full border border-gray-150 bg-white px-3.5 py-2 text-xs text-gray-600 transition-colors hover:border-brand/40 hover:text-gray-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+          class="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3.5 py-2 text-xs text-gray-600 transition-colors hover:border-brand/40 hover:text-gray-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
         >
-          <i class="fa-regular fa-clock text-gray-400 dark:text-zinc-500"></i>
+          <i class="fa-regular fa-clock text-gray-600 dark:text-zinc-400"></i>
           <span class="max-w-[220px] truncate">{{ item.title }}</span>
-          <span class="text-gray-400 dark:text-zinc-500">{{ dateLabel(item) }}</span>
+          <span class="text-gray-600 dark:text-zinc-400">{{ dateLabel(item) }}</span>
         </button>
       }
     </div>

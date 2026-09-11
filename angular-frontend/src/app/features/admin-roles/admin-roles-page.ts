@@ -118,8 +118,8 @@ export class AdminRolesPage {
 
   cardIconClass(role: string): string {
     return role === this.activeRole()
-      ? 'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-white'
-      : 'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-500 dark:bg-zinc-800 dark:text-zinc-400';
+      ? 'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand dark:bg-brand-700 text-white'
+      : 'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-600 dark:bg-zinc-800 dark:text-zinc-400';
   }
 
   selectRole(role: string): void {

@@ -11,7 +11,7 @@
         ></textarea>
         <button
           type="button"
-          class="mt-1 text-gray-400 hover:text-brand"
+          class="mt-1 text-gray-600 dark:text-zinc-400 hover:text-brand"
           [attr.aria-label]="'content.quiz.remove_question' | translate"
           (click)="removeQuestion(qi)"
         >
@@ -39,7 +39,7 @@
             />
             <button
               type="button"
-              class="text-gray-300 hover:text-brand"
+              class="text-gray-600 dark:text-zinc-400 hover:text-brand"
               [attr.aria-label]="'content.quiz.remove_answer' | translate"
               (click)="removeAnswer(qi, ai)"
             >
@@ -51,7 +51,7 @@
 
       <button
         type="button"
-        class="mt-2 text-xs font-semibold text-gray-500 hover:text-brand"
+        class="mt-2 text-xs font-semibold text-gray-600 dark:text-zinc-400 hover:text-brand"
         (click)="addAnswer(qi)"
       >
         <i class="fa-solid fa-plus mr-1"></i>{{ 'content.quiz.add_answer' | translate }}

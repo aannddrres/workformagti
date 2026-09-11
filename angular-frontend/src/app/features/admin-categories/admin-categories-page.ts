@@ -126,7 +126,7 @@ export class AdminCategoriesPage {
   }
 
   chevronClass(id: number): string {
-    const base = 'fa-solid fa-chevron-right text-[11px] transition-transform';
+    const base = 'fa-solid fa-chevron-right text-xs transition-transform';
     return this.isExpanded(id) ? `${base} rotate-90` : base;
   }
 

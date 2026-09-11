@@ -10,13 +10,13 @@
 
     @if (category(); as cat) {
       <nav
-        class="mb-4 flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400"
+        class="mb-4 flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400"
       >
         <a routerLink="/info" class="transition hover:text-brand">{{
           'nav.sidebar.section_kb' | translate
         }}</a>
         @for (crumb of breadcrumbs(); track crumb.id) {
-          <i class="fa-solid fa-chevron-right text-[8px] text-slate-300" aria-hidden="true"></i>
+          <i class="fa-solid fa-chevron-right text-xs text-slate-600 dark:text-slate-400" aria-hidden="true"></i>
           <a
             [routerLink]="['/category', crumb.slug || crumb.id]"
             class="transition hover:text-brand"
@@ -34,7 +34,7 @@
           <h2 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">
             {{ cat.name }}
           </h2>
-          <span class="text-sm font-medium text-slate-400">{{
+          <span class="text-sm font-medium text-slate-600 dark:text-slate-400">{{
             'articles.category_tile.article_count' | translate: { count: rows().length }
           }}</span>
         </div>
@@ -45,7 +45,7 @@
   @if (childCategories().length > 0) {
     <section class="mb-8" [attr.aria-label]="'articles.category_view.subcategories' | translate">
       <h3
-        class="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400"
+        class="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-slate-600 dark:text-slate-400"
       >
         {{ 'articles.category_view.subcategories' | translate }}
       </h3>
@@ -62,11 +62,11 @@
       role="alert"
       class="rounded-2xl border border-red-200 bg-red-50 px-6 py-10 text-center dark:border-red-900/60 dark:bg-red-950/20"
     >
-      <i class="fa-solid fa-triangle-exclamation mb-3 text-2xl text-red-500" aria-hidden="true"></i>
+      <i class="fa-solid fa-triangle-exclamation mb-3 text-2xl text-red-700" aria-hidden="true"></i>
       <h2 class="text-base font-bold text-slate-900 dark:text-zinc-100">
         {{ 'articles.category_view.load_failed_title' | translate }}
       </h2>
-      <p class="mt-1 text-sm text-slate-500 dark:text-zinc-400">
+      <p class="mt-1 text-sm text-slate-600 dark:text-zinc-400">
         {{ 'articles.category_view.load_failed_body' | translate }}
       </p>
     </div>
@@ -75,11 +75,11 @@
       role="alert"
       class="rounded-2xl border border-amber-200 bg-amber-50 px-6 py-10 text-center dark:border-amber-900/60 dark:bg-amber-950/20"
     >
-      <i class="fa-solid fa-folder-open mb-3 text-2xl text-amber-600" aria-hidden="true"></i>
+      <i class="fa-solid fa-folder-open mb-3 text-2xl text-amber-700" aria-hidden="true"></i>
       <h2 class="text-base font-bold text-slate-900 dark:text-zinc-100">
         {{ 'articles.category_view.not_found_title' | translate }}
       </h2>
-      <p class="mt-1 text-sm text-slate-500 dark:text-zinc-400">
+      <p class="mt-1 text-sm text-slate-600 dark:text-zinc-400">
         {{ 'articles.category_view.not_found_body' | translate }}
       </p>
     </div>
@@ -87,13 +87,13 @@
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       @for (i of [1, 2, 3, 4]; track i) {
         <div
-          class="h-[160px] animate-pulse rounded-2xl border border-gray-150 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+          class="h-[160px] animate-pulse rounded-2xl border border-gray-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
         ></div>
       }
     </div>
   } @else if (rows().length === 0) {
     <p
-      class="rounded-xl border border-dashed border-slate-200 bg-white/40 p-8 text-center text-xs font-medium tracking-wide text-slate-400 dark:border-zinc-700 dark:bg-zinc-800/40"
+      class="rounded-xl border border-dashed border-slate-200 bg-white/40 p-8 text-center text-xs font-medium tracking-wide text-slate-600 dark:text-slate-400 dark:border-zinc-700 dark:bg-zinc-800/40"
     >
       {{ 'articles.category_view.empty_state' | translate }}
     </p>
