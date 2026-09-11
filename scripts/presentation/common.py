@@ -61,7 +61,29 @@ EXPECTED_ORACLE_CONTEXT = ("MAGTI_APP", "XEPDB1", "XEPDB1")
 #                                    article inserts still satisfy it
 # Found because a fresh presentation/UAT stack could not be seeded at all
 # while the guard sat at 42 and the schema had moved to 45.
-EXPECTED_FLYWAY_VERSION = "45"
+#
+# 45 -> 48 (2026-09-11), reviewed the same way. All three are CREATE TABLE
+# only: nothing is dropped, and no existing table gains a column, so every
+# INSERT this seeder writes still matches the schema it writes into.
+#   V46 adds stored_file_references -- see below, the one that needed thought
+#   V47 adds legacy_content_imports -- the importer's own provenance map,
+#                                      written by scripts/import_legacy_content.py
+#   V48 adds login_attempts         -- throwaway throttle counters
+#
+# V46 is the one worth recording. It is the index behind DEC-P01 ("a file is
+# readable when content referencing it is readable"), and this seeder does not
+# write it -- it writes stored_files and articles and stops. V46's own backfill
+# cannot cover a fresh volume either, because it runs at migration time, before
+# any of those rows exist. That reads like every demo image being visible to
+# content@magti.ge alone.
+#
+# It is not, and the reason is deliberate rather than lucky:
+# FileReferenceIndex.referencesTo falls through to an authoritative scan when
+# the index has no row, logs that a save path is out of sync, and writes what
+# it finds back. A missing index degrades to slow-and-correct on first access
+# and heals itself. So the seeder is not required to populate it, and this
+# guard does not need to hold the line at 45 on its account.
+EXPECTED_FLYWAY_VERSION = "48"
 SEARCH_ENTITY_TYPES = {
     "article": "ARTICLE",
     "news": "NEWS",
