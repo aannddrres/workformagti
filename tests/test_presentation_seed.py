@@ -239,3 +239,27 @@ def test_local_qa_profiles_are_scoped_and_reported() -> None:
     assert '("manager@magti.ge", "system.audit", "DENY", 200, 403)' in qa_runner
     assert '("info@magti.ge", "system.audit", "ALLOW", 403, 200)' in qa_runner
     assert "_assert_audit_chain" in qa_runner
+
+
+def test_powershell_wrappers_that_hold_non_ascii_are_bom_prefixed() -> None:
+    # Windows PowerShell 5.1 -- the only PowerShell on a stock Windows 11 --
+    # decodes a .ps1 without a byte-order mark as the ANSI code page, not as
+    # UTF-8. presentation.ps1 held exactly three em dashes inside double-quoted
+    # strings; each decoded into three CP1252 characters ending in a closing
+    # double quote, which terminated the string early. The file became a parse
+    # error, so `presentation.ps1 prepare` -- the documented way to rebuild the
+    # demo stack -- could not run at all on the machine it was written for.
+    # uat.ps1 already carried the mark, which is why only one of the two broke.
+    wrappers = sorted(ROOT.glob("*.ps1")) + sorted((ROOT / "scripts").glob("*.ps1"))
+    assert wrappers, "no PowerShell wrappers found to check"
+
+    missing = []
+    for wrapper in wrappers:
+        raw = wrapper.read_bytes()
+        if raw.decode("utf-8").isascii():
+            # Pure ASCII decodes identically under either code page.
+            continue
+        if not raw.startswith(b"\xef\xbb\xbf"):
+            missing.append(wrapper.relative_to(ROOT).as_posix())
+
+    assert missing == []
