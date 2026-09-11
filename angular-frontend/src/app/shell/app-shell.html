@@ -21,7 +21,7 @@
           <app-logo />
         </div>
         @if (sidebarCollapsed()) {
-          <span class="hidden h-9 w-9 items-center justify-center rounded-lg bg-brand dark:bg-brand-700 text-xs font-black tracking-wide text-white lg:flex">M</span>
+          <span class="hidden h-9 w-9 items-center justify-center rounded-lg bg-brand dark:bg-brand-700 text-xs font-bold tracking-wide text-white lg:flex">M</span>
         }
         <button
           type="button"
@@ -51,7 +51,7 @@
                       [title]="sidebarCollapsed() ? link.label : ''"
                       class="relative flex min-h-10 items-center gap-3 rounded-lg px-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                     >
-                      <span class="flex h-6 w-6 shrink-0 items-center justify-center text-[0.9rem]">
+                      <span class="flex h-6 w-6 shrink-0 items-center justify-center text-sm">
                         <i class="fa-solid" [class]="link.icon" aria-hidden="true"></i>
                       </span>
                       <span class="truncate" [class.lg:hidden]="sidebarCollapsed()">{{ link.label }}</span>

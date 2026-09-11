@@ -1,7 +1,7 @@
 <div class="mx-auto w-full max-w-[1440px] px-4 pb-8 pt-4 md:px-6 md:pt-6">
   <div class="mb-6">
     <h2
-      class="text-2xl font-semibold uppercase tracking-wider text-slate-800 dark:text-slate-100 md:text-4xl"
+      class="text-2xl font-semibold uppercase tracking-wider text-slate-800 dark:text-slate-100"
     >
       {{ 'articles.kb_page.heading' | translate }}
     </h2>
@@ -39,7 +39,7 @@
         <select
           (change)="onCategoryFilterChange($any($event.target).value)"
           [value]="selectedCategoryId() ?? ''"
-          class="appearance-none rounded-xl border border-slate-200 bg-white py-3 pl-4 pr-9 text-sm font-medium text-slate-600 shadow-sm focus:border-brand focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
+          class="appearance-none rounded-xl border border-slate-200 bg-white py-3 pl-4 pr-9 text-sm font-normal text-slate-600 shadow-sm focus:border-brand focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
         >
           <option value="">{{ 'articles.kb_page.all_categories_option' | translate }}</option>
           @for (category of activeCategories(); track category.id) {

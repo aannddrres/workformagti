@@ -36,7 +36,7 @@
               <!-- Content admin: pick which of the four. -->
               @if (selectedRole === 'content_admin') {
                 <label class="block">
-                  <span class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">კონტენტ-ადმინი</span>
+                  <span class="mb-1 block text-xs font-normal text-slate-600 dark:text-slate-400">კონტენტ-ადმინი</span>
                   <select [disabled]="submitting()" (change)="setPerson($any($event.target).value)"
                     class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-slate-400 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
                     <option value="">— აირჩიეთ —</option>
@@ -50,7 +50,7 @@
               <!-- Leader / operator: department, then group. -->
               @if (selectedRole === 'manager' || selectedRole === 'operator') {
                 <label class="block">
-                  <span class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">დეპარტამენტი</span>
+                  <span class="mb-1 block text-xs font-normal text-slate-600 dark:text-slate-400">დეპარტამენტი</span>
                   <select [disabled]="submitting()" (change)="setDept($any($event.target).value)"
                     class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-slate-400 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
                     <option value="">— აირჩიეთ —</option>
@@ -62,7 +62,7 @@
 
                 @if (dept()) {
                   <label class="block">
-                    <span class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">ჯგუფი</span>
+                    <span class="mb-1 block text-xs font-normal text-slate-600 dark:text-slate-400">ჯგუფი</span>
                     <select [disabled]="submitting()" (change)="setGroup($any($event.target).value)"
                       class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-slate-400 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
                       <option value="">— აირჩიეთ —</option>
@@ -76,7 +76,7 @@
                 <!-- Which of the ten operators in the chosen group. -->
                 @if (selectedRole === 'operator' && group()) {
                   <label class="block">
-                    <span class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">ოპერატორი</span>
+                    <span class="mb-1 block text-xs font-normal text-slate-600 dark:text-slate-400">ოპერატორი</span>
                     <select [disabled]="submitting()" (change)="setPerson($any($event.target).value)"
                       class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-slate-400 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
                       <option value="">— აირჩიეთ —</option>

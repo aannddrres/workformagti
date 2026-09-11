@@ -2,7 +2,7 @@
   <div class="mb-6">
     <button
       (click)="goBack()"
-      class="mb-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-900 active:scale-[0.98] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+      class="mb-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-normal text-slate-600 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-900 active:scale-[0.98] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
     >
       <i aria-hidden="true" class="fa-solid fa-arrow-left text-xs"></i>
       {{ 'articles.category_view.back_button' | translate }}
@@ -31,10 +31,10 @@
           <i class="fa-solid" [class]="icon()"></i>
         </span>
         <div>
-          <h2 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+          <h2 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
             {{ cat.name }}
           </h2>
-          <span class="text-sm font-medium text-slate-600 dark:text-slate-400">{{
+          <span class="text-sm font-normal text-slate-600 dark:text-slate-400">{{
             'articles.category_tile.article_count' | translate: { count: rows().length }
           }}</span>
         </div>
@@ -93,7 +93,7 @@
     </div>
   } @else if (rows().length === 0) {
     <p
-      class="rounded-xl border border-dashed border-slate-200 bg-white/40 p-8 text-center text-xs font-medium tracking-wide text-slate-600 dark:text-slate-400 dark:border-slate-700 dark:bg-slate-800/40"
+      class="rounded-xl border border-dashed border-slate-200 bg-white/40 p-8 text-center text-xs font-normal tracking-wide text-slate-600 dark:text-slate-400 dark:border-slate-700 dark:bg-slate-800/40"
     >
       {{ 'articles.category_view.empty_state' | translate }}
     </p>

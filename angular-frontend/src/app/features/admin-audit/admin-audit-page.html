@@ -1,7 +1,7 @@
 <div class="mx-auto w-full max-w-[1440px] px-4 pb-8 pt-4 md:px-6 md:pt-6">
   <div class="mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
     <div>
-      <h2 class="text-2xl font-semibold uppercase tracking-wider text-slate-800 dark:text-slate-100 md:text-3xl">{{ 'audit.heading' | translate }}</h2>
+      <h2 class="text-2xl font-semibold uppercase tracking-wider text-slate-800 dark:text-slate-100">{{ 'audit.heading' | translate }}</h2>
       <p class="text-xs text-slate-600 dark:text-slate-400">{{ 'audit.subtitle' | translate }}</p>
       @if (isManager()) {
         <!-- The list really is department-scoped server-side; say so, so the
@@ -56,7 +56,7 @@
         [value]="searchText()"
         (input)="onSearchInput($event)"
         [attr.placeholder]="'audit.search_placeholder' | translate"
-        class="w-56 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 shadow-sm focus:border-red-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+        class="w-56 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-normal text-slate-600 shadow-sm focus:border-red-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
       />
 
       <input
@@ -65,7 +65,7 @@
         [value]="startDate() ?? ''"
         (change)="onStartDateChange($event)"
         [attr.aria-label]="'audit.start_date_label' | translate"
-        class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-600 shadow-sm focus:border-red-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+        class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal text-slate-600 shadow-sm focus:border-red-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
       />
       <input
         type="date"
@@ -73,12 +73,12 @@
         [value]="endDate() ?? ''"
         (change)="onEndDateChange($event)"
         [attr.aria-label]="'audit.end_date_label' | translate"
-        class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-600 shadow-sm focus:border-red-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+        class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal text-slate-600 shadow-sm focus:border-red-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
       />
 
       <select
         (change)="onCategoryChange($event)"
-        class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 shadow-sm focus:border-red-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+        class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-normal text-slate-600 shadow-sm focus:border-red-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
       >
         <option value="">{{ 'audit.category_all' | translate }}</option>
         <option value="SECURITY">{{ 'audit.category_security' | translate }}</option>
@@ -92,7 +92,7 @@
         (click)="refresh()"
         [attr.aria-label]="'audit.refresh' | translate"
         [attr.title]="'audit.refresh' | translate"
-        class="flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+        class="flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-normal text-slate-700 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
       >
         <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
       </button>
@@ -162,7 +162,7 @@
               class="cursor-pointer transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/60"
             >
               <td class="whitespace-nowrap px-5 py-2.5 text-xs text-slate-600 dark:text-slate-400">{{ formatTimestamp(log.timestamp) }}</td>
-              <td class="px-5 py-2.5 font-medium text-slate-800 dark:text-slate-200">{{ log.admin_name || ('audit.unknown_user' | translate) }}</td>
+              <td class="px-5 py-2.5 font-normal text-slate-800 dark:text-slate-200">{{ log.admin_name || ('audit.unknown_user' | translate) }}</td>
               <td class="px-5 py-2.5">
                 <span class="inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-xs font-bold" [class]="categoryBadge(log.category).badgeClass">
                   <span class="h-1.5 w-1.5 rounded-full" [class]="categoryBadge(log.category).dotClass"></span>{{ categoryBadge(log.category).label }}
@@ -234,11 +234,11 @@
       <div class="grid grid-cols-2 gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-4 text-xs dark:border-slate-800 dark:bg-slate-800/40">
         <div>
           <span class="block text-slate-600 dark:text-slate-400">{{ 'audit.detail_actor' | translate }}</span>
-          <span class="font-medium text-slate-800 dark:text-slate-200">{{ log.admin_name || ('audit.unknown_user' | translate) }}</span>
+          <span class="font-normal text-slate-800 dark:text-slate-200">{{ log.admin_name || ('audit.unknown_user' | translate) }}</span>
         </div>
         <div>
           <span class="block text-slate-600 dark:text-slate-400">{{ 'audit.detail_object' | translate }}</span>
-          <span class="font-medium text-slate-800 dark:text-slate-200">{{ log.item_name ? (itemTypeLabel(log.item_type) + ': ' + log.item_name) : itemTypeLabel(log.item_type) }} (#{{ log.item_id }})</span>
+          <span class="font-normal text-slate-800 dark:text-slate-200">{{ log.item_name ? (itemTypeLabel(log.item_type) + ': ' + log.item_name) : itemTypeLabel(log.item_type) }} (#{{ log.item_id }})</span>
         </div>
         <div>
           <span class="block text-slate-600 dark:text-slate-400">{{ 'audit.detail_ip' | translate }}</span>
@@ -247,9 +247,9 @@
         <div>
           <span class="block text-slate-600 dark:text-slate-400">{{ 'audit.detail_device' | translate }}</span>
           @if (userAgentView(log); as ua) {
-            <span class="font-medium text-slate-800 dark:text-slate-200">{{ ua.browser }} · {{ ua.os }}</span>
+            <span class="font-normal text-slate-800 dark:text-slate-200">{{ ua.browser }} · {{ ua.os }}</span>
           } @else {
-            <span class="font-medium text-slate-800 dark:text-slate-200">—</span>
+            <span class="font-normal text-slate-800 dark:text-slate-200">—</span>
           }
         </div>
       </div>

@@ -8,8 +8,8 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
   template: `
     <section class="portal-page flex min-h-[60vh] items-center justify-center">
       <div class="surface-card max-w-xl p-8 text-center md:p-12">
-        <p class="text-sm font-black tracking-[0.18em] text-brand">{{ status }}</p>
-        <h1 class="mt-3 text-3xl font-bold text-slate-950 dark:text-white">{{ heading }}</h1>
+        <p class="text-sm font-bold tracking-[0.18em] text-brand">{{ status }}</p>
+        <h1 class="mt-3 text-2xl font-bold text-slate-950 dark:text-white">{{ heading }}</h1>
         <p class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{{ description }}</p>
         <a routerLink="/" class="primary-button mt-7 inline-flex">მთავარ გვერდზე დაბრუნება</a>
       </div>

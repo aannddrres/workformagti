@@ -30,6 +30,19 @@ module.exports = {
           700: 'rgb(var(--danger-700) / <alpha-value>)'
         }
       },
+      // Six steps, and the line heights are set for Georgian rather than
+      // inherited from Tailwind's Latin defaults -- the script carries more
+      // above and below the x-height, so it needs the extra leading. Before
+      // this the app used eight named steps plus twenty one-off bracket
+      // values; `design-rules.spec.ts` now allows only what is listed here.
+      fontSize: {
+        xs: ['0.75rem', { lineHeight: '1.125rem' }],    // 12 / 18  -- the floor
+        sm: ['0.875rem', { lineHeight: '1.3125rem' }],  // 14 / 21  -- UI default
+        base: ['1rem', { lineHeight: '1.5625rem' }],    // 16 / 25  -- body copy
+        lg: ['1.25rem', { lineHeight: '1.75rem' }],     // 20 / 28  -- block title
+        xl: ['1.625rem', { lineHeight: '2.125rem' }],   // 26 / 34  -- page title
+        '2xl': ['2.125rem', { lineHeight: '2.625rem' }] // 34 / 42  -- hero title
+      },
       fontFamily: {
         // Georgian-first stack, defined once in styles.css.
         //

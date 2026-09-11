@@ -130,6 +130,30 @@ describe('design rules', () => {
     expect([...new Set(offenders)]).toEqual([]);
   });
 
+  /** Eight named sizes plus twenty one-off bracket values is not a scale.
+   *  tailwind.config.js now defines six steps with Georgian line heights and
+   *  this rule keeps everything on them. `text-3xl` and up still resolve --
+   *  they live in `extend`, so a stray one renders rather than vanishing --
+   *  but it fails here. */
+  it('uses only the six type steps', () => {
+    const offenders = scan(/\b(?:[a-z-]+:)*text-(?:3xl|4xl|5xl|6xl|7xl|8xl|9xl)\b/g, () => true);
+    const arbitrary = scan(/\b(?:[a-z-]+:)*text-\[[\d.]+(?:px|rem|em)\]/g, () => true);
+    expect([...offenders, ...arbitrary]).toEqual([]);
+  });
+
+  /** Measured in the running app: Noto Sans Georgian renders 300, 400 and 500
+   *  at an identical advance width, and 700, 800 and 900 likewise, because the
+   *  family ships exactly three files. `font-medium` was used 98 times and
+   *  changed nothing -- it read as a decision the typeface could not carry.
+   *  Three weights exist, so three weights are allowed. */
+  it('uses only the three weights the typeface actually has', () => {
+    const offenders = scan(
+      /\b(?:[a-z-]+:)*font-(?:thin|extralight|light|medium|extrabold|black)\b/g,
+      () => true,
+    );
+    expect(offenders).toEqual([]);
+  });
+
   /** Three neutral ramps ran at once -- slate 977, zinc 809, gray 744 -- and 42
    *  files mixed two or three of them. slate is blue-tinted and zinc is not, so
    *  two admin screens one click apart read as two different products. slate

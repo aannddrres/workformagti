@@ -71,7 +71,7 @@
         @if (loadingEvidence()) {
           <div class="m-5 h-40 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800"></div>
         } @else if (readings().length === 0) {
-          <div class="p-10 text-center"><i class="fa-solid fa-circle-check text-3xl text-emerald-700" aria-hidden="true"></i><p class="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300">თქვენთვის სავალდებულო მასალა არ არის.</p></div>
+          <div class="p-10 text-center"><i class="fa-solid fa-circle-check text-2xl text-emerald-700" aria-hidden="true"></i><p class="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300">თქვენთვის სავალდებულო მასალა არ არის.</p></div>
         } @else {
           <div class="divide-y divide-slate-100 dark:divide-slate-800">
             @for (item of readings(); track item.reading.id) {
@@ -95,7 +95,7 @@
         } @else if (reminderError() && reminders().length === 0) {
           <div class="p-8 text-center"><p class="text-sm text-red-700 dark:text-red-400">{{ reminderError() }}</p></div>
         } @else if (reminders().length === 0) {
-          <div class="p-10 text-center"><i class="fa-regular fa-bell-slash text-3xl text-slate-600 dark:text-slate-400" aria-hidden="true"></i><p class="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300">შეხსენებები არ არის.</p></div>
+          <div class="p-10 text-center"><i class="fa-regular fa-bell-slash text-2xl text-slate-600 dark:text-slate-400" aria-hidden="true"></i><p class="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300">შეხსენებები არ არის.</p></div>
         } @else {
           <div class="divide-y divide-slate-100 dark:divide-slate-800">
             @for (reminder of reminders(); track reminder.id) {

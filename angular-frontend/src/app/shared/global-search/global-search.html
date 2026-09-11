@@ -63,7 +63,7 @@
         @if (failed()) {
           <!-- Never an empty list on failure: that would read as "nothing found". -->
           <div class="px-4 py-8 text-center">
-            <p class="text-sm font-medium text-red-700 dark:text-red-400">
+            <p class="text-sm font-normal text-red-700 dark:text-red-400">
               {{ 'search.palette.error' | translate }}
             </p>
             <button
@@ -108,7 +108,7 @@
                 <i class="fa-solid" [class]="iconFor(hit)" aria-hidden="true"></i>
               </span>
               <span class="min-w-0 flex-1">
-                <span class="block truncate text-sm font-medium text-slate-800 dark:text-slate-100">{{
+                <span class="block truncate text-sm font-normal text-slate-800 dark:text-slate-100">{{
                   hit.title
                 }}</span>
                 @if (contextFor(hit); as context) {

@@ -61,7 +61,7 @@
     </div>
   } @else if (notFound()) {
     <p
-      class="rounded-xl border border-dashed border-slate-200 bg-white/40 p-8 text-center text-sm font-medium text-slate-600 dark:text-slate-400 dark:border-slate-700 dark:bg-slate-800/40"
+      class="rounded-xl border border-dashed border-slate-200 bg-white/40 p-8 text-center text-sm font-normal text-slate-600 dark:text-slate-400 dark:border-slate-700 dark:bg-slate-800/40"
     >
       {{ 'articles.detail_page.not_found' | translate }}
     </p>
@@ -70,14 +70,14 @@
       class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.055)] dark:border-slate-700 dark:bg-slate-900"
     >
       <header class="border-b border-slate-100 px-6 py-7 dark:border-slate-800 sm:px-10 sm:py-9">
-        <div class="mx-auto max-w-[780px]">
+        <div class="mx-auto max-w-[720px]">
           @if (metaLine()) {
             <div class="mb-3 text-xs font-semibold leading-5 text-slate-600 dark:text-slate-400">
               {{ metaLine() }}
             </div>
           }
           <h1
-            class="article-reader-title text-[1.75rem] font-bold leading-[1.28] tracking-[-0.025em] text-slate-950 dark:text-slate-50 sm:text-[2rem]"
+            class="article-reader-title text-2xl font-bold leading-[1.28] tracking-[-0.025em] text-slate-950 dark:text-slate-50"
           >
             {{ a.title }}
           </h1>
@@ -86,7 +86,7 @@
 
       <div class="px-6 py-8 sm:px-10 sm:py-10">
         <div
-          class="article-reader mx-auto max-w-[780px]"
+          class="article-reader mx-auto max-w-[720px]"
           role="region"
           [attr.aria-label]="'articles.detail_page.content_label' | translate"
           [innerHTML]="formattedContent()"
@@ -95,7 +95,7 @@
 
         @if (a.attachment_url) {
           <div
-            class="mx-auto mt-10 max-w-[780px] border-t border-slate-200 pt-6 dark:border-slate-700"
+            class="mx-auto mt-10 max-w-[720px] border-t border-slate-200 pt-6 dark:border-slate-700"
           >
             <a
               [href]="a.attachment_url"

@@ -65,12 +65,12 @@
                   >
                     {{ 'content.history.restore' | translate }}
                   </button>
-                  <span class="text-xs font-medium text-slate-600 dark:text-slate-400">{{ item.updated_at | date: 'dd.MM.yyyy HH:mm' }}</span>
+                  <span class="text-xs font-normal text-slate-600 dark:text-slate-400">{{ item.updated_at | date: 'dd.MM.yyyy HH:mm' }}</span>
                 </div>
               </div>
               <p class="mb-1 text-sm font-bold text-slate-800 dark:text-slate-100">{{ item.title }}</p>
               <p class="mb-3 text-xs text-slate-600 dark:text-slate-400">
-                {{ 'content.history.editor_label' | translate }}: <span class="font-medium text-slate-700 dark:text-slate-300">{{ item.author_name }}</span>
+                {{ 'content.history.editor_label' | translate }}: <span class="font-normal text-slate-700 dark:text-slate-300">{{ item.author_name }}</span>
               </p>
               <button
                 type="button"

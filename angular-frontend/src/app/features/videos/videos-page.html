@@ -1,5 +1,5 @@
 <div class="mx-auto w-full max-w-[1440px] px-4 pb-8 pt-4 md:px-6 md:pt-6">
-  <h2 class="mb-6 text-2xl font-semibold uppercase tracking-wider text-slate-800 dark:text-slate-100 md:text-4xl">{{ 'videos.page.heading' | translate }}</h2>
+  <h2 class="mb-6 text-2xl font-semibold uppercase tracking-wider text-slate-800 dark:text-slate-100">{{ 'videos.page.heading' | translate }}</h2>
 
   <div class="relative mb-8 w-full">
     <input
@@ -36,7 +36,7 @@
             @if (thumbnailFor(video); as thumb) {
               <img [src]="thumb" [alt]="video.title" class="absolute inset-0 h-full w-full object-cover opacity-60 transition-opacity group-hover:opacity-85" />
             } @else {
-              <i class="fa-solid fa-film absolute text-4xl text-white/20" aria-hidden="true"></i>
+              <i class="fa-solid fa-film absolute text-2xl text-white/20" aria-hidden="true"></i>
             }
             <div class="absolute left-4 top-4 z-10 text-xs font-bold tracking-widest text-white/80">MAGTI</div>
             <app-favorite-star itemType="video" [itemId]="video.id" variant="dark" class="absolute right-4 top-4 z-10" />
@@ -44,8 +44,8 @@
               <i class="fa-solid fa-play ml-1 text-xl"></i>
             </div>
             <div class="absolute bottom-4 right-4 z-10 flex items-center gap-2 rounded bg-black/40 px-2.5 py-1 backdrop-blur-sm">
-              <span class="text-xs font-medium text-white/90">{{ 'videos.page.views_label' | translate: { count: video.views_count } }}</span>
-              <i class="fa-solid fa-eye text-[15px] text-white/90"></i>
+              <span class="text-xs font-normal text-white/90">{{ 'videos.page.views_label' | translate: { count: video.views_count } }}</span>
+              <i class="fa-solid fa-eye text-base text-white/90"></i>
             </div>
           </div>
           <div class="p-4">

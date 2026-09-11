@@ -39,7 +39,7 @@
             <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"><i class="fa-solid fa-clock" aria-hidden="true"></i></span>
             <i class="fa-solid fa-arrow-right text-xs text-slate-600 dark:text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-amber-700" aria-hidden="true"></i>
           </div>
-          <p class="mt-4 text-3xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{{ criticalLoading() ? '—' : (critical()?.total ?? 0) }}</p>
+          <p class="mt-4 text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{{ criticalLoading() ? '—' : (critical()?.total ?? 0) }}</p>
           <p class="mt-1 text-sm font-bold text-slate-800 dark:text-slate-200">ვადაგადაცილებული ოპერატორი</p>
           <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">სავალდებულო გაცნობის ვადა გასულია</p>
         </a>
@@ -50,7 +50,7 @@
           <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300"><i class="fa-solid fa-magnifying-glass-minus" aria-hidden="true"></i></span>
           <i class="fa-solid fa-arrow-down text-xs text-slate-600 dark:text-slate-400 group-hover:text-blue-500" aria-hidden="true"></i>
         </div>
-        <p class="mt-4 text-3xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{{ failedLoading() ? '—' : failedSearchTotal() }}</p>
+        <p class="mt-4 text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{{ failedLoading() ? '—' : failedSearchTotal() }}</p>
         <p class="mt-1 text-sm font-bold text-slate-800 dark:text-slate-200">უშედეგო ძიება</p>
         <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">ტერმინები, რომლებსაც პასუხი სჭირდება</p>
       </a>
@@ -73,7 +73,7 @@
             <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50 text-brand dark:bg-red-950/40 dark:text-red-300"><i class="fa-solid fa-clipboard-check" aria-hidden="true"></i></span>
             <i class="fa-solid fa-arrow-right text-xs text-slate-600 dark:text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-brand" aria-hidden="true"></i>
           </div>
-          <p class="mt-4 text-3xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{{ kpiLoading() ? '—' : (kpi()?.required_readings ?? 0) }}</p>
+          <p class="mt-4 text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{{ kpiLoading() ? '—' : (kpi()?.required_readings ?? 0) }}</p>
           <p class="mt-1 text-sm font-bold text-slate-800 dark:text-slate-200">აქტიური სავალდებულო მასალა</p>
           <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">სტატუსისა და ვადის სამართავად</p>
         </a>

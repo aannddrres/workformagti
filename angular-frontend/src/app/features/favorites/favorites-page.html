@@ -1,5 +1,5 @@
 <div class="mx-auto w-full max-w-[900px] px-4 pb-8 pt-4 md:px-6 md:pt-6">
-  <h2 class="mb-6 text-2xl font-semibold uppercase tracking-wider text-slate-800 dark:text-slate-100 md:text-4xl">{{ 'favorites.page.heading' | translate }}</h2>
+  <h2 class="mb-6 text-2xl font-semibold uppercase tracking-wider text-slate-800 dark:text-slate-100">{{ 'favorites.page.heading' | translate }}</h2>
 
   @if (loading()) {
     <div class="space-y-3">
@@ -26,7 +26,7 @@
                   <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-50 text-brand dark:bg-red-950/30">
                     <i class="fa-solid" [class]="iconFor(favorite.item_type)" aria-hidden="true"></i>
                   </div>
-                  <span class="truncate font-medium text-slate-800 dark:text-slate-100">{{ favorite.item_title }}</span>
+                  <span class="truncate font-normal text-slate-800 dark:text-slate-100">{{ favorite.item_title }}</span>
                 </div>
                 <button
                   type="button"

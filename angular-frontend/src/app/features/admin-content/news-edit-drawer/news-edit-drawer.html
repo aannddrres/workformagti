@@ -13,7 +13,7 @@
   <div class="flex-1 overflow-y-auto p-6">
     <form (submit)="submit($event)" (input)="markDirty()" (change)="markDirty()" class="mx-auto max-w-4xl space-y-5">
       <div>
-        <label for="news-title" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">{{ 'content.news.field_title' | translate }}</label>
+        <label for="news-title" class="mb-1.5 block text-sm font-normal text-slate-700 dark:text-slate-300">{{ 'content.news.field_title' | translate }}</label>
         <input
           id="news-title"
           type="text"
@@ -25,7 +25,7 @@
       </div>
 
       <div>
-        <label for="news-content" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">{{ 'content.news.field_content' | translate }}</label>
+        <label for="news-content" class="mb-1.5 block text-sm font-normal text-slate-700 dark:text-slate-300">{{ 'content.news.field_content' | translate }}</label>
         <textarea
           id="news-content"
           required
@@ -38,7 +38,7 @@
 
       <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
         <div>
-          <label for="news-department" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">{{ 'content.news.field_department' | translate }}</label>
+          <label for="news-department" class="mb-1.5 block text-sm font-normal text-slate-700 dark:text-slate-300">{{ 'content.news.field_department' | translate }}</label>
           <select
             id="news-department"
             (change)="targetDepartment.set($any($event.target).value)"
@@ -54,11 +54,11 @@
       </div>
 
       <div>
-        <label class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">{{ 'content.news.field_attachment' | translate }}</label>
+        <label class="mb-1.5 block text-sm font-normal text-slate-700 dark:text-slate-300">{{ 'content.news.field_attachment' | translate }}</label>
         <div class="flex items-center gap-3">
           <input #fileInput type="file" class="hidden" (change)="onFileInputChange($event)" />
           <button type="button" (click)="fileInput.click()" [disabled]="uploading()"
-            class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50 flex shrink-0 items-center gap-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
+            class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-normal text-slate-600 shadow-sm hover:bg-slate-50 flex shrink-0 items-center gap-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
             <i class="fa-solid fa-upload"></i> {{ (uploading() ? 'content.articles.uploading' : 'content.articles.upload') | translate }}
           </button>
           @if (attachmentUrl(); as url) {
@@ -79,10 +79,10 @@
                     {{ 'content.articles.mandatory_unknown' | translate }}
                   </span>
                 }
-          <label for="news-mandatory" class="text-sm font-medium text-slate-800 dark:text-slate-200">{{ 'content.articles.field_mandatory' | translate }}</label>
+          <label for="news-mandatory" class="text-sm font-normal text-slate-800 dark:text-slate-200">{{ 'content.articles.field_mandatory' | translate }}</label>
           @if (isMandatory()) {
             <div class="ml-4 flex flex-1 items-center gap-3 border-l border-slate-300 dark:border-slate-700 pl-4">
-              <label for="news-due-date" class="text-sm font-medium text-slate-600 dark:text-slate-400">{{ 'content.articles.field_due_date' | translate }}</label>
+              <label for="news-due-date" class="text-sm font-normal text-slate-600 dark:text-slate-400">{{ 'content.articles.field_due_date' | translate }}</label>
               <input
                 id="news-due-date"
                 type="date"
@@ -102,7 +102,7 @@
         @if (saveError()) {
           <span class="text-xs text-red-700 mr-auto">{{ saveError() }}</span>
         }
-        <button type="button" (click)="close()" class="rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
+        <button type="button" (click)="close()" class="rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-normal text-slate-600 shadow-sm hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
           {{ 'content.cancel' | translate }}
         </button>
         <button type="submit" [disabled]="saving()" class="rounded-xl bg-brand dark:bg-brand-700 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:opacity-60">

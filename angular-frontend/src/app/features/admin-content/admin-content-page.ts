@@ -269,13 +269,13 @@ export class AdminContentPage {
   protected tabClass(tab: ContentType): string {
     return this.activeTab() === tab
       ? 'border-b-2 border-brand px-4 pb-3 text-sm font-semibold text-brand'
-      : 'border-b-2 border-transparent px-4 pb-3 text-sm font-medium text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100';
+      : 'border-b-2 border-transparent px-4 pb-3 text-sm font-normal text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100';
   }
 
   protected pageButtonClass(page: number): string {
     return page === this.currentPage()
-      ? 'rounded-lg px-3 py-1.5 text-sm font-medium bg-brand dark:bg-brand-700 text-white shadow-sm'
-      : 'rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800';
+      ? 'rounded-lg px-3 py-1.5 text-sm font-normal bg-brand dark:bg-brand-700 text-white shadow-sm'
+      : 'rounded-lg px-3 py-1.5 text-sm font-normal text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800';
   }
 
   protected categoryName(article: ArticleSummary): string {

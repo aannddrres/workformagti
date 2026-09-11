@@ -35,7 +35,7 @@ import { ToastService } from '../../core/notifications/toast.service';
             [class]="toast.kind === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check'"
             aria-hidden="true"
           ></i>
-          <p class="min-w-0 flex-1 break-words text-sm font-medium">{{ toast.message }}</p>
+          <p class="min-w-0 flex-1 break-words text-sm font-normal">{{ toast.message }}</p>
           <button
             type="button"
             (click)="toastService.dismiss(toast.id)"

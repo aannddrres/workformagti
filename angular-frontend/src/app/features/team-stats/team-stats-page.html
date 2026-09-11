@@ -1,6 +1,6 @@
 <div class="mx-auto w-full max-w-[1440px] px-4 pb-8 pt-4 md:px-6 md:pt-6">
   <div class="mb-1 flex flex-wrap items-center justify-between gap-4">
-    <h2 class="text-2xl font-semibold uppercase tracking-wider text-slate-800 dark:text-slate-100 md:text-4xl">{{ 'manager.page.heading' | translate }}</h2>
+    <h2 class="text-2xl font-semibold uppercase tracking-wider text-slate-800 dark:text-slate-100">{{ 'manager.page.heading' | translate }}</h2>
     <div class="flex flex-wrap items-center gap-3">
       @if (leadershipGroups().length > 1) {
         <label class="sr-only" for="managed-team">მართვადი გუნდი</label>
@@ -14,14 +14,14 @@
       }
       <button
         (click)="toggleSort()"
-        class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
+        class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-normal text-slate-600 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
       >
         <i class="fa-solid fa-arrow-down-wide-short" aria-hidden="true"></i>
         {{ (sortMode() === 'compliance' ? 'manager.page.sort_by_name' : 'manager.page.sort_by_compliance') | translate }}
       </button>
       <button
         (click)="refresh()"
-        class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
+        class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-normal text-slate-600 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
       >
         <i class="fa-solid fa-rotate-right" aria-hidden="true"></i> {{ 'manager.page.refresh' | translate }}
       </button>
@@ -48,7 +48,7 @@
     <div class="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
       <div class="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
         <p class="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">{{ 'manager.page.ribbon_compliance' | translate }}</p>
-        <p class="mt-3 text-4xl font-semibold tabular-nums text-slate-800 dark:text-slate-100">{{ data.insights.global_compliance }}%</p>
+        <p class="mt-3 text-2xl font-semibold tabular-nums text-slate-800 dark:text-slate-100">{{ data.insights.global_compliance }}%</p>
         <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">{{ 'manager.page.ribbon_compliance_hint' | translate: { count: data.insights.total_members } }}</p>
       </div>
       <div
@@ -60,14 +60,14 @@
       >
         <p class="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">{{ 'manager.page.ribbon_critical' | translate }}</p>
         <p
-          class="mt-3 text-4xl font-semibold tabular-nums"
+          class="mt-3 text-2xl font-semibold tabular-nums"
           [class]="data.insights.critical_operators > 0 ? 'text-brand dark:text-red-400' : 'text-slate-800 dark:text-slate-100'"
         >{{ data.insights.critical_operators }}</p>
         <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">{{ 'manager.page.ribbon_critical_hint' | translate }}</p>
       </div>
       <div class="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
         <p class="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">{{ 'manager.page.ribbon_output' | translate }}</p>
-        <p class="mt-3 text-4xl font-semibold tabular-nums text-slate-800 dark:text-slate-100">{{ data.insights.total_output_volume }}</p>
+        <p class="mt-3 text-2xl font-semibold tabular-nums text-slate-800 dark:text-slate-100">{{ data.insights.total_output_volume }}</p>
         <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">{{ 'manager.page.ribbon_output_hint' | translate }}</p>
       </div>
     </div>
@@ -109,7 +109,7 @@
                   class="cursor-pointer rounded-lg px-1 py-2.5 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
                 >
                   <div class="mb-1.5 flex items-center justify-between gap-2 text-sm">
-                    <span class="truncate font-medium text-slate-700 dark:text-slate-300">
+                    <span class="truncate font-normal text-slate-700 dark:text-slate-300">
                       {{ group.name }}
                       <span class="ml-1.5 text-xs font-normal text-slate-600 dark:text-slate-400">· {{ group.member_count }}</span>
                       @if (group.critical_count > 0) {
@@ -143,7 +143,7 @@
         type="button"
         (click)="exportCsv()"
         [disabled]="exportingCsv() || asyncExport() !== null"
-        class="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+        class="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-normal text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
       >
         @if (exportingCsv()) {
           <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
@@ -157,7 +157,7 @@
         type="button"
         (click)="exportXlsx()"
         [disabled]="exportingCsv() || asyncExport() !== null"
-        class="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+        class="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-normal text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
       >
         @if (asyncExport()?.kind === 'xlsx') {
           <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
@@ -171,7 +171,7 @@
         type="button"
         (click)="exportPdf()"
         [disabled]="exportingCsv() || asyncExport() !== null"
-        class="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+        class="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-normal text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
       >
         @if (asyncExport()?.kind === 'pdf') {
           <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
@@ -185,7 +185,7 @@
         type="button"
         (click)="exportTeamStatsPdf()"
         [disabled]="exportingCsv() || asyncExport() !== null"
-        class="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+        class="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-normal text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
       >
         @if (asyncExport()?.kind === 'team_stats_pdf') {
           <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>

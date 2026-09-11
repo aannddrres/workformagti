@@ -53,11 +53,16 @@
     'Noto Sans Georgian', 'BPG Arial', Sylfaen, system-ui, -apple-system, 'Segoe UI', Roboto, Arial,
     sans-serif;
 
-  /* A bundled Georgian-capable reading face for long-form knowledge-base
-   * content. This avoids the serif Sylfaen fallback on managed Windows PCs
-   * and works without internet access. It is intentionally scoped to the
-   * reader until the official brand font is approved. */
-  --font-reading: 'Portal Georgian', 'DejaVu Sans', var(--font-sans);
+  /* The reader used to have a face of its own -- DejaVu Sans, shipped as
+   * 'Portal Georgian' -- to avoid the serif Sylfaen fallback on managed
+   * Windows PCs. Noto Sans Georgian, bundled below, already closes that gap,
+   * and DejaVu was declared `font-weight: 100 900` off a single regular file,
+   * so every bold in an article was synthesised. Measured in the browser:
+   * DejaVu rendered 400 and 700 at 530.6px and 532.8px for the same string --
+   * a 0.4% difference -- while Noto, which ships three real files, rendered
+   * 586.7px and 614.3px. The reader now uses the UI stack; --font-reading is
+   * gone rather than aliased, because an indirection to the same value only
+   * hides that there is one family. */
 
   /* User-controlled accessibility scale. Every Tailwind rem value follows
    * this root size, so the layout reflows instead of merely magnifying pixels. */
@@ -114,14 +119,6 @@
   font-display: swap;
 }
 
-@font-face {
-  font-family: 'Portal Georgian';
-  src: url('/fonts/DejaVuSans.ttf') format('truetype');
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-}
-
 @layer base {
   html {
     font-family: var(--font-sans);
@@ -174,7 +171,7 @@
   }
 
   .portal-title {
-    @apply text-2xl font-bold tracking-[-0.025em] text-slate-900 dark:text-slate-50 lg:text-3xl;
+    @apply text-2xl font-bold tracking-[-0.025em] text-slate-900 dark:text-slate-50;
   }
 
   .portal-subtitle {
@@ -245,11 +242,6 @@
    * browser's paragraph/list rhythm, and this project does not load the
    * typography plugin, so a plain `prose` class cannot restore it. These
    * rules style the legacy HTML as-is; they do not rewrite stored content. */
-  .article-reader,
-  .article-reader-title {
-    font-family: var(--font-reading);
-  }
-
   .article-reader {
     color: rgb(51 65 85);
     font-size: 1.0625rem;
