@@ -21,7 +21,10 @@
   } @else if (errorMessage()) {
     <p class="col-span-full text-sm text-red-700">{{ errorMessage() }}</p>
   } @else if (filtered().length === 0) {
-    <p class="col-span-full text-sm text-slate-600 dark:text-slate-400">{{ 'videos.page.empty' | translate }}</p>
+    <div class="empty-state">
+      <i class="fa-regular fa-circle-play text-2xl" aria-hidden="true"></i>
+      <p>{{ 'videos.page.empty' | translate }}</p>
+    </div>
   } @else {
     <div class="mb-10 grid grid-cols-1 gap-6 md:grid-cols-3">
       @for (video of filtered(); track video.id) {
@@ -43,7 +46,7 @@
             <div class="relative z-10 flex h-14 w-14 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm transition-transform group-hover:scale-110 group-hover:bg-white/30">
               <i class="fa-solid fa-play ml-1 text-xl"></i>
             </div>
-            <div class="absolute bottom-4 right-4 z-10 flex items-center gap-2 rounded-sm bg-black/40 animate-overlay-in px-2.5 py-1 backdrop-blur-sm">
+            <div class="absolute bottom-4 right-4 z-10 flex items-center gap-2 rounded-sm dialog-backdrop px-2.5 py-1 backdrop-blur-sm">
               <span class="text-xs font-normal text-white/90">{{ 'videos.page.views_label' | translate: { count: video.views_count } }}</span>
               <i class="fa-solid fa-eye text-base text-white/90"></i>
             </div>

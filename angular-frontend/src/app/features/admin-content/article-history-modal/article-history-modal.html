@@ -1,5 +1,5 @@
-<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-  <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" (click)="close()"></div>
+<div class="fixed inset-0 z-modal flex items-center justify-center p-4">
+  <div class="absolute inset-0 dialog-backdrop" (click)="close()"></div>
   <div portalDialog portalDialogLabelledBy="article-history-heading" (portalDialogClose)="close()" class="animate-panel-in relative z-10 flex h-[85vh] w-[90vw] max-w-3xl flex-col overflow-hidden rounded-lg bg-white p-6 shadow-e3 dark:bg-slate-900">
     <button
       type="button"
@@ -61,7 +61,7 @@
                     type="button"
                     (click)="restore(item)"
                     [disabled]="restoringId() === item.id"
-                    class="text-xs font-bold text-brand-accent hover:text-red-700 hover:underline disabled:cursor-not-allowed disabled:opacity-60 dark:text-red-400 dark:hover:text-red-300"
+                    class="text-xs font-bold text-brand-accent hover:text-red-700 hover:underline disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
                   >
                     {{ 'content.history.restore' | translate }}
                   </button>

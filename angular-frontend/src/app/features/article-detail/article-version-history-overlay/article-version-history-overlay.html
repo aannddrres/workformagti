@@ -1,5 +1,5 @@
-<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-  <div class="absolute inset-0 bg-black/40 animate-overlay-in backdrop-blur-sm" (click)="close()"></div>
+<div class="fixed inset-0 z-modal flex items-center justify-center p-4">
+  <div class="absolute inset-0 dialog-backdrop" (click)="close()"></div>
   <div portalDialog portalDialogLabelledBy="version-history-heading" (portalDialogClose)="close()" class="animate-panel-in relative z-10 flex h-[80vh] w-[90vw] max-w-4xl flex-col overflow-hidden rounded-lg border border-slate-200 bg-white p-6 shadow-e3 dark:border-slate-800 dark:bg-slate-900">
     <div class="mb-4 flex shrink-0 items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
       <h3 id="version-history-heading" class="text-lg font-bold text-slate-900 dark:text-slate-100">{{ 'articles.version_history.heading' | translate }}</h3>

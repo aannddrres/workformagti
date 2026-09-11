@@ -54,39 +54,39 @@ export class AppShell implements OnDestroy {
   protected readonly sidebarCollapsed = signal(localStorage.getItem('magti_sidebar_collapsed') === 'true');
   protected readonly fontMenuOpen = signal(false);
   protected readonly accountMenuOpen = signal(false);
-  protected readonly pageTitle = signal('მთავარი');
+  protected readonly pageTitle = signal('');
 
   protected readonly sections: NavSection[] = [
     {
-      label: 'სამუშაო',
+      label: 'nav.sidebar.section_work',
       links: [
-        { label: 'მთავარი', path: '/', icon: 'fa-house' },
-        { label: 'ცოდნის ბაზა', path: '/info', icon: 'fa-book-open' },
-        { label: 'სავალდებულო გაცნობა', path: '/reading', icon: 'fa-clipboard-check', denyRoles: ['admin', 'content_admin', 'manager'] },
-        { label: 'სიახლეები', path: '/news', icon: 'fa-newspaper' },
-        { label: 'ვიდეო ინსტრუქციები', path: '/videos', icon: 'fa-circle-play' },
-        { label: 'რჩეულები', path: '/favorites', icon: 'fa-star' }
+        { label: 'nav.sidebar.home', path: '/', icon: 'fa-house' },
+        { label: 'nav.sidebar.section_kb', path: '/info', icon: 'fa-book-open' },
+        { label: 'nav.sidebar.mandatory_reading', path: '/reading', icon: 'fa-clipboard-check', denyRoles: ['admin', 'content_admin', 'manager'] },
+        { label: 'nav.sidebar.news', path: '/news', icon: 'fa-newspaper' },
+        { label: 'nav.sidebar.video_instructions', path: '/videos', icon: 'fa-circle-play' },
+        { label: 'nav.sidebar.favorites', path: '/favorites', icon: 'fa-star' }
       ]
     },
     {
-      label: 'გუნდი',
+      label: 'nav.sidebar.section_team',
       links: [
-        { label: 'გუნდის მდგომარეობა', path: '/manager', icon: 'fa-users', allowRoles: ['admin', 'manager'] }
+        { label: 'nav.sidebar.team_stats', path: '/manager', icon: 'fa-users', allowRoles: ['admin', 'manager'] }
       ]
     },
     {
-      label: 'ადმინისტრირება',
+      label: 'nav.sidebar.section_admin',
       links: [
-        { label: 'საერთო სტატისტიკა', path: '/admin/overview', icon: 'fa-chart-line', requiresPermission: 'stats.view' },
-        { label: 'სანაგვე', path: '/admin/trash', icon: 'fa-trash-can-arrow-up', requiresPermission: 'content.manage' },
-        { label: 'კატეგორიები', path: '/admin/categories', icon: 'fa-folder-tree', requiresPermission: 'content.manage' },
-        { label: 'განცხადებები', path: '/admin/broadcasts', icon: 'fa-bullhorn', requiresAnnouncementPublisher: true },
-        { label: 'მომხმარებლები და წვდომა', path: '/admin/access', icon: 'fa-user-shield', allowRoles: ['admin'] },
-        { label: 'ორგანიზაციული სტრუქტურა', path: '/admin/org', icon: 'fa-sitemap', allowRoles: ['admin'] },
-        { label: 'ლიდერების დანიშვნა', path: '/admin/org/assignments', icon: 'fa-user-tie', allowRoles: ['admin'] },
-        { label: 'მონაცემების ექსპორტი', path: '/admin/exports', icon: 'fa-file-export', allowRoles: ['admin'] },
-        { label: 'აუდიტი და უსაფრთხოება', path: '/admin/audit', icon: 'fa-shield-halved', allowRoles: ['admin'] },
-        { label: 'კონტენტის სამუშაო სივრცე', path: '/admin/content', icon: 'fa-file-lines', requiresPermission: 'content.manage' }
+        { label: 'nav.sidebar.admin_stats', path: '/admin/overview', icon: 'fa-chart-line', requiresPermission: 'stats.view' },
+        { label: 'nav.sidebar.admin_trash', path: '/admin/trash', icon: 'fa-trash-can-arrow-up', requiresPermission: 'content.manage' },
+        { label: 'nav.sidebar.admin_categories', path: '/admin/categories', icon: 'fa-folder-tree', requiresPermission: 'content.manage' },
+        { label: 'nav.sidebar.admin_broadcasts', path: '/admin/broadcasts', icon: 'fa-bullhorn', requiresAnnouncementPublisher: true },
+        { label: 'nav.sidebar.admin_users', path: '/admin/access', icon: 'fa-user-shield', allowRoles: ['admin'] },
+        { label: 'nav.sidebar.admin_org', path: '/admin/org', icon: 'fa-sitemap', allowRoles: ['admin'] },
+        { label: 'nav.sidebar.admin_assignments', path: '/admin/org/assignments', icon: 'fa-user-tie', allowRoles: ['admin'] },
+        { label: 'nav.sidebar.admin_exports', path: '/admin/exports', icon: 'fa-file-export', allowRoles: ['admin'] },
+        { label: 'nav.sidebar.admin_logs', path: '/admin/audit', icon: 'fa-shield-halved', allowRoles: ['admin'] },
+        { label: 'nav.sidebar.admin_content', path: '/admin/content', icon: 'fa-file-lines', requiresPermission: 'content.manage' }
       ]
     }
   ];
@@ -204,7 +204,7 @@ export class AppShell implements OnDestroy {
     }
     const titleKey = active.snapshot?.data?.['title'] as string | undefined;
     if (!titleKey) {
-      this.pageTitle.set('მთავარი');
+      this.translate.get('nav.sidebar.home').subscribe((title) => this.pageTitle.set(title));
       return;
     }
 

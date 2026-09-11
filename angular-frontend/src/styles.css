@@ -199,6 +199,23 @@
     @apply mt-1 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-400;
   }
 
+  /* One backdrop. There were five treatments -- black/40, black/50,
+   * slate-950/45, slate-950/55, with and without blur -- so the dim behind a
+   * dialog changed depending on which screen opened it. Positioning stays on
+   * the element, because some backdrops are `fixed` and some are `absolute`
+   * inside an already-fixed wrapper. */
+  /* Empty states existed on every list -- the audit's "no empty state" note was
+   * wrong about that -- but each one was a bare <p>, aligned differently per
+   * screen, next to one properly illustrated example in the admin queue. This
+   * is that example, made shared. */
+  .empty-state {
+    @apply flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-slate-200 px-6 py-12 text-center text-sm text-slate-600 dark:border-slate-700 dark:text-slate-400;
+  }
+
+  .dialog-backdrop {
+    @apply bg-slate-950/55 backdrop-blur-sm animate-overlay-in;
+  }
+
   .surface-card {
     @apply rounded-lg border border-slate-200 bg-white shadow-e1 dark:border-slate-700 dark:bg-slate-900;
   }
@@ -235,23 +252,38 @@
     @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold;
   }
 
+  /* The frame every table shares. Thirteen of them hand-rolled a near-identical
+   * version of this and only one used the class. */
   .table-shell {
-    @apply overflow-hidden rounded-lg border border-slate-200 bg-white shadow-e1 dark:border-slate-700 dark:bg-slate-900;
+    @apply overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-e1 dark:border-slate-700 dark:bg-slate-900;
   }
 
-  .table-shell table {
+  /* The frame and the table styling are separate, because two tables live
+   * inside a `.surface-card` already and a second border around them would
+   * read as a box in a box. */
+  .table-shell table,
+  .data-table {
     @apply w-full text-left text-sm;
   }
 
-  .table-shell thead {
-    @apply sticky top-0 z-10 bg-slate-50/95 text-xs font-bold text-slate-600 backdrop-blur dark:bg-slate-800/95 dark:text-slate-400;
+  /* Not sticky. It was declared `sticky top-0` here, but a sticky header needs
+   * a scroll container with a height to stick inside, and the shell has none --
+   * so it never engaged anywhere, and on admin-users the `overflow-x-auto` added
+   * beside it turned the shell into a scroller and broke the corners too. The
+   * one screen that genuinely wants a sticky header (admin-stats) caps its own
+   * height and keeps doing that. A rule that cannot work is worse than no rule. */
+  .table-shell thead,
+  .data-table thead {
+    @apply bg-slate-50/95 text-xs font-bold text-slate-600 backdrop-blur dark:bg-slate-800/95 dark:text-slate-400;
   }
 
-  .table-shell tbody {
+  .table-shell tbody,
+  .data-table tbody {
     @apply divide-y divide-slate-100 dark:divide-slate-800;
   }
 
-  .table-shell tbody tr {
+  .table-shell tbody tr,
+  .data-table tbody tr {
     @apply transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/55;
   }
 

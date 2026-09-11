@@ -50,6 +50,18 @@ module.exports = {
       // lands on the scale instead of Tailwind's unchosen 150ms and its own
       // easing. 120ms suits the hover feedback that bare `transition` is
       // nearly always used for; anything that moves asks for base or slow.
+      // A named ladder. There were ten levels including `z-[100]`, `z-[110]` and
+      // `z-[120]`, and `z-50` shared by eleven files with no agreement between
+      // them. Local stacking inside a dialog keeps plain `z-10`; these are the
+      // app-wide tiers only.
+      zIndex: {
+        chrome: '30',   // sticky header, nav scrim
+        panel: '40',    // sidebar, drawer backdrops
+        modal: '50',    // dialogs, drawers, the command palette
+        confirm: '60',  // a confirmation raised from inside one of those
+        toast: '70',    // must stay visible over anything above
+        session: '80'   // the session-expiry warning outranks everything
+      },
       transitionDuration: { DEFAULT: '120ms', fast: '120ms', base: '180ms', slow: '240ms' },
       transitionTimingFunction: {
         DEFAULT: 'cubic-bezier(0.2, 0, 0, 1)',

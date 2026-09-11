@@ -34,7 +34,10 @@
   } @else if (errorMessage()) {
     <p class="py-8 text-center text-sm text-red-700">{{ errorMessage() }}</p>
   } @else if (filteredReadings().length === 0) {
-    <p class="py-8 text-center text-sm text-slate-600 dark:text-slate-400">{{ 'readings.page.empty' | translate }}</p>
+    <div class="empty-state">
+      <i class="fa-regular fa-clipboard-check text-2xl" aria-hidden="true"></i>
+      <p>{{ 'readings.page.empty' | translate }}</p>
+    </div>
   } @else {
     <div class="flex flex-col gap-3">
       @for (item of filteredReadings(); track item.reading.id) {

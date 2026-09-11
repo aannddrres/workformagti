@@ -14,10 +14,10 @@ import { PortalDialog } from '../portal-dialog/portal-dialog';
   imports: [TranslatePipe, PortalDialog],
   template: `
     @if (confirmService.pending(); as request) {
-      <div class="fixed inset-0 z-[120] flex items-center justify-center p-4">
+      <div class="fixed inset-0 z-confirm flex items-center justify-center p-4">
         <button
           type="button"
-          class="absolute inset-0 bg-slate-950/55 animate-overlay-in"
+          class="absolute inset-0 dialog-backdrop"
           [attr.aria-label]="'shared.confirm.cancel' | translate"
           (click)="confirmService.respond(false)"
         ></button>

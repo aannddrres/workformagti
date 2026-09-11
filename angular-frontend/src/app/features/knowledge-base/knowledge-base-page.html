@@ -73,9 +73,10 @@
   } @else if (errorMessage()) {
     <p class="text-sm text-red-700">{{ errorMessage() }}</p>
   } @else if (cards().length === 0) {
-    <p class="text-sm text-slate-600 dark:text-slate-400">
-      {{ 'articles.kb_page.no_results' | translate }}
-    </p>
+    <div class="empty-state">
+      <i class="fa-regular fa-folder-open text-2xl" aria-hidden="true"></i>
+      <p>{{ 'articles.kb_page.no_results' | translate }}</p>
+    </div>
   } @else {
     <div class="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
       @for (card of cards(); track card.id) {

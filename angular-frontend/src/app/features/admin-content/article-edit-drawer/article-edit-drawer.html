@@ -1,6 +1,6 @@
-<div class="fixed inset-0 z-40 bg-black/40 animate-overlay-in backdrop-blur-sm" (click)="close()"></div>
+<div class="fixed inset-0 z-panel dialog-backdrop" (click)="close()"></div>
 
-<div portalDialog portalDialogLabelledBy="article-editor-heading" (portalDialogClose)="close()" class="animate-panel-in fixed inset-0 z-50 flex w-full flex-col bg-white dark:bg-slate-900">
+<div portalDialog portalDialogLabelledBy="article-editor-heading" (portalDialogClose)="close()" class="animate-panel-in fixed inset-0 z-modal flex w-full flex-col bg-white dark:bg-slate-900">
   <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-4">
     <h3 id="article-editor-heading" class="text-xl font-bold text-slate-800 dark:text-slate-100">
       {{ (isEditing ? 'content.articles.edit_title' : 'content.articles.new_title') | translate }}
@@ -145,13 +145,15 @@
                       type="date"
                       [value]="dueDate()"
                       (input)="dueDate.set($any($event.target).value)"
+                      [attr.aria-invalid]="dueDateError() || null"
+                      [attr.aria-describedby]="dueDateError() ? 'due-date-error' : null"
                       class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-800 focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                     />
                   </div>
                 }
               </div>
               @if (dueDateError()) {
-                <p class="text-xs text-red-700">{{ 'content.articles.mandatory_due_date_required' | translate }}</p>
+                <p id="due-date-error" role="alert" class="text-xs text-red-700">{{ 'content.articles.mandatory_due_date_required' | translate }}</p>
               }
             </div>
 
@@ -190,7 +192,7 @@
                   }
                 </div>
                 @if (departmentError()) {
-                  <p class="text-xs text-red-700">{{ 'content.articles.department_required' | translate }}</p>
+                  <p role="alert" class="text-xs text-red-700">{{ 'content.articles.department_required' | translate }}</p>
                 }
               </div>
             </details>
@@ -207,7 +209,7 @@
             <button type="button" (click)="close()" class="rounded-lg border border-slate-300 bg-white px-6 py-2.5 text-sm font-normal text-slate-600 shadow-e1 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
               {{ 'content.cancel' | translate }}
             </button>
-            <button type="submit" [disabled]="saving()" class="rounded-lg bg-brand dark:bg-brand-700 px-6 py-2.5 text-sm font-semibold text-white shadow-e1 hover:bg-brand-700 disabled:opacity-60">
+            <button type="submit" [disabled]="saving()" class="rounded-lg bg-brand dark:bg-brand-700 px-6 py-2.5 text-sm font-semibold text-white shadow-e1 hover:bg-brand-700 disabled:opacity-50">
               {{ (saving() ? 'content.saving' : 'content.save') | translate }}
             </button>
           </div>

@@ -2,15 +2,15 @@
   @if (mobileMenuOpen()) {
     <button
       type="button"
-      class="fixed inset-0 z-30 bg-slate-950/45 animate-overlay-in lg:hidden"
-      aria-label="მენიუს დახურვა"
+      class="fixed inset-0 z-chrome dialog-backdrop lg:hidden"
+      [attr.aria-label]="'nav.sidebar.menu_close' | translate"
       (click)="closeMobileMenu()"
     ></button>
   }
 
   <div class="flex min-h-screen">
     <aside
-      class="fixed inset-y-0 left-0 z-40 flex w-[18rem] shrink-0 -translate-x-full flex-col border-r border-slate-200 bg-white transition-[width,transform] duration-base dark:border-slate-800 dark:bg-slate-950 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0"
+      class="fixed inset-y-0 left-0 z-panel flex w-[18rem] shrink-0 -translate-x-full flex-col border-r border-slate-200 bg-white transition-[width,transform] duration-base dark:border-slate-800 dark:bg-slate-950 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0"
       [class.translate-x-0]="mobileMenuOpen()"
       [class.lg:w-[5.25rem]]="sidebarCollapsed()"
       [attr.aria-hidden]="isMobile() && !mobileMenuOpen() ? 'true' : null"
@@ -27,20 +27,20 @@
           type="button"
           (click)="toggleSidebar()"
           class="hidden h-9 w-9 items-center justify-center rounded-md text-slate-600 dark:text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-100 lg:flex"
-          [attr.aria-label]="sidebarCollapsed() ? 'მენიუს გაშლა' : 'მენიუს შეკუმშვა'"
+          [attr.aria-label]="(sidebarCollapsed() ? 'nav.sidebar.sidebar_expand' : 'nav.sidebar.sidebar_collapse') | translate"
         >
           <i class="fa-solid" [class.fa-angles-left]="!sidebarCollapsed()" [class.fa-angles-right]="sidebarCollapsed()" aria-hidden="true"></i>
         </button>
       </div>
 
-      <nav class="flex-1 space-y-6 overflow-y-auto px-3 py-5" aria-label="მთავარი ნავიგაცია">
+      <nav class="flex-1 space-y-6 overflow-y-auto px-3 py-5" [attr.aria-label]="'nav.sidebar.primary_navigation' | translate">
         @for (section of sections; track section.label) {
           @if (sectionVisible(section)) {
             <section>
               <p
                 class="mb-2 px-3 text-xs font-bold uppercase tracking-[0.16em] text-slate-600 dark:text-slate-400"
                 [class.lg:hidden]="sidebarCollapsed()"
-              >{{ section.label }}</p>
+              >{{ section.label | translate }}</p>
               <div class="space-y-1">
                 @for (link of section.links; track link.path) {
                   @if (canSee(link)) {
@@ -48,13 +48,13 @@
                       [routerLink]="link.path"
                       routerLinkActive="bg-brand/[0.08] text-brand-accent before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-r before:bg-brand dark:bg-brand/15 dark:text-red-300"
                       [routerLinkActiveOptions]="{ exact: link.path === '/' }"
-                      [title]="sidebarCollapsed() ? link.label : ''"
+                      [title]="sidebarCollapsed() ? (link.label | translate) : ''"
                       class="relative flex min-h-10 items-center gap-3 rounded-md px-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                     >
                       <span class="flex h-6 w-6 shrink-0 items-center justify-center text-sm">
                         <i class="fa-solid" [class]="link.icon" aria-hidden="true"></i>
                       </span>
-                      <span class="truncate" [class.lg:hidden]="sidebarCollapsed()">{{ link.label }}</span>
+                      <span class="truncate" [class.lg:hidden]="sidebarCollapsed()">{{ link.label | translate }}</span>
                     </a>
                   }
                 }
@@ -81,12 +81,12 @@
     </aside>
 
     <div class="flex min-w-0 flex-1 flex-col">
-      <header class="sticky top-0 z-30 flex min-h-[4.5rem] flex-wrap items-center gap-3 border-b border-slate-200 bg-white/95 px-4 py-2 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 lg:flex-nowrap lg:px-6">
+      <header class="sticky top-0 z-chrome flex min-h-[4.5rem] flex-wrap items-center gap-3 border-b border-slate-200 bg-white/95 px-4 py-2 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 lg:flex-nowrap lg:px-6">
         <button
           type="button"
           (click)="toggleMobileMenu()"
           class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 lg:hidden"
-          aria-label="მენიუს გახსნა"
+          [attr.aria-label]="'nav.sidebar.menu_open' | translate"
         ><i class="fa-solid fa-bars" aria-hidden="true"></i></button>
 
         <div class="hidden min-w-0 shrink-0 xl:block">
@@ -104,11 +104,11 @@
             (click)="toggleFontMenu()"
             class="flex h-10 min-w-10 items-center justify-center rounded-md px-2 text-sm font-bold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
             [attr.aria-expanded]="fontMenuOpen()"
-            aria-label="შრიფტის ზომა"
+            [attr.aria-label]="'nav.sidebar.font_size' | translate"
             title="შრიფტის ზომა"
           >A<span class="ml-0.5 text-xs">{{ fontScale.scale() * 100 | number:'1.0-0' }}%</span></button>
           @if (fontMenuOpen()) {
-            <div class="absolute right-0 top-12 z-50 w-44 rounded-lg border border-slate-200 bg-white p-2 shadow-e3 dark:border-slate-700 dark:bg-slate-900">
+            <div class="absolute right-0 top-12 z-modal w-44 rounded-lg border border-slate-200 bg-white p-2 shadow-e3 dark:border-slate-700 dark:bg-slate-900">
               <p class="px-2 pb-2 pt-1 text-xs font-bold text-slate-600 dark:text-slate-400">შრიფტის ზომა</p>
               @for (option of fontScale.options; track option.value) {
                 <button
@@ -142,13 +142,13 @@
             (click)="toggleAccountMenu()"
             class="flex h-10 items-center gap-2 rounded-md p-1.5 pr-2 transition hover:bg-slate-100 dark:hover:bg-slate-800"
             [attr.aria-expanded]="accountMenuOpen()"
-            aria-label="ანგარიშის მენიუ"
+            [attr.aria-label]="'nav.sidebar.account_menu' | translate"
           >
             <span class="flex h-7 w-7 items-center justify-center rounded-md bg-slate-900 text-xs font-bold text-white dark:bg-white dark:text-slate-900">{{ initials() }}</span>
             <i class="fa-solid fa-chevron-down text-xs text-slate-600 dark:text-slate-400" aria-hidden="true"></i>
           </button>
           @if (accountMenuOpen()) {
-            <div class="absolute right-0 top-12 z-50 w-72 rounded-lg border border-slate-200 bg-white p-2 shadow-e3 dark:border-slate-700 dark:bg-slate-900">
+            <div class="absolute right-0 top-12 z-modal w-72 rounded-lg border border-slate-200 bg-white p-2 shadow-e3 dark:border-slate-700 dark:bg-slate-900">
               <div class="border-b border-slate-100 px-3 py-3 dark:border-slate-800">
                 <p class="truncate text-sm font-bold text-slate-900 dark:text-slate-100">{{ profiles.profile()?.name || 'მომხმარებელი' }}</p>
                 <p class="truncate text-xs text-slate-600 dark:text-slate-400">{{ auth.currentUser()?.email }}</p>
@@ -173,7 +173,7 @@
 </div>
 
 @if (idleSession.warningOpen()) {
-  <div class="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/55 animate-overlay-in p-4">
+  <div class="fixed inset-0 z-session flex items-center justify-center dialog-backdrop p-4">
     <section
       portalDialog
       portalDialogLabelledBy="session-warning-heading"

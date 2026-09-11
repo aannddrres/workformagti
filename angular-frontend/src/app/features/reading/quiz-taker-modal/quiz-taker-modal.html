@@ -1,5 +1,5 @@
-<div class="fixed inset-0 z-[110] flex items-center justify-center p-4">
-  <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" (click)="close()"></div>
+<div class="fixed inset-0 z-modal flex items-center justify-center p-4">
+  <div class="absolute inset-0 dialog-backdrop" (click)="close()"></div>
   <div portalDialog portalDialogLabelledBy="quiz-heading" portalDialogDescribedBy="quiz-instructions" (portalDialogClose)="close()" class="animate-panel-in relative z-10 max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-lg bg-white p-8 shadow-e3 dark:bg-slate-900">
     <button
       type="button"
@@ -56,7 +56,7 @@
         type="button"
         (click)="submit()"
         [disabled]="submitting() || selectedAnswers().size < q.questions.length"
-        class="mt-6 w-full rounded-lg bg-brand dark:bg-brand-700 py-3 text-sm font-bold text-white shadow-e1 transition hover:bg-brand-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+        class="mt-6 w-full rounded-lg bg-brand dark:bg-brand-700 py-3 text-sm font-bold text-white shadow-e1 transition hover:bg-brand-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
       >
         @if (submitting()) {
           <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>

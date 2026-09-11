@@ -17,7 +17,7 @@ import { ToastService } from '../../core/notifications/toast.service';
   imports: [TranslatePipe],
   template: `
     <div
-      class="pointer-events-none fixed bottom-4 right-4 z-[100] flex w-[min(92vw,26rem)] flex-col gap-2"
+      class="pointer-events-none fixed bottom-4 right-4 z-toast flex w-[min(92vw,26rem)] flex-col gap-2"
       role="status"
       aria-live="assertive"
     >

@@ -62,7 +62,10 @@
   } @else if (errorMessage()) {
     <p class="py-8 text-center text-sm text-red-700">{{ errorMessage() }}</p>
   } @else if (filteredItems().length === 0) {
-    <p class="py-8 text-center text-sm text-slate-600 dark:text-slate-400">{{ 'news.page.empty' | translate }}</p>
+    <div class="empty-state">
+      <i class="fa-regular fa-newspaper text-2xl" aria-hidden="true"></i>
+      <p>{{ 'news.page.empty' | translate }}</p>
+    </div>
   } @else {
     <div class="mb-6 flex flex-col gap-4">
       @for (item of filteredItems(); track item.id) {
@@ -100,7 +103,7 @@
         <button
           (click)="loadMore()"
           [disabled]="loadingMore()"
-          class="rounded-lg border border-slate-300 bg-white px-6 py-2.5 text-sm font-normal text-slate-600 shadow-e1 transition-colors hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+          class="rounded-lg border border-slate-300 bg-white px-6 py-2.5 text-sm font-normal text-slate-600 shadow-e1 transition-colors hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
         >
           @if (loadingMore()) {
             <i class="fa-solid fa-spinner fa-spin mr-1.5"></i>{{ 'news.page.load_more_loading' | translate }}

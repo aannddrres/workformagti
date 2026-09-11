@@ -10,7 +10,10 @@
   } @else if (errorMessage()) {
     <p class="py-8 text-center text-sm text-red-700">{{ errorMessage() }}</p>
   } @else if (groups().length === 0) {
-    <p class="py-8 text-center text-sm text-slate-600 dark:text-slate-400">{{ 'favorites.page.empty' | translate }}</p>
+    <div class="empty-state">
+      <i class="fa-regular fa-star text-2xl" aria-hidden="true"></i>
+      <p>{{ 'favorites.page.empty' | translate }}</p>
+    </div>
   } @else {
     <div class="space-y-8">
       @for (group of groups(); track group.type) {

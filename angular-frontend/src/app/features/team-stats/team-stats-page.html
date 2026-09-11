@@ -143,7 +143,7 @@
         type="button"
         (click)="exportCsv()"
         [disabled]="exportingCsv() || asyncExport() !== null"
-        class="flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-normal text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+        class="flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-normal text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
       >
         @if (exportingCsv()) {
           <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
@@ -157,7 +157,7 @@
         type="button"
         (click)="exportXlsx()"
         [disabled]="exportingCsv() || asyncExport() !== null"
-        class="flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-normal text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+        class="flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-normal text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
       >
         @if (asyncExport()?.kind === 'xlsx') {
           <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
@@ -171,7 +171,7 @@
         type="button"
         (click)="exportPdf()"
         [disabled]="exportingCsv() || asyncExport() !== null"
-        class="flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-normal text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+        class="flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-normal text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
       >
         @if (asyncExport()?.kind === 'pdf') {
           <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
@@ -185,7 +185,7 @@
         type="button"
         (click)="exportTeamStatsPdf()"
         [disabled]="exportingCsv() || asyncExport() !== null"
-        class="flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-normal text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+        class="flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-normal text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
       >
         @if (asyncExport()?.kind === 'team_stats_pdf') {
           <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
@@ -212,7 +212,7 @@
 
   @if (criticalModalOpen()) {
     <div
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-overlay-in p-4"
+      class="fixed inset-0 z-modal flex items-center justify-center dialog-backdrop p-4"
       (click)="closeCriticalModal()"
       (keydown.escape)="closeCriticalModal()"
     >
@@ -262,7 +262,7 @@
 
   @if (groupModalOpen()) {
     <div
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-overlay-in p-4"
+      class="fixed inset-0 z-modal flex items-center justify-center dialog-backdrop p-4"
       (click)="closeGroupModal()"
       (keydown.escape)="closeGroupModal()"
     >

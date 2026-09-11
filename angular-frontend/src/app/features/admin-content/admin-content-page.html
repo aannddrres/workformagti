@@ -16,7 +16,7 @@
       <button type="button" (click)="openCreateCurrent()" class="primary-button rounded-r-none">{{ createLabel() }}</button>
       <button type="button" (click)="createMenuOpen.update(open => !open)" class="primary-button rounded-l-none border-l border-white/30 px-3" aria-label="კონტენტის ტიპის არჩევა" [attr.aria-expanded]="createMenuOpen()"><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>
       @if (createMenuOpen()) {
-        <div class="absolute right-0 top-full z-30 mt-2 w-52 rounded-lg border border-slate-200 bg-white p-1.5 shadow-e3 dark:border-slate-700 dark:bg-slate-900">
+        <div class="absolute right-0 top-full z-chrome mt-2 w-52 rounded-lg border border-slate-200 bg-white p-1.5 shadow-e3 dark:border-slate-700 dark:bg-slate-900">
           <button type="button" (click)="openCreateArticle()" class="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800"><i class="fa-solid fa-file-lines w-4 text-slate-600 dark:text-slate-400" aria-hidden="true"></i>+ სტატია</button>
           <button type="button" (click)="openCreateNews()" class="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800"><i class="fa-solid fa-newspaper w-4 text-slate-600 dark:text-slate-400" aria-hidden="true"></i>+ სიახლე</button>
           <button type="button" (click)="openCreateVideo()" class="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800"><i class="fa-solid fa-circle-play w-4 text-slate-600 dark:text-slate-400" aria-hidden="true"></i>+ ვიდეო</button>
@@ -97,8 +97,8 @@
   }
 
   <div class="min-h-56 overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-e1 dark:border-slate-800 dark:bg-slate-900">
-    <table class="w-full min-w-[760px] text-left text-sm">
-      <thead class="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400"><tr><th class="w-10 px-3 py-3"><input type="checkbox" [checked]="allSelectableSelected()" [disabled]="selectableRows().length === 0" (change)="toggleSelectAllOnPage($any($event.target).checked)" class="h-4 w-4 accent-brand disabled:opacity-30" aria-label="გვერდის ყველა სტატიის მონიშვნა" /></th><th class="px-5 py-3">კონტენტი</th><th class="px-5 py-3">ტიპი</th><th class="px-5 py-3">სტატუსი</th><th class="px-5 py-3">კატეგორია / აუდიტორია</th><th class="px-5 py-3">თარიღი</th><th class="px-5 py-3 text-right">მოქმედებები</th></tr></thead>
+    <table class="min-w-[760px]">
+      <thead class="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400"><tr><th class="w-10 px-3 py-3"><input type="checkbox" [checked]="allSelectableSelected()" [disabled]="selectableRows().length === 0" (change)="toggleSelectAllOnPage($any($event.target).checked)" class="h-4 w-4 accent-brand disabled:opacity-50" aria-label="გვერდის ყველა სტატიის მონიშვნა" /></th><th class="px-5 py-3">კონტენტი</th><th class="px-5 py-3">ტიპი</th><th class="px-5 py-3">სტატუსი</th><th class="px-5 py-3">კატეგორია / აუდიტორია</th><th class="px-5 py-3">თარიღი</th><th class="px-5 py-3 text-right">მოქმედებები</th></tr></thead>
       <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
         @if (queueLoading()) {
           @for (item of [1, 2, 3]; track item) { <tr aria-hidden="true" class="animate-pulse"><td colspan="7" class="px-5 py-4"><div class="h-4 w-2/3 rounded-sm bg-slate-200 dark:bg-slate-700"></div></td></tr> }
@@ -126,7 +126,7 @@
                         <button type="button" (click)="openHistory($any(row.original))" class="queue-action"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>ისტორია</button>
                         <button type="button" (click)="openEditRow(row)" class="queue-action"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>რედაქტირება</button>
                         <button type="button" (click)="toggleArchiveRow(row)" class="queue-action"><i [class]="rowArchived(row) ? 'fa-solid fa-box-open' : 'fa-solid fa-box-archive'" aria-hidden="true"></i>{{ rowArchived(row) ? 'არქივიდან ამოღება' : 'დაარქივება' }}</button>
-                        <button type="button" (click)="removeRow(row)" [disabled]="!rowArchived(row)" class="queue-action text-red-700 disabled:opacity-40"><i class="fa-solid fa-trash-can" aria-hidden="true"></i>სანაგვეში გადატანა</button>
+                        <button type="button" (click)="removeRow(row)" [disabled]="!rowArchived(row)" class="queue-action text-red-700 disabled:opacity-50"><i class="fa-solid fa-trash-can" aria-hidden="true"></i>სანაგვეში გადატანა</button>
                       </div>
                     }
                   </div>
@@ -134,7 +134,7 @@
                   <div class="inline-flex gap-1">
                     <button type="button" (click)="openEditRow(row)" class="icon-button" aria-label="რედაქტირება"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button>
                     <button type="button" (click)="toggleArchiveRow(row)" class="icon-button" [attr.aria-label]="rowArchived(row) ? 'არქივიდან ამოღება' : 'დაარქივება'"><i [class]="rowArchived(row) ? 'fa-solid fa-box-open' : 'fa-solid fa-box-archive'" aria-hidden="true"></i></button>
-                    <button type="button" (click)="removeRow(row)" [disabled]="!rowArchived(row)" class="icon-button text-red-700 disabled:opacity-30" aria-label="სანაგვეში გადატანა"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
+                    <button type="button" (click)="removeRow(row)" [disabled]="!rowArchived(row)" class="icon-button text-red-700 disabled:opacity-50" aria-label="სანაგვეში გადატანა"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
                   </div>
                 }
               </td>
