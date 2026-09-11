@@ -5,6 +5,7 @@ import { VideosService } from '../../../core/services/videos.service';
 import { VideoInstruction } from '../../../core/models/video';
 import { VideoEditDrawer } from '../video-edit-drawer/video-edit-drawer';
 import { ToastService } from '../../../core/notifications/toast.service';
+import { ConfirmService } from '../../../core/notifications/confirm.service';
 
 /**
  * Port of #admin-videos-table-container (base-layout.html:1872-1889) +
@@ -18,6 +19,7 @@ import { ToastService } from '../../../core/notifications/toast.service';
   templateUrl: './videos-admin-table.html'
 })
 export class VideosAdminTable {
+  private readonly confirmService = inject(ConfirmService);
   private readonly toast = inject(ToastService);
   private readonly videosService = inject(VideosService);
   private readonly translate = inject(TranslateService);
@@ -62,12 +64,12 @@ export class VideosAdminTable {
     this.load();
   }
 
-  protected remove(item: VideoInstruction): void {
+  protected async remove(item: VideoInstruction): Promise<void> {
     if (!item.is_archived) {
       this.toast.error('ვიდეო ჯერ უნდა დაარქივოთ და მხოლოდ შემდეგ გადაიტანოთ სანაგვეში.');
       return;
     }
-    if (!window.confirm(this.translate.instant('content.videos.confirm_delete'))) return;
+    if (!(await this.confirmService.ask({ message: this.translate.instant('content.videos.confirm_delete'), tone: 'danger' }))) return;
     this.videosService.remove(item.id).subscribe({
       next: () => this.load(),
       error: (err: HttpErrorResponse) =>

@@ -4,6 +4,7 @@ import { AdminUsersService } from '../../core/services/admin-users.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { AdminUser } from '../../core/models/admin-user';
 import { UserEditModal } from '../admin-users/user-edit-modal';
+import { ConfirmService } from '../../core/notifications/confirm.service';
 
 const ROLE_ORDER = ['admin', 'content_admin', 'manager', 'operator'];
 const ROLE_ICONS: Record<string, string> = {
@@ -22,12 +23,12 @@ const ROLE_ICONS: Record<string, string> = {
  * {@link UserEditModal} the Users management page uses (Python shares one
  * `openUserEditModal` between both screens too).
  *
- * <p>Deliberate deviation: Python's `showConfirm` before a bulk move is a
- * custom-styled modal this workspace has no equivalent of yet; a native
- * `window.confirm()` is used instead -- same functional gate (an explicit
- * confirmation step before a multi-user role change goes through), just
- * plainer chrome. Not worth building a whole confirm-dialog component for
- * this one call site.
+ * <p>The bulk move is gated by a confirmation, as Python's `showConfirm` was.
+ * This file used to note that a native `window.confirm()` stood in because the
+ * workspace had no styled equivalent, and that building one "for this one call
+ * site" was not worth it. That was a fair call at one call site; by the
+ * seventeenth it was not, so {@link ConfirmService} now exists and this is one
+ * of its callers.
  */
 @Component({
   selector: 'app-admin-roles-page',
@@ -37,6 +38,7 @@ const ROLE_ICONS: Record<string, string> = {
 })
 export class AdminRolesPage {
   readonly embedded = input(false);
+  private readonly confirmService = inject(ConfirmService);
   private readonly usersService = inject(AdminUsersService);
   private readonly authService = inject(AuthService);
   private readonly translate = inject(TranslateService);
@@ -150,13 +152,13 @@ export class AdminRolesPage {
     this.targetRole.set((event.target as HTMLSelectElement).value);
   }
 
-  submitBulkReassign(): void {
+  async submitBulkReassign(): Promise<void> {
     const ids = [...this.selection()];
     if (!ids.length) {
       this.reassignError.set(this.translate.instant('roles.no_selection'));
       return;
     }
-    if (!window.confirm(this.translate.instant('roles.confirm_message'))) {
+    if (!(await this.confirmService.ask(this.translate.instant('roles.confirm_message')))) {
       return;
     }
     this.reassigning.set(true);

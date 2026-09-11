@@ -193,6 +193,16 @@ describe('design rules', () => {
     expect([...new Set(offenders)]).toEqual([]);
   });
 
+  /** Seventeen `window.confirm` calls and one `window.alert` put a grey
+   *  operating-system dialog in front of deletes, bulk publishes, role moves
+   *  and every unsaved-changes guard. It cannot be translated, themed, or told
+   *  which record is about to go. ConfirmService and ToastService replace them.
+   */
+  it('never asks through a browser dialog', () => {
+    const offenders = scan(/\bwindow\.(?:confirm|alert|prompt)\s*\(/g, () => true);
+    expect(offenders).toEqual([]);
+  });
+
   /** Three neutral ramps ran at once -- slate 977, zinc 809, gray 744 -- and 42
    *  files mixed two or three of them. slate is blue-tinted and zinc is not, so
    *  two admin screens one click apart read as two different products. slate

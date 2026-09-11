@@ -11,6 +11,7 @@ import {
 } from '../../core/models/org-admin';
 import { AdminUsersService } from '../../core/services/admin-users.service';
 import { OrgAdminService } from '../../core/services/org-admin.service';
+import { ConfirmService } from '../../core/notifications/confirm.service';
 
 @Component({
   selector: 'app-admin-assignments-page',
@@ -19,6 +20,7 @@ import { OrgAdminService } from '../../core/services/org-admin.service';
   templateUrl: './admin-assignments-page.html'
 })
 export class AdminAssignmentsPage {
+  private readonly confirmService = inject(ConfirmService);
   private readonly orgAdmin = inject(OrgAdminService);
   private readonly adminUsers = inject(AdminUsersService);
   private readonly formBuilder = inject(NonNullableFormBuilder);
@@ -112,8 +114,8 @@ export class AdminAssignmentsPage {
     });
   }
 
-  protected deactivate(assignment: LeadershipAssignment): void {
-    if (!assignment.is_active || !window.confirm('ნამდვილად გსურთ ამ დანიშვნის გაუქმება? ისტორია შენარჩუნდება.')) {
+  protected async deactivate(assignment: LeadershipAssignment): Promise<void> {
+    if (!assignment.is_active || !(await this.confirmService.ask('ნამდვილად გსურთ ამ დანიშვნის გაუქმება? ისტორია შენარჩუნდება.'))) {
       return;
     }
     this.error.set(null);

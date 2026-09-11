@@ -6,6 +6,7 @@ import { NewsService } from '../../../core/services/news.service';
 import { NewsSummary } from '../../../core/models/news';
 import { NewsEditDrawer } from '../news-edit-drawer/news-edit-drawer';
 import { ToastService } from '../../../core/notifications/toast.service';
+import { ConfirmService } from '../../../core/notifications/confirm.service';
 
 /**
  * Port of #admin-news-table-container (base-layout.html:1853-1870) +
@@ -19,6 +20,7 @@ import { ToastService } from '../../../core/notifications/toast.service';
   templateUrl: './news-admin-table.html'
 })
 export class NewsAdminTable {
+  private readonly confirmService = inject(ConfirmService);
   private readonly toast = inject(ToastService);
   private readonly newsService = inject(NewsService);
   private readonly translate = inject(TranslateService);
@@ -63,12 +65,12 @@ export class NewsAdminTable {
     this.load();
   }
 
-  protected remove(item: NewsSummary): void {
+  protected async remove(item: NewsSummary): Promise<void> {
     if (!item.is_archived) {
       this.toast.error('სიახლე ჯერ უნდა დაარქივოთ და მხოლოდ შემდეგ გადაიტანოთ სანაგვეში.');
       return;
     }
-    if (!window.confirm(this.translate.instant('content.news.confirm_delete'))) return;
+    if (!(await this.confirmService.ask({ message: this.translate.instant('content.news.confirm_delete'), tone: 'danger' }))) return;
     this.newsService.remove(item.id).subscribe({
       next: () => this.load(),
       error: (err: HttpErrorResponse) =>

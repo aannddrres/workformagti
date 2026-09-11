@@ -11,6 +11,7 @@ import { RichTextEditor } from '../../../shared/rich-text-editor/rich-text-edito
 import { QuizBuilder } from '../../../shared/quiz-builder/quiz-builder';
 import { ToastService } from '../../../core/notifications/toast.service';
 import { PortalDialog } from '../../../shared/portal-dialog/portal-dialog';
+import { ConfirmService } from '../../../core/notifications/confirm.service';
 
 const DEPARTMENT_ORDER: { key: 'info' | 'tech' | 'office'; name: string }[] = [
   { key: 'info', name: 'საინფორმაციო' },
@@ -41,6 +42,7 @@ const DEPARTMENT_ORDER: { key: 'info' | 'tech' | 'office'; name: string }[] = [
   templateUrl: './article-edit-drawer.html'
 })
 export class ArticleEditDrawer {
+  private readonly confirmService = inject(ConfirmService);
   private readonly toast = inject(ToastService);
   /** True when the mandatory-reading flag could not be read; the UI must not present the unchecked box as fact. */
   protected readonly mandatoryUnknown = signal(false);
@@ -300,8 +302,8 @@ export class ArticleEditDrawer {
     this.dirty.set(true);
   }
 
-  protected close(): void {
-    if (this.dirty() && !window.confirm('შეუნახავი ცვლილებები დაიკარგება. გსურთ დახურვა?')) {
+  protected async close(): Promise<void> {
+    if (this.dirty() && !(await this.confirmService.ask('შეუნახავი ცვლილებები დაიკარგება. გსურთ დახურვა?'))) {
       return;
     }
     this.closed.emit();

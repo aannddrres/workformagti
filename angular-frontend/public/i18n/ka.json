@@ -290,7 +290,12 @@
     "delete_failed": "წაშლა ვერ მოხერხდა",
     "retry": "თავიდან ცდა",
     "close_label": "დახურვა",
-    "remove_attachment_label": "დანართის მოხსნა"
+    "remove_attachment_label": "დანართის მოხსნა",
+    "confirm": {
+      "title": "დადასტურება",
+      "confirm": "დიახ",
+      "cancel": "გაუქმება"
+    }
   },
   "favorites": {
     "page": {

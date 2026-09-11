@@ -4,6 +4,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { ContentTrashItem, TrashItemType } from '../../core/models/content-trash';
 import { UserProfileService } from '../../core/auth/user-profile.service';
 import { ContentTrashService } from '../../core/services/content-trash.service';
+import { ConfirmService } from '../../core/notifications/confirm.service';
 
 @Component({
   selector: 'app-admin-trash-page',
@@ -12,6 +13,7 @@ import { ContentTrashService } from '../../core/services/content-trash.service';
   templateUrl: './admin-trash-page.html'
 })
 export class AdminTrashPage {
+  private readonly confirmService = inject(ConfirmService);
   private readonly trashService = inject(ContentTrashService);
   private readonly profiles = inject(UserProfileService);
 
@@ -41,14 +43,14 @@ export class AdminTrashPage {
     });
   }
 
-  protected restore(item: ContentTrashItem): void {
-    if (!window.confirm(`აღვადგინოთ „${item.title}“? მასალა არქივში დაბრუნდება.`)) return;
+  protected async restore(item: ContentTrashItem): Promise<void> {
+    if (!(await this.confirmService.ask(`აღვადგინოთ „${item.title}“? მასალა არქივში დაბრუნდება.`))) return;
     this.run(item, this.trashService.restore(item.item_type, item.item_id));
   }
 
-  protected purge(item: ContentTrashItem): void {
+  protected async purge(item: ContentTrashItem): Promise<void> {
     if (!this.canPurge(item)) return;
-    if (!window.confirm(`საბოლოოდ წავშალოთ „${item.title}“? კონტენტის payload ვეღარ აღდგება.`)) return;
+    if (!(await this.confirmService.ask({ message: `საბოლოოდ წავშალოთ „${item.title}“? კონტენტის payload ვეღარ აღდგება.`, tone: 'danger' }))) return;
     this.run(item, this.trashService.purge(item.item_type, item.item_id));
   }
 

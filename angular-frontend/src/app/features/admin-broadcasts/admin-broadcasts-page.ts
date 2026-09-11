@@ -3,6 +3,7 @@ import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angula
 import { BroadcastAnnouncement, BroadcastPriority } from '../../core/models/broadcast';
 import { BroadcastService } from '../../core/services/broadcast.service';
 import { formatKaDateTime } from '../../shared/ka-date';
+import { ConfirmService } from '../../core/notifications/confirm.service';
 
 function toLocalInput(date: Date): string {
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
@@ -16,6 +17,7 @@ function toLocalInput(date: Date): string {
   templateUrl: './admin-broadcasts-page.html'
 })
 export class AdminBroadcastsPage {
+  private readonly confirmService = inject(ConfirmService);
   private readonly broadcastService = inject(BroadcastService);
   private readonly formBuilder = inject(NonNullableFormBuilder);
 
@@ -94,8 +96,8 @@ export class AdminBroadcastsPage {
     });
   }
 
-  protected endEarly(item: BroadcastAnnouncement): void {
-    if (!item.can_end_early || !window.confirm('ნამდვილად გსურთ ამ განცხადების დროზე ადრე დასრულება?')) {
+  protected async endEarly(item: BroadcastAnnouncement): Promise<void> {
+    if (!item.can_end_early || !(await this.confirmService.ask('ნამდვილად გსურთ ამ განცხადების დროზე ადრე დასრულება?'))) {
       return;
     }
     this.endingId.set(item.id);

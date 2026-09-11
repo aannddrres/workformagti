@@ -290,7 +290,12 @@
     "delete_failed": "Delete failed",
     "retry": "Try again",
     "close_label": "Close",
-    "remove_attachment_label": "Remove attachment"
+    "remove_attachment_label": "Remove attachment",
+    "confirm": {
+      "title": "Confirm",
+      "confirm": "Yes",
+      "cancel": "Cancel"
+    }
   },
   "favorites": {
     "page": {

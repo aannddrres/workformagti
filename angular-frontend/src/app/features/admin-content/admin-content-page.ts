@@ -17,6 +17,7 @@ import { VideoInstruction } from '../../core/models/video';
 import { ToastService } from '../../core/notifications/toast.service';
 import { Observable } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
+import { ConfirmService } from '../../core/notifications/confirm.service';
 
 type ContentType = 'all' | 'article' | 'news' | 'video';
 type QueueRow = {
@@ -58,6 +59,7 @@ const STATUS_BADGE: Record<string, string> = {
   templateUrl: './admin-content-page.html'
 })
 export class AdminContentPage {
+  private readonly confirmService = inject(ConfirmService);
   private readonly articlesService = inject(ArticlesService);
   private readonly categoriesService = inject(CategoriesService);
   private readonly newsService = inject(NewsService);
@@ -385,10 +387,10 @@ export class AdminContentPage {
     });
   }
 
-  protected removeRow(row: QueueRow): void {
-    if (row.type === 'article') { this.deleteArticle(row.original as ArticleSummary); return; }
+  protected async removeRow(row: QueueRow): Promise<void> {
+    if (row.type === 'article') { await this.deleteArticle(row.original as ArticleSummary); return; }
     if (!this.rowArchived(row)) { this.toast.error('კონტენტი ჯერ უნდა დაარქივოთ.'); return; }
-    if (!window.confirm('გადავიტანოთ ჩანაწერი სანაგვეში? ისტორიული მტკიცებულებები შენარჩუნდება.')) return;
+    if (!(await this.confirmService.ask('გადავიტანოთ ჩანაწერი სანაგვეში? ისტორიული მტკიცებულებები შენარჩუნდება.'))) return;
     const request: Observable<unknown> = row.type === 'news' ? this.newsService.remove(row.id) : this.videosService.remove(row.id);
     request.subscribe({
       next: () => row.type === 'news' ? this.loadNews() : this.loadVideos(),
@@ -410,13 +412,13 @@ export class AdminContentPage {
     this.loadArticles();
   }
 
-  protected toggleArchive(article: ArticleSummary): void {
+  protected async toggleArchive(article: ArticleSummary): Promise<void> {
     this.openMenuFor.set(null);
     const shouldArchive = article.status !== 'archived';
     const message = shouldArchive
       ? this.translate.instant('content.articles.confirm_archive_one')
       : this.translate.instant('content.articles.confirm_unarchive_one');
-    if (!window.confirm(message)) return;
+    if (!(await this.confirmService.ask(message))) return;
     this.actionError.set(null);
     const request = shouldArchive ? this.articlesService.archive(article.id) : this.articlesService.unarchive(article.id);
     request.subscribe({
@@ -439,13 +441,13 @@ export class AdminContentPage {
     this.loadArticles();
   }
 
-  protected deleteArticle(article: ArticleSummary): void {
+  protected async deleteArticle(article: ArticleSummary): Promise<void> {
     this.openMenuFor.set(null);
     if (article.status !== 'archived') {
       this.actionError.set('სტატია ჯერ უნდა დაარქივოთ და მხოლოდ შემდეგ გადაიტანოთ სანაგვეში.');
       return;
     }
-    if (!window.confirm(this.translate.instant('content.articles.confirm_delete'))) return;
+    if (!(await this.confirmService.ask({ message: this.translate.instant('content.articles.confirm_delete'), tone: 'danger' }))) return;
     this.actionError.set(null);
     this.articlesService.remove(article.id).subscribe({
       next: () => this.loadArticles(),
@@ -461,10 +463,10 @@ export class AdminContentPage {
    * undone by the opposite button; publishing puts it in front of six hundred
    * people, and that is the direction worth a second look.
    */
-  protected bulkStatus(status: ArticleBulkStatus): void {
+  protected async bulkStatus(status: ArticleBulkStatus): Promise<void> {
     const ids = [...this.selection()];
     if (ids.length === 0) return;
-    if (status === 'published' && !window.confirm(`გამოქვეყნდეს ${ids.length} მასალა. გავაგრძელოთ?`)) {
+    if (status === 'published' && !(await this.confirmService.ask(`გამოქვეყნდეს ${ids.length} მასალა. გავაგრძელოთ?`))) {
       return;
     }
     this.runBulk(this.articlesService.bulkStatus(ids, status));
