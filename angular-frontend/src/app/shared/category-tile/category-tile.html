@@ -1,6 +1,6 @@
 <a
   [routerLink]="['/category', routeKey()]"
-  class="group relative flex h-full w-full flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white px-3 py-1.5 text-center shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:scale-[1.01] hover:shadow-[0_0_12px_rgba(227,6,19,0.15)] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand dark:border-zinc-700 dark:bg-zinc-900/60 md:px-3.5 md:py-2.5"
+  class="group relative flex h-full w-full flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white px-3 py-1.5 text-center shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:scale-[1.01] hover:shadow-[0_0_12px_rgba(227,6,19,0.15)] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand dark:border-slate-700 dark:bg-slate-900/60 md:px-3.5 md:py-2.5"
 >
   <span class="absolute inset-x-0 top-0 h-[2px] origin-left scale-x-0 bg-brand transition-transform duration-300 ease-out group-hover:scale-x-100"></span>
   @if (hasRecent()) {
@@ -10,13 +10,13 @@
     ></span>
   }
   <div class="mt-0.5 flex w-full flex-col items-center gap-1">
-    <span class="cat-tile-icon mb-1 flex h-9 w-9 items-center justify-center rounded-xl bg-slate-50 text-lg text-slate-600 shadow-sm transition-colors duration-300 group-hover:text-brand dark:bg-zinc-800 dark:text-neutral-400 md:h-11 md:w-11 md:text-xl">
+    <span class="cat-tile-icon mb-1 flex h-9 w-9 items-center justify-center rounded-xl bg-slate-50 text-lg text-slate-600 shadow-sm transition-colors duration-300 group-hover:text-brand dark:bg-slate-800 dark:text-slate-400 md:h-11 md:w-11 md:text-xl">
       <i class="fa-solid" [class]="icon()" aria-hidden="true"></i>
     </span>
-    <span class="text-xs font-bold leading-snug tracking-tight text-slate-800 transition-colors group-hover:text-slate-950 dark:text-zinc-200 dark:group-hover:text-white md:text-sm">{{ category().name }}</span>
+    <span class="text-xs font-bold leading-snug tracking-tight text-slate-800 transition-colors group-hover:text-slate-950 dark:text-slate-200 dark:group-hover:text-white md:text-sm">{{ category().name }}</span>
   </div>
   <div class="mt-1.5 flex w-full items-center justify-center">
-    <span class="inline-flex items-center rounded-full bg-slate-100/80 px-2 py-0.5 text-xs font-semibold tracking-wide text-slate-600 transition-colors group-hover:bg-slate-200/80 dark:bg-zinc-800/80 dark:text-neutral-400 dark:group-hover:bg-zinc-700/80 md:text-xs">
+    <span class="inline-flex items-center rounded-full bg-slate-100/80 px-2 py-0.5 text-xs font-semibold tracking-wide text-slate-600 transition-colors group-hover:bg-slate-200/80 dark:bg-slate-800/80 dark:text-slate-400 dark:group-hover:bg-slate-700/80 md:text-xs">
       {{ 'articles.category_tile.article_count' | translate: { count: articleCount() } }}
     </span>
   </div>

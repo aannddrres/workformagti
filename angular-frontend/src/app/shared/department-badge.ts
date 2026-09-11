@@ -46,6 +46,6 @@ export function getDepartmentBadge(department: string | null | undefined): Depar
     case 'All':
       return { label: 'საერთო', colorClass: 'bg-purple-50 text-purple-600 border border-purple-100' };
     default:
-      return { label: formatDepartmentLabel(department), colorClass: 'bg-gray-100 text-gray-600' };
+      return { label: formatDepartmentLabel(department), colorClass: 'bg-slate-100 text-slate-600' };
   }
 }

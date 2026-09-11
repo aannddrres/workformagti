@@ -15,8 +15,8 @@ import { TranslatePipe } from '@ngx-translate/core';
   imports: [TranslatePipe],
   template: `
     <div class="p-6">
-      <h1 class="mb-2 text-2xl font-semibold text-gray-800 dark:text-gray-100">{{ titleKey() | translate }}</h1>
-      <p class="text-sm text-gray-600 dark:text-gray-400">{{ 'shell.placeholder.message' | translate }}</p>
+      <h1 class="mb-2 text-2xl font-semibold text-slate-800 dark:text-slate-100">{{ titleKey() | translate }}</h1>
+      <p class="text-sm text-slate-600 dark:text-slate-400">{{ 'shell.placeholder.message' | translate }}</p>
     </div>
   `
 })

@@ -82,7 +82,7 @@
   /* Lifted slightly on dark surfaces, where the light-mode red loses contrast. */
   --danger-600: 248 113 113;
   --danger-700: 220 38 38;
-  --canvas: 18 23 30;
+  --canvas: 2 6 23;
   --surface: 25 31 40;
   --surface-muted: 31 39 49;
   --border: 55 65 81;

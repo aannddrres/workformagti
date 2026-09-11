@@ -23,7 +23,7 @@ export function formatArticleContent(
     body = body.replace(
       codeBlockRegex,
       (_match, lang: string, code: string) =>
-        `<pre class="my-4 overflow-x-auto rounded-xl bg-gray-950 p-4 font-mono text-sm text-green-400 border border-gray-800 shadow-inner"><code class="language-${escapeHtml(lang)}">${escapeHtml(code.trim())}</code></pre>`,
+        `<pre class="my-4 overflow-x-auto rounded-xl bg-slate-950 p-4 font-mono text-sm text-green-400 border border-slate-800 shadow-inner"><code class="language-${escapeHtml(lang)}">${escapeHtml(code.trim())}</code></pre>`,
     );
   }
 
@@ -31,7 +31,7 @@ export function formatArticleContent(
   body = body.replace(
     inlineCodeRegex,
     (_match, code: string) =>
-      `<code class="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs text-red-600 dark:bg-zinc-800 dark:text-red-400">${escapeHtml(code)}</code>`,
+      `<code class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-red-600 dark:bg-slate-800 dark:text-red-400">${escapeHtml(code)}</code>`,
   );
 
   const hasBlockTags = /<(p|div|h[1-6]|ul|ol|li|table|br|a|strong|b|em|img|pre|code)\b/i.test(body);

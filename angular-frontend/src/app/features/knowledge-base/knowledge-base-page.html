@@ -1,11 +1,11 @@
 <div class="mx-auto w-full max-w-[1440px] px-4 pb-8 pt-4 md:px-6 md:pt-6">
   <div class="mb-6">
     <h2
-      class="text-2xl font-semibold uppercase tracking-wider text-gray-800 dark:text-zinc-100 md:text-4xl"
+      class="text-2xl font-semibold uppercase tracking-wider text-slate-800 dark:text-slate-100 md:text-4xl"
     >
       {{ 'articles.kb_page.heading' | translate }}
     </h2>
-    <p class="mt-1 text-sm text-gray-600 dark:text-zinc-400">
+    <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
       {{ 'articles.kb_page.subtitle' | translate }}
     </p>
   </div>
@@ -23,23 +23,23 @@
   <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
     <div class="relative w-full md:w-[60%]">
       <i
-        class="fa-solid fa-magnifying-glass pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 dark:text-zinc-400"
+        class="fa-solid fa-magnifying-glass pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 dark:text-slate-400"
       ></i>
       <input
         type="search"
         [placeholder]="'articles.kb_page.search_placeholder' | translate"
         [value]="searchQuery()"
         (input)="onSearchInput($any($event.target).value)"
-        class="w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm text-gray-800 placeholder-gray-400 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200"
+        class="w-full rounded-xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-800 placeholder-slate-400 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
       />
     </div>
     <div class="flex items-center gap-2">
-      <i class="fa-solid fa-sliders text-gray-600 dark:text-zinc-400"></i>
+      <i class="fa-solid fa-sliders text-slate-600 dark:text-slate-400"></i>
       <div class="relative">
         <select
           (change)="onCategoryFilterChange($any($event.target).value)"
           [value]="selectedCategoryId() ?? ''"
-          class="appearance-none rounded-xl border border-gray-200 bg-white py-3 pl-4 pr-9 text-sm font-medium text-gray-600 shadow-sm focus:border-brand focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400"
+          class="appearance-none rounded-xl border border-slate-200 bg-white py-3 pl-4 pr-9 text-sm font-medium text-slate-600 shadow-sm focus:border-brand focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
         >
           <option value="">{{ 'articles.kb_page.all_categories_option' | translate }}</option>
           @for (category of activeCategories(); track category.id) {
@@ -49,14 +49,14 @@
           }
         </select>
         <i
-          class="fa-solid fa-chevron-down pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-600 dark:text-zinc-400"
+          class="fa-solid fa-chevron-down pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-600 dark:text-slate-400"
         ></i>
       </div>
     </div>
   </div>
 
   <div
-    class="mb-6 flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 text-xs text-gray-600 dark:border-zinc-800 dark:bg-zinc-900/30 dark:text-zinc-400"
+    class="mb-6 flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-900/30 dark:text-slate-400"
   >
     <i class="fa-solid fa-circle-info text-brand dark:text-red-500"></i>
     <span>{{ 'articles.kb_page.new_badge_tip' | translate }}</span>
@@ -66,14 +66,14 @@
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
       @for (i of [1, 2, 3, 4, 5, 6, 7, 8]; track i) {
         <div
-          class="h-[160px] animate-pulse rounded-2xl border border-gray-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+          class="h-[160px] animate-pulse rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
         ></div>
       }
     </div>
   } @else if (errorMessage()) {
     <p class="text-sm text-red-700">{{ errorMessage() }}</p>
   } @else if (cards().length === 0) {
-    <p class="text-sm text-gray-600 dark:text-zinc-400">
+    <p class="text-sm text-slate-600 dark:text-slate-400">
       {{ 'articles.kb_page.no_results' | translate }}
     </p>
   } @else {

@@ -1,11 +1,11 @@
 <div class="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" (click)="close()"></div>
 
-<div portalDialog portalDialogLabelledBy="article-editor-heading" (portalDialogClose)="close()" class="fixed inset-0 z-50 flex w-full flex-col bg-white dark:bg-zinc-900">
-  <div class="flex items-center justify-between border-b border-gray-200 dark:border-zinc-800 px-6 py-4">
-    <h3 id="article-editor-heading" class="text-xl font-bold text-gray-800 dark:text-zinc-100">
+<div portalDialog portalDialogLabelledBy="article-editor-heading" (portalDialogClose)="close()" class="fixed inset-0 z-50 flex w-full flex-col bg-white dark:bg-slate-900">
+  <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-4">
+    <h3 id="article-editor-heading" class="text-xl font-bold text-slate-800 dark:text-slate-100">
       {{ (isEditing ? 'content.articles.edit_title' : 'content.articles.new_title') | translate }}
     </h3>
-    <button type="button" (click)="close()" [attr.aria-label]="'shared.close_label' | translate" class="text-gray-600 hover:text-gray-700 dark:text-zinc-400">
+    <button type="button" (click)="close()" [attr.aria-label]="'shared.close_label' | translate" class="text-slate-600 hover:text-slate-700 dark:text-slate-400">
       <i class="fa-solid fa-xmark text-xl" aria-hidden="true"></i>
     </button>
   </div>
@@ -13,37 +13,37 @@
   <div class="flex-1 overflow-y-auto">
     <div class="flex flex-col lg:flex-row lg:items-stretch">
       <!-- Left: form -->
-      <div class="flex-1 border-r border-gray-200 dark:border-zinc-800">
+      <div class="flex-1 border-r border-slate-200 dark:border-slate-800">
         <form (submit)="submit($event)" (input)="markDirty()" (change)="markDirty()" class="flex flex-col">
           <div class="px-6 pt-5 pb-0">
-            <label for="article-title" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'content.articles.field_title' | translate }}</label>
+            <label for="article-title" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">{{ 'content.articles.field_title' | translate }}</label>
             <input
               id="article-title"
               type="text"
               required
               [value]="title()"
               (input)="title.set($any($event.target).value)"
-              class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+              class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
             />
           </div>
 
           <div class="px-6 pt-4">
-            <label id="article-content-label" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">
+            <label id="article-content-label" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
               {{ 'content.articles.field_content' | translate }}
-              <span class="text-xs font-normal text-gray-600 dark:text-zinc-400 ml-2">({{ richTextEditor().charCount() }} {{ 'content.articles.characters' | translate }})</span>
+              <span class="text-xs font-normal text-slate-600 dark:text-slate-400 ml-2">({{ richTextEditor().charCount() }} {{ 'content.articles.characters' | translate }})</span>
             </label>
             <app-rich-text-editor (contentChange)="onEditorContentChange($event)" />
           </div>
 
-          <div class="px-6 py-5 space-y-5 border-t border-gray-100 dark:border-zinc-800 mt-4">
+          <div class="px-6 py-5 space-y-5 border-t border-slate-100 dark:border-slate-800 mt-4">
             <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
               <div>
-                <label for="article-category" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'content.articles.field_category' | translate }}</label>
+                <label for="article-category" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">{{ 'content.articles.field_category' | translate }}</label>
                 <select
                   id="article-category"
                   required
                   (change)="categoryIdValue.set(+$any($event.target).value)"
-                  class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                  class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                 >
                   @for (c of categories(); track c.id) {
                     <option [value]="c.id" [attr.selected]="c.id === categoryIdValue() ? '' : null">{{ c.name }}</option>
@@ -62,20 +62,20 @@
                 }
               </div>
               <div>
-                <label for="article-tags" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'content.articles.field_tags' | translate }}</label>
+                <label for="article-tags" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">{{ 'content.articles.field_tags' | translate }}</label>
                 <input
                   id="article-tags"
                   type="text"
                   [value]="tags()"
                   (input)="tags.set($any($event.target).value)"
                   [placeholder]="'content.articles.tags_placeholder' | translate"
-                  class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                  class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                 />
               </div>
             </div>
 
             <div>
-              <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'content.articles.field_attachment' | translate }}</label>
+              <label class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">{{ 'content.articles.field_attachment' | translate }}</label>
               <div
                 [class]="dropzoneClass()"
                 (dragover)="onDropzoneDragOver($event)"
@@ -85,12 +85,12 @@
                 <div class="flex flex-wrap items-center gap-3">
                   <input #fileInput type="file" class="hidden" (change)="onFileInputChange($event)" />
                   <button type="button" (click)="fileInput.click()" [disabled]="uploading()"
-                    class="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm hover:bg-gray-50 flex shrink-0 items-center gap-2 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200">
+                    class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50 flex shrink-0 items-center gap-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
                     <i class="fa-solid fa-upload"></i> {{ (uploading() ? 'content.articles.uploading' : 'content.articles.upload') | translate }}
                   </button>
                   @if (attachmentUrl(); as url) {
-                    <div class="flex items-center gap-2 rounded-lg bg-gray-50 dark:bg-zinc-800 px-3 py-2 text-sm">
-                      <i class="fa-solid fa-paperclip text-gray-600 dark:text-zinc-400"></i>
+                    <div class="flex items-center gap-2 rounded-lg bg-slate-50 dark:bg-slate-800 px-3 py-2 text-sm">
+                      <i class="fa-solid fa-paperclip text-slate-600 dark:text-slate-400"></i>
                       <a [href]="url" target="_blank" class="truncate max-w-[200px] text-blue-600 hover:underline">{{ attachmentFilename() }}</a>
                       <button type="button" (click)="removeAttachment()" [attr.aria-label]="'shared.remove_attachment_label' | translate" class="ml-1 text-red-700 hover:text-red-700"><i class="fa-solid fa-xmark"></i></button>
                     </div>
@@ -101,11 +101,11 @@
 
             <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
               <div>
-                <label for="article-status" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'content.articles.field_status' | translate }}</label>
+                <label for="article-status" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">{{ 'content.articles.field_status' | translate }}</label>
                 <select
                   id="article-status"
                   (change)="status.set($any($event.target).value)"
-                  class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                  class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                 >
                   <option value="published" [attr.selected]="status() === 'published' ? '' : null">{{ 'content.status.published' | translate }}</option>
                   <option value="draft" [attr.selected]="status() === 'draft' ? '' : null">{{ 'content.status.draft' | translate }}</option>
@@ -114,19 +114,19 @@
               </div>
               @if (status() === 'scheduled') {
                 <div>
-                  <label for="article-scheduled-at" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'content.articles.field_scheduled_at' | translate }}</label>
+                  <label for="article-scheduled-at" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">{{ 'content.articles.field_scheduled_at' | translate }}</label>
                   <input
                     id="article-scheduled-at"
                     type="datetime-local"
                     [value]="scheduledAt()"
                     (input)="scheduledAt.set($any($event.target).value)"
-                    class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                    class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                   />
                 </div>
               }
             </div>
 
-            <div class="flex flex-col gap-2 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/60 p-4">
+            <div class="flex flex-col gap-2 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-4">
               <div class="flex items-center gap-3">
                 <input id="article-mandatory" type="checkbox" [checked]="isMandatory()" (change)="isMandatory.set($any($event.target).checked)" class="h-4 w-4 accent-brand" />
                 @if (mandatoryUnknown()) {
@@ -136,16 +136,16 @@
                     {{ 'content.articles.mandatory_unknown' | translate }}
                   </span>
                 }
-                <label for="article-mandatory" class="text-sm font-medium text-gray-800 dark:text-zinc-200">{{ 'content.articles.field_mandatory' | translate }}</label>
+                <label for="article-mandatory" class="text-sm font-medium text-slate-800 dark:text-slate-200">{{ 'content.articles.field_mandatory' | translate }}</label>
                 @if (isMandatory()) {
-                  <div class="ml-4 flex flex-1 items-center gap-3 border-l border-gray-300 dark:border-zinc-700 pl-4">
-                    <label for="article-due-date" class="text-sm font-medium text-gray-600 dark:text-zinc-400">{{ 'content.articles.field_due_date' | translate }}</label>
+                  <div class="ml-4 flex flex-1 items-center gap-3 border-l border-slate-300 dark:border-slate-700 pl-4">
+                    <label for="article-due-date" class="text-sm font-medium text-slate-600 dark:text-slate-400">{{ 'content.articles.field_due_date' | translate }}</label>
                     <input
                       id="article-due-date"
                       type="date"
                       [value]="dueDate()"
                       (input)="dueDate.set($any($event.target).value)"
-                      class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                      class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                     />
                   </div>
                 }
@@ -155,10 +155,10 @@
               }
             </div>
 
-            <div class="flex flex-col gap-3 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/60 p-4">
+            <div class="flex flex-col gap-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-4">
               <div class="flex items-center gap-3">
                 <input id="article-quiz" type="checkbox" [checked]="quizEnabled()" (change)="quizEnabled.set($any($event.target).checked)" class="h-4 w-4 accent-brand" />
-                <label for="article-quiz" class="text-sm font-medium text-gray-800 dark:text-zinc-200">{{ 'content.articles.field_quiz' | translate }}</label>
+                <label for="article-quiz" class="text-sm font-medium text-slate-800 dark:text-slate-200">{{ 'content.articles.field_quiz' | translate }}</label>
               </div>
               @if (quizLoadFailed()) {
                 <!-- The builder below is empty because the fetch failed, not
@@ -174,18 +174,18 @@
               }
             </div>
 
-            <details class="group rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/60 p-5" open>
-              <summary class="flex cursor-pointer list-none items-center justify-between text-sm font-semibold text-gray-700 dark:text-zinc-300">
+            <details class="group rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-5" open>
+              <summary class="flex cursor-pointer list-none items-center justify-between text-sm font-semibold text-slate-700 dark:text-slate-300">
                 <span>{{ 'content.articles.audience_heading' | translate }}</span>
-                <i class="fa-solid fa-chevron-down text-xs text-gray-600 dark:text-zinc-400 transition-transform duration-200 group-open:rotate-180"></i>
+                <i class="fa-solid fa-chevron-down text-xs text-slate-600 dark:text-slate-400 transition-transform duration-200 group-open:rotate-180"></i>
               </summary>
-              <div class="mt-4 space-y-4 border-t border-gray-200 dark:border-zinc-700 pt-4">
+              <div class="mt-4 space-y-4 border-t border-slate-200 dark:border-slate-700 pt-4">
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-8">
-                  <span class="text-xs font-bold text-gray-600 dark:text-zinc-400 uppercase tracking-widest min-w-[80px]">{{ 'content.articles.department' | translate }}:</span>
+                  <span class="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest min-w-[80px]">{{ 'content.articles.department' | translate }}:</span>
                   @for (d of departmentOrder; track d.key) {
                     <label class="flex items-center gap-2 cursor-pointer select-none">
                       <input type="checkbox" [checked]="deptChecked()[d.key]" (change)="toggleDepartment(d.key, $any($event.target).checked)" class="h-4 w-4 accent-brand" />
-                      <span class="text-sm font-medium text-gray-800 dark:text-zinc-200">{{ d.name }}</span>
+                      <span class="text-sm font-medium text-slate-800 dark:text-slate-200">{{ d.name }}</span>
                     </label>
                   }
                 </div>
@@ -196,15 +196,15 @@
             </details>
           </div>
 
-          <div class="sticky bottom-0 flex justify-end gap-3 items-center flex-wrap bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border-t border-gray-100 dark:border-zinc-800 p-4">
+          <div class="sticky bottom-0 flex justify-end gap-3 items-center flex-wrap bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-t border-slate-100 dark:border-slate-800 p-4">
             @if (saveError()) {
               <span class="text-xs text-red-700 mr-auto">{{ saveError() }}</span>
             }
-            <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-zinc-300 select-none cursor-pointer">
-              <input type="checkbox" [checked]="notifyOperators()" (change)="notifyOperators.set($any($event.target).checked)" class="h-4 w-4 rounded border-gray-300 accent-brand dark:border-zinc-600" />
+            <label class="inline-flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 select-none cursor-pointer">
+              <input type="checkbox" [checked]="notifyOperators()" (change)="notifyOperators.set($any($event.target).checked)" class="h-4 w-4 rounded border-slate-300 accent-brand dark:border-slate-600" />
               {{ 'content.articles.notify_operators' | translate }}
             </label>
-            <button type="button" (click)="close()" class="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-sm font-medium text-gray-600 shadow-sm hover:bg-gray-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200">
+            <button type="button" (click)="close()" class="rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
               {{ 'content.cancel' | translate }}
             </button>
             <button type="submit" [disabled]="saving()" class="rounded-xl bg-brand dark:bg-brand-700 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:opacity-60">
@@ -215,20 +215,20 @@
       </div>
 
       <!-- Right: live preview -->
-      <div class="w-full lg:w-[450px] xl:w-[500px] shrink-0 bg-gray-50 dark:bg-zinc-950 flex flex-col border-t lg:border-t-0 border-gray-200 dark:border-zinc-800">
-        <div class="flex items-center justify-between bg-white dark:bg-zinc-900 px-4 py-3 border-b border-gray-200 dark:border-zinc-800 shrink-0">
-          <span class="text-sm font-semibold text-gray-700 dark:text-zinc-300">{{ 'content.articles.preview' | translate }}</span>
-          <div class="flex bg-gray-100 dark:bg-zinc-800 rounded-lg p-0.5">
+      <div class="w-full lg:w-[450px] xl:w-[500px] shrink-0 bg-slate-50 dark:bg-slate-950 flex flex-col border-t lg:border-t-0 border-slate-200 dark:border-slate-800">
+        <div class="flex items-center justify-between bg-white dark:bg-slate-900 px-4 py-3 border-b border-slate-200 dark:border-slate-800 shrink-0">
+          <span class="text-sm font-semibold text-slate-700 dark:text-slate-300">{{ 'content.articles.preview' | translate }}</span>
+          <div class="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5">
             <button type="button" (click)="previewDevice.set('desktop')" class="px-3 py-1 text-xs font-semibold rounded-md transition-all"
-              [class.bg-white]="previewDevice() === 'desktop'" [class.dark:bg-zinc-700]="previewDevice() === 'desktop'" [class.shadow-sm]="previewDevice() === 'desktop'"
-              [class.text-gray-800]="previewDevice() === 'desktop'" [class.dark:text-zinc-100]="previewDevice() === 'desktop'"
-              [class.text-gray-600]="previewDevice() !== 'desktop'" [class.dark:text-zinc-400]="previewDevice() !== 'desktop'">
+              [class.bg-white]="previewDevice() === 'desktop'" [class.dark:bg-slate-700]="previewDevice() === 'desktop'" [class.shadow-sm]="previewDevice() === 'desktop'"
+              [class.text-slate-800]="previewDevice() === 'desktop'" [class.dark:text-slate-100]="previewDevice() === 'desktop'"
+              [class.text-slate-600]="previewDevice() !== 'desktop'" [class.dark:text-slate-400]="previewDevice() !== 'desktop'">
               Desktop
             </button>
             <button type="button" (click)="previewDevice.set('mobile')" class="px-3 py-1 text-xs font-semibold rounded-md transition-all"
-              [class.bg-white]="previewDevice() === 'mobile'" [class.dark:bg-zinc-700]="previewDevice() === 'mobile'" [class.shadow-sm]="previewDevice() === 'mobile'"
-              [class.text-gray-800]="previewDevice() === 'mobile'" [class.dark:text-zinc-100]="previewDevice() === 'mobile'"
-              [class.text-gray-600]="previewDevice() !== 'mobile'" [class.dark:text-zinc-400]="previewDevice() !== 'mobile'">
+              [class.bg-white]="previewDevice() === 'mobile'" [class.dark:bg-slate-700]="previewDevice() === 'mobile'" [class.shadow-sm]="previewDevice() === 'mobile'"
+              [class.text-slate-800]="previewDevice() === 'mobile'" [class.dark:text-slate-100]="previewDevice() === 'mobile'"
+              [class.text-slate-600]="previewDevice() !== 'mobile'" [class.dark:text-slate-400]="previewDevice() !== 'mobile'">
               Mobile
             </button>
           </div>
@@ -236,8 +236,8 @@
         <div class="flex-1 p-4 flex items-start justify-center overflow-auto">
           <div [class]="previewFrameClass()">
             <div class="p-5">
-              <h2 class="text-xl font-bold text-gray-900 dark:text-zinc-100 mb-3">{{ title() || ('content.articles.preview_title_placeholder' | translate) }}</h2>
-              <div class="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-zinc-300" [innerHTML]="previewHtml()"></div>
+              <h2 class="text-xl font-bold text-slate-900 dark:text-slate-100 mb-3">{{ title() || ('content.articles.preview_title_placeholder' | translate) }}</h2>
+              <div class="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-300" [innerHTML]="previewHtml()"></div>
             </div>
           </div>
         </div>

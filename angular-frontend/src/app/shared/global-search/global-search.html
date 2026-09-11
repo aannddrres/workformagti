@@ -6,14 +6,14 @@
   type="button"
   (click)="openPalette()"
   [attr.aria-label]="'search.palette.open' | translate"
-  class="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-100 dark:border-gray-700 dark:bg-white/5 dark:text-gray-400 dark:hover:bg-white/10 sm:min-w-[220px]"
+  class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:bg-white/5 dark:text-slate-400 dark:hover:bg-white/10 sm:min-w-[220px]"
 >
   <i class="fa-solid fa-magnifying-glass text-xs" aria-hidden="true"></i>
   <span class="hidden flex-1 text-left sm:block">{{
     'search.palette.placeholder' | translate
   }}</span>
   <kbd
-    class="hidden rounded border border-gray-300 bg-white px-1.5 py-0.5 font-sans text-xs font-semibold text-gray-600 dark:text-zinc-400 dark:border-gray-600 dark:bg-gray-800 sm:block"
+    class="hidden rounded border border-slate-300 bg-white px-1.5 py-0.5 font-sans text-xs font-semibold text-slate-600 dark:text-slate-400 dark:border-slate-600 dark:bg-slate-800 sm:block"
     >{{ 'search.palette.shortcut' | translate }}</kbd
   >
 </button>
@@ -26,11 +26,11 @@
       (portalDialogClose)="close()"
       [attr.aria-label]="'search.palette.dialog_label' | translate"
       (click)="$event.stopPropagation()"
-      class="mx-auto w-full max-w-xl overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-900"
+      class="mx-auto w-full max-w-xl overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900"
     >
       <!-- Input row -->
-      <div class="flex items-center gap-3 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
-        <i class="fa-solid fa-magnifying-glass text-sm text-gray-600 dark:text-zinc-400" aria-hidden="true"></i>
+      <div class="flex items-center gap-3 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
+        <i class="fa-solid fa-magnifying-glass text-sm text-slate-600 dark:text-slate-400" aria-hidden="true"></i>
         <input
           #searchInput
           type="text"
@@ -43,16 +43,16 @@
           (input)="onQueryInput($any($event.target).value)"
           (keydown)="onInputKeydown($event)"
           [placeholder]="'search.palette.input_placeholder' | translate"
-          class="flex-1 bg-transparent text-sm text-gray-800 placeholder:text-gray-500 focus:outline-none dark:text-gray-100"
+          class="flex-1 bg-transparent text-sm text-slate-800 placeholder:text-slate-500 focus:outline-none dark:text-slate-100"
         />
         @if (loading()) {
-          <i class="fa-solid fa-spinner fa-spin text-sm text-gray-600 dark:text-zinc-400" aria-hidden="true"></i>
+          <i class="fa-solid fa-spinner fa-spin text-sm text-slate-600 dark:text-slate-400" aria-hidden="true"></i>
         }
         <button
           type="button"
           (click)="close()"
           [attr.aria-label]="'search.palette.close' | translate"
-          class="rounded-md px-1.5 py-0.5 text-xs font-semibold text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-white/5"
+          class="rounded-md px-1.5 py-0.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5"
         >
           ESC
         </button>
@@ -69,21 +69,21 @@
             <button
               type="button"
               (click)="retry()"
-              class="mt-3 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5"
+              class="mt-3 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-white/5"
             >
               {{ 'search.palette.retry' | translate }}
             </button>
           </div>
         } @else if (tooShort()) {
-          <p class="px-4 py-8 text-center text-sm text-gray-600 dark:text-zinc-400">
+          <p class="px-4 py-8 text-center text-sm text-slate-600 dark:text-slate-400">
             {{ 'search.palette.too_short' | translate: { count: minLength } }}
           </p>
         } @else if (query().trim().length === 0) {
-          <p class="px-4 py-8 text-center text-sm text-gray-600 dark:text-zinc-400">
+          <p class="px-4 py-8 text-center text-sm text-slate-600 dark:text-slate-400">
             {{ 'search.palette.hint' | translate }}
           </p>
         } @else if (empty()) {
-          <p class="px-4 py-8 text-center text-sm text-gray-600 dark:text-zinc-400">
+          <p class="px-4 py-8 text-center text-sm text-slate-600 dark:text-slate-400">
             {{ 'search.palette.no_results' | translate: { query: query() } }}
           </p>
         } @else {
@@ -99,20 +99,20 @@
               [class]="
                 i === activeIndex()
                   ? 'bg-brand/[0.06] dark:bg-brand/20'
-                  : 'hover:bg-gray-50 dark:hover:bg-white/5'
+                  : 'hover:bg-slate-50 dark:hover:bg-white/5'
               "
             >
               <span
-                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-xs text-gray-600 dark:bg-white/5 dark:text-gray-400"
+                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-600 dark:bg-white/5 dark:text-slate-400"
               >
                 <i class="fa-solid" [class]="iconFor(hit)" aria-hidden="true"></i>
               </span>
               <span class="min-w-0 flex-1">
-                <span class="block truncate text-sm font-medium text-gray-800 dark:text-gray-100">{{
+                <span class="block truncate text-sm font-medium text-slate-800 dark:text-slate-100">{{
                   hit.title
                 }}</span>
                 @if (contextFor(hit); as context) {
-                  <span class="block truncate text-xs text-gray-600 dark:text-zinc-400">{{ context }}</span>
+                  <span class="block truncate text-xs text-slate-600 dark:text-slate-400">{{ context }}</span>
                 }
               </span>
               @if (hit.itemType === 'article' && hit.matchKind) {
@@ -123,7 +123,7 @@
                 </span>
               }
               <span
-                class="shrink-0 text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-zinc-400"
+                class="shrink-0 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400"
               >
                 {{ 'search.palette.type_' + hit.itemType | translate }}
               </span>
@@ -135,7 +135,7 @@
       <!-- Keyboard legend: the shortcuts exist, so say so. -->
       @if (hits().length > 0) {
         <div
-          class="flex items-center justify-between gap-4 border-t border-gray-100 px-4 py-2 text-xs text-gray-600 dark:text-zinc-400 dark:border-gray-800"
+          class="flex items-center justify-between gap-4 border-t border-slate-100 px-4 py-2 text-xs text-slate-600 dark:text-slate-400 dark:border-slate-800"
         >
           <span class="flex items-center gap-4">
             <span>{{ 'search.palette.legend_navigate' | translate }}</span>

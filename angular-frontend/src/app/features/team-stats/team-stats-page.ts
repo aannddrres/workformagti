@@ -140,7 +140,7 @@ export class TeamStatsPage {
 
   private tier(pct: number, hasReq: boolean): Tier {
     if (!hasReq) {
-      return { bar: 'bg-gray-300 dark:bg-zinc-600', text: 'text-gray-600 dark:text-zinc-400' };
+      return { bar: 'bg-slate-300 dark:bg-slate-600', text: 'text-slate-600 dark:text-slate-400' };
     }
     if (pct >= 80) {
       return { bar: 'bg-emerald-500', text: 'text-emerald-700 dark:text-emerald-400' };

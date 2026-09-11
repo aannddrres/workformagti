@@ -130,6 +130,24 @@ describe('design rules', () => {
     expect([...new Set(offenders)]).toEqual([]);
   });
 
+  /** Three neutral ramps ran at once -- slate 977, zinc 809, gray 744 -- and 42
+   *  files mixed two or three of them. slate is blue-tinted and zinc is not, so
+   *  two admin screens one click apart read as two different products. slate
+   *  wins because the shared classes in styles.css were already written in it.
+   *
+   *  Surfaces and borders do not become `slate-*`; they become the `--surface`
+   *  / `--surface-muted` / `--border` tokens, which is also what fixes dark
+   *  elevation: `zinc-900` sits just above the dark canvas, `slate-900` sits
+   *  *below* it, so a blind family swap would have pushed every card behind
+   *  the page it floats on. */
+  it('uses one neutral ramp', () => {
+    const offenders = scan(
+      /\b(?:[a-z-]+:)*(?:bg|text|border|ring|divide|from|via|to|placeholder|decoration|outline|fill|stroke|accent|caret)-(?:gray|zinc|neutral|stone)-\d{2,3}\b/g,
+      () => true,
+    );
+    expect(offenders).toEqual([]);
+  });
+
   /** `toLocaleDateString('ka-GE', ...)` renders the US month-first `08/19/2026`
    *  wherever Chromium ships no `ka` CLDR data, and Node -- where the tests run
    *  -- does ship it, so no unit test can catch the difference. Dates go

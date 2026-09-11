@@ -23,7 +23,7 @@
         ? 'border-emerald-200 bg-emerald-50/60 dark:border-emerald-900/50 dark:bg-emerald-950/20'
         : isOverdue()
           ? 'border-brand/30 bg-brand/[0.06] dark:border-brand/40 dark:bg-brand/10'
-          : 'border-gray-200 bg-gray-50 dark:border-zinc-800 dark:bg-zinc-900'
+          : 'border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900'
     "
   >
     @if (isRead()) {
@@ -43,10 +43,10 @@
     } @else {
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div class="min-w-0">
-          <p class="text-sm font-semibold text-gray-800 dark:text-zinc-100">
+          <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">
             {{ 'readings.confirm.heading' | translate }}
           </p>
-          <p class="mt-0.5 text-xs" [class]="isOverdue() ? 'font-semibold text-brand' : 'text-gray-600 dark:text-zinc-400'">
+          <p class="mt-0.5 text-xs" [class]="isOverdue() ? 'font-semibold text-brand' : 'text-slate-600 dark:text-slate-400'">
             @if (isOverdue()) {
               {{ 'readings.confirm.overdue' | translate }}
             } @else if (item.reading.due_date) {
