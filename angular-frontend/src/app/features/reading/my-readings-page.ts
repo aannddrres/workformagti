@@ -1,5 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ComplianceService } from '../../core/services/compliance.service';
 import { MyReading } from '../../core/models/compliance';
@@ -32,7 +32,7 @@ type FilterMode = 'all' | 'unread' | 'read';
 @Component({
   selector: 'app-my-readings-page',
   standalone: true,
-  imports: [TranslatePipe, FavoriteStar],
+  imports: [TranslatePipe, FavoriteStar, RouterLink],
   templateUrl: './my-readings-page.html'
 })
 export class MyReadingsPage {
@@ -93,11 +93,14 @@ export class MyReadingsPage {
     return item.status !== 'read' && (item.status === 'overdue' || item.is_overdue);
   }
 
-  view(item: MyReading): void {
-    const route = detailRouteFor(item.reading.item_type, item.reading.item_id);
-    if (route) {
-      this.router.navigate(route);
-    }
+  /**
+   * The row is a link, not a `div role="button"`. It was the latter, which cost
+   * the operator middle-click, open-in-new-tab, the status-bar preview of where
+   * the row goes, and Space as well as Enter -- on the one screen where opening
+   * material is the entire job.
+   */
+  routeFor(item: MyReading): string[] | null {
+    return detailRouteFor(item.reading.item_type, item.reading.item_id);
   }
 
 }

@@ -176,6 +176,23 @@ describe('design rules', () => {
     expect([...all, ...raw]).toEqual([]);
   });
 
+  /** Page width was decided six different ways -- 1600, 1440, 1080, 920, 900,
+   *  780 -- because every reader page hand-rolled its own container while the
+   *  admin screens used `.portal-page`. Two widths now, both in styles.css.
+   *  The reader column inside an article is exempt: it is a measure, not a
+   *  page width. */
+  it('takes page width from the shared classes', () => {
+    const offenders: string[] = [];
+    for (const file of sourceFiles()) {
+      if (!file.endsWith('.html') || file.includes('article-detail')) continue;
+      const text = shippedSource(readFileSync(file, 'utf8'));
+      for (const match of text.matchAll(/class="[^"]*\bmx-auto w-full max-w-\[\d+px\][^"]*"/g)) {
+        offenders.push(`${relative(APP_ROOT, file).split(sep).join('/')}  ${match[0].slice(7, 60)}`);
+      }
+    }
+    expect([...new Set(offenders)]).toEqual([]);
+  });
+
   /** Three neutral ramps ran at once -- slate 977, zinc 809, gray 744 -- and 42
    *  files mixed two or three of them. slate is blue-tinted and zinc is not, so
    *  two admin screens one click apart read as two different products. slate

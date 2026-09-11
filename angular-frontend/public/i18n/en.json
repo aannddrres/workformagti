@@ -185,7 +185,8 @@
       "related_heading": "Related materials",
       "sibling_navigation": "Navigation within this category",
       "previous_article": "Previous article",
-      "next_article": "Next article"
+      "next_article": "Next article",
+      "load_error": "The article could not be loaded"
     },
     "version_history": {
       "button": "Version history",
@@ -261,7 +262,8 @@
     },
     "detail_page": {
       "not_found": "News item not found",
-      "attachment_download": "Attached file"
+      "attachment_download": "Attached file",
+      "load_error": "The news item could not be loaded"
     }
   },
   "videos": {
@@ -273,7 +275,8 @@
       "views_label": "Views: {{count}}"
     },
     "detail_page": {
-      "not_found": "Video not found"
+      "not_found": "Video not found",
+      "load_error": "The video could not be loaded"
     }
   },
   "shared": {

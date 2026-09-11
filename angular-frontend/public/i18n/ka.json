@@ -185,7 +185,8 @@
       "related_heading": "დაკავშირებული მასალები",
       "sibling_navigation": "ნავიგაცია ამავე კატეგორიაში",
       "previous_article": "წინა სტატია",
-      "next_article": "შემდეგი სტატია"
+      "next_article": "შემდეგი სტატია",
+      "load_error": "სტატია ვერ ჩაიტვირთა"
     },
     "version_history": {
       "button": "ვერსიების ისტორია",
@@ -261,7 +262,8 @@
     },
     "detail_page": {
       "not_found": "სიახლე ვერ მოიძებნა",
-      "attachment_download": "თანდართული ფაილი"
+      "attachment_download": "თანდართული ფაილი",
+      "load_error": "სიახლე ვერ ჩაიტვირთა"
     }
   },
   "videos": {
@@ -273,7 +275,8 @@
       "views_label": "ნახვები: {{count}}"
     },
     "detail_page": {
-      "not_found": "ვიდეო ვერ მოიძებნა"
+      "not_found": "ვიდეო ვერ მოიძებნა",
+      "load_error": "ვიდეო ვერ ჩაიტვირთა"
     }
   },
   "shared": {

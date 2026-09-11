@@ -6,6 +6,48 @@ function textContent(html: string): string {
 }
 
 describe('formatArticleContent', () => {
+  it('drops a body heading that only repeats the article title', () => {
+    const rendered = formatArticleContent(
+      '<h1>მობილური ტელეფონი</h1><p>ტექსტი</p>',
+      [],
+      'მობილური ტელეფონი',
+    );
+
+    expect(rendered).not.toContain('მობილური ტელეფონი');
+    expect(rendered).toContain('ტექსტი');
+  });
+
+  it('finds the repeated title even when the body is wrapped in a div', () => {
+    const rendered = formatArticleContent(
+      '<div><h1>მობილური</h1><p>ტექსტი</p></div>',
+      [],
+      'მობილური',
+    );
+
+    expect(rendered).not.toContain('<h2>მობილური</h2>');
+    expect(rendered).toContain('ტექსტი');
+  });
+
+  it('keeps a heading that is not the first thing in the body', () => {
+    const rendered = formatArticleContent('<p>შესავალი</p><h2>A</h2>', [], 'A');
+
+    expect(rendered).toContain('>A<');
+  });
+
+  it('keeps a heading that merely starts with the same words', () => {
+    const rendered = formatArticleContent('<h1>ტარიფები 2026</h1>', [], 'ტარიფები');
+
+    expect(rendered).toContain('ტარიფები 2026');
+  });
+
+  it('shifts body headings down a level so the page keeps the only h1', () => {
+    const rendered = formatArticleContent('<h1>A</h1><h2>B</h2><h6>C</h6>');
+
+    expect(rendered).toContain('<h2>A</h2>');
+    expect(rendered).toContain('<h3>B</h3>');
+    expect(rendered).toContain('<h6>C</h6>');
+  });
+
   it('preserves every visible character while decorating technical codes', () => {
     const source =
       '<p>სერვისის ჩართვა — *105#; გადამისამართება — **62*0300#OK.</p><ul><li>გამორთვა: ##62#OK</li></ul>';

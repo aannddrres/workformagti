@@ -1,4 +1,4 @@
-<div class="mx-auto w-full max-w-[1440px] px-4 pb-8 pt-4 md:px-6 md:pt-6">
+<div class="portal-page">
   <div class="mb-6">
     <button
       (click)="goBack()"
@@ -31,9 +31,9 @@
           <i class="fa-solid" [class]="icon()"></i>
         </span>
         <div>
-          <h2 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+          <h1 class="portal-title">
             {{ cat.name }}
-          </h2>
+          </h1>
           <span class="text-sm font-normal text-slate-600 dark:text-slate-400">{{
             'articles.category_tile.article_count' | translate: { count: rows().length }
           }}</span>
