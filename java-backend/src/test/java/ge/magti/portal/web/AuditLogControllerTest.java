@@ -10,13 +10,18 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -44,6 +49,32 @@ class AuditLogControllerTest {
         user.setRole(role);
         user.setPermissions(permissions);
         return user;
+    }
+
+    @Test
+    void listDefaultsToNewestFirstAndOnlyFlipsOnAnExplicitAsc() {
+        User admin = userWith(Role.SYSTEM_ADMIN, Set.of());
+        when(auditLogQueryService.list(any(), any(), anyInt(), anyInt(), anyBoolean()))
+                .thenReturn(new AuditLogQueryService.Page(List.of(), 0L));
+
+        controller.list(null, null, null, null, null, null, null, 50, 0, "desc", admin);
+        verify(auditLogQueryService).list(any(), any(), anyInt(), anyInt(), eq(false));
+
+        controller.list(null, null, null, null, null, null, null, 50, 0, "asc", admin);
+        verify(auditLogQueryService).list(any(), any(), anyInt(), anyInt(), eq(true));
+    }
+
+    @Test
+    void listTreatsAnythingThatIsNotAscAsNewestFirst() {
+        User admin = userWith(Role.SYSTEM_ADMIN, Set.of());
+        when(auditLogQueryService.list(any(), any(), anyInt(), anyInt(), anyBoolean()))
+                .thenReturn(new AuditLogQueryService.Page(List.of(), 0L));
+
+        // The direction never reaches SQL as text, so a hostile value is simply
+        // not "asc" and the default order stands.
+        controller.list(null, null, null, null, null, null, null, 50, 0, "timestamp; DROP TABLE audit_logs", admin);
+
+        verify(auditLogQueryService).list(any(), any(), anyInt(), anyInt(), eq(false));
     }
 
     @Test

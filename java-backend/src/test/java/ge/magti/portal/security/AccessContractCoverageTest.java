@@ -85,7 +85,12 @@ class AccessContractCoverageTest {
 
     private static String handlerBody(List<String> lines, int mappingLine) {
         int bodyStart = -1;
-        for (int j = mappingLine + 1; j < Math.min(mappingLine + 12, lines.size()); j++) {
+        // The window has to clear the longest parameter list in the codebase, not
+        // the longest one that existed when this was written. GET /api/audit-logs
+        // takes ten @RequestParams; at a 12-line lookahead its opening brace fell
+        // just outside, handlerBody returned "" and the endpoint silently read as
+        // having no gate at all -- which this test then reported as drift.
+        for (int j = mappingLine + 1; j < Math.min(mappingLine + 40, lines.size()); j++) {
             if (lines.get(j).contains("{")) {
                 bodyStart = j;
                 break;

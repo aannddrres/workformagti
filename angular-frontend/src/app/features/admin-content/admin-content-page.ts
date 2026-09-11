@@ -18,6 +18,7 @@ import { ToastService } from '../../core/notifications/toast.service';
 import { Observable } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ConfirmService } from '../../core/notifications/confirm.service';
+import { createTableSort } from '../../shared/table-sort';
 
 type ContentType = 'all' | 'article' | 'news' | 'video';
 type QueueRow = {
@@ -145,10 +146,21 @@ export class AdminContentPage {
       .filter((row) => !status || row.status === status)
       .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
   });
+  protected readonly sort = createTableSort<QueueRow>({
+    title: (row) => row.title,
+    type: (row) => row.type,
+    status: (row) => row.status,
+    context: (row) => row.context,
+    createdAt: (row) => row.createdAt
+  });
+  /** Sorted before paging, so a column orders the whole queue rather than
+   *  the twenty rows that happen to be on this page. With no column chosen
+   *  it keeps the newest-first order queueRows already applies. */
+  protected readonly sortedQueueRows = computed(() => this.sort.sort(this.queueRows()));
   protected readonly queueTotalPages = computed(() => Math.max(1, Math.ceil(this.queueRows().length / PAGE_SIZE)));
   protected readonly pageRows = computed(() => {
     const page = Math.min(this.currentPage(), this.queueTotalPages());
-    return this.queueRows().slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+    return this.sortedQueueRows().slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   });
   protected readonly queueStart = computed(() => this.queueRows().length === 0 ? 0 : (Math.min(this.currentPage(), this.queueTotalPages()) - 1) * PAGE_SIZE + 1);
   protected readonly queueEnd = computed(() => Math.min(this.queueStart() + PAGE_SIZE - 1, this.queueRows().length));

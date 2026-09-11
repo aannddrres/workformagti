@@ -147,7 +147,7 @@
       <table>
         <thead>
           <tr class="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
-            <th class="px-5 py-3">{{ 'audit.col_time' | translate }}</th>
+            <th class="px-5 py-3" [attr.aria-sort]="timeAriaSort()"><button type="button" class="sortable-header" (click)="toggleTimeOrder()">{{ 'audit.col_time' | translate }}<i class="fa-solid" [class]="timeDirection() === 'asc' ? 'fa-sort-up' : 'fa-sort-down'" aria-hidden="true"></i></button></th>
             <th class="px-5 py-3">{{ 'audit.col_who' | translate }}</th>
             <th class="px-5 py-3">{{ 'audit.col_category' | translate }}</th>
             <th class="px-5 py-3">{{ 'audit.col_action' | translate }}</th>

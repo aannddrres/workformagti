@@ -4,6 +4,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { ContentTrashItem, TrashItemType } from '../../core/models/content-trash';
 import { UserProfileService } from '../../core/auth/user-profile.service';
 import { ContentTrashService } from '../../core/services/content-trash.service';
+import { createTableSort } from '../../shared/table-sort';
 import { ConfirmService } from '../../core/notifications/confirm.service';
 
 @Component({
@@ -18,6 +19,12 @@ export class AdminTrashPage {
   private readonly profiles = inject(UserProfileService);
 
   protected readonly items = signal<ContentTrashItem[]>([]);
+  protected readonly sort = createTableSort<ContentTrashItem>({
+    title: (item) => item.title,
+    trashed: (item) => item.trashed_at,
+    purge: (item) => item.purge_after
+  });
+  protected readonly sortedItems = computed(() => this.sort.sort(this.items()));
   protected readonly loading = signal(true);
   protected readonly busyKey = signal<string | null>(null);
   protected readonly error = signal<string | null>(null);

@@ -5,6 +5,7 @@ import { AuthService } from '../../core/auth/auth.service';
 import { AdminUser } from '../../core/models/admin-user';
 import { UserEditModal } from '../admin-users/user-edit-modal';
 import { ConfirmService } from '../../core/notifications/confirm.service';
+import { createTableSort } from '../../shared/table-sort';
 
 const ROLE_ORDER = ['admin', 'content_admin', 'manager', 'operator'];
 const ROLE_ICONS: Record<string, string> = {
@@ -69,6 +70,12 @@ export class AdminRolesPage {
   });
 
   protected readonly members = computed(() => this.users().filter((u) => u.role === this.activeRole()));
+  protected readonly sort = createTableSort<AdminUser>({
+    name: (u) => u.name,
+    email: (u) => u.email,
+    department: (u) => u.department
+  });
+  protected readonly sortedMembers = computed(() => this.sort.sort(this.members()));
 
   protected readonly selectedCount = computed(() => this.selection().size);
 

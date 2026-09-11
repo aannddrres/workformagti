@@ -88,6 +88,18 @@ public class AuditLogQueryService {
      * unassigned manager used to fall through to unrestricted).
      */
     public Page list(AuditLogFilter filter, List<String> scopeDepartments, int limit, int offset) {
+        return list(filter, scopeDepartments, limit, offset, false);
+    }
+
+    /**
+     * @param oldestFirst flips the chronological order. Only the timestamp is
+     *     sortable on purpose: this is a tamper-evident trail, its meaningful
+     *     order is time, and "find these rows" is already answered by the actor,
+     *     category and date filters. The direction is a boolean rather than a
+     *     column name so nothing a caller sends can reach the ORDER BY clause.
+     */
+    public Page list(AuditLogFilter filter, List<String> scopeDepartments, int limit, int offset,
+            boolean oldestFirst) {
         Where where = buildWhere(filter, scopeDepartments);
 
         long total = jdbcTemplate.queryForObject(
@@ -98,7 +110,9 @@ public class AuditLogQueryService {
         pageParams.add(limit);
         List<AuditLogResponse> rows = jdbcTemplate.query(
                 SELECT_COLUMNS + FROM_JOINS + where.sql()
-                        + " ORDER BY al.timestamp DESC OFFSET ? ROWS FETCH NEXT ? ROWS ONLY",
+                        + (oldestFirst
+                                ? " ORDER BY al.timestamp ASC OFFSET ? ROWS FETCH NEXT ? ROWS ONLY"
+                                : " ORDER BY al.timestamp DESC OFFSET ? ROWS FETCH NEXT ? ROWS ONLY"),
                 (rs, rowNum) -> mapRow(rs),
                 pageParams.toArray());
 

@@ -12,6 +12,7 @@ import {
 import { AdminUsersService } from '../../core/services/admin-users.service';
 import { OrgAdminService } from '../../core/services/org-admin.service';
 import { ConfirmService } from '../../core/notifications/confirm.service';
+import { createTableSort } from '../../shared/table-sort';
 
 @Component({
   selector: 'app-admin-assignments-page',
@@ -27,6 +28,14 @@ export class AdminAssignmentsPage {
 
   protected readonly structure = signal<OrgStructure | null>(null);
   protected readonly assignments = signal<LeadershipAssignment[]>([]);
+  protected readonly sort = createTableSort<LeadershipAssignment>({
+    leader: (a) => a.user_name,
+    scope: (a) => a.department_name ?? a.team_name,
+    type: (a) => a.assignment_type,
+    source: (a) => a.source,
+    status: (a) => (a.is_active ? 0 : 1)
+  });
+  protected readonly sortedAssignments = computed(() => this.sort.sort(this.assignments()));
   protected readonly users = signal<AdminUser[]>([]);
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);

@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { VideosService } from '../../../core/services/videos.service';
@@ -6,6 +6,7 @@ import { VideoInstruction } from '../../../core/models/video';
 import { VideoEditDrawer } from '../video-edit-drawer/video-edit-drawer';
 import { ToastService } from '../../../core/notifications/toast.service';
 import { ConfirmService } from '../../../core/notifications/confirm.service';
+import { createTableSort } from '../../../shared/table-sort';
 
 /**
  * Port of #admin-videos-table-container (base-layout.html:1872-1889) +
@@ -25,6 +26,12 @@ export class VideosAdminTable {
   private readonly translate = inject(TranslateService);
 
   protected readonly items = signal<VideoInstruction[]>([]);
+  protected readonly sort = createTableSort<VideoInstruction>({
+    title: (item) => item.title,
+    category: (item) => item.category,
+    department: (item) => item.target_department
+  });
+  protected readonly sortedItems = computed(() => this.sort.sort(this.items()));
   protected readonly loading = signal(true);
   protected readonly editingVideo = signal<VideoInstruction | { id: null } | null>(null);
 

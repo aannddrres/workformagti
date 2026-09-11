@@ -256,6 +256,21 @@
     @apply min-h-10 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-e1 transition placeholder:text-slate-500 focus:border-brand-accent focus:outline-none focus:ring-2 focus:ring-brand-accent/10 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100;
   }
 
+  /* A sortable column header. The arrow is dim until the column is the one
+   * being sorted, and the active state is carried by `aria-sort` on the `<th>`
+   * so the styling and the thing a screen reader announces cannot drift apart. */
+  .sortable-header {
+    @apply inline-flex items-center gap-1.5 rounded-sm text-left font-bold transition hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent dark:hover:text-white;
+  }
+
+  .sortable-header i {
+    @apply text-xs text-slate-600 dark:text-slate-400;
+  }
+
+  [aria-sort] .sortable-header i {
+    @apply text-brand-accent;
+  }
+
   .status-pill {
     @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold;
   }

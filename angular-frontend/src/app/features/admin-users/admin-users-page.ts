@@ -10,6 +10,7 @@ import { ToastService } from '../../core/notifications/toast.service';
 import { StatsService } from '../../core/services/stats.service';
 import { formatKaDateTime } from '../../shared/ka-date';
 import { formatDepartmentLabel } from '../../shared/department-badge';
+import { createTableSort } from '../../shared/table-sort';
 
 /**
  * Port of #admin-users (base-layout.html:2094-2186) + its lazy-load-on-login
@@ -57,6 +58,13 @@ export class AdminUsersPage {
   protected readonly statusFilter = signal('');
   protected readonly overdueByUser = signal<Map<number, number>>(new Map());
   protected readonly currentPage = signal(1);
+  protected readonly sort = createTableSort<AdminUser>({
+    name: (user) => user.name,
+    department: (user) => user.department,
+    role: (user) => user.role,
+    status: (user) => (user.is_active ? 0 : 1),
+    lastActive: (user) => user.last_active
+  });
   protected readonly pageSize = 50;
 
   protected readonly filteredUsers = computed(() => {
@@ -70,11 +78,14 @@ export class AdminUsersPage {
       return matchesQuery && matchesRole && matchesStatus;
     });
   });
+  /** Sorted before paging: ordering the fifty rows already on screen would look
+   *  like ordering the list and would not be. */
+  protected readonly sortedUsers = computed(() => this.sort.sort(this.filteredUsers()));
   protected readonly totalPages = computed(() => Math.max(1, Math.ceil(this.filteredUsers().length / this.pageSize)));
   protected readonly pagedUsers = computed(() => {
     const page = Math.min(this.currentPage(), this.totalPages());
     const start = (page - 1) * this.pageSize;
-    return this.filteredUsers().slice(start, start + this.pageSize);
+    return this.sortedUsers().slice(start, start + this.pageSize);
   });
 
   protected readonly groupLeaders = signal<GroupLeader[]>([]);

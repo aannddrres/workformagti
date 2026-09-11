@@ -61,12 +61,12 @@
       <table class="min-w-[1100px]">
         <thead>
           <tr>
-            <th class="px-5 py-3">მომხმარებელი</th>
-            <th class="px-5 py-3">{{ 'users.col_department' | translate }}</th>
-            <th class="px-5 py-3">{{ 'users.col_role' | translate }}</th>
-            <th class="px-5 py-3">სტატუსი</th>
+            <th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('name')"><button type="button" class="sortable-header" (click)="sort.toggle('name')">მომხმარებელი<i class="fa-solid" [class]="sort.icon('name')" aria-hidden="true"></i></button></th>
+            <th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('department')"><button type="button" class="sortable-header" (click)="sort.toggle('department')">{{ 'users.col_department' | translate }}<i class="fa-solid" [class]="sort.icon('department')" aria-hidden="true"></i></button></th>
+            <th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('role')"><button type="button" class="sortable-header" (click)="sort.toggle('role')">{{ 'users.col_role' | translate }}<i class="fa-solid" [class]="sort.icon('role')" aria-hidden="true"></i></button></th>
+            <th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('status')"><button type="button" class="sortable-header" (click)="sort.toggle('status')">სტატუსი<i class="fa-solid" [class]="sort.icon('status')" aria-hidden="true"></i></button></th>
             <th class="px-5 py-3 text-center">ვადაგადაცილებული</th>
-            <th class="px-5 py-3">ბოლო შესვლა</th>
+            <th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('lastActive')"><button type="button" class="sortable-header" (click)="sort.toggle('lastActive')">ბოლო შესვლა<i class="fa-solid" [class]="sort.icon('lastActive')" aria-hidden="true"></i></button></th>
             <th class="px-5 py-3 text-center">{{ 'users.col_action' | translate }}</th>
           </tr>
         </thead>

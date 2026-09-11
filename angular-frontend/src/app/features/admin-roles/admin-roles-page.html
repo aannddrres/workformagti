@@ -81,14 +81,14 @@
             <thead>
               <tr class="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
                 <th class="w-10 px-4 py-3"></th>
-                <th class="px-5 py-3">{{ 'users.col_name' | translate }}</th>
-                <th class="px-5 py-3">{{ 'users.col_email' | translate }}</th>
-                <th class="px-5 py-3">{{ 'users.col_department' | translate }}</th>
+                <th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('name')"><button type="button" class="sortable-header" (click)="sort.toggle('name')">{{ 'users.col_name' | translate }}<i class="fa-solid" [class]="sort.icon('name')" aria-hidden="true"></i></button></th>
+                <th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('email')"><button type="button" class="sortable-header" (click)="sort.toggle('email')">{{ 'users.col_email' | translate }}<i class="fa-solid" [class]="sort.icon('email')" aria-hidden="true"></i></button></th>
+                <th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('department')"><button type="button" class="sortable-header" (click)="sort.toggle('department')">{{ 'users.col_department' | translate }}<i class="fa-solid" [class]="sort.icon('department')" aria-hidden="true"></i></button></th>
                 <th class="px-5 py-3 text-center">{{ 'users.col_action' | translate }}</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-              @for (member of members(); track member.id) {
+              @for (member of sortedMembers(); track member.id) {
                 <tr class="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60" [class.opacity-60]="!member.is_active">
                   <td class="px-4 py-3">
                     @if (isSelf(member)) {

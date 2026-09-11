@@ -26,8 +26,13 @@ function buildParams(filter: AuditLogFilter, limit: number, offset: number): Htt
 export class AuditService {
   private readonly http = inject(HttpClient);
 
-  list(filter: AuditLogFilter, limit: number, offset: number): Observable<AuditLogPage> {
-    const params = buildParams(filter, limit, offset);
+  /**
+   * @param direction only the chronological order is sortable. The trail is
+   *   tamper-evident and its meaningful order is time; "find these rows" is
+   *   already answered by the actor, category and date filters.
+   */
+  list(filter: AuditLogFilter, limit: number, offset: number, direction: 'asc' | 'desc' = 'desc'): Observable<AuditLogPage> {
+    const params = buildParams(filter, limit, offset).set('direction', direction);
     return this.http
       .get('/api/audit-logs', { params, observe: 'response' })
       .pipe(
