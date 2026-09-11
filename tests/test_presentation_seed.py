@@ -207,7 +207,14 @@ def test_compose_and_reset_are_scoped_to_the_presentation_project() -> None:
     # What actually keeps this safe is the line above: the stack is published
     # on 127.0.0.1 only. Both are pinned here so that turning one off without
     # the other fails the build rather than a demo.
-    assert "ALLOW_DEV_LOGIN: \"true\"" in compose
+    #
+    # The value now lives in one anchor because two places consumed it and
+    # were free to disagree: the backend implements the bypass, and the
+    # seeder's verify_api asserts the login behaviour it produces. They did
+    # disagree, and a full reset/verify could not pass until they were tied
+    # together. Both references are pinned so neither can quietly stop using it.
+    assert 'x-allow-dev-login: &allow-dev-login "true"' in compose
+    assert compose.count("ALLOW_DEV_LOGIN: *allow-dev-login") == 2
     assert "magti-portal-presentation-oracle-data" in compose
     assert "./magti_portal.db:/source/magti_portal.db:ro" in compose
     assert "./uploads:/source/uploads:ro" in compose
@@ -291,3 +298,36 @@ def test_reset_confirms_volume_removal_without_a_terminating_native_error() -> N
     assert "$ErrorActionPreference = 'Continue'" in helper
     assert "finally {" in helper
     assert "$ErrorActionPreference = $previous" in helper
+
+
+def test_verify_asserts_the_login_mode_it_is_actually_running_in() -> None:
+    # verify_api demanded HTTP 401 for a wrong password unconditionally, while
+    # the compose file deliberately sets ALLOW_DEV_LOGIN=true so the persona
+    # picker works. Those cannot both hold, so a full reset/verify failed on
+    # the intended configuration -- and nothing had surfaced it, because reset
+    # had never been able to reach verify.
+    seeder = (ROOT / "scripts" / "presentation" / "seed_oracle_demo.py").read_text(encoding="utf-8")
+
+    assert 'os.getenv("ALLOW_DEV_LOGIN"' in seeder
+    assert "expected_wrong_password_status = 200 if dev_login else 401" in seeder
+    # The observed mode belongs in the report rather than being swallowed.
+    assert '"dev_login": dev_login,' in seeder
+
+    # With the password bypassed for the allow-list, the property left worth
+    # proving is that the bypass is scoped.
+    assert "OUTSIDE_DEV_LOGIN_ALLOWLIST" in seeder
+    assert '"Dev login is not scoped to its allow-list: "' in seeder
+
+    # The probe addresses must sit outside every branch of
+    # AuthenticationService's allow-list. A "presentation." address is
+    # JIT-provisioned on a failed lookup, so probing an unknown one would
+    # CREATE the account -- named "Test User " + the local part -- and push the
+    # user count past the baseline this same run then asserts. That is exactly
+    # how a stray "Test User presentation.nonexistent.person" ended up in the
+    # demo org.
+    block = seeder.split("OUTSIDE_DEV_LOGIN_ALLOWLIST = (", 1)[1].split(")", 1)[0]
+    probes = [line.strip().strip('",') for line in block.splitlines() if "@" in line]
+    assert probes, "no probe addresses found"
+    for probe in probes:
+        assert not probe.startswith("presentation."), probe
+        assert not probe.startswith("test_operator_"), probe

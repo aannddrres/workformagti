@@ -90,6 +90,13 @@ PERSONAS = {
     "tech@magti.ge": "operator",
     "nino@magti.ge": "operator",
 }
+# Addresses outside every branch of AuthenticationService's dev-login
+# allow-list: not in DEV_TEST_EMAILS, and not carrying the "test_operator_" or
+# "presentation." prefixes. They must still be refused while dev login is on.
+OUTSIDE_DEV_LOGIN_ALLOWLIST = (
+    "verify.not.a.real.account@example.com",
+    "nobody@nowhere.test",
+)
 PULSE_EMAILS = tuple(
     ["tech@magti.ge"] + [f"presentation.tech.g01.op{number:02d}@magti.ge" for number in range(2, 9)]
     + ["info@magti.ge"] + [f"presentation.info.g01.op{number:02d}@magti.ge" for number in range(2, 9)]
@@ -1816,6 +1823,24 @@ def verify_api(
         if health.status_code != 200:
             raise PresentationSafetyError(f"Backend health failed: HTTP {health.status_code} {health.text[:300]}")
 
+        # What "a wrong password is refused" means depends on how the stack
+        # was configured, so this asserts the mode it is actually running in
+        # rather than one fixed answer.
+        #
+        # ALLOW_DEV_LOGIN is "true" for this demo on purpose: the login
+        # screen's persona picker sends no password, and corporate SSO is not
+        # wired up. AuthenticationService.authenticate then bypasses the
+        # password for its allow-list, gated on BOTH !isProduction() and
+        # allow-dev-login, so it stays inert in production.
+        #
+        # This check used to demand 401 unconditionally. Against a stack with
+        # dev login on, that is a property the stack was deliberately
+        # configured not to have -- and it failed the whole verification on
+        # the intended behaviour. It survived only because nothing had run a
+        # full reset/verify since dev login was turned on.
+        dev_login = os.getenv("ALLOW_DEV_LOGIN", "false").strip().lower() == "true"
+        expected_wrong_password_status = 200 if dev_login else 401
+
         wrong_password_results: dict[str, int] = {}
         for email in PERSONAS:
             wrong = client.post(
@@ -1823,11 +1848,42 @@ def verify_api(
                 json={"email": email, "password": "Wrong-Magti-Demo-Password!"},
             )
             wrong_password_results[email] = wrong.status_code
-            if wrong.status_code != 401:
+            if wrong.status_code != expected_wrong_password_status:
+                detail = (
+                    "was rejected despite ALLOW_DEV_LOGIN being on"
+                    if dev_login
+                    else "was not rejected"
+                )
                 raise PresentationSafetyError(
-                    f"Wrong password was not rejected for {email}: HTTP {wrong.status_code}"
+                    f"Wrong password {detail} for {email}: HTTP {wrong.status_code} "
+                    f"(expected {expected_wrong_password_status})"
                 )
             tokens[email] = _api_login(client, email, password)
+
+        # With the password bypassed for the allow-list, the property still
+        # worth proving is that the bypass is SCOPED. An address outside the
+        # allow-list must still need a real password, or "dev login" would
+        # mean "no authentication at all" and the loopback binding would be
+        # the only thing left.
+        #
+        # These addresses are chosen to be outside every branch of that
+        # allow-list on purpose. Do NOT probe an unknown "presentation."
+        # address here: that prefix is JIT-provisioned, so the probe would
+        # CREATE the account ("Test User " + the local part) and push the user
+        # count past the baseline this same verification then checks.
+        outside_allowlist_results: dict[str, int] = {}
+        if dev_login:
+            for email in OUTSIDE_DEV_LOGIN_ALLOWLIST:
+                refused = client.post(
+                    "/api/auth/login",
+                    json={"email": email, "password": "Wrong-Magti-Demo-Password!"},
+                )
+                outside_allowlist_results[email] = refused.status_code
+                if refused.status_code != 401:
+                    raise PresentationSafetyError(
+                        "Dev login is not scoped to its allow-list: "
+                        f"{email} answered HTTP {refused.status_code}, expected 401"
+                    )
 
         quiz_title = str(source.execute("SELECT title FROM articles WHERE id=129").fetchone()[0])
         quiz_article_id = int(_scalar(cursor, "SELECT id FROM articles WHERE title=:title", title=quiz_title))
@@ -1952,7 +2008,9 @@ def verify_api(
         return {
             "health": health.json(),
             "correct_logins": {email: True for email in tokens},
+            "dev_login": dev_login,
             "wrong_password_statuses": wrong_password_results,
+            "outside_allowlist_statuses": outside_allowlist_results,
             "role_gates": role_gates,
             "manager_scope": "technical-only",
             "known_searches": search_results,
