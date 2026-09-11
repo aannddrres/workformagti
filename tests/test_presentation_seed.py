@@ -263,3 +263,31 @@ def test_powershell_wrappers_that_hold_non_ascii_are_bom_prefixed() -> None:
             missing.append(wrapper.relative_to(ROOT).as_posix())
 
     assert missing == []
+
+
+def test_reset_confirms_volume_removal_without_a_terminating_native_error() -> None:
+    # `reset` deletes the scoped volume and then confirms it is gone. The
+    # confirmation was `docker volume inspect ... *> $null` followed by a
+    # $LASTEXITCODE check -- but on a missing volume, which is the SUCCESS
+    # case here, docker writes to stderr. Windows PowerShell raises that as a
+    # NativeCommandError, and this script's $ErrorActionPreference = 'Stop'
+    # makes it terminating: `*> $null` redirects the stream without stopping
+    # the record. So reset removed the containers and the data and then died
+    # on the very check meant to confirm the removal, before
+    # Prepare-Presentation could rebuild any of it. The one path that destroys
+    # data was the one path that could not finish, and nothing said so.
+    wrapper = (ROOT / "presentation.ps1").read_text(encoding="utf-8")
+
+    assert "$ErrorActionPreference = 'Stop'" in wrapper
+    assert "function Test-PresentationVolumeExists" in wrapper
+    # Both call sites -- the `reset` switch and Remove-PresentationDataAndRebuild.
+    assert wrapper.count("if (Test-PresentationVolumeExists) {") == 2
+    assert "volume inspect $PresentationVolume *> $null" not in wrapper
+
+    # The relaxation must be scoped to that single call and restored after it,
+    # or every other native failure in this script stops being loud.
+    helper = wrapper.split("function Test-PresentationVolumeExists", 1)[1]
+    helper = helper.split("\nfunction ", 1)[0]
+    assert "$ErrorActionPreference = 'Continue'" in helper
+    assert "finally {" in helper
+    assert "$ErrorActionPreference = $previous" in helper
