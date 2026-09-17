@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { apiLogin, createArticle, firstCategoryId, markRead, runId, seedTokenIntoPage, syncRequiredReading } from './helpers';
+import { acceptConfirmation, apiLogin, createArticle, firstCategoryId, markRead, runId, seedTokenIntoPage, syncRequiredReading } from './helpers';
 
 async function exportedEvidenceCount(request: import('@playwright/test').APIRequestContext, headers: Record<string, string>): Promise<number> {
   const submitted = await request.post('/api/admin/exports/read-evidence', { headers });
@@ -40,15 +40,14 @@ test('trash preserves mandatory-reading and read-receipt evidence', async ({ pag
   await expect(row).toBeVisible();
 
   await row.getByRole('button', { name: 'სტატიის მოქმედებები' }).click();
-  page.once('dialog', (dialog) => dialog.accept());
   await row.getByRole('button', { name: 'დაარქივება' }).click();
+  await acceptConfirmation(page);
   await expect(row.getByText('არქივი')).toBeVisible();
 
   await row.getByRole('button', { name: 'სტატიის მოქმედებები' }).click();
-  page.once('dialog', (dialog) => dialog.accept());
   const [trashed] = await Promise.all([
     page.waitForResponse((response) => response.url().endsWith(`/api/articles/${articleId}`) && response.request().method() === 'DELETE'),
-    row.getByRole('button', { name: 'სანაგვეში გადატანა' }).click()
+    row.getByRole('button', { name: 'სანაგვეში გადატანა' }).click().then(() => acceptConfirmation(page))
   ]);
   expect(trashed.status()).toBe(204);
   await expect(row).toHaveCount(0);

@@ -1,5 +1,5 @@
 import { test, expect, APIRequestContext } from '@playwright/test';
-import { apiLogin, createArticle, createCategory, runId, seedTokenIntoPage } from './helpers';
+import { acceptConfirmation, apiLogin, createArticle, createCategory, runId, seedTokenIntoPage } from './helpers';
 
 interface UserRow { id: number; email: string; name: string; role: string }
 
@@ -41,10 +41,9 @@ test.describe('role management', () => {
       await row.getByRole('checkbox').check();
       await expect(page.getByText('1 მონიშნული')).toBeVisible();
       await page.locator('app-admin-roles-page select').selectOption('manager');
-      page.once('dialog', (dialog) => dialog.accept());
       const [moved] = await Promise.all([
         page.waitForResponse((response) => response.url().includes('/api/admin/roles/bulk-reassign')),
-        page.getByRole('button', { name: 'გადაყვანა', exact: true }).click()
+        page.getByRole('button', { name: 'გადაყვანა', exact: true }).click().then(() => acceptConfirmation(page))
       ]);
       expect(moved.status()).toBe(200);
       await expect.poll(() => roleOf(request, token, target.id)).toBe('manager');

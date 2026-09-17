@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { apiLogin, createArticle, createCategory, runId, seedTokenIntoPage } from './helpers';
+import { acceptConfirmation, apiLogin, createArticle, createCategory, runId, seedTokenIntoPage } from './helpers';
 
 const SEEDED = 21;
 
@@ -75,10 +75,9 @@ test.describe('unified admin content queue', () => {
     await expect(row.getByRole('button', { name: 'ისტორია' })).toBeVisible();
     await expect(row.getByRole('button', { name: 'სანაგვეში გადატანა' })).toBeDisabled();
 
-    page.once('dialog', (dialog) => dialog.accept());
     const [archived] = await Promise.all([
       page.waitForResponse((response) => response.url().includes(`/api/articles/${articleId}/archive`)),
-      row.getByRole('button', { name: 'დაარქივება' }).click()
+      row.getByRole('button', { name: 'დაარქივება' }).click().then(() => acceptConfirmation(page))
     ]);
     expect(archived.status()).toBe(200);
     await expect(row.getByText('არქივი')).toBeVisible();
@@ -91,10 +90,9 @@ test.describe('unified admin content queue', () => {
     await expect(page).toHaveURL(/status=archived/);
 
     await row.getByRole('button', { name: 'სტატიის მოქმედებები' }).click();
-    page.once('dialog', (dialog) => dialog.accept());
     const [restored] = await Promise.all([
       page.waitForResponse((response) => response.url().includes(`/api/articles/${articleId}/unarchive`)),
-      row.getByRole('button', { name: 'არქივიდან ამოღება' }).click()
+      row.getByRole('button', { name: 'არქივიდან ამოღება' }).click().then(() => acceptConfirmation(page))
     ]);
     expect(restored.status()).toBe(200);
     await expect(row).toHaveCount(0);

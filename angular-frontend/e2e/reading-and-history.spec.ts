@@ -60,10 +60,10 @@ test.describe('reading and version history', () => {
     await markRead(request, operatorToken, readReadingId);
 
     await page.goto('/reading');
-    await expect(page.getByRole('heading', { name: 'სავალდებულოდ გასაცნობი' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'სავალდებულო გაცნობა' })).toBeVisible();
 
-    const unreadRow = page.locator('div[role="button"]', { hasText: unreadTitle });
-    const readRow = page.locator('div[role="button"]', { hasText: readTitle });
+    const unreadRow = page.getByRole('link', { name: unreadTitle });
+    const readRow = page.getByRole('link', { name: readTitle });
 
     // --- all ---------------------------------------------------------------
     await page.getByRole('button', { name: 'ყველა', exact: true }).click();

@@ -210,7 +210,7 @@ test.describe('audit log', () => {
     expect(again.status()).toBe(200);
 
     // --- close by clicking the backdrop ------------------------------------
-    await page.locator('div.fixed.inset-0.bg-black\\/40').click({ position: { x: 5, y: 5 } });
+    await page.locator('div.dialog-backdrop').click({ position: { x: 5, y: 5 } });
     await expect(page.getByText('ლოგის დეტალები')).toBeHidden();
 
     // --- export ------------------------------------------------------------

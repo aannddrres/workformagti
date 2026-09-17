@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { apiLogin, createArticle, createCategory, runId, seedTokenIntoPage, updateArticle } from './helpers';
+import { acceptConfirmation, apiLogin, createArticle, createCategory, runId, seedTokenIntoPage, updateArticle } from './helpers';
 
 /**
  * The version history modal: expand a version, diff it, go back, restore it.
@@ -76,13 +76,13 @@ test('article history: expand, diff, and restore an older version', async ({ pag
   await expect(modal.getByText('ცვლილებების ისტორია')).toBeVisible();
 
   // --- restore -----------------------------------------------------------
-  page.once('dialog', (dialog) => dialog.accept());     // confirm_restore
   await modal
     .locator('div')
     .filter({ hasText: originalTitle })
     .last()
     .getByRole('button', { name: 'აღდგენა' })
     .click();
+  await acceptConfirmation(page); // confirm_restore
 
   // The modal closes and the table reloads -- the article is back to its
   // first title.

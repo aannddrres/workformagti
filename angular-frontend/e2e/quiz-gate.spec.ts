@@ -44,7 +44,7 @@ test('mandatory reading with a quiz: gate blocks mark-read, passing unlocks it',
   await loginAsUi(page, `test_operator_quiz_${id}@magti.ge`);
 
   await page.goto('/reading');
-  const row = page.locator('div[role="button"]', { hasText: title });
+  const row = page.getByRole('link', { name: title });
   await expect(row).toBeVisible();
 
   // The row only opens the item now -- it cannot mark it read.
@@ -67,5 +67,5 @@ test('mandatory reading with a quiz: gate blocks mark-read, passing unlocks it',
 
   // ...and the obligation reads as cleared back on the list.
   await page.goto('/reading');
-  await expect(page.locator('div[role="button"]', { hasText: title }).getByText('წაკითხულია')).toBeVisible();
+  await expect(page.getByRole('link', { name: title }).getByText('წაკითხულია')).toBeVisible();
 });
