@@ -221,6 +221,17 @@ describe('design rules', () => {
     expect(offenders).toEqual([]);
   });
 
+  /** `.dialog-backdrop` is the dimmed layer behind a dialog, and it carries an
+   *  entrance animation. The sweep that introduced it replaced every
+   *  `bg-black/40`, which also caught two things that were never backdrops --
+   *  the star over a video thumbnail and the video label chip -- so both
+   *  faded in like an overlay on every render. A backdrop covers its parent,
+   *  so the class only belongs beside `inset-0`. */
+  it('keeps the backdrop class on backdrops', () => {
+    const offenders = scan(/^.*\bdialog-backdrop\b.*$/gm, (m) => !/\binset-0\b/.test(m[0]));
+    expect(offenders).toEqual([]);
+  });
+
   /** `toLocaleDateString('ka-GE', ...)` renders the US month-first `08/19/2026`
    *  wherever Chromium ships no `ka` CLDR data, and Node -- where the tests run
    *  -- does ship it, so no unit test can catch the difference. Dates go
