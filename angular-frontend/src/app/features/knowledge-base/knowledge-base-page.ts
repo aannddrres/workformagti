@@ -88,7 +88,10 @@ export class KnowledgeBasePage {
         this.articlesService.list({ limit: 1000 }).subscribe({
           next: (articles) => {
             this.countingSet.set(articles.filter(isReaderVisibleArticle));
-            this.search$.next({ q: initialQuery, categoryId: initialCategory });
+            // The current filters, not the ones the page opened with: anything
+            // typed while this list was loading is already in them, and
+            // re-running the opening query here silently replaced it.
+            this.search$.next({ q: this.searchQuery(), categoryId: this.selectedCategoryId() });
           },
           error: () => {
             this.loading.set(false);
