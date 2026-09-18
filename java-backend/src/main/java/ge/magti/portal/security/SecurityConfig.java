@@ -12,10 +12,12 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.authentication.session.NullAuthenticatedSessionStrategy;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 
 /**
  * Stateless-session security for a JWT stored in an httpOnly cookie. Cookie
@@ -93,11 +95,11 @@ public class SecurityConfig {
 
 	@Bean
 	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-		CookieCsrfTokenRepository csrfRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
-		csrfRepository.setCookieCustomizer(cookie -> cookie
-				.path("/")
-				.sameSite("Strict")
-				.secure(portalProperties.getSecurity().getCookie().isSecure()));
+		// Cookie attributes, and the lifetime that keeps it from outliving or
+		// dying before the session -- see SessionLifetimeCsrfTokenRepository.
+		CsrfTokenRepository csrfRepository = new SessionLifetimeCsrfTokenRepository(
+				portalProperties.getSecurity().getCookie().isSecure(),
+				Duration.ofMinutes(portalProperties.getSecurity().getJwt().getAccessTokenExpireMinutes()));
 		RequestMatcher bearerRequest = request -> {
 			String authorization = request.getHeader("Authorization");
 			return authorization != null && authorization.startsWith("Bearer ");
@@ -111,6 +113,32 @@ public class SecurityConfig {
 				.csrf(csrf -> csrf
 						.csrfTokenRepository(csrfRepository)
 						.csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
+						// Authentication here is re-read from the JWT on every
+						// request and never stored in a session, so
+						// SessionManagementFilter treats every authenticated
+						// request as a brand-new login and the default
+						// CsrfAuthenticationStrategy rotated the token on each
+						// one: measured on 2026-09-17, back-to-back requests
+						// carrying a valid cookie each came back with it
+						// cleared and re-issued.
+						//
+						// Angular copies the cookie into X-XSRF-TOKEN when it
+						// builds a request and the browser attaches the cookie
+						// moments later, so a POST sent while a page's other
+						// responses land could carry a header its own cookie no
+						// longer matched. That is rejected, the rejection
+						// reaches the SPA as 401, and unauthorized.interceptor
+						// signs the user out -- at random, most often on the
+						// page load where heartbeat and view POSTs run beside
+						// a dozen GETs.
+						//
+						// Nothing deliberate is lost: login is a plain
+						// controller, not an authentication filter, so this
+						// strategy never ran for a real sign-in. The cookie is
+						// still issued on the first response that needs one,
+						// still SameSite=Strict, and still verified on every
+						// state-changing request.
+						.sessionAuthenticationStrategy(new NullAuthenticatedSessionStrategy())
 						.ignoringRequestMatchers(unauthenticatedAuthStart, bearerRequest))
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
