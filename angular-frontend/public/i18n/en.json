@@ -121,7 +121,24 @@
     "perm_state_deny": "Explicitly deny (DENY)",
     "perm_admin_bypass_note": "A system administrator holds every permission by definition — the controls below cannot restrict them. Change the role to restrict access.",
     "admin_page": {
-      "status_error": "Could not change status"
+      "status_error": "Could not change status",
+      "inactivity_filter_label": "Last sign-in filter",
+      "inactivity_any": "Last sign-in — any",
+      "inactivity_30": "Not seen for over 30 days",
+      "inactivity_60": "Not seen for over 60 days",
+      "inactivity_90": "Not seen for over 90 days",
+      "inactivity_never": "Never signed in",
+      "select_all": "Select every filtered account",
+      "bulk_region": "Bulk actions",
+      "bulk_selected": "{{count}} account(s) selected",
+      "bulk_deactivate": "Deactivate selected",
+      "bulk_clear": "Clear selection",
+      "bulk_confirm_title": "Deactivate accounts",
+      "bulk_confirm": "Deactivate {{count}} account(s)? They will no longer be able to sign in. Their history and records stay, and they can be reactivated at any time.",
+      "bulk_confirm_label": "Deactivate",
+      "bulk_done": "{{count}} account(s) deactivated",
+      "bulk_none_changed": "No account was deactivated — the selected ones were already off",
+      "bulk_error": "The bulk deactivation could not be completed"
     },
     "profile": {
       "tab_profile": "My profile"

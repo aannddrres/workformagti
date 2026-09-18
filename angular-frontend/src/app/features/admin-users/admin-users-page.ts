@@ -7,6 +7,7 @@ import { AdminUser, GroupLeader } from '../../core/models/admin-user';
 import { ROLES } from '../../shared/user-roles';
 import { UserEditModal } from './user-edit-modal';
 import { ToastService } from '../../core/notifications/toast.service';
+import { ConfirmService } from '../../core/notifications/confirm.service';
 import { StatsService } from '../../core/services/stats.service';
 import { formatKaDateTime } from '../../shared/ka-date';
 import { formatDepartmentLabel } from '../../shared/department-badge';
@@ -40,6 +41,7 @@ import { createTableSort } from '../../shared/table-sort';
 export class AdminUsersPage {
   readonly embedded = input(false);
   private readonly toast = inject(ToastService);
+  private readonly confirmService = inject(ConfirmService);
   private readonly translate = inject(TranslateService);
   private readonly usersService = inject(AdminUsersService);
   private readonly authService = inject(AuthService);
@@ -56,6 +58,15 @@ export class AdminUsersPage {
   protected readonly query = signal('');
   protected readonly roleFilter = signal('');
   protected readonly statusFilter = signal('');
+  /** PO-24: how long an account has gone unused. '' | '30' | '60' | '90' | 'never'. */
+  protected readonly inactivityFilter = signal('');
+  /**
+   * The accounts ticked for the sweep, by id rather than by row, so a
+   * selection survives sorting and paging -- picking fifty leavers across
+   * three pages and losing them on the fourth is the version of this feature
+   * nobody would use twice.
+   */
+  protected readonly selectedIds = signal<ReadonlySet<number>>(new Set<number>());
   protected readonly overdueByUser = signal<Map<number, number>>(new Map());
   protected readonly currentPage = signal(1);
   protected readonly sort = createTableSort<AdminUser>({
@@ -75,8 +86,47 @@ export class AdminUsersPage {
       const matchesQuery = !query || `${user.name} ${user.email} ${user.department ?? ''}`.toLocaleLowerCase('ka').includes(query);
       const matchesRole = !role || user.role === role;
       const matchesStatus = !status || (status === 'active' ? user.is_active : !user.is_active);
-      return matchesQuery && matchesRole && matchesStatus;
+      return matchesQuery && matchesRole && matchesStatus && this.matchesInactivity(user);
     });
+  });
+
+  /**
+   * PO-24. `never` is its own option rather than the oldest end of the day
+   * thresholds: an account created last week and not yet used is not a
+   * leaver, and folding a missing `last_active` into "90 days and more" would
+   * put every new hire into the sweep the admin is about to tick.
+   */
+  private matchesInactivity(user: AdminUser): boolean {
+    const filter = this.inactivityFilter();
+    if (!filter) {
+      return true;
+    }
+    if (filter === 'never') {
+      return !user.last_active;
+    }
+    if (!user.last_active) {
+      return false;
+    }
+    const lastActive = new Date(user.last_active).getTime();
+    if (Number.isNaN(lastActive)) {
+      return false;
+    }
+    return Date.now() - lastActive > Number(filter) * 24 * 60 * 60 * 1000;
+  }
+
+  /**
+   * Who a sweep may touch: never the administrator running it (the backend
+   * drops them from the set anyway, and offering a tick box that silently
+   * does nothing is worse than not offering one), and never an account that
+   * is already off.
+   */
+  protected readonly selectableUsers = computed(() =>
+    this.filteredUsers().filter((user) => user.is_active && !this.isSelf(user)));
+  protected readonly selectedCount = computed(() => this.selectedIds().size);
+  protected readonly allSelectableSelected = computed(() => {
+    const selected = this.selectedIds();
+    const selectable = this.selectableUsers();
+    return selectable.length > 0 && selectable.every((user) => selected.has(user.id));
   });
   /** Sorted before paging: ordering the fifty rows already on screen would look
    *  like ordering the list and would not be. */
@@ -136,22 +186,105 @@ export class AdminUsersPage {
   onGroupFilterChange(event: Event): void {
     const value = (event.target as HTMLSelectElement).value;
     this.selectedManagerId.set(value ? Number(value) : null);
+    this.clearSelection();
     this.loadUsers();
   }
 
   onQueryChange(event: Event): void {
     this.query.set((event.target as HTMLInputElement).value);
-    this.currentPage.set(1);
+    this.afterFilterChange();
   }
 
   onRoleFilterChange(event: Event): void {
     this.roleFilter.set((event.target as HTMLSelectElement).value);
-    this.currentPage.set(1);
+    this.afterFilterChange();
   }
 
   onStatusFilterChange(event: Event): void {
     this.statusFilter.set((event.target as HTMLSelectElement).value);
+    this.afterFilterChange();
+  }
+
+  onInactivityFilterChange(event: Event): void {
+    this.inactivityFilter.set((event.target as HTMLSelectElement).value);
+    this.afterFilterChange();
+  }
+
+  /**
+   * Narrowing the list drops the selection on purpose. Ticks made under one
+   * filter are invisible under the next, and "deactivate 40 accounts" where
+   * the admin can see six of them is the accident this feature exists to
+   * prevent. Paging does not clear it -- that is navigation, not a change of
+   * what is being looked at.
+   */
+  private afterFilterChange(): void {
     this.currentPage.set(1);
+    this.clearSelection();
+  }
+
+  isSelectable(user: AdminUser): boolean {
+    return user.is_active && !this.isSelf(user);
+  }
+
+  isSelected(user: AdminUser): boolean {
+    return this.selectedIds().has(user.id);
+  }
+
+  toggleSelection(user: AdminUser): void {
+    if (!this.isSelectable(user)) {
+      return;
+    }
+    const next = new Set(this.selectedIds());
+    if (!next.delete(user.id)) {
+      next.add(user.id);
+    }
+    this.selectedIds.set(next);
+  }
+
+  /** Every row the current filter shows, not every row on this page: the
+   *  monthly sweep is "filter to 90 days, take all of them". */
+  toggleSelectAll(): void {
+    this.selectedIds.set(
+      this.allSelectableSelected() ? new Set<number>() : new Set(this.selectableUsers().map((user) => user.id)));
+  }
+
+  clearSelection(): void {
+    this.selectedIds.set(new Set<number>());
+  }
+
+  /**
+   * PO-24. Deactivation is reversible and keeps every record the person left
+   * behind, which is why the confirmation says so: an administrator who
+   * thinks this deletes people will not use it, and the accounts it is meant
+   * for stay active forever.
+   */
+  async bulkDeactivate(): Promise<void> {
+    const ids = [...this.selectedIds()];
+    if (!ids.length) {
+      return;
+    }
+    const confirmed = await this.confirmService.ask({
+      title: this.translate.instant('users.admin_page.bulk_confirm_title'),
+      message: this.translate.instant('users.admin_page.bulk_confirm', { count: ids.length }),
+      confirmLabel: this.translate.instant('users.admin_page.bulk_confirm_label'),
+      tone: 'danger'
+    });
+    if (!confirmed) {
+      return;
+    }
+    this.usersService.bulkDeactivate(ids).subscribe({
+      next: (result) => {
+        this.toast.success(result.deactivated
+          ? this.translate.instant('users.admin_page.bulk_done', { count: result.deactivated })
+          : this.translate.instant('users.admin_page.bulk_none_changed'));
+        this.clearSelection();
+        this.loadUsers();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.toast.error(err.error?.detail ?? this.translate.instant('users.admin_page.bulk_error'));
+        this.loadUsers();
+      }
+    });
   }
 
   setPage(page: number): void {

@@ -13,7 +13,7 @@
     </p>
   </div>
 
-  <div class="mb-4 grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900 md:grid-cols-2 xl:grid-cols-[minmax(260px,1fr)_220px_180px_220px]">
+  <div class="mb-4 grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900 md:grid-cols-2 xl:grid-cols-[minmax(260px,1fr)_220px_180px_180px_240px]">
     <label class="relative block">
       <span class="sr-only">მომხმარებლის ძიება</span>
       <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-600 dark:text-slate-400" aria-hidden="true"></i>
@@ -32,10 +32,31 @@
       <option value="active">აქტიური</option>
       <option value="inactive">გათიშული</option>
     </select>
+    <select (change)="onInactivityFilterChange($event)" class="field-control w-full" [attr.aria-label]="'users.admin_page.inactivity_filter_label' | translate">
+      <option value="">{{ 'users.admin_page.inactivity_any' | translate }}</option>
+      <option value="30">{{ 'users.admin_page.inactivity_30' | translate }}</option>
+      <option value="60">{{ 'users.admin_page.inactivity_60' | translate }}</option>
+      <option value="90">{{ 'users.admin_page.inactivity_90' | translate }}</option>
+      <option value="never">{{ 'users.admin_page.inactivity_never' | translate }}</option>
+    </select>
     @if (groupLeadersFailed()) {
       <button type="button" (click)="loadGroupLeaders()" class="text-left text-xs font-semibold text-amber-700 underline dark:text-amber-400">{{ 'users.group_leaders_load_error' | translate }}</button>
     }
   </div>
+
+  <!-- PO-24. Hidden at zero, like the content page's bar: a row of disabled
+       buttons over a list nobody has ticked reads as something broken. -->
+  @if (selectedCount() > 0) {
+    <section [attr.aria-label]="'users.admin_page.bulk_region' | translate" class="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-danger/30 bg-danger/[0.06] p-3 dark:border-danger/40 dark:bg-danger/10">
+      <span class="text-sm font-bold text-slate-700 dark:text-slate-200">{{ 'users.admin_page.bulk_selected' | translate:{ count: selectedCount() } }}</span>
+      <div class="flex flex-wrap items-center gap-2">
+        <button type="button" (click)="bulkDeactivate()" class="rounded-md border border-danger/40 px-3 py-1.5 text-sm font-semibold text-danger hover:bg-danger/[0.08] dark:hover:bg-danger/20">
+          <i class="fa-solid fa-user-slash" aria-hidden="true"></i> {{ 'users.admin_page.bulk_deactivate' | translate }}
+        </button>
+        <button type="button" (click)="clearSelection()" class="quiet-button px-3 py-1.5 text-sm">{{ 'users.admin_page.bulk_clear' | translate }}</button>
+      </div>
+    </section>
+  }
 
   <div class="table-shell">
     @if (loading()) {
@@ -43,6 +64,7 @@
         <tbody>
           @for (i of [1, 2, 3, 4, 5]; track i) {
             <tr class="animate-pulse">
+              <td class="px-5 py-4"><div class="h-4 rounded-sm bg-slate-200/60 dark:bg-slate-800"></div></td>
               <td class="px-5 py-4"><div class="h-4 rounded-sm bg-slate-200/60 dark:bg-slate-800"></div></td>
               <td class="px-5 py-4"><div class="h-4 rounded-sm bg-slate-200/60 dark:bg-slate-800"></div></td>
               <td class="px-5 py-4"><div class="h-4 rounded-sm bg-slate-200/60 dark:bg-slate-800"></div></td>
@@ -61,6 +83,16 @@
       <table class="min-w-[1100px]">
         <thead>
           <tr>
+            <th class="w-10 px-3 py-3">
+              <input
+                type="checkbox"
+                [checked]="allSelectableSelected()"
+                [disabled]="selectableUsers().length === 0"
+                (change)="toggleSelectAll()"
+                class="h-4 w-4 accent-brand disabled:opacity-50"
+                [attr.aria-label]="'users.admin_page.select_all' | translate"
+              />
+            </th>
             <th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('name')"><button type="button" class="sortable-header" (click)="sort.toggle('name')">მომხმარებელი<i class="fa-solid" [class]="sort.icon('name')" aria-hidden="true"></i></button></th>
             <th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('department')"><button type="button" class="sortable-header" (click)="sort.toggle('department')">{{ 'users.col_department' | translate }}<i class="fa-solid" [class]="sort.icon('department')" aria-hidden="true"></i></button></th>
             <th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('role')"><button type="button" class="sortable-header" (click)="sort.toggle('role')">{{ 'users.col_role' | translate }}<i class="fa-solid" [class]="sort.icon('role')" aria-hidden="true"></i></button></th>
@@ -73,6 +105,17 @@
         <tbody>
           @for (user of pagedUsers(); track user.id) {
             <tr [class.opacity-60]="!user.is_active">
+              <td class="px-3 py-3.5">
+                @if (isSelectable(user)) {
+                  <input
+                    type="checkbox"
+                    [checked]="isSelected(user)"
+                    (change)="toggleSelection(user)"
+                    class="h-4 w-4 accent-brand"
+                    [attr.aria-label]="user.name"
+                  />
+                }
+              </td>
               <td class="px-5 py-3.5">
                 <button type="button" (click)="openEditModal(user)" class="block max-w-[300px] text-left">
                   <span class="block truncate font-bold text-slate-800 hover:text-brand-accent dark:text-slate-100">{{ user.name }}</span>

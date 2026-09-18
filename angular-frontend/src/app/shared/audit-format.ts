@@ -86,6 +86,7 @@ export function formatAuditAction(action: string | null | undefined): string {
   if (action === 'UPDATE_STATUS_TO_TRUE') return 'მომხმარებლის გააქტიურება';
   if (action === 'UPDATE_STATUS_TO_FALSE') return 'მომხმარებლის გაუქმება';
   if (action.startsWith('BULK_ROLE_')) return 'როლის ჯგუფური შეცვლა';
+  if (action === 'BULK_DEACTIVATE') return 'ანგარიშების ჯგუფური გათიშვა';
   return ACTION_LABELS[action] ?? action;
 }
 

@@ -66,6 +66,13 @@ export interface UserAdminUpdateRequest {
   overrides: PermissionOverrideDelta[];
 }
 
+/** Mirrors web.BulkDeactivateResponse -- POST /api/admin/users/bulk-deactivate. */
+export interface BulkDeactivateResponse {
+  deactivated: number;
+  skipped: number;
+  requested: number;
+}
+
 /** Mirrors web.BulkRoleReassignResponse -- POST /api/admin/roles/bulk-reassign. */
 export interface BulkRoleReassignResponse {
   new_role: string;
