@@ -9,6 +9,7 @@ import { Category } from '../../../core/models/category';
 import { DEPARTMENTS } from '../../../shared/user-roles';
 import { ToastService } from '../../../core/notifications/toast.service';
 import { PortalDialog } from '../../../shared/portal-dialog/portal-dialog';
+import { ConfirmService } from '../../../core/notifications/confirm.service';
 
 /**
  * Port of the video slide-out drawer -- base-layout.html:2015-2088
@@ -27,6 +28,7 @@ import { PortalDialog } from '../../../shared/portal-dialog/portal-dialog';
   templateUrl: './video-edit-drawer.html'
 })
 export class VideoEditDrawer {
+  private readonly confirmService = inject(ConfirmService);
   private readonly toast = inject(ToastService);
   /** True when the mandatory-reading flag could not be read; the unchecked box is not a fact. */
   protected readonly mandatoryUnknown = signal(false);
@@ -155,8 +157,8 @@ export class VideoEditDrawer {
     (event.target as HTMLInputElement).value = '';
   }
 
-  protected close(): void {
-    if (this.dirty() && !window.confirm('შეუნახავი ცვლილებები დაიკარგება. გსურთ დახურვა?')) {
+  protected async close(): Promise<void> {
+    if (this.dirty() && !(await this.confirmService.ask('შეუნახავი ცვლილებები დაიკარგება. გსურთ დახურვა?'))) {
       return;
     }
     this.closed.emit();

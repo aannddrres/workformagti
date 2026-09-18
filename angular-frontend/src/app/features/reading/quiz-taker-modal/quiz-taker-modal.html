@@ -1,34 +1,34 @@
-<div class="fixed inset-0 z-[110] flex items-center justify-center p-4">
-  <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" (click)="close()"></div>
-  <div portalDialog portalDialogLabelledBy="quiz-heading" portalDialogDescribedBy="quiz-instructions" (portalDialogClose)="close()" class="relative z-10 max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-8 shadow-2xl dark:bg-zinc-900">
+<div class="fixed inset-0 z-modal flex items-center justify-center p-4">
+  <div class="absolute inset-0 dialog-backdrop" (click)="close()"></div>
+  <div portalDialog portalDialogLabelledBy="quiz-heading" portalDialogDescribedBy="quiz-instructions" (portalDialogClose)="close()" class="animate-panel-in relative z-10 max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-lg bg-white p-8 shadow-e3 dark:bg-slate-900">
     <button
       type="button"
       (click)="close()"
       [attr.aria-label]="'readings.quiz.close' | translate"
-      class="absolute right-5 top-5 text-xl text-gray-400 hover:text-gray-700 dark:text-zinc-500 dark:hover:text-zinc-200"
+      class="absolute right-5 top-5 text-xl text-slate-600 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
     >
       <i class="fa-solid fa-xmark" aria-hidden="true"></i>
     </button>
 
-    <h3 id="quiz-heading" class="mb-1 text-xl font-bold text-gray-800 dark:text-zinc-100">{{ 'readings.quiz.heading' | translate }}</h3>
-    <p id="quiz-instructions" class="mb-5 text-sm text-gray-500 dark:text-zinc-400">{{ 'readings.quiz.instructions' | translate }}</p>
+    <h3 id="quiz-heading" class="mb-1 text-xl font-bold text-slate-800 dark:text-slate-100">{{ 'readings.quiz.heading' | translate }}</h3>
+    <p id="quiz-instructions" class="mb-5 text-sm text-slate-600 dark:text-slate-400">{{ 'readings.quiz.instructions' | translate }}</p>
 
     @if (loading()) {
       <div class="flex flex-col gap-3">
         @for (i of [1, 2]; track i) {
-          <div class="h-20 animate-pulse rounded-xl border border-gray-100 bg-gray-50 dark:border-zinc-800 dark:bg-zinc-800/40"></div>
+          <div class="h-20 animate-pulse rounded-lg border border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-800/40"></div>
         }
       </div>
     } @else if (loadError()) {
-      <p class="text-sm text-red-500 dark:text-red-400">{{ 'readings.quiz.load_failed' | translate }}</p>
+      <p class="text-sm text-red-700 dark:text-red-400">{{ 'readings.quiz.load_failed' | translate }}</p>
     } @else if (quiz(); as q) {
       <div class="flex flex-col gap-5">
         @for (question of q.questions; track question.id; let qi = $index) {
           <div>
-            <p class="mb-2 text-sm font-semibold text-gray-800 dark:text-zinc-200">{{ qi + 1 }}. {{ question.question_text }}</p>
+            <p class="mb-2 text-sm font-semibold text-slate-800 dark:text-slate-200">{{ qi + 1 }}. {{ question.question_text }}</p>
             <div class="flex flex-col gap-1.5">
               @for (answer of question.answers; track answer.id) {
-                <label class="flex cursor-pointer items-center gap-2.5 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">
+                <label class="flex cursor-pointer items-center gap-2.5 rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
                   <input
                     type="radio"
                     [name]="'quiz-q-' + question.id"
@@ -45,18 +45,18 @@
       </div>
 
       @if (feedback() === 'wrong') {
-        <p class="mt-4 text-sm font-semibold text-brand">
+        <p class="mt-4 text-sm font-semibold text-brand-accent">
           {{ 'readings.quiz.wrong_feedback' | translate: { count: wrongQuestionIds().size } }}
         </p>
       } @else if (feedback() === 'error') {
-        <p class="mt-4 text-sm font-semibold text-brand">{{ 'readings.quiz.submit_failed' | translate }}</p>
+        <p class="mt-4 text-sm font-semibold text-brand-accent">{{ 'readings.quiz.submit_failed' | translate }}</p>
       }
 
       <button
         type="button"
         (click)="submit()"
         [disabled]="submitting() || selectedAnswers().size < q.questions.length"
-        class="mt-6 w-full rounded-xl bg-brand py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-brand-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+        class="mt-6 w-full rounded-lg bg-brand dark:bg-brand-700 py-3 text-sm font-bold text-white shadow-e1 transition hover:bg-brand-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
       >
         @if (submitting()) {
           <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>

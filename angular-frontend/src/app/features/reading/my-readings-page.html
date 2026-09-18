@@ -1,25 +1,25 @@
-<div class="mx-auto w-full max-w-[900px] px-4 pb-8 pt-4 md:px-6 md:pt-6">
-  <h2 class="mb-6 text-2xl font-semibold uppercase tracking-wider text-gray-800 dark:text-zinc-100 md:text-4xl">{{ 'readings.page.heading' | translate }}</h2>
+<div class="portal-page-narrow">
+  <h1 class="portal-title mb-6">{{ 'readings.page.heading' | translate }}</h1>
 
-  <div class="mb-6 flex gap-6 border-b border-gray-200 dark:border-zinc-800">
+  <div class="mb-6 flex gap-6 border-b border-slate-200 dark:border-slate-800">
     <button
       (click)="setFilter('all')"
-      class="border-b-2 px-1 pb-3 text-sm font-medium transition-colors"
-      [class]="filter() === 'all' ? 'border-brand font-semibold text-brand' : 'border-transparent text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200'"
+      class="border-b-2 px-1 pb-3 text-sm font-normal transition-colors"
+      [class]="filter() === 'all' ? 'border-brand-accent font-semibold text-brand-accent' : 'border-transparent text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'"
     >
       {{ 'readings.page.filter_all' | translate }}
     </button>
     <button
       (click)="setFilter('unread')"
-      class="border-b-2 px-1 pb-3 text-sm font-medium transition-colors"
-      [class]="filter() === 'unread' ? 'border-brand font-semibold text-brand' : 'border-transparent text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200'"
+      class="border-b-2 px-1 pb-3 text-sm font-normal transition-colors"
+      [class]="filter() === 'unread' ? 'border-brand-accent font-semibold text-brand-accent' : 'border-transparent text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'"
     >
       {{ 'readings.page.filter_unread' | translate }}
     </button>
     <button
       (click)="setFilter('read')"
-      class="border-b-2 px-1 pb-3 text-sm font-medium transition-colors"
-      [class]="filter() === 'read' ? 'border-brand font-semibold text-brand' : 'border-transparent text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200'"
+      class="border-b-2 px-1 pb-3 text-sm font-normal transition-colors"
+      [class]="filter() === 'read' ? 'border-brand-accent font-semibold text-brand-accent' : 'border-transparent text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'"
     >
       {{ 'readings.page.filter_read' | translate }}
     </button>
@@ -28,39 +28,42 @@
   @if (loading()) {
     <div class="flex flex-col gap-3">
       @for (i of [1, 2, 3]; track i) {
-        <div class="h-[76px] animate-pulse rounded-xl border border-gray-100 bg-white dark:border-zinc-800 dark:bg-zinc-900"></div>
+        <div class="h-[76px] animate-pulse rounded-lg border border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-900"></div>
       }
     </div>
   } @else if (errorMessage()) {
-    <p class="py-8 text-center text-sm text-red-500">{{ errorMessage() }}</p>
+    <div role="alert" class="error-state">
+      <i class="fa-solid fa-triangle-exclamation text-2xl" aria-hidden="true"></i>
+      <p>{{ errorMessage() }}</p>
+    </div>
   } @else if (filteredReadings().length === 0) {
-    <p class="py-8 text-center text-sm text-gray-500 dark:text-zinc-400">{{ 'readings.page.empty' | translate }}</p>
+    <div class="empty-state">
+      <i class="fa-regular fa-clipboard-check text-2xl" aria-hidden="true"></i>
+      <p>{{ 'readings.page.empty' | translate }}</p>
+    </div>
   } @else {
     <div class="flex flex-col gap-3">
       @for (item of filteredReadings(); track item.reading.id) {
-        <div
-          (click)="view(item)"
-          (keydown.enter)="view(item)"
-          tabindex="0"
-          role="button"
-          class="group flex items-center justify-between gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-gray-200 hover:bg-gray-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800/60"
+        <a
+          [routerLink]="routeFor(item)"
+          class="group flex items-center justify-between gap-4 rounded-lg border border-slate-100 bg-white p-4 shadow-e1 transition hover:border-slate-200 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800/60"
         >
           <div class="flex min-w-0 flex-1 items-center gap-4">
-            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-50 text-brand dark:bg-red-950/30">
+            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-red-50 text-brand-accent dark:bg-red-950/30">
               <i class="fa-solid" [class]="iconFor(item)" aria-hidden="true"></i>
             </div>
             <div class="min-w-0">
-              <h4 class="truncate font-bold text-gray-800 dark:text-zinc-100" [title]="titleFor(item)">{{ titleFor(item) }}</h4>
-              <p class="mt-1 text-xs text-gray-500 dark:text-zinc-400">{{ 'readings.page.due_label' | translate: { date: dateLabel(item) } }}</p>
+              <h4 class="truncate font-bold text-slate-800 dark:text-slate-100" [title]="titleFor(item)">{{ titleFor(item) }}</h4>
+              <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">{{ 'readings.page.due_label' | translate: { date: dateLabel(item) } }}</p>
             </div>
           </div>
           <div class="flex shrink-0 items-center gap-3">
             @if (item.status === 'read') {
               <span class="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700 dark:bg-green-950/40 dark:text-green-400">{{ 'readings.page.status_read' | translate }}</span>
             } @else if (isOverdue(item)) {
-              <span class="rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-brand dark:bg-red-950/40">{{ 'readings.page.status_overdue' | translate }}</span>
+              <span class="rounded-full bg-brand px-3 py-1 text-xs font-bold text-white">{{ 'readings.page.status_overdue' | translate }}</span>
             } @else {
-              <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-600 dark:bg-zinc-800 dark:text-zinc-300">{{ 'readings.page.status_unread' | translate }}</span>
+              <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{{ 'readings.page.status_unread' | translate }}</span>
             }
 
             <!-- The acknowledgement above stays valid: it records that this
@@ -82,15 +85,15 @@
                  opened. Confirmation now lives at the end of the material
                  itself (app-reading-confirm); this row only opens it. -->
             @if (item.status !== 'read') {
-              <span class="text-xs font-semibold text-brand">
+              <span class="text-xs font-semibold text-brand-accent">
                 {{ 'readings.page.action_open' | translate }}
-                <i class="fa-solid fa-arrow-right ml-1 text-[10px]" aria-hidden="true"></i>
+                <i class="fa-solid fa-arrow-right ml-1 text-xs" aria-hidden="true"></i>
               </span>
             }
 
             <app-favorite-star [itemType]="item.reading.item_type" [itemId]="item.reading.item_id" />
           </div>
-        </div>
+        </a>
       }
     </div>
   }

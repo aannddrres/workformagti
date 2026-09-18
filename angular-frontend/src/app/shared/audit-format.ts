@@ -13,7 +13,7 @@ const CATEGORY_STYLES: Record<AuditCategoryName, AuditCategoryBadge> = {
   CONTENT: { label: 'კონტენტი', badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60', dotClass: 'bg-emerald-500' },
   SYSTEM: { label: 'სისტემა', badgeClass: 'bg-amber-50 text-amber-700 border-amber-200/60 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60', dotClass: 'bg-amber-500' }
 };
-const CATEGORY_FALLBACK: AuditCategoryBadge = { label: '—', badgeClass: 'bg-gray-50 text-gray-500 border-gray-200/60 dark:bg-gray-800/40 dark:text-gray-400 dark:border-gray-700/60', dotClass: 'bg-gray-400' };
+const CATEGORY_FALLBACK: AuditCategoryBadge = { label: '—', badgeClass: 'bg-slate-50 text-slate-600 border-slate-200/60 dark:bg-slate-800/40 dark:text-slate-400 dark:border-slate-700/60', dotClass: 'bg-slate-400' };
 
 export function categoryBadge(category: string | null | undefined): AuditCategoryBadge {
   return (category && CATEGORY_STYLES[category as AuditCategoryName]) || CATEGORY_FALLBACK;

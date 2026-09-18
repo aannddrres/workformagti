@@ -1,4 +1,8 @@
-<div class="mx-auto w-full max-w-[1440px] px-4 pb-10 pt-4 md:px-6 md:pt-6">
+<div class="portal-page">
+  <!-- The operator home has no visible page title -- the header carries it, and
+       the greeting below only appears when there is nothing to read. A document
+       still needs exactly one h1, so this is it. -->
+  <h1 class="sr-only">{{ 'nav.sidebar.home' | translate }}</h1>
   <app-broadcast-banner />
   <!--
     Order of this page is the point.
@@ -17,12 +21,12 @@
   @if (awaitingProgress()) {
     <!-- Holds the leading slot until we know whether anything is outstanding,
          so the page cannot render the banner and then swap it for the alarm. -->
-    <div class="mb-6 h-[132px] animate-pulse rounded-2xl bg-gray-100 dark:bg-zinc-800"></div>
+    <div class="mb-6 h-[132px] animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800"></div>
   } @else if (needsAttention()) {
     <section class="mb-6" [attr.aria-label]="'dashboard.priority.aria' | translate">
       <div class="mb-3 flex items-center gap-2">
-        <i class="fa-solid fa-triangle-exclamation text-brand" aria-hidden="true"></i>
-        <h2 class="text-sm font-bold uppercase tracking-wide text-gray-700 dark:text-zinc-300">
+        <i class="fa-solid fa-triangle-exclamation text-brand-accent" aria-hidden="true"></i>
+        <h2 class="text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300">
           {{ 'dashboard.priority.heading' | translate }}
         </h2>
       </div>
@@ -30,14 +34,14 @@
       <div class="grid grid-cols-1 gap-4 lg:grid-cols-[auto_1fr]">
         <!-- Progress sits with the obligation it measures, not off on its own. -->
         <div
-          class="flex items-center gap-4 rounded-2xl border border-gray-150 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
+          class="flex items-center gap-4 rounded-lg border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"
         >
           <app-progress-ring [percentage]="progress()!.percentage" />
           <div>
-            <p class="text-3xl font-bold tabular-nums text-gray-800 dark:text-zinc-100">
+            <p class="text-2xl font-bold tabular-nums text-slate-800 dark:text-slate-100">
               {{ progress()!.percentage }}%
             </p>
-            <p class="text-xs text-gray-500 dark:text-zinc-400">
+            <p class="text-xs text-slate-600 dark:text-slate-400">
               {{ 'dashboard.progress.pending_label' | translate: { count: progress()!.pending } }}
             </p>
           </div>
@@ -48,7 +52,7 @@
     </section>
   } @else {
     <div
-      class="mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-brand to-brand-700 px-6 py-8 text-white"
+      class="mb-6 overflow-hidden rounded-lg bg-gradient-to-br from-brand to-brand-700 px-6 py-8 text-white"
     >
       <h2 class="text-2xl font-bold tracking-tight">
         {{ 'dashboard.banner_heading' | translate }}
@@ -59,9 +63,9 @@
     <!-- Still say the obligations are clear; silence reads as "not loaded". -->
     @if (!isManagement() && progress() !== null && progress()!.total_mandatory > 0) {
       <div
-        class="mb-6 inline-flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/20"
+        class="mb-6 inline-flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/20"
       >
-        <i class="fa-solid fa-circle-check text-xl text-emerald-500" aria-hidden="true"></i>
+        <i class="fa-solid fa-circle-check text-xl text-emerald-700" aria-hidden="true"></i>
         <p class="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
           {{ 'dashboard.progress.all_clear' | translate }}
         </p>
@@ -71,7 +75,7 @@
 
   <!-- The progress request failing is not the same as having nothing to do. -->
   @if (progressError()) {
-    <p class="mb-6 text-sm text-red-500">{{ 'dashboard.progress.load_error' | translate }}</p>
+    <p class="mb-6 text-sm text-red-700">{{ 'dashboard.progress.load_error' | translate }}</p>
   }
 
   <div class="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5">

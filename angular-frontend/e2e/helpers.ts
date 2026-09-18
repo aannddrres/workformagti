@@ -347,3 +347,33 @@ export async function signInAsPersona(page: Page, email: string) {
 
   return loginResponse;
 }
+
+/**
+ * Answers the portal's own confirmation dialog.
+ *
+ * Deletes, archives, restores and bulk role moves used to ask through
+ * window.confirm, and the specs answered with
+ * `page.once('dialog', (dialog) => dialog.accept())` registered before the
+ * click. 143fb6c replaced every one of those with ConfirmService, which draws
+ * an ordinary in-page dialog instead. A native-dialog listener is then never
+ * called, nothing presses the in-page button, and the action never happens --
+ * the spec times out on whatever it expected next, naming that expectation
+ * rather than the question nobody answered.
+ *
+ * An in-page dialog does not block the page the way a native one does, so it
+ * is answered AFTER the click that raised it. Scoped to app-confirm-host
+ * because the question can open on top of another dialog -- restoring a
+ * version from the history modal does -- where a bare getByRole('dialog')
+ * would match two.
+ *
+ * The action button is taken by position: the host renders Cancel, then the
+ * action. Its caption is chosen per call site ("დიახ", "წაშლა", ...), and
+ * naming captions here would bring back the many-file edit this helper exists
+ * to prevent.
+ */
+export async function acceptConfirmation(page: Page): Promise<void> {
+  const dialog = page.locator('app-confirm-host').getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button').last().click();
+  await expect(dialog).toHaveCount(0);
+}

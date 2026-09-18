@@ -1,5 +1,5 @@
 import { test, expect, APIRequestContext } from '@playwright/test';
-import { apiLogin, createArticle, createCategory, runId, seedTokenIntoPage } from './helpers';
+import { acceptConfirmation, apiLogin, createArticle, createCategory, runId, seedTokenIntoPage } from './helpers';
 
 interface UserRow { id: number; email: string; name: string; role: string }
 
@@ -41,10 +41,9 @@ test.describe('role management', () => {
       await row.getByRole('checkbox').check();
       await expect(page.getByText('1 მონიშნული')).toBeVisible();
       await page.locator('app-admin-roles-page select').selectOption('manager');
-      page.once('dialog', (dialog) => dialog.accept());
       const [moved] = await Promise.all([
         page.waitForResponse((response) => response.url().includes('/api/admin/roles/bulk-reassign')),
-        page.getByRole('button', { name: 'გადაყვანა', exact: true }).click()
+        page.getByRole('button', { name: 'გადაყვანა', exact: true }).click().then(() => acceptConfirmation(page))
       ]);
       expect(moved.status()).toBe(200);
       await expect.poll(() => roleOf(request, token, target.id)).toBe('manager');
@@ -118,8 +117,20 @@ test.describe('user administration', () => {
     const operatorToken = await apiLogin(request, 'info@magti.ge');
 
     await seedTokenIntoPage(page, operatorToken);
+    // The view is recorded by a fire-and-forget POST once the article loads,
+    // and this test is about that record. Waiting for its answer keeps the
+    // next page.goto from racing it, and asserting the answer names the real
+    // failure when it is lost: on 2026-09-17 the article ended up with no view
+    // row at all and the spec reported only a missing strip entry. The loss
+    // itself is the backend replacing the XSRF cookie on every signed-in
+    // response, which can leave a POST's header behind the cookie it is sent
+    // with -- rejected as 401. That is a product defect, not this test's.
+    const viewLogged = page.waitForResponse(
+      (r) => r.url().endsWith(`/api/articles/${articleId}/view`) && r.request().method() === 'POST'
+    );
     await page.goto(`/article/${articleId}`);
     await expect(page.getByRole('heading', { name: title })).toBeVisible();
+    expect((await viewLogged).ok()).toBeTruthy();
     await page.goto('/');
     const entry = page.locator('app-recently-viewed-strip').getByRole('button', { name: new RegExp(title) });
     await expect(entry).toBeVisible();

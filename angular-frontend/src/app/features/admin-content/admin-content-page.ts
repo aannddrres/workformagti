@@ -17,6 +17,8 @@ import { VideoInstruction } from '../../core/models/video';
 import { ToastService } from '../../core/notifications/toast.service';
 import { Observable } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
+import { ConfirmService } from '../../core/notifications/confirm.service';
+import { createTableSort } from '../../shared/table-sort';
 
 type ContentType = 'all' | 'article' | 'news' | 'video';
 type QueueRow = {
@@ -34,9 +36,9 @@ const PAGE_SIZE = 20;
 
 const STATUS_BADGE: Record<string, string> = {
   published: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-  draft: 'bg-gray-50 text-gray-700 border-gray-100',
+  draft: 'bg-slate-50 text-slate-700 border-slate-100',
   scheduled: 'bg-blue-50 text-blue-700 border-blue-100',
-  archived: 'bg-gray-100 text-gray-500 border-gray-200'
+  archived: 'bg-slate-100 text-slate-600 border-slate-200'
 };
 
 /**
@@ -58,6 +60,7 @@ const STATUS_BADGE: Record<string, string> = {
   templateUrl: './admin-content-page.html'
 })
 export class AdminContentPage {
+  private readonly confirmService = inject(ConfirmService);
   private readonly articlesService = inject(ArticlesService);
   private readonly categoriesService = inject(CategoriesService);
   private readonly newsService = inject(NewsService);
@@ -143,10 +146,21 @@ export class AdminContentPage {
       .filter((row) => !status || row.status === status)
       .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
   });
+  protected readonly sort = createTableSort<QueueRow>({
+    title: (row) => row.title,
+    type: (row) => row.type,
+    status: (row) => row.status,
+    context: (row) => row.context,
+    createdAt: (row) => row.createdAt
+  });
+  /** Sorted before paging, so a column orders the whole queue rather than
+   *  the twenty rows that happen to be on this page. With no column chosen
+   *  it keeps the newest-first order queueRows already applies. */
+  protected readonly sortedQueueRows = computed(() => this.sort.sort(this.queueRows()));
   protected readonly queueTotalPages = computed(() => Math.max(1, Math.ceil(this.queueRows().length / PAGE_SIZE)));
   protected readonly pageRows = computed(() => {
     const page = Math.min(this.currentPage(), this.queueTotalPages());
-    return this.queueRows().slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+    return this.sortedQueueRows().slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   });
   protected readonly queueStart = computed(() => this.queueRows().length === 0 ? 0 : (Math.min(this.currentPage(), this.queueTotalPages()) - 1) * PAGE_SIZE + 1);
   protected readonly queueEnd = computed(() => Math.min(this.queueStart() + PAGE_SIZE - 1, this.queueRows().length));
@@ -268,14 +282,14 @@ export class AdminContentPage {
 
   protected tabClass(tab: ContentType): string {
     return this.activeTab() === tab
-      ? 'border-b-2 border-brand px-4 pb-3 text-sm font-semibold text-brand'
-      : 'border-b-2 border-transparent px-4 pb-3 text-sm font-medium text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-100';
+      ? 'border-b-2 border-brand-accent px-4 pb-3 text-sm font-semibold text-brand-accent'
+      : 'border-b-2 border-transparent px-4 pb-3 text-sm font-normal text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100';
   }
 
   protected pageButtonClass(page: number): string {
     return page === this.currentPage()
-      ? 'rounded-lg px-3 py-1.5 text-sm font-medium bg-brand text-white shadow-sm'
-      : 'rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800';
+      ? 'rounded-md px-3 py-1.5 text-sm font-normal bg-brand dark:bg-brand-700 text-white shadow-e1'
+      : 'rounded-md px-3 py-1.5 text-sm font-normal text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800';
   }
 
   protected categoryName(article: ArticleSummary): string {
@@ -385,10 +399,10 @@ export class AdminContentPage {
     });
   }
 
-  protected removeRow(row: QueueRow): void {
-    if (row.type === 'article') { this.deleteArticle(row.original as ArticleSummary); return; }
+  protected async removeRow(row: QueueRow): Promise<void> {
+    if (row.type === 'article') { await this.deleteArticle(row.original as ArticleSummary); return; }
     if (!this.rowArchived(row)) { this.toast.error('კონტენტი ჯერ უნდა დაარქივოთ.'); return; }
-    if (!window.confirm('გადავიტანოთ ჩანაწერი სანაგვეში? ისტორიული მტკიცებულებები შენარჩუნდება.')) return;
+    if (!(await this.confirmService.ask('გადავიტანოთ ჩანაწერი სანაგვეში? ისტორიული მტკიცებულებები შენარჩუნდება.'))) return;
     const request: Observable<unknown> = row.type === 'news' ? this.newsService.remove(row.id) : this.videosService.remove(row.id);
     request.subscribe({
       next: () => row.type === 'news' ? this.loadNews() : this.loadVideos(),
@@ -410,13 +424,13 @@ export class AdminContentPage {
     this.loadArticles();
   }
 
-  protected toggleArchive(article: ArticleSummary): void {
+  protected async toggleArchive(article: ArticleSummary): Promise<void> {
     this.openMenuFor.set(null);
     const shouldArchive = article.status !== 'archived';
     const message = shouldArchive
       ? this.translate.instant('content.articles.confirm_archive_one')
       : this.translate.instant('content.articles.confirm_unarchive_one');
-    if (!window.confirm(message)) return;
+    if (!(await this.confirmService.ask(message))) return;
     this.actionError.set(null);
     const request = shouldArchive ? this.articlesService.archive(article.id) : this.articlesService.unarchive(article.id);
     request.subscribe({
@@ -439,13 +453,13 @@ export class AdminContentPage {
     this.loadArticles();
   }
 
-  protected deleteArticle(article: ArticleSummary): void {
+  protected async deleteArticle(article: ArticleSummary): Promise<void> {
     this.openMenuFor.set(null);
     if (article.status !== 'archived') {
       this.actionError.set('სტატია ჯერ უნდა დაარქივოთ და მხოლოდ შემდეგ გადაიტანოთ სანაგვეში.');
       return;
     }
-    if (!window.confirm(this.translate.instant('content.articles.confirm_delete'))) return;
+    if (!(await this.confirmService.ask({ message: this.translate.instant('content.articles.confirm_delete'), tone: 'danger' }))) return;
     this.actionError.set(null);
     this.articlesService.remove(article.id).subscribe({
       next: () => this.loadArticles(),
@@ -461,10 +475,10 @@ export class AdminContentPage {
    * undone by the opposite button; publishing puts it in front of six hundred
    * people, and that is the direction worth a second look.
    */
-  protected bulkStatus(status: ArticleBulkStatus): void {
+  protected async bulkStatus(status: ArticleBulkStatus): Promise<void> {
     const ids = [...this.selection()];
     if (ids.length === 0) return;
-    if (status === 'published' && !window.confirm(`გამოქვეყნდეს ${ids.length} მასალა. გავაგრძელოთ?`)) {
+    if (status === 'published' && !(await this.confirmService.ask(`გამოქვეყნდეს ${ids.length} მასალა. გავაგრძელოთ?`))) {
       return;
     }
     this.runBulk(this.articlesService.bulkStatus(ids, status));

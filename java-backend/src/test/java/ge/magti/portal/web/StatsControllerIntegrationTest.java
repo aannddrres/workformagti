@@ -735,6 +735,12 @@ class StatsControllerIntegrationTest {
     @Test
     void breakdownReturnsGroupedCountsForEachWhitelistedDimension() throws Exception {
         User admin = createStatsViewer("stats-brk-admin@magti.ge", "დეპარტამენტი-X");
+        // The role breakdown below asserts a content_admin bucket, and this
+        // test used to assume one already existed: every class here is
+        // @Transactional, so against a schema nobody had left rows in there
+        // was no content administrator to count. Same shape as the four
+        // assumptions d442ab8 fixed -- green only on somebody's own database.
+        createUser("stats-brk-content-admin@magti.ge", Role.CONTENT_ADMIN, "დეპარტამენტი-X");
 
         mockMvc.perform(authed(get("/api/statistics/breakdown").param("dimension", "department"), tokenFor(admin)))
                 .andExpect(status().isOk())

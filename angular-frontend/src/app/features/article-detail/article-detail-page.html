@@ -1,29 +1,29 @@
-<div class="mx-auto w-full max-w-[1080px] px-4 pb-10 pt-4 md:px-6 md:pt-6">
+<div class="portal-page-narrow">
   <div class="mb-5 flex items-center justify-between gap-3">
     <div class="flex min-w-0 flex-1 items-center gap-3">
       <button
         (click)="goBack()"
-        class="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-900 active:scale-[0.98] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+        class="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-600 shadow-e1 transition hover:bg-slate-50 hover:text-slate-900 active:scale-[0.98] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
       >
         <i aria-hidden="true" class="fa-solid fa-arrow-left text-xs"></i>
         {{ 'articles.detail_page.back_button' | translate }}
       </button>
 
       <nav
-        class="hidden min-w-0 items-center gap-2 text-sm text-slate-500 md:flex dark:text-slate-400"
+        class="hidden min-w-0 items-center gap-2 text-sm text-slate-600 md:flex dark:text-slate-400"
         [attr.aria-label]="'articles.detail_page.breadcrumb_label' | translate"
       >
-        <a routerLink="/info" class="shrink-0 font-semibold transition hover:text-brand">
+        <a routerLink="/info" class="shrink-0 font-semibold transition hover:text-brand-accent">
           {{ 'nav.sidebar.section_kb' | translate }}
         </a>
         @for (category of categoryPath(); track category.id) {
           <i
-            class="fa-solid fa-chevron-right text-[9px] text-slate-300 dark:text-slate-600"
+            class="fa-solid fa-chevron-right text-xs text-slate-600 dark:text-slate-400"
             aria-hidden="true"
           ></i>
           <a
             [routerLink]="['/category', category.slug || category.id]"
-            class="truncate font-semibold transition hover:text-brand"
+            class="truncate font-semibold transition hover:text-brand-accent"
           >
             {{ category.name }}
           </a>
@@ -36,7 +36,7 @@
         <app-favorite-star itemType="article" [itemId]="a.id" />
         <button
           (click)="toggleHistory()"
-          class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+          class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-e1 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
         >
           <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
           <span>{{ 'articles.version_history.button' | translate }}</span>
@@ -51,42 +51,62 @@
 
   @if (loading()) {
     <div
-      class="animate-pulse space-y-4 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8"
+      class="animate-pulse space-y-4 rounded-lg border border-slate-100 bg-white p-6 shadow-e1 dark:border-slate-800 dark:bg-slate-900 sm:p-8"
     >
-      <div class="h-3 w-1/3 rounded bg-gray-100 dark:bg-zinc-800"></div>
-      <div class="h-8 w-2/3 rounded bg-gray-100 dark:bg-zinc-800"></div>
-      <div class="h-4 w-full rounded bg-gray-100 dark:bg-zinc-800"></div>
-      <div class="h-4 w-full rounded bg-gray-100 dark:bg-zinc-800"></div>
-      <div class="h-4 w-2/3 rounded bg-gray-100 dark:bg-zinc-800"></div>
+      <div class="h-3 w-1/3 rounded-sm bg-slate-100 dark:bg-slate-800"></div>
+      <div class="h-8 w-2/3 rounded-sm bg-slate-100 dark:bg-slate-800"></div>
+      <div class="h-4 w-full rounded-sm bg-slate-100 dark:bg-slate-800"></div>
+      <div class="h-4 w-full rounded-sm bg-slate-100 dark:bg-slate-800"></div>
+      <div class="h-4 w-2/3 rounded-sm bg-slate-100 dark:bg-slate-800"></div>
     </div>
   } @else if (notFound()) {
     <p
-      class="rounded-xl border border-dashed border-slate-200 bg-white/40 p-8 text-center text-sm font-medium text-slate-400 dark:border-zinc-700 dark:bg-zinc-800/40"
+      class="rounded-lg border border-dashed border-slate-200 bg-white/40 p-8 text-center text-sm font-normal text-slate-600 dark:text-slate-400 dark:border-slate-700 dark:bg-slate-800/40"
     >
       {{ 'articles.detail_page.not_found' | translate }}
     </p>
+  } @else if (loadError()) {
+    <div
+      role="alert"
+      class="flex flex-col items-center gap-4 rounded-lg border border-slate-200 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900"
+    >
+      <i class="fa-solid fa-triangle-exclamation text-2xl text-amber-700 dark:text-amber-400" aria-hidden="true"></i>
+      <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">{{ 'articles.detail_page.load_error' | translate }}</p>
+      <button type="button" class="secondary-button" (click)="retry()">{{ 'shared.retry' | translate }}</button>
+    </div>
   } @else if (article(); as a) {
     <article
-      class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.055)] dark:border-slate-700 dark:bg-slate-900"
+      class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-e2 dark:border-slate-700 dark:bg-slate-900"
     >
       <header class="border-b border-slate-100 px-6 py-7 dark:border-slate-800 sm:px-10 sm:py-9">
-        <div class="mx-auto max-w-[780px]">
+        <div class="mx-auto max-w-[720px]">
           @if (metaLine()) {
-            <div class="mb-3 text-xs font-semibold leading-5 text-slate-500 dark:text-slate-400">
+            <div class="mb-3 text-xs font-semibold leading-5 text-slate-600 dark:text-slate-400">
               {{ metaLine() }}
             </div>
           }
           <h1
-            class="article-reader-title text-[1.75rem] font-bold leading-[1.28] tracking-[-0.025em] text-slate-950 dark:text-slate-50 sm:text-[2rem]"
+            class="article-reader-title text-2xl font-bold leading-[1.28] tracking-[-0.025em] text-slate-950 dark:text-slate-50"
           >
             {{ a.title }}
           </h1>
+          @if (tags().length > 0) {
+            <ul class="mt-3 flex flex-wrap gap-1.5">
+              @for (tag of tags(); track tag) {
+                <li
+                  class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                >
+                  {{ tag }}
+                </li>
+              }
+            </ul>
+          }
         </div>
       </header>
 
       <div class="px-6 py-8 sm:px-10 sm:py-10">
         <div
-          class="article-reader mx-auto max-w-[780px]"
+          class="article-reader mx-auto max-w-[720px]"
           role="region"
           [attr.aria-label]="'articles.detail_page.content_label' | translate"
           [innerHTML]="formattedContent()"
@@ -95,13 +115,13 @@
 
         @if (a.attachment_url) {
           <div
-            class="mx-auto mt-10 max-w-[780px] border-t border-slate-200 pt-6 dark:border-slate-700"
+            class="mx-auto mt-10 max-w-[720px] border-t border-slate-200 pt-6 dark:border-slate-700"
           >
             <a
               [href]="a.attachment_url"
               target="_blank"
               rel="noopener"
-              class="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-brand transition hover:border-brand/30 hover:bg-brand/5 dark:border-slate-700 dark:bg-slate-800"
+              class="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-brand-accent transition hover:border-brand-accent/30 hover:bg-brand/5 dark:border-slate-700 dark:bg-slate-800"
             >
               <i class="fa-solid fa-paperclip"></i>
               <span>{{ 'articles.detail_page.attachment_download' | translate }}</span>
@@ -113,7 +133,7 @@
 
     @if (relatedArticles().length > 0) {
       <section
-        class="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-6"
+        class="mt-6 rounded-lg border border-slate-200 bg-white p-5 shadow-e1 dark:border-slate-700 dark:bg-slate-900 sm:p-6"
         [attr.aria-label]="'articles.detail_page.related_heading' | translate"
       >
         <h2
@@ -126,13 +146,13 @@
             <a
               [routerLink]="['/article', related.id]"
               [queryParams]="navigationQueryParams()"
-              class="group rounded-xl border border-slate-200 p-4 transition hover:border-brand/30 hover:bg-brand/[0.025] dark:border-slate-700"
+              class="group rounded-lg border border-slate-200 p-4 transition hover:border-brand-accent/30 hover:bg-brand/[0.025] dark:border-slate-700"
             >
-              <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{
+              <span class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">{{
                 relatedCategoryName(related)
               }}</span>
               <span
-                class="mt-1 block text-sm font-bold leading-5 text-slate-800 transition group-hover:text-brand dark:text-slate-100"
+                class="mt-1 block text-sm font-bold leading-5 text-slate-800 transition group-hover:text-brand-accent dark:text-slate-100"
                 >{{ related.title }}</span
               >
             </a>
@@ -150,9 +170,9 @@
           <a
             [routerLink]="['/article', previous.id]"
             [queryParams]="navigationQueryParams()"
-            class="rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-brand/30 dark:border-slate-700 dark:bg-slate-900"
+            class="rounded-lg border border-slate-200 bg-white p-4 text-left shadow-e1 transition hover:border-brand-accent/30 dark:border-slate-700 dark:bg-slate-900"
           >
-            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400"
+            <span class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400"
               >← {{ 'articles.detail_page.previous_article' | translate }}</span
             >
             <span class="mt-1 block text-sm font-semibold text-slate-800 dark:text-slate-100">{{
@@ -166,9 +186,9 @@
           <a
             [routerLink]="['/article', next.id]"
             [queryParams]="navigationQueryParams()"
-            class="rounded-xl border border-slate-200 bg-white p-4 text-right shadow-sm transition hover:border-brand/30 dark:border-slate-700 dark:bg-slate-900"
+            class="rounded-lg border border-slate-200 bg-white p-4 text-right shadow-e1 transition hover:border-brand-accent/30 dark:border-slate-700 dark:bg-slate-900"
           >
-            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400"
+            <span class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400"
               >{{ 'articles.detail_page.next_article' | translate }} →</span
             >
             <span class="mt-1 block text-sm font-semibold text-slate-800 dark:text-slate-100">{{

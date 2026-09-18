@@ -67,6 +67,10 @@ export class AdminAuditPage {
   protected readonly loading = signal(true);
   protected readonly error = signal(false);
   protected readonly offset = signal(0);
+  /** Server-side, because the page shows fifty rows of a much longer trail:
+   *  reordering those fifty would look like reordering the log and would not
+   *  be. Only the timestamp -- see AuditService.list. */
+  protected readonly timeDirection = signal<'asc' | 'desc'>('desc');
   protected readonly limit = PAGE_SIZE;
 
   protected readonly searchText = signal('');
@@ -100,7 +104,7 @@ export class AdminAuditPage {
     this.error.set(false);
     const filter = filterFromSearch(this.searchText(), this.startDate(), this.endDate());
     const requestId = ++this.requestSeq;
-    this.auditService.list(filter, this.limit, this.offset()).subscribe({
+    this.auditService.list(filter, this.limit, this.offset(), this.timeDirection()).subscribe({
       next: (page) => {
         if (requestId !== this.requestSeq) return;
         this.rows.set(page.rows);
@@ -144,6 +148,16 @@ export class AdminAuditPage {
   refresh(): void {
     this.reload();
     this.loadChainHealth();
+  }
+
+  toggleTimeOrder(): void {
+    this.timeDirection.update((current) => (current === 'desc' ? 'asc' : 'desc'));
+    this.offset.set(0);
+    this.load();
+  }
+
+  timeAriaSort(): 'ascending' | 'descending' {
+    return this.timeDirection() === 'asc' ? 'ascending' : 'descending';
   }
 
   gotoOffset(next: number): void {

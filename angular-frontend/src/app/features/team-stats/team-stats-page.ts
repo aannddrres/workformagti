@@ -140,21 +140,21 @@ export class TeamStatsPage {
 
   private tier(pct: number, hasReq: boolean): Tier {
     if (!hasReq) {
-      return { bar: 'bg-gray-300 dark:bg-zinc-600', text: 'text-gray-400 dark:text-zinc-500' };
+      return { bar: 'bg-slate-300 dark:bg-slate-600', text: 'text-slate-600 dark:text-slate-400' };
     }
     if (pct >= 80) {
-      return { bar: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400' };
+      return { bar: 'bg-emerald-500', text: 'text-emerald-700 dark:text-emerald-400' };
     }
     if (pct < 30) {
-      return { bar: 'bg-brand', text: 'text-brand dark:text-red-400' };
+      return { bar: 'bg-brand', text: 'text-brand-accent dark:text-red-400' };
     }
-    return { bar: 'bg-amber-400', text: 'text-amber-600 dark:text-amber-400' };
+    return { bar: 'bg-amber-400', text: 'text-amber-700 dark:text-amber-400' };
   }
 
   pctColorClass(pct: number): string {
-    if (pct >= 100) return 'text-green-600 dark:text-green-400';
-    if (pct > 50) return 'text-yellow-600 dark:text-yellow-400';
-    return 'text-red-600 dark:text-red-400';
+    if (pct >= 100) return 'text-green-700 dark:text-green-400';
+    if (pct > 50) return 'text-yellow-700 dark:text-yellow-400';
+    return 'text-red-700 dark:text-red-400';
   }
 
   memberBarClass(pct: number): string {

@@ -10,7 +10,7 @@
         <h1 class="portal-title">კომპანიის საერთო სტატისტიკა</h1>
         <p class="portal-subtitle">ორგანიზაციის მასშტაბის აგრეგატული მაჩვენებლები სახელობითი თანამშრომლის მონაცემების გარეშე.</p>
       }
-      <p class="mt-2 text-xs text-slate-400">ბოლო განახლება: {{ kaDateTime(lastUpdated()) }}</p>
+      <p class="mt-2 text-xs text-slate-600 dark:text-slate-400">ბოლო განახლება: {{ kaDateTime(lastUpdated()) }}</p>
     </div>
     <div class="flex flex-wrap gap-2">
       @if (isSystemAdmin()) {
@@ -29,53 +29,53 @@
     <div class="mb-3 flex items-center justify-between gap-3">
       <div>
         <h2 id="attention-heading" class="text-lg font-bold text-slate-900 dark:text-slate-100">ყურადღებას საჭიროებს</h2>
-        <p class="text-sm text-slate-500 dark:text-slate-400">მხოლოდ ის, რასაც ახლავე შეიძლება მოჰყვეს მოქმედება.</p>
+        <p class="text-sm text-slate-600 dark:text-slate-400">მხოლოდ ის, რასაც ახლავე შეიძლება მოჰყვეს მოქმედება.</p>
       </div>
     </div>
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
       @if (isSystemAdmin()) {
-        <a routerLink="/admin/access" class="surface-card group p-5 transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md dark:hover:border-amber-700">
+        <a routerLink="/admin/access" class="surface-card group p-5 transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-e2 dark:hover:border-amber-700">
           <div class="flex items-start justify-between gap-3">
-            <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300"><i class="fa-solid fa-clock" aria-hidden="true"></i></span>
-            <i class="fa-solid fa-arrow-right text-xs text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-amber-500" aria-hidden="true"></i>
+            <span class="flex h-10 w-10 items-center justify-center rounded-md bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"><i class="fa-solid fa-clock" aria-hidden="true"></i></span>
+            <i class="fa-solid fa-arrow-right text-xs text-slate-600 dark:text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-amber-700" aria-hidden="true"></i>
           </div>
-          <p class="mt-4 text-3xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{{ criticalLoading() ? '—' : (critical()?.total ?? 0) }}</p>
+          <p class="mt-4 text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{{ criticalLoading() ? '—' : (critical()?.total ?? 0) }}</p>
           <p class="mt-1 text-sm font-bold text-slate-800 dark:text-slate-200">ვადაგადაცილებული ოპერატორი</p>
-          <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">სავალდებულო გაცნობის ვადა გასულია</p>
+          <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">სავალდებულო გაცნობის ვადა გასულია</p>
         </a>
       }
 
-      <a href="#search-gaps" class="surface-card group p-5 transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md dark:hover:border-blue-700">
+      <a href="#search-gaps" class="surface-card group p-5 transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-e2 dark:hover:border-blue-700">
         <div class="flex items-start justify-between gap-3">
-          <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300"><i class="fa-solid fa-magnifying-glass-minus" aria-hidden="true"></i></span>
-          <i class="fa-solid fa-arrow-down text-xs text-slate-300 group-hover:text-blue-500" aria-hidden="true"></i>
+          <span class="flex h-10 w-10 items-center justify-center rounded-md bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300"><i class="fa-solid fa-magnifying-glass-minus" aria-hidden="true"></i></span>
+          <i class="fa-solid fa-arrow-down text-xs text-slate-600 dark:text-slate-400 group-hover:text-blue-500" aria-hidden="true"></i>
         </div>
-        <p class="mt-4 text-3xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{{ failedLoading() ? '—' : failedSearchTotal() }}</p>
+        <p class="mt-4 text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{{ failedLoading() ? '—' : failedSearchTotal() }}</p>
         <p class="mt-1 text-sm font-bold text-slate-800 dark:text-slate-200">უშედეგო ძიება</p>
-        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">ტერმინები, რომლებსაც პასუხი სჭირდება</p>
+        <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">ტერმინები, რომლებსაც პასუხი სჭირდება</p>
       </a>
 
       @if (isSystemAdmin()) {
-        <a routerLink="/admin/audit" class="surface-card group p-5 transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md dark:hover:border-emerald-700">
+        <a routerLink="/admin/audit" class="surface-card group p-5 transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-e2 dark:hover:border-emerald-700">
           <div class="flex items-start justify-between gap-3">
-            <span class="flex h-10 w-10 items-center justify-center rounded-lg" [class]="auditChain()?.status === 'tampered' ? 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300'"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i></span>
-            <i class="fa-solid fa-arrow-right text-xs text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-emerald-500" aria-hidden="true"></i>
+            <span class="flex h-10 w-10 items-center justify-center rounded-md" [class]="auditChain()?.status === 'tampered' ? 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i></span>
+            <i class="fa-solid fa-arrow-right text-xs text-slate-600 dark:text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-emerald-700" aria-hidden="true"></i>
           </div>
           <p class="mt-4 text-xl font-bold text-slate-900 dark:text-slate-100">{{ auditChain() ? (auditChain()!.status === 'ok' ? 'გამართულია' : 'საჭიროა შემოწმება') : 'მოწმდება…' }}</p>
           <p class="mt-1 text-sm font-bold text-slate-800 dark:text-slate-200">აუდიტის ჯაჭვი</p>
-          <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">ბოლო {{ auditChain()?.checked ?? 0 }} ჩანაწერის მთლიანობა</p>
+          <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">ბოლო {{ auditChain()?.checked ?? 0 }} ჩანაწერის მთლიანობა</p>
         </a>
       }
 
       @if (canManageContent()) {
-        <a routerLink="/admin/content" class="surface-card group p-5 transition hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-md">
+        <a routerLink="/admin/content" class="surface-card group p-5 transition hover:-translate-y-0.5 hover:border-brand-accent/40 hover:shadow-e2">
           <div class="flex items-start justify-between gap-3">
-            <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50 text-brand dark:bg-red-950/40 dark:text-red-300"><i class="fa-solid fa-clipboard-check" aria-hidden="true"></i></span>
-            <i class="fa-solid fa-arrow-right text-xs text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-brand" aria-hidden="true"></i>
+            <span class="flex h-10 w-10 items-center justify-center rounded-md bg-red-50 text-brand-accent dark:bg-red-950/40 dark:text-red-300"><i class="fa-solid fa-clipboard-check" aria-hidden="true"></i></span>
+            <i class="fa-solid fa-arrow-right text-xs text-slate-600 dark:text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-brand-accent" aria-hidden="true"></i>
           </div>
-          <p class="mt-4 text-3xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{{ kpiLoading() ? '—' : (kpi()?.required_readings ?? 0) }}</p>
+          <p class="mt-4 text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{{ kpiLoading() ? '—' : (kpi()?.required_readings ?? 0) }}</p>
           <p class="mt-1 text-sm font-bold text-slate-800 dark:text-slate-200">აქტიური სავალდებულო მასალა</p>
-          <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">სტატუსისა და ვადის სამართავად</p>
+          <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">სტატუსისა და ვადის სამართავად</p>
         </a>
       }
     </div>
@@ -86,24 +86,24 @@
     <div class="mb-3 flex items-end justify-between gap-3">
       <div>
         <h2 id="categories-heading" class="text-lg font-bold text-slate-900 dark:text-slate-100">ცოდნის კატეგორიები</h2>
-        <p class="text-sm text-slate-500 dark:text-slate-400">სწრაფი გადასვლა იმავე სამუშაო კატეგორიებში, რასაც ოპერატორები ხედავენ.</p>
+        <p class="text-sm text-slate-600 dark:text-slate-400">სწრაფი გადასვლა იმავე სამუშაო კატეგორიებში, რასაც ოპერატორები ხედავენ.</p>
       </div>
       <a routerLink="/admin/categories" class="quiet-button">ტაქსონომიის მართვა<i class="fa-solid fa-arrow-right text-xs" aria-hidden="true"></i></a>
     </div>
     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       @for (category of topCategories(); track category.id) {
-        <a [routerLink]="categoryRoute(category)" class="surface-card group flex min-w-0 items-center gap-4 p-4 transition hover:border-brand/35 hover:shadow-md">
-          <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600 transition group-hover:bg-brand/10 group-hover:text-brand dark:bg-slate-800 dark:text-slate-300">
+        <a [routerLink]="categoryRoute(category)" class="surface-card group flex min-w-0 items-center gap-4 p-4 transition hover:border-brand-accent/35 hover:shadow-e2">
+          <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-600 transition group-hover:bg-brand/10 group-hover:text-brand-accent dark:bg-slate-800 dark:text-slate-300">
             <i class="fa-solid" [class]="categoryIcon(category)" aria-hidden="true"></i>
           </span>
           <span class="min-w-0 flex-1">
             <span class="block truncate text-sm font-bold text-slate-900 dark:text-slate-100">{{ category.name }}</span>
-            <span class="mt-1 block text-xs text-slate-500 dark:text-slate-400">{{ categoryCounts().get(category.name) ?? 0 }} მასალა</span>
+            <span class="mt-1 block text-xs text-slate-600 dark:text-slate-400">{{ categoryCounts().get(category.name) ?? 0 }} მასალა</span>
           </span>
-          <i class="fa-solid fa-chevron-right text-xs text-slate-300 group-hover:text-brand" aria-hidden="true"></i>
+          <i class="fa-solid fa-chevron-right text-xs text-slate-600 dark:text-slate-400 group-hover:text-brand-accent" aria-hidden="true"></i>
         </a>
       } @empty {
-        <div class="surface-card col-span-full p-6 text-center text-sm text-slate-500">კატეგორიები ვერ ჩაიტვირთა.</div>
+        <div class="surface-card col-span-full p-6 text-center text-sm text-slate-600 dark:text-slate-400">კატეგორიები ვერ ჩაიტვირთა.</div>
       }
     </div>
   </section>
@@ -113,19 +113,19 @@
     <h2 id="system-heading" class="mb-3 text-lg font-bold text-slate-900 dark:text-slate-100">სისტემის მოკლე მდგომარეობა</h2>
     <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <div class="surface-card p-4">
-        <p class="text-xs font-bold text-slate-500 dark:text-slate-400">მომხმარებლები</p>
+        <p class="text-xs font-bold text-slate-600 dark:text-slate-400">მომხმარებლები</p>
         <p class="mt-2 text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{{ kpi()?.users ?? '—' }}</p>
       </div>
       <div class="surface-card p-4">
-        <p class="text-xs font-bold text-slate-500 dark:text-slate-400">პუბლიკაციები</p>
+        <p class="text-xs font-bold text-slate-600 dark:text-slate-400">პუბლიკაციები</p>
         <p class="mt-2 text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{{ kpi()?.articles ?? '—' }}</p>
       </div>
       <div class="surface-card p-4">
-        <p class="text-xs font-bold text-slate-500 dark:text-slate-400">საერთო გაცნობა</p>
+        <p class="text-xs font-bold text-slate-600 dark:text-slate-400">საერთო გაცნობა</p>
         <p class="mt-2 text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{{ compliance() ? compliance()!.read_percentage + '%' : '—' }}</p>
       </div>
       <a routerLink="/videos" class="surface-card p-4">
-        <p class="text-xs font-bold text-slate-500 dark:text-slate-400">ვიდეო ინსტრუქციები</p>
+        <p class="text-xs font-bold text-slate-600 dark:text-slate-400">ვიდეო ინსტრუქციები</p>
         <p class="mt-2 text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{{ kpi()?.videos ?? '—' }}</p>
       </a>
     </div>
@@ -136,24 +136,24 @@
       <div class="mb-4 flex items-center justify-between gap-3">
         <div>
           <h2 class="text-base font-bold text-slate-900 dark:text-slate-100">სისტემური აქტივობა</h2>
-          <p class="text-xs text-slate-500 dark:text-slate-400">ბოლო 7 დღე</p>
+          <p class="text-xs text-slate-600 dark:text-slate-400">ბოლო 7 დღე</p>
         </div>
       </div>
       @if (activityLoading()) {
-        <div class="h-60 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800"></div>
+        <div class="h-60 animate-pulse rounded-md bg-slate-100 dark:bg-slate-800"></div>
       } @else if (activityError() || activityPoints().length === 0) {
-        <div class="flex h-60 items-center justify-center text-sm text-slate-400">აქტივობის მონაცემები არ არის.</div>
+        <div class="flex h-60 items-center justify-center text-sm text-slate-600 dark:text-slate-400">აქტივობის მონაცემები არ არის.</div>
       } @else {
         <div class="h-60"><canvas #activityCanvas></canvas></div>
       }
     </div>
     <div class="surface-card p-5">
       <h2 class="text-base font-bold text-slate-900 dark:text-slate-100">გაცნობის პროგრესი</h2>
-      <p class="text-xs text-slate-500 dark:text-slate-400">ორგანიზაციის მასშტაბით</p>
+      <p class="text-xs text-slate-600 dark:text-slate-400">ორგანიზაციის მასშტაბით</p>
       @if (complianceLoading()) {
-        <div class="mt-4 h-60 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800"></div>
+        <div class="mt-4 h-60 animate-pulse rounded-md bg-slate-100 dark:bg-slate-800"></div>
       } @else if (complianceError()) {
-        <div class="flex h-60 items-center justify-center text-sm text-slate-400">მონაცემები ვერ ჩაიტვირთა.</div>
+        <div class="flex h-60 items-center justify-center text-sm text-slate-600 dark:text-slate-400">მონაცემები ვერ ჩაიტვირთა.</div>
       } @else {
         <div class="mt-4 h-60"><canvas #complianceCanvas></canvas></div>
       }
@@ -165,21 +165,21 @@
       <div class="mb-4 flex items-center justify-between gap-3">
         <div>
           <h2 class="text-base font-bold text-slate-900 dark:text-slate-100">ხშირი ძიებები</h2>
-          <p class="text-xs text-slate-500 dark:text-slate-400">რას ეძებენ ყველაზე ხშირად</p>
+          <p class="text-xs text-slate-600 dark:text-slate-400">რას ეძებენ ყველაზე ხშირად</p>
         </div>
-        <i class="fa-solid fa-chart-simple text-slate-300" aria-hidden="true"></i>
+        <i class="fa-solid fa-chart-simple text-slate-600 dark:text-slate-400" aria-hidden="true"></i>
       </div>
       @if (popularLoading()) {
-        <div class="h-40 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800"></div>
+        <div class="h-40 animate-pulse rounded-md bg-slate-100 dark:bg-slate-800"></div>
       } @else if (popularSearches().length === 0) {
-        <p class="py-8 text-center text-sm text-slate-400">მონაცემები ჯერ არ არის.</p>
+        <p class="py-8 text-center text-sm text-slate-600 dark:text-slate-400">მონაცემები ჯერ არ არის.</p>
       } @else {
         <div class="space-y-2">
           @for (row of popularSearches().slice(0, 6); track row.search_term; let index = $index) {
-            <div class="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-slate-50 dark:hover:bg-slate-800">
-              <span class="flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-xs font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-300">{{ index + 1 }}</span>
+            <div class="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-slate-50 dark:hover:bg-slate-800">
+              <span class="flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{{ index + 1 }}</span>
               <span class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-800 dark:text-slate-200">{{ row.search_term }}</span>
-              <span class="text-xs font-bold tabular-nums text-slate-500">{{ row.count }}</span>
+              <span class="text-xs font-bold tabular-nums text-slate-600 dark:text-slate-400">{{ row.count }}</span>
             </div>
           }
         </div>
@@ -190,22 +190,22 @@
       <div class="mb-4 flex items-center justify-between gap-3">
         <div>
           <h2 class="text-base font-bold text-slate-900 dark:text-slate-100">უშედეგო ძიებები</h2>
-          <p class="text-xs text-slate-500 dark:text-slate-400">კონტენტის შესაძლო ხარვეზები</p>
+          <p class="text-xs text-slate-600 dark:text-slate-400">კონტენტის შესაძლო ხარვეზები</p>
         </div>
         <span class="status-pill bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">{{ failedSearchTotal() }} შემთხვევა</span>
       </div>
       @if (failedLoading()) {
-        <div class="h-40 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800"></div>
+        <div class="h-40 animate-pulse rounded-md bg-slate-100 dark:bg-slate-800"></div>
       } @else if (failedSearches().length === 0) {
         <div class="py-8 text-center">
-          <i class="fa-solid fa-circle-check text-2xl text-emerald-500" aria-hidden="true"></i>
+          <i class="fa-solid fa-circle-check text-2xl text-emerald-700" aria-hidden="true"></i>
           <p class="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">უშედეგო ძიება არ დაფიქსირებულა.</p>
         </div>
       } @else {
         <div class="space-y-2">
           @for (row of failedSearches().slice(0, 6); track row.search_term) {
-            <div class="flex items-center gap-3 rounded-lg border border-amber-100 bg-amber-50/50 px-3 py-2.5 dark:border-amber-900/40 dark:bg-amber-950/20">
-              <i class="fa-solid fa-magnifying-glass-minus text-xs text-amber-500" aria-hidden="true"></i>
+            <div class="flex items-center gap-3 rounded-md border border-amber-100 bg-amber-50/50 px-3 py-2.5 dark:border-amber-900/40 dark:bg-amber-950/20">
+              <i class="fa-solid fa-magnifying-glass-minus text-xs text-amber-700" aria-hidden="true"></i>
               <span class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-800 dark:text-slate-200">{{ row.search_term }}</span>
               <span class="text-xs font-bold tabular-nums text-amber-700 dark:text-amber-300">{{ row.count }}</span>
             </div>
@@ -221,20 +221,20 @@
       <div class="mb-4 flex items-end justify-between gap-3">
         <div>
           <h2 class="text-base font-bold text-slate-900 dark:text-slate-100">ბოლო ადმინისტრაციული ქმედებები</h2>
-          <p class="text-xs text-slate-500 dark:text-slate-400">ვინ, რა და როდის შეცვალა</p>
+          <p class="text-xs text-slate-600 dark:text-slate-400">ვინ, რა და როდის შეცვალა</p>
         </div>
         <a routerLink="/admin/audit" class="quiet-button">სრული აუდიტი</a>
       </div>
       @if (recentAudit().length === 0) {
-        <p class="py-8 text-center text-sm text-slate-400">ბოლო ქმედებები არ მოიძებნა.</p>
+        <p class="py-8 text-center text-sm text-slate-600 dark:text-slate-400">ბოლო ქმედებები არ მოიძებნა.</p>
       } @else {
         <div class="divide-y divide-slate-100 dark:divide-slate-800">
           @for (entry of recentAudit(); track entry.id) {
             <div class="flex gap-3 py-3">
-              <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-300"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i></span>
+              <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i></span>
               <div class="min-w-0 flex-1">
                 <p class="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">{{ actionLabel(entry.action) }}</p>
-                <p class="truncate text-xs text-slate-500 dark:text-slate-400">{{ entry.admin_name }} · {{ kaDateTime(entry.timestamp) }}</p>
+                <p class="truncate text-xs text-slate-600 dark:text-slate-400">{{ entry.admin_name }} · {{ kaDateTime(entry.timestamp) }}</p>
               </div>
             </div>
           }
@@ -247,13 +247,13 @@
       <div class="mb-4 flex items-center justify-between gap-3">
         <div>
           <h2 class="text-base font-bold text-slate-900 dark:text-slate-100">ყველაზე წაკითხვადი მასალები</h2>
-          <p class="text-xs text-slate-500 dark:text-slate-400">მიმდინარე რეალური ნახვების მიხედვით</p>
+          <p class="text-xs text-slate-600 dark:text-slate-400">მიმდინარე რეალური ნახვების მიხედვით</p>
         </div>
       </div>
       @if (compliance()?.top_articles?.length) {
         <div class="h-64"><canvas #top5Canvas></canvas></div>
       } @else {
-        <div class="flex h-64 items-center justify-center text-sm text-slate-400">საკმარისი მონაცემი ჯერ არ არის.</div>
+        <div class="flex h-64 items-center justify-center text-sm text-slate-600 dark:text-slate-400">საკმარისი მონაცემი ჯერ არ არის.</div>
       }
     </div>
   </section>
@@ -263,7 +263,7 @@
       <div class="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 p-5 dark:border-slate-800">
         <div>
           <h2 class="text-base font-bold text-slate-900 dark:text-slate-100">გაცნობის პროგრესი მომხმარებლების მიხედვით</h2>
-          <p class="text-xs text-slate-500 dark:text-slate-400">სწრაფი მონიტორინგი; სრული სამუშაო პროცესი გაცნობის ადმინისტრირების გვერდზე გადავა.</p>
+          <p class="text-xs text-slate-600 dark:text-slate-400">სწრაფი მონიტორინგი; სრული სამუშაო პროცესი გაცნობის ადმინისტრირების გვერდზე გადავა.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
           <select (change)="onProgressDeptChange($event)" class="field-control">
@@ -279,20 +279,20 @@
         </div>
       </div>
       @if (progressLoading()) {
-        <div class="m-5 h-40 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800"></div>
+        <div class="m-5 h-40 animate-pulse rounded-md bg-slate-100 dark:bg-slate-800"></div>
       } @else if (progressError()) {
-        <p class="p-8 text-center text-sm text-red-500">მონაცემები ვერ ჩაიტვირთა.</p>
+        <p class="p-8 text-center text-sm text-red-700">მონაცემები ვერ ჩაიტვირთა.</p>
       } @else {
         <div class="max-h-[430px] overflow-auto">
           <table class="w-full min-w-[720px] text-left text-sm">
-            <thead class="sticky top-0 bg-slate-50 text-xs font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+            <thead class="sticky top-0 bg-slate-50 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
               <tr><th class="px-5 py-3">მომხმარებელი</th><th class="px-5 py-3">დეპარტამენტი</th><th class="px-5 py-3 text-right">წაკითხული</th><th class="px-5 py-3 text-right">სულ</th><th class="px-5 py-3 text-right">პროგრესი</th></tr>
             </thead>
             <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
               @for (item of filteredProgress(); track item.user_id) {
                 <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                   <td class="px-5 py-3 font-semibold text-slate-800 dark:text-slate-200">{{ item.user_name }}</td>
-                  <td class="px-5 py-3 text-slate-500 dark:text-slate-400">{{ departmentLabel(item.department) }}</td>
+                  <td class="px-5 py-3 text-slate-600 dark:text-slate-400">{{ departmentLabel(item.department) }}</td>
                   <td class="px-5 py-3 text-right tabular-nums">{{ item.read_count }}</td>
                   <td class="px-5 py-3 text-right tabular-nums">{{ item.required_count }}</td>
                   <td class="px-5 py-3 text-right font-bold tabular-nums" [class]="pctColorClass(item.percentage)">{{ item.percentage }}</td>

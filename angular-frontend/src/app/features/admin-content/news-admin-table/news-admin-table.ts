@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { DatePipe } from '@angular/common';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -6,6 +6,8 @@ import { NewsService } from '../../../core/services/news.service';
 import { NewsSummary } from '../../../core/models/news';
 import { NewsEditDrawer } from '../news-edit-drawer/news-edit-drawer';
 import { ToastService } from '../../../core/notifications/toast.service';
+import { ConfirmService } from '../../../core/notifications/confirm.service';
+import { createTableSort } from '../../../shared/table-sort';
 
 /**
  * Port of #admin-news-table-container (base-layout.html:1853-1870) +
@@ -19,11 +21,18 @@ import { ToastService } from '../../../core/notifications/toast.service';
   templateUrl: './news-admin-table.html'
 })
 export class NewsAdminTable {
+  private readonly confirmService = inject(ConfirmService);
   private readonly toast = inject(ToastService);
   private readonly newsService = inject(NewsService);
   private readonly translate = inject(TranslateService);
 
   protected readonly items = signal<NewsSummary[]>([]);
+  protected readonly sort = createTableSort<NewsSummary>({
+    title: (item) => item.title,
+    department: (item) => item.target_department,
+    created: (item) => item.created_at
+  });
+  protected readonly sortedItems = computed(() => this.sort.sort(this.items()));
   protected readonly loading = signal(true);
   protected readonly editingNews = signal<NewsSummary | { id: null } | null>(null);
 
@@ -63,12 +72,12 @@ export class NewsAdminTable {
     this.load();
   }
 
-  protected remove(item: NewsSummary): void {
+  protected async remove(item: NewsSummary): Promise<void> {
     if (!item.is_archived) {
       this.toast.error('სიახლე ჯერ უნდა დაარქივოთ და მხოლოდ შემდეგ გადაიტანოთ სანაგვეში.');
       return;
     }
-    if (!window.confirm(this.translate.instant('content.news.confirm_delete'))) return;
+    if (!(await this.confirmService.ask({ message: this.translate.instant('content.news.confirm_delete'), tone: 'danger' }))) return;
     this.newsService.remove(item.id).subscribe({
       next: () => this.load(),
       error: (err: HttpErrorResponse) =>

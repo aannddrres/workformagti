@@ -3,14 +3,14 @@
   (click)="toggle($event)"
   [attr.aria-label]="'shared.favorite_star.aria_label' | translate"
   [attr.aria-pressed]="isFavorited"
-  class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-yellow-400"
+  class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition focus:outline-none focus:ring-2 focus:ring-yellow-400"
   [class]="
     variant() === 'dark'
-      ? 'bg-black/40 backdrop-blur-sm hover:bg-black/60 ' + (isFavorited ? 'text-yellow-400' : 'text-white/80')
+      ? 'bg-slate-950/55 backdrop-blur-sm hover:bg-slate-950/75 ' + (isFavorited ? 'text-yellow-400' : 'text-white/80')
       : 'border hover:border-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-950/20 ' +
         (isFavorited
-          ? 'border-yellow-300 bg-yellow-50 text-yellow-500 dark:border-yellow-700 dark:bg-yellow-950/30'
-          : 'border-gray-200 text-gray-500 dark:border-zinc-700 dark:text-zinc-400')
+          ? 'border-yellow-300 bg-yellow-50 text-yellow-700 dark:border-yellow-700 dark:bg-yellow-950/30'
+          : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-400')
   "
 >
   @if (isFavorited) {

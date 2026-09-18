@@ -40,12 +40,12 @@ export function getDepartmentBadge(department: string | null | undefined): Depar
     case 'ტექნიკური':
       return { label: 'ტექნიკური', colorClass: 'bg-blue-50 text-blue-600 border border-blue-100' };
     case 'საინფო':
-      return { label: 'საინფორმაციო', colorClass: 'bg-emerald-50 text-emerald-600 border border-emerald-100' };
+      return { label: 'საინფორმაციო', colorClass: 'bg-emerald-50 text-emerald-700 border border-emerald-100' };
     case 'ოფისი':
-      return { label: 'ოფისი', colorClass: 'bg-amber-50 text-amber-600 border border-amber-100' };
+      return { label: 'ოფისი', colorClass: 'bg-amber-50 text-amber-700 border border-amber-100' };
     case 'All':
       return { label: 'საერთო', colorClass: 'bg-purple-50 text-purple-600 border border-purple-100' };
     default:
-      return { label: formatDepartmentLabel(department), colorClass: 'bg-gray-100 text-gray-600' };
+      return { label: formatDepartmentLabel(department), colorClass: 'bg-slate-100 text-slate-600' };
   }
 }

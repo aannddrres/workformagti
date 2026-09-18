@@ -3,16 +3,16 @@
 
   @if (slashMenuOpen()) {
     <div
-      class="absolute z-50 w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-800"
+      class="absolute z-modal w-48 rounded-md border border-slate-200 bg-white py-1 shadow-e3 dark:border-slate-700 dark:bg-slate-800"
       [style.left.px]="slashMenuLeft()"
       [style.top.px]="slashMenuTop()"
     >
       @for (cmd of slashCommands; track cmd.label; let i = $index) {
         <button
           type="button"
-          class="block w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-zinc-200 dark:hover:bg-zinc-700"
-          [class.bg-gray-100]="i === slashMenuSelectedIndex()"
-          [class.dark:bg-zinc-700]="i === slashMenuSelectedIndex()"
+          class="block w-full px-3 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700"
+          [class.bg-slate-100]="i === slashMenuSelectedIndex()"
+          [class.dark:bg-slate-700]="i === slashMenuSelectedIndex()"
           (mousedown)="$event.preventDefault(); executeSlashCommand(i)"
         >
           {{ cmd.label }}

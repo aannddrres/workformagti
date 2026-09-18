@@ -3,7 +3,7 @@
  * src/styles.css, for the two places that cannot use a Tailwind class.
  *
  * Everything that renders as DOM should use the `brand` utilities
- * (`bg-brand`, `text-brand`, `focus:ring-brand`, `bg-brand/10`) instead of
+ * (`bg-brand`, `text-brand-accent`, `focus:ring-brand-accent`, `bg-brand/10`) instead of
  * calling this. This exists only for canvas: Chart.js paints into a bitmap,
  * where `rgb(var(--brand-600))` is never resolved by the browser, so the
  * value has to be computed first.

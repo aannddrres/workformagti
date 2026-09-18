@@ -60,10 +60,10 @@ test.describe('reading and version history', () => {
     await markRead(request, operatorToken, readReadingId);
 
     await page.goto('/reading');
-    await expect(page.getByRole('heading', { name: 'სავალდებულოდ გასაცნობი' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'სავალდებულო გაცნობა' })).toBeVisible();
 
-    const unreadRow = page.locator('div[role="button"]', { hasText: unreadTitle });
-    const readRow = page.locator('div[role="button"]', { hasText: readTitle });
+    const unreadRow = page.getByRole('link', { name: unreadTitle });
+    const readRow = page.getByRole('link', { name: readTitle });
 
     // --- all ---------------------------------------------------------------
     await page.getByRole('button', { name: 'ყველა', exact: true }).click();
@@ -85,6 +85,17 @@ test.describe('reading and version history', () => {
 
     await page.getByRole('button', { name: 'ყველა', exact: true }).click();
     await expect(unreadRow).toHaveCount(1);
+
+    // --- the star on a row only stars it -----------------------------------
+    // The row is a link (9770bfc) and the star sits inside it. The star
+    // stopped its click from bubbling, which was enough while the row was a
+    // div with a click handler, but a link navigates as its default action,
+    // not through a handler -- so starring a reading also opened it.
+    const star = unreadRow.locator('app-favorite-star button');
+    await expect(star).toHaveAttribute('aria-pressed', 'false');
+    await star.click();
+    await expect(star).toHaveAttribute('aria-pressed', 'true');
+    await expect(page).toHaveURL(/\/reading(\?.*)?$/);
   });
 
   test('the confirm panel says when it could not look the obligation up, and recovers', async ({

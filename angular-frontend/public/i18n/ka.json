@@ -7,21 +7,36 @@
     "sidebar": {
       "section_org": "ორგანიზაცია",
       "home": "მთავარი",
-      "team_stats": "გუნდის სტატისტიკა",
+      "team_stats": "გუნდის მდგომარეობა",
       "section_kb": "ცოდნის ბაზა",
-      "mandatory_reading": "სავალდებულოდ გასაცნობი",
+      "mandatory_reading": "სავალდებულო გაცნობა",
       "video_instructions": "ვიდეო ინსტრუქციები",
       "news": "სიახლეები",
       "section_personal": "პირადი სივრცე",
       "favorites": "რჩეულები",
       "personal_cabinet": "პირადი კაბინეტი",
       "section_admin": "ადმინისტრირება",
-      "admin_stats": "სტატისტიკა",
-      "admin_users": "მომხმარებლები",
+      "admin_stats": "საერთო სტატისტიკა",
+      "admin_users": "მომხმარებლები და წვდომა",
       "admin_roles": "როლების მართვა",
-      "admin_content": "კონტენტის მართვა",
-      "admin_logs": "ლოგები",
-      "admin_categories": "კატეგორიები"
+      "admin_content": "კონტენტის სამუშაო სივრცე",
+      "admin_logs": "აუდიტი და უსაფრთხოება",
+      "admin_categories": "კატეგორიები",
+      "section_work": "სამუშაო",
+      "section_team": "გუნდი",
+      "admin_trash": "სანაგვე",
+      "admin_broadcasts": "განცხადებები",
+      "admin_org": "ორგანიზაციული სტრუქტურა",
+      "admin_assignments": "ლიდერების დანიშვნა",
+      "admin_exports": "მონაცემების ექსპორტი",
+      "menu_open": "მენიუს გახსნა",
+      "menu_close": "მენიუს დახურვა",
+      "sidebar_expand": "მენიუს გაშლა",
+      "sidebar_collapse": "მენიუს შეკუმშვა",
+      "primary_navigation": "მთავარი ნავიგაცია",
+      "font_size": "შრიფტის ზომა",
+      "account_menu": "ანგარიშის მენიუ",
+      "admin_backfill": "Backfill კონტროლი"
     },
     "topbar": {
       "user_menu_label": "მომხმარებლის მენიუ",
@@ -107,6 +122,9 @@
     "perm_admin_bypass_note": "სისტემურ ადმინისტრატორს ყველა უფლება აქვს განსაზღვრებით — ქვემოთ მოცემული კონტროლები მას ვერ შეზღუდავს. შესაზღუდად საჭიროა როლის შეცვლა.",
     "admin_page": {
       "status_error": "სტატუსის შეცვლა ვერ მოხერხდა"
+    },
+    "profile": {
+      "tab_profile": "პირადი კაბინეტი"
     }
   },
   "search": {
@@ -182,7 +200,8 @@
       "related_heading": "დაკავშირებული მასალები",
       "sibling_navigation": "ნავიგაცია ამავე კატეგორიაში",
       "previous_article": "წინა სტატია",
-      "next_article": "შემდეგი სტატია"
+      "next_article": "შემდეგი სტატია",
+      "load_error": "სტატია ვერ ჩაიტვირთა"
     },
     "version_history": {
       "button": "ვერსიების ისტორია",
@@ -258,7 +277,8 @@
     },
     "detail_page": {
       "not_found": "სიახლე ვერ მოიძებნა",
-      "attachment_download": "თანდართული ფაილი"
+      "attachment_download": "თანდართული ფაილი",
+      "load_error": "სიახლე ვერ ჩაიტვირთა"
     }
   },
   "videos": {
@@ -270,7 +290,8 @@
       "views_label": "ნახვები: {{count}}"
     },
     "detail_page": {
-      "not_found": "ვიდეო ვერ მოიძებნა"
+      "not_found": "ვიდეო ვერ მოიძებნა",
+      "load_error": "ვიდეო ვერ ჩაიტვირთა"
     }
   },
   "shared": {
@@ -284,7 +305,12 @@
     "delete_failed": "წაშლა ვერ მოხერხდა",
     "retry": "თავიდან ცდა",
     "close_label": "დახურვა",
-    "remove_attachment_label": "დანართის მოხსნა"
+    "remove_attachment_label": "დანართის მოხსნა",
+    "confirm": {
+      "title": "დადასტურება",
+      "confirm": "დიახ",
+      "cancel": "გაუქმება"
+    }
   },
   "favorites": {
     "page": {
@@ -300,7 +326,7 @@
   },
   "readings": {
     "page": {
-      "heading": "სავალდებულოდ გასაცნობი",
+      "heading": "სავალდებულო გაცნობა",
       "filter_all": "ყველა",
       "filter_unread": "წასაკითხი",
       "filter_read": "წაკითხული",

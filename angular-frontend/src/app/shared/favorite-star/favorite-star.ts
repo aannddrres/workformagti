@@ -29,6 +29,12 @@ export class FavoriteStar {
   }
 
   toggle(event: Event): void {
+    // Both are needed. stopPropagation keeps the click from reaching a row's
+    // own click handler (news rows, video cards). preventDefault is for a row
+    // that is a link -- the reading list's -- where opening the item is the
+    // link's default action, not a handler, and stopPropagation alone let
+    // starring a reading open it as well.
+    event.preventDefault();
     event.stopPropagation();
     this.favoritesService.toggle(this.itemType(), this.itemId());
   }

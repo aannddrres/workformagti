@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { apiLogin, runId, seedTokenIntoPage } from './helpers';
+import { acceptConfirmation, apiLogin, runId, seedTokenIntoPage } from './helpers';
 
 /**
  * The category tree: create a parent and a child, expand, edit, and then take
@@ -101,12 +101,11 @@ test('categories: create, nest, expand, edit, and the delete order the tree allo
   // 409 now, on purpose, so that orphan state can no longer be produced
   // through the product at all -- and the assertions that used to follow it
   // here could not pass against any build newer than that fix.
-  page.once('dialog', (dialog) => dialog.accept());
   const [refused] = await Promise.all([
     page.waitForResponse(
       (r) => /\/api\/categories\/\d+$/.test(r.url()) && r.request().method() === 'DELETE'
     ),
-    parentRow.getByRole('button', { name: 'წაშლა' }).click()
+    parentRow.getByRole('button', { name: 'წაშლა' }).click().then(() => acceptConfirmation(page))
   ]);
   expect(refused.status(), 'a parent with an active child must not be deletable').toBe(409);
 
@@ -117,12 +116,12 @@ test('categories: create, nest, expand, edit, and the delete order the tree allo
   await expect(page.locator('tr', { hasText: renamed })).toHaveCount(1);
 
   // --- child first, then the parent: the order the guard leaves open -----
-  page.once('dialog', (dialog) => dialog.accept());
   await page.locator('tr', { hasText: renamed }).getByRole('button', { name: 'წაშლა' }).click();
+  await acceptConfirmation(page);
   await expect(page.locator('tr', { hasText: renamed })).toHaveCount(0);
 
-  page.once('dialog', (dialog) => dialog.accept());
   await parentRow.getByRole('button', { name: 'წაშლა' }).click();
+  await acceptConfirmation(page);
   await expect(parentRow).toHaveCount(0);
 
   const remaining = await listing();

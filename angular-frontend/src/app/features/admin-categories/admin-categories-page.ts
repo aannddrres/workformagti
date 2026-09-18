@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { CategoriesService } from '../../core/services/categories.service';
 import { Category, CategoryRequest } from '../../core/models/category';
+import { ConfirmService } from '../../core/notifications/confirm.service';
 
 const PASTEL_COLOR_OPTIONS = [
   { value: 'general', labelKey: 'categories.color_general' },
@@ -38,6 +39,7 @@ const PASTEL_COLOR_OPTIONS = [
   templateUrl: './admin-categories-page.html'
 })
 export class AdminCategoriesPage {
+  private readonly confirmService = inject(ConfirmService);
   private readonly categoriesService = inject(CategoriesService);
   private readonly translate = inject(TranslateService);
 
@@ -126,7 +128,7 @@ export class AdminCategoriesPage {
   }
 
   chevronClass(id: number): string {
-    const base = 'fa-solid fa-chevron-right text-[11px] transition-transform';
+    const base = 'fa-solid fa-chevron-right text-xs transition-transform';
     return this.isExpanded(id) ? `${base} rotate-90` : base;
   }
 
@@ -206,8 +208,8 @@ export class AdminCategoriesPage {
     });
   }
 
-  deleteCategory(category: Category): void {
-    if (!window.confirm(this.translate.instant('categories.confirm_delete'))) {
+  async deleteCategory(category: Category): Promise<void> {
+    if (!(await this.confirmService.ask({ message: this.translate.instant('categories.confirm_delete'), tone: 'danger' }))) {
       return;
     }
     this.categoriesService.remove(category.id).subscribe({

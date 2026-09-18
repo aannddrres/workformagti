@@ -30,9 +30,10 @@ export class NewsDetailPage {
 
   protected readonly loading = signal(true);
   protected readonly notFound = signal(false);
+  protected readonly loadError = signal(false);
   protected readonly item = signal<News | null>(null);
 
-  protected readonly formattedContent = computed(() => formatArticleContent(this.item()?.content));
+  protected readonly formattedContent = computed(() => formatArticleContent(this.item()?.content, [], this.item()?.title));
   protected readonly badge = computed(() => getDepartmentBadge(this.item()?.target_department));
   protected readonly dateLabel = computed(() => (this.item() ? formatKaDate(this.item()!.created_at) : ''));
 
@@ -47,8 +48,14 @@ export class NewsDetailPage {
           this.item.set(item);
           this.loading.set(false);
         },
-        error: () => {
-          this.notFound.set(true);
+        error: (failure: { status?: number }) => {
+          // Every failure used to land on "not found", so a 500 or a dropped
+          // connection told the operator the material did not exist.
+          if (failure?.status === 404) {
+            this.notFound.set(true);
+          } else {
+            this.loadError.set(true);
+          }
           this.loading.set(false);
         }
       });
@@ -57,4 +64,10 @@ export class NewsDetailPage {
   goBack(): void {
     this.location.back();
   }
+  /** A hard reload rather than re-running the stream: these pages load once
+   *  from a route parameter that will not emit again for the same id. */
+  retry(): void {
+    window.location.reload();
+  }
+
 }

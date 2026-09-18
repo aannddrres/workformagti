@@ -77,6 +77,7 @@ public class AuditLogController {
             @RequestParam(required = false) String q,
             @RequestParam(defaultValue = "50") int limit,
             @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(defaultValue = "desc") String direction,
             @AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireSystemAdmin(user);
         if (denial != null) {
@@ -87,7 +88,9 @@ public class AuditLogController {
         List<String> scopeDepartments = null;
         AuditLogFilter filter = new AuditLogFilter(startDate, endDate, userId, userName, action, category, q);
 
-        AuditLogQueryService.Page page = auditLogQueryService.list(filter, scopeDepartments, clampedLimit, offset);
+        boolean oldestFirst = "asc".equalsIgnoreCase(direction);
+        AuditLogQueryService.Page page =
+                auditLogQueryService.list(filter, scopeDepartments, clampedLimit, offset, oldestFirst);
 
         LinkedHashMap<String, Object> metaFilters = new LinkedHashMap<>();
         metaFilters.put("start_date", startDate);

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { apiLogin, createCategory, runId, seedTokenIntoPage } from './helpers';
+import { acceptConfirmation, apiLogin, createCategory, runId, seedTokenIntoPage } from './helpers';
 
 /**
  * News and videos, created / edited / deleted entirely through the admin UI.
@@ -92,8 +92,8 @@ test.describe('admin content: news and videos', () => {
     const editedRow = page.locator('tr', { hasText: editedTitle });
     await editedRow.getByRole('button', { name: 'დაარქივება' }).click();
     await expect(editedRow.getByRole('button', { name: 'სანაგვეში გადატანა' })).toBeEnabled();
-    page.once('dialog', (dialog) => dialog.accept());
     await editedRow.getByRole('button', { name: 'სანაგვეში გადატანა' }).click();
+    await acceptConfirmation(page);
     await expect(editedRow).toHaveCount(0);
 
     const afterDelete = await request.get('/api/news?limit=200', { headers: auth });
@@ -156,8 +156,8 @@ test.describe('admin content: news and videos', () => {
     const editedRow = page.locator('tr', { hasText: editedTitle });
     await editedRow.getByRole('button', { name: 'დაარქივება' }).click();
     await expect(editedRow.getByRole('button', { name: 'სანაგვეში გადატანა' })).toBeEnabled();
-    page.once('dialog', (dialog) => dialog.accept());
     await editedRow.getByRole('button', { name: 'სანაგვეში გადატანა' }).click();
+    await acceptConfirmation(page);
     await expect(editedRow).toHaveCount(0);
 
     const afterDelete = await request.get('/api/videos?limit=200', { headers: auth });

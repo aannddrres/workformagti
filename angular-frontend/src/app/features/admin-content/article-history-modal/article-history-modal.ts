@@ -4,6 +4,8 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ArticlesService } from '../../../core/services/articles.service';
 import { ArticleDiff, ArticleHistorySummaryItem } from '../../../core/models/article-history';
 import { PortalDialog } from '../../../shared/portal-dialog/portal-dialog';
+import { ConfirmService } from '../../../core/notifications/confirm.service';
+import { ToastService } from '../../../core/notifications/toast.service';
 
 /**
  * Port of the admin-only "ისტორია" action (frontend_api.js:615) +
@@ -27,6 +29,8 @@ import { PortalDialog } from '../../../shared/portal-dialog/portal-dialog';
   templateUrl: './article-history-modal.html'
 })
 export class ArticleHistoryModal {
+  private readonly confirmService = inject(ConfirmService);
+  private readonly toastService = inject(ToastService);
   private readonly articlesService = inject(ArticlesService);
   private readonly translate = inject(TranslateService);
 
@@ -139,8 +143,8 @@ export class ArticleHistoryModal {
     this.diff.set(null);
   }
 
-  protected restore(item: ArticleHistorySummaryItem): void {
-    if (!window.confirm(this.translate.instant('content.history.confirm_restore'))) {
+  protected async restore(item: ArticleHistorySummaryItem): Promise<void> {
+    if (!(await this.confirmService.ask(this.translate.instant('content.history.confirm_restore')))) {
       return;
     }
     this.restoringId.set(item.id);
@@ -151,7 +155,7 @@ export class ArticleHistoryModal {
       },
       error: () => {
         this.restoringId.set(null);
-        window.alert(this.translate.instant('content.history.restore_failed'));
+        this.toastService.error(this.translate.instant('content.history.restore_failed'));
       }
     });
   }

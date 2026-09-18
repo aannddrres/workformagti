@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Position = 0)]
     [ValidateSet('prepare', 'verify', 'pulse', 'credentials', 'reset', 'test')]
@@ -69,6 +69,33 @@ function Invoke-Compose {
     & $DockerCommand compose --env-file $EnvironmentFile --file $ComposeFile @Arguments
     if ($LASTEXITCODE -ne 0) {
         throw "docker compose failed with exit code $LASTEXITCODE"
+    }
+}
+
+function Test-PresentationVolumeExists {
+    # `docker volume inspect` on a volume that is gone writes to stderr and
+    # exits non-zero. Both of those are the ANSWER here -- "it is gone" -- not
+    # a failure. But this script runs with $ErrorActionPreference = 'Stop',
+    # and Windows PowerShell wraps a native command's stderr into a
+    # NativeCommandError that 'Stop' then makes terminating -- `*> $null`
+    # redirects the stream without stopping the record being raised.
+    #
+    # So `reset` removed the volume and died on the very check that was meant
+    # to confirm the removal, after the containers and the data were already
+    # gone and before Prepare-Presentation could rebuild any of it. The one
+    # path that destroys data was the one path that could not finish.
+    #
+    # Scoped back to Continue for this single call rather than globally: every
+    # other native call here is checked through $LASTEXITCODE and should keep
+    # failing loudly.
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        & $DockerCommand volume inspect $PresentationVolume 2>&1 | Out-Null
+        return $LASTEXITCODE -eq 0
+    }
+    finally {
+        $ErrorActionPreference = $previous
     }
 }
 
@@ -195,8 +222,7 @@ function Ensure-PresentationForTests {
 function Remove-PresentationDataAndRebuild {
     Write-Step 'Restoring the isolated presentation baseline'
     Invoke-Compose --profile tools down --volumes --remove-orphans
-    & $DockerCommand volume inspect $PresentationVolume *> $null
-    if ($LASTEXITCODE -eq 0) {
+    if (Test-PresentationVolumeExists) {
         throw "Scoped volume still exists after reset: $PresentationVolume"
     }
     Prepare-Presentation -HideCredentials
@@ -497,8 +523,7 @@ switch ($Command) {
         }
         Write-Step 'Removing the isolated presentation project and volume'
         Invoke-Compose --profile tools down --volumes --remove-orphans
-        & $DockerCommand volume inspect $PresentationVolume *> $null
-        if ($LASTEXITCODE -eq 0) {
+        if (Test-PresentationVolumeExists) {
             throw "Scoped volume still exists after reset: $PresentationVolume"
         }
         Write-Host "Removed isolated volume '$PresentationVolume'. Rebuilding now." -ForegroundColor Green

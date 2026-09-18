@@ -79,7 +79,7 @@ export const routes: Routes = [
             ({ AdminBroadcastsPage }) => AdminBroadcastsPage
           ),
         canActivate: [announcementPublisherGuard],
-        data: { title: 'განცხადებების მართვა' }
+        data: { title: 'nav.sidebar.admin_broadcasts' }
       },
       {
         path: 'admin/exports',
@@ -88,7 +88,7 @@ export const routes: Routes = [
             ({ AdminExportsPage }) => AdminExportsPage
           ),
         canActivate: [roleGuard(ADMIN_ONLY)],
-        data: { title: 'მონაცემების ექსპორტი' }
+        data: { title: 'nav.sidebar.admin_exports' }
       },
       {
         path: 'admin',
@@ -106,7 +106,7 @@ export const routes: Routes = [
             path: 'trash',
             loadComponent: () =>
               import('./features/admin-trash/admin-trash-page').then(({ AdminTrashPage }) => AdminTrashPage),
-            data: { title: 'სანაგვე' },
+            data: { title: 'nav.sidebar.admin_trash' },
             canActivate: [contentManageGuard]
           },
           { path: 'categories', loadComponent: () => import('./features/admin-categories/admin-categories-page').then(({ AdminCategoriesPage }) => AdminCategoriesPage), data: { title: 'nav.sidebar.admin_categories' }, canActivate: [contentManageGuard] },
@@ -119,19 +119,19 @@ export const routes: Routes = [
           {
             path: 'org/assignments',
             loadComponent: () => import('./features/admin-org/admin-assignments-page').then(({ AdminAssignmentsPage }) => AdminAssignmentsPage),
-            data: { title: 'ლიდერების დანიშვნა' },
+            data: { title: 'nav.sidebar.admin_assignments' },
             canActivate: [roleGuard(ADMIN_ONLY)]
           },
           {
             path: 'org/backfill',
             loadComponent: () => import('./features/admin-org/admin-backfill-page').then(({ AdminBackfillPage }) => AdminBackfillPage),
-            data: { title: 'Backfill კონტროლი' },
+            data: { title: 'nav.sidebar.admin_backfill' },
             canActivate: [roleGuard(ADMIN_ONLY)]
           },
           {
             path: 'org',
             loadComponent: () => import('./features/admin-org/admin-org-page').then(({ AdminOrgPage }) => AdminOrgPage),
-            data: { title: 'ორგანიზაციული სტრუქტურა' },
+            data: { title: 'nav.sidebar.admin_org' },
             canActivate: [roleGuard(ADMIN_ONLY)]
           },
           {

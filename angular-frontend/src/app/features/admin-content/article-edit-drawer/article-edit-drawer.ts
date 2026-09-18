@@ -11,6 +11,7 @@ import { RichTextEditor } from '../../../shared/rich-text-editor/rich-text-edito
 import { QuizBuilder } from '../../../shared/quiz-builder/quiz-builder';
 import { ToastService } from '../../../core/notifications/toast.service';
 import { PortalDialog } from '../../../shared/portal-dialog/portal-dialog';
+import { ConfirmService } from '../../../core/notifications/confirm.service';
 
 const DEPARTMENT_ORDER: { key: 'info' | 'tech' | 'office'; name: string }[] = [
   { key: 'info', name: 'საინფორმაციო' },
@@ -41,6 +42,7 @@ const DEPARTMENT_ORDER: { key: 'info' | 'tech' | 'office'; name: string }[] = [
   templateUrl: './article-edit-drawer.html'
 })
 export class ArticleEditDrawer {
+  private readonly confirmService = inject(ConfirmService);
   private readonly toast = inject(ToastService);
   /** True when the mandatory-reading flag could not be read; the UI must not present the unchecked box as fact. */
   protected readonly mandatoryUnknown = signal(false);
@@ -242,12 +244,12 @@ export class ArticleEditDrawer {
   }
 
   protected dropzoneClass(): string {
-    const base = 'rounded-xl border-2 border-dashed p-3 transition-colors';
-    return this.dropzoneActive() ? `${base} border-brand bg-red-50 dark:bg-red-950/20` : `${base} border-gray-200 dark:border-zinc-700`;
+    const base = 'rounded-lg border-2 border-dashed p-3 transition-colors';
+    return this.dropzoneActive() ? `${base} border-brand-accent bg-red-50 dark:bg-red-950/20` : `${base} border-slate-200 dark:border-slate-700`;
   }
 
   protected previewFrameClass(): string {
-    const base = 'bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 overflow-hidden transition-all';
+    const base = 'bg-white dark:bg-slate-900 rounded-lg shadow-e1 border border-slate-200 dark:border-slate-800 overflow-hidden transition';
     return this.previewDevice() === 'mobile' ? `${base} w-[360px]` : `${base} w-full`;
   }
 
@@ -300,8 +302,8 @@ export class ArticleEditDrawer {
     this.dirty.set(true);
   }
 
-  protected close(): void {
-    if (this.dirty() && !window.confirm('შეუნახავი ცვლილებები დაიკარგება. გსურთ დახურვა?')) {
+  protected async close(): Promise<void> {
+    if (this.dirty() && !(await this.confirmService.ask('შეუნახავი ცვლილებები დაიკარგება. გსურთ დახურვა?'))) {
       return;
     }
     this.closed.emit();

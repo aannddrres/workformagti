@@ -207,7 +207,14 @@ def test_compose_and_reset_are_scoped_to_the_presentation_project() -> None:
     # What actually keeps this safe is the line above: the stack is published
     # on 127.0.0.1 only. Both are pinned here so that turning one off without
     # the other fails the build rather than a demo.
-    assert "ALLOW_DEV_LOGIN: \"true\"" in compose
+    #
+    # The value now lives in one anchor because two places consumed it and
+    # were free to disagree: the backend implements the bypass, and the
+    # seeder's verify_api asserts the login behaviour it produces. They did
+    # disagree, and a full reset/verify could not pass until they were tied
+    # together. Both references are pinned so neither can quietly stop using it.
+    assert 'x-allow-dev-login: &allow-dev-login "true"' in compose
+    assert compose.count("ALLOW_DEV_LOGIN: *allow-dev-login") == 2
     assert "magti-portal-presentation-oracle-data" in compose
     assert "./magti_portal.db:/source/magti_portal.db:ro" in compose
     assert "./uploads:/source/uploads:ro" in compose
@@ -239,3 +246,88 @@ def test_local_qa_profiles_are_scoped_and_reported() -> None:
     assert '("manager@magti.ge", "system.audit", "DENY", 200, 403)' in qa_runner
     assert '("info@magti.ge", "system.audit", "ALLOW", 403, 200)' in qa_runner
     assert "_assert_audit_chain" in qa_runner
+
+
+def test_powershell_wrappers_that_hold_non_ascii_are_bom_prefixed() -> None:
+    # Windows PowerShell 5.1 -- the only PowerShell on a stock Windows 11 --
+    # decodes a .ps1 without a byte-order mark as the ANSI code page, not as
+    # UTF-8. presentation.ps1 held exactly three em dashes inside double-quoted
+    # strings; each decoded into three CP1252 characters ending in a closing
+    # double quote, which terminated the string early. The file became a parse
+    # error, so `presentation.ps1 prepare` -- the documented way to rebuild the
+    # demo stack -- could not run at all on the machine it was written for.
+    # uat.ps1 already carried the mark, which is why only one of the two broke.
+    wrappers = sorted(ROOT.glob("*.ps1")) + sorted((ROOT / "scripts").glob("*.ps1"))
+    assert wrappers, "no PowerShell wrappers found to check"
+
+    missing = []
+    for wrapper in wrappers:
+        raw = wrapper.read_bytes()
+        if raw.decode("utf-8").isascii():
+            # Pure ASCII decodes identically under either code page.
+            continue
+        if not raw.startswith(b"\xef\xbb\xbf"):
+            missing.append(wrapper.relative_to(ROOT).as_posix())
+
+    assert missing == []
+
+
+def test_reset_confirms_volume_removal_without_a_terminating_native_error() -> None:
+    # `reset` deletes the scoped volume and then confirms it is gone. The
+    # confirmation was `docker volume inspect ... *> $null` followed by a
+    # $LASTEXITCODE check -- but on a missing volume, which is the SUCCESS
+    # case here, docker writes to stderr. Windows PowerShell raises that as a
+    # NativeCommandError, and this script's $ErrorActionPreference = 'Stop'
+    # makes it terminating: `*> $null` redirects the stream without stopping
+    # the record. So reset removed the containers and the data and then died
+    # on the very check meant to confirm the removal, before
+    # Prepare-Presentation could rebuild any of it. The one path that destroys
+    # data was the one path that could not finish, and nothing said so.
+    wrapper = (ROOT / "presentation.ps1").read_text(encoding="utf-8")
+
+    assert "$ErrorActionPreference = 'Stop'" in wrapper
+    assert "function Test-PresentationVolumeExists" in wrapper
+    # Both call sites -- the `reset` switch and Remove-PresentationDataAndRebuild.
+    assert wrapper.count("if (Test-PresentationVolumeExists) {") == 2
+    assert "volume inspect $PresentationVolume *> $null" not in wrapper
+
+    # The relaxation must be scoped to that single call and restored after it,
+    # or every other native failure in this script stops being loud.
+    helper = wrapper.split("function Test-PresentationVolumeExists", 1)[1]
+    helper = helper.split("\nfunction ", 1)[0]
+    assert "$ErrorActionPreference = 'Continue'" in helper
+    assert "finally {" in helper
+    assert "$ErrorActionPreference = $previous" in helper
+
+
+def test_verify_asserts_the_login_mode_it_is_actually_running_in() -> None:
+    # verify_api demanded HTTP 401 for a wrong password unconditionally, while
+    # the compose file deliberately sets ALLOW_DEV_LOGIN=true so the persona
+    # picker works. Those cannot both hold, so a full reset/verify failed on
+    # the intended configuration -- and nothing had surfaced it, because reset
+    # had never been able to reach verify.
+    seeder = (ROOT / "scripts" / "presentation" / "seed_oracle_demo.py").read_text(encoding="utf-8")
+
+    assert 'os.getenv("ALLOW_DEV_LOGIN"' in seeder
+    assert "expected_wrong_password_status = 200 if dev_login else 401" in seeder
+    # The observed mode belongs in the report rather than being swallowed.
+    assert '"dev_login": dev_login,' in seeder
+
+    # With the password bypassed for the allow-list, the property left worth
+    # proving is that the bypass is scoped.
+    assert "OUTSIDE_DEV_LOGIN_ALLOWLIST" in seeder
+    assert '"Dev login is not scoped to its allow-list: "' in seeder
+
+    # The probe addresses must sit outside every branch of
+    # AuthenticationService's allow-list. A "presentation." address is
+    # JIT-provisioned on a failed lookup, so probing an unknown one would
+    # CREATE the account -- named "Test User " + the local part -- and push the
+    # user count past the baseline this same run then asserts. That is exactly
+    # how a stray "Test User presentation.nonexistent.person" ended up in the
+    # demo org.
+    block = seeder.split("OUTSIDE_DEV_LOGIN_ALLOWLIST = (", 1)[1].split(")", 1)[0]
+    probes = [line.strip().strip('",') for line in block.splitlines() if "@" in line]
+    assert probes, "no probe addresses found"
+    for probe in probes:
+        assert not probe.startswith("presentation."), probe
+        assert not probe.startswith("test_operator_"), probe

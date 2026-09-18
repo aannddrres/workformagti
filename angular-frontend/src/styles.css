@@ -27,9 +27,22 @@
  * opacity modifiers keep working (`bg-brand/10`, `dark:bg-brand/20`).
  * ------------------------------------------------------------------------- */
 :root {
+  --brand-50: 251 236 238; /* 8% brand over white -- selected rows, callout washes */
   --brand-500: 237 27 47; /* official public Magticom mark */
   --brand-600: 200 16 46; /* accessible interactive derivative */
   --brand-700: 151 12 35;
+
+  /* The brand has to do two jobs and one value cannot do both. As a filled
+   * surface it must stay dark enough to carry white text (luminance <= 0.175);
+   * as text or a border on the dark canvas it must be light enough to read
+   * against it (luminance >= 0.183). Those windows do not overlap, which is
+   * why --brand-600 was previously redefined to rose-400 in dark mode: that
+   * fixed the text and silently broke every filled button, where white on it
+   * measured 2.69:1. --brand-600 is now the filled surface in both themes and
+   * --brand-accent is the readable-on-canvas one. In dark it is Magti red
+   * lightened in place -- hsl(350, 85%, 42%) -> 74% -- rather than a borrowed
+   * Tailwind pink. */
+  --brand-accent: 200 16 46;
   --focus-ring: 126 14 32;
 
   /* Danger: destructive, irreversible actions only — delete, and nothing else.
@@ -37,7 +50,7 @@
    * Separate from --brand even though both are red today, because they answer
    * different questions. Brand says "this is Magti"; danger says "this cannot
    * be undone". Before this they were literally the same utility: the delete
-   * controls in the news and video admin tables used hover:text-brand, so the
+   * controls in the news and video admin tables used hover:text-brand-accent, so the
    * button that destroys a record was painted in exactly the colour of the
    * primary "create" button beside it.
    *
@@ -52,11 +65,16 @@
     'Noto Sans Georgian', 'BPG Arial', Sylfaen, system-ui, -apple-system, 'Segoe UI', Roboto, Arial,
     sans-serif;
 
-  /* A bundled Georgian-capable reading face for long-form knowledge-base
-   * content. This avoids the serif Sylfaen fallback on managed Windows PCs
-   * and works without internet access. It is intentionally scoped to the
-   * reader until the official brand font is approved. */
-  --font-reading: 'Portal Georgian', 'DejaVu Sans', var(--font-sans);
+  /* The reader used to have a face of its own -- DejaVu Sans, shipped as
+   * 'Portal Georgian' -- to avoid the serif Sylfaen fallback on managed
+   * Windows PCs. Noto Sans Georgian, bundled below, already closes that gap,
+   * and DejaVu was declared `font-weight: 100 900` off a single regular file,
+   * so every bold in an article was synthesised. Measured in the browser:
+   * DejaVu rendered 400 and 700 at 530.6px and 532.8px for the same string --
+   * a 0.4% difference -- while Noto, which ships three real files, rendered
+   * 586.7px and 614.3px. The reader now uses the UI stack; --font-reading is
+   * gone rather than aliased, because an indirection to the same value only
+   * hides that there is one family. */
 
   /* User-controlled accessibility scale. Every Tailwind rem value follows
    * this root size, so the layout reflows instead of merely magnifying pixels. */
@@ -74,13 +92,15 @@
  * on both surfaces. Declared explicitly anyway so a future dark-mode-specific
  * brand tint has an obvious home rather than being patched inline. */
 .dark {
-  --brand-600: 251 113 133;
-  --brand-700: 151 12 35;
+  --brand-50: 48 22 28; /* red-tinted wash that still sits above --surface */
+  --brand-600: 200 16 46; /* the filled surface: unchanged, so white still reads on it */
+  --brand-700: 222 18 52; /* hover goes lighter on a dark canvas, not darker */
+  --brand-accent: 245 132 151; /* 8.3:1 on the canvas, 7.3:1 on a card */
   --focus-ring: 255 155 164;
   /* Lifted slightly on dark surfaces, where the light-mode red loses contrast. */
   --danger-600: 248 113 113;
   --danger-700: 220 38 38;
-  --canvas: 18 23 30;
+  --canvas: 2 6 23;
   --surface: 25 31 40;
   --surface-muted: 31 39 49;
   --border: 55 65 81;
@@ -108,14 +128,6 @@
   font-family: 'Noto Sans Georgian';
   src: url('/fonts/NotoSansGeorgian-700.ttf') format('truetype');
   font-weight: 700 900;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Portal Georgian';
-  src: url('/fonts/DejaVuSans.ttf') format('truetype');
-  font-weight: 100 900;
   font-style: normal;
   font-display: swap;
 }
@@ -159,8 +171,16 @@
 }
 
 @layer components {
+  /* Two page widths, not six. 1440 is what most screens already used and it
+   * leaves real gutters at the 1080p target once the 288px sidebar is taken
+   * off; 1600 nearly touched the edge. Narrow is for reading and for the short
+   * single-column lists, where a full-width column has nothing to put in it. */
   .portal-page {
-    @apply mx-auto w-full max-w-[1600px] px-5 pb-10 pt-6 lg:px-8;
+    @apply mx-auto w-full max-w-[1440px] px-5 pb-10 pt-6 lg:px-8;
+  }
+
+  .portal-page-narrow {
+    @apply mx-auto w-full max-w-[900px] px-5 pb-10 pt-6 lg:px-8;
   }
 
   .portal-page-header {
@@ -168,74 +188,125 @@
   }
 
   .portal-eyebrow {
-    @apply mb-1 text-xs font-bold uppercase tracking-[0.14em] text-brand;
+    @apply mb-1 text-xs font-bold uppercase tracking-[0.14em] text-brand-accent;
   }
 
   .portal-title {
-    @apply text-2xl font-bold tracking-[-0.025em] text-slate-900 dark:text-slate-50 lg:text-3xl;
+    @apply text-2xl font-bold tracking-[-0.025em] text-slate-900 dark:text-slate-50;
   }
 
   .portal-subtitle {
-    @apply mt-1 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400;
+    @apply mt-1 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-400;
+  }
+
+  /* One backdrop. There were five treatments -- black/40, black/50,
+   * slate-950/45, slate-950/55, with and without blur -- so the dim behind a
+   * dialog changed depending on which screen opened it. Positioning stays on
+   * the element, because some backdrops are `fixed` and some are `absolute`
+   * inside an already-fixed wrapper. */
+  /* Empty states existed on every list -- the audit's "no empty state" note was
+   * wrong about that -- but each one was a bare <p>, aligned differently per
+   * screen, next to one properly illustrated example in the admin queue. This
+   * is that example, made shared. */
+  .empty-state {
+    @apply flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-slate-200 px-6 py-12 text-center text-sm text-slate-600 dark:border-slate-700 dark:text-slate-400;
+  }
+
+  /* The same treatment as .empty-state for the failure case, which had the
+   * identical problem: a bare red <p>, centred on one screen and left-aligned
+   * on the next. Padding is lighter than the empty state because three of
+   * these sit inside small dashboard widgets. */
+  .error-state {
+    @apply flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-red-200 px-6 py-8 text-center text-sm text-red-700 dark:border-red-900/60 dark:text-red-300;
+  }
+
+  .dialog-backdrop {
+    @apply bg-slate-950/55 backdrop-blur-sm animate-overlay-in;
   }
 
   .surface-card {
-    @apply rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.035)] dark:border-slate-700 dark:bg-slate-900;
+    @apply rounded-lg border border-slate-200 bg-white shadow-e1 dark:border-slate-700 dark:bg-slate-900;
   }
 
   .surface-card-muted {
-    @apply rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/70;
+    @apply rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/70;
   }
 
   .primary-button {
-    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-[10px] bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50;
-  }
-
-  .dark .primary-button {
-    background: rgb(var(--brand-700));
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-e1 transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .secondary-button {
-    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-[10px] border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800;
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-e1 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800;
   }
 
   .quiet-button {
-    @apply inline-flex min-h-9 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white;
+    @apply inline-flex min-h-9 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white;
   }
 
   .icon-button {
-    @apply inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white;
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white;
   }
 
   .queue-action {
-    @apply flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed dark:text-slate-200 dark:hover:bg-slate-800;
+    @apply flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed dark:text-slate-200 dark:hover:bg-slate-800;
   }
 
   .field-control {
-    @apply min-h-10 rounded-[10px] border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm transition placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/10 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100;
+    @apply min-h-10 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-e1 transition placeholder:text-slate-500 focus:border-brand-accent focus:outline-none focus:ring-2 focus:ring-brand-accent/10 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100;
+  }
+
+  /* A sortable column header. The arrow is dim until the column is the one
+   * being sorted, and the active state is carried by `aria-sort` on the `<th>`
+   * so the styling and the thing a screen reader announces cannot drift apart. */
+  .sortable-header {
+    @apply inline-flex items-center gap-1.5 rounded-sm text-left font-bold transition hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent dark:hover:text-white;
+  }
+
+  .sortable-header i {
+    @apply text-xs text-slate-600 dark:text-slate-400;
+  }
+
+  [aria-sort] .sortable-header i {
+    @apply text-brand-accent;
   }
 
   .status-pill {
     @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold;
   }
 
+  /* The frame every table shares. Thirteen of them hand-rolled a near-identical
+   * version of this and only one used the class. */
   .table-shell {
-    @apply overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.035)] dark:border-slate-700 dark:bg-slate-900;
+    @apply overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-e1 dark:border-slate-700 dark:bg-slate-900;
   }
 
-  .table-shell table {
+  /* The frame and the table styling are separate, because two tables live
+   * inside a `.surface-card` already and a second border around them would
+   * read as a box in a box. */
+  .table-shell table,
+  .data-table {
     @apply w-full text-left text-sm;
   }
 
-  .table-shell thead {
-    @apply sticky top-0 z-10 bg-slate-50/95 text-xs font-bold text-slate-500 backdrop-blur dark:bg-slate-800/95 dark:text-slate-400;
+  /* Not sticky. It was declared `sticky top-0` here, but a sticky header needs
+   * a scroll container with a height to stick inside, and the shell has none --
+   * so it never engaged anywhere, and on admin-users the `overflow-x-auto` added
+   * beside it turned the shell into a scroller and broke the corners too. The
+   * one screen that genuinely wants a sticky header (admin-stats) caps its own
+   * height and keeps doing that. A rule that cannot work is worse than no rule. */
+  .table-shell thead,
+  .data-table thead {
+    @apply bg-slate-50/95 text-xs font-bold text-slate-600 backdrop-blur dark:bg-slate-800/95 dark:text-slate-400;
   }
 
-  .table-shell tbody {
+  .table-shell tbody,
+  .data-table tbody {
     @apply divide-y divide-slate-100 dark:divide-slate-800;
   }
 
-  .table-shell tbody tr {
+  .table-shell tbody tr,
+  .data-table tbody tr {
     @apply transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/55;
   }
 
@@ -243,11 +314,6 @@
    * browser's paragraph/list rhythm, and this project does not load the
    * typography plugin, so a plain `prose` class cannot restore it. These
    * rules style the legacy HTML as-is; they do not rewrite stored content. */
-  .article-reader,
-  .article-reader-title {
-    font-family: var(--font-reading);
-  }
-
   .article-reader {
     color: rgb(51 65 85);
     font-size: 1.0625rem;

@@ -7,21 +7,36 @@
     "sidebar": {
       "section_org": "Organization",
       "home": "Home",
-      "team_stats": "Team Statistics",
-      "section_kb": "Knowledge Base",
-      "mandatory_reading": "Mandatory Reading",
-      "video_instructions": "Video Instructions",
+      "team_stats": "Team status",
+      "section_kb": "Knowledge base",
+      "mandatory_reading": "Mandatory reading",
+      "video_instructions": "Video instructions",
       "news": "News",
       "section_personal": "Personal Space",
-      "favorites": "Favorites",
+      "favorites": "Favourites",
       "personal_cabinet": "Personal Cabinet",
       "section_admin": "Administration",
-      "admin_stats": "Statistics",
-      "admin_users": "Users",
+      "admin_stats": "Overall statistics",
+      "admin_users": "Users and access",
       "admin_roles": "Role Management",
-      "admin_content": "Content Management",
-      "admin_logs": "Logs",
-      "admin_categories": "Categories"
+      "admin_content": "Content workspace",
+      "admin_logs": "Audit and security",
+      "admin_categories": "Categories",
+      "section_work": "Work",
+      "section_team": "Team",
+      "admin_trash": "Trash",
+      "admin_broadcasts": "Announcements",
+      "admin_org": "Organisational structure",
+      "admin_assignments": "Leader assignments",
+      "admin_exports": "Data export",
+      "menu_open": "Open menu",
+      "menu_close": "Close menu",
+      "sidebar_expand": "Expand menu",
+      "sidebar_collapse": "Collapse menu",
+      "primary_navigation": "Main navigation",
+      "font_size": "Font size",
+      "account_menu": "Account menu",
+      "admin_backfill": "Backfill control"
     },
     "topbar": {
       "user_menu_label": "User menu",
@@ -107,6 +122,9 @@
     "perm_admin_bypass_note": "A system administrator holds every permission by definition — the controls below cannot restrict them. Change the role to restrict access.",
     "admin_page": {
       "status_error": "Could not change status"
+    },
+    "profile": {
+      "tab_profile": "My profile"
     }
   },
   "search": {
@@ -182,7 +200,8 @@
       "related_heading": "Related materials",
       "sibling_navigation": "Navigation within this category",
       "previous_article": "Previous article",
-      "next_article": "Next article"
+      "next_article": "Next article",
+      "load_error": "The article could not be loaded"
     },
     "version_history": {
       "button": "Version history",
@@ -258,7 +277,8 @@
     },
     "detail_page": {
       "not_found": "News item not found",
-      "attachment_download": "Attached file"
+      "attachment_download": "Attached file",
+      "load_error": "The news item could not be loaded"
     }
   },
   "videos": {
@@ -270,7 +290,8 @@
       "views_label": "Views: {{count}}"
     },
     "detail_page": {
-      "not_found": "Video not found"
+      "not_found": "Video not found",
+      "load_error": "The video could not be loaded"
     }
   },
   "shared": {
@@ -284,7 +305,12 @@
     "delete_failed": "Delete failed",
     "retry": "Try again",
     "close_label": "Close",
-    "remove_attachment_label": "Remove attachment"
+    "remove_attachment_label": "Remove attachment",
+    "confirm": {
+      "title": "Confirm",
+      "confirm": "Yes",
+      "cancel": "Cancel"
+    }
   },
   "favorites": {
     "page": {

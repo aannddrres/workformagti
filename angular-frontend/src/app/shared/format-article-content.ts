@@ -15,6 +15,7 @@ export interface ArticleLinkTarget {
 export function formatArticleContent(
   rawBody: string | null | undefined,
   linkTargets: readonly ArticleLinkTarget[] = [],
+  title: string | null | undefined = null,
 ): string {
   let body = rawBody || '';
 
@@ -23,7 +24,7 @@ export function formatArticleContent(
     body = body.replace(
       codeBlockRegex,
       (_match, lang: string, code: string) =>
-        `<pre class="my-4 overflow-x-auto rounded-xl bg-gray-950 p-4 font-mono text-sm text-green-400 border border-gray-800 shadow-inner"><code class="language-${escapeHtml(lang)}">${escapeHtml(code.trim())}</code></pre>`,
+        `<pre class="my-4 overflow-x-auto rounded-lg bg-slate-950 p-4 font-mono text-sm text-green-400 border border-slate-800 shadow-inner"><code class="language-${escapeHtml(lang)}">${escapeHtml(code.trim())}</code></pre>`,
     );
   }
 
@@ -31,7 +32,7 @@ export function formatArticleContent(
   body = body.replace(
     inlineCodeRegex,
     (_match, code: string) =>
-      `<code class="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs text-red-600 dark:bg-zinc-800 dark:text-red-400">${escapeHtml(code)}</code>`,
+      `<code class="rounded-sm bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-red-600 dark:bg-slate-800 dark:text-red-400">${escapeHtml(code)}</code>`,
   );
 
   const hasBlockTags = /<(p|div|h[1-6]|ul|ol|li|table|br|a|strong|b|em|img|pre|code)\b/i.test(body);
@@ -40,7 +41,7 @@ export function formatArticleContent(
     body = paragraphs.map((p) => `<p class="leading-relaxed mb-3">${escapeHtml(p)}</p>`).join('');
   }
 
-  return decorateTechnicalTokens(body, linkTargets);
+  return decorateTechnicalTokens(body, linkTargets, title);
 }
 
 /**
@@ -55,12 +56,15 @@ export function formatArticleContent(
 export function decorateTechnicalTokens(
   body: string,
   linkTargets: readonly ArticleLinkTarget[] = [],
+  title: string | null | undefined = null,
 ): string {
   if (!body || typeof DOMParser === 'undefined') {
     return body;
   }
 
   const document = new DOMParser().parseFromString(body, 'text/html');
+  dropRepeatedTitle(document, title);
+  demoteHeadings(document);
   decorateDenseClauses(document);
   rewriteLegacyArticleLinks(document, linkTargets);
   const walker = document.createTreeWalker(document.body, 4);
@@ -236,6 +240,49 @@ function decorateDenseClauses(document: Document): void {
         return row;
       }),
     );
+  }
+}
+
+/**
+ * Stored bodies often open by repeating the article's own title, so the reader
+ * printed it twice: once as the page heading and again as the first line of the
+ * text. Only an exact match is removed -- a heading that merely starts with the
+ * same words is a real section and stays.
+ */
+function dropRepeatedTitle(document: Document, title: string | null | undefined): void {
+  const wanted = (title || '').replace(/\s+/g, ' ').trim().toLocaleLowerCase('ka-GE');
+  if (!wanted) return;
+
+  const heading = document.body.querySelector('h1, h2, h3, h4, h5, h6');
+  if (!heading) return;
+
+  const normalise = (value: string | null) =>
+    (value || '').replace(/\s+/g, ' ').trim().toLocaleLowerCase('ka-GE');
+  const headingText = normalise(heading.textContent);
+  if (headingText !== wanted) return;
+
+  // Bodies are often wrapped in a <div>, so "is it the first element" is not
+  // the question -- "does anything precede it" is.
+  if (!normalise(document.body.textContent).startsWith(headingText)) return;
+
+  heading.remove();
+}
+
+/**
+ * A document gets one h1 and the page heading is already it, so headings inside
+ * a stored body shift down one level. Relative structure is preserved, which a
+ * flat h1 -> h2 rewrite would not do; h6 has nowhere lower to go and stays.
+ */
+function demoteHeadings(document: Document): void {
+  for (let level = 5; level >= 1; level -= 1) {
+    for (const heading of Array.from(document.querySelectorAll(`h${level}`))) {
+      const replacement = document.createElement(`h${level + 1}`);
+      for (const attribute of Array.from(heading.attributes)) {
+        replacement.setAttribute(attribute.name, attribute.value);
+      }
+      replacement.replaceChildren(...Array.from(heading.childNodes));
+      heading.replaceWith(replacement);
+    }
   }
 }
 

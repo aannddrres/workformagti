@@ -2,6 +2,21 @@
 # Managed through ./presentation.ps1; do not reuse this file as a deployment manifest.
 name: magti-portal-presentation
 
+# Whether the login screen's persona picker may sign in without a password.
+#
+# Turned on so the persona buttons on /login actually work: the demo database
+# has no usable password path (loginPersona sends no password) and corporate
+# SSO is not wired up yet. The stack is published on 127.0.0.1 only. Set to
+# "false" for a stakeholder demo where password-less sign-in would
+# misrepresent the product.
+#
+# Declared once and referenced by both the service that implements it and the
+# tools container whose verification has to assert the matching behaviour.
+# They were free to disagree before, and did: the backend accepted any
+# password while the verifier demanded that one be refused, so a full
+# reset/verify could not pass on the intended configuration.
+x-allow-dev-login: &allow-dev-login "true"
+
 x-presentation-tool: &presentation-tool
   image: magti-portal-presentation-tools:local
   build:
@@ -21,6 +36,9 @@ x-presentation-tool: &presentation-tool
     PRESENTATION_ARTIFACT_DIR: /artifacts
     PRESENTATION_API_BASE_URL: http://backend:8080
     PRESENTATION_REQUIRE_RO_MOUNTS: "true"
+    # verify_api asserts the login behaviour this selects, so it has to read
+    # the same value the backend runs with rather than assume one.
+    ALLOW_DEV_LOGIN: *allow-dev-login
   volumes:
     - ./magti_portal.db:/source/magti_portal.db:ro
     - ./uploads:/source/uploads:ro
@@ -59,12 +77,8 @@ services:
       ORACLE_DB_USER: magti_app
       ORACLE_DB_PASSWORD: ${PRESENTATION_DB_PASSWORD:?missing PRESENTATION_DB_PASSWORD}
       APP_ENV: development
-      # Turned on so the four persona buttons on /login actually work: the demo
-      # database has no usable password path (loginPersona sends no password) and
-      # corporate SSO is not wired up yet. The stack is published on 127.0.0.1
-      # only. Set back to "false" for a stakeholder demo where password-less
-      # sign-in would misrepresent the product.
-      ALLOW_DEV_LOGIN: "true"
+      # See x-allow-dev-login at the top of this file.
+      ALLOW_DEV_LOGIN: *allow-dev-login
       SECRET_KEY: ${PRESENTATION_JWT_SECRET:?missing PRESENTATION_JWT_SECRET}
       COOKIE_SECURE: "false"
       ROLLOUT_LEADERSHIP_SCOPE: "true"

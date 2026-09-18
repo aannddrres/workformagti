@@ -1,11 +1,11 @@
-<div class="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" (click)="close()"></div>
+<div class="fixed inset-0 z-panel dialog-backdrop" (click)="close()"></div>
 
-<div portalDialog portalDialogLabelledBy="news-editor-heading" (portalDialogClose)="close()" class="fixed inset-0 z-50 flex w-full flex-col bg-white dark:bg-zinc-900">
-  <div class="flex items-center justify-between border-b border-gray-200 dark:border-zinc-800 px-6 py-4">
-    <h3 id="news-editor-heading" class="text-xl font-bold text-gray-800 dark:text-zinc-100">
+<div portalDialog portalDialogLabelledBy="news-editor-heading" (portalDialogClose)="close()" class="animate-panel-in fixed inset-0 z-modal flex w-full flex-col bg-white dark:bg-slate-900">
+  <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-4">
+    <h3 id="news-editor-heading" class="text-xl font-bold text-slate-800 dark:text-slate-100">
       {{ (isEditing ? 'content.news.edit_title' : 'content.news.new_title') | translate }}
     </h3>
-    <button type="button" (click)="close()" [attr.aria-label]="'shared.close_label' | translate" class="text-gray-500 hover:text-gray-700 dark:text-zinc-400">
+    <button type="button" (click)="close()" [attr.aria-label]="'shared.close_label' | translate" class="text-slate-600 hover:text-slate-700 dark:text-slate-400">
       <i class="fa-solid fa-xmark text-xl" aria-hidden="true"></i>
     </button>
   </div>
@@ -13,36 +13,36 @@
   <div class="flex-1 overflow-y-auto p-6">
     <form (submit)="submit($event)" (input)="markDirty()" (change)="markDirty()" class="mx-auto max-w-4xl space-y-5">
       <div>
-        <label for="news-title" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'content.news.field_title' | translate }}</label>
+        <label for="news-title" class="mb-1.5 block text-sm font-normal text-slate-700 dark:text-slate-300">{{ 'content.news.field_title' | translate }}</label>
         <input
           id="news-title"
           type="text"
           required
           [value]="title()"
           (input)="title.set($any($event.target).value)"
-          class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+          class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
         />
       </div>
 
       <div>
-        <label for="news-content" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'content.news.field_content' | translate }}</label>
+        <label for="news-content" class="mb-1.5 block text-sm font-normal text-slate-700 dark:text-slate-300">{{ 'content.news.field_content' | translate }}</label>
         <textarea
           id="news-content"
           required
           rows="4"
           [value]="content()"
           (input)="content.set($any($event.target).value)"
-          class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+          class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
         ></textarea>
       </div>
 
       <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
         <div>
-          <label for="news-department" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'content.news.field_department' | translate }}</label>
+          <label for="news-department" class="mb-1.5 block text-sm font-normal text-slate-700 dark:text-slate-300">{{ 'content.news.field_department' | translate }}</label>
           <select
             id="news-department"
             (change)="targetDepartment.set($any($event.target).value)"
-            class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+            class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
           >
             @for (d of departments; track d) {
               <option [value]="d" [attr.selected]="d === targetDepartment() ? '' : null">
@@ -54,58 +54,58 @@
       </div>
 
       <div>
-        <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">{{ 'content.news.field_attachment' | translate }}</label>
+        <label class="mb-1.5 block text-sm font-normal text-slate-700 dark:text-slate-300">{{ 'content.news.field_attachment' | translate }}</label>
         <div class="flex items-center gap-3">
           <input #fileInput type="file" class="hidden" (change)="onFileInputChange($event)" />
           <button type="button" (click)="fileInput.click()" [disabled]="uploading()"
-            class="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 shadow-sm hover:bg-gray-50 flex shrink-0 items-center gap-2 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200">
+            class="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-normal text-slate-600 shadow-e1 hover:bg-slate-50 flex shrink-0 items-center gap-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
             <i class="fa-solid fa-upload"></i> {{ (uploading() ? 'content.articles.uploading' : 'content.articles.upload') | translate }}
           </button>
           @if (attachmentUrl(); as url) {
-            <div class="flex items-center gap-2 rounded-lg bg-gray-50 dark:bg-zinc-800 px-3 py-2 text-sm">
-              <i class="fa-solid fa-paperclip text-gray-400"></i>
+            <div class="flex items-center gap-2 rounded-md bg-slate-50 dark:bg-slate-800 px-3 py-2 text-sm">
+              <i class="fa-solid fa-paperclip text-slate-600 dark:text-slate-400"></i>
               <a [href]="url" target="_blank" class="truncate max-w-[200px] text-blue-600 hover:underline">{{ attachmentFilename() }}</a>
-              <button type="button" (click)="removeAttachment()" [attr.aria-label]="'shared.remove_attachment_label' | translate" class="ml-1 text-red-500 hover:text-red-700"><i class="fa-solid fa-xmark"></i></button>
+              <button type="button" (click)="removeAttachment()" [attr.aria-label]="'shared.remove_attachment_label' | translate" class="ml-1 text-red-700 hover:text-red-700"><i class="fa-solid fa-xmark"></i></button>
             </div>
           }
         </div>
       </div>
 
-      <div class="flex flex-col gap-2 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/60 p-4">
+      <div class="flex flex-col gap-2 rounded-lg border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-4">
         <div class="flex items-center gap-3">
           <input id="news-mandatory" type="checkbox" [checked]="isMandatory()" (change)="isMandatory.set($any($event.target).checked)" class="h-4 w-4 accent-brand" />
                 @if (mandatoryUnknown()) {
-                  <span class="ml-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                  <span class="ml-2 text-xs font-semibold text-amber-700 dark:text-amber-400">
                     {{ 'content.articles.mandatory_unknown' | translate }}
                   </span>
                 }
-          <label for="news-mandatory" class="text-sm font-medium text-gray-800 dark:text-zinc-200">{{ 'content.articles.field_mandatory' | translate }}</label>
+          <label for="news-mandatory" class="text-sm font-normal text-slate-800 dark:text-slate-200">{{ 'content.articles.field_mandatory' | translate }}</label>
           @if (isMandatory()) {
-            <div class="ml-4 flex flex-1 items-center gap-3 border-l border-gray-300 dark:border-zinc-700 pl-4">
-              <label for="news-due-date" class="text-sm font-medium text-gray-600 dark:text-zinc-400">{{ 'content.articles.field_due_date' | translate }}</label>
+            <div class="ml-4 flex flex-1 items-center gap-3 border-l border-slate-300 dark:border-slate-700 pl-4">
+              <label for="news-due-date" class="text-sm font-normal text-slate-600 dark:text-slate-400">{{ 'content.articles.field_due_date' | translate }}</label>
               <input
                 id="news-due-date"
                 type="date"
                 [value]="dueDate()"
                 (input)="dueDate.set($any($event.target).value)"
-                class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-800 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-800 focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
               />
             </div>
           }
         </div>
         @if (dueDateError()) {
-          <p class="text-xs text-red-600">{{ 'content.articles.mandatory_due_date_required' | translate }}</p>
+          <p class="text-xs text-red-700">{{ 'content.articles.mandatory_due_date_required' | translate }}</p>
         }
       </div>
 
       <div class="flex justify-end gap-3 pt-2 items-center">
         @if (saveError()) {
-          <span class="text-xs text-red-600 mr-auto">{{ saveError() }}</span>
+          <span class="text-xs text-red-700 mr-auto">{{ saveError() }}</span>
         }
-        <button type="button" (click)="close()" class="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-sm font-medium text-gray-600 shadow-sm hover:bg-gray-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200">
+        <button type="button" (click)="close()" class="rounded-lg border border-slate-300 bg-white px-6 py-2.5 text-sm font-normal text-slate-600 shadow-e1 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
           {{ 'content.cancel' | translate }}
         </button>
-        <button type="submit" [disabled]="saving()" class="rounded-xl bg-brand px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:opacity-60">
+        <button type="submit" [disabled]="saving()" class="rounded-lg bg-brand dark:bg-brand-700 px-6 py-2.5 text-sm font-semibold text-white shadow-e1 hover:bg-brand-700 disabled:opacity-50">
           {{ (saving() ? 'content.saving' : 'content.save') | translate }}
         </button>
       </div>

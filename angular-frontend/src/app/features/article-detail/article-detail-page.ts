@@ -30,6 +30,7 @@ export class ArticleDetailPage {
 
   protected readonly loading = signal(true);
   protected readonly notFound = signal(false);
+  protected readonly loadError = signal(false);
   protected readonly article = signal<Article | null>(null);
   protected readonly categories = signal<Category[]>([]);
   protected readonly linkableArticles = signal<ArticleSummary[]>([]);
@@ -38,7 +39,7 @@ export class ArticleDetailPage {
 
   protected readonly formattedContent = computed(() => {
     const targets = this.linkableArticles().map(({ id, title }) => ({ id, title }));
-    return formatArticleContent(this.article()?.content, targets);
+    return formatArticleContent(this.article()?.content, targets, this.article()?.title);
   });
 
   protected readonly categoryPath = computed(() => {
@@ -86,7 +87,22 @@ export class ArticleDetailPage {
     });
     const readTime = this.translate.instant('articles.card.read_time', { minutes: a.read_time });
     const parts = [dept, readTime, version].filter((p) => p);
-    return parts.join(' · ') + (a.tags ? ' · ' + a.tags : '');
+    return parts.join(' · ');
+  });
+
+  /**
+   * `tags` is stored as one comma-joined string and used to be glued onto the
+   * end of the meta line, so an article opened with
+   * `... · Support,esim,sim,ბილინგი` -- raw data with no spaces after the
+   * commas, reading as a database field rather than as part of the page.
+   */
+  protected readonly tags = computed(() => {
+    const raw = this.article()?.tags || '';
+    const seen = new Set<string>();
+    return raw
+      .split(',')
+      .map((tag) => tag.trim())
+      .filter((tag) => tag.length > 0 && !seen.has(tag.toLocaleLowerCase('ka-GE')) && seen.add(tag.toLocaleLowerCase('ka-GE')));
   });
 
   constructor() {
@@ -116,8 +132,14 @@ export class ArticleDetailPage {
             next: (related) => this.relatedArticles.set(related),
           });
         },
-        error: () => {
-          this.notFound.set(true);
+        error: (failure: { status?: number }) => {
+          // Every failure used to land on "not found", so a 500 or a dropped
+          // connection told the operator the material did not exist.
+          if (failure?.status === 404) {
+            this.notFound.set(true);
+          } else {
+            this.loadError.set(true);
+          }
           this.loading.set(false);
         },
       });
@@ -158,4 +180,10 @@ export class ArticleDetailPage {
   protected toggleHistory(): void {
     this.showHistory.update((current) => !current);
   }
+  /** A hard reload rather than re-running the stream: these pages load once
+   *  from a route parameter that will not emit again for the same id. */
+  retry(): void {
+    window.location.reload();
+  }
+
 }
