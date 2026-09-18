@@ -38,8 +38,14 @@ public final class AuditCategoryClassifier {
     }
 
     public static AuditCategory classify(String itemType, String action) {
+        // BULK_DEACTIVATE is the same act as UPDATE_STATUS_TO_FALSE -- cutting
+        // off access -- and would otherwise file under USER purely because it
+        // arrived through the leaver sweep (PO-24) rather than a row's own
+        // switch. An administrator filtering the audit log for access changes
+        // must not have to know which button was pressed.
         if (SECURITY_ACTIONS.contains(action) || (action != null
-                && (action.startsWith("UPDATE_STATUS_TO_") || action.startsWith("EXPORT_ADMIN_")))) {
+                && (action.startsWith("UPDATE_STATUS_TO_") || action.startsWith("EXPORT_ADMIN_")
+                || action.equals("BULK_DEACTIVATE")))) {
             return AuditCategory.SECURITY;
         }
         if (USER_ACTIONS.contains(action)) {

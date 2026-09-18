@@ -244,6 +244,74 @@ public class UserController {
                 newRole.value(), changed, users.size() - changed, request.userIds().size()));
     }
 
+    /**
+     * PO-24: the leaver sweep. Nothing switches an account off by itself --
+     * inactivity is not proof of departure, and somebody on parental leave
+     * looks exactly like somebody who left -- so an administrator reviews the
+     * "not seen in a long time" filter once a month and deactivates the rows
+     * they recognise, in one decision rather than fifty.
+     *
+     * <p><b>No last-system-admin guard here</b>, unlike {@link
+     * #bulkReassignRoles}: the acting administrator is dropped from the set
+     * below, and {@code requireSystemAdmin} over authorization that
+     * {@code JwtAuthenticationFilter} re-reads on every request means they are
+     * an active system administrator at the moment this runs. One therefore
+     * always survives the sweep, and a guard that cannot fire would read like
+     * a rule that is doing something. {@code
+     * bulkDeactivateCannotRemoveTheLastSystemAdmin} pins the reasoning.
+     *
+     * <p>Already-inactive rows are counted as skipped rather than re-saved, so
+     * a second click does not write a second audit entry for an account that
+     * was already switched off.
+     */
+    @PostMapping("/api/admin/users/bulk-deactivate")
+    @Transactional
+    public ResponseEntity<?> bulkDeactivateUsers(
+            @Valid @RequestBody BulkDeactivateRequest request, @AuthenticationPrincipal User admin) {
+        ResponseEntity<Map<String, String>> denial = requireSystemAdmin(admin);
+        if (denial != null) {
+            return denial;
+        }
+
+        Set<Long> targetIds = new LinkedHashSet<>();
+        for (Long id : request.userIds()) {
+            if (id != null && !id.equals(admin.getId())) {
+                targetIds.add(id);
+            }
+        }
+        if (targetIds.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                    "detail", "არცერთი მომხმარებელი არ არის შესარჩევი (საკუთარი ანგარიშის დეაქტივაცია ჯგუფურად შეუძლებელია)."));
+        }
+
+        List<User> users = userRepository.findAllById(targetIds);
+        if (users.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", "მომხმარებლები ვერ მოიძებნა"));
+        }
+
+        int deactivated = 0;
+        for (User user : users) {
+            if (!user.isActive()) {
+                continue;
+            }
+            Map<String, Object> before = MutationAuditService.userSnapshot(user);
+            user.setActive(false);
+            User saved = userRepository.saveAndFlush(user);
+            mutationAuditService.recordSuccess(
+                    admin,
+                    "BULK_DEACTIVATE",
+                    "user",
+                    saved.getId(),
+                    saved.getName(),
+                    before,
+                    MutationAuditService.userSnapshot(saved));
+            deactivated++;
+        }
+
+        return ResponseEntity.ok(new BulkDeactivateResponse(
+                deactivated, users.size() - deactivated, request.userIds().size()));
+    }
+
     /** Port of update_user_status (routers/users.py:187-232). */
     @PutMapping("/api/users/{userId}/status")
     @Transactional

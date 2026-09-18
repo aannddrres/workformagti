@@ -44,6 +44,15 @@ class AuditCategoryClassifierTest {
     }
 
     @Test
+    void bulkDeactivationIsASecurityEventLikeTheSingleRowSwitch() {
+        // PO-24's leaver sweep and the row's own switch are the same act. If
+        // only one of them counted as SECURITY, an administrator filtering the
+        // audit log for access changes would see half of them.
+        assertEquals(AuditCategory.SECURITY, AuditCategoryClassifier.classify("user", "UPDATE_STATUS_TO_FALSE"));
+        assertEquals(AuditCategory.SECURITY, AuditCategoryClassifier.classify("user", "BULK_DEACTIVATE"));
+    }
+
+    @Test
     void unknownItemTypeDefaultsToSystem() {
         assertEquals(AuditCategory.SYSTEM, AuditCategoryClassifier.classify("something-unrecognized", "UPDATE"));
     }

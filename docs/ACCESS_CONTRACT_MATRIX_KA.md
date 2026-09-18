@@ -2,7 +2,7 @@
 
 **სტატუსი:** Phase 1 — decision/contract lock **დასრულებულია**; D-1…D-8 დახურულია
 **ბოლო განახლება:** 2026-08-26 (SELF keyed-resource isolation evidence lock)
-**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 149 endpoint
+**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 150 endpoint
 **გეგმა:** `docs/ORG_ACCESS_ARCHITECTURE_PLAN_KA.md` (ფაზები, §9.1 სავალდებულო მტკიცებულებები)
 
 ეს ფაილი არის ორგანიზაციული წვდომის **კონტრაქტი**: თითოეული backend endpoint-ისთვის
@@ -72,8 +72,8 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 ## ციფრებში
 
-- **149** endpoint;
-- **39** ატარებს თანამშრომლის საიდენტიფიკაციო მონაცემს (`PII = yes`);
+- **150** endpoint;
+- **40** ატარებს თანამშრომლის საიდენტიფიკაციო მონაცემს (`PII = yes`);
 - **12** უკვე leadership-scoped;
 - **0** ღია გადაწყვეტილება (D-1…D-8 დახურულია).
 
@@ -312,12 +312,13 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 |---|---|---|---|---|---|---|
 | `GET /uploads/{filename}` | `UploadedFileController.serve` | — | AUTH | `AUTH` | content-dependent | `@AuthenticationPrincipal` null-ზე 401; წარმატებული წვდომა აუდიტირდება და პასუხი `no-store`-ია. ავთენტიფიკაციის **შემდეგ** `FileAccessPolicy` ამოწმებს, აქვს თუ არა წვდომა მიმთითებელ კონტენტზე (DEC-P01) — უარი 404-ია. enforcement `ROLLOUT_FILE_ENTITLEMENT`-ზეა: `false` = shadow (ითვლება და აუდიტში იწერება `FILE_ACCESS_SHADOW_DENY`-ად, ფაილი მაინც გაიცემა). იხ. `docs/ROLLOUT_ROLLBACK_KA.md`. |
 
-### User (14)
+### User (15)
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
 | `GET /api/admin/group-leaders` | `UserController.getGroupLeaders` | `requireSystemAdmin` | org.manage `NEW` | `ORG` | **yes** | დღეს `role == MANAGER`-იდან; Phase 4-ზე leadership assignment-იდან. |
 | `POST /api/admin/roles/bulk-reassign` | `UserController.bulkReassignRoles` | `requireSystemAdmin` | org.manage `NEW` | `ORG` | **yes** | SYSTEM_ADMIN. `bulk-reassign` permission override-ს არ შლის (Phase 6). |
+| `POST /api/admin/users/bulk-deactivate` | `UserController.bulkDeactivateUsers` | `requireSystemAdmin` | org.manage `NEW` | `ORG` | **yes** | PO-24-ის „წასულების“ გავლა: მხოლოდ გამორთვა (გააქტიურება ჯგუფურად არ ხდება) და მხოლოდ SYSTEM_ADMIN-ს. მომძახებლის საკუთარი ანგარიში ნაკრებიდან ამოდის, ამიტომ ერთი აქტიური ადმინი ყოველთვის რჩება; უკვე გამორთული მწკრივი ხელახლა არ იწერება. თითოეული გამორთვა ცალკე აუდიტის ჩანაწერია (`BULK_DEACTIVATE`, კატეგორია SECURITY). |
 | `GET /api/teams` | `UserController.getTeams` | `requireAuthenticated` | AUTH | `NONE` | no | ორგანიზაციული სტრუქტურა კითხვადია; AD-owned, mutation fail-closed. |
 | `POST /api/teams` | `UserController.createTeam` | `requireSystemAdmin` | — | `NONE` | no | AD-owned: fail-closed `403` (Phase 0). dev fixture მხოლოდ seeder-ით. |
 | `GET /api/me/effective-access` | `UserController.getEffectiveAccess` | `requireAuthenticated` | AUTH | `SELF` | no | Phase 7. მომძახებლის საკუთარი effective permission-ები; სხვა caller-ის explicit override არ ერთვის. `bypass` სისტემური ადმინის შემოვლას აშკარას ხდის. |

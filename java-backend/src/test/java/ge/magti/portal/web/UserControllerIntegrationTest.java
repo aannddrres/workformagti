@@ -399,6 +399,100 @@ class UserControllerIntegrationTest {
                         "არცერთი მომხმარებელი არ არის შესარჩევი (საკუთარი როლის შეცვლა ჯგუფურად შეუძლებელია)."));
     }
 
+    // ── bulk deactivation (PO-24) ───────────────────────────────────────
+
+    @Test
+    void bulkDeactivateRequiresSystemAdmin() throws Exception {
+        User manager = createUser("bulk-off-mgr1@magti.ge", Role.MANAGER, "All");
+        User operator = createUser("bulk-off-op1@magti.ge", Role.OPERATOR, "All");
+
+        mockMvc.perform(authed(post("/api/admin/users/bulk-deactivate"), tokenFor(manager))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"user_ids\":[" + operator.getId() + "]}"))
+                .andExpect(status().isForbidden());
+
+        assertTrue(userRepository.findById(operator.getId()).orElseThrow().isActive(),
+                "a refused sweep must not switch anybody off");
+    }
+
+    @Test
+    void bulkDeactivateExcludesActingAdminSkipsTheAlreadyOffAndAudits() throws Exception {
+        User admin = createUser("bulk-off-admin1@magti.ge", Role.SYSTEM_ADMIN, "All");
+        User leaver = createUser("bulk-off-op2@magti.ge", Role.OPERATOR, "All");
+        User alreadyOff = createUser("bulk-off-op3@magti.ge", Role.OPERATOR, "All");
+        alreadyOff.setActive(false);
+        userRepository.saveAndFlush(alreadyOff);
+
+        // The acting admin is in the request, the way "select all" would put
+        // them there. Dropped silently rather than refused, and never switched
+        // off -- an administrator who locks themselves out of the only console
+        // that can unlock them has no way back.
+        String body = "{\"user_ids\":[" + admin.getId() + "," + leaver.getId() + "," + alreadyOff.getId() + "]}";
+
+        mockMvc.perform(authed(post("/api/admin/users/bulk-deactivate"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.deactivated").value(1))
+                .andExpect(jsonPath("$.skipped").value(1))
+                .andExpect(jsonPath("$.requested").value(3));
+
+        assertTrue(userRepository.findById(admin.getId()).orElseThrow().isActive());
+        assertFalse(userRepository.findById(leaver.getId()).orElseThrow().isActive());
+
+        AuditLog audit = singleAudit("BULK_DEACTIVATE", leaver.getId());
+        JsonNode details = objectMapper.readTree(audit.getDetails());
+        assertEquals(admin.getId(), audit.getAdminId());
+        assertEquals(leaver.getName(), audit.getItemNameSnapshot());
+        assertTrue(details.path("before").path("active").asBoolean());
+        assertFalse(details.path("after").path("active").asBoolean());
+        assertTrue(auditRows("BULK_DEACTIVATE", alreadyOff.getId()).isEmpty(),
+                "an account that was already off must not be written, or audited, a second time");
+    }
+
+    @Test
+    void bulkDeactivateCannotRemoveTheLastSystemAdmin() throws Exception {
+        User admin = createUser("bulk-off-admin2@magti.ge", Role.SYSTEM_ADMIN, "All");
+        User otherAdmin = createUser("bulk-off-admin3@magti.ge", Role.SYSTEM_ADMIN, "All");
+
+        // Every system administrator the caller can reach, in one sweep. No
+        // last-admin guard runs -- the caller is excluded from the set and is
+        // an active system administrator by the time the handler runs, so one
+        // always survives. This is that reasoning, asserted.
+        List<Long> everyAdminId = userRepository.findAll().stream()
+                .filter(user -> user.getRole() == Role.SYSTEM_ADMIN)
+                .map(User::getId)
+                .toList();
+        String body = "{\"user_ids\":[" + everyAdminId.stream().map(String::valueOf)
+                .collect(Collectors.joining(",")) + "]}";
+
+        mockMvc.perform(authed(post("/api/admin/users/bulk-deactivate"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk());
+
+        assertTrue(userRepository.findById(admin.getId()).orElseThrow().isActive(),
+                "the administrator running the sweep must still be able to sign in");
+        assertFalse(userRepository.findById(otherAdmin.getId()).orElseThrow().isActive());
+        assertTrue(userRepository.findAll().stream()
+                        .anyMatch(user -> user.getRole() == Role.SYSTEM_ADMIN && user.isActive()),
+                "at least one active system administrator must survive any sweep");
+    }
+
+    @Test
+    void bulkDeactivateWithOnlySelfSelectedIsRejected() throws Exception {
+        User admin = createUser("bulk-off-admin4@magti.ge", Role.SYSTEM_ADMIN, "All");
+
+        mockMvc.perform(authed(post("/api/admin/users/bulk-deactivate"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"user_ids\":[" + admin.getId() + "]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(
+                        "არცერთი მომხმარებელი არ არის შესარჩევი (საკუთარი ანგარიშის დეაქტივაცია ჯგუფურად შეუძლებელია)."));
+
+        assertTrue(userRepository.findById(admin.getId()).orElseThrow().isActive());
+    }
+
     // ── status ───────────────────────────────────────────────────────────
 
     @Test
