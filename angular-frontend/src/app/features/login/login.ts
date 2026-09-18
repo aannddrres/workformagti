@@ -26,14 +26,19 @@ export class Login {
   protected readonly isLocal = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
 
   /**
-   * The demo org has one system admin, four content admins, ten group leaders
-   * (five საინფორმაციო + five ტექნიკური) and ten operators per group. Four
-   * fixed persona buttons could not reach any of them, so this is a cascading
-   * picker instead: role, then — for a leader or operator — department and
-   * group, then which operator. Every choice resolves to a seeded account the
-   * backend accepts with the persona password (see {@link loginPersona}); the
-   * `presentation.` accounts ride the same dev-login gate as the six named
-   * personas, so nothing new is exposed off loopback.
+   * The demo org has one system admin, four content admins, three departments
+   * of five groups each (ტექნიკური, საინფორმაციო, ოფისი) and therefore fifteen
+   * group leaders, with ~forty operators per group. Four fixed persona buttons
+   * could not reach any of them, so this is a cascading picker instead: role,
+   * then — for a leader or operator — department and group, then which
+   * operator. Every choice resolves to a seeded account the backend accepts
+   * with the persona password (see {@link loginPersona}); the `presentation.`
+   * accounts ride the same dev-login gate as the six named personas, so
+   * nothing new is exposed off loopback.
+   *
+   * ოფისი was missing here while its 200 seeded people, five groups and five
+   * leaders were on every admin dashboard -- a third of the org the picker
+   * could not sign in as.
    */
   protected readonly roleOptions: ReadonlyArray<{ value: DemoRole; label: string; icon: string }> = [
     { value: 'operator', label: 'ოპერატორი', icon: 'fa-headset' },
@@ -43,7 +48,8 @@ export class Login {
   ];
   protected readonly deptOptions: ReadonlyArray<{ value: string; label: string }> = [
     { value: 'tech', label: 'ტექნიკური' },
-    { value: 'info', label: 'საინფორმაციო' }
+    { value: 'info', label: 'საინფორმაციო' },
+    { value: 'office', label: 'ოფისი' }
   ];
   protected readonly groups = [1, 2, 3, 4, 5];
   protected readonly operatorSlots = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -78,8 +84,19 @@ export class Login {
     if (role === 'operator') {
       const slot = this.person();
       if (!short || !group || !slot) return null;
-      if (short === 'tech' && group === 1 && slot === 1) return 'tech@magti.ge';
-      if (short === 'info' && group === 1 && slot === 1) return 'info@magti.ge';
+      // The seeder gives each department's first group's first operator slot
+      // to one of the named personas instead of a presentation.* address, so
+      // presentation.{dept}.g01.op01 does not exist for any of the three.
+      // Resolving to it would fail the sign-in for a picker choice that looks
+      // perfectly valid.
+      const namedFirstSlot: Record<string, string> = {
+        tech: 'tech@magti.ge',
+        info: 'info@magti.ge',
+        office: 'nino@magti.ge'
+      };
+      if (group === 1 && slot === 1 && namedFirstSlot[short]) {
+        return namedFirstSlot[short];
+      }
       return `presentation.${short}.g${pad(group)}.op${pad(slot)}@magti.ge`;
     }
     return null;
