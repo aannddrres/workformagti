@@ -10,5 +10,7 @@
  */
 export const environment = {
   production: true,
-  apiBaseUrl: ''
+  apiBaseUrl: '',
+  /** See environment.ts. Production keeps the 30-minute shared-workstation timer. */
+  idleLimitMinutes: 30
 };

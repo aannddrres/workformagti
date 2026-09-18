@@ -83,6 +83,13 @@ services:
       COOKIE_SECURE: "false"
       ROLLOUT_LEADERSHIP_SCOPE: "true"
       ROLLOUT_COMPLIANCE_ELIGIBILITY: "true"
+      # The 30-minute idle sign-out is right for a shared call-centre
+      # workstation and wrong for a presentation: talking over one dashboard
+      # for half an hour counts as inactivity, and the portal signs itself
+      # out on stage. Raised here for the loopback-only demo only -- the
+      # frontend's own timer is raised to match by the "presentation" build
+      # configuration below, and neither change touches production defaults.
+      PORTAL_SECURITY_SESSION_IDLE_MINUTES: "480"
     expose:
       - "8080"
     # A brand-new Oracle volume makes the first Spring startup materially
@@ -100,6 +107,10 @@ services:
   frontend:
     build:
       context: ./angular-frontend
+      args:
+        # Identical to the production build except the inactivity timer --
+        # see angular-frontend/src/environments/environment.presentation.ts.
+        BUILD_CONFIGURATION: presentation
     depends_on:
       backend:
         condition: service_healthy

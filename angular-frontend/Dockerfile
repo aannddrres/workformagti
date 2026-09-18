@@ -9,7 +9,12 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
-RUN npm run build
+
+# Which angular.json configuration to build. "production" for every real
+# deployment; docker-compose.presentation.yml passes "presentation", which
+# differs only in the inactivity timer (see environment.presentation.ts).
+ARG BUILD_CONFIGURATION=production
+RUN npm run build -- --configuration "$BUILD_CONFIGURATION"
 
 # STAGE 2: Runtime
 FROM nginx:1.27-alpine AS runtime
