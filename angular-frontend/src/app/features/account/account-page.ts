@@ -100,13 +100,23 @@ export class AccountPage {
     } as Record<string, string>)[role ?? ''] ?? 'მომხმარებელი';
   }
 
+  /**
+   * Every value PERMISSION_GROUPS can hand out needs an entry here: the
+   * fallback prints the raw dotted code, so a gap shows the operator
+   * `content.manage` on their own profile card. `content.manage` and
+   * `stats.view` were exactly that gap -- both are content-admin/admin
+   * defaults, so the two roles most likely to be demoed were the two that
+   * saw it.
+   */
   protected permissionLabel(permission: string): string {
     return ({
       'articles.view': 'ცოდნის ბაზის ნახვა',
       'articles.edit': 'სტატიების რედაქტირება',
       'articles.archive': 'სტატიების არქივირება',
       'videos.archive': 'ვიდეოების არქივირება',
+      'content.manage': 'კონტენტის მართვა',
       'compliance.assign': 'გაცნობის დავალებების მართვა',
+      'stats.view': 'სტატისტიკის ნახვა',
       'reports.export': 'ანგარიშების ექსპორტი',
       'users.manage': 'მომხმარებლების მართვა'
     } as Record<string, string>)[permission] ?? permission;
