@@ -50,7 +50,8 @@
 
 | ფაილი | თარიღი | რაზეა |
 |---|---|---|
-| [`QUESTIONS_FOR_IT.md`](QUESTIONS_FOR_IT.md) | 2026-08-31 | **ოფიციალური მოკლე რეესტრი.** 12 კითხვა; პასუხები აქ ჩაიწერება. ახალი კითხვა აქ ემატება, არა მფლობელს |
+| [`QUESTIONS_FOR_IT.md`](QUESTIONS_FOR_IT.md) | 2026-09-18 | **ოფიციალური მოკლე რეესტრი.** 13 კითხვა; პასუხები აქ ჩაიწერება. ახალი კითხვა აქ ემატება, არა მფლობელს |
+| [`IT_REQUEST_AUTH_FOLLOWUP_KA.md`](IT_REQUEST_AUTH_FOLLOWUP_KA.md) | 2026-09-18 | №13 წერილის სახით — ავტორიზაციის პასუხის დაზუსტება. გასაგზავნად მზადაა |
 | [`IT_DISCOVERY_REQUEST_KA.md`](IT_DISCOVERY_REQUEST_KA.md) | 2026-08-22 | 12 შეკრული მოთხოვნა — ეს იგზავნება |
 | [`IT_DISCOVERY_QUESTIONNAIRE_KA.md`](IT_DISCOVERY_QUESTIONNAIRE_KA.md) | 2026-08-29 | 93-პუნქტიანი ტექნიკური ჩამონათვალი. მთლიანად ერთ ადამიანს არ ეგზავნება |
 | [`ENTERPRISE_READINESS_EXTERNAL_DEPENDENCIES_KA.md`](ENTERPRISE_READINESS_EXTERNAL_DEPENDENCIES_KA.md) | 2026-08-28 | EXT-nnn: გარე ბლოკერები (IAM, ქსელი, DBA) |
