@@ -22,7 +22,7 @@ PowerShell-ში, repository root-იდან:
 .\presentation.ps1 prepare
 ```
 
-პირველი გაშვება რამდენიმე წუთს მოითხოვს: ჩამოიტვირთება Oracle image, აიგება Spring Boot/Angular/tools images, შესრულდება Flyway V42, baseline ჩაიტვირთება და ავტომატურად გადამოწმდება. წარმატებისას იხსნება:
+პირველი გაშვება რამდენიმე წუთს მოითხოვს: ჩამოიტვირთება Oracle image, აიგება Spring Boot/Angular/tools images, შესრულდება Flyway-ის ყველა მიგრაცია (seeder ითხოვს ზუსტად `scripts/presentation/common.py`-ის `EXPECTED_FLYWAY_VERSION`-ს), baseline ჩაიტვირთება და ავტომატურად გადამოწმდება. წარმატებისას იხსნება:
 
 ```text
 http://127.0.0.1:8081
@@ -64,8 +64,8 @@ http://127.0.0.1:8081
 შემოწმება ადასტურებს:
 
 - source manifest-ს: 122 სტატია, 132 ისტორია, 429/429 სურათი, 5 სიახლე და 3 ვიდეო;
-- Oracle/Flyway V42 context-ს და presentation marker/checksum-ს;
-- 602 მომხმარებელს, 15 ჯგუფს და leadership assignments-ს;
+- Oracle/Flyway context-ს (Flyway ზუსტად `EXPECTED_FLYWAY_VERSION`-ზე) და presentation marker/checksum-ს;
+- 605 მომხმარებელს — 600 ორგანიზაციაში (3 დეპარტამენტი × 5 ჯგუფი × 40: თითო ჯგუფში 1 ლიდერი და 39 ოპერატორი) და 5 ცენტრალურ ანგარიშს (`admin@`, `content@`, `content2@`–`content4@`) — 15 ჯგუფს და leadership assignments-ს. ეს ერთადერთი ადგილია, სადაც ზუსტი რიცხვი წერია; დანარჩენი დოკუმენტები „~600"-ს ამბობს. 602 იყო 2026-09-01-მდე, სანამ `ac5cc7e`-მ persona picker-ისთვის `content2–4@` დაამატა;
 - FK/reference მთლიანობას, tags/mappings-სა და არაცარიელ trigram ინდექსს;
 - ყველა 429 BLOB-ის ზომას/checksum-ს და backend-იდან გახსნას;
 - ექვსივე სწორ login-ს; მცდარ პაროლს — იმ რეჟიმის მიხედვით, რომელშიც სტენდი მუშაობს: `ALLOW_DEV_LOGIN=true`-ზე (ნაგულისხმევი) მცდარი პაროლი ექვსივე ანგარიშზე **გადის** (HTTP 200), სამაგიეროდ მოწმდება, რომ allow-list-ის გარეთ მისამართი 401-ს იღებს; `"false"`-ზე ექვსივე მცდარი პაროლი უნდა უარიყოს (401). ორივე რეჟიმში ბაზაში მოწმდება, რომ შენახული hash მცდარ პაროლს არ ემთხვევა;

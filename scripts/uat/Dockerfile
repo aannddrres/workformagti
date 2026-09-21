@@ -2,7 +2,7 @@
 #
 # Deliberately not the presentation tools image: that one carries the whole
 # demo pipeline (BeautifulSoup, httpx, pytest, the SQLite baseline reader)
-# because it rebuilds a 602-person organisation from source. This script
+# because it rebuilds a ~600-person organisation from source. This script
 # writes eleven rows and needs a driver and a password hasher, nothing else.
 FROM python:3.11.9-slim-bookworm
 

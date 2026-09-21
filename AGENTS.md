@@ -73,9 +73,11 @@ cd angular-frontend && npx ng test --watch=false && npm run check:i18n
 python -m pytest tests/ -q
 ```
 
-**The Java split matters.** Plain `./mvnw test` runs both halves, and 44 test
-classes need a database — with `ORACLE_DB_URL` unset, Testcontainers starts
-one, which is slow. `-DexcludedGroups=oracle` is the loop to iterate in;
+**The Java split matters.** Plain `./mvnw test` runs both halves, and every
+`@SpringBootTest` — about forty classes, each tagged `@RequiresOracle` — needs
+a database. With `ORACLE_DB_URL` unset it uses a local Oracle if one answers at
+the default `localhost:1521/orclpdb1`, and starts a Testcontainer only if none
+does, which is slow. `-DexcludedGroups=oracle` is the loop to iterate in;
 `-Dgroups=oracle` is the other half. On Windows use `.\mvnw.cmd`.
 
 End-to-end (Playwright) needs a stack already running; the config will not
@@ -89,7 +91,7 @@ a container like the local one:
 
 | | Port | For |
 |---|---|---|
-| `presentation.ps1 prepare` | 8081 | The demo. Persona login on, 602-person org, real content |
+| `presentation.ps1 prepare` | 8081 | The demo. Persona login on, ~600-person org (exact count: `docs/PRESENTATION_RUNBOOK_KA.md`), real content |
 | `uat.ps1 prepare` | 8082 | Acceptance testing. Eleven named accounts; writes test data, so a separate stack and volume on purpose |
 
 ## Where things are
@@ -164,9 +166,13 @@ could easily become, several. Read the file before writing a second copy.
   flag, and it hides a row from everyone but its author — content
   administrators included. Editorial state goes in `status`. Getting this
   wrong once made all 122 imported articles visible to exactly one account.
-- **Never commit secrets.** Every environment reads `${VAR}` with `:?`, so a
-  missing value fails the start rather than defaulting. `ProductionSafetyGuard`
-  refuses to boot on a blank, short, placeholder or shipped-development secret.
+- **Never commit secrets.** The presentation and UAT compose files read every
+  secret as `${VAR:?…}`, so a missing value fails the start rather than
+  defaulting; in Kubernetes they come from a Secret created outside git.
+  `docker-compose.local.yml` deliberately hardcodes throwaway local-only values,
+  and `application.yml` carries development defaults — what keeps those out of
+  production is `ProductionSafetyGuard`, which refuses to boot on a blank,
+  short, placeholder or shipped-development secret.
 - **Do not resolve an audit finding by deleting its evidence.** Findings keep
   their original text; what changed since is appended as a dated disposition.
 - **Keep `ka.json` and `en.json` in step** — `npm run check:i18n` gates it, and
@@ -195,5 +201,9 @@ could easily become, several. Read the file before writing a second copy.
 - `k8s/README_KA.md` — deployment, written for Magti's platform team.
 
 Corporate SSO is **not wired**: `POST /api/auth/sso/start` answers 503 on
-purpose until IT confirms the protocol. Nobody can sign in with a real
-identity yet, so the product cannot go live regardless of code state.
+purpose. The protocol is known — IT confirmed on 2026-09-18 an OAuth2 token
+endpoint with an `ldap_auth` grant, the portal passing the password through
+(`docs/QUESTIONS_FOR_IT.md` №1) — but the adapter waits on №13: what the
+response carries (department, AD groups), the error mapping, the certificate,
+network access and a test account. Nobody can sign in with a real identity
+yet, so the product cannot go live regardless of code state.

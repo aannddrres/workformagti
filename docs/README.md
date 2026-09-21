@@ -19,8 +19,8 @@
 
 | ფაილი | თარიღი | რაზეა |
 |---|---|---|
-| [`PRODUCT_OWNER_DECISIONS_KA.md`](PRODUCT_OWNER_DECISIONS_KA.md) | 2026-08-31 | პროდუქტის ქცევის ოფიციალური რეესტრი (PO-nn / DEC-nn) |
-| [`ACCESS_CONTRACT_MATRIX_KA.md`](ACCESS_CONTRACT_MATRIX_KA.md) | 2026-08-31 | თითო ენდპოინტზე: ვინ იძახებს დღეს და ვინ უნდა იძახებდეს. **მანქანურად შემოწმებადი** — `AccessContractCoverageTest` build-ს ვარდენს შეუსაბამობაზე |
+| [`PRODUCT_OWNER_DECISIONS_KA.md`](PRODUCT_OWNER_DECISIONS_KA.md) | 2026-09-21 | პროდუქტის ქცევის ოფიციალური რეესტრი (PO-nn / DEC-nn) |
+| [`ACCESS_CONTRACT_MATRIX_KA.md`](ACCESS_CONTRACT_MATRIX_KA.md) | 2026-09-21 | თითო ენდპოინტზე: ვინ იძახებს დღეს და ვინ უნდა იძახებდეს. **მანქანურად შემოწმებადი** — `AccessContractCoverageTest` build-ს ვარდენს შეუსაბამობაზე |
 | [`ENTERPRISE_READINESS_DECISIONS_KA.md`](ENTERPRISE_READINESS_DECISIONS_KA.md) | 2026-08-28 | DEC-001… — რომ იგივე გადაწყვეტილება თავიდან არ მიიღოს ვინმემ |
 | [`ROLLOUT_ROLLBACK_KA.md`](ROLLOUT_ROLLBACK_KA.md) | 2026-08-31 | თითო `ROLLOUT_*` დროშა: რას აკეთებს და როგორ ბრუნდება უკან. `RolloutSwitchWiringTest` ამოწმებს |
 | [`PRODUCT_UX_REQUIREMENTS_KA.md`](PRODUCT_UX_REQUIREMENTS_KA.md) | 2026-08-22 | დადასტურებული პროდუქტული/UX მოთხოვნები და ღიად დარჩენილი კითხვები |
@@ -30,9 +30,9 @@
 | ფაილი | თარიღი | რაზეა |
 |---|---|---|
 | [`HOW_IT_WORKS_KA.md`](HOW_IT_WORKS_KA.md) | 2026-08-31 | პრინციპები მარტივი ენით, პროდუქტის მფლობელისთვის |
-| [`PROJECT_TECHNOLOGY_GUIDE_KA.md`](PROJECT_TECHNOLOGY_GUIDE_KA.md) | 2026-08-31 | 31 ტექნოლოგიური ბარათი არაპროგრამისტისთვის. თავად აღნიშნავს, რომელი ბარათია დაძველებული |
+| [`PROJECT_TECHNOLOGY_GUIDE_KA.md`](PROJECT_TECHNOLOGY_GUIDE_KA.md) | 2026-09-21 | 31 ტექნოლოგიური ბარათი არაპროგრამისტისთვის. თავად აღნიშნავს, რომელი ბარათია დაძველებული |
 | [`RUN_LOCALLY.md`](RUN_LOCALLY.md) | 2026-08-20 | ლოკალური გაშვება, Windows-ის დათქმებით (Docker-ს ≥6 GB სჭირდება) |
-| [`PRESENTATION_RUNBOOK_KA.md`](PRESENTATION_RUNBOOK_KA.md) | 2026-08-28 | დემო სტეკი პორტ 8081-ზე: მომზადება, ანგარიშები, 25-წუთიანი სცენარი |
+| [`PRESENTATION_RUNBOOK_KA.md`](PRESENTATION_RUNBOOK_KA.md) | 2026-09-21 | დემო სტეკი პორტ 8081-ზე: მომზადება, ანგარიშები, 25-წუთიანი სცენარი |
 | [`LEGACY_CONTENT_IMPORT_KA.md`](LEGACY_CONTENT_IMPORT_KA.md) | 2026-08-31 | 122 ძველი სტატიის შემოტანა Oracle-ში |
 | [`SUPPLY_CHAIN_SBOM_KA.md`](SUPPLY_CHAIN_SBOM_KA.md) | 2026-08-31 | SBOM და მოწყვლადობის სკანირება CI-ში |
 | [`SYSTEM_ADMIN_EXPORT_INVENTORY_KA.md`](SYSTEM_ADMIN_EXPORT_INVENTORY_KA.md) | 2026-08-22 | რა მონაცემი შედის SYSTEM_ADMIN-ის ექსპორტში და რა — არა |
@@ -50,7 +50,7 @@
 
 | ფაილი | თარიღი | რაზეა |
 |---|---|---|
-| [`QUESTIONS_FOR_IT.md`](QUESTIONS_FOR_IT.md) | 2026-09-18 | **ოფიციალური მოკლე რეესტრი.** 13 კითხვა; პასუხები აქ ჩაიწერება. ახალი კითხვა აქ ემატება, არა მფლობელს |
+| [`QUESTIONS_FOR_IT.md`](QUESTIONS_FOR_IT.md) | 2026-09-21 | **ოფიციალური მოკლე რეესტრი.** 13 კითხვა; პასუხები აქ ჩაიწერება. ახალი კითხვა აქ ემატება, არა მფლობელს |
 | [`IT_REQUEST_AUTH_FOLLOWUP_KA.md`](IT_REQUEST_AUTH_FOLLOWUP_KA.md) | 2026-09-18 | №13 წერილის სახით — ავტორიზაციის პასუხის დაზუსტება. გასაგზავნად მზადაა |
 | [`IT_DISCOVERY_REQUEST_KA.md`](IT_DISCOVERY_REQUEST_KA.md) | 2026-08-22 | 12 შეკრული მოთხოვნა — ეს იგზავნება |
 | [`IT_DISCOVERY_QUESTIONNAIRE_KA.md`](IT_DISCOVERY_QUESTIONNAIRE_KA.md) | 2026-08-29 | 93-პუნქტიანი ტექნიკური ჩამონათვალი. მთლიანად ერთ ადამიანს არ ეგზავნება |
@@ -65,11 +65,11 @@
 | [`uat/UAT_01_OPERATOR_KA.md`](uat/UAT_01_OPERATOR_KA.md) | 2026-08-29 | ოპერატორის სცენარები + შესრულების შედეგი |
 | [`uat/UAT_02_MANAGER_KA.md`](uat/UAT_02_MANAGER_KA.md) | 2026-08-29 | მენეჯერის სცენარები |
 | [`uat/UAT_03_CONTENT_KA.md`](uat/UAT_03_CONTENT_KA.md) | 2026-08-31 | კონტენტ-ადმინის სცენარები |
-| [`uat/UAT_04_ADMIN_KA.md`](uat/UAT_04_ADMIN_KA.md) | 2026-08-29 | სისტემური ადმინის სცენარები |
+| [`uat/UAT_04_ADMIN_KA.md`](uat/UAT_04_ADMIN_KA.md) | 2026-08-29 (შენიშვნა 2026-09-21) | სისტემური ადმინის სცენარები |
 | [`uat/UAT_05_CROSS_ROLE_KA.md`](uat/UAT_05_CROSS_ROLE_KA.md) | 2026-08-29 | როლებს შორის იზოლაცია |
 | [`uat/UAT_06_ADVERSARIAL_KA.md`](uat/UAT_06_ADVERSARIAL_KA.md) | 2026-08-31 | მტრული ტესტირება, F-1…F-4 მიგნებებით და დათარიღებული გადამოწმებით |
 | [`uat/UAT_07_CONTENT_CORRECTNESS_KA.md`](uat/UAT_07_CONTENT_CORRECTNESS_KA.md) | 2026-08-31 | 122 შემოტანილი სტატიის სისწორე |
-| [`uat/UAT_SIGNOFF_KA.md`](uat/UAT_SIGNOFF_KA.md) | 2026-08-29 | მიღების ოქმი. **ხელმოწერის ველები ჯერ ცარიელია** |
+| [`uat/UAT_SIGNOFF_KA.md`](uat/UAT_SIGNOFF_KA.md) | 2026-08-29 (შენიშვნა 2026-09-21) | მიღების ოქმი. **ხელმოწერის ველები ჯერ ცარიელია** |
 
 ## მანქანური არტეფაქტები
 
@@ -102,7 +102,7 @@
 | [`CODE_AUDIT_2026-07-11.md`](archive/audits/CODE_AUDIT_2026-07-11.md) | 2026-07-11 | სრული აუდიტი — **Python-ის სტეკზე**, რომელიც აღარ არსებობს |
 | [`UI_VISUAL_AUDIT_2026-08-21_KA.md`](archive/audits/UI_VISUAL_AUDIT_2026-08-21_KA.md) | 2026-08-21 | ვიზუალური/UX სნეპშოტი |
 | [`UX_IMPLEMENTATION_DECISIONS_2026-08-24_KA.md`](archive/audits/UX_IMPLEMENTATION_DECISIONS_2026-08-24_KA.md) | 2026-08-24 | ერთი დღის იმპლემენტაციური გადაწყვეტილებები |
-| [`AI_CONTEXT_AUDIT_2026-09-21_KA.md`](archive/audits/AI_CONTEXT_AUDIT_2026-09-21_KA.md) | 2026-09-21 | AGENTS.md / სქილები / docs / AI-ის მეხსიერება კოდთან — 28 მიგნება, მხოლოდ ანგარიში; E2E 46/46 |
+| [`AI_CONTEXT_AUDIT_2026-09-21_KA.md`](archive/audits/AI_CONTEXT_AUDIT_2026-09-21_KA.md) | 2026-09-21 | AGENTS.md / სქილები / docs / AI-ის მეხსიერება კოდთან — 28 მიგნება; E2E 46/46. კრიტიკული და საშუალო მიგნებები გასწორდა — დათარიღებული განკარგულებები ბოლოშია |
 
 ### `archive/handoffs/` — სესიების ჩაბარებები
 

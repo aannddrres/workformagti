@@ -122,7 +122,7 @@ function Invoke-Prepare {
     Assert-Preflight
     Write-Step 'Starting isolated Oracle and Spring Boot (first run takes minutes)'
     Invoke-Compose up --detach --build --wait oracle backend
-    Write-Step 'Seeding the demo organisation (602 people, departments, content)'
+    Write-Step 'Seeding the demo organisation (~600 people, departments, content)'
     Invoke-Compose run --rm --build seeder seed
     Write-Step 'Seeding the eleven named UAT accounts'
     Invoke-Compose run --rm --build accounts

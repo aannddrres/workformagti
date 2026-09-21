@@ -32,13 +32,19 @@ Any password logs in as `admin@magti.ge`, `content@magti.ge`,
 as any `test_operator_*` or `presentation.*` address (created on first login)
 — but only while **both** `APP_ENV=development` and `ALLOW_DEV_LOGIN=true` are
 set. Both commands above set both; a backend started by hand needs both, or
-every one of these logins fails — CI's first E2E run did exactly that. For anything department-scoped these are the wrong
-accounts: their departments are English placeholders that match no real
-Georgian department value. Create a user with a real department string
-instead.
+every one of these logins fails — CI's first E2E run did exactly that.
+
+For department-scoped checks, know what each carries on a local database:
+`tech@` and `manager@` sit in `ტექნიკური` and `info@` in `საინფორმაციო` —
+real values, and an older English value is corrected on the next login
+(`AuthenticationService.synchronizeDevDepartment`, since `9fe45c4`).
+`nino@` is created in `Support`, which matches no content, and
+`admin@`/`content@` have English placeholders but bypass audience rules
+anyway. For a check at *group* level (`ტექნიკური — ჯგუფი 03`), create a
+`test_operator_*` user with that exact department string.
 
 The demo and acceptance stacks are separate and PowerShell-driven:
-`./presentation.ps1 prepare` (`:8081`, persona login, 602-person org) and
+`./presentation.ps1 prepare` (`:8081`, persona login, ~600-person org) and
 `./uat.ps1 prepare` (`:8082`, eleven named accounts, writes test data).
 
 ## Verifying
@@ -67,9 +73,12 @@ python -m pytest tests/ -q
 ```
 
 **The Java split is the one to know.** Plain `./mvnw test` runs both halves,
-and 44 test classes need a database — with `ORACLE_DB_URL` unset,
-Testcontainers starts one, which is slow. Point `ORACLE_DB_URL` at a running
-instance and it is used instead. On Windows, `.\mvnw.cmd`.
+and every `@SpringBootTest` — about forty classes, each tagged
+`@RequiresOracle` — needs a database. With `ORACLE_DB_URL` unset it first
+tries the default `localhost:1521/orclpdb1` and uses it if it answers (on
+this project's development machine a local 19c does); only if nothing answers
+does it start a Testcontainer, which is slow. Point `ORACLE_DB_URL` at an
+instance to choose explicitly. On Windows, `.\mvnw.cmd`.
 
 `python -m pytest`, not the `pytest` on `PATH`: a uv- or pipx-installed pytest
 lives in its own environment, cannot import the seeders' dependencies, and

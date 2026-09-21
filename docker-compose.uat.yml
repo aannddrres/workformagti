@@ -124,7 +124,7 @@ services:
       - "127.0.0.1:8082:8080"
     restart: unless-stopped
 
-  # The 602-person demo population, org tree and content. Identical to the
+  # The ~600-person demo population, org tree and content. Identical to the
   # presentation seeder, pointed at this database.
   seeder:
     <<: *uat-tool

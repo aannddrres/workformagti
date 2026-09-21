@@ -299,7 +299,7 @@ const PICKER_PATHS: Record<string, { role: string; dept?: string; group?: number
  *
  * The screen stopped being four fixed persona buttons in ac5cc7e: it is a
  * cascading picker now -- role, then department and group, then which of the
- * ten operators -- because the demo org has 602 accounts and four buttons
+ * ten operators -- because the demo org has ~600 accounts and four buttons
  * could reach none of the seeded leaders or operators. Six specs drove the
  * old screen and were not updated with it; that alone is why the E2E job
  * failed, three months after it was made to pass.

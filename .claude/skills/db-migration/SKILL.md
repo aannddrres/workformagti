@@ -82,11 +82,18 @@ cd java-backend && ./mvnw -B test -DexcludedGroups=oracle   # shape tests, no DB
 cd java-backend && ./mvnw -B test -Dgroups=oracle           # applies it for real
 ```
 
-The Oracle run is what actually executes the migration. With `ORACLE_DB_URL`
-unset, Testcontainers starts a throwaway 21c instance and Flyway runs the whole
-chain against it — slow, but it is the only thing that proves the migration
-applies from empty. Point `ORACLE_DB_URL` at a local instance to iterate
-faster, remembering that instance keeps its state between runs.
+The Oracle run is what actually executes the migration — but *which* database
+it runs against decides what it proves. With `ORACLE_DB_URL` unset, the suite
+first tries the default `localhost:1521/orclpdb1` (`OracleTestcontainer`). On
+the development machine a local 19c answers there, so Flyway applies only the
+new migration on top of a schema that has been in use for weeks. The throwaway
+21c Testcontainer — the whole chain from V1, the only local proof that the
+migration applies from empty — starts only when nothing answers.
+
+To prove it from empty on purpose, point `ORACLE_DB_URL`, `ORACLE_DB_USER` and
+`ORACLE_DB_PASSWORD` at a fresh schema — the E2E recipe's `MAGTI_QA`, made by
+`scripts/presentation/qa_schema_create.sql` — or let CI do it: its Oracle job
+always starts from an empty XE 21c.
 
 ## Data
 

@@ -1,7 +1,7 @@
 # წვდომის კონტრაქტის მატრიცა
 
 **სტატუსი:** Phase 1 — decision/contract lock **დასრულებულია**; D-1…D-8 დახურულია
-**ბოლო განახლება:** 2026-08-26 (SELF keyed-resource isolation evidence lock)
+**ბოლო განახლება:** 2026-09-21 („ციფრებში" და სექციების რიცხვები ცხრილს გაუსწორდა); ბოლო ცვლილება მწკრივებში — 2026-09-19 (PO-24, `bulk-deactivate`)
 **წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 150 endpoint
 **გეგმა:** `docs/ORG_ACCESS_ARCHITECTURE_PLAN_KA.md` (ფაზები, §9.1 სავალდებულო მტკიცებულებები)
 
@@ -73,8 +73,8 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 ## ციფრებში
 
 - **150** endpoint;
-- **40** ატარებს თანამშრომლის საიდენტიფიკაციო მონაცემს (`PII = yes`);
-- **12** უკვე leadership-scoped;
+- **44** ატარებს თანამშრომლის საიდენტიფიკაციო მონაცემს (`PII = **yes**`; კიდევ 1 — `content-dependent`);
+- **11** უკვე leadership-scoped (`scope` სვეტი `GROUP`-ით იწყება, ე.ი. leadership assignment-ით შემოსაზღვრულია);
 - **0** ღია გადაწყვეტილება (D-1…D-8 დახურულია).
 
 ---
@@ -87,7 +87,7 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 |---|---|---|---|---|---|---|
 | `GET /api/admin/access-diff` | `AccessDiffController.getAccessDiff` | `requireSystemAdmin` | — | `ORG` | **yes** | Phase 9A. read-only cutover evidence: თითო განსხვავებული მომხმარებლის სახელი, legacy/proposed compliance და scope-ში მხოლოდ მომხმარებელთა რაოდენობები; არც apply და არც scope-ის წევრთა სახელები. |
 
-### Article (26)
+### Article (30)
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
@@ -221,7 +221,7 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | `POST /api/content-trash/{itemType}/{itemId}/legal-hold` | `ContentTrashController.setLegalHold` | `requireLegalHoldAuthority` | DPO/Legal-approved named authority | `ORG` | no | default allowlist ცარიელია და ყველა როლს fail-closed უარყოფს; set სრულად აუდიტირდება. |
 | `DELETE /api/content-trash/{itemType}/{itemId}/legal-hold` | `ContentTrashController.releaseLegalHold` | `requireLegalHoldAuthority` | DPO/Legal-approved named authority | `ORG` | no | release მხოლოდ recoverable trash-ზეა, named authority-ით და reconstructable audit-ით. |
 
-### News (12)
+### News (14)
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
