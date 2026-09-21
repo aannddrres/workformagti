@@ -7,17 +7,23 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.http.MediaType;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.io.IOException;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** PR-08: there was no unhandled-exception handler at all before this. */
@@ -166,5 +172,40 @@ class GlobalExceptionHandlerTest {
 
         assertEquals(HttpStatus.METHOD_NOT_ALLOWED, response.getStatusCode());
         assertNotNull(response.getBody());
+    }
+
+    /**
+     * Found 2026-09-21: a form-encoded POST to the JSON login endpoint came
+     * back as "an unexpected error occurred" plus a stack trace in the log.
+     */
+    @Test
+    void anUnsupportedBodyFormatIsA415NamingWhatIsAccepted() {
+        ResponseEntity<Map<String, String>> response = handler.handleUnsupportedMediaType(
+                new HttpMediaTypeNotSupportedException(
+                        MediaType.APPLICATION_FORM_URLENCODED, List.of(MediaType.APPLICATION_JSON)));
+
+        assertEquals(HttpStatus.UNSUPPORTED_MEDIA_TYPE, response.getStatusCode());
+        assertEquals("application/json", response.getHeaders().getFirst(HttpHeaders.ACCEPT));
+        assertNotNull(response.getBody());
+        assertFalse(response.getBody().containsKey("correlation_id"),
+                "a caller's mistake is not an incident an operator needs to find");
+    }
+
+    /**
+     * A browser that leaves while the response is being written is not a
+     * server fault, and there is nobody left to send a body to. It was logged
+     * as ERROR with a full stack trace during the 2026-09-21 E2E run.
+     */
+    @Test
+    void aClientThatDisconnectedGetsNoBodyAndNoIncident() {
+        Exception tomcatAbort = new IllegalStateException("write failed",
+                new org.apache.catalina.connector.ClientAbortException(
+                        new IOException("An established connection was aborted")));
+
+        assertNull(handler.handleUnexpected(tomcatAbort, request()));
+        assertNull(handler.handleUnexpected(new AsyncRequestNotUsableException("gone"), request()));
+        assertTrue(GlobalExceptionHandler.isClientDisconnect(tomcatAbort));
+        assertFalse(GlobalExceptionHandler.isClientDisconnect(new IOException("disk full")),
+                "only a disconnect is excused -- an ordinary IOException is still a server fault");
     }
 }

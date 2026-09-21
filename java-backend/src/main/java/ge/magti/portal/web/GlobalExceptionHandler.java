@@ -12,14 +12,18 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -149,6 +153,26 @@ public class GlobalExceptionHandler {
         return response.body(Map.of("detail", "მოთხოვნის მეთოდი არ არის დაშვებული"));
     }
 
+    /**
+     * A body in a format the endpoint does not read -- form-encoded sent to a
+     * JSON endpoint -- is the caller's mistake: 415, naming what is accepted,
+     * the way the 405 above names what is allowed.
+     *
+     * <p>Found 2026-09-21: a form-encoded POST to {@code /api/auth/login}
+     * answered "an unexpected error occurred" with a correlation id, and wrote
+     * a full stack trace to the log as an unhandled exception.
+     */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<Map<String, String>> handleUnsupportedMediaType(
+            HttpMediaTypeNotSupportedException exception) {
+        ResponseEntity.BodyBuilder response = ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE);
+        List<MediaType> supported = exception.getSupportedMediaTypes();
+        if (!supported.isEmpty()) {
+            response.header(HttpHeaders.ACCEPT, MediaType.toString(supported));
+        }
+        return response.body(Map.of("detail", "მოთხოვნის ფორმატი არ არის მხარდაჭერილი"));
+    }
+
     /** Missing API/static routes are ordinary 404s, not unexpected server failures. */
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<Map<String, String>> handleMissingResource(NoResourceFoundException exception) {
@@ -193,6 +217,16 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleUnexpected(Exception exception, HttpServletRequest request) {
+        if (isClientDisconnect(exception)) {
+            // The browser left -- a closed tab, a navigation away -- while the
+            // response was still being written. Nothing on the server went
+            // wrong and there is nobody left to answer, so there is no body
+            // to build either. Logged as ERROR with a stack trace this looked
+            // exactly like an outage in the log (seen during the 2026-09-21
+            // E2E run on GET /api/articles).
+            logger.debug("Client disconnected during {} {}", request.getMethod(), request.getRequestURI());
+            return null;
+        }
         String correlationId = newCorrelationId();
 
         // Method and path, never the body or query string: this logs on a
@@ -205,5 +239,21 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                 "detail", "მოხდა მოულოდნელი შეცდომა. გთხოვთ, სცადოთ ხელახლა.",
                 "correlation_id", correlationId));
+    }
+
+    /**
+     * Spring's own wrapper for a response that can no longer be written, or
+     * Tomcat's abort exception anywhere in the cause chain. Matched by class
+     * name for Tomcat's, so this class does not tie itself to one servlet
+     * container.
+     */
+    static boolean isClientDisconnect(Throwable exception) {
+        for (Throwable cause = exception; cause != null; cause = cause.getCause() == cause ? null : cause.getCause()) {
+            if (cause instanceof AsyncRequestNotUsableException
+                    || "org.apache.catalina.connector.ClientAbortException".equals(cause.getClass().getName())) {
+                return true;
+            }
+        }
+        return false;
     }
 }
