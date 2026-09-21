@@ -14,11 +14,13 @@ import java.util.Map;
  *
  * <h2>Why this is not just tidying</h2>
  *
- * {@code SecurityConfig} is {@code anyRequest().permitAll()} and there is not
- * one {@code @PreAuthorize} in this module: authorization happens in handler
- * bodies, by calling a {@code require*} helper. That design is deliberate and
- * is enforced by {@code EndpointGuardCoverageTest}, which reads bytecode and
- * fails the build for any endpoint whose call closure reaches no guard.
+ * {@code SecurityConfig} only authenticates -- its chain is deny-by-default,
+ * {@code .anyRequest().authenticated()} -- and there is not one
+ * {@code @PreAuthorize} in this module: role, permission and scope checks
+ * happen in handler bodies, by calling a {@code require*} helper. That design
+ * is deliberate and is enforced by {@code EndpointGuardCoverageTest}, which
+ * reads bytecode and fails the build for any endpoint whose call closure
+ * reaches no guard.
  *
  * <p>What it did not pin was <b>how many</b> copies of each guard existed.
  * {@code requireAuthenticated} was written into 16 controllers and
@@ -74,9 +76,12 @@ public final class Guards {
     }
 
     /**
-     * The floor. Under {@code permitAll} a null principal means the request
-     * carried no usable token, so every handler that touches anything but
-     * public content starts here.
+     * The floor. The filter chain already turns away a request with no usable
+     * token before it reaches a protected handler, so this is the second line,
+     * not the first: it keeps a handler a 401 rather than an open door if its
+     * path is ever added to one of SecurityConfig's {@code ANONYMOUS_*}
+     * arrays. Every handler that touches anything but public content still
+     * starts here.
      */
     public static ResponseEntity<Map<String, String>> requireAuthenticated(User user) {
         if (user == null) {

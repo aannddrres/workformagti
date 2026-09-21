@@ -5,10 +5,15 @@ description: Use when changing who may call an endpoint or see a record in the M
 
 # Changing who may see what
 
-Authorization here is **not** annotation-driven. `SecurityConfig` is
-`anyRequest().permitAll()` and there is not one `@PreAuthorize` in the module;
-every handler gates itself with a `require*` call. Nothing in the framework
-enforces that — a row of coverage tests does, and they are the reason this has
+Authorization here is **not** annotation-driven. `SecurityConfig` decides only
+*whether* a caller is signed in: its chain is deny-by-default,
+`.anyRequest().authenticated()`, and the only anonymous paths are the
+`ANONYMOUS_*` arrays — login, SSO start, `/api/health` and the actuator probes
+(`AnonymousSurfaceTest` pins them). It decides nothing about role, permission
+or scope: there is not one `@PreAuthorize` in the module, and every handler
+gates itself with a `require*` call. A handler that forgets its gate is open
+to every signed-in employee, operators included. Nothing in the framework
+catches that — a row of coverage tests does, and they are the reason this has
 stayed consistent. Work with them, not around them.
 
 ## The obligation

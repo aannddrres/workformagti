@@ -40,8 +40,12 @@ The first serves the whole stack on `:8080`; the second is the developer loop,
 with the Angular dev server on `:4200`. Docker Desktop needs **6 GB or more**
 of memory or Oracle dies without saying why, and a first run takes 10–15
 minutes. Any password logs in as `admin@magti.ge`, `content@magti.ge`,
-`manager@magti.ge`, `info@magti.ge` or `tech@magti.ge` while
-`APP_ENV=development`.
+`manager@magti.ge`, `info@magti.ge`, `tech@magti.ge` or `nino@magti.ge`, and
+as any `test_operator_*` or `presentation.*` address (created on first login)
+— but only while **both** `APP_ENV=development` and `ALLOW_DEV_LOGIN=true` are
+set (`AuthenticationService.authenticate`). Both commands above set both; a
+backend started by hand with `APP_ENV` alone refuses every one of these
+logins, which is exactly how CI's first E2E run failed.
 
 Verify a change — **this is the one to reach for**:
 

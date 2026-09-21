@@ -18,10 +18,14 @@ instance and it is used instead, which is far faster. On Windows, `.\mvnw.cmd`.
 
 ## Authorization is not annotation-driven
 
-`SecurityConfig` is `anyRequest().permitAll()` and there is not one
-`@PreAuthorize` in the module; every handler gates itself with a `require*`
-call. Nothing in the framework enforces that — the coverage tests below are
-the enforcement, and they are the pattern to extend rather than replace.
+`SecurityConfig` decides only *whether* a caller is signed in: the chain is
+deny-by-default (`.anyRequest().authenticated()`), and the anonymous paths are
+exactly the `ANONYMOUS_*` arrays, pinned by `AnonymousSurfaceTest`. It decides
+nothing about role, permission or scope — there is not one `@PreAuthorize` in
+the module, and every handler gates itself with a `require*` call. A forgotten
+gate is open to every signed-in employee. Nothing in the framework catches
+that — the coverage tests below are the enforcement, and they are the pattern
+to extend rather than replace.
 
 | Test | Fails when |
 |---|---|
@@ -47,7 +51,9 @@ no Flyway **checksum** test, and no ArchUnit.
 ## Migrations
 
 Next is `V49`. `V37` does not exist — the numbering skips it deliberately, so
-do not fill the gap.
+do not fill the gap. A new migration also bumps `EXPECTED_FLYWAY_VERSION` in
+`scripts/presentation/common.py`: the demo and UAT seeders demand that exact
+version, and `DocumentedFactsTest` fails if the two drift.
 
 Three Oracle facts that cost time to rediscover. The container is XE **21c**,
 not 23ai: 23ai's native `BOOLEAN` breaks `ddl-auto=validate` against this

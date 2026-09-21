@@ -223,3 +223,25 @@ CI `npm ci`-ს უშვებს, აქ არსებული `node_module
 - **Docker Desktop-ის ბაგის ჩანაწერი** — გარე მდგომარეობაა, რეპოზიტორიიდან არ მოწმდება.
 - **`verify-like-ci.sh`, Oracle-ის Java suite, GitHub-ის CI** — დავალების ნაწილი არ იყო და არ გამიშვია; ტესტებიდან გავუშვი მხოლოდ E2E და ინდექსის ორი ტესტი (§5, და ამ ფაილის დამატების შემდეგ `DocsIndexCoverageTest` + `DocumentedFactsTest` — 12 / 12 გავიდა).
 - **ცოცხალი დოკუმენტები, რომლებიც დავალების სიაში არ იყო** (`HOW_IT_WORKS_KA.md`, `PROJECT_TECHNOLOGY_GUIDE_KA.md` და სხვ.) — შემოწმდა მხოლოდ ინდექსის დონეზე და SSO-ს ფორმულირებაზე ძებნით.
+
+---
+
+## განკარგულება — 2026-09-21 (იმავე დღეს): ოთხივე კრიტიკული მიგნება გასწორდა
+
+მფლობელის მოთხოვნით. ზემოთ ტექსტი უცვლელია; იქ მითითებული ხაზები `ba0726c`-ს ეხება და გასწორებულ ფაილებში
+ახლა ოდნავ წანაცვლებულია.
+
+| № | რა შეიცვალა |
+|---|---|
+| 1 | „`anyRequest().permitAll()`" შეიცვალა სწორი აღწერით — ჯაჭვი deny-by-default-ია და მხოლოდ ავთენტიფიკაციას ამოწმებს; როლი/უფლება/scope handler-შია; დავიწყებული gate **ყველა შესულ თანამშრომელს** უღებს კარს (და არა „ყველას"). ფაილები: `.claude/skills/access-change/SKILL.md`, `java-backend/AGENTS.md`, `Guards.java` (ორი javadoc), `ControllerGuardConsolidationTest.java`, `EndpointPrincipalCoverageTest.java`, `EndpointGuardCoverageTest.java` (javadoc + ჩავარდნის შეტყობინება). ძებნამ იგივე მტკიცება იპოვა `docs/PROJECT_TECHNOLOGY_GUIDE_KA.md`-ის შვიდ ადგილას, რომელიც ამ აუდიტის ცხრილში არ იყო — იქ, ამ დოკუმენტის საკუთარი წესით, ტექსტი არ გადაწერილა; ზედა გაფრთხილებას დაემატა მესამე პუნქტი |
+| 2 | `docs/PRESENTATION_RUNBOOK_KA.md` — დემოზე პაროლი არ მოწმდება (`x-allow-dev-login: "true"`), რატომ, რისი თქმა არ შეიძლება პრეზენტაციაზე და როგორ ირთვება `"false"`; verify-ის აღწერა ახლა ორივე რეჟიმს ასახავს |
+| 3 | `AGENTS.md`, `.claude/skills/run-and-verify/SKILL.md` — სატესტო შესვლას **ორივე** სჭირდება, `APP_ENV=development` და `ALLOW_DEV_LOGIN=true`; სიას დაემატა `nino@magti.ge` და `test_operator_*` / `presentation.*` |
+| 4 | `.claude/skills/db-migration/SKILL.md` და `java-backend/AGENTS.md` ასახელებს `scripts/presentation/common.py`-ის `EXPECTED_FLYWAY_VERSION`-ს. დაემატა ტესტი `DocumentedFactsTest.thePresentationSeederExpectsTheHighestMigration` — build ჩავარდება, თუ ეს რიცხვი უმაღლეს მიგრაციას ჩამორჩება. გადამოწმდა, რომ ტესტი მართლა ჭერს: `"47"`-ზე ჩავარდა, `"48"`-ზე გადის |
+
+**გადამოწმება:** Java-ს DB-free suite (`./mvnw.cmd -B test -DexcludedGroups=oracle`) — 525 / 525 გავიდა.
+პროდუქტის ქცევა არ შეცვლილა: Java-ში შეიცვალა მხოლოდ კომენტარები, ერთი ტესტის შეტყობინება და ერთი ახალი ტესტი.
+
+**ღიად რჩება:** 12 საშუალო და 12 დაბალი მიგნება, §3 „გადასახედი" და მეხსიერება (§4) — ამ განკარგულებით არ
+შეხებია. ყურადღება: №10 (`run-and-verify`-ის წინადადება „ინგლისური დეპარტამენტების" შესახებ) უშუალოდ
+გასწორებული №3-ის შემდეგ დგას და კვლავ მოძველებულია; №13 — `docs/README.md`-ში runbook-ის თარიღი (2026-08-28)
+ახლა კიდევ უფრო ჩამორჩება.

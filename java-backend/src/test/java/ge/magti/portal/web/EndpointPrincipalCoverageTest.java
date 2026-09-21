@@ -21,13 +21,15 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
  *
  * <h2>Why a coverage test and not {@code @PreAuthorize}</h2>
  *
- * {@code SecurityConfig:45} is {@code anyRequest().permitAll()}, and there is
- * not one {@code @PreAuthorize} in the module -- every one of the 112
- * endpoints authorizes inside its own handler, through a {@code require*}
- * helper, {@link ge.magti.portal.security.PermissionChecker} or
+ * {@code SecurityConfig} only authenticates -- its chain is deny-by-default,
+ * {@code .anyRequest().authenticated()} -- and there is not one
+ * {@code @PreAuthorize} in the module: every endpoint authorizes inside its
+ * own handler, through a {@code require*} helper,
+ * {@link ge.magti.portal.security.PermissionChecker} or
  * {@link ge.magti.portal.security.ManagerScope}. That is a working design,
- * but it fails open: a handler that simply forgets to call its guard is
- * reachable by anyone, and nothing in the framework notices.
+ * but it fails open for everyone who can sign in: a handler that simply
+ * forgets to call its guard is reachable by any employee, operators included,
+ * and nothing in the framework notices.
  *
  * <p>Method bodies are not visible to reflection, so this cannot assert that
  * a guard is actually <i>called</i>. It asserts the one precondition that is

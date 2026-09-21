@@ -25,8 +25,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <h2>What this is for</h2>
  *
  * Authorization in this module happens in handler bodies — {@code SecurityConfig}
- * is {@code anyRequest().permitAll()} and there is no {@code @PreAuthorize}
- * anywhere — so a {@code require*} helper is the gate.
+ * only authenticates (deny-by-default, {@code .anyRequest().authenticated()})
+ * and there is no {@code @PreAuthorize} anywhere — so a {@code require*} helper
+ * is the gate for role, permission and scope.
  * {@link EndpointGuardCoverageTest} already fails the build for an endpoint
  * that reaches none. What nothing pinned was how many copies of each helper
  * existed: {@code requireAuthenticated} had been written into 16 controllers

@@ -42,6 +42,7 @@ class DocumentedFactsTest {
     private static final Path PACKAGE_JSON = RepoRoot.path("angular-frontend/package.json");
     private static final Path NVMRC = RepoRoot.path("angular-frontend/.nvmrc");
     private static final Path MIGRATIONS = RepoRoot.path("java-backend/src/main/resources/db/migration");
+    private static final Path PRESENTATION_COMMON = RepoRoot.path("scripts/presentation/common.py");
 
     private static final Path ROOT_AGENTS = RepoRoot.path("AGENTS.md");
     private static final Path ROOT_README = RepoRoot.path("README.md");
@@ -86,6 +87,27 @@ class DocumentedFactsTest {
         int highest = highestMigration();
         assertStates(ROOT_AGENTS, "`V" + highest + "`", "the Stack table");
         assertStates(BACKEND_AGENTS, "`V" + (highest + 1) + "`", "the \"Adding a migration\" section");
+    }
+
+    /**
+     * The demo and UAT seeders pin the highest migration too, and more strictly
+     * than any document: {@code seed_oracle_demo.py} refuses to seed or verify
+     * unless Flyway's latest applied version is <i>exactly</i>
+     * {@code EXPECTED_FLYWAY_VERSION}. A migration that forgets to bump it
+     * passes every Java and Angular check and then breaks {@code presentation.ps1}
+     * and {@code uat.ps1} the next time either prepares. Nothing pinned it until
+     * the 2026-09-21 AI-context audit found the db-migration skill never
+     * mentioned it.
+     */
+    @Test
+    void thePresentationSeederExpectsTheHighestMigration() throws IOException {
+        String pinned = single(PRESENTATION_COMMON, "(?m)^EXPECTED_FLYWAY_VERSION\\s*=\\s*\"(\\d+)\"",
+                "EXPECTED_FLYWAY_VERSION in scripts/presentation/common.py");
+        int highest = highestMigration();
+        assertEquals(String.valueOf(highest), pinned,
+                "scripts/presentation/common.py pins EXPECTED_FLYWAY_VERSION = \"" + pinned + "\" but the highest "
+                        + "migration is V" + highest + ". The demo and UAT seeders refuse any other version; "
+                        + "bump it in the same commit as the migration.");
     }
 
     /**

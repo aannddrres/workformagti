@@ -25,9 +25,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
  * That test asserts the handler is <i>handed</i> the caller, which is the
  * floor: without the parameter, no authorization is possible at all. It says
  * so in its own javadoc and names the gap it leaves -- a handler that takes
- * {@code @AuthenticationPrincipal User} and then never looks at it. Under
- * {@code SecurityConfig:45}'s {@code anyRequest().permitAll()} that handler
- * is reachable by anyone, and the parameter makes it look guarded.
+ * {@code @AuthenticationPrincipal User} and then never looks at it. The filter
+ * chain only checks that a caller is signed in, so that handler is reachable
+ * by any employee -- operators included -- and the parameter makes it look
+ * guarded.
  *
  * <p>Method bodies are invisible to reflection but not to bytecode, and
  * Spring ships a repackaged ASM ({@code org.springframework.asm}) that is
@@ -149,9 +150,9 @@ class EndpointGuardCoverageTest {
         assertEquals(List.of(), ungoverned.stream().sorted().toList(),
                 "these endpoints call no require*/PermissionChecker/ManagerScope/DepartmentMatcher/"
                         + "DirectMessagePermission guard and no owner-scoped repository finder, directly or "
-                        + "through a helper in the same controller. Under SecurityConfig's permitAll that makes "
-                        + "them reachable by anyone. Add the guard the endpoint needs, or -- if it is public on "
-                        + "purpose -- add it to NO_GUARD_BY_DESIGN with the reason");
+                        + "through a helper in the same controller. SecurityConfig only checks that a caller is "
+                        + "signed in, so that makes them reachable by any employee. Add the guard the endpoint "
+                        + "needs, or -- if it is public on purpose -- add it to NO_GUARD_BY_DESIGN with the reason");
     }
 
     /**

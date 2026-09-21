@@ -28,8 +28,11 @@ minutes. And `seed exited with code 0` in the compose output is success, not
 failure — it is a one-shot container finishing.
 
 Any password logs in as `admin@magti.ge`, `content@magti.ge`,
-`manager@magti.ge`, `info@magti.ge` or `tech@magti.ge` while
-`APP_ENV=development`. For anything department-scoped these are the wrong
+`manager@magti.ge`, `info@magti.ge`, `tech@magti.ge` or `nino@magti.ge`, and
+as any `test_operator_*` or `presentation.*` address (created on first login)
+— but only while **both** `APP_ENV=development` and `ALLOW_DEV_LOGIN=true` are
+set. Both commands above set both; a backend started by hand needs both, or
+every one of these logins fails — CI's first E2E run did exactly that. For anything department-scoped these are the wrong
 accounts: their departments are English placeholders that match no real
 Georgian department value. Create a user with a real department string
 instead.
