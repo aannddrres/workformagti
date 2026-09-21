@@ -102,6 +102,34 @@ PULSE_EMAILS = tuple(
     + ["info@magti.ge"] + [f"presentation.info.g01.op{number:02d}@magti.ge" for number in range(2, 9)]
     + ["nino@magti.ge"] + [f"presentation.office.g01.op{number:02d}@magti.ge" for number in range(2, 9)]
 )
+# PO-24's leaver sweep needs something to find. Every other active operator
+# is seen minutes before the baseline is taken, so the "not seen in a long
+# time" filter had nothing to show on stage. These nine stay ACTIVE accounts
+# -- the situation PO-24 exists for: somebody left and nobody switched them
+# off. Six are past 60 days but not 90 and three are past 90, so the 30, 60
+# and 90 day filters each show a different, non-empty list.
+#
+# They are kept out of every activity generator (_present_operators): a
+# person last seen four months ago cannot have read an article yesterday, and
+# a demo where the leaver list contradicts the reading log is worse than no
+# demo of it. Because they have no read status, compliance counts them as
+# unread wherever they are in the audience -- which is PO-24's own argument
+# for why leavers must be switched off.
+#
+# Deliberately outside group 01, where the pulse accounts live, and outside
+# slot 39, which is the deactivated set. The headcount does not change: these
+# are existing operators with an older last sign-in, not new people.
+LONG_ABSENT_OPERATORS: dict[tuple[str, int, int], int] = {
+    ("TECHNICAL", 2, 38): 75,
+    ("INFORMATION", 2, 38): 75,
+    ("OFFICE", 2, 38): 75,
+    ("TECHNICAL", 4, 38): 75,
+    ("INFORMATION", 4, 38): 75,
+    ("OFFICE", 4, 38): 75,
+    ("TECHNICAL", 3, 37): 130,
+    ("INFORMATION", 3, 37): 130,
+    ("OFFICE", 3, 37): 130,
+}
 DEMO_ARTICLE_TITLES = (
     "სადემო მონახაზი — eSIM FAQ",
     "სადემო დაგეგმილი სტატია — ახალი პროცედურა",
@@ -124,6 +152,8 @@ class SeedUser:
     team_key: str | None
     role: str
     active: bool
+    # False for LONG_ABSENT_OPERATORS: the account is on, the person is gone.
+    present: bool = True
 
 
 @dataclass
@@ -460,6 +490,13 @@ def _create_organisation(
                     "nino@magti.ge": "ნინო — ოფისის ოპერატორი",
                 }.get(email, f"სადემო {department_name} ჯგუფი {team_number:02d} ოპერატორი {operator_number:02d}")
                 active = operator_number != 39
+                absent_days = LONG_ABSENT_OPERATORS.get((department_key, team_number, operator_number))
+                if not active:
+                    last_active = now - timedelta(days=45)
+                elif absent_days is not None:
+                    last_active = now - timedelta(days=absent_days)
+                else:
+                    last_active = now - timedelta(minutes=(operator_number * 11 + team_number))
                 user_id = _insert_id(
                     cursor,
                     "INSERT INTO users (email,name,department,position,role,is_active,last_active,hashed_password,permissions,team_id,manager_id) "
@@ -469,13 +506,16 @@ def _create_organisation(
                     name=name,
                     department=label,
                     is_active=1 if active else 0,
-                    last_active=(now - timedelta(minutes=(operator_number * 11 + team_number))) if active else now - timedelta(days=45),
+                    last_active=last_active,
                     password_hash=password_hash,
                     permissions=_json(ROLE_PERMISSIONS["operator"]),
                     team_id=team_ids[team_key],
                     manager_id=leader_ids[team_key],
                 )
-                users[email] = SeedUser(user_id, email, name, label, department_key, team_key, "operator", active)
+                users[email] = SeedUser(
+                    user_id, email, name, label, department_key, team_key, "operator", active,
+                    present=absent_days is None,
+                )
 
     for team_key, leader_id in leader_ids.items():
         cursor.execute(
@@ -922,9 +962,15 @@ def _create_quizzes(cursor: oracledb.Cursor, article_ids: dict[int, int]) -> Non
             )
 
 
-def _active_operators(users: dict[str, SeedUser]) -> list[SeedUser]:
+def _present_operators(users: dict[str, SeedUser]) -> list[SeedUser]:
+    """Operators who generate activity: switched on AND still around.
+
+    Was "active operators". An account that is on but whose owner left months
+    ago (LONG_ABSENT_OPERATORS) must not read, search, favourite or take a
+    quiz after the date the admin table says they were last seen.
+    """
     return sorted(
-        (user for user in users.values() if user.role == "operator" and user.active),
+        (user for user in users.values() if user.role == "operator" and user.active and user.present),
         key=lambda user: user.email,
     )
 
@@ -963,7 +1009,7 @@ def _seed_knowledge_activity(
     article_ids: dict[int, int],
     article_rows: dict[int, sqlite3.Row],
 ) -> None:
-    operators = _active_operators(users)
+    operators = _present_operators(users)
     targets = _source_targets(source)
     randomizer = random.Random(20260823)
 
@@ -1118,7 +1164,7 @@ def _seed_compliance(
             title=str(article_rows[source_id]["title"]),
         )
 
-    operators = _active_operators(users)
+    operators = _present_operators(users)
     pulse_emails = set(PULSE_EMAILS)
     reminder_rows: list[dict[str, Any]] = []
     manual_candidates: list[SeedUser] = []

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import sys
 from pathlib import Path
 
@@ -331,3 +332,56 @@ def test_verify_asserts_the_login_mode_it_is_actually_running_in() -> None:
     for probe in probes:
         assert not probe.startswith("presentation."), probe
         assert not probe.startswith("test_operator_"), probe
+
+
+def _seeder_constant(name: str):
+    """A literal module constant from the seeder, without importing it -- the
+    seeder pulls in oracledb, httpx and passlib, and this suite runs where
+    those need not be installed."""
+    tree = ast.parse((PRESENTATION_SCRIPTS / "seed_oracle_demo.py").read_text(encoding="utf-8"))
+    for node in tree.body:
+        target = getattr(node, "target", None) or (node.targets[0] if isinstance(node, ast.Assign) else None)
+        if isinstance(target, ast.Name) and target.id == name:
+            return ast.literal_eval(node.value)
+    raise AssertionError(f"{name} not found in seed_oracle_demo.py")
+
+
+def test_long_absent_operators_give_every_inactivity_filter_something_to_show() -> None:
+    # PO-24's filter had nothing to find in the demo: every active operator was
+    # seen minutes before the baseline. The thresholds are 30, 60 and 90 days,
+    # and each must show a non-empty list -- with 60 and 90 differing, or the
+    # demo cannot show that the choice of threshold matters.
+    absent = _seeder_constant("LONG_ABSENT_OPERATORS")
+    days = list(absent.values())
+
+    for threshold in (30, 60, 90):
+        assert any(value > threshold for value in days), f"nothing past {threshold} days"
+    assert any(60 < value <= 90 for value in days), "the 60 and 90 day lists would be identical"
+
+
+def test_long_absent_operators_stay_clear_of_the_accounts_other_scenarios_own() -> None:
+    absent = _seeder_constant("LONG_ABSENT_OPERATORS")
+    departments = {key for key, _label, _short in _seeder_constant("DEPARTMENTS")}
+
+    for department, group, slot in absent:
+        assert department in departments
+        # Group 01 holds the named personas and the pulse accounts, whose
+        # scripted unread readings a missing activity record would disturb.
+        assert group != 1, (department, group, slot)
+        # Slot 39 is the deactivated set: an account that is off is not the
+        # "left but still on" case PO-24 is about.
+        assert 1 <= slot <= 38, (department, group, slot)
+        assert 1 <= group <= 5, (department, group, slot)
+
+
+def test_absent_operators_generate_no_activity() -> None:
+    # A person last seen four months ago cannot have read an article
+    # yesterday. Every activity generator takes its operators from one
+    # function, and that function must leave the absent out.
+    seeder = (PRESENTATION_SCRIPTS / "seed_oracle_demo.py").read_text(encoding="utf-8")
+
+    assert "_active_operators" not in seeder
+    assert seeder.count("operators = _present_operators(users)") == 2
+    assert "user.active and user.present" in seeder
+    assert "present=absent_days is None" in seeder
+
