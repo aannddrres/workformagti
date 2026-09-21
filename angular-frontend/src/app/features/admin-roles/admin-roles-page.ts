@@ -6,6 +6,7 @@ import { AdminUser } from '../../core/models/admin-user';
 import { UserEditModal } from '../admin-users/user-edit-modal';
 import { ConfirmService } from '../../core/notifications/confirm.service';
 import { createTableSort } from '../../shared/table-sort';
+import { UserProfileService } from '../../core/auth/user-profile.service';
 
 const ROLE_ORDER = ['admin', 'content_admin', 'manager', 'operator'];
 const ROLE_ICONS: Record<string, string> = {
@@ -43,8 +44,18 @@ export class AdminRolesPage {
   private readonly usersService = inject(AdminUsersService);
   private readonly authService = inject(AuthService);
   private readonly translate = inject(TranslateService);
+  private readonly profileService = inject(UserProfileService);
 
   protected readonly roleOrder = ROLE_ORDER;
+  /**
+   * With roles owned by the company directory (owner decision, 2026-09-21), a
+   * role chosen here would revert at that person's next sign-in, and the
+   * server refuses it. Showing the control disabled, with the reason, beats
+   * offering an edit that can only fail.
+   */
+  protected readonly rolesManagedByDirectory = computed(
+    () => this.profileService.profile()?.roles_managed_by_directory === true
+  );
   protected readonly roleIcons = ROLE_ICONS;
 
   protected readonly users = signal<AdminUser[]>([]);
@@ -85,6 +96,7 @@ export class AdminRolesPage {
   });
 
   constructor() {
+    this.profileService.ensureLoaded().subscribe();
     this.loadUsers();
   }
 

@@ -56,7 +56,10 @@
       "password_placeholder": "Any password",
       "submit_button": "Sign In",
       "submit_button_loading": "Signing in...",
-      "error_generic": "Sign-in failed"
+      "error_generic": "Sign-in failed",
+      "email_placeholder": "name.surname@magticom.ge",
+      "error_missing": "Enter your email and password",
+      "corporate_note": "Your password is checked by the company system. The portal does not store it."
     }
   },
   "users": {
@@ -142,7 +145,8 @@
     },
     "profile": {
       "tab_profile": "My profile"
-    }
+    },
+    "role_managed_by_directory": "Roles are managed by the company system and cannot be changed here. Contact IT."
   },
   "search": {
     "history_tab": {

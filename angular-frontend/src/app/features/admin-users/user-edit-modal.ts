@@ -5,6 +5,7 @@ import { AdminUser, PermissionDeltaState, PermissionOverrideDelta, PermissionOve
 import { defaultPermissionsForRole, PERMISSION_GROUPS } from '../../shared/permission-catalog';
 import { ROLES } from '../../shared/user-roles';
 import { PortalDialog } from '../../shared/portal-dialog/portal-dialog';
+import { UserProfileService } from '../../core/auth/user-profile.service';
 
 interface PermissionOptionState {
   value: string;
@@ -40,12 +41,22 @@ interface PermissionGroupState {
 })
 export class UserEditModal {
   private readonly usersService = inject(AdminUsersService);
+  private readonly profileService = inject(UserProfileService);
 
   readonly user = input.required<AdminUser>();
   readonly closed = output<void>();
   readonly saved = output<void>();
 
   protected readonly roles = ROLES;
+  /**
+   * With roles owned by the company directory (owner decision, 2026-09-21), a
+   * role chosen here would revert at that person's next sign-in, and the
+   * server refuses it. Showing the control disabled, with the reason, beats
+   * offering an edit that can only fail.
+   */
+  protected readonly rolesManagedByDirectory = computed(
+    () => this.profileService.profile()?.roles_managed_by_directory === true
+  );
 
   protected readonly editRole = signal('operator');
   protected readonly editDepartment = signal('');
@@ -88,6 +99,7 @@ export class UserEditModal {
   );
 
   constructor() {
+    this.profileService.ensureLoaded().subscribe();
     effect(() => {
       const u = this.user();
       this.editRole.set(u.role);

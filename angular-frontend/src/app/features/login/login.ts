@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { AuthService } from '../../core/auth/auth.service';
 import { Logo } from '../../shared/logo/logo';
 
@@ -20,6 +20,7 @@ export class Login {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly translate = inject(TranslateService);
 
   protected readonly submitting = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
@@ -164,14 +165,32 @@ export class Login {
     });
   }
 
-  startCorporateSso(): void {
+  /**
+   * The company login, everywhere off loopback. The address and password go
+   * to the portal, which checks them with the company directory -- this page
+   * never talks to the directory itself. The server's `detail` is shown as it
+   * comes: one sentence for any refusal (PO-26), another when the directory is
+   * unreachable, so a person can tell "try again later" from "check your
+   * password".
+   */
+  submitCorporate(event: Event, email: string, password: string): void {
+    event.preventDefault();
     if (this.submitting()) return;
+    const address = email.trim().toLowerCase();
+    if (!address || !password) {
+      this.errorMessage.set(this.translate.instant('auth.login_page.error_missing'));
+      return;
+    }
     this.submitting.set(true);
     this.errorMessage.set(null);
-    this.auth.startCorporateSso().subscribe({
+    this.auth.login(address, password).subscribe({
+      next: (user) => {
+        const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
+        this.router.navigateByUrl(returnUrl || this.defaultWorkspace(user.role));
+      },
       error: (err: HttpErrorResponse) => {
         this.submitting.set(false);
-        this.errorMessage.set(err.error?.detail ?? 'კომპანიის ავტორიზაციის სერვისი მიუწვდომელია. წვდომა უსაფრთხოების მიზნით არ გაიცა.');
+        this.errorMessage.set(err.error?.detail ?? this.translate.instant('auth.login_page.error_generic'));
       }
     });
   }

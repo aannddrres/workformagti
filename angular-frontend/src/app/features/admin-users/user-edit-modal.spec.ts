@@ -6,6 +6,8 @@ import { provideTranslateHttpLoader } from '@ngx-translate/http-loader';
 import { UserEditModal } from './user-edit-modal';
 import { AdminUser } from '../../core/models/admin-user';
 import { AdminUsersService } from '../../core/services/admin-users.service';
+import { UsersService } from '../../core/services/users.service';
+import { AuthService } from '../../core/auth/auth.service';
 import { of } from 'rxjs';
 import { vi } from 'vitest';
 
@@ -151,5 +153,53 @@ describe('UserEditModal permission lock reasons', () => {
       lock_version: 0,
       overrides: [{ permission: 'content.manage', state: 'ALLOW' }]
     }));
+  });
+});
+
+/**
+ * With roles owned by the company directory the server refuses a role
+ * change, so the drawer must not offer one: the control is disabled and says
+ * why. Everything else in the drawer stays editable.
+ */
+describe('UserEditModal when roles come from the company directory', () => {
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [UserEditModal],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideTranslateService({ lang: 'ka', fallbackLang: 'ka' }),
+        provideTranslateHttpLoader({ prefix: '/i18n/', suffix: '.json' })
+      ]
+    }).compileComponents();
+  });
+
+  function drawer(rolesManagedByDirectory: boolean) {
+    // UserProfileService drops its cached profile whenever nobody is signed
+    // in, so the test has to be someone before the profile can stick.
+    vi.spyOn(TestBed.inject(AuthService), 'currentUser').mockReturnValue({ email: 'admin@magti.ge', role: 'admin' });
+    vi.spyOn(TestBed.inject(UsersService), 'me').mockReturnValue(of({
+      email: 'admin@magti.ge', role: 'admin', roles_managed_by_directory: rolesManagedByDirectory
+    } as any));
+    const fixture = TestBed.createComponent(UserEditModal);
+    fixture.componentRef.setInput('user', {
+      id: 1, email: 'x@magti.ge', name: 'ტესტი', role: 'operator', department: 'All', position: '',
+      is_active: true, permissions: [], permission_overrides: [], lock_version: 0
+    } as unknown as AdminUser);
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  it('disables the role and says who manages it', () => {
+    const element = drawer(true);
+    const select = element.querySelector('#user-edit-role') as HTMLSelectElement;
+    expect(select.disabled).toBe(true);
+    expect(element.querySelector('#user-edit-role-managed')).not.toBeNull();
+  });
+
+  it('leaves the role editable when the portal still owns roles', () => {
+    const element = drawer(false);
+    expect((element.querySelector('#user-edit-role') as HTMLSelectElement).disabled).toBe(false);
+    expect(element.querySelector('#user-edit-role-managed')).toBeNull();
   });
 });

@@ -56,7 +56,10 @@
       "password_placeholder": "ნებისმიერი პაროლი",
       "submit_button": "შესვლა",
       "submit_button_loading": "შესვლა...",
-      "error_generic": "ავტორიზაცია ვერ მოხერხდა"
+      "error_generic": "ავტორიზაცია ვერ მოხერხდა",
+      "email_placeholder": "სახელი.გვარი@magticom.ge",
+      "error_missing": "შეიყვანეთ ელ. ფოსტა და პაროლი",
+      "corporate_note": "პაროლს კომპანიის სისტემა ამოწმებს. პორტალი მას არ ინახავს."
     }
   },
   "users": {
@@ -142,7 +145,8 @@
     },
     "profile": {
       "tab_profile": "პირადი კაბინეტი"
-    }
+    },
+    "role_managed_by_directory": "როლს კომპანიის სისტემა მართავს და ის აქ ვერ შეიცვლება. მიმართეთ IT-ს."
   },
   "search": {
     "history_tab": {

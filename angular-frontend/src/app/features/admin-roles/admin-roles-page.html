@@ -52,7 +52,9 @@
           <span class="text-sm text-slate-600 dark:text-slate-400">{{ 'roles.move_to' | translate }}</span>
           <select
             (change)="onTargetRoleChange($event)"
-            class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            [disabled]="rolesManagedByDirectory()"
+            [attr.aria-label]="'roles.move_to' | translate"
+            class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
           >
             @for (role of roleOrder; track role) {
               <option [value]="role" [attr.selected]="role === targetRole() ? '' : null">{{ 'users.role_' + role | translate }}</option>
@@ -61,13 +63,19 @@
           <button
             type="button"
             (click)="submitBulkReassign()"
-            [disabled]="reassigning()"
+            [disabled]="reassigning() || rolesManagedByDirectory()"
             class="rounded-lg bg-brand dark:bg-brand-700 px-4 py-2 text-sm font-semibold text-white shadow-e1 transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <i class="fa-solid fa-arrow-right-arrow-left mr-1.5" aria-hidden="true"></i>{{ 'roles.move' | translate }}
           </button>
         </div>
       </div>
+
+      @if (rolesManagedByDirectory()) {
+        <p class="border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300">
+          <i class="fa-solid fa-building-shield mr-1.5" aria-hidden="true"></i>{{ 'users.role_managed_by_directory' | translate }}
+        </p>
+      }
 
       @if (reassignError(); as msg) {
         <div class="border-b border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700 dark:border-red-800/60 dark:bg-red-950/40 dark:text-red-300">{{ msg }}</div>

@@ -16,6 +16,8 @@ export interface CurrentUserProfile {
   card_style: string | null;
   permissions: string[];
   can_view_audit_log: boolean;
+  /** Roles come from the company directory at sign-in; the admin screens show them read-only. */
+  roles_managed_by_directory: boolean;
 }
 
 /** Mirrors web.EffectiveAccessResponse -- GET /api/me/effective-access. */

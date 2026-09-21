@@ -38,12 +38,17 @@
         <select
           id="user-edit-role"
           (change)="onEditRoleChange($event)"
-          class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+          [disabled]="rolesManagedByDirectory()"
+          [attr.aria-describedby]="rolesManagedByDirectory() ? 'user-edit-role-managed' : null"
+          class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:disabled:bg-slate-900 dark:disabled:text-slate-400"
         >
           @for (role of roles; track role) {
             <option [value]="role" [attr.selected]="role === editRole() ? '' : null">{{ 'users.role_' + role | translate }}</option>
           }
         </select>
+        @if (rolesManagedByDirectory()) {
+          <p id="user-edit-role-managed" class="mt-1.5 text-xs leading-5 text-slate-600 dark:text-slate-400">{{ 'users.role_managed_by_directory' | translate }}</p>
+        }
       </div>
       <div>
         <p class="mb-1.5 text-sm font-normal text-slate-700 dark:text-slate-300">{{ 'users.field_department' | translate }}</p>

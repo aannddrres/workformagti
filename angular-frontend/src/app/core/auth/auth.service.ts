@@ -41,10 +41,6 @@ export class AuthService {
     return this.login(email, 'local-persona');
   }
 
-  startCorporateSso(): Observable<never> {
-    return this.http.post<never>('/api/auth/sso/start', {});
-  }
-
   restoreSession(): Observable<CurrentUser | null> {
     const current = this._currentUser();
     if (current) {
