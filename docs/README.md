@@ -102,7 +102,7 @@
 | [`CODE_AUDIT_2026-07-11.md`](archive/audits/CODE_AUDIT_2026-07-11.md) | 2026-07-11 | სრული აუდიტი — **Python-ის სტეკზე**, რომელიც აღარ არსებობს |
 | [`UI_VISUAL_AUDIT_2026-08-21_KA.md`](archive/audits/UI_VISUAL_AUDIT_2026-08-21_KA.md) | 2026-08-21 | ვიზუალური/UX სნეპშოტი |
 | [`UX_IMPLEMENTATION_DECISIONS_2026-08-24_KA.md`](archive/audits/UX_IMPLEMENTATION_DECISIONS_2026-08-24_KA.md) | 2026-08-24 | ერთი დღის იმპლემენტაციური გადაწყვეტილებები |
-| [`AI_CONTEXT_AUDIT_2026-09-21_KA.md`](archive/audits/AI_CONTEXT_AUDIT_2026-09-21_KA.md) | 2026-09-21 | AGENTS.md / სქილები / docs / AI-ის მეხსიერება კოდთან — 28 მიგნება; E2E 46/46. ოთხივე ცხრილის ყველა მიგნება გასწორდა — სამი დათარიღებული განკარგულება ბოლოშია; ღიაა „გადასახედი" და მეხსიერება |
+| [`AI_CONTEXT_AUDIT_2026-09-21_KA.md`](archive/audits/AI_CONTEXT_AUDIT_2026-09-21_KA.md) | 2026-09-21 | AGENTS.md / სქილები / docs / AI-ის მეხსიერება კოდთან — 28 მიგნება; E2E 46/46. ცხრილის 28-ვე მიგნება, settings.json-ის დაცვა და მეხსიერება გასწორდა — ოთხი დათარიღებული განკარგულება ბოლოშია; ღიაა მხოლოდ „გადასახედის" 2–7 |
 
 ### `archive/handoffs/` — სესიების ჩაბარებები
 

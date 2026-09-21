@@ -296,3 +296,38 @@ CI `npm ci`-ს უშვებს, აქ არსებული `node_module
 
 **ღიად რჩება:** §3 „გადასახედი" (მათ შორის `.claude/settings.json`-ის allowlist, რომელიც `down -v`-სა და
 `uat.ps1 reset -Force`-ს ნებართვის გარეშე უშვებს) და AI-ის მეხსიერება (§4) — ორივე მფლობელის გადასაწყვეტია.
+
+---
+
+## განკარგულება №4 — 2026-09-21: „გადასახედის" პირველი პუნქტი და მეხსიერება
+
+მფლობელის მოთხოვნით. ზემოთ ტექსტი უცვლელია.
+
+**§3, პუნქტი 1 — `.claude/settings.json`.** `deny`-ს დაემატა ყველაფერი, რაც დემოსა (`:8081`) და UAT-ის (`:8082`)
+ბაზას შლის: `docker compose … down -v` / `--volumes` (მათ შორის `docker-compose`), `docker volume rm` / `prune`,
+`docker system prune`, `presentation.ps1 … reset` და `uat.ps1 … reset` — Bash-სა და PowerShell-ში. `ask`-ს დაემატა
+`presentation.ps1 … test regression` (წარმატებისას დემოს volume-ს თავიდან აგებს). root `CLAUDE.md`-ის „Permissions"
+პუნქტი ამას აღწერს. **გადამოწმდა ამავე სესიაში, bypass-permissions რეჟიმში:** სამი უვნებელი ბრძანება —
+არარსებული volume-ის წაშლა, არარსებული compose-ფაილის `down --remove-orphans -v` და `echo "… uat.ps1 reset -Force"`
+— სამივე **დაიბლოკა**; ჩვეულებრივი `docker compose version` / `docker ps` კვლავ მუშაობს, ორივე სტენდი healthy-ა.
+§3-ის დანარჩენი პუნქტები (2–7) პროდუქტის გადაწყვეტილებებია და არ შეხებია.
+
+**§4 — მეხსიერება.** ჯერ მთელი საქაღალდის სარეზერვო ასლი შეიქმნა: `memory-backup-2026-09-21/` (24 ფაილი), იმავე
+`projects\C--Projects-Magti-base\` საქაღალდეში — ყოველი ცვლილება შექცევადია. შემდეგ:
+
+| რა | ჩანაწერები |
+|---|---|
+| წაიშალა — მხოლოდ წაშლილ Python-სისტემას აღწერდა | `project-phase-launch-prep`, `live-app-runs-from-main-checkout`, `tailwind-build-setup`, `mandatory-reading-nag-surfaces`, `stabilization-2026-07-13-remediation`, `banner-asset-gitignored` |
+| ჩანაცვლდა ახალი სახელით | `parallel-branches-pending-merge` → `git-branch-and-push-state` (ყველა ტოტი შერწყმულია, main push-ილია); `view-tracking-logging-overhaul-2026-07-13` → `audit-and-view-tracking-priority` (მფლობელის პრიორიტეტი + სად არის ეს Java-ში; purge არ არის) |
+| თავიდან დაიწერა მიმდინარე კოდით | `java-oracle-angular-migration-initiative` (261 KB ჟურნალი → 3 KB შეჯამება; სრული ტექსტი ასლშია), `auth-bypass-intentional-pending-ad`, `dept-group-hierarchy-in-free-text`, `kubernetes-deployment-target`, `agent-readiness-pass-2026-09-05` |
+| გასწორდა ბმულები/ბილიკები | `antigravity-edits-introduce-regressions`, `user-prefers-thorough-cleanup`, `user-technical-experience-level`, `verify-branch-before-merging`, `feedback-explain-in-concrete-repo-terms`, `feedback-fix-bugs-found-during-java-port`, `docker-desktop-stale-socket-bug`, `xsrf-token-rotates-every-request` |
+| უცვლელი | `verify-design-request-paths`, `presentation-stack-demo-traps` |
+
+შედეგი: 23 → 17 ჩანაწერი, `MEMORY.md`-ში 17 სტრიქონი, ყველა არსებულ ფაილზე; `[[…]]` ბმულებიდან არცერთი არ ეკიდება
+ცარიელში.
+
+**გულწრფელი შესწორება §4-ზე:** ცხრილში 22 ჩანაწერი იყო 23-დან — `antigravity-edits-introduce-regressions`
+გამოტოვებული იყო. მისი შეფასება: გაკვეთილი (Antigravity-ის ცვლილებები რეალურ ბრაუზერში გადაამოწმე) სწორია, ფაილების
+სახელები წაშლილი Python-ისაა — ახლა ფაილშივე წერია, რომ ისინი ისტორიაა.
+
+**ღიად რჩება:** მხოლოდ §3-ის 2–7 (პროდუქტის გადაწყვეტილებები).

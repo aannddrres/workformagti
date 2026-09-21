@@ -40,7 +40,25 @@
       "Bash(schtasks *)",
       "Read(./.env)",
       "Read(./.presentation.env)",
-      "Read(./.uat.env)"
+      "Read(./.uat.env)",
+      "Bash(docker compose *down*-v*)",
+      "Bash(docker-compose *down*-v*)",
+      "Bash(docker volume rm *)",
+      "Bash(docker volume prune*)",
+      "Bash(docker system prune*)",
+      "Bash(*presentation.ps1*reset*)",
+      "Bash(*uat.ps1*reset*)",
+      "PowerShell(docker compose *down*-v*)",
+      "PowerShell(docker-compose *down*-v*)",
+      "PowerShell(docker volume rm *)",
+      "PowerShell(docker volume prune*)",
+      "PowerShell(docker system prune*)",
+      "PowerShell(*presentation.ps1*reset*)",
+      "PowerShell(*uat.ps1*reset*)"
+    ],
+    "ask": [
+      "Bash(*presentation.ps1*test regression*)",
+      "PowerShell(*presentation.ps1*test regression*)"
     ]
   }
 }
