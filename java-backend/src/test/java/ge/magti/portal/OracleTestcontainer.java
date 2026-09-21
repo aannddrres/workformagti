@@ -46,8 +46,8 @@ import java.sql.SQLException;
  * <h2>How it reaches every test</h2>
  *
  * {@link RequiresOracle} is meta-annotated with {@code @Import} of this
- * class, so the twenty test classes that need a database get it without
- * twenty edits -- and {@link OracleTagCoverageTest} already fails the build
+ * class, so every test class that needs a database gets it without an edit
+ * of its own -- and {@link OracleTagCoverageTest} already fails the build
  * for a {@code @SpringBootTest} missing that annotation, so a new one cannot
  * be added and silently miss out.
  *

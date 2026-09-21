@@ -34,7 +34,7 @@ scripts/seed-demo-content.sh
 
 | | Port | For |
 |---|---|---|
-| `docker-compose.presentation.yml` | 8081 | The demo. Persona buttons on the login page, ~600-person org, real content |
+| `docker-compose.presentation.yml` | 8081 | The demo. A persona picker on the login page, ~600-person org, real content |
 | `docker-compose.uat.yml` | 8082 | Acceptance testing. Eleven named accounts; writes test data, so it is deliberately a separate stack |
 
 Both are driven by their PowerShell wrappers (`presentation.ps1`, `uat.ps1`)

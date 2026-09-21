@@ -1,7 +1,9 @@
 # angular-frontend — notes for coding agents
 
 Angular 22, standalone components, signals. Node 22.22.3 is pinned in
-`.nvmrc` and the CLI refuses a release one patch old, so use it. The product
+`.nvmrc` and is what CI uses; the CLI refuses anything older on the 22 line,
+and also accepts 24.15 or newer (`^22.22.3 || ^24.15.0 || >=26.0.0`), which is
+what the development machine runs. The product
 and the cross-cutting rules are in the repository root `AGENTS.md`.
 
 ## Commands
@@ -59,7 +61,7 @@ image — the worst shape of bug to find late.
 **A UI change can leave the E2E suite red for weeks without anyone seeing
 it.** The Oracle and E2E jobs run only on pull requests and `main`, so a
 branch push is green while they are broken. Two changes did exactly that and
-were found on 2026-09-08, ten and twenty-one days late: `ac5cc7e` replaced the
+were found on 2026-09-08, seven and eleven days late: `ac5cc7e` replaced the
 four login persona buttons with the cascading picker (six specs still clicked
 the old buttons) and `c541c58` made a parent category with an active child
 undeletable (one spec still asserted the orphan that delete used to leave).
@@ -79,8 +81,9 @@ view does not mean "an error just now".
 ## Never
 
 - **Never run `npm run format` inside a feature commit.** Prettier has never
-  been run over this codebase — 188 of 211 files — so it is a 188-file diff
-  that belongs in a commit of its own, on a clean tree. `format:check` exists
+  been run over this codebase — `prettier --list-different` flagged 184 of 220
+  files on 2026-09-21 — so it is a diff of nearly every file, and it belongs in
+  a commit of its own, on a clean tree. `format:check` exists
   and fails today; it is deliberately not gated in CI.
 - **Never leave `npm run lint` red.** It is gated, and its rule set is the
   recommended baseline and nothing more, chosen so it could gate from its

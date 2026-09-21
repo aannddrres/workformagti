@@ -269,3 +269,30 @@ CI `npm ci`-ს უშვებს, აქ არსებული `node_module
 **გადამოწმება:** Java-ს DB-free suite — 525 / 525; `ACCESS_CONTRACT_MATRIX_KA.md`-ის სექციები ხელახლა დაითვალა — შეუსაბამობა აღარ არის, ჯამი 150 = 150. ცვლილებები მხოლოდ ტექსტია (დოკუმენტები, სქილები, კომენტარები, ერთი PowerShell-ის შეტყობინება); პროდუქტის ქცევა არ შეცვლილა. `docker-compose.uat.yml`-ში შეიცვალა მხოლოდ კომენტარი — `docker compose config` არ გამიშვია, რადგან `.uat.env`-ს წაიკითხავდა.
 
 **ღიად რჩება:** 12 დაბალი მიგნება (№17–28), §3 „გადასახედი" და მეხსიერება (§4).
+
+---
+
+## განკარგულება №3 — 2026-09-21: დაბალი მიგნებები (№17–28) გასწორდა
+
+მფლობელის მოთხოვნით. ზემოთ ტექსტი უცვლელია. ამით §2-ის ცხრილის 28-ვე მიგნება გასწორებულია.
+
+| № | რა შეიცვალა |
+|---|---|
+| 17 | „102 ფაილი" → 112 — `AGENTS.md`, `PRODUCT_OWNER_DECISIONS_KA.md` (PO-12-ის განკარგულება) და `PROJECT_TECHNOLOGY_GUIDE_KA.md`-ის ზედა გაფრთხილება (ეს უკანასკნელი ცხრილში არ იყო, იგივე ფაქტია). ხელახლა გადამოწმდა: `a06b66a` — 112 წაშლილი, 6 შეცვლილი |
+| 18 | `java-backend/AGENTS.md`, `db-migration` — ხუთი → ექვსი shape-ტესტი, სახელებით |
+| 19 | `angular-feature` — „53 of 53" → „every component", და ერთი გამონაკლისი (`[portalDialog]` directive) დასახელებულია |
+| 20 | `angular-frontend/AGENTS.md`, `angular-feature`, `ci.yml`-ის კომენტარი — Prettier: „184 of 220, 2026-09-21" თარიღით, რომ რიცხვმა თავისი დრო თქვას |
+| 21 | `angular-frontend/AGENTS.md` — „ten and twenty-one days" → „seven and eleven" (commit-ების თარიღებით) |
+| 22 | `access-change`-ის აღწერა — „the eight coverage tests" → „the coverage tests" |
+| 23 | `README.md` — „Persona buttons" → „A persona picker" |
+| 24 | `ROLLOUT_ROLLBACK_KA.md` — ტოტის ზუსტი სახელი `origin/claude/r5-complete-r6-planning-5exzf2`; გადამოწმდა, რომ იქ მართლა არის `LeadershipRolloutGuard` და `ScopeResolver.decide()` |
+| 25 | `angular-frontend/AGENTS.md`, `angular-feature`, `run-and-verify` — Node 22.22.3 CI-ის pin-ია; CLI იღებს 24.15+-საც (`engines`), რასაც განვითარების კომპიუტერი იყენებს |
+| 26 | root `CLAUDE.md` — „one-line" → „short … whose only instruction is `@AGENTS.md`"; `DocumentedFactsTest` — სექციის სახელი „Migrations" და „short shim" |
+| 27 | `OracleTestcontainer.java`, `RequiresOracle.java` — „twenty test classes" ამოვიდა („every test class"). `EndpointPrincipalCoverageTest`-ის „112 endpoints" უკვე განკარგულება №1-ში გასწორდა |
+| 28 | `PRODUCT_OWNER_DECISIONS_KA.md` PO-22 — დღევანდელი კოდის აღწერა გასწორდა (JIT მხოლოდ სატესტო მისამართებზე, production-ში შესვლა დახურულია); გადაწყვეტილება თავად უცვლელია |
+
+**გადამოწმება:** Java-ს DB-free suite — 525 / 525; `ci.yml` YAML-ად იკითხება (6 job). ცვლილებები მხოლოდ
+ტექსტია; პროდუქტის ქცევა არ შეცვლილა.
+
+**ღიად რჩება:** §3 „გადასახედი" (მათ შორის `.claude/settings.json`-ის allowlist, რომელიც `down -v`-სა და
+`uat.ps1 reset -Force`-ს ნებართვის გარეშე უშვებს) და AI-ის მეხსიერება (§4) — ორივე მფლობელის გადასაწყვეტია.

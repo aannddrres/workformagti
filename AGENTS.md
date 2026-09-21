@@ -20,7 +20,7 @@ from here, so that neither half goes stale by being restated.
 | Tooling | Four Python seeders in `scripts/`, covered by `tests/` |
 
 The FastAPI/PostgreSQL/server-rendered implementation was deleted on
-2026-08-31 (102 files). It is in git history; nothing in the tree depends on
+2026-08-31 (112 files). It is in git history; nothing in the tree depends on
 it. Treat any document describing `main.py`, `routers/` or `pg_trgm` as
 history, not as a description of this codebase.
 

@@ -86,7 +86,7 @@ class DocumentedFactsTest {
     void theHighestAndNextMigrationAreStatedCorrectly() throws IOException {
         int highest = highestMigration();
         assertStates(ROOT_AGENTS, "`V" + highest + "`", "the Stack table");
-        assertStates(BACKEND_AGENTS, "`V" + (highest + 1) + "`", "the \"Adding a migration\" section");
+        assertStates(BACKEND_AGENTS, "`V" + (highest + 1) + "`", "the \"Migrations\" section");
     }
 
     /**
@@ -153,7 +153,7 @@ class DocumentedFactsTest {
      * on its own is therefore invisible to Claude Code and fully visible to Codex,
      * which is the worst of both — the file exists, the root document promises it
      * loads automatically, and for one of the two tools it silently does not. That
-     * was true here for a day. The one-line shim that imports the sibling keeps a
+     * was true here for a day. The short shim that imports the sibling keeps a
      * single copy of the content and satisfies both.
      *
      * <p>The repository root is exempt: its {@code CLAUDE.md} is written by hand

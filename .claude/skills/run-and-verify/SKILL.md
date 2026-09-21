@@ -19,7 +19,8 @@ scripts/run-local.sh
 ```
 
 The developer loop: Oracle in Docker, backend built and started, Angular dev
-server on `:4200`. Needs Docker, JDK 21 and Node 22.22.3. `--clean` destroys
+server on `:4200`. Needs Docker, JDK 21 and Node 22.22.3 or newer (the script
+warns on a newer one and continues; 24.15+ works). `--clean` destroys
 the database container first.
 
 Two things that look like bugs and are not. **Docker Desktop needs 6 GB or

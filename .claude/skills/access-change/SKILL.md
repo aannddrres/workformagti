@@ -1,6 +1,6 @@
 ---
 name: access-change
-description: Use when changing who may call an endpoint or see a record in the Magti Portal - adding or removing a controller endpoint, changing a require* gate, widening or narrowing a manager's or department's view, changing what a response returns about a person, or adding a permission. Covers the ACCESS_CONTRACT_MATRIX_KA.md obligation and the eight coverage tests that fail the build when source and contract disagree.
+description: Use when changing who may call an endpoint or see a record in the Magti Portal - adding or removing a controller endpoint, changing a require* gate, widening or narrowing a manager's or department's view, changing what a response returns about a person, or adding a permission. Covers the ACCESS_CONTRACT_MATRIX_KA.md obligation and the coverage tests that fail the build when source and contract disagree.
 ---
 
 # Changing who may see what

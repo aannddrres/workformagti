@@ -6,7 +6,9 @@ description: Use when adding or changing anything the user sees in the Magti Por
 # Adding or changing a screen
 
 Angular 22, standalone components, signals. Node 22.22.3 is pinned in
-`.nvmrc` and the CLI refuses a release one patch old, so use it.
+`.nvmrc` and is what CI uses; the CLI refuses anything older on the 22 line
+(22.22.2 included). It also accepts 24.15 or newer (`@angular/cli` engines:
+`^22.22.3 || ^24.15.0 || >=26.0.0`), which is what the development machine runs.
 
 ## Every visible string is translated, in both files
 
@@ -68,7 +70,9 @@ intermittent 403s. Do not "simplify" that `cd /d`.
 - `shared/` — components used by more than one feature, plus pure helpers.
 - `shell/` — the frame everything renders inside.
 
-Selectors use the `app` prefix; 53 of 53 components do, and ESLint enforces it.
+Selectors use the `app` prefix; every component does, and ESLint enforces it.
+The one exception is the `[portalDialog]` directive, which carries an
+`eslint-disable-next-line` with its reason (`shared/portal-dialog/portal-dialog.ts`).
 
 ## The loop
 
@@ -78,7 +82,8 @@ cd angular-frontend && npm run lint && npm run check:i18n && npx ng test --watch
 
 Unit tests are Vitest — no Karma, no browser, no display. `npm run lint` is
 gated in CI and is clean; keep it that way. `npm run format:check` exists but
-**fails today** (188 of 211 files predate any formatting pass) and is
+**fails today** (`prettier --list-different` flagged 184 of 220 files on
+2026-09-21 — they predate any formatting pass) and is
 deliberately not gated — do not run `npm run format` as part of a feature
 commit.
 

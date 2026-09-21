@@ -151,9 +151,10 @@ jobs:
       # eight coverage tests. The rule set is the recommended baseline and
       # nothing more, so it gates from its first commit rather than being
       # switched off on its second. Prettier is configured and has a
-      # `format:check` script, but is deliberately NOT gated here: 188 of 211
-      # files predate any formatting pass, and reformatting them belongs in
-      # its own commit rather than in whichever one happened to add the step.
+      # `format:check` script, but is deliberately NOT gated here: nearly every
+      # file predates any formatting pass (184 of 220 on 2026-09-21), and
+      # reformatting them belongs in its own commit rather than in whichever
+      # one happened to add the step.
       - name: Lint
         run: npm run lint
 

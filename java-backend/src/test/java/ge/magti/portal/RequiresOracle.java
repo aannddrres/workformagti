@@ -26,7 +26,7 @@ import java.lang.annotation.Target;
  *
  * <p>It also imports {@link OracleTestcontainer}, which starts one when the
  * machine has no other -- so a developer with only Docker can run this half
- * of the suite, without twenty test classes each having to say so. With
+ * of the suite, without every test class having to say so. With
  * {@code ORACLE_DB_URL} set (CI's oracle job, or a local instance) that
  * import contributes nothing and the existing datasource is used unchanged.
  */

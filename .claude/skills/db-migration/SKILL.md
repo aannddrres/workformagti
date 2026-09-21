@@ -64,8 +64,8 @@ offsets, not naive local times.
 
 ## Shape tests
 
-Five migrations carry a companion test asserting their shape —
-`V45MigrationShapeTest` and siblings. They exist for migrations whose structure
+Six migrations carry a companion test asserting their shape — `V36`, `V39`,
+`V40`, `V41`, `V43` and `V45MigrationShapeTest`. They exist for migrations whose structure
 something else depends on. There is **no Flyway checksum test**, so an edit to
 an already-applied migration will not be caught here; it will be caught by
 Flyway itself, at startup, in whichever environment applied it first. Never
@@ -73,7 +73,7 @@ edit an applied migration — add a new one.
 
 Write a shape test when the new table or column is load-bearing for a rule
 elsewhere in the code. Do not write one for routine additions; the existing
-five are the precedent for what "load-bearing" means here.
+six are the precedent for what "load-bearing" means here.
 
 ## Verifying
 

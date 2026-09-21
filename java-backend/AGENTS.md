@@ -44,9 +44,9 @@ to extend rather than replace.
 | `util/DepartmentVisibilityTargetsTest` | A seventh place builds `List.of(user.getDepartment(), …)` inline — it throws on a null department |
 | `web/ControllerGuardConsolidationTest` | A controller re-declares `requireAuthenticated` or `requireContentManage`, or the `requireSystemAdmin` inventory shifts |
 
-Each carries a test that guards itself against passing vacuously. Five
-`V*MigrationShapeTest` classes pin the shape of specific migrations; there is
-no Flyway **checksum** test, and no ArchUnit.
+Each carries a test that guards itself against passing vacuously. Six
+`V*MigrationShapeTest` classes (V36, V39, V40, V41, V43, V45) pin the shape of
+specific migrations; there is no Flyway **checksum** test, and no ArchUnit.
 
 ## Migrations
 

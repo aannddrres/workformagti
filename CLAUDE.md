@@ -9,7 +9,7 @@ than two copies that drift. Everything there applies here.
 Nested notes cover each half and load when you touch a file in that directory:
 `java-backend/AGENTS.md`, `angular-frontend/AGENTS.md`, `scripts/AGENTS.md`.
 
-Each sits beside a one-line `CLAUDE.md` that does nothing but `@AGENTS.md`.
+Each sits beside a short `CLAUDE.md` whose only instruction is `@AGENTS.md`.
 That shim is load-bearing, not clutter: Claude Code discovers nested
 `CLAUDE.md` and never looks for `AGENTS.md`, while Codex and Cursor do the
 opposite. Delete a shim and the notes stay perfectly visible to one tool and
