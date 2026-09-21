@@ -102,7 +102,7 @@ a container like the local one:
 | `angular-frontend/` | Angular — see `angular-frontend/AGENTS.md` |
 | `scripts/` | Seeders and entry points — see `scripts/AGENTS.md` |
 | `docs/` | Living reference plus `docs/archive/` — start at `docs/README.md` |
-| `k8s/` | Production manifests; twelve values still `<<< IT-NN >>>` |
+| `k8s/` | Production manifests; thirteen values still `<<< IT-NN >>>` |
 | `tests/` | Pytest suite for the seeders |
 
 ## One rule, one place
@@ -200,10 +200,17 @@ could easily become, several. Read the file before writing a second copy.
   reverse it.
 - `k8s/README_KA.md` — deployment, written for Magti's platform team.
 
-Corporate SSO is **not wired**: `POST /api/auth/sso/start` answers 503 on
-purpose. The protocol is known — IT confirmed on 2026-09-18 an OAuth2 token
-endpoint with an `ldap_auth` grant, the portal passing the password through
-(`docs/QUESTIONS_FOR_IT.md` №1) — but the adapter waits on №13: what the
-response carries (department, AD groups), the error mapping, the certificate,
-network access and a test account. Nobody can sign in with a real identity
-yet, so the product cannot go live regardless of code state.
+Corporate login is **wired but not yet switched on**. With
+`CORPORATE_AUTH_ENABLED=true`, `POST /api/auth/login` checks the address and
+password against the company's OAuth2 token endpoint (`ldap_auth` grant) —
+`security/CorporateAuthClient.java` for the exchange, `CorporateLoginService`
+for the account — and never keeps the tokens it gets back. Roles come from the
+directory on **every** sign-in through `OAUTH_ROLE_MAP` (owner decision,
+2026-09-21), so the admin screens show roles read-only and the API refuses a
+role change; deactivation stays the portal's and outranks a correct password.
+`POST /api/auth/sso/start` still answers 503 — no redirect flow exists or is
+planned. What blocks going live is on IT's side: the InfoPortal client's own
+credential (the one in their email belongs to another application) and the
+InfoPortal roles in their system — `docs/QUESTIONS_FOR_IT.md` №13, `k8s/`
+IT-15 and IT-16. The development personas keep their bypass outside
+production.

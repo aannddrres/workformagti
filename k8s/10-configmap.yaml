@@ -64,6 +64,29 @@ data:
   # Trusting blindly would be worse, which is why there is no default.
   TRUSTED_PROXIES: "<<< IT-06 >>>"
 
+  # ---- Company login (OAuth2, ldap_auth grant) ------------------------
+  #
+  # Names and values from IT's configuration sheet (2026-09-18), measured
+  # against the live service on 2026-09-21 -- see docs/QUESTIONS_FOR_IT.md
+  # No.13. The client secret is NOT here: it is OAUTH_SECRET in the Secret
+  # (IT-15). With CORPORATE_AUTH_ENABLED "false" the portal boots but admits
+  # nobody -- production has no local-password fallback (PO-25).
+  #
+  # The backend needs outbound 443 to oauth.magticom.ge; see NetworkPolicy
+  # in README_KA.md.
+  CORPORATE_AUTH_ENABLED: "true"
+  OAUTH_SERVICE_URI: "https://oauth.magticom.ge/auth/"
+  OAUTH_CLIENT_ID: "InfoPortal"
+  OAUTH_GRANT_TYPE: "ldap_auth"
+  OAUTH_DOMAIN: "@magticom.ge"
+  # "email" sends the address as typed (IT's sample); "login" drops the
+  # domain. Re-measure with the InfoPortal client once it is issued.
+  OAUTH_USERNAME_FORMAT: "email"
+  # Directory authority -> portal role. Roles come from the directory on
+  # every sign-in (owner decision, 2026-09-21). These are the names proposed
+  # to IT; confirm them once IT creates InfoPortal's roles (IT-16).
+  OAUTH_ROLE_MAP: "INFOPORTAL_ADMIN=admin,INFOPORTAL_CONTENT_ADMIN=content_admin,INFOPORTAL_MANAGER=manager,INFOPORTAL_OPERATOR=operator"
+
   # ---- Session lifetime ----------------------------------------------
   SESSION_IDLE_MINUTES: "30"
   SESSION_MAXIMUM_MINUTES: "480"

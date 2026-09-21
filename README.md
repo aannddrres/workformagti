@@ -76,14 +76,15 @@ against the real backend against a real Oracle.
 
 ## Deploying it
 
-`k8s/` holds the Kubernetes manifests. Twelve values are marked
+`k8s/` holds the Kubernetes manifests. Thirteen values are marked
 `<<< IT-NN >>>` and must be supplied by Magti's platform team;
 `k8s/README_KA.md` is written for them and explains each one.
 
-**It cannot go live yet.** Corporate SSO is not connected —
-`POST /api/auth/sso/start` answers 503 on purpose — so nobody can sign in
-with a real identity. That, the Oracle backup policy, and the CI/CD path into
-Magti's registry are tracked in `docs/QUESTIONS_FOR_IT.md`.
+**It cannot go live yet.** The company login is written and tested but waits
+on IT for the portal's own client credential and for its roles in their
+system — until then nobody can sign in with a real identity. That, the Oracle
+backup policy, and the CI/CD path into Magti's registry are tracked in
+`docs/QUESTIONS_FOR_IT.md`.
 
 ---
 
