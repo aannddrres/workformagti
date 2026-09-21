@@ -6,6 +6,7 @@ import ge.magti.portal.domain.User;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.AuthenticationService;
 import ge.magti.portal.security.ClientIpResolver;
+import ge.magti.portal.security.CorporateLoginService;
 import ge.magti.portal.security.JwtService;
 import ge.magti.portal.security.LoginRateLimiter;
 import ge.magti.portal.security.PortalSessionService;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -45,6 +47,7 @@ public class AuthController {
     private final ClientIpResolver clientIpResolver;
     private final UserRepository userRepository;
     private final PortalSessionService sessionService;
+    private final CorporateLoginService corporateLoginService;
 
     public AuthController(
             AuthenticationService authenticationService,
@@ -54,7 +57,8 @@ public class AuthController {
             LoginRateLimiter rateLimiter,
             ClientIpResolver clientIpResolver,
             UserRepository userRepository,
-            PortalSessionService sessionService) {
+            PortalSessionService sessionService,
+            CorporateLoginService corporateLoginService) {
         this.authenticationService = authenticationService;
         this.jwtService = jwtService;
         this.mutationAuditService = mutationAuditService;
@@ -63,15 +67,25 @@ public class AuthController {
         this.clientIpResolver = clientIpResolver;
         this.userRepository = userRepository;
         this.sessionService = sessionService;
+        this.corporateLoginService = corporateLoginService;
     }
+
+    /** PO-26: one sentence for every failed sign-in, so the answer never says which part was wrong. */
+    static final String LOGIN_FAILED_DETAIL = "ვერ მოხდა ავტორიზაცია";
+
+    private static final String LOCAL_CHANNEL = "LOCAL_DEVELOPMENT_ONLY";
+    private static final String CORPORATE_CHANNEL = "CORPORATE_OAUTH";
 
     @PostMapping("/api/auth/login")
     @Transactional
     public ResponseEntity<?> login(
             @Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
-        if (properties.isProduction()) {
+        boolean corporate = properties.getSecurity().getCorporate().isEnabled();
+        if (properties.isProduction() && !corporate) {
+            // PO-25: production has no local-password fallback. Without the
+            // company login switched on there is simply no way in.
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
-                    "detail", "production გარემოში ადგილობრივი პაროლით შესვლა გამორთულია. გამოიყენეთ კომპანიის SSO."));
+                    "detail", "კომპანიის ავტორიზაცია ჩართული არ არის. production-ში ადგილობრივი პაროლით შესვლა გამორთულია."));
         }
         // Mirrors routers/auth.py:28's @limiter.limit("10/minute") --
         // checked before any DB work, same as the Python decorator runs
@@ -84,34 +98,84 @@ public class AuthController {
                     .body(Map.of("detail", "ძალიან ბევრი მცდელობა. სცადეთ მოგვიანებით."));
         }
 
-        Optional<User> authenticated = authenticationService.authenticate(request.email(), request.password());
-
-        if (authenticated.isEmpty()) {
-            // Audit row only when the account exists (admin_id is a NOT
-            // NULL FK) -- storing unknown attempted emails would both
-            // violate the constraint and hoard enumeration data. Mirrors
-            // routers/auth.py:48-56 exactly.
-            authenticationService.findExistingAccount(request.email()).ifPresent(existing -> {
-                mutationAuditService.recordResult(
-                        existing,
-                        "LOGIN_FAILED",
-                        "user",
-                        existing.getId(),
-                        existing.getName(),
-                        "FAILURE",
-                        "AUTHENTICATION_REJECTED",
-                        null,
-                        Map.of("authenticated", false, "auth_channel", "LOCAL_DEVELOPMENT_ONLY"),
-                        clientIp,
-                        truncatedUserAgent(httpRequest));
-            });
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("detail", "არასწორი ელ. ფოსტა ან მომხმარებელი არ არსებობს"));
+        // The demo and test personas keep their password-less bypass even with
+        // the company login on -- it exists only outside production, behind
+        // ALLOW_DEV_LOGIN (see AuthenticationService.isDevLoginAccount).
+        if (corporate && !authenticationService.isDevLoginAccount(request.email())) {
+            return corporateLogin(request, clientIp, httpRequest, httpResponse);
         }
 
-        User user = authenticated.get();
+        Optional<User> authenticated = authenticationService.authenticate(request.email(), request.password());
+        if (authenticated.isEmpty()) {
+            recordFailure(request.email(), "AUTHENTICATION_REJECTED", LOCAL_CHANNEL, clientIp, httpRequest);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("detail", LOGIN_FAILED_DETAIL));
+        }
+        return completeLogin(authenticated.get(), LOCAL_CHANNEL, Map.of(), clientIp, httpRequest, httpResponse);
+    }
+
+    /**
+     * The company directory's answer, mapped to what the person sees. An
+     * unreachable directory is a 503 and writes no failed-login row: it says
+     * nothing about their password, and recording it as a failure would put
+     * an outage into every account's security history.
+     */
+    private ResponseEntity<?> corporateLogin(
+            LoginRequest request, String clientIp, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
+        CorporateLoginService.Result result = corporateLoginService.login(request.email(), request.password());
+        if (result instanceof CorporateLoginService.Unavailable) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
+                    "detail", "კომპანიის ავტორიზაციის სერვისი დროებით მიუწვდომელია. სცადეთ მოგვიანებით."));
+        }
+        if (result instanceof CorporateLoginService.Rejected rejected) {
+            recordFailure(request.email(),
+                    rejected.deactivated() ? "ACCOUNT_DEACTIVATED" : "AUTHENTICATION_REJECTED",
+                    CORPORATE_CHANNEL, clientIp, httpRequest);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("detail", LOGIN_FAILED_DETAIL));
+        }
+        CorporateLoginService.SignedIn signedIn = (CorporateLoginService.SignedIn) result;
+        Map<String, Object> directory = new LinkedHashMap<>();
+        if (signedIn.created()) {
+            directory.put("account_created", true);
+        }
+        if (signedIn.previousRole() != null) {
+            directory.put("directory_role_change",
+                    signedIn.previousRole().value() + "->" + signedIn.user().getRole().value());
+        }
+        return completeLogin(signedIn.user(), CORPORATE_CHANNEL, directory, clientIp, httpRequest, httpResponse);
+    }
+
+    /**
+     * Audit row only when the account exists (admin_id is a NOT NULL FK) --
+     * storing unknown attempted emails would both violate the constraint and
+     * hoard enumeration data. Mirrors routers/auth.py:48-56 exactly.
+     */
+    private void recordFailure(
+            String email, String reason, String channel, String clientIp, HttpServletRequest httpRequest) {
+        authenticationService.findExistingAccount(email).ifPresent(existing -> mutationAuditService.recordResult(
+                existing,
+                "LOGIN_FAILED",
+                "user",
+                existing.getId(),
+                existing.getName(),
+                "FAILURE",
+                reason,
+                null,
+                Map.of("authenticated", false, "auth_channel", channel),
+                clientIp,
+                truncatedUserAgent(httpRequest)));
+    }
+
+    private ResponseEntity<?> completeLogin(
+            User user, String channel, Map<String, Object> extraDetails,
+            String clientIp, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
         var portalSession = sessionService.create(user, clientIp, truncatedUserAgent(httpRequest));
         String accessToken = jwtService.createAccessTokenFor(user, portalSession.getId());
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("authenticated", true);
+        details.put("session_created", true);
+        details.put("auth_channel", channel);
+        details.put("role", user.getRole().value());
+        details.putAll(extraDetails);
         mutationAuditService.recordResult(
                 user,
                 "LOGIN",
@@ -121,11 +185,7 @@ public class AuthController {
                 "SUCCESS",
                 null,
                 null,
-                Map.of(
-                        "authenticated", true,
-                        "session_created", true,
-                        "auth_channel", "LOCAL_DEVELOPMENT_ONLY",
-                        "role", user.getRole().value()),
+                details,
                 clientIp,
                 truncatedUserAgent(httpRequest));
 

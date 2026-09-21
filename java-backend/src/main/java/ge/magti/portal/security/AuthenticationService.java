@@ -71,23 +71,37 @@ public class AuthenticationService {
         return userRepository.findByEmailIgnoreCase(email.toLowerCase());
     }
 
-    public Optional<User> authenticate(String email, String password) {
+    /**
+     * Whether this address signs in through the password-less development
+     * bypass rather than a real credential check.
+     *
+     * <p>SEC-01: requires BOTH a non-production environment and the explicit
+     * allow-dev-login opt-in. !isProduction() alone was satisfied by any
+     * environment that was not exactly "production" -- including a
+     * deployment whose manifest simply omitted APP_ENV.
+     *
+     * <p>The "presentation." prefix is the demo org's own accounts (the ~600
+     * seeded operators/leaders behind docker-compose.presentation.yml).
+     * Like test_operator_, it lets the login screen's persona picker sign
+     * in as any of them without shipping their bcrypt password to the
+     * browser -- and it rides the exact same two guards, so it is inert in
+     * production (isProduction()) and off unless allow-dev-login is set.
+     *
+     * <p>Public so the login endpoint can keep these personas on the bypass
+     * while every other address goes to the company directory.
+     */
+    public boolean isDevLoginAccount(String email) {
         String lowerEmail = email.toLowerCase();
-        // SEC-01: requires BOTH a non-production environment and the explicit
-        // allow-dev-login opt-in. !isProduction() alone was satisfied by any
-        // environment that was not exactly "production" -- including a
-        // deployment whose manifest simply omitted APP_ENV.
-        // The "presentation." prefix is the demo org's own accounts (the ~600
-        // seeded operators/leaders behind docker-compose.presentation.yml).
-        // Like test_operator_, it lets the login screen's persona picker sign
-        // in as any of them without shipping their bcrypt password to the
-        // browser -- and it rides the exact same two guards, so it is inert in
-        // production (isProduction()) and off unless allow-dev-login is set.
-        boolean isTestAccount = !properties.isProduction()
+        return !properties.isProduction()
                 && properties.getSecurity().isAllowDevLogin()
                 && (lowerEmail.startsWith("test_operator_")
                         || lowerEmail.startsWith("presentation.")
                         || DEV_TEST_EMAILS.contains(lowerEmail));
+    }
+
+    public Optional<User> authenticate(String email, String password) {
+        String lowerEmail = email.toLowerCase();
+        boolean isTestAccount = isDevLoginAccount(lowerEmail);
 
         User user = userRepository.findByEmailIgnoreCase(lowerEmail)
                 .orElseGet(() -> isTestAccount ? jitProvision(lowerEmail) : null);

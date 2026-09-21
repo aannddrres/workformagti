@@ -415,4 +415,74 @@ class ProductionSafetyGuardTest {
 		PortalProperties properties = propertiesWith("production", STRONG_SECRET, true);
 		assertDoesNotThrow(() -> new ProductionSafetyGuard(properties, "").verify());
 	}
+
+	// ── company login (PO-25: production has no other way in) ─────────────
+
+	private static PortalProperties productionWithCompanyLogin(String serviceUri, String credential, String roleMap) {
+		PortalProperties properties = propertiesWith("production", STRONG_SECRET, true);
+		PortalProperties.Corporate corporate = properties.getSecurity().getCorporate();
+		corporate.setEnabled(true);
+		corporate.setServiceUri(serviceUri);
+		corporate.setClientId("InfoPortal");
+		corporate.setClientCredential(credential);
+		if (roleMap != null) {
+			corporate.setRoleMap(roleMap);
+		}
+		return properties;
+	}
+
+	/**
+	 * A production portal with the company login off admits nobody. That is
+	 * legitimate while IT finishes its side, so it boots -- but says so on
+	 * every start, rather than leaving the first person at the login screen
+	 * to find out.
+	 */
+	@Test
+	void productionWithTheCompanyLoginOffBootsAndSaysNobodyCanSignIn() {
+		ch.qos.logback.classic.Logger logger =
+				((LoggerContext) LoggerFactory.getILoggerFactory()).getLogger(ProductionSafetyGuard.class);
+		ListAppender<ILoggingEvent> captured = new ListAppender<>();
+		captured.start();
+		logger.addAppender(captured);
+		try {
+			PortalProperties properties = propertiesWith("production", STRONG_SECRET, true);
+			assertDoesNotThrow(() -> guard(properties).verify());
+			assertTrue(captured.list.stream().anyMatch(event -> event.getLevel() == Level.WARN
+					&& event.getFormattedMessage().contains("nobody can sign in")));
+		} finally {
+			logger.detachAppender(captured);
+			captured.stop();
+		}
+	}
+
+	/** The employee's password travels in the request body. */
+	@Test
+	void productionCompanyLoginOverPlainHttpFails() {
+		PortalProperties properties = productionWithCompanyLogin(
+				"http://oauth.example.test/auth/", "dGVzdC1jbGllbnQ6dGVzdC1zZWNyZXQ=", null);
+		IllegalStateException ex = assertThrows(IllegalStateException.class, () -> guard(properties).verify());
+		assertTrue(ex.getMessage().contains("https://"));
+	}
+
+	@Test
+	void productionCompanyLoginWithoutARealClientCredentialFails() {
+		assertThrows(IllegalStateException.class, () -> guard(
+				productionWithCompanyLogin("https://oauth.example.test/auth/", "", null)).verify());
+		assertThrows(IllegalStateException.class, () -> guard(
+				productionWithCompanyLogin("https://oauth.example.test/auth/", "replace-me", null)).verify());
+	}
+
+	/** A typo here would demote every administrator to operator at their next sign-in. */
+	@Test
+	void productionCompanyLoginWithAnUnparseableRoleMapFails() {
+		IllegalStateException ex = assertThrows(IllegalStateException.class, () -> guard(productionWithCompanyLogin(
+				"https://oauth.example.test/auth/", "dGVzdC1jbGllbnQ6dGVzdC1zZWNyZXQ=", "INFOPORTAL_ADMIN=superuser")).verify());
+		assertTrue(ex.getMessage().contains("OAUTH_ROLE_MAP"));
+	}
+
+	@Test
+	void productionWithACompleteCompanyLoginBoots() {
+		assertDoesNotThrow(() -> guard(productionWithCompanyLogin(
+				"https://oauth.example.test/auth/", "dGVzdC1jbGllbnQ6dGVzdC1zZWNyZXQ=", null)).verify());
+	}
 }

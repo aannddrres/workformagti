@@ -169,7 +169,7 @@ class ResponseShapeContractTest {
         assertEquals(
                 List.of("id", "email", "name", "department", "position", "phone", "role", "team_id",
                         "is_active", "last_active", "read_count", "required_count", "progress_percentage",
-                        "card_style", "permissions", "can_view_audit_log"),
+                        "card_style", "permissions", "can_view_audit_log", "roles_managed_by_directory"),
                 wireFieldsOf(CurrentUserResponse.class));
         assertEquals(List.of("permission", "state"), wireFieldsOf(PermissionOverrideResponse.class));
     }
@@ -270,7 +270,7 @@ class ResponseShapeContractTest {
         admin.setPermissions(new LinkedHashSet<>(List.of("reports.export")));
 
         CurrentUserResponse response =
-                CurrentUserResponse.from(admin, false, Set.of(Permission.CONTENT_MANAGE));
+                CurrentUserResponse.from(admin, false, Set.of(Permission.CONTENT_MANAGE), false);
 
         assertEquals(List.of("content.manage"), response.permissions());
     }

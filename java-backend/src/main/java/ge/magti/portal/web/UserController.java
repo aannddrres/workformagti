@@ -4,6 +4,7 @@ import ge.magti.portal.announcement.BroadcastAuthorizationService;
 import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.compliance.ComplianceProgressQueryService;
 import ge.magti.portal.compliance.ReadingProgress;
+import ge.magti.portal.config.PortalProperties;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
@@ -71,6 +72,7 @@ public class UserController {
     private final MutationAuditService mutationAuditService;
     private final UserDirectoryQueryService userDirectoryQueryService;
     private final OrgDirectoryQueryService orgDirectoryQueryService;
+    private final PortalProperties properties;
 
     public UserController(
             UserRepository userRepository,
@@ -80,7 +82,8 @@ public class UserController {
             BroadcastAuthorizationService broadcastAuthorizationService,
             MutationAuditService mutationAuditService,
             UserDirectoryQueryService userDirectoryQueryService,
-            OrgDirectoryQueryService orgDirectoryQueryService) {
+            OrgDirectoryQueryService orgDirectoryQueryService,
+            PortalProperties properties) {
         this.userRepository = userRepository;
         this.complianceProgressQueryService = complianceProgressQueryService;
         this.passwordEncoder = passwordEncoder;
@@ -90,6 +93,21 @@ public class UserController {
         this.mutationAuditService = mutationAuditService;
         this.userDirectoryQueryService = userDirectoryQueryService;
         this.orgDirectoryQueryService = orgDirectoryQueryService;
+        this.properties = properties;
+    }
+
+    /**
+     * The owner decided on 2026-09-21 that roles come from the company
+     * directory on every sign-in. A role typed in here would therefore last
+     * only until that person's next sign-in and then silently revert -- an
+     * administrator would believe they had promoted someone who, an hour
+     * later, is an operator again. Refusing is the honest answer.
+     */
+    static final String ROLE_MANAGED_BY_DIRECTORY_DETAIL =
+            "როლს კომპანიის სისტემა მართავს და ის აქ ვერ შეიცვლება. მიმართეთ IT-ს.";
+
+    private boolean rolesManagedByDirectory() {
+        return properties.getSecurity().getCorporate().rolesManagedByDirectory();
     }
 
     /** Port of read_users_me (routers/users.py:29-50). */
@@ -105,7 +123,7 @@ public class UserController {
         // here would show the account page a set of abilities that no longer
         // matches what the caller can actually do.
         return ResponseEntity.ok(CurrentUserResponse.from(
-                user, canViewAuditLog, permissionChecker.effectivePermissions(user)));
+                user, canViewAuditLog, permissionChecker.effectivePermissions(user), rolesManagedByDirectory()));
     }
 
     /** The authenticated caller's effective capabilities for client-side access decisions. */
@@ -172,6 +190,9 @@ public class UserController {
         ResponseEntity<Map<String, String>> denial = requireSystemAdmin(admin);
         if (denial != null) {
             return denial;
+        }
+        if (rolesManagedByDirectory()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("detail", ROLE_MANAGED_BY_DIRECTORY_DETAIL));
         }
         Role newRole;
         try {
@@ -418,6 +439,12 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", "მომხმარებელი ვერ მოიძებნა"));
         }
         User user = found.get();
+        // The drawer always sends the role it shows, so only a CHANGE is
+        // refused; department, position and permission overrides stay the
+        // portal's to edit.
+        if (rolesManagedByDirectory() && role != user.getRole()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("detail", ROLE_MANAGED_BY_DIRECTORY_DETAIL));
+        }
         Map<String, Object> beforeUser = MutationAuditService.userSnapshot(user);
 
         // SEC-12: this endpoint had NEITHER guard that its two siblings

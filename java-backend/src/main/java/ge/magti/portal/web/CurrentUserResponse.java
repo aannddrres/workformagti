@@ -32,7 +32,11 @@ public record CurrentUserResponse(
         @JsonProperty("progress_percentage") Integer progressPercentage,
         @JsonProperty("card_style") String cardStyle,
         List<String> permissions,
-        @JsonProperty("can_view_audit_log") boolean canViewAuditLog
+        @JsonProperty("can_view_audit_log") boolean canViewAuditLog,
+        // True when roles come from the company directory at sign-in: the
+        // admin screens show the role read-only instead of offering an edit
+        // the server will refuse.
+        @JsonProperty("roles_managed_by_directory") boolean rolesManagedByDirectory
 ) {
     /**
      * @param effectivePermissions what the caller may actually do, as
@@ -44,7 +48,8 @@ public record CurrentUserResponse(
      *     granted.
      */
     public static CurrentUserResponse from(
-            User user, boolean canViewAuditLog, Set<Permission> effectivePermissions) {
+            User user, boolean canViewAuditLog, Set<Permission> effectivePermissions,
+            boolean rolesManagedByDirectory) {
         List<String> permissions = new ArrayList<>();
         for (Permission permission : effectivePermissions) {
             permissions.add(permission.value());
@@ -53,6 +58,6 @@ public record CurrentUserResponse(
                 user.getId(), user.getEmail(), user.getName(), user.getDepartment(), user.getPosition(),
                 user.getPhone(), user.getRole().value(), user.getTeamId(), user.isActive(), user.getLastActive(),
                 null, null, null,
-                user.getCardStyle(), permissions, canViewAuditLog);
+                user.getCardStyle(), permissions, canViewAuditLog, rolesManagedByDirectory);
     }
 }

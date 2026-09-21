@@ -107,6 +107,8 @@ public class ProductionSafetyGuard {
 							+ "because the portal uses an httpOnly authentication cookie.");
 		}
 
+		verifyCorporateLogin(properties.getSecurity().getCorporate());
+
 		long idleMinutes = properties.getSecurity().getSession().getIdleMinutes();
 		long maximumMinutes = properties.getSecurity().getSession().getMaximumMinutes();
 		if (idleMinutes <= 0 || maximumMinutes <= 0 || idleMinutes > maximumMinutes) {
@@ -116,6 +118,44 @@ public class ProductionSafetyGuard {
 		if (properties.getSecurity().getJwt().getAccessTokenExpireMinutes() > maximumMinutes) {
 			throw new IllegalStateException(
 					"JWT lifetime must not exceed the portal session maximum lifetime");
+		}
+	}
+
+	/**
+	 * Production signs people in only through the company directory (PO-25),
+	 * so a half-configured login is not a degraded mode -- it is a portal
+	 * nobody can enter, or one that sends passwords somewhere it should not.
+	 *
+	 * <p>Switched off, the portal boots and says loudly that it admits nobody:
+	 * that is a legitimate state while IT finishes its side. Switched on, every
+	 * value it needs must be real, the endpoint must be HTTPS (the password
+	 * travels in the body), and the role map must parse -- a typo there would
+	 * otherwise demote every administrator to operator at their next sign-in.
+	 */
+	private static void verifyCorporateLogin(PortalProperties.Corporate corporate) {
+		if (!corporate.isEnabled()) {
+			logger.warn("SECURITY: company login (CORPORATE_AUTH_ENABLED) is off with portal.app-env=production -- "
+					+ "there is no local-password fallback (PO-25), so nobody can sign in.");
+			return;
+		}
+		String uri = corporate.getServiceUri();
+		if (uri == null || uri.isBlank() || !uri.trim().toLowerCase(Locale.ROOT).startsWith("https://")) {
+			throw new IllegalStateException(
+					"OAUTH_SERVICE_URI must be an https:// address with CORPORATE_AUTH_ENABLED=true in production -- "
+							+ "the employee's password travels in the request body.");
+		}
+		if (corporate.getClientId() == null || corporate.getClientId().isBlank()) {
+			throw new IllegalStateException("OAUTH_CLIENT_ID is not set with CORPORATE_AUTH_ENABLED=true.");
+		}
+		String credential = corporate.getClientCredential();
+		if (credential == null || credential.isBlank() || containsPlaceholderMarker(credential)) {
+			throw new IllegalStateException(
+					"OAUTH_SECRET is not set, or is still a placeholder, with CORPORATE_AUTH_ENABLED=true.");
+		}
+		try {
+			ge.magti.portal.security.DirectoryRoleMapper.validate(corporate.getRoleMap());
+		} catch (IllegalArgumentException e) {
+			throw new IllegalStateException("OAUTH_ROLE_MAP is invalid: " + e.getMessage());
 		}
 	}
 
@@ -176,12 +216,13 @@ public class ProductionSafetyGuard {
 		int trustedProxyCount = properties.getSecurity().getTrustedProxies().size();
 		logger.info(
 				"Startup security config: app-env={}, dev-login={}, cookie-secure={}, cookie-samesite={}, "
-						+ "trusted-proxies={}",
+						+ "trusted-proxies={}, company-login={}",
 				properties.getAppEnv(),
 				properties.getSecurity().isAllowDevLogin() ? "ENABLED" : "disabled",
 				properties.getSecurity().getCookie().isSecure(),
 				properties.getSecurity().getCookie().getSameSite(),
-				trustedProxyCount == 0 ? "none (X-Forwarded-For ignored)" : trustedProxyCount + " configured");
+				trustedProxyCount == 0 ? "none (X-Forwarded-For ignored)" : trustedProxyCount + " configured",
+				properties.getSecurity().getCorporate().isEnabled() ? "ENABLED" : "disabled");
 
 		if (properties.getSecurity().isAllowDevLogin()) {
 			logger.warn(

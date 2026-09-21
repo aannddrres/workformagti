@@ -219,6 +219,12 @@ public class PortalProperties {
 		private final Cookie cookie = new Cookie();
 		@NestedConfigurationProperty
 		private final Session session = new Session();
+		@NestedConfigurationProperty
+		private final Corporate corporate = new Corporate();
+
+		public Corporate getCorporate() {
+			return corporate;
+		}
 
 		public Jwt getJwt() {
 			return jwt;
@@ -231,6 +237,83 @@ public class PortalProperties {
 		public Session getSession() {
 			return session;
 		}
+	}
+
+	/**
+	 * The company's OAuth2 token endpoint, {@code ldap_auth} grant: the portal
+	 * sends the employee's credentials and the directory answers with who
+	 * they are and which InfoPortal roles they hold.
+	 *
+	 * <p>The keys mirror the names in IT's configuration sheet
+	 * (OAUTH_SERVICE_URI, OAUTH_CLIENT_ID, OAUTH_SECRET, OAUTH_GRANT_TYPE,
+	 * OAUTH_DOMAIN) so that sheet can be copied into the environment line for
+	 * line. Measured against the live service on 2026-09-21; see
+	 * docs/QUESTIONS_FOR_IT.md No.13.
+	 *
+	 * <p><b>Off unless asked for.</b> With it off, a production deployment
+	 * lets nobody in -- there is no local-password fallback (PO-25).
+	 */
+	public static class Corporate {
+		private boolean enabled = false;
+		/** Base URI of the authorization server; the token endpoint is {@code oauth/token} under it. */
+		private String serviceUri;
+		private String clientId;
+		/**
+		 * The value IT delivers as OAUTH_SECRET: base64 of {@code client:secret},
+		 * sent as-is after {@code Basic}. A secret -- environment only, never
+		 * source control.
+		 */
+		private String clientCredential;
+		private String grantType = "ldap_auth";
+		/** The one address domain the portal accepts at sign-in, e.g. {@code @magticom.ge}. */
+		private String domain = "@magticom.ge";
+		/**
+		 * How the typed address travels as {@code username}: {@code email} as
+		 * typed (IT's sample), or {@code login} with the domain removed (what
+		 * the WebAdmin client accepted during the 2026-09-21 measurement).
+		 */
+		private String usernameFormat = "email";
+		/**
+		 * Directory authority -> portal role, comma-separated
+		 * {@code AUTHORITY=role}. The highest mapped role wins; none mapped
+		 * means operator. The defaults are the names proposed to IT.
+		 */
+		private String roleMap = "INFOPORTAL_ADMIN=admin,INFOPORTAL_CONTENT_ADMIN=content_admin,"
+				+ "INFOPORTAL_MANAGER=manager,INFOPORTAL_OPERATOR=operator";
+		/** Token claim carrying the department, when IT adds one. Never used to blank a department. */
+		private String departmentClaim = "department";
+		/** Token claim carrying the full name, when IT adds one. */
+		private String nameClaim = "full_name";
+		private int connectTimeoutSeconds = 5;
+		private int readTimeoutSeconds = 10;
+
+		public boolean isEnabled() { return enabled; }
+		public void setEnabled(boolean enabled) { this.enabled = enabled; }
+		public String getServiceUri() { return serviceUri; }
+		public void setServiceUri(String serviceUri) { this.serviceUri = serviceUri; }
+		public String getClientId() { return clientId; }
+		public void setClientId(String clientId) { this.clientId = clientId; }
+		public String getClientCredential() { return clientCredential; }
+		public void setClientCredential(String clientCredential) { this.clientCredential = clientCredential; }
+		public String getGrantType() { return grantType; }
+		public void setGrantType(String grantType) { this.grantType = grantType; }
+		public String getDomain() { return domain; }
+		public void setDomain(String domain) { this.domain = domain; }
+		public String getUsernameFormat() { return usernameFormat; }
+		public void setUsernameFormat(String usernameFormat) { this.usernameFormat = usernameFormat; }
+		public String getRoleMap() { return roleMap; }
+		public void setRoleMap(String roleMap) { this.roleMap = roleMap; }
+		public String getDepartmentClaim() { return departmentClaim; }
+		public void setDepartmentClaim(String departmentClaim) { this.departmentClaim = departmentClaim; }
+		public String getNameClaim() { return nameClaim; }
+		public void setNameClaim(String nameClaim) { this.nameClaim = nameClaim; }
+		public int getConnectTimeoutSeconds() { return connectTimeoutSeconds; }
+		public void setConnectTimeoutSeconds(int connectTimeoutSeconds) { this.connectTimeoutSeconds = connectTimeoutSeconds; }
+		public int getReadTimeoutSeconds() { return readTimeoutSeconds; }
+		public void setReadTimeoutSeconds(int readTimeoutSeconds) { this.readTimeoutSeconds = readTimeoutSeconds; }
+
+		/** Roles come from the directory on every sign-in whenever this is on (owner decision, 2026-09-21). */
+		public boolean rolesManagedByDirectory() { return enabled; }
 	}
 
 	public static class Session {

@@ -161,6 +161,21 @@ portal:
     #   TRUSTED_PROXIES=10.42.0.7          # a single nginx pod
     #   TRUSTED_PROXIES=10.42.0.0/24       # the ingress subnet, if stable
     trusted-proxies: ${TRUSTED_PROXIES:}
+    # The company's OAuth2 ldap_auth login -- see PortalProperties.Corporate.
+    # Names mirror IT's configuration sheet. OAUTH_SECRET is a secret: it is
+    # set in the environment (a gitignored .env locally, a Secret in k8s),
+    # never here. With CORPORATE_AUTH_ENABLED=false production admits nobody.
+    corporate:
+      enabled: ${CORPORATE_AUTH_ENABLED:false}
+      service-uri: ${OAUTH_SERVICE_URI:}
+      client-id: ${OAUTH_CLIENT_ID:}
+      client-credential: ${OAUTH_SECRET:}
+      grant-type: ${OAUTH_GRANT_TYPE:ldap_auth}
+      domain: ${OAUTH_DOMAIN:@magticom.ge}
+      username-format: ${OAUTH_USERNAME_FORMAT:email}
+      role-map: ${OAUTH_ROLE_MAP:INFOPORTAL_ADMIN=admin,INFOPORTAL_CONTENT_ADMIN=content_admin,INFOPORTAL_MANAGER=manager,INFOPORTAL_OPERATOR=operator}
+      department-claim: ${OAUTH_DEPARTMENT_CLAIM:department}
+      name-claim: ${OAUTH_NAME_CLAIM:full_name}
     jwt:
       # NEVER ship this default to production. ProductionSafetyGuard enforces
       # that at startup: with app-env=production it rejects a secret that is
