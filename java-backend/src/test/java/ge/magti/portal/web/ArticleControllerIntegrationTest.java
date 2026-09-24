@@ -377,14 +377,19 @@ class ArticleControllerIntegrationTest {
     }
 
     @Test
-    void adminCanSeeADraftArticleById() throws Exception {
+    void onlyTheAuthorCanSeeAPrivateDraftArticleById() throws Exception {
         User admin = createUser("aa6@magti.ge", Role.CONTENT_ADMIN, "All");
+        User otherAdmin = createUser("aa6-other@magti.ge", Role.CONTENT_ADMIN, "All");
         Category cat = createCategory("კატ-5");
         Article draft = createArticle("ადმინის დრაფტი", cat.getId(), "draft", true, List.of("All"), null);
+        draft.setAuthorId(admin.getId());
+        articleRepository.saveAndFlush(draft);
 
         mockMvc.perform(authed(get("/api/articles/" + draft.getId()), tokenFor(admin)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("ადმინის დრაფტი"));
+        mockMvc.perform(authed(get("/api/articles/" + draft.getId()), tokenFor(otherAdmin)))
+                .andExpect(status().isNotFound());
     }
 
     // ── create ────────────────────────────────────────────────────────
@@ -1702,6 +1707,120 @@ class ArticleControllerIntegrationTest {
                 .orElseThrow();
         assertEquals("read", stat.getStatus());
         assertTrue(stat.getReadAt() != null);
+    }
+
+    @Test
+    void repeatedAcknowledgementsAcrossBothRoutesKeepFirstEvidence() throws Exception {
+        User admin = createUser("ack-admin@magti.ge", Role.CONTENT_ADMIN, "All");
+        User operator = createUser("ack-operator@magti.ge", Role.OPERATOR, "All");
+        Category category = createCategory("ack-category");
+        long articleId = createArticleViaApi(tokenFor(admin), "პირველი სათაური", "შინაარსი", category.getId());
+        RequiredReading reading = new RequiredReading();
+        reading.setItemType("article");
+        reading.setItemId(articleId);
+        reading.setItemTitleSnapshot("პირველი სათაური");
+        reading.setTargetDepartment("All");
+        reading.setDueDate(TbilisiTime.now().plusDays(1));
+        reading = requiredReadingRepository.saveAndFlush(reading);
+
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/read-receipt"), tokenFor(operator)))
+                .andExpect(status().isOk());
+        ArticleReadReceipt first = articleReadReceiptRepository
+                .findByArticleIdSnapshotAndArticleVersionAndOperatorId(articleId, 1, operator.getId()).orElseThrow();
+        OffsetDateTime firstAt = first.getReadAt();
+        OffsetDateTime firstStatusAt = readStatusRepository
+                .findByUserIdAndRequiredReadingId(operator.getId(), reading.getId()).orElseThrow().getReadAt();
+        assertEquals(firstAt, firstStatusAt, "one acknowledgement must use one timestamp");
+
+        operator.setName("შეცვლილი სახელი");
+        operator.setDepartment("სხვა განყოფილება");
+        userRepository.saveAndFlush(operator);
+        Article article = articleRepository.findById(articleId).orElseThrow();
+        article.setTitle("შეცვლილი სათაური");
+        articleRepository.saveAndFlush(article);
+
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/read-receipt"), tokenFor(operator)))
+                .andExpect(status().isOk());
+        // A later mandatory acknowledgement must not rewrite the article receipt.
+        operator.setDepartment("All");
+        userRepository.saveAndFlush(operator);
+        mockMvc.perform(authed(post("/api/compliance/mark-read/" + reading.getId()), tokenFor(operator)))
+                .andExpect(status().isOk());
+
+        ArticleReadReceipt persisted = articleReadReceiptRepository
+                .findByArticleIdSnapshotAndArticleVersionAndOperatorId(articleId, 1, operator.getId()).orElseThrow();
+        ReadStatus status = readStatusRepository
+                .findByUserIdAndRequiredReadingId(operator.getId(), reading.getId()).orElseThrow();
+        assertEquals(firstAt, persisted.getReadAt());
+        assertEquals(firstStatusAt, status.getReadAt());
+        assertEquals("პირველი სათაური", persisted.getArticleTitleSnapshot());
+        assertEquals("ტესტ მომხმარებელი", persisted.getOperatorNameSnapshot());
+        assertEquals("All", persisted.getOperatorDepartmentSnapshot());
+    }
+
+    @Test
+    void complianceFirstThenArticleRetryAndNewVersionKeepSeparateEvidence() throws Exception {
+        User admin = createUser("ack2-admin@magti.ge", Role.CONTENT_ADMIN, "All");
+        User operator = createUser("ack2-operator@magti.ge", Role.OPERATOR, "All");
+        Category category = createCategory("ack2-category");
+        long articleId = createArticleViaApi(tokenFor(admin), "ვერსია ერთი", "შინაარსი", category.getId());
+        RequiredReading reading = new RequiredReading();
+        reading.setItemType("article");
+        reading.setItemId(articleId);
+        reading.setItemTitleSnapshot("ვერსია ერთი");
+        reading.setTargetDepartment("All");
+        reading.setDueDate(TbilisiTime.now().plusDays(1));
+        reading = requiredReadingRepository.saveAndFlush(reading);
+
+        mockMvc.perform(authed(post("/api/compliance/mark-read/" + reading.getId()), tokenFor(operator)))
+                .andExpect(status().isOk());
+        OffsetDateTime firstAt = readStatusRepository
+                .findByUserIdAndRequiredReadingId(operator.getId(), reading.getId()).orElseThrow().getReadAt();
+        assertEquals(firstAt, articleReadReceiptRepository
+                .findByArticleIdSnapshotAndArticleVersionAndOperatorId(articleId, 1, operator.getId())
+                .orElseThrow().getReadAt());
+
+        reading.setDueDate(TbilisiTime.now().minusMinutes(1));
+        requiredReadingRepository.saveAndFlush(reading);
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/read-receipt"), tokenFor(operator)))
+                .andExpect(status().isOk());
+        mockMvc.perform(authed(post("/api/compliance/mark-read/" + reading.getId()), tokenFor(operator)))
+                .andExpect(status().isOk());
+        assertEquals(firstAt, readStatusRepository
+                .findByUserIdAndRequiredReadingId(operator.getId(), reading.getId()).orElseThrow().getReadAt());
+        assertEquals(firstAt, articleReadReceiptRepository
+                .findByArticleIdSnapshotAndArticleVersionAndOperatorId(articleId, 1, operator.getId())
+                .orElseThrow().getReadAt());
+
+        Article article = articleRepository.findById(articleId).orElseThrow();
+        article.setVersion(2);
+        article.setTitle("ვერსია ორი");
+        articleRepository.saveAndFlush(article);
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/read-receipt"), tokenFor(operator)))
+                .andExpect(status().isOk());
+        assertEquals(firstAt, readStatusRepository
+                .findByUserIdAndRequiredReadingId(operator.getId(), reading.getId()).orElseThrow().getReadAt());
+        assertEquals(firstAt, articleReadReceiptRepository
+                .findByArticleIdSnapshotAndArticleVersionAndOperatorId(articleId, 1, operator.getId())
+                .orElseThrow().getReadAt());
+        assertEquals("ვერსია ორი", articleReadReceiptRepository
+                .findByArticleIdSnapshotAndArticleVersionAndOperatorId(articleId, 2, operator.getId())
+                .orElseThrow().getArticleTitleSnapshot());
+        assertEquals(2, articleReadReceiptRepository.findAll().stream()
+                .filter(receipt -> operator.getId().equals(receipt.getOperatorId())
+                        && Long.valueOf(articleId).equals(receipt.getArticleIdSnapshot())).count());
+
+        var retries = auditLogRepository.findAll().stream()
+                .filter(audit -> operator.getId().equals(audit.getAdminId()))
+                .filter(audit -> "ACKNOWLEDGE_ARTICLE_READ".equals(audit.getAction())
+                        || "MARK_REQUIRED_READING_READ".equals(audit.getAction()))
+                .filter(audit -> audit.getDetails().contains("ALREADY_ACKNOWLEDGED"))
+                .toList();
+        assertEquals(2, retries.size());
+        for (AuditLog retry : retries) {
+            var details = new com.fasterxml.jackson.databind.ObjectMapper().readTree(retry.getDetails());
+            assertEquals(details.get("before"), details.get("after"));
+        }
     }
 
     @Test

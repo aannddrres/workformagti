@@ -363,7 +363,8 @@ class VideoControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.is_archived").value(true));
         assertEquals(1, auditLogRepository.findAll().stream()
-                .filter(a -> "ARCHIVE".equals(a.getAction()) && video.getId().equals(a.getItemId()))
+                .filter(a -> "ARCHIVE".equals(a.getAction()) && "video".equals(a.getItemType())
+                        && video.getId().equals(a.getItemId()))
                 .count());
 
         mockMvc.perform(authed(post("/api/videos/" + video.getId() + "/unarchive"), tokenFor(admin)))

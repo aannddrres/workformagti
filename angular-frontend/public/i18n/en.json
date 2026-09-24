@@ -424,7 +424,7 @@
       "export_pdf": "PDF (readings)",
       "export_team_stats_pdf": "PDF (team stats)",
       "export_processing": "Processing…",
-      "export_failed": "Could not prepare the export.",
+      "export_failed": "Export preparation stopped. Please try again.",
       "export_error": "Export failed.",
       "export_expired": "This export has expired — please generate it again.",
       "export_timeout": "The export is taking too long. Please try again."
@@ -492,6 +492,8 @@
     "chain_error": "Chain check failed",
     "unchained_hint": "{{count}} record(s) predate the chain",
     "tamper_banner_text": "Integrity violation in the last {{checked}} records: {{mismatches}} changed, {{breaks}} broken link(s).",
+    "tail_state_mismatch": "The audit chain tip or state does not match the stored records.",
+    "tail_state_action": "Preserve the current state and contact the DBA and security team.",
     "tamper_hint": "Open a record and use \"Verify chain\" for details.",
     "col_time": "Time",
     "col_who": "Who",

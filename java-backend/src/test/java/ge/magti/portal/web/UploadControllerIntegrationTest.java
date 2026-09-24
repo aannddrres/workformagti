@@ -185,8 +185,11 @@ class UploadControllerIntegrationTest {
         byte[] tooBig = new byte[10 * 1024 * 1024 + 512 * 1024];
         MockMultipartFile file = new MockMultipartFile("file", "big.png", "image/png", tooBig);
 
+        long storedBefore = storedFileRepository.count();
         mockMvc.perform(authed(multipart("/api/upload").file(file), tokenFor(admin)))
-                .andExpect(status().isPayloadTooLarge());
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(jsonPath("$.detail").value("ფაილის ზომა აღემატება დასაშვებ 10 MiB-ს"));
+        assertEquals(storedBefore, storedFileRepository.count(), "rejected file must not create a BLOB");
     }
 
     /**

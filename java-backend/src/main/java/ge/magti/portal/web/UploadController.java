@@ -110,7 +110,7 @@ public class UploadController {
 
         if (file.getSize() > MAX_UPLOAD_SIZE_BYTES) {
             return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(Map.of(
-                    "detail", "File exceeds the maximum allowed size of " + MAX_UPLOAD_SIZE_BYTES + " bytes"));
+                    "detail", "ფაილის ზომა აღემატება დასაშვებ 10 MiB-ს"));
         }
 
         String uniqueFilename = UUID.randomUUID() + ext;

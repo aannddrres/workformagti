@@ -10,6 +10,7 @@ import ge.magti.portal.article.ArticleTargetQueryService;
 import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.content.ContentLifecycleService;
 import ge.magti.portal.content.ArticleHtmlSanitizer;
+import ge.magti.portal.compliance.ReadingAcknowledgementService;
 import ge.magti.portal.article.ArticleQueryService;
 import ge.magti.portal.article.ArticleViewQueryService;
 import ge.magti.portal.article.EligibleOperatorsService;
@@ -129,6 +130,7 @@ public class ArticleController {
     private final UserRepository userRepository;
     private final RequiredReadingRepository requiredReadingRepository;
     private final ReadStatusRepository readStatusRepository;
+    private final ReadingAcknowledgementService readingAcknowledgementService;
     private final QuizGateChecker quizGateChecker;
     private final PermissionChecker permissionChecker;
     private final ScopeResolver scopeResolver;
@@ -154,6 +156,7 @@ public class ArticleController {
             UserRepository userRepository,
             RequiredReadingRepository requiredReadingRepository,
             ReadStatusRepository readStatusRepository,
+            ReadingAcknowledgementService readingAcknowledgementService,
             QuizGateChecker quizGateChecker,
             PermissionChecker permissionChecker,
             ScopeResolver scopeResolver,
@@ -177,6 +180,7 @@ public class ArticleController {
         this.userRepository = userRepository;
         this.requiredReadingRepository = requiredReadingRepository;
         this.readStatusRepository = readStatusRepository;
+        this.readingAcknowledgementService = readingAcknowledgementService;
         this.quizGateChecker = quizGateChecker;
         this.permissionChecker = permissionChecker;
         this.scopeResolver = scopeResolver;
@@ -1311,13 +1315,6 @@ public class ArticleController {
             return quizGate;
         }
 
-        OffsetDateTime readAt = TbilisiTime.now();
-        articleReadReceiptRepository.upsert(id, article.getTitle(), article.getVersion(), user.getId(),
-                user.getName(), user.getEmail(), user.getDepartment(), readAt);
-        ArticleReadReceipt receipt = articleReadReceiptRepository
-                .findByArticleIdSnapshotAndArticleVersionAndOperatorId(id, article.getVersion(), user.getId())
-                .orElseThrow();
-
         // Compliance bridge (routers/articles.py:1207-1233): prefix-aware,
         // unlike EligibleOperatorsService's exact-match rule -- this one
         // reuses the same [dept, deptPrefix, "All"] pattern get_articles'
@@ -1327,22 +1324,7 @@ public class ArticleController {
                 requiredReadingRepository.findByItemTypeAndItemIdAndTargetDepartmentIn(
                         "article", id, DepartmentMatcher.visibilityTargets(user.getDepartment()),
                         CompleteResultGuard.sentinelPage()));
-        for (RequiredReading rr : covering) {
-            ReadStatus stat = readStatusRepository.findByUserIdAndRequiredReadingId(user.getId(), rr.getId())
-                    .orElseGet(() -> {
-                        ReadStatus fresh = new ReadStatus();
-                        fresh.setUserId(user.getId());
-                        fresh.setRequiredReadingId(rr.getId());
-                        return fresh;
-                    });
-            if ("read".equals(stat.getStatus())) {
-                continue;
-            }
-            stat.setStatus("read");
-            stat.setReadAt(TbilisiTime.now());
-            stat.setOperatorDepartmentSnapshot(user.getDepartment());
-            readStatusRepository.save(stat);
-        }
+        ArticleReadReceipt receipt = readingAcknowledgementService.acknowledgeArticle(article, user, covering);
 
         return ResponseEntity.ok(new CreateReadReceiptResponse("success", receipt.getReadAt(), receipt.getArticleVersion()));
     }

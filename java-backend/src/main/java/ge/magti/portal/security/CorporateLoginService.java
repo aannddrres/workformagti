@@ -1,5 +1,6 @@
 package ge.magti.portal.security;
 
+import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.config.PortalProperties;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
@@ -9,9 +10,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.LinkedHashSet;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -64,16 +68,22 @@ public class CorporateLoginService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final PortalProperties.Corporate settings;
+    private final TransactionTemplate transactions;
+    private final MutationAuditService audit;
 
     public CorporateLoginService(
             CorporateAuthClient client,
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
-            PortalProperties properties) {
+            PortalProperties properties,
+            PlatformTransactionManager transactionManager,
+            MutationAuditService audit) {
         this.client = client;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.settings = properties.getSecurity().getCorporate();
+        this.transactions = new TransactionTemplate(transactionManager);
+        this.audit = audit;
     }
 
     public Result login(String typedEmail, String password) {
@@ -92,12 +102,29 @@ public class CorporateLoginService {
         if (outcome instanceof CorporateAuthClient.Unavailable) {
             return new Unavailable();
         }
-        return provision(((CorporateAuthClient.Authenticated) outcome).identity());
+        // The remote password exchange is complete before the database transaction begins.
+        CorporateIdentity identity = ((CorporateAuthClient.Authenticated) outcome).identity();
+        return transactions.execute(ignored -> provision(identity));
     }
 
     private Result provision(CorporateIdentity identity) {
         DirectoryRoleMapper mapper = new DirectoryRoleMapper(settings.getRoleMap());
         Set<Role> mapped = mapper.mappedRoles(identity.authorities());
+        if (mapped.isEmpty()) {
+            User existing = userRepository.findByEmailIgnoreCase(identity.email()).orElse(null);
+            if (existing != null && existing.isActive()) {
+                long previousTokenVersion = existing.getTokenVersion();
+                if (userRepository.revokeIssuedTokens(existing.getId()) != 1) {
+                    throw new IllegalStateException("Could not revoke portal sessions after directory role loss");
+                }
+                audit.recordResult(existing, "CORPORATE_ROLE_ACCESS_REVOKED", "user", existing.getId(),
+                        existing.getName(), "SUCCESS", "NO_PORTAL_ROLE",
+                        Map.of("role", existing.getRole().value(), "token_version", previousTokenVersion),
+                        Map.of("role", existing.getRole().value(), "token_version", previousTokenVersion + 1),
+                        null, null);
+            }
+            return new Rejected(existing != null && !existing.isActive());
+        }
         if (mapped.size() > 1) {
             logger.warn("Directory grants {} more than one portal role {}; using the highest",
                     identity.email(), mapped);

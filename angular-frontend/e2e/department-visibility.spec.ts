@@ -1,6 +1,29 @@
 import { test, expect } from '@playwright/test';
 import { apiLogin, createArticle, firstCategoryId, runId, seedTokenIntoPage } from './helpers';
 
+test('video attachments enforce the same department audience on a direct URL', async ({ request }) => {
+  const admin = await apiLogin(request, 'admin@magti.ge');
+  const auth = { Authorization: `Bearer ${admin}` };
+  const upload = await request.post('/api/upload', { headers: auth, multipart: { file: {
+    name: 'video-attachment.png', mimeType: 'image/png',
+    buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 1, 2]),
+  } } });
+  expect(upload.status()).toBe(200);
+  const file = await upload.json();
+  const created = await request.post('/api/videos', { headers: auth, data: {
+    title: `E2E ვიდეოს წვდომა ${runId()}`, video_url: file.url, target_department: 'ტექნიკური',
+  } });
+  expect(created.status()).toBe(200);
+  const video = await created.json();
+  for (const [email, visible] of [['tech@magti.ge', true], ['info@magti.ge', false]] as const) {
+    const token = await apiLogin(request, email);
+    const headers = { Authorization: `Bearer ${token}` };
+    const listed = await request.get('/api/videos', { headers });
+    expect((await listed.json()).some((item: { id: number }) => item.id === video.id)).toBe(visible);
+    expect((await request.get(file.url, { headers })).status()).toBe(visible ? 200 : 404);
+  }
+});
+
 /**
  * Confirms department-scoped visibility actually holds in the UI, not just
  * at the API layer (already covered by Java integration tests): an

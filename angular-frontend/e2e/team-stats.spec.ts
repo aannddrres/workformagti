@@ -3,6 +3,9 @@ import { apiLogin, seedTokenIntoPage } from './helpers';
 
 test('manager dashboard is scoped, interactive and export-fail-closed without a primary team', async ({ page, request }) => {
   test.setTimeout(120_000);
+  // The drill-down needs a member in the manager's department. Create that
+  // persona here so this spec also works first against a fresh Oracle schema.
+  await apiLogin(request, 'tech@magti.ge');
   const token = await apiLogin(request, 'manager@magti.ge');
   const headers = { Authorization: `Bearer ${token}` };
 

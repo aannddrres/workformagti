@@ -21,6 +21,8 @@
 # the proxied locations inherit nothing and Spring stays the sole author of
 # its own headers. The static locations each say what they need.
 server {
+    # Keep the transport cap above the backend's 10 MiB file cap for multipart overhead.
+    client_max_body_size 11m;
     listen 8080;
     server_name _;
     root /usr/share/nginx/html;
@@ -141,6 +143,7 @@ server {
     # plus an explicit nosniff and a sandbox CSP on uploads,
     # UploadedFileController:92-93).
     location /api/ {
+        proxy_read_timeout 120s;
         proxy_pass http://${BACKEND_HOST}:${BACKEND_PORT}/api/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -149,6 +152,7 @@ server {
     }
 
     location /uploads/ {
+        proxy_read_timeout 120s;
         proxy_pass http://${BACKEND_HOST}:${BACKEND_PORT}/uploads/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

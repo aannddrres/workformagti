@@ -118,7 +118,7 @@ class AuditLogControllerIntegrationTest {
 
         Long adminId = userRepository.findByEmail("admin@magti.ge").orElseThrow().getId();
         Long loginRowId = auditLogRepository.findAll().stream()
-                .filter(row -> row.getAdminId().equals(adminId) && "LOGIN".equals(row.getAction()))
+                .filter(row -> adminId.equals(row.getAdminId()) && "LOGIN".equals(row.getAction()))
                 .findFirst().orElseThrow().getId();
 
         mockMvc.perform(get("/api/audit-logs/" + loginRowId + "/verify")

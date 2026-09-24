@@ -15,6 +15,37 @@ import { acceptConfirmation, apiLogin, createCategory, runId, seedTokenIntoPage 
  */
 
 test.describe('admin content: news and videos', () => {
+  test('private news attachment preview works for its author and refuses another admin', async ({ page, request }) => {
+    const authorToken = await apiLogin(request, 'content@magti.ge');
+    const headers = { Authorization: `Bearer ${authorToken}` };
+    const upload = await request.post('/api/upload', { headers, multipart: { file: {
+      name: 'private-preview.png', mimeType: 'image/png',
+      buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 1, 2]),
+    } } });
+    expect(upload.status()).toBe(200);
+    const file = await upload.json();
+    const title = `E2E პირადი დანართი ${runId()}`;
+    const created = await request.post('/api/news', { headers, data: {
+      title, content: '<p>preview fixture</p>', is_draft: true, target_department: 'All', attachment_url: file.url,
+    } });
+    expect(created.status()).toBe(200);
+    const news = await created.json();
+    await seedTokenIntoPage(page, authorToken);
+    await page.goto('/admin/content');
+    await page.getByRole('tab', { name: 'სიახლეები', exact: true }).click();
+    await page.locator('tr', { hasText: title }).getByRole('button').first().click();
+    const preview = page.locator('app-news-edit-drawer').locator(`a[href="${file.url}"]`);
+    await expect(preview).toBeVisible();
+    const downloaded = await page.request.get(file.url);
+    expect(downloaded.status()).toBe(200);
+    for (const email of ['admin@magti.ge', 'info@magti.ge']) {
+      const token = await apiLogin(request, email);
+      const other = { Authorization: `Bearer ${token}` };
+      expect((await request.get(`/api/news/${news.id}`, { headers: other })).status()).toBe(404);
+      expect((await request.get(file.url, { headers: other })).status()).toBe(404);
+    }
+  });
+
   test('news: create, edit and delete from the table', async ({ page, request }) => {
     test.setTimeout(90_000);
     const id = runId();

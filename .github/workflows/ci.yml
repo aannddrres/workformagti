@@ -32,6 +32,38 @@ concurrency:
 # Brought across from claude/r5-complete-r6-planning, which is where the
 # allowance ran out and where this was worked out.
 jobs:
+  secret-scan:
+    name: Credential hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Prepare pinned Gitleaks
+        run: |
+          curl --fail --silent --show-error --location \
+            https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz \
+            --output "$RUNNER_TEMP/gitleaks.tar.gz"
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP" gitleaks
+          echo "GITLEAKS_BIN=$RUNNER_TEMP/gitleaks" >> "$GITHUB_ENV"
+      - name: Verify scanner detection and redaction
+        run: |
+          pip install -r requirements-dev.txt
+          python -m pytest tests/test_secret_scan.py -q
+      - name: Scan permitted tracked files and incoming commits
+        env:
+          EVENT_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          base="$EVENT_BASE"
+          if [[ -z "$base" || "$base" =~ ^0+$ ]]; then
+            base="$(git merge-base HEAD origin/main)"
+          fi
+          bash scripts/scan-secrets.sh --base "$base"
+
   # What is left of Python after the legacy FastAPI stack was deleted
   # (2026-08-31): the seeders that fill the demo and UAT environments, and
   # the Phase 8 Oracle fixture seeder. This job used to run the whole legacy
@@ -121,25 +153,13 @@ jobs:
       - name: Install
         run: npm ci
 
-      # A known-vulnerable dependency that SHIPS fails the build. Runs before
-      # the build because it needs nothing built and because a vulnerable
-      # dependency is not something to discover after spending three minutes
-      # compiling it.
-      #
-      # Production dependencies only. A dev-only advisory is real but it does
-      # not reach a user, and gating a hotfix on the build toolchain's
-      # transitive test library is how a security gate gets switched off.
-      # Those are reported by the step below and by Dependabot
-      # (.github/dependabot.yml), which opens a pull request for them.
+      # Release audit requires every actionable advisory to be resolved,
+      # including moderate findings in shipped and build-time dependencies.
       - name: Vulnerable shipped dependencies
-        run: npm audit --omit=dev --audit-level=high
+        run: npm audit --omit=dev --audit-level=moderate
 
-      # Dev dependencies, reported and not enforced. They execute on this
-      # runner and on developer machines during a build, so a compromised one
-      # matters -- it just is not a reason to stop a release at 2am.
-      - name: Advisories in build tooling (report only)
-        continue-on-error: true
-        run: npm audit --audit-level=high
+      - name: Advisories in build tooling
+        run: npm audit --audit-level=moderate
 
       # Before the build, because it needs no build and a missing key is
       # cheaper to report on its own than buried under bundle output.
@@ -367,6 +387,7 @@ jobs:
           APP_ENV: development
           ALLOW_DEV_LOGIN: "true"
           COOKIE_SECURE: "false"
+          ROLLOUT_FILE_ENTITLEMENT: "true"
         run: |
           nohup java -jar target/*.jar > "$GITHUB_WORKSPACE/backend.log" 2>&1 &
           for i in $(seq 1 90); do
@@ -422,6 +443,17 @@ jobs:
           E2E_BASE_URL: http://localhost:4200
         run: npx playwright test
 
+      - name: Build shipping frontend for nginx checks
+        run: docker build --build-arg BUILD_CONFIGURATION=production -t magti-nginx-smoke:${{ github.sha }} angular-frontend
+
+      - name: Upload boundaries and timeout through shipping nginx
+        env:
+          NGINX_SMOKE_CONFIRM: isolated-synthetic-data
+          NGINX_SMOKE_IMAGE: magti-nginx-smoke:${{ github.sha }}
+          NGINX_SMOKE_BACKEND_PORT: "8080"
+          NGINX_SMOKE_RUN_FULL: "true"
+        run: bash scripts/verify-nginx-smoke.sh
+
       # Only the lines that would explain a server that FELL OVER. The full
       # dumps used to live here and were never once the answer -- every real
       # diagnosis in this suite has come from Playwright's own block -- while
@@ -470,9 +502,7 @@ jobs:
         run: |
           node -e '
             const fs = require("fs");
-            const f = "playwright-report/results.json";
-            if (!fs.existsSync(f)) { console.log("no results.json"); process.exit(0); }
-            const report = JSON.parse(fs.readFileSync(f, "utf8"));
+            const files = ["playwright-report/results.json", "playwright-report-shipping/results.json"];
             const failures = [];
             const walk = (suite, trail = []) => {
               const here = suite.title ? [...trail, suite.title] : trail;
@@ -489,7 +519,12 @@ jobs:
               }
               for (const child of suite.suites ?? []) walk(child, here);
             };
-            for (const suite of report.suites ?? []) walk(suite);
+            for (const f of files) {
+              if (!fs.existsSync(f)) continue;
+              const report = JSON.parse(fs.readFileSync(f, "utf8"));
+              const target = f.includes("shipping") ? "shipping nginx" : "Angular dev server";
+              for (const suite of report.suites ?? []) walk(suite, [target]);
+            }
 
             // Long forms first. Newlines escaped as %0A or the runner keeps
             // only the first line, which is the assertion -- while the part
@@ -524,6 +559,7 @@ jobs:
           name: playwright-report
           path: |
             angular-frontend/playwright-report/
+            angular-frontend/playwright-report-shipping/
             angular-frontend/test-results/
           retention-days: 7
           if-no-files-found: warn
@@ -584,6 +620,27 @@ jobs:
         run: trivy sbom angular-frontend/bom.json
              --exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL
 
+      # Scan the shipped runtime layers as well as the dependency SBOMs.
+      # --pkg-types os avoids scanning the same Java libraries twice; the
+      # backend SBOM step above owns that part of the gate.
+      - name: Build runtime images for scanning
+        run: |
+          docker build --pull -t magti-backend:scan java-backend
+          docker build --pull -t magti-frontend:scan angular-frontend
+          docker image inspect --format 'backend {{.Id}}' magti-backend:scan > image-digests.txt
+          docker image inspect --format 'frontend {{.Id}}' magti-frontend:scan >> image-digests.txt
+
+      - name: Scan backend runtime image
+        run: trivy image magti-backend:scan --pkg-types os --exit-code 1
+             --ignore-unfixed --severity HIGH,CRITICAL --format json
+             --output backend-image-trivy.json
+
+      - name: Scan frontend runtime image
+        if: always()
+        run: trivy image magti-frontend:scan --pkg-types os --exit-code 1
+             --ignore-unfixed --severity HIGH,CRITICAL --format json
+             --output frontend-image-trivy.json
+
       # Always upload, even if a scan above failed: the inventory is the point.
       - name: Upload SBOMs
         if: always()
@@ -593,5 +650,8 @@ jobs:
           path: |
             java-backend/target/bom.json
             angular-frontend/bom.json
+            backend-image-trivy.json
+            frontend-image-trivy.json
+            image-digests.txt
           retention-days: 90
           if-no-files-found: error

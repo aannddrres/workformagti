@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
+import java.time.OffsetDateTime;
 
 /**
  * Mirrors models.py's ExportJob (models.py:675-685, table
@@ -22,18 +23,9 @@ import jakarta.persistence.Table;
  * isn't a Tbilisi wall-clock time, it's a raw float epoch. A plain
  * {@code double} is the faithful shape.
  *
- * <p><b>Known bug #9, carried over unchanged, nothing to fix here yet:</b>
- * {@code expires_at} is written in three places (routers/exports.py:368,
- * 376, 395) but read in zero -- neither {@code get_export_status} nor
- * {@code download_export} (routers/exports.py:422-447) ever compares it
- * against the current time. A finished export file sits on disk and stays
- * downloadable forever (or until the next {@code _cleanup_export} call,
- * which only runs after an actual successful download, not on a timer).
- * This field is therefore currently a dead value on the Python side. Carried
- * over as-is since there is no service/repository logic ported yet for this
- * class to attach a real expiry check to -- flag this again when that layer
- * is written, the same way {@link VideoInstruction#getTargetDepartment()}
- * flags bug #10 for its own later repository step.
+ * <p>The Java cleanup scheduler expires only completed/failed rows. Running
+ * work uses {@code leaseUntil}; an interrupted worker is marked failed by
+ * recovery and kept visible for another hour before cleanup.
  */
 @Entity
 @Table(name = "export_jobs")
@@ -84,6 +76,12 @@ public class ExportJob {
     /** Non-null for classified exports; ADMIN_* jobs are always owner-only. */
     @Column(name = "export_family", length = 50)
     private String exportFamily;
+
+    @Column(name = "worker_instance_id", length = 36)
+    private String workerInstanceId;
+
+    @Column(name = "lease_until")
+    private OffsetDateTime leaseUntil;
 
     public String getId() {
         return id;
@@ -147,5 +145,21 @@ public class ExportJob {
 
     public void setExpiresAt(double expiresAt) {
         this.expiresAt = expiresAt;
+    }
+
+    public String getWorkerInstanceId() {
+        return workerInstanceId;
+    }
+
+    public void setWorkerInstanceId(String workerInstanceId) {
+        this.workerInstanceId = workerInstanceId;
+    }
+
+    public OffsetDateTime getLeaseUntil() {
+        return leaseUntil;
+    }
+
+    public void setLeaseUntil(OffsetDateTime leaseUntil) {
+        this.leaseUntil = leaseUntil;
     }
 }

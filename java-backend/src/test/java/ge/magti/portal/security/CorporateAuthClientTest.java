@@ -47,7 +47,8 @@ class CorporateAuthClientTest {
         corporate.setEnabled(true);
         corporate.setServiceUri("https://oauth.example.test/auth/");
         corporate.setClientId("InfoPortal");
-        corporate.setClientCredential("dGVzdC1jbGllbnQ6dGVzdC1zZWNyZXQ=");
+        corporate.setClientCredential(Base64.getEncoder().encodeToString(
+                "InfoPortal:fixture:with-colon".getBytes(StandardCharsets.UTF_8)));
         rebuild();
     }
 
@@ -76,7 +77,7 @@ class CorporateAuthClientTest {
     void sendsTheSampleRequestAsAFormPostAndReadsWhoSignedIn() {
         server.expect(requestTo(TOKEN_URI))
                 .andExpect(method(HttpMethod.POST))
-                .andExpect(header(HttpHeaders.AUTHORIZATION, "Basic dGVzdC1jbGllbnQ6dGVzdC1zZWNyZXQ="))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, "Basic " + properties.getSecurity().getCorporate().getClientCredential()))
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_FORM_URLENCODED))
                 .andExpect(content().string(
                         "grant_type=ldap_auth&username=test.user%40example.ge&password=p%40ss+w%26rd&client_id=InfoPortal"))

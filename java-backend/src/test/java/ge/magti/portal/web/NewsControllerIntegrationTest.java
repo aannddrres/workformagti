@@ -304,7 +304,7 @@ class NewsControllerIntegrationTest {
     }
 
     @Test
-    void expiredNewsIsExcludedFromListButStillFetchableDirectly() throws Exception {
+    void expiredNewsIsHiddenFromOperatorsEvenByDirectLink() throws Exception {
         User admin = createUser("news-expiry-admin@magti.ge", Role.CONTENT_ADMIN, "All");
         User operator = createUser("news-expiry-op@magti.ge", Role.OPERATOR, "All");
 
@@ -312,14 +312,14 @@ class NewsControllerIntegrationTest {
         expired.setExpiresAt(TbilisiTime.now().minusDays(1));
         newsRepository.saveAndFlush(expired);
 
-        // Excluded from the list (routers/news.py:85-90's expiry filter)...
+        // Archived content is absent from both the list and direct reader access.
         mockMvc.perform(authed(get("/api/news"), tokenFor(operator)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[*].id").value(not(hasItem(expired.getId().intValue()))));
 
-        // ...but a direct link still works: get_news_item has no expiry check
-        // at all, a deliberate asymmetry preserved faithfully from Python.
         mockMvc.perform(authed(get("/api/news/" + expired.getId()), tokenFor(operator)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(get("/api/news/" + expired.getId()), tokenFor(admin)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("ვადაგასული სიახლე"));
     }

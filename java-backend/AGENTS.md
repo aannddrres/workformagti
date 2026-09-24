@@ -39,7 +39,7 @@ to extend rather than replace.
 | `docs/DocumentedFactsTest` | A version or migration number stated in an agent-facing document no longer matches the build |
 | `docs/DocsIndexCoverageTest` | A file under `docs/` is missing from `docs/README.md`, or a link there does not resolve |
 | `article/ArticleVisibilityParityTest` | The Java visibility rule and its Angular mirror disagree on a case in `docs/api-contract/article-visibility-cases.json` |
-| `article/ArticleVisibilityDraftTest` | `ArticleVisibility` stops hiding another author's `is_draft` row from an operator, or starts hiding the author's own. Also pins the unsettled half: an administrator *can* still open a colleague's draft by id |
+| `article/ArticleVisibilityDraftTest` | `ArticleVisibility` stops hiding another author's `is_draft` row from any caller, including administrators, or starts hiding the author's own |
 | `web/ArticleRequestDraftConsistencyTest` | Create/update accepts `is_draft: true` beside a reader-visible status again |
 | `util/DepartmentVisibilityTargetsTest` | A seventh place builds `List.of(user.getDepartment(), …)` inline — it throws on a null department |
 | `web/ControllerGuardConsolidationTest` | A controller re-declares `requireAuthenticated` or `requireContentManage`, or the `requireSystemAdmin` inventory shifts |
@@ -50,7 +50,7 @@ specific migrations; there is no Flyway **checksum** test, and no ArchUnit.
 
 ## Migrations
 
-Next is `V49`. `V37` does not exist — the numbering skips it deliberately, so
+Next is `V51`. `V37` does not exist — the numbering skips it deliberately, so
 do not fill the gap. A new migration also bumps `EXPECTED_FLYWAY_VERSION` in
 `scripts/presentation/common.py`: the demo and UAT seeders demand that exact
 version, and `DocumentedFactsTest` fails if the two drift.
@@ -71,9 +71,11 @@ Boot 4 — relevant if you touch Flyway wiring.
 - **Never edit a migration that has been applied.** Add a new one. No checksum
   test catches it here; Flyway does, at startup, in whichever environment
   applied it first.
-- **Never write `IF NOT EXISTS`-style guards** in a migration. Flyway locks
-  `flyway_schema_history` before applying, so instances serialise. A guard
-  hides a half-applied migration, which is the one case you want to fail loud.
+- **Never write `IF NOT EXISTS`-style guards** in a migration. A 2026-09-24
+  concurrent start on Oracle XE 21c interleaved V1–V50 between two JVMs
+  (25 migrations each, 50 unique successful history rows). Both became ready,
+  but whole-run serialization is not a safe assumption. A guard can hide a
+  half-applied migration, which is the case that should fail visibly.
 - **Never add `@PreAuthorize`.** This module gates in handler bodies, and the
   coverage tests above assume that.
 - **Never re-declare `requireAuthenticated` or `requireContentManage` in a

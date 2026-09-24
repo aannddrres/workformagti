@@ -15,7 +15,7 @@ import ge.magti.portal.repository.NewsRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.search.SearchReindexService;
 import ge.magti.portal.security.PermissionChecker;
-import ge.magti.portal.util.DepartmentMatcher;
+import ge.magti.portal.news.NewsVisibility;
 import ge.magti.portal.storage.FileReferenceIndex;
 import ge.magti.portal.util.TbilisiTime;
 import jakarta.validation.Valid;
@@ -116,17 +116,8 @@ public class NewsController {
         }
         News news = found.get();
 
-        if (user.getRole().isContentAdmin()) {
-            if (news.isDraft() && !java.util.Objects.equals(news.getAuthorId(), user.getId())) {
-                return notFound();
-            }
-        } else {
-            if (news.isDraft()) {
-                return notFound();
-            }
-            if (!DepartmentMatcher.matches(user.getDepartment(), List.of(news.getTargetDepartment()))) {
-                return notFound();
-            }
+        if (!NewsVisibility.isVisible(news, user)) {
+            return notFound();
         }
         return ResponseEntity.ok(NewsResponse.from(news));
     }
