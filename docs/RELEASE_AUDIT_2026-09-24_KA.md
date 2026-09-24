@@ -99,3 +99,113 @@ failure ზუსტად ნული. ნებისმიერი შე�
 DevOps და DBA ასრულებენ staging-ისა და აღდგენის ოქმებს; ბიზნეს მფლობელი
 აწერს ხელს UAT-ს. ამ გარე ქმედებებისთვის რეალური credentials რეპოზიტორიაში
 არ უნდა მოხვდეს.
+
+## 2026-09-24 — იზოლირებული კანდიდატის ხელახალი აუდიტი და განკარგულება
+
+ეს დამატება ზემოთ მოცემულ ისტორიულ ანგარიშს **არ ცვლის**. ახალი საწყისი
+კანდიდატი `3af21d621ad49a6b05c2e6613898706352dd0a9a` სუფთა იყო
+`codex/release-audit-20260924` branch-ზე. აქ აღწერილი საბოლოო კოდი შეიცავს
+Tomcat-ის განახლებას და პირდაპირი ID/ფაილის state-transition ტესტს. ზუსტი
+საბოლოო commit, შეცვლილი ფაილების SHA-256 და image ID-ები ინახება
+`C:\Projects\Magti-audit-evidence-20260924-recheck\final-manifest.json`-ში.
+ყველა მონაცემი სინთეზურია; არსებული demo/UAT მონაცემები და volume-ები არ
+შეცვლილა; ახალი Oracle კონტეინერი არ შექმნილა.
+
+**ახალი ვერდიქტი: ლოკალურად მზად არ არის.** ლოკალური მიღების ოთხი აუცილებელი
+პირობაა: (1) საბოლოო კოდზე ყველა სავალდებულო gate შესრულდა; (2) 150 API
+მოქმედების წარმატება/უარი/შეცდომა assertion-ით ან დასაბუთებული N/A-ით
+დამტკიცდა; (3) შესაბამისი ASVS 5.0 მოთხოვნები ინდივიდუალურად დამტკიცდა;
+(4) ორი სუფთა, retry=0 shipping-image E2E გავიდა და მაღალი რისკის ღია
+მიგნება არ დარჩა. პირველი და E2E ნაწილი შესრულდა. მეორე და მესამე პირობა
+არ შესრულდა; A06-ის 499 მიზეზიც დაუდასტურებელია. ეს production GO არ არის.
+
+### შესრულებული ბრძანებები და არტეფაქტები
+
+ყველა ქვემოთ მოცემული შემოწმების ლოგი და exit ფაილი არის
+`C:\Projects\Magti-audit-evidence-20260924-recheck\`-ში. Oracle ბრძანებებს
+აშკარად გადაეცა მხოლოდ საკუთარი სქემის URL/user/password; მგრძნობიარე
+მნიშვნელობა აქ განზრახ არ იწერება.
+
+| ბრძანება / ცდა | შედეგი | მტკიცებულება |
+|---|---|---|
+| `scripts/verify-like-ci.sh fast` | exit 0; pytest 37 pass/3 პირობითი skip; Java 580/580; Angular 166/166; Ruff, lint, build, i18n 603 key, npm audit 0, Gitleaks 0 | `fast-final.log`, `fast-final.exit` |
+| `mvnw.cmd -B test -Dgroups=oracle` | exit 0; 466/466, 0 failure/skip, საკუთარი `MAGTI_AUD_R1_0924` | `oracle-full-final.log`, `oracle-full-final.exit` |
+| `docker build ... java-backend` და frontend image build | ორივე exit 0; საბოლოო backend `sha256:da92f54497c9bbcd882046ff3b58cdbbee635c715d3f4c0abf7904f8314c85c7`; frontend `sha256:cba7e9e8ce1bc3dc62fbd8709853d04d22e2461d4ef7538f9c274e51e878e27e` | `backend-image-build-final.log`, `frontend-image-build.log` |
+| `cyclonedx:makeAggregateBom` და Trivy backend SBOM | საწყის Tomcat 11.0.22-ზე exit 1, სამი CRITICAL ჩანაწერი; 11.0.26-ზე exit 0, HIGH/CRITICAL 0 | `backend-sbom-trivy.json`, `backend-sbom-trivy-final.json`, შესაბამისი `.log`/`.exit` |
+| frontend CycloneDX SBOM + Trivy | exit 0, HIGH/CRITICAL 0 | `frontend-bom.json`, `frontend-sbom-trivy.json`, `.log`/`.exit` |
+| Trivy final image OS scan, backend და frontend | ორივე exit 0, HIGH/CRITICAL 0 | `backend-image-trivy-final-os.json`, `frontend-image-trivy-final-os.json`, `.log`/`.exit` |
+| სრული backend image Java scan | ტექნიკურად exit 1: Trivy-ის ლოკალურ cache-ში Java DB არ იყო; იმავე საბოლოო Java დამოკიდებულებები ცალკე SBOM სკანით exit 0 შემოწმდა | `backend-image-trivy-final.log`, `backend-sbom-trivy-final.json` |
+| Playwright E3, shipping nginx/backend, 1920×1080 Chrome | exit 0, 51/51, retry 0, ახალი `MAGTI_AUD_E3_0924` | `playwright-final-E3.log`, `playwright-final-E3/results.json` |
+| Playwright E4, შეცვლილი რიგი shard 2/2 → 1/2 | exit 0, 23/23 + 28/28, retry 0, ახალი `MAGTI_AUD_E4_0924` | `playwright-final-E4-shard2.log`, `playwright-final-E4-shard1.log`, მათი `results.json` |
+| `verify-nginx-smoke.sh` საბოლოო images-ზე | exit 0, 2/2; 2/10 MiB 200, >10 MiB 413, >60s upstream გასული | `nginx-smoke-final.log`, `.exit` |
+| ორი საბოლოო backend replica, Flyway და role/API/UI probe | exit 0; 50/50 უნიკალური V1–V50, 20/30 გადანაწილება; ძველი token 401, downgrade-ზე manager API 403 და UI `/forbidden` | `replica-probe-final.json`, `role-ui-probe-final.json`, replica ლოგები |
+| ოთხკლიენტიანი ლოკალური `/api/health` smoke | E3 40/40, p95 44.64ms; E4 40/40, p95 45.75ms | `load-smoke-final-E3.json`, `load-smoke-final-E4.json` |
+
+ორი წარუმატებელი **ცალკე** ინფრასტრუქტურული ცდა შენახულია: საბოლოო replica
+UI-ის პირველი fixture სუფთა სქემაზე ჯერ არარსებულ manager ID=2-ს
+ააქტიურებდა და 404 მიიღო (`role-ui-probe-final-attempt1.log`); fixture
+მომხმარებელს თვითონ ქმნის, შემდეგ ახალ RP3 სქემაზე შესრულდა. nginx smoke-ის
+პირველ ცდაში fixture-ის კონტეინერი მხოლოდ loopback-ზე გამოქვეყნებულ backend
+პორტს ვერ მისწვდა (`nginx-smoke-final-attempt1.log`); ცალკე მეორე ცდამ
+სინთეზური backend fixture-ის ქსელისთვის გახსნა. არცერთი ჩავარდნილი ცდა
+წარმატებულ ტესტად არ დაითვალა და retry არ ჩართულა.
+
+### კონკრეტული assertion-ები და დარჩენილი სიცარიელე
+
+`FileEntitlementEnforcedIntegrationTest.java:37–86` ამოწმებს საკუთარ draft-ს,
+სხვა admin-ისა და უცხო დეპარტამენტის 404-ს **ორივე** პირდაპირ ID/ფაილის URL-ზე,
+გამოქვეყნების შემდეგ სამიზნის 200-ს და არქივის შემდეგ 404-ს; საბოლოო Oracle
+ნაკრებში კლასის 7/7 ტესტი გავიდა. `ReadingAcknowledgementConcurrencyIntegrationTest.java:112–122`
+ამოწმებს ორი ერთდროული 200 პასუხის შემდეგ ერთ receipt-სა და ერთ status-ს;
+`ReadingAcknowledgementRollbackIntegrationTest.java:89–92` audit ჩავარდნაზე
+500-ს და ნულ დარჩენილ ქვითარს. `ExportJobRecoveryIntegrationTest.java:75–97`
+ამოწმებს დაკარგული lease-ის failed სტატუსს, ერთ audit ჩანაწერს და მოქმედი
+worker-ის completed/ჩამოტვირთვად bytes-ს;
+`ExportJobRecoveryAuditRollbackIntegrationTest.java:40` აუდიტის შეცდომის
+შემდეგ processing-ის შენარჩუნებას. `AuditChainServiceTest.java:185–186`
+შემთხვევით შეცვლილ ჩანაწერზე `tampered`-სა და ერთ hash mismatch-ს ამოწმებს.
+ეს assertion-ები საბოლოო Oracle ნაკრებშია; მხოლოდ კლასის სახელი არ არის
+დაფარვის საბუთი.
+
+`security/LOCAL_ENDPOINT_CASE_REVIEW_2026-09-24.csv` ზუსტად 150 მოქმედებას
+შეიცავს: 7-ზე სამი case სვეტი assertion/N/A-ს უკავშირდება, 8 ნაწილობრივია,
+135-ზე ზუსტი case-level მტკიცებულება ამ აუდიტში არ მოიძებნა. ზოგიერთ route-ს
+შეიძლება დამატებითი დაუკავშირებელი ტესტი ჰქონდეს; სიცარიელე მტკიცებულების
+და/ან ტესტისაა და ცრუ pass-ად არ გადაკეთებულა. `security/LOCAL_ASVS_CASE_REVIEW_2026-09-24.csv`
+ინდივიდუალურად აღრიცხავს 345 მოთხოვნას: 18 N/A (GraphQL/WebSocket/WebRTC
+ზედაპირი წყაროში არ არის), 11 ნაწილობრივი, 316 gap. მაღალი რისკის პირდაპირი
+ID/ფაილის state-transition gap დაიფარა ახალი ტესტით; სხვა gap-ები ღიაა.
+
+### A06 და A07-ის განკარგულება
+
+**A06 ღიაა.** სინთეზური ერთი `POST /api/favorites` nginx-ით 200 იყო:
+კლიენტი 38.122ms, Java route metric 20.283ms, Hikari acquire aggregate
+1.022ms/4 acquisition, Oracle `V$SQL` aggregate 0.826ms/2 execution.
+`latency-probe.json` და nginx-ის ერთი access line ამას აფიქსირებს, მაგრამ
+nginx არ წერს `$request_time`/`$upstream_response_time`-ს და ფენებს საერთო
+request ID არ აქვთ. ამიტომ ეს **ერთი და იგივე მოთხოვნის** ოთხფენიანი სრული
+კორელაცია და ძველი 499-ის მიზეზის დადასტურება არ არის. მიზეზის გარეშე კოდის
+გამოცნობა და ცრუ „გამოსწორება“ არ ჩატარდა. ეს დროითი დაკვირვება Tomcat-ის
+განახლებამდე იყო; საბოლოო კოდის 2×51 E2E-ში 499 არ გამეორებულა, რაც მიზეზს
+მაინც ვერ ამტკიცებს.
+
+**A07 შიდა დახურულია (2026-09-24).** საწყისი გამეორებადი backend CycloneDX
+SBOM Trivy scan exit 1-ით აღნიშნავდა Tomcat core 11.0.22-ის
+`CVE-2026-65182`, `CVE-2026-65905`, `CVE-2026-68525` ჩანაწერებს
+CRITICAL-ად. `java-backend/pom.xml`-ში მხოლოდ `tomcat.version=11.0.26`
+დაემატა; core/el/websocket სამივე 11.0.26 გახდა. ხელახალი იგივე SBOM scan
+exit 0-ია, საბოლოო Oracle/fast/E2E გაიარა. [Apache-ის 11.0.26 advisory](https://tomcat.apache.org/security-11)
+დამატებით 11.0.25-მდე მოქმედ შეცდომებსაც ფარავს. ორიგინალი წითელი JSON
+შენახულია; სკანერის severity პროდუქტის ექსპლუატირებადობას თავისთავად არ
+ამტკიცებს.
+
+### მხოლოდ კომპანიის გარემოში დასამტკიცებელი
+
+InfoPortal client credential და როლები, ნამდვილი SSO/IAM; staging-ის
+TLS/proxy/IP და observability კორელაცია; კომპანიის Oracle/DBA execution plan;
+Linux CI-ის დამოუკიდებელი image/SBOM gate; რეალური ორი replica და worker
+failover; 600 **განსხვავებული** ანგარიშის staging დატვირთვა მონაცემის
+reconciliation-ით; backup-იდან სხვა გარემოში BLOB-ებით აღდგენა; rollback;
+გარე audit checkpoint და ოთხი როლის ბიზნეს UAT. ლოკალური 4-კლიენტიანი smoke
+ამ პირობებს არ ანაცვლებს. ხარისხის ცალკე პრიორიტეტული რჩევებია
+`security/LOCAL_QUALITY_RECOMMENDATIONS_2026-09-24_KA.md`-ში.

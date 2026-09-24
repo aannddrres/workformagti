@@ -41,6 +41,10 @@
 | [`SUPPLY_CHAIN_SBOM_KA.md`](SUPPLY_CHAIN_SBOM_KA.md) | 2026-08-31 | SBOM და მოწყვლადობის სკანირება CI-ში |
 | [`security/README_KA.md`](security/README_KA.md) | 2026-09-24 | ASVS 5.0-ის 345 მოთხოვნის სამუშაო რეესტრი და 150 endpoint-ის ტესტების კანდიდატები; სრული case-level აუდიტი ჯერ ღიაა |
 | [`security/RELEASE_COVERAGE_2026-09-24_KA.md`](security/RELEASE_COVERAGE_2026-09-24_KA.md) | 2026-09-24 | ფუნქციების/როლების/გადასვლების დაფარვა და დარჩენილი UAT სიცარიელეები |
+| [`security/LOCAL_AUDIT_EXECUTION_PLAN_2026-09-24_KA.md`](security/LOCAL_AUDIT_EXECUTION_PLAN_2026-09-24_KA.md) | 2026-09-24 | იზოლირებული კანდიდატის შესრულებადი ლოკალური ტესტირების გეგმა და მიღების საზღვარი |
+| [`security/LOCAL_ENDPOINT_CASE_REVIEW_2026-09-24.csv`](security/LOCAL_ENDPOINT_CASE_REVIEW_2026-09-24.csv) | 2026-09-24 | 150 API მოქმედების ზუსტი assertion-ებისა და ღია შემთხვევების ლოკალური რეესტრი |
+| [`security/LOCAL_ASVS_CASE_REVIEW_2026-09-24.csv`](security/LOCAL_ASVS_CASE_REVIEW_2026-09-24.csv) | 2026-09-24 | ASVS 5.0-ის 345 მოთხოვნის ინდივიდუალური ლოკალური სტატუსი, აღწერა და დარჩენილი მტკიცებულება |
+| [`security/LOCAL_QUALITY_RECOMMENDATIONS_2026-09-24_KA.md`](security/LOCAL_QUALITY_RECOMMENDATIONS_2026-09-24_KA.md) | 2026-09-24 | ახალი ფუნქციების გარეშე ხარისხის გაუმჯობესების პრიორიტეტები, მტკიცებულება, რისკი და ძალისხმევა |
 | [`SYSTEM_ADMIN_EXPORT_INVENTORY_KA.md`](SYSTEM_ADMIN_EXPORT_INVENTORY_KA.md) | 2026-08-22 | რა მონაცემი შედის SYSTEM_ADMIN-ის ექსპორტში და რა — არა |
 
 ## გეგმები

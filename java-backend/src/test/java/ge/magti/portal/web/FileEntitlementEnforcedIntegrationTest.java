@@ -3,6 +3,7 @@ package ge.magti.portal.web;
 import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.Role;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.MediaType;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -10,11 +11,13 @@ import org.springframework.transaction.annotation.Transactional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The same scenario once {@code ROLLOUT_FILE_ENTITLEMENT} is on -- UAT finding
@@ -29,6 +32,59 @@ import java.util.List;
 @AutoConfigureMockMvc
 @Transactional
 class FileEntitlementEnforcedIntegrationTest extends FileEntitlementScenarioSupport {
+
+    @Test
+    void draftPublicationAndArchiveChangeArticleAndDirectFileAccessTogether() throws Exception {
+        long marker = System.nanoTime();
+        String target = "publication-target-" + marker;
+        var author = createUser("publication-author-" + marker + "@magti.ge", Role.CONTENT_ADMIN, "All");
+        var otherAdmin = createUser("publication-admin-" + marker + "@magti.ge", Role.CONTENT_ADMIN, "All");
+        var reader = createUser("publication-reader-" + marker + "@magti.ge", Role.OPERATOR, target);
+        var outsider = createUser("publication-outsider-" + marker + "@magti.ge", Role.OPERATOR, "outside-" + marker);
+        String authorToken = tokenFor(author);
+        String file = upload(authorToken);
+        Long id = createArticle(authorToken, marker, List.of(target), file, true);
+        String articleUrl = "/api/articles/" + id;
+        String fileUrl = "/uploads/" + file;
+
+        for (var denied : List.of(otherAdmin, reader, outsider)) {
+            String token = tokenFor(denied);
+            mockMvc.perform(get(articleUrl).header("Authorization", "Bearer " + token))
+                    .andExpect(status().isNotFound());
+            mockMvc.perform(get(fileUrl).header("Authorization", "Bearer " + token))
+                    .andExpect(status().isNotFound());
+        }
+        String draftBody = mockMvc.perform(get(articleUrl).header("Authorization", "Bearer " + authorToken))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        long categoryId = objectMapper.readTree(draftBody).path("category_id").asLong();
+        mockMvc.perform(put(articleUrl).header("Authorization", "Bearer " + authorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(Map.of(
+                                "title", "გამოქვეყნების ტესტი " + marker,
+                                "content", "<p><img src=\"" + fileUrl + "\"></p>",
+                                "category_id", categoryId,
+                                "target_departments", List.of(target),
+                                "status", "published",
+                                "is_draft", false))))
+                .andExpect(status().isOk());
+
+        String readerToken = tokenFor(reader);
+        mockMvc.perform(get(articleUrl).header("Authorization", "Bearer " + readerToken))
+                .andExpect(status().isOk());
+        mockMvc.perform(get(fileUrl).header("Authorization", "Bearer " + readerToken))
+                .andExpect(status().isOk());
+        mockMvc.perform(get(articleUrl).header("Authorization", "Bearer " + tokenFor(outsider)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get(fileUrl).header("Authorization", "Bearer " + tokenFor(outsider)))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(post(articleUrl + "/archive").header("Authorization", "Bearer " + authorToken))
+                .andExpect(status().isOk());
+        mockMvc.perform(get(articleUrl).header("Authorization", "Bearer " + readerToken))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get(fileUrl).header("Authorization", "Bearer " + readerToken))
+                .andExpect(status().isNotFound());
+    }
 
     @Test
     void privateArticleAttachmentIsReadableOnlyByItsAuthor() throws Exception {

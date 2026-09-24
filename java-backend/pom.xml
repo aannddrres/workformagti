@@ -28,6 +28,10 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
+		<!-- 11.0.22 from Spring Boot 4.1.0 is affected by the Tomcat
+			 advisories published through 2026-09-23; keep all embedded Tomcat
+			 modules on the same fixed release. -->
+		<tomcat.version>11.0.26</tomcat.version>
 		<!-- Pinned explicitly rather than relying on JDK 21's JEP 400 UTF-8
 			 default or Maven's own default: source files here contain literal
 			 Georgian text (department-matching keywords/comments), and this
