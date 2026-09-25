@@ -14,12 +14,9 @@ import {
   withCategoryToken
 } from '../../shared/audit-format';
 import { formatKaDateTime } from '../../shared/ka-date';
+import { tbilisiIsoDate, tbilisiIsoDateDaysBefore } from '../../shared/tbilisi-date';
 
 const PAGE_SIZE = 50;
-
-function isoDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
 
 /**
  * Port of #admin-audit (base-layout.html:2345-2387) + its render layer
@@ -197,11 +194,9 @@ export class AdminAuditPage {
   }
 
   setDatePreset(days: number): void {
-    const end = new Date();
-    const start = new Date();
-    start.setDate(end.getDate() - days);
-    this.startDate.set(isoDate(start));
-    this.endDate.set(isoDate(end));
+    const now = new Date();
+    this.startDate.set(tbilisiIsoDateDaysBefore(now, days));
+    this.endDate.set(tbilisiIsoDate(now));
     this.reload();
   }
 
