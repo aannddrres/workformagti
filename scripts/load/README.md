@@ -39,3 +39,36 @@ saved result from approved production-like staging with representative data.
 
 `tokens.json` (gitignored) holds real JWTs — never commit it, and only run
 this against a throwaway/test instance.
+
+## Audited writes — `audited_writes.py`
+
+The k6 run above is reads only. Every audited write takes the audit chain's
+single tip row (`audit_chain_state`, locked by `trg_audit_logs_chain`, V28)
+until its transaction commits, so audited writes from the whole portal queue
+behind one another. This script measures that queue: 50 simultaneous first
+sign-ins, then 50 quiz submissions, then 50 bookmarks as the unaudited
+control, while sampling `v$session` for sessions waiting on the lock.
+
+```bash
+ORACLE_SYSTEM_PASSWORD=... python scripts/load/audited_writes.py \
+  --base-url http://localhost:8080 --users 50 --oracle-dsn localhost:1522/XEPDB1
+```
+
+Needs `APP_ENV=development` and `ALLOW_DEV_LOGIN=true` on the target. One
+address may sign in 60 times a minute, so do not run it within a minute of
+another sign-in heavy run.
+
+Result on 2026-09-25, Oracle XE 21c and the backend on one host, two runs:
+
+| Burst | p50 | p90 | max | Most sessions waiting on the audit lock |
+|---|---|---|---|---|
+| sign-in | 1239–1301 ms | 1372–1431 ms | 1463 ms | 2 |
+| quiz submission | 190–254 ms | 253–323 ms | 340 ms | 3–6 |
+| bookmark (not audited) | 103–174 ms | 139–221 ms | 232 ms | 0 |
+
+All 300 requests returned 200. The queue is real but short: at 50 at once it
+never held more than six sessions, and no submission took over 340 ms. The
+sign-in time is the first-login password hashing of 50 new accounts, not the
+lock. So the lock keeps waiting without a timeout, as V28 has it. One host
+cannot show network time to the database, which lengthens every hold, so the
+same run belongs on staging before go-live.
