@@ -2,6 +2,9 @@ package ge.magti.portal.security;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.dao.RecoverableDataAccessException;
+import org.springframework.dao.TransientDataAccessResourceException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -67,13 +70,24 @@ public class JdbcLoginAttemptStore implements LoginAttemptStore {
                     Integer.class, storedKey, Timestamp.from(now.minus(window)));
 
             return attempts != null && attempts <= maxAttempts;
+        } catch (DataAccessResourceFailureException | RecoverableDataAccessException
+                | TransientDataAccessResourceException unreachable) {
+            // The database itself is unreachable: fail CLOSED. The sign-in
+            // cannot finish without it -- the account, its session and its
+            // audit row all live there -- but a company sign-in asks the
+            // directory first, with no connection held (AuthController.login).
+            // Let through, every attempt of the outage would reach the
+            // directory unthrottled, counting toward whatever lockout it
+            // enforces, and fail only afterwards. Rethrown, the sign-in ends
+            // here as a 500, where it ended when login was one transaction
+            // (JdbcLoginAttemptStoreTest).
+            throw unreachable;
         } catch (RuntimeException e) {
-            // Fails OPEN, and that is not the hole it looks like: the login
-            // this guards reads the user from the same database, so a caller
-            // who gets past here still meets the same failure one step
-            // later. Failing closed would turn a table-level problem into
-            // "nobody in the company can sign in", which is a worse outcome
-            // than a throttle being briefly unenforced.
+            // Anything else is a problem with this table alone, and fails
+            // OPEN: everything else the sign-in needs is working, and failing
+            // closed would turn that into "nobody in the company can sign
+            // in", which is a worse outcome than a throttle being briefly
+            // unenforced.
             //
             // Logged at WARN with the key omitted -- it contains the
             // attempted email.
