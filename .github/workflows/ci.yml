@@ -567,8 +567,12 @@ jobs:
           npm ci
           npm run sbom
 
+      # Pinned by commit, not tag. Upstream deleted every tag below v0.2.6,
+      # v0.2.3 included, and from 2026-09-21 this job failed at "Set up job"
+      # ("unable to find version v0.2.3") before running a single step. A
+      # commit cannot be moved or removed the way a tag can.
       - name: Install Trivy
-        uses: aquasecurity/setup-trivy@v0.2.3
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:
           version: v0.58.1
 
