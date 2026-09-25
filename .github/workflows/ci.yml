@@ -408,23 +408,37 @@ jobs:
         working-directory: angular-frontend
         run: npx playwright install --with-deps chromium
 
-      - name: Start frontend
+      # The frontend a user gets, not the dev server: the production image
+      # built from angular-frontend/Dockerfile -- the production bundle, served
+      # by nginx with nginx.conf.template, proxying /api and /uploads to the
+      # backend on the runner. This suite ran against ng serve, whose proxy
+      # shares nothing with that file, so nginx's own defaults were never
+      # exercised: a 1MB body limit refused every larger upload in production
+      # while every run here stayed green (e2e/upload-limits.spec.ts).
+      - name: Build frontend image
         working-directory: angular-frontend
+        run: docker build -t magti-frontend:e2e .
+
+      - name: Start frontend
         run: |
-          nohup npx ng serve --port 4200 > "$GITHUB_WORKSPACE/frontend.log" 2>&1 &
-          for i in $(seq 1 120); do
-            if curl -sf http://localhost:4200 > /dev/null; then
-              echo "frontend up after ${i}s"; exit 0
+          docker run -d --name e2e-frontend -p 4200:8080 \
+            --add-host=host.docker.internal:host-gateway \
+            -e BACKEND_HOST=host.docker.internal \
+            -e BACKEND_PORT=8080 \
+            magti-frontend:e2e
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:4200/api/health > /dev/null; then
+              echo "frontend up, and proxying to the backend, after ${i}s"; exit 0
             fi
             sleep 1
           done
-          echo "frontend did not become reachable"; tail -60 "$GITHUB_WORKSPACE/frontend.log"; exit 1
+          echo "frontend did not become reachable"; docker logs --tail 40 e2e-frontend; exit 1
 
       - name: Run E2E specs
         working-directory: angular-frontend
         env:
-          # proxy.conf.json already forwards /api and /uploads to :8080, so the
-          # browser talks to the same origin a user would.
+          # nginx serves the app and forwards /api and /uploads, so the browser
+          # talks to the same origin, through the same proxy, a user would.
           E2E_BASE_URL: http://localhost:4200
         run: npx playwright test
 
@@ -438,8 +452,8 @@ jobs:
         run: |
           echo "===== backend errors ====="
           grep -E "ERROR|Exception|Caused by" backend.log | tail -8 || echo "(none)"
-          echo "===== frontend errors ====="
-          grep -iE "error|failed" frontend.log | tail -5 || echo "(none)"
+          echo "===== frontend (nginx) errors ====="
+          docker logs e2e-frontend 2>&1 | grep -E "\[(error|crit|alert|emerg)\]| 413 | 5[0-9][0-9] " | tail -5 || echo "(none)"
 
       # Which specs failed, and why.
       #
