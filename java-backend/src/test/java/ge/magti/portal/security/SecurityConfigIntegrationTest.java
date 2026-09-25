@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,10 +28,22 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * Runs on a freshly built context, not the cached one other classes share.
+ * spring-security-test's {@code csrf()} request post-processor, which
+ * AuthControllerIntegrationTest, UploadControllerIntegrationTest and
+ * DenyByDefaultIntegrationTest use, swaps the CsrfFilter's token repository
+ * for a session-backed test double -- in the filter chain itself, for the
+ * rest of that context's life. Every class after them then saw no
+ * XSRF-TOKEN cookie at all, and the two cookie tests below failed whenever
+ * one of those ran first: CI's java-integration job on main, 2026-09-21
+ * onwards. These tests are about the real repository, so they must meet it.
+ */
 @RequiresOracle
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
+@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 class SecurityConfigIntegrationTest {
 
     @Autowired private MockMvc mockMvc;
