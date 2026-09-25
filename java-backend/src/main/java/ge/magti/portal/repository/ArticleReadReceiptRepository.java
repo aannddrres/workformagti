@@ -27,36 +27,77 @@ public interface ArticleReadReceiptRepository extends JpaRepository<ArticleReadR
 
     /**
      * Port of _upsert_read_receipt's race-safety guarantee
-     * (routers/articles.py:1132-1185), but via a single atomic MERGE
-     * instead of Python's attempt-then-catch-IntegrityError-then-retry.
-     * Same reasoning as {@code ArticleHistoryRepository.archiveIfMissing}:
-     * a literal insert-then-catch translation would either poison the
-     * surrounding @Transactional method on failure, or (with
-     * REQUIRES_NEW) risk deadlocking against a caller's own uncommitted
-     * work on the same row. clearAutomatically guards the read-back
-     * query that always follows this call.
+     * (routers/articles.py:1132-1185) without Python's
+     * attempt-then-catch-IntegrityError-then-retry: a literal insert-then-catch
+     * translation would either poison the surrounding @Transactional method
+     * on failure, or (with REQUIRES_NEW) risk deadlocking against a caller's
+     * own uncommitted work on the same row.
+     *
+     * <p>This was one MERGE, documented as atomic. It is not: two MERGEs for
+     * the same (article, version, operator) both evaluate ON against committed
+     * data, both take NOT MATCHED, and the second waits on the first's
+     * uncommitted key and then fails with ORA-00001 -- a 500 on a double
+     * click (ConcurrentUpsertIntegrationTest). The insert now carries
+     * {@code IGNORE_ROW_ON_DUPKEY_INDEX}, so the waiting one skips its row
+     * instead of raising, and whichever call inserted nothing updates the
+     * committed row -- the MATCHED branch, reached without an exception.
+     * Same arguments and same effect for both callers.
      */
+    default void upsert(
+            Long articleId,
+            String articleTitleSnapshot,
+            int articleVersion,
+            Long operatorId,
+            String operatorNameSnapshot,
+            String operatorEmailSnapshot,
+            String operatorDepartmentSnapshot,
+            OffsetDateTime readAt) {
+        int inserted = insertIfMissing(articleId, articleTitleSnapshot, articleVersion, operatorId,
+                operatorNameSnapshot, operatorEmailSnapshot, operatorDepartmentSnapshot, readAt);
+        if (inserted == 0) {
+            refreshExisting(articleId, articleTitleSnapshot, articleVersion, operatorId,
+                    operatorNameSnapshot, operatorEmailSnapshot, operatorDepartmentSnapshot, readAt);
+        }
+    }
+
+    /** First half of {@link #upsert}; clearAutomatically guards the read-back query that always follows it. */
     @Modifying(clearAutomatically = true)
     @Query(value = """
-            MERGE INTO article_read_receipts t
-            USING (SELECT :articleId AS article_id, :articleVersion AS article_version, :operatorId AS operator_id FROM dual) s
-            ON (t.article_id = s.article_id AND t.article_version = s.article_version AND t.operator_id = s.operator_id)
-            WHEN MATCHED THEN UPDATE SET
-                t.read_at = :readAt,
-                t.article_title_snapshot = :articleTitleSnapshot,
-                t.operator_name_snapshot = :operatorNameSnapshot,
-                t.operator_email_snapshot = :operatorEmailSnapshot,
-                t.operator_department_snapshot = :operatorDepartmentSnapshot
-            WHEN NOT MATCHED THEN INSERT (
+            INSERT /*+ IGNORE_ROW_ON_DUPKEY_INDEX(article_read_receipts (article_id, article_version, operator_id)) */
+            INTO article_read_receipts (
                 article_id, article_id_snapshot, article_title_snapshot, article_version, operator_id,
                 operator_name_snapshot, operator_email_snapshot, operator_department_snapshot, read_at
             )
-            VALUES (
-                :articleId, :articleId, :articleTitleSnapshot, :articleVersion, :operatorId,
-                :operatorNameSnapshot, :operatorEmailSnapshot, :operatorDepartmentSnapshot, :readAt
+            SELECT :articleId, :articleId, :articleTitleSnapshot, :articleVersion, :operatorId,
+                   :operatorNameSnapshot, :operatorEmailSnapshot, :operatorDepartmentSnapshot, :readAt
+            FROM dual
+            WHERE NOT EXISTS (
+                SELECT 1 FROM article_read_receipts
+                WHERE article_id = :articleId AND article_version = :articleVersion AND operator_id = :operatorId
             )
             """, nativeQuery = true)
-    void upsert(
+    int insertIfMissing(
+            @Param("articleId") Long articleId,
+            @Param("articleTitleSnapshot") String articleTitleSnapshot,
+            @Param("articleVersion") int articleVersion,
+            @Param("operatorId") Long operatorId,
+            @Param("operatorNameSnapshot") String operatorNameSnapshot,
+            @Param("operatorEmailSnapshot") String operatorEmailSnapshot,
+            @Param("operatorDepartmentSnapshot") String operatorDepartmentSnapshot,
+            @Param("readAt") OffsetDateTime readAt);
+
+    /** Second half of {@link #upsert}: the former MERGE's WHEN MATCHED branch, unchanged. */
+    @Modifying(clearAutomatically = true)
+    @Query(value = """
+            UPDATE article_read_receipts SET
+                read_at = :readAt,
+                article_title_snapshot = :articleTitleSnapshot,
+                operator_name_snapshot = :operatorNameSnapshot,
+                operator_email_snapshot = :operatorEmailSnapshot,
+                operator_department_snapshot = :operatorDepartmentSnapshot
+            WHERE article_id = :articleId AND article_version = :articleVersion AND operator_id = :operatorId
+            """, nativeQuery = true)
+    int refreshExisting(
             @Param("articleId") Long articleId,
             @Param("articleTitleSnapshot") String articleTitleSnapshot,
             @Param("articleVersion") int articleVersion,
