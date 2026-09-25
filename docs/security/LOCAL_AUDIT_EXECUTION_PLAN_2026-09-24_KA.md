@@ -161,3 +161,15 @@ dependency/secret, სრული backend image-ის OS+Java DB Trivy, fronte
 დადასტურების შემდეგ. სხვა შემთხვევაში დარჩეს „ლოკალურად მზად არ არის“,
 ზუსტი ღია სტრიქონებით. InfoPortal, staging, backup-იდან აღდგენა და ბიზნეს
 UAT ცალკე გარე მიღების პირობებია; Production GO ამ გეგმის შედეგი არ არის.
+
+### შესრულება — 2026-09-25, პირველი ნაწილი
+
+პირველი ორი PARTIAL მოქმედების აკლებული შეცდომის შემთხვევა დაემატა
+`EndpointServiceFailureContractTest`-ში. `GET /api/export/readings`-ის query
+failure აბრუნებს უსაფრთხო 500-ს correlation ID-ით, არ აბრუნებს ფაილის სათაურს
+და არ წერს წარმატებული ექსპორტის audit-ს. `GET /api/manager/department-stats`-ის
+service failure აბრუნებს იმავე უსაფრთხო ფორმას; სერვისამდე გადადის მხოლოდ
+მენეჯერის ჯგუფის მომხმარებლის ID. ორივე test method მიზნობრივად გავიდა;
+შესაბამისი ზუსტი assertion-ები მიბმულია API რეესტრში. ამ ნაწილის შემდეგ
+რეესტრის მდგომარეობაა 19 ASSERTIONS_LINKED, 0 PARTIAL, 131 GAP. ეს პროგრესი
+არ ცვლის A06-ისა და ASVS-ის ღია მდგომარეობას ან საბოლოო უარყოფით ვერდიქტს.
