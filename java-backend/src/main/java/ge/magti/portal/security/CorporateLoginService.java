@@ -76,16 +76,13 @@ public class CorporateLoginService {
         this.settings = properties.getSecurity().getCorporate();
     }
 
+    /**
+     * The whole sign-in in one call: {@link #verify}, then {@link #provision}.
+     * AuthController calls the two halves itself, because its database
+     * transaction must start only after the directory has answered.
+     */
     public Result login(String typedEmail, String password) {
-        String email = typedEmail.trim().toLowerCase(Locale.ROOT);
-        String domain = settings.getDomain() == null ? "" : settings.getDomain().trim().toLowerCase(Locale.ROOT);
-        if (!domain.isEmpty() && !email.endsWith(domain)) {
-            // Not an address the directory can know. Refused here rather than
-            // sent on: no reason to hand an outsider's password to it at all.
-            return new Rejected(false);
-        }
-
-        CorporateAuthClient.Outcome outcome = client.authenticate(email, password);
+        CorporateAuthClient.Outcome outcome = verify(typedEmail, password);
         if (outcome instanceof CorporateAuthClient.Rejected) {
             return new Rejected(false);
         }
@@ -95,7 +92,29 @@ public class CorporateLoginService {
         return provision(((CorporateAuthClient.Authenticated) outcome).identity());
     }
 
-    private Result provision(CorporateIdentity identity) {
+    /**
+     * Asks the directory whether the address and password are right. Touches
+     * no database, so a caller outside a transaction holds no pooled
+     * connection for the directory's 5 s + 10 s timeouts.
+     */
+    public CorporateAuthClient.Outcome verify(String typedEmail, String password) {
+        String email = typedEmail.trim().toLowerCase(Locale.ROOT);
+        String domain = settings.getDomain() == null ? "" : settings.getDomain().trim().toLowerCase(Locale.ROOT);
+        if (!domain.isEmpty() && !email.endsWith(domain)) {
+            // Not an address the directory can know. Refused here rather than
+            // sent on: no reason to hand an outsider's password to it at all.
+            return new CorporateAuthClient.Rejected();
+        }
+        return client.authenticate(email, password);
+    }
+
+    /**
+     * Brings the portal account in step with what the directory said. Writes,
+     * so it belongs inside the caller's transaction -- the one that also
+     * writes the session and the LOGIN audit row, whose details record an
+     * account this created or a role it changed.
+     */
+    public Result provision(CorporateIdentity identity) {
         DirectoryRoleMapper mapper = new DirectoryRoleMapper(settings.getRoleMap());
         Set<Role> mapped = mapper.mappedRoles(identity.authorities());
         if (mapped.size() > 1) {

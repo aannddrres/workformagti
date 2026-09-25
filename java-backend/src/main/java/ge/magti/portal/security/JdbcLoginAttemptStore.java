@@ -19,14 +19,14 @@ import java.time.Instant;
  * write and a counted read to a request that was going to talk to Oracle
  * regardless. Login volume is a few per second at the very worst.
  *
- * <p><b>The count joins the caller's transaction, deliberately.</b>
- * {@code AuthController.login} is {@code @Transactional}, so a recorded
- * attempt commits with it -- including when the login fails, because a
- * rejected password is a normal return, not an exception. The one case
- * where an attempt would go uncounted is a login that throws and rolls
- * back, which is already a 500 someone is being paged about. Forcing a
- * separate transaction here would close that gap and cost a second
- * connection per attempt; the gap is not worth the connection.
+ * <p><b>No caller transaction, deliberately.</b> {@code AuthController.login}
+ * is not {@code @Transactional}, so the insert below commits on its own
+ * before the count -- which is what lets simultaneous attempts see one
+ * another, the whole point of counting first. It used to join the login's
+ * transaction, and then an attempt stayed invisible to everyone else until
+ * the sign-in finished: a burst of twelve all counted "one" and all reached
+ * the directory (ConcurrentLoginIntegrationTest). Calling this from inside a
+ * transaction brings that back.
  */
 @Component
 public class JdbcLoginAttemptStore implements LoginAttemptStore {

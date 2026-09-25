@@ -6,6 +6,8 @@ import ge.magti.portal.domain.User;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.AuthenticationService;
 import ge.magti.portal.security.ClientIpResolver;
+import ge.magti.portal.security.CorporateAuthClient;
+import ge.magti.portal.security.CorporateIdentity;
 import ge.magti.portal.security.CorporateLoginService;
 import ge.magti.portal.security.JwtService;
 import ge.magti.portal.security.LoginRateLimiter;
@@ -20,6 +22,7 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -48,6 +51,7 @@ public class AuthController {
     private final UserRepository userRepository;
     private final PortalSessionService sessionService;
     private final CorporateLoginService corporateLoginService;
+    private final TransactionTemplate transactionTemplate;
 
     public AuthController(
             AuthenticationService authenticationService,
@@ -58,7 +62,8 @@ public class AuthController {
             ClientIpResolver clientIpResolver,
             UserRepository userRepository,
             PortalSessionService sessionService,
-            CorporateLoginService corporateLoginService) {
+            CorporateLoginService corporateLoginService,
+            TransactionTemplate transactionTemplate) {
         this.authenticationService = authenticationService;
         this.jwtService = jwtService;
         this.mutationAuditService = mutationAuditService;
@@ -68,6 +73,7 @@ public class AuthController {
         this.userRepository = userRepository;
         this.sessionService = sessionService;
         this.corporateLoginService = corporateLoginService;
+        this.transactionTemplate = transactionTemplate;
     }
 
     /** PO-26: one sentence for every failed sign-in, so the answer never says which part was wrong. */
@@ -76,8 +82,20 @@ public class AuthController {
     private static final String LOCAL_CHANNEL = "LOCAL_DEVELOPMENT_ONLY";
     private static final String CORPORATE_CHANNEL = "CORPORATE_OAUTH";
 
+    /**
+     * Deliberately not {@code @Transactional}. It was, and that put two things
+     * in one database transaction that must not share one. The throttle's
+     * recorded attempt stayed invisible to simultaneous attempts until the
+     * whole sign-in committed, so a burst all counted "one" and all went
+     * through. And the directory call kept a pooled connection checked out
+     * for as long as the directory took -- up to its 5 s + 10 s timeouts,
+     * out of a pool of 30 shared with every request in the portal. Now the
+     * attempt commits on its own before the decision, the directory is asked
+     * with no connection held, and only what must be atomic -- the account,
+     * its session and its audit row -- shares a transaction
+     * (ConcurrentLoginIntegrationTest).
+     */
     @PostMapping("/api/auth/login")
-    @Transactional
     public ResponseEntity<?> login(
             @Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
         boolean corporate = properties.getSecurity().getCorporate().isEnabled();
@@ -107,10 +125,12 @@ public class AuthController {
 
         Optional<User> authenticated = authenticationService.authenticate(request.email(), request.password());
         if (authenticated.isEmpty()) {
-            recordFailure(request.email(), "AUTHENTICATION_REJECTED", LOCAL_CHANNEL, clientIp, httpRequest);
+            transactionTemplate.executeWithoutResult(status ->
+                    recordFailure(request.email(), "AUTHENTICATION_REJECTED", LOCAL_CHANNEL, clientIp, httpRequest));
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("detail", LOGIN_FAILED_DETAIL));
         }
-        return completeLogin(authenticated.get(), LOCAL_CHANNEL, Map.of(), clientIp, httpRequest, httpResponse);
+        return transactionTemplate.execute(status ->
+                completeLogin(authenticated.get(), LOCAL_CHANNEL, Map.of(), clientIp, httpRequest, httpResponse));
     }
 
     /**
@@ -121,27 +141,34 @@ public class AuthController {
      */
     private ResponseEntity<?> corporateLogin(
             LoginRequest request, String clientIp, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
-        CorporateLoginService.Result result = corporateLoginService.login(request.email(), request.password());
-        if (result instanceof CorporateLoginService.Unavailable) {
+        CorporateAuthClient.Outcome answer = corporateLoginService.verify(request.email(), request.password());
+        if (answer instanceof CorporateAuthClient.Unavailable) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
                     "detail", "კომპანიის ავტორიზაციის სერვისი დროებით მიუწვდომელია. სცადეთ მოგვიანებით."));
         }
-        if (result instanceof CorporateLoginService.Rejected rejected) {
-            recordFailure(request.email(),
-                    rejected.deactivated() ? "ACCOUNT_DEACTIVATED" : "AUTHENTICATION_REJECTED",
-                    CORPORATE_CHANNEL, clientIp, httpRequest);
+        if (answer instanceof CorporateAuthClient.Rejected) {
+            transactionTemplate.executeWithoutResult(status ->
+                    recordFailure(request.email(), "AUTHENTICATION_REJECTED", CORPORATE_CHANNEL, clientIp, httpRequest));
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("detail", LOGIN_FAILED_DETAIL));
         }
-        CorporateLoginService.SignedIn signedIn = (CorporateLoginService.SignedIn) result;
-        Map<String, Object> directory = new LinkedHashMap<>();
-        if (signedIn.created()) {
-            directory.put("account_created", true);
-        }
-        if (signedIn.previousRole() != null) {
-            directory.put("directory_role_change",
-                    signedIn.previousRole().value() + "->" + signedIn.user().getRole().value());
-        }
-        return completeLogin(signedIn.user(), CORPORATE_CHANNEL, directory, clientIp, httpRequest, httpResponse);
+        CorporateIdentity identity = ((CorporateAuthClient.Authenticated) answer).identity();
+        return transactionTemplate.execute(status -> {
+            CorporateLoginService.Result result = corporateLoginService.provision(identity);
+            if (result instanceof CorporateLoginService.Rejected) {
+                recordFailure(request.email(), "ACCOUNT_DEACTIVATED", CORPORATE_CHANNEL, clientIp, httpRequest);
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("detail", LOGIN_FAILED_DETAIL));
+            }
+            CorporateLoginService.SignedIn signedIn = (CorporateLoginService.SignedIn) result;
+            Map<String, Object> directory = new LinkedHashMap<>();
+            if (signedIn.created()) {
+                directory.put("account_created", true);
+            }
+            if (signedIn.previousRole() != null) {
+                directory.put("directory_role_change",
+                        signedIn.previousRole().value() + "->" + signedIn.user().getRole().value());
+            }
+            return completeLogin(signedIn.user(), CORPORATE_CHANNEL, directory, clientIp, httpRequest, httpResponse);
+        });
     }
 
     /**
