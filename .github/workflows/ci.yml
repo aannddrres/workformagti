@@ -579,10 +579,14 @@ jobs:
       # v0.2.3 included, and from 2026-09-21 this job failed at "Set up job"
       # ("unable to find version v0.2.3") before running a single step. A
       # commit cannot be moved or removed the way a tag can.
+      #
+      # Trivy itself moves from v0.58.1 too: its release assets are gone
+      # (every release below v0.69.3 answers 404 on 2026-09-25), so the
+      # installer found the tag and then failed to download the binary.
       - name: Install Trivy
         uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:
-          version: v0.58.1
+          version: v0.74.0
 
       # Scan each SBOM for advisories. --ignore-unfixed keeps the gate on
       # things a version bump can actually fix, so the build breaks on an
