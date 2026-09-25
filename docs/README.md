@@ -60,6 +60,7 @@
 
 | ფაილი | თარიღი | რაზეა |
 |---|---|---|
+| [`RELEASE_READINESS_LEDGER_KA.md`](RELEASE_READINESS_LEDGER_KA.md) | 2026-09-25 | **გამოშვების ლედჯერი.** სია A — ჩვენზე დამოკიდებული, სია B — სხვებზე, თითოეული მტკიცებულებით. `scripts/readiness_check.py` მტკიცებულებას ამოწმებს, სიტყვა „დახურულს“ არ ენდობა |
 | [`ENTERPRISE_READINESS_ACCEPTANCE_MATRIX_KA.md`](ENTERPRISE_READINESS_ACCEPTANCE_MATRIX_KA.md) | 2026-08-31 | WS-nn მიღების მატრიცა. ვერდიქტი: NOT READY |
 | [`uat/UAT_00_RUNBOOK_KA.md`](uat/UAT_00_RUNBOOK_KA.md) | 2026-08-31 | UAT-ის გაშვების ინსტრუქცია — **აქ იწყება** |
 | [`uat/UAT_01_OPERATOR_KA.md`](uat/UAT_01_OPERATOR_KA.md) | 2026-08-29 | ოპერატორის სცენარები + შესრულების შედეგი |
