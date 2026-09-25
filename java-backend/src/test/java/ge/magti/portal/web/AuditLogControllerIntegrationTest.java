@@ -265,6 +265,17 @@ class AuditLogControllerIntegrationTest {
     }
 
     @Test
+    void malformedAuditUserFilterIsRejectedBeforeQuery() throws Exception {
+        User admin = createUser("audit.invalidfilter-" + System.nanoTime() + "@magti.ge",
+                Role.SYSTEM_ADMIN, "All", Set.of());
+
+        mockMvc.perform(get("/api/audit-logs")
+                        .param("user_id", "not-a-number")
+                        .header("Authorization", "Bearer " + tokenFor(admin)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void actionFilterLoginAggregatesPasswordAndSsoLogins() throws Exception {
         User admin = createUser("audit.admin3@magti.ge", Role.SYSTEM_ADMIN, "All", Set.of());
         writeAuditRow(admin.getId(), "LOGIN", "user", admin.getId(), null);

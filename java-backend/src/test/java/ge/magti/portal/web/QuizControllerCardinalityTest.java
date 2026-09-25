@@ -4,6 +4,7 @@ import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.article.ArticleTargetQueryService;
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.Permission;
+import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.query.CompleteResultGuard;
 import ge.magti.portal.quiz.KnowledgeScoreService;
@@ -39,8 +40,11 @@ class QuizControllerCardinalityTest {
                 articles, targets, questions, answers, attempts, audit, scores, permissions);
 
         User actor = new User();
+        actor.setRole(Role.CONTENT_ADMIN);
         when(permissions.hasPermission(actor, Permission.CONTENT_MANAGE)).thenReturn(true);
-        when(articles.findById(42L)).thenReturn(Optional.of(new Article()));
+        Article visibleArticle = new Article();
+        visibleArticle.setDraft(false);
+        when(articles.findById(42L)).thenReturn(Optional.of(visibleArticle));
 
         List<QuizAnswerAdminDto> oversizedAnswers = IntStream
                 .range(0, CompleteResultGuard.MAX_ROWS + 1)

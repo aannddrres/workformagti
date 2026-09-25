@@ -34,6 +34,22 @@ import java.util.Map;
 class FileEntitlementEnforcedIntegrationTest extends FileEntitlementScenarioSupport {
 
     @Test
+    void missingDirectArticleAndFileUrlsStayOpaque() throws Exception {
+        long marker = System.nanoTime();
+        var admin = createUser("missing-direct-admin-" + marker + "@magti.ge", Role.CONTENT_ADMIN, "All");
+        String token = tokenFor(admin);
+        String missingId = "999999999";
+
+        mockMvc.perform(get("/api/articles/" + missingId).header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(post("/api/articles/" + missingId + "/archive")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/uploads/missing-" + marker).header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void draftPublicationAndArchiveChangeArticleAndDirectFileAccessTogether() throws Exception {
         long marker = System.nanoTime();
         String target = "publication-target-" + marker;

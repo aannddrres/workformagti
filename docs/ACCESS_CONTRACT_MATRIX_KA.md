@@ -268,10 +268,10 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
-| `GET /api/articles/{id}/quiz` | `QuizController.getArticleQuiz` | `requireAuthenticated` | AUTH | `SELF` | no | compliance-ის მტკიცებულება; retention purge-იდან გამორიცხული. |
-| `GET /api/articles/{id}/quiz/admin` | `QuizController.getArticleQuizAdmin` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
-| `PUT /api/articles/{id}/quiz/admin` | `QuizController.updateArticleQuizAdmin` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
-| `POST /api/articles/{id}/quiz/attempt` | `QuizController.submitArticleQuizAttempt` | `requireAuthenticated` | AUTH | `SELF` | no | compliance-ის მტკიცებულება; attempt number `(article_id, version, user_id)`-ზე ითვლება და სხვა caller-ის sequence-ს არ აგრძელებს. Retention purge-იდან გამორიცხული. |
+| `GET /api/articles/{id}/quiz` | `QuizController.getArticleQuiz` | `requireAuthenticated` | AUTH | `SELF` | no | სტატიის პირდაპირი ID-ის ხილვადობის წესი მოქმედებს ქვიზზეც: სხვისი `is_draft` 404-ია. compliance-ის მტკიცებულება retention purge-იდან გამორიცხულია. |
+| `GET /api/articles/{id}/quiz/admin` | `QuizController.getArticleQuizAdmin` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate; `content.manage` სხვის პირად `is_draft` ქვიზს არ ხსნის — 404, როგორც სტატიის ID-ზე. |
+| `PUT /api/articles/{id}/quiz/admin` | `QuizController.updateArticleQuizAdmin` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate; სხვა ავტორის პირადი `is_draft` ქვიზის შეცვლა 404-ით იკრძალება. |
+| `POST /api/articles/{id}/quiz/attempt` | `QuizController.submitArticleQuizAttempt` | `requireAuthenticated` | AUTH | `SELF` | no | სტატიის პირდაპირი ID-ის ხილვადობის წესი მოქმედებს; სხვის `is_draft`-ზე მცდელობა 404-ია და არ ინახება. attempt number `(article_id, version, user_id)`-ზე ითვლება; retention purge-იდან გამორიცხულია. |
 | `GET /api/users/me/knowledge-score` | `QuizController.getMyKnowledgeScore` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი attempts-ის aggregate; სხვა caller-ის pass/score არ აისახება. |
 
 ### Search (3)

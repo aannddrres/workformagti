@@ -251,6 +251,60 @@ class QuizControllerIntegrationTest {
                 .andExpect(jsonPath("$.detail").value("ამ სტატიას კვიზი არ აქვს"));
     }
 
+    @Test
+    void privateDraftQuizIsOpaqueToOtherAdminsAndReaders() throws Exception {
+        String marker = Long.toString(System.nanoTime());
+        User author = createUser("quiz-draft-author-" + marker + "@magti.ge", Role.CONTENT_ADMIN, "All");
+        User otherAdmin = createUser("quiz-draft-admin-" + marker + "@magti.ge", Role.CONTENT_ADMIN, "All");
+        User reader = createUser("quiz-draft-reader-" + marker + "@magti.ge", Role.OPERATOR, "All");
+        Article article = createArticle(true, List.of("All"));
+        article.setAuthorId(author.getId());
+        article.setDraft(true);
+        articleRepository.saveAndFlush(article);
+        String quizUrl = "/api/articles/" + article.getId() + "/quiz";
+
+        mockMvc.perform(authed(put(quizUrl + "/admin"), tokenFor(author))
+                        .contentType(MediaType.APPLICATION_JSON).content(TWO_QUESTION_PAYLOAD))
+                .andExpect(status().isOk());
+        mockMvc.perform(authed(get(quizUrl + "/admin"), tokenFor(author)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.questions.length()").value(2));
+
+        mockMvc.perform(authed(get(quizUrl + "/admin"), tokenFor(otherAdmin)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(put(quizUrl + "/admin"), tokenFor(otherAdmin))
+                        .contentType(MediaType.APPLICATION_JSON).content(TWO_QUESTION_PAYLOAD))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(get(quizUrl), tokenFor(reader)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(post(quizUrl + "/attempt"), tokenFor(reader))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"answers\":{}}"))
+                .andExpect(status().isNotFound());
+        assertEquals(0, quizAttemptRepository.countByArticleIdAndArticleVersionAndUserId(
+                article.getId(), article.getVersion(), reader.getId()));
+    }
+
+    @Test
+    void missingQuizIdsAndMalformedAttemptHaveControlledErrors() throws Exception {
+        String marker = Long.toString(System.nanoTime());
+        User admin = createUser("missing-quiz-admin-" + marker + "@magti.ge", Role.CONTENT_ADMIN, "All");
+        User reader = createUser("missing-quiz-reader-" + marker + "@magti.ge", Role.OPERATOR, "All");
+        Article article = createArticle(true, List.of("All"));
+        String missingQuizUrl = "/api/articles/999999999/quiz";
+
+        mockMvc.perform(authed(get(missingQuizUrl), tokenFor(reader)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(get(missingQuizUrl + "/admin"), tokenFor(admin)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(post(missingQuizUrl + "/attempt"), tokenFor(reader))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"answers\":{}}"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(post("/api/articles/" + article.getId() + "/quiz/attempt"), tokenFor(reader))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"answers\":\"invalid\"}"))
+                .andExpect(status().isBadRequest());
+        assertEquals(0, quizAttemptRepository.countByArticleIdAndArticleVersionAndUserId(
+                article.getId(), article.getVersion(), reader.getId()));
+    }
+
     // ── attempt grading ───────────────────────────────────────────────
 
     @Test
