@@ -51,6 +51,7 @@
 | ფაილი | თარიღი | რაზეა |
 |---|---|---|
 | [`QUESTIONS_FOR_IT.md`](QUESTIONS_FOR_IT.md) | 2026-09-21 | **ოფიციალური მოკლე რეესტრი.** 13 კითხვა; პასუხები აქ ჩაიწერება. ახალი კითხვა აქ ემატება, არა მფლობელს |
+| [`RELEASE_EXTERNAL_REQUESTS_KA.md`](RELEASE_EXTERNAL_REQUESTS_KA.md) | 2026-09-25 | **გამოშვების ლედჯერის სია B წერილებად** — IT, IT უსაფრთხოება, DBA, platform, ბიზნესი. წერილი 1 №13-ის ამჟამინდელ მოთხოვნებს შეიცავს. გასაგზავნად მზადაა |
 | [`IT_REQUEST_AUTH_FOLLOWUP_KA.md`](IT_REQUEST_AUTH_FOLLOWUP_KA.md) | 2026-09-18 | №13 წერილის სახით — ავტორიზაციის პასუხის დაზუსტება. გასაგზავნად მზადაა |
 | [`IT_DISCOVERY_REQUEST_KA.md`](IT_DISCOVERY_REQUEST_KA.md) | 2026-08-22 | 12 შეკრული მოთხოვნა — ეს იგზავნება |
 | [`IT_DISCOVERY_QUESTIONNAIRE_KA.md`](IT_DISCOVERY_QUESTIONNAIRE_KA.md) | 2026-08-29 | 93-პუნქტიანი ტექნიკური ჩამონათვალი. მთლიანად ერთ ადამიანს არ ეგზავნება |
