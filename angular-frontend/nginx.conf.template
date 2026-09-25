@@ -141,6 +141,16 @@ server {
     # plus an explicit nosniff and a sandbox CSP on uploads,
     # UploadedFileController:92-93).
     location /api/ {
+        # The ingress in front of this server sets the same two limits
+        # (k8s/50-ingress.yaml), for the same reasons: the application caps
+        # uploads at 10MB and Spring's transport at 11MB, and an export of the
+        # whole company is built synchronously. Every request passes through
+        # here after the ingress, so without them nginx's defaults decided
+        # instead: a 5MB PDF came back as nginx's own HTML 413 before Spring
+        # saw it, and a response had 60s.
+        client_max_body_size 11m;
+        proxy_read_timeout 120s;
+
         proxy_pass http://${BACKEND_HOST}:${BACKEND_PORT}/api/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
