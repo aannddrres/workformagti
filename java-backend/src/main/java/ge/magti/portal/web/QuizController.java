@@ -236,8 +236,7 @@ public class QuizController {
         }
 
         QuizGradeResult grade = QuizGrader.grade(questions, payload.answersOrEmpty());
-        int attemptNumber = quizAttemptRepository
-                .countByArticleIdAndArticleVersionAndUserId(id, article.getVersion(), user.getId()) + 1;
+        int attemptNumber = quizAttemptRepository.nextAttemptNumber(id, article.getVersion(), user.getId());
 
         QuizAttempt attempt = new QuizAttempt();
         attempt.setArticleId(id);
