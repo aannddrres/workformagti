@@ -1,3 +1,11 @@
+[tool.pytest.ini_options]
+# The repository root, so tests/ can import scripts.* however pytest is
+# started. CI runs plain `pytest tests/`, which puts only tests/ on the path;
+# scripts/verify-like-ci.sh runs `python -m pytest`, which also adds the
+# current directory. The Phase 8 tests import scripts.seed_phase8_org_fixtures,
+# so the wrapper passed while CI's seeder job failed at collection.
+pythonpath = ["."]
+
 [tool.ruff]
 line-length = 120
 exclude = ["venv", ".venv", "migrations"]
