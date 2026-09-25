@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.List;
@@ -178,6 +179,19 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleMissingResource(NoResourceFoundException exception) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
                 "detail", "მისამართი ვერ მოიძებნა"));
+    }
+
+    /**
+     * A body over Spring's multipart limit (11MB) is the sender's mistake:
+     * the same 413 and reason as a file over the application's own 10MB
+     * check, not the catch-all's 500 and an ERROR-level stack trace.
+     * Behind the production nginx the body is refused at 11MB before it
+     * gets here; straight to the backend it was not
+     * (UploadSizeLimitIntegrationTest).
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, String>> handleUploadTooLarge() {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(Map.of("detail", UploadController.TOO_LARGE_DETAIL));
     }
 
     /** Complete-result administrative views fail loudly instead of truncating. */
