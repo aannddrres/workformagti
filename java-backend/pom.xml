@@ -34,6 +34,13 @@
 			 guarantees javac reads them as UTF-8 on any machine/CI runner,
 			 not just this one. -->
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<!-- Overrides the 11.0.22 Spring Boot 4.1.0 manages. That version
+			 carries three CRITICAL advisories fixed in 11.0.25:
+			 CVE-2026-65182 (security constraint bypass), CVE-2026-65905
+			 (DIGEST replay) and CVE-2026-68525 (FORM authentication bypass),
+			 found by the supply-chain job's own SBOM scan. Drop this line once
+			 the Boot parent manages 11.0.25 or later. -->
+		<tomcat.version>11.0.26</tomcat.version>
 	</properties>
 	<dependencies>
 		<dependency>
