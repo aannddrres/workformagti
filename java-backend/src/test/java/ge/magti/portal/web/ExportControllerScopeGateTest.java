@@ -102,9 +102,14 @@ class ExportControllerScopeGateTest {
     /** A refusal must not leave an EXPORT row claiming the export happened. */
     @Test
     void aRefusedExportWritesNoAuditRow() {
-        controller.exportReadingsCsv(holderOf(Role.CONTENT_ADMIN));
+        User caller = holderOf(Role.CONTENT_ADMIN);
+        controller.exportReadingsCsv(caller);
+        controller.exportReadingsXlsx(caller);
+        controller.exportReadingsPdf(caller);
+        controller.exportTeamStatsPdf(caller);
 
         verify(auditLogRepository, never()).saveAndFlush(any());
+        verify(exportJobRepository, never()).saveAndFlush(any());
     }
 
     @Test

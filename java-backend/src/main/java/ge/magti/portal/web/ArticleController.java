@@ -974,6 +974,10 @@ public class ArticleController {
         // No get_or_404 here, matching routers/articles.py:539-565 exactly:
         // a missing article_id isn't checked separately, it just yields zero
         // matching history rows -- an empty list, not a 404.
+        ResponseEntity<Map<String, String>> visibility = denyInvisibleExistingArticle(id, user);
+        if (visibility != null) {
+            return visibility;
+        }
         HistoryPayloadGuard.enforceFullResponseCharacters(
                 articleHistoryRepository.totalContentCharactersByArticleId(id));
         List<ArticleHistory> history = ArticleEvidenceCardinalityGuard.enforceWithinLimit(
@@ -1007,6 +1011,10 @@ public class ArticleController {
             return denial;
         }
 
+        ResponseEntity<Map<String, String>> visibility = denyInvisibleExistingArticle(id, user);
+        if (visibility != null) {
+            return visibility;
+        }
         List<ArticleHistorySummary> history = ArticleEvidenceCardinalityGuard.enforceWithinLimit(
                 articleHistoryRepository.findSummaryByArticleIdOrderByUpdatedAtDesc(
                         id, PageRequest.of(0, ArticleEvidenceCardinalityGuard.MAX_ROWS + 1)));
@@ -1031,6 +1039,10 @@ public class ArticleController {
             return denial;
         }
 
+        ResponseEntity<Map<String, String>> visibility = denyInvisibleExistingArticle(id, user);
+        if (visibility != null) {
+            return visibility;
+        }
         Optional<ArticleHistory> history = articleHistoryRepository.findByIdAndArticleId(historyId, id);
         if (history.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -1115,6 +1127,10 @@ public class ArticleController {
         }
         Article article = found.get();
         List<String> targetDepartments = resolveTargetDepartments(id);
+        ResponseEntity<Map<String, String>> visibility = assertArticleVisible(article, targetDepartments, user);
+        if (visibility != null) {
+            return visibility;
+        }
         Map<String, Object> before = MutationAuditService.articleSnapshot(article, targetDepartments);
 
         Optional<ArticleHistory> historyOpt = articleHistoryRepository.findByIdAndArticleId(historyId, id);
@@ -1539,6 +1555,13 @@ public class ArticleController {
             return notFoundMap();
         }
         return assertArticleVisible(found.get(), resolveTargetDepartments(articleId), user);
+    }
+
+    /** Preserve legacy missing-article history responses while hiding existing private drafts. */
+    private ResponseEntity<Map<String, String>> denyInvisibleExistingArticle(Long articleId, User user) {
+        return articleRepository.findById(articleId)
+                .map(article -> assertArticleVisible(article, resolveTargetDepartments(articleId), user))
+                .orElse(null);
     }
 
     /**

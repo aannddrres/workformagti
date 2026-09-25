@@ -274,6 +274,9 @@ class QuizControllerIntegrationTest {
         mockMvc.perform(authed(put(quizUrl + "/admin"), tokenFor(otherAdmin))
                         .contentType(MediaType.APPLICATION_JSON).content(TWO_QUESTION_PAYLOAD))
                 .andExpect(status().isNotFound());
+        mockMvc.perform(authed(get(quizUrl + "/admin"), tokenFor(author)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.questions.length()").value(2));
         mockMvc.perform(authed(get(quizUrl), tokenFor(reader)))
                 .andExpect(status().isNotFound());
         mockMvc.perform(authed(post(quizUrl + "/attempt"), tokenFor(reader))

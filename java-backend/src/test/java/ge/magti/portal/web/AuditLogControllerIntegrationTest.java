@@ -130,6 +130,16 @@ class AuditLogControllerIntegrationTest {
     }
 
     @Test
+    void verifyingMissingAuditIdIs404AndCannotExposeOtherRows() throws Exception {
+        User admin = createUser("audit-missing-" + System.nanoTime() + "@magti.ge",
+                Role.SYSTEM_ADMIN, "All", Set.of());
+        mockMvc.perform(get("/api/audit-logs/999999999/verify")
+                        .header("Authorization", "Bearer " + tokenFor(admin)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("ჩანაწერი ვერ მოიძებნა"));
+    }
+
+    @Test
     void systemAdminCanReadChainHealth() throws Exception {
         String token = loginAndGetToken("admin@magti.ge", "10.20.0.2");
 
@@ -137,6 +147,16 @@ class AuditLogControllerIntegrationTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("ok"));
+    }
+
+    @Test
+    void malformedChainWindowIsRejectedBeforeAuditQuery() throws Exception {
+        User admin = createUser("audit-window-" + System.nanoTime() + "@magti.ge",
+                Role.SYSTEM_ADMIN, "All", Set.of());
+        mockMvc.perform(get("/api/audit-logs/chain-health?n=invalid")
+                        .header("Authorization", "Bearer " + tokenFor(admin)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("მოთხოვნის პარამეტრი არასწორია"));
     }
 
     @Test
@@ -338,5 +358,19 @@ class AuditLogControllerIntegrationTest {
                         .header("Authorization", "Bearer " + tokenFor(manager)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.detail").value("ეს ფუნქცია ხელმისაწვდომია მხოლოდ სისტემური ადმინისტრატორისთვის"));
+    }
+
+    @Test
+    void malformedExportUserFilterReturns400WithoutCsvOrMetaAudit() throws Exception {
+        User admin = createUser("audit-export-invalid-" + System.nanoTime() + "@magti.ge",
+                Role.SYSTEM_ADMIN, "All", Set.of());
+        long auditBefore = auditLogRepository.count();
+
+        mockMvc.perform(get("/api/audit-logs/export?user_id=not-a-number")
+                        .header("Authorization", "Bearer " + tokenFor(admin)))
+                .andExpect(status().isBadRequest())
+                .andExpect(header().doesNotExist("Content-Disposition"))
+                .andExpect(jsonPath("$.detail").value("მოთხოვნის პარამეტრი არასწორია"));
+        assertEquals(auditBefore, auditLogRepository.count());
     }
 }

@@ -119,6 +119,18 @@ class ReminderControllerIntegrationTest {
     }
 
     @Test
+    void missingReminderReadReturns404WithoutAnAuditEvent() throws Exception {
+        User operator = user("reminder-missing", Role.OPERATOR, uniqueDepartment("missing"), null);
+        long auditBefore = auditLogRepository.count();
+
+        mockMvc.perform(authed(post("/api/reminders/999999999/read"), tokenFor(operator)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").isNotEmpty());
+
+        assertEquals(auditBefore, auditLogRepository.count());
+    }
+
+    @Test
     void dueSoonAndOverdueSweepsDeliverExactlyOnceAndSkipCompletedRecipient() throws Exception {
         String department = uniqueDepartment("schedule");
         User creator = user("reminder-schedule-creator", Role.CONTENT_ADMIN, department, null);
@@ -176,9 +188,11 @@ class ReminderControllerIntegrationTest {
         assignment(acting, ownTeam, AssignmentType.ACTING);
         assignment(outsiderLeader, otherTeam, AssignmentType.PRIMARY);
         reading(department, TbilisiTime.now().plusDays(1));
+        long remindersBefore = reminderRepository.count();
 
         mockMvc.perform(authed(post("/api/reminders/users/" + target.getId() + "/send"), tokenFor(outsiderLeader)))
                 .andExpect(status().isForbidden());
+        assertEquals(remindersBefore, reminderRepository.count(), "foreign leader must not send a reminder");
 
         String body = mockMvc.perform(authed(post("/api/reminders/users/" + target.getId() + "/send"), tokenFor(primary))
                         .contentType(MediaType.APPLICATION_JSON)

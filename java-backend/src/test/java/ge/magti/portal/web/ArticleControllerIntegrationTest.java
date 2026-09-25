@@ -398,6 +398,8 @@ class ArticleControllerIntegrationTest {
     void operatorCannotCreateAnArticle() throws Exception {
         User operator = createUser("aa7@magti.ge", Role.OPERATOR, "All");
         Category cat = createCategory("კატ-6");
+        long articlesBefore = articleRepository.count();
+        long auditsBefore = auditLogRepository.count();
 
         mockMvc.perform(authed(post("/api/articles"), tokenFor(operator))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -405,6 +407,8 @@ class ArticleControllerIntegrationTest {
                                 + ",\"target_departments\":[\"All\"]}"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.detail").value("წვდომა უარყოფილია: არასაკმარისი უფლებები"));
+        assertEquals(articlesBefore, articleRepository.count());
+        assertEquals(auditsBefore, auditLogRepository.count());
     }
 
     @Test
@@ -416,6 +420,8 @@ class ArticleControllerIntegrationTest {
         User admin = createUser("aa7b@magti.ge", Role.CONTENT_ADMIN, "All");
         Category cat = createCategory("კატ-6ბ");
         Article existing = createArticle("არსებული სტატია", cat.getId(), "draft", true, List.of("All"), null);
+        long articlesBefore = articleRepository.count();
+        long auditsBefore = auditLogRepository.count();
 
         // Same content_admin, articles.edit revoked (default set minus edit).
         deny(admin, Permission.ARTICLES_EDIT);
@@ -437,6 +443,14 @@ class ArticleControllerIntegrationTest {
                 .andExpect(status().isForbidden());
         mockMvc.perform(authed(delete("/api/articles/" + existing.getId()), tokenFor(admin)))
                 .andExpect(status().isForbidden());
+        assertTrue(articleRepository.findById(existing.getId()).isPresent(),
+                "a denied delete must leave the article in place");
+        entityManager.clear();
+        Article unchanged = articleRepository.findById(existing.getId()).orElseThrow();
+        assertEquals("არსებული სტატია", unchanged.getTitle());
+        assertEquals("draft", unchanged.getStatus());
+        assertEquals(articlesBefore, articleRepository.count());
+        assertEquals(auditsBefore, auditLogRepository.count());
 
         // Publishing is deliberately part of articles.edit, not a second
         // independently revocable switch.
@@ -862,6 +876,23 @@ class ArticleControllerIntegrationTest {
         assertTrue(favoriteRepository.findByUserIdAndItemTypeAndItemId(operator.getId(), "article", article.getId()).isPresent());
     }
 
+    @Test
+    void deletingAnUnknownArticleIs404WithoutCreatingTrashOrAudit() throws Exception {
+        User admin = createUser("delete-missing-admin@magti.ge", Role.CONTENT_ADMIN, "All");
+        long missingId = 999999999L;
+        long before = auditLogRepository.findAll().stream()
+                .filter(row -> Long.valueOf(missingId).equals(row.getItemId())
+                        && "article".equals(row.getItemType())).count();
+
+        mockMvc.perform(authed(delete("/api/articles/" + missingId), tokenFor(admin)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("სტატია ვერ მოიძებნა"));
+
+        assertEquals(before, auditLogRepository.findAll().stream()
+                .filter(row -> Long.valueOf(missingId).equals(row.getItemId())
+                        && "article".equals(row.getItemType())).count());
+    }
+
     // ── archive / unarchive / bulk-archive ───────────────────────────
 
     @Test
@@ -917,6 +948,23 @@ class ArticleControllerIntegrationTest {
     }
 
     @Test
+    void operatorCannotUnarchiveAndLeavesArticleAndAuditUntouched() throws Exception {
+        User operator = createUser("unarchive-denied-op@magti.ge", Role.OPERATOR, "All");
+        Category category = createCategory("unarchive-denied-category");
+        Article article = createArticle("არქივში მყოფი", category.getId(), "archived", false,
+                List.of("All"), null);
+
+        mockMvc.perform(authed(post("/api/articles/" + article.getId() + "/unarchive"), tokenFor(operator)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail").value("წვდომა უარყოფილია: არასაკმარისი უფლებები"));
+
+        entityManager.clear();
+        assertEquals("archived", articleRepository.findById(article.getId()).orElseThrow().getStatus());
+        assertTrue(auditLogRepository.findAll().stream().noneMatch(row ->
+                "UNARCHIVE".equals(row.getAction()) && article.getId().equals(row.getItemId())));
+    }
+
+    @Test
     void operatorCannotArchiveEvenThoughTheyCanView() throws Exception {
         User operator = createUser("aa17@magti.ge", Role.OPERATOR, "All");
         Category cat = createCategory("კატ-15");
@@ -925,6 +973,10 @@ class ArticleControllerIntegrationTest {
         mockMvc.perform(authed(post("/api/articles/" + article.getId() + "/archive"), tokenFor(operator)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.detail").value("წვდომა უარყოფილია: არასაკმარისი უფლებები"));
+        entityManager.clear();
+        assertEquals("published", articleRepository.findById(article.getId()).orElseThrow().getStatus());
+        assertTrue(auditLogRepository.findAll().stream().noneMatch(row ->
+                "ARCHIVE".equals(row.getAction()) && article.getId().equals(row.getItemId())));
     }
 
     @Test
@@ -960,11 +1012,32 @@ class ArticleControllerIntegrationTest {
     @Test
     void bulkArchiveRequiresArticlesArchivePermission() throws Exception {
         User operator = createUser("aa19@magti.ge", Role.OPERATOR, "All");
+        Category category = createCategory("bulk-denied-" + System.nanoTime());
+        Article article = createArticle("დაცული მასალა", category.getId(), "published", false,
+                List.of("All"), null);
 
         mockMvc.perform(authed(post("/api/articles/bulk-archive"), tokenFor(operator))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"ids\":[1],\"archive\":true}"))
+                        .content("{\"ids\":[" + article.getId() + "],\"archive\":true}"))
                 .andExpect(status().isForbidden());
+        assertEquals("published", articleRepository.findById(article.getId()).orElseThrow().getStatus());
+    }
+
+    @Test
+    void bulkArchiveRejectsMissingArchiveFlagWithoutChangingContentOrAudit() throws Exception {
+        User admin = createUser("bulk-invalid-" + System.nanoTime() + "@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category category = createCategory("bulk-invalid-" + System.nanoTime());
+        Article article = createArticle("უარყოფილი მოთხოვნა", category.getId(), "published", false,
+                List.of("All"), null);
+        long auditBefore = auditLogRepository.count();
+
+        mockMvc.perform(authed(post("/api/articles/bulk-archive"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"ids\":[" + article.getId() + "]}"))
+                .andExpect(status().isBadRequest());
+
+        assertEquals("published", articleRepository.findById(article.getId()).orElseThrow().getStatus());
+        assertEquals(auditBefore, auditLogRepository.count());
     }
 
     private Team createTeam(String name) {
@@ -1093,6 +1166,38 @@ class ArticleControllerIntegrationTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void missingArticleAndInvalidNoteRequestDoNotWritePrivateOrAuditRows() throws Exception {
+        User operator = createUser("note-invalid-op@magti.ge", Role.OPERATOR, "All");
+        User admin = createUser("note-invalid-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
+        Category category = createCategory("კატ-note-invalid");
+        Article article = createArticle("სტატია შენიშვნისთვის", category.getId(),
+                "published", false, List.of("All"), null);
+        long notesBefore = userNoteRepository.count();
+        long auditsBefore = auditLogRepository.count();
+        long missingId = 999999999L;
+
+        mockMvc.perform(authed(get("/api/articles/" + missingId + "/note"), tokenFor(operator)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(put("/api/articles/" + missingId + "/note"), tokenFor(operator))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"content\":\"x\"}"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(put("/api/articles/" + article.getId() + "/note"), tokenFor(operator))
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(authed(post("/api/articles/" + missingId + "/verify"), tokenFor(admin)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(get("/api/articles/" + missingId + "/versions"), tokenFor(operator)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(post("/api/articles/" + missingId + "/view"), tokenFor(operator)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(get("/api/articles/" + missingId + "/views"), tokenFor(admin)))
+                .andExpect(status().isNotFound());
+
+        assertEquals(notesBefore, userNoteRepository.count());
+        assertEquals(auditsBefore, auditLogRepository.count());
+    }
+
     // ── verify ────────────────────────────────────────────────────────
 
     @Test
@@ -1124,6 +1229,10 @@ class ArticleControllerIntegrationTest {
 
         mockMvc.perform(authed(post("/api/articles/" + article.getId() + "/verify"), tokenFor(operator)))
                 .andExpect(status().isForbidden());
+        entityManager.clear();
+        assertEquals(null, articleRepository.findById(article.getId()).orElseThrow().getLastVerifiedAt());
+        assertTrue(auditLogRepository.findAll().stream().noneMatch(row ->
+                "VERIFY".equals(row.getAction()) && article.getId().equals(row.getItemId())));
     }
 
     // ── stale report ──────────────────────────────────────────────────
@@ -1327,6 +1436,23 @@ class ArticleControllerIntegrationTest {
     }
 
     @Test
+    void diffDeniesAnOutsiderBeforeReadingHistoricalContent() throws Exception {
+        User admin = createUser("diff-owner@magti.ge", Role.CONTENT_ADMIN, "All");
+        User outsider = createUser("diff-outsider@magti.ge", Role.OPERATOR, "ოფისი");
+        Category category = createCategory("diff-private-category");
+        long articleId = createArticleViaApiWithDept(
+                tokenFor(admin), "მხოლოდ ტექნიკური", "ისტორიული საიდუმლო", category.getId(), "ტექნიკური");
+        long historyId = historyIdForVersion(articleId, 1);
+
+        mockMvc.perform(get("/api/articles/" + articleId + "/history/" + historyId + "/diff"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(authed(
+                        get("/api/articles/" + articleId + "/history/" + historyId + "/diff"), tokenFor(outsider)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("სტატია ვერ მოიძებნა"));
+    }
+
+    @Test
     void legacyFullHistoryFailsBeforeOversizedClobHydrationWhileSummaryRemainsAvailable() throws Exception {
         User admin = createUser("aa30-budget@magti.ge", Role.CONTENT_ADMIN, "All");
         Category cat = createCategory("კატ-25-budget");
@@ -1451,6 +1577,7 @@ class ArticleControllerIntegrationTest {
         Category cat = createCategory("კატ-31");
         long articleId = createArticleViaApi(tokenFor(admin), "სათაური", "შინაარსი", cat.getId());
         long v1HistoryId = historyIdForVersion(articleId, 1);
+        long auditsBefore = auditLogRepository.count();
 
         mockMvc.perform(authed(get("/api/articles/" + articleId + "/history"), tokenFor(operator)))
                 .andExpect(status().isForbidden());
@@ -1461,6 +1588,11 @@ class ArticleControllerIntegrationTest {
                 .andExpect(status().isForbidden());
         mockMvc.perform(authed(post("/api/articles/" + articleId + "/history/" + v1HistoryId + "/restore"), tokenFor(operator)))
                 .andExpect(status().isForbidden());
+        entityManager.clear();
+        Article unchanged = articleRepository.findById(articleId).orElseThrow();
+        assertEquals("სათაური", unchanged.getTitle());
+        assertEquals(1, unchanged.getVersion());
+        assertEquals(auditsBefore, auditLogRepository.count());
     }
 
     @Test
@@ -1670,6 +1802,9 @@ class ArticleControllerIntegrationTest {
         mockMvc.perform(authed(post("/api/articles/" + articleId + "/read-receipt"), tokenFor(operator)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.detail").value("საჭიროა ქვიზის წარმატებით ჩაბარება წაკითხვის დასადასტურებლად"));
+        assertTrue(articleReadReceiptRepository
+                .findByArticleIdSnapshotAndArticleVersionAndOperatorId(articleId, 1, operator.getId())
+                .isEmpty(), "a failed quiz must not create official reading evidence");
 
         QuizAttempt passed = new QuizAttempt();
         passed.setArticleId(articleId);
@@ -1844,6 +1979,9 @@ class ArticleControllerIntegrationTest {
                 .andExpect(status().isPayloadTooLarge())
                 .andExpect(jsonPath("$.detail")
                         .value("ჩანაწერების რაოდენობა უსაფრთხო დამუშავების ზღვარს აჭარბებს"));
+        assertTrue(articleReadReceiptRepository
+                .findByArticleIdSnapshotAndArticleVersionAndOperatorId(articleId, 1, operator.getId())
+                .isEmpty(), "an oversized compliance relation must not leave a receipt");
     }
 
     @Test
@@ -1877,6 +2015,22 @@ class ArticleControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.has_read").value(true))
                 .andExpect(jsonPath("$.article_version").value(1));
+    }
+
+    @Test
+    void myReceiptStatusHidesInvisibleAndMissingArticles() throws Exception {
+        User admin = createUser("my-receipt-owner@magti.ge", Role.CONTENT_ADMIN, "All");
+        User outsider = createUser("my-receipt-outsider@magti.ge", Role.OPERATOR, "ოფისი");
+        Category category = createCategory("my-receipt-category");
+        long articleId = createArticleViaApiWithDept(
+                tokenFor(admin), "მხოლოდ ტექნიკური", "შინაარსი", category.getId(), "ტექნიკური");
+
+        mockMvc.perform(get("/api/articles/" + articleId + "/read-receipt/me"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/read-receipt/me"), tokenFor(outsider)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(get("/api/articles/999999999/read-receipt/me"), tokenFor(admin)))
+                .andExpect(status().isNotFound());
     }
 
     @Test
@@ -2076,6 +2230,15 @@ class ArticleControllerIntegrationTest {
     }
 
     @Test
+    void namedReadEvidenceForAnUnknownArticleReturns404() throws Exception {
+        User admin = createUser("missing-evidence-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
+
+        mockMvc.perform(authed(get("/api/articles/999999999/read-receipts"), tokenFor(admin)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("სტატია ვერ მოიძებნა"));
+    }
+
+    @Test
     void recentlyViewedDedupesRepeatViewsAndRemainsIsolatedPerUser() throws Exception {
         User admin = createUser("aa57@magti.ge", Role.CONTENT_ADMIN, "All");
         Category cat = createCategory("კატ-41");
@@ -2178,5 +2341,64 @@ class ArticleControllerIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.version").value(expectedVersion));
         }
+    }
+
+    @Test
+    void createRejectsUnknownStatusBeforeWritingArticleHistoryOrAudit() throws Exception {
+        User admin = createUser("create-invalid-status@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category category = createCategory("კატ-invalid-status");
+        long articlesBefore = articleRepository.count();
+        long historyBefore = articleHistoryRepository.count();
+        long auditsBefore = auditLogRepository.count();
+
+        mockMvc.perform(authed(post("/api/articles"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"არასწორი სტატუსი\",\"content\":\"ტექსტი\",\"category_id\":"
+                                + category.getId() + ",\"target_departments\":[\"All\"],\"status\":\"pubished\"}"))
+                .andExpect(status().isBadRequest());
+
+        assertEquals(articlesBefore, articleRepository.count());
+        assertEquals(historyBefore, articleHistoryRepository.count());
+        assertEquals(auditsBefore, auditLogRepository.count());
+    }
+
+    @Test
+    void privateDraftHistoryAndRestoreAreOpaqueToAnotherContentAdmin() throws Exception {
+        User author = createUser("history-private-author@magti.ge", Role.CONTENT_ADMIN, "All");
+        User otherAdmin = createUser("history-private-other-admin@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category category = createCategory("კატ-private-history");
+        long articleId = createArticleViaApi(tokenFor(author), "პირადი ისტორია", "ფარული ტექსტი", category.getId());
+        long historyId = historyIdForVersion(articleId, 1);
+        Article article = articleRepository.findById(articleId).orElseThrow();
+        article.setDraft(true);
+        articleRepository.saveAndFlush(article);
+        entityManager.clear();
+        long historiesBefore = articleHistoryRepository.count();
+        long auditsBefore = auditLogRepository.count();
+
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/history"), tokenFor(otherAdmin)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/history-summary"), tokenFor(otherAdmin)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/history/" + historyId), tokenFor(otherAdmin)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/history/" + historyId + "/diff"), tokenFor(otherAdmin)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(post("/api/articles/" + articleId + "/history/" + historyId + "/restore"), tokenFor(otherAdmin)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/versions"), tokenFor(otherAdmin)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/related"), tokenFor(otherAdmin)))
+                .andExpect(status().isNotFound());
+
+        Article unchanged = articleRepository.findById(articleId).orElseThrow();
+        assertEquals("პირადი ისტორია", unchanged.getTitle());
+        assertEquals(1, unchanged.getVersion());
+        assertEquals(historiesBefore, articleHistoryRepository.count());
+        assertEquals(auditsBefore, auditLogRepository.count());
+
+        mockMvc.perform(authed(get("/api/articles/" + articleId + "/history"), tokenFor(author)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].content").value("ფარული ტექსტი"));
     }
 }

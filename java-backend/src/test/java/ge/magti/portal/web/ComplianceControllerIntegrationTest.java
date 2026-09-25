@@ -36,6 +36,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -168,12 +169,31 @@ class ComplianceControllerIntegrationTest {
     @Test
     void operatorCannotCreateRequiredReading() throws Exception {
         User operator = createUser("comp-op1@magti.ge", Role.OPERATOR, "All");
+        long readingsBefore = requiredReadingRepository.count();
 
         mockMvc.perform(authed(post("/api/compliance/required-readings"), tokenFor(operator))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requiredReadingJson("article", 1, "All", "2030-01-01T00:00:00+04:00")))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.detail").value("წვდომა უარყოფილია: არასაკმარისი უფლებები"));
+        assertEquals(readingsBefore, requiredReadingRepository.count());
+    }
+
+    @Test
+    void missingDueDateCannotCreateRequiredReadingOrAudit() throws Exception {
+        User admin = createUser("comp-invalid-" + System.nanoTime() + "@magti.ge", Role.CONTENT_ADMIN, "All");
+        Article article = createArticle("ვალდებულების გარეშე", false);
+        long readingsBefore = requiredReadingRepository.count();
+        long auditBefore = auditLogRepository.count();
+
+        mockMvc.perform(authed(post("/api/compliance/required-readings"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"item_type\":\"article\",\"item_id\":" + article.getId()
+                                + ",\"target_department\":\"All\"}"))
+                .andExpect(status().isBadRequest());
+
+        assertEquals(readingsBefore, requiredReadingRepository.count());
+        assertEquals(auditBefore, auditLogRepository.count());
     }
 
     @Test
@@ -222,6 +242,15 @@ class ComplianceControllerIntegrationTest {
             assertEquals(1, details.get("schema_version").asInt());
             assertEquals("SUCCESS", details.get("result").asText());
         }
+    }
+
+    @Test
+    void byItemLookupRejectsAnUnbindableItemId() throws Exception {
+        User admin = createUser("by-item-invalid-admin@magti.ge", Role.CONTENT_ADMIN, "All");
+
+        mockMvc.perform(authed(get("/api/compliance/required-readings/by-item/article/notanumber"), tokenFor(admin)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("მოთხოვნის პარამეტრი არასწორია"));
     }
 
     @Test
@@ -388,6 +417,11 @@ class ComplianceControllerIntegrationTest {
         mockMvc.perform(authed(post("/api/compliance/mark-read/" + officeReading.getId()), tokenFor(techOperator)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.detail").value("ეს მასალა თქვენს დეპარტამენტს არ ეხება"));
+        assertTrue(readStatusRepository.findByUserIdAndRequiredReadingId(
+                techOperator.getId(), officeReading.getId()).isEmpty());
+        assertTrue(articleReadReceiptRepository
+                .findByArticleIdSnapshotAndArticleVersionAndOperatorId(
+                        article.getId(), article.getVersion(), techOperator.getId()).isEmpty());
     }
 
     @Test
@@ -530,16 +564,31 @@ class ComplianceControllerIntegrationTest {
     }
 
     @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void deletingRequiredReadingWithExistingReadReceiptReturns409NotServerError() throws Exception {
         User admin = createUser("comp-409-admin@magti.ge", Role.CONTENT_ADMIN, "All");
         User operator = createUser("comp-409-op@magti.ge", Role.OPERATOR, "ოფისი");
         Article article = createArticle("წაკითხული სავალდებულო მასალა", false);
         RequiredReading reading = createReading("article", article.getId(), "ოფისი", TbilisiTime.now().plusDays(5));
         markReadDirect(operator, reading);
-
-        mockMvc.perform(authed(delete("/api/compliance/required-readings/" + reading.getId()), tokenFor(admin)))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.detail").isNotEmpty());
+        try {
+            mockMvc.perform(authed(delete("/api/compliance/required-readings/" + reading.getId()), tokenFor(admin)))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.detail").isNotEmpty());
+            assertTrue(requiredReadingRepository.findById(reading.getId()).isPresent(),
+                    "a refused delete must preserve the assignment after the service transaction rolls back");
+            assertTrue(readStatusRepository.findByUserIdAndRequiredReadingId(operator.getId(), reading.getId()).isPresent(),
+                    "existing read evidence must survive the refused delete");
+            assertTrue(auditLogRepository.findAll().stream().noneMatch(row ->
+                    "DELETE_REQUIRED_READING".equals(row.getAction()) && reading.getId().equals(row.getItemId())));
+        } finally {
+            readStatusRepository.findByUserIdAndRequiredReadingId(operator.getId(), reading.getId())
+                    .ifPresent(readStatusRepository::delete);
+            requiredReadingRepository.findById(reading.getId()).ifPresent(requiredReadingRepository::delete);
+            articleRepository.deleteById(article.getId());
+            userRepository.deleteById(operator.getId());
+            userRepository.deleteById(admin.getId());
+        }
     }
 
     /**
@@ -561,6 +610,11 @@ class ComplianceControllerIntegrationTest {
         deny.setUpdatedAt(TbilisiTime.now());
         deny.setUpdatedBy(admin.getId());
         permissionOverrideRepository.saveAndFlush(deny);
+        long readingsBefore = requiredReadingRepository.count();
+        long auditsBefore = auditLogRepository.count();
+        entityManager.flush();
+        entityManager.clear();
+        var dueBefore = requiredReadingRepository.findById(existing.getId()).orElseThrow().getDueDate();
 
         mockMvc.perform(authed(post("/api/compliance/required-readings"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -577,6 +631,10 @@ class ComplianceControllerIntegrationTest {
         // create/change/delete actions.
         mockMvc.perform(authed(get("/api/compliance/required-readings/by-item/article/" + article.getId()), tokenFor(admin)))
                 .andExpect(status().isForbidden());
+        entityManager.clear();
+        assertEquals(readingsBefore, requiredReadingRepository.count());
+        assertEquals(dueBefore, requiredReadingRepository.findById(existing.getId()).orElseThrow().getDueDate());
+        assertEquals(auditsBefore, auditLogRepository.count());
     }
 
     /**

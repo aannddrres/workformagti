@@ -122,6 +122,72 @@ class NewsControllerIntegrationTest {
     }
 
     @Test
+    void operatorCannotMutateNewsOrReadItsHistory() throws Exception {
+        User operator = createUser("news-denied-" + System.nanoTime() + "@magti.ge", Role.OPERATOR, "All");
+        News existing = createNewsDirect("დაცული სიახლე", "All", false, null);
+        long newsBefore = newsRepository.count();
+        long auditBefore = auditLogRepository.count();
+        String token = tokenFor(operator);
+
+        mockMvc.perform(authed(post("/api/news"), token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(newsRequestJson("არ უნდა შეიქმნას", "All")))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(put("/api/news/" + existing.getId()), token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(newsRequestJson("არ უნდა შეიცვალოს", "All")))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(patch("/api/news/" + existing.getId() + "/autosave"), token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"არ უნდა შეინახოს\"}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(delete("/api/news/" + existing.getId()), token))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(post("/api/news/" + existing.getId() + "/archive"), token))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(post("/api/news/" + existing.getId() + "/unarchive"), token))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(get("/api/news/" + existing.getId() + "/history"), token))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(get("/api/news/" + existing.getId() + "/history-summary"), token))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(get("/api/news/" + existing.getId() + "/history/1"), token))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(post("/api/news/" + existing.getId() + "/history/1/restore"), token))
+                .andExpect(status().isForbidden());
+
+        assertEquals(newsBefore, newsRepository.count());
+        assertEquals("დაცული სიახლე", newsRepository.findById(existing.getId()).orElseThrow().getTitle());
+        assertEquals(auditBefore, auditLogRepository.count());
+    }
+
+    @Test
+    void malformedCreateAndUnknownNewsMutationsDoNotChangeContent() throws Exception {
+        User admin = createUser("news-errors-" + System.nanoTime() + "@magti.ge", Role.CONTENT_ADMIN, "All");
+        News existing = createNewsDirect("არსებული სიახლე", "All", false, admin.getId());
+        long countBefore = newsRepository.count();
+        long auditBefore = auditLogRepository.count();
+        String token = tokenFor(admin);
+
+        mockMvc.perform(authed(post("/api/news"), token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"\",\"content\":\"შინაარსი\"}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(authed(post("/api/news/999999999/archive"), token))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(patch("/api/news/999999999/autosave"), token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"უცნობი\"}"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(post("/api/news/" + existing.getId() + "/unarchive"), token))
+                .andExpect(status().isBadRequest());
+
+        assertEquals(countBefore, newsRepository.count());
+        assertEquals("არსებული სიახლე", newsRepository.findById(existing.getId()).orElseThrow().getTitle());
+        assertEquals(auditBefore, auditLogRepository.count());
+    }
+
+    @Test
     void listRejectsInvalidOrUnboundedCardinality() throws Exception {
         User operator = createUser("news-list-bounds@magti.ge", Role.OPERATOR, "All");
         String token = tokenFor(operator);

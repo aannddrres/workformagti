@@ -112,6 +112,65 @@ class VideoControllerIntegrationTest {
     }
 
     @Test
+    void operatorCannotMutateVideoAndOriginalRowAndAuditRemainUnchanged() throws Exception {
+        User operator = createUser("video-denied-" + System.nanoTime() + "@magti.ge", Role.OPERATOR, "All");
+        VideoInstruction existing = createVideo("დაცული ვიდეო", "All", false);
+        String token = tokenFor(operator);
+        long videosBefore = videoRepository.count();
+        long auditBefore = auditLogRepository.count();
+        String body = "{\"title\":\"არ უნდა შეიცვალოს\",\"video_url\":"
+                + "\"https://www.youtube.com/embed/dQw4w9WgXcQ\"}";
+
+        mockMvc.perform(authed(post("/api/videos"), token)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(put("/api/videos/" + existing.getId()), token)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(delete("/api/videos/" + existing.getId()), token))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(post("/api/videos/" + existing.getId() + "/archive"), token))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(post("/api/videos/" + existing.getId() + "/unarchive"), token))
+                .andExpect(status().isForbidden());
+
+        VideoInstruction reloaded = videoRepository.findById(existing.getId()).orElseThrow();
+        assertEquals(videosBefore, videoRepository.count());
+        assertEquals("დაცული ვიდეო", reloaded.getTitle());
+        assertFalse(reloaded.isArchived());
+        assertEquals(auditBefore, auditLogRepository.count());
+    }
+
+    @Test
+    void malformedCreateAndUnknownVideoMutationsDoNotChangeContent() throws Exception {
+        User admin = createUser("video-errors-" + System.nanoTime() + "@magti.ge", Role.CONTENT_ADMIN, "All");
+        VideoInstruction existing = createVideo("არსებული ვიდეო", "All", false);
+        String token = tokenFor(admin);
+        long videosBefore = videoRepository.count();
+        long auditBefore = auditLogRepository.count();
+        String body = "{\"title\":\"ახალი\",\"video_url\":"
+                + "\"https://www.youtube.com/embed/dQw4w9WgXcQ\"}";
+
+        mockMvc.perform(authed(post("/api/videos"), token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"\",\"video_url\":\"https://www.youtube.com/embed/dQw4w9WgXcQ\"}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(authed(put("/api/videos/999999999"), token)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(delete("/api/videos/999999999"), token))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(post("/api/videos/999999999/archive"), token))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(post("/api/videos/" + existing.getId() + "/unarchive"), token))
+                .andExpect(status().isBadRequest());
+
+        assertEquals(videosBefore, videoRepository.count());
+        assertEquals("არსებული ვიდეო", videoRepository.findById(existing.getId()).orElseThrow().getTitle());
+        assertEquals(auditBefore, auditLogRepository.count());
+    }
+
+    @Test
     void contentAdminSeesEveryVideoIncludingArchived() throws Exception {
         User admin = createUser("va1@magti.ge", Role.CONTENT_ADMIN, "Content Creation");
         createVideo("ტექნიკური ვიდეო", "ტექნიკური", false);
