@@ -9,9 +9,10 @@ is GAP, which must name the ledger row (A<n>) that closes it.
 A register is only as good as its links. This reads every evidence token
 against the tree, so a renamed test or a deleted file fails the build here
 instead of leaving a PASS that points at nothing. It does not decide whether
-the review is finished: RISK_ACCEPTANCE_REQUESTED and GAP are legitimate
-states while the owner has not answered. The ledger's A10 row says when it is
-finished.
+the review is finished on its own: RISK_ACCEPTANCE_REQUESTED and GAP were
+legitimate states while the owner had not answered. A10 closed on 2026-09-26,
+so test_the_review_is_finished now refuses both; a new gap, or a risk the
+owner has not yet taken, reopens A10 in the ledger first.
 
 A test token names a test as written in its file. Tokens are separated by
 whitespace, so a Playwright or Vitest title is written with "_" for each
@@ -143,3 +144,8 @@ def test_every_evidence_token_resolves():
                 for kind, value in tokens(row)
                 if (why := unresolved(kind, value))]
     assert not problems, "\n".join(problems)
+
+
+def test_the_review_is_finished():
+    waiting = [row["requirement"] for row in rows() if row["disposition"] in ("GAP", "RISK_ACCEPTANCE_REQUESTED")]
+    assert waiting == [], f"A10 closed on 2026-09-26; reopen it in the ledger before these: {waiting}"
