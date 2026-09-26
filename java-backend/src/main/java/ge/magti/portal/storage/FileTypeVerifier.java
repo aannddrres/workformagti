@@ -31,15 +31,22 @@ import java.util.Locale;
  *
  * <h2>What it verifies, and what it cannot</h2>
  *
- * Magic bytes only, for the formats that have them. That covers PNG, JPEG,
- * GIF, WebP, PDF and the ZIP-container Office formats (docx/xlsx). It
- * deliberately does <b>not</b> try to validate {@code text/plain} or
- * {@code application/msword}/{@code application/vnd.ms-excel}: plain text has
- * no signature by definition, and the legacy OLE2 formats share one
- * signature with each other. Claiming to check those would be the same kind
- * of overstatement this class exists to remove, so
- * {@link #verify(String, byte[])} returns {@link Result#UNVERIFIABLE} and
- * says so.
+ * Magic bytes, for every type the upload endpoint accepts (ASVS V5.2.2,
+ * pinned by UploadAllowlistTest). PNG, JPEG, GIF, WebP, PDF, the ZIP-container
+ * Office formats (docx/xlsx), the OLE2 container of the legacy ones (doc/xls)
+ * and the ISO media {@code ftyp} box of MP4.
+ *
+ * <p>Two limits, stated so the check is not read as more than it is. doc and
+ * xls share the OLE2 signature, so the bytes prove the container and the
+ * declared type says which of the two it is; telling them apart would mean
+ * parsing the container, which this class deliberately never does. And text
+ * has no signature at all, so for {@code text/plain} the check is that the
+ * bytes are text: no NUL, which executables, images and archives carry near
+ * their start and no 8-bit text encoding produces. The encoding itself is not
+ * policed, so an old-codepage .txt still uploads.
+ *
+ * <p>{@link Result#UNVERIFIABLE} remains for a type outside that list; the
+ * upload endpoint refuses such types before asking.
  */
 public final class FileTypeVerifier {
 
@@ -65,6 +72,11 @@ public final class FileTypeVerifier {
     private static final byte[] ZIP = {'P', 'K', 0x03, 0x04};
     private static final byte[] ZIP_EMPTY = {'P', 'K', 0x05, 0x06};
     private static final byte[] ZIP_SPANNED = {'P', 'K', 0x07, 0x08};
+    /** The OLE2 compound file header shared by .doc and .xls. */
+    private static final byte[] OLE2 = {(byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0, (byte) 0xA1, (byte) 0xB1, 0x1A, (byte) 0xE1};
+    private static final byte[] FTYP = {'f', 't', 'y', 'p'};
+    private static final byte[] UTF16_LE_BOM = {(byte) 0xFF, (byte) 0xFE};
+    private static final byte[] UTF16_BE_BOM = {(byte) 0xFE, (byte) 0xFF};
 
     private static final List<Signature> SIGNATURES = List.of(
             new Signature("image/png", List.of(PNG)),
@@ -76,7 +88,8 @@ public final class FileTypeVerifier {
                     List.of(ZIP, ZIP_EMPTY, ZIP_SPANNED)),
             new Signature("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     List.of(ZIP, ZIP_EMPTY, ZIP_SPANNED)),
-            new Signature("video/mp4", List.of()));
+            new Signature("application/msword", List.of(OLE2)),
+            new Signature("application/vnd.ms-excel", List.of(OLE2)));
 
     private FileTypeVerifier() {
     }
@@ -86,15 +99,17 @@ public final class FileTypeVerifier {
             return Result.UNVERIFIABLE;
         }
         String normalized = declaredContentType.trim().toLowerCase(Locale.ROOT);
+        if ("video/mp4".equals(normalized)) {
+            // The box size in front of "ftyp" varies; the name does not.
+            return hasAt(content, 4, FTYP) ? Result.MATCHES : Result.MISMATCH;
+        }
+        if ("text/plain".equals(normalized)) {
+            return isText(content) ? Result.MATCHES : Result.MISMATCH;
+        }
 
         for (Signature signature : SIGNATURES) {
             if (!signature.contentType().equals(normalized)) {
                 continue;
-            }
-            if (signature.magic().isEmpty()) {
-                // mp4's signature sits at byte 4 ("ftyp") with a
-                // brand-dependent prefix; not worth a half-right check.
-                return Result.UNVERIFIABLE;
             }
             boolean matches = signature.magic().stream().anyMatch(m -> startsWith(content, m));
             if (!matches) {
@@ -107,6 +122,19 @@ public final class FileTypeVerifier {
             return Result.MATCHES;
         }
         return Result.UNVERIFIABLE;
+    }
+
+    /** Text as opposed to binary: UTF-16 announces itself with a BOM; anything else may carry no NUL. */
+    private static boolean isText(byte[] content) {
+        if (startsWith(content, UTF16_LE_BOM) || startsWith(content, UTF16_BE_BOM)) {
+            return true;
+        }
+        for (byte b : content) {
+            if (b == 0) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static boolean startsWith(byte[] content, byte[] prefix) {

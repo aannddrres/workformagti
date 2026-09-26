@@ -213,9 +213,9 @@ class UploadControllerIntegrationTest {
     }
 
     /**
-     * ...but a type with no usable signature is still accepted rather than
-     * blocked, since refusing it would break real .txt uploads. The verifier
-     * reports UNVERIFIABLE for these and the upload proceeds knowingly.
+     * ...but text, which has no signature, is checked only for being text
+     * (no NUL byte), so a real .txt in any encoding still uploads. Until
+     * 2026-09-26 the verifier did not look at it at all (ASVS V5.2.2).
      */
     @Test
     void aPlainTextUploadStillWorksBecauseTextHasNoSignature() throws Exception {
