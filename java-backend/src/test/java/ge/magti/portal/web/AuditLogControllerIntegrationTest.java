@@ -33,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -284,6 +285,44 @@ class AuditLogControllerIntegrationTest {
                 .andExpect(jsonPath("$[0].details").value("შეიცავს უნიკალურ-სიტყვას-XYZ"));
     }
 
+    /**
+     * ASVS V1.2.4. The free-text filter is a bind variable inside SQL this
+     * service assembles from constant fragments. A quote, a terminator and
+     * both comment forms are matched as the characters they are, and the
+     * tautologies find nothing rather than every row. {@code %} and {@code _}
+     * do act as LIKE wildcards here, deliberately left so: the text filter
+     * is one predicate AND-ed with the caller's scope and every other
+     * filter, so a wildcard widens the match only within what may be read.
+     */
+    @Test
+    void sqlMetacharactersInTheFreeTextFilterAreMatchedLiterally() throws Exception {
+        User admin = createUser("audit.sqlmeta@magti.ge", Role.SYSTEM_ADMIN, "All", Set.of());
+        writeAuditRow(admin.getId(), "UPDATE", "system", 0L, "O'Brien'); DROP TABLE audit_logs; -- /* x */");
+        writeAuditRow(admin.getId(), "UPDATE", "system", 0L, "სხვა დეტალები");
+
+        assertEquals("1", auditRowsMatching(admin, "O'Brien'); DROP TABLE audit_logs; --"),
+                "quote, terminator and line comment are data");
+        assertEquals("1", auditRowsMatching(admin, "/* x */"), "a block comment is data");
+        assertEquals("0", auditRowsMatching(admin, "' OR '1'='1"), "the tautology is text no row contains");
+        assertEquals("0", auditRowsMatching(admin, "') OR 1=1 --"), "closing the pattern early does not work either");
+        assertEquals("2", auditRowsMatching(admin, "%"), "% is a LIKE wildcard, within the other filters");
+    }
+
+    /**
+     * X-Total-Count for {@code q} among the admin's own UPDATE rows. The
+     * action filter keeps out the VIEW_AUDIT_LOG row each call writes, whose
+     * details repeat the q it was given.
+     */
+    private String auditRowsMatching(User admin, String q) throws Exception {
+        return mockMvc.perform(get("/api/audit-logs")
+                        .param("q", q)
+                        .param("user_id", String.valueOf(admin.getId()))
+                        .param("action", "UPDATE")
+                        .header("Authorization", "Bearer " + tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getHeader("X-Total-Count");
+    }
+
     @Test
     void malformedAuditUserFilterIsRejectedBeforeQuery() throws Exception {
         User admin = createUser("audit.invalidfilter-" + System.nanoTime() + "@magti.ge",
@@ -338,6 +377,8 @@ class AuditLogControllerIntegrationTest {
                         .header("Authorization", "Bearer " + tokenFor(contentAdmin)))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Disposition", "attachment; filename=audit_logs.csv"))
+                // ASVS V4.1.1: text says which encoding it is in.
+                .andExpect(content().contentType("text/csv;charset=UTF-8"))
                 .andReturn().getResponse().getContentAsString();
 
         assertTrue(csv.startsWith("ID,დრო,ვინ,ქმედება,ობიექტი,დეტალები\r\n"));

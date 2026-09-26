@@ -218,6 +218,40 @@ class SearchControllerIntegrationTest {
     }
 
     /**
+     * ASVS V1.2.4. What an operator types reaches the database only as bind
+     * values (the trigram lookup) and is then compared as plain text. A quote,
+     * a statement terminator, a comment marker, % and _ are characters like
+     * any other: each finds the one article that contains it, never the
+     * look-alike that a LIKE pattern or a spliced string would also return,
+     * and the classic tautology finds nothing rather than everything.
+     */
+    @Test
+    void sqlMetacharactersInASearchAreMatchedLiterally() throws Exception {
+        User admin = createUser("search-sqlmeta@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category category = createCategory("სპეცსიმბოლოების კატეგორია");
+        Article literal = createArticle("ტარიფი O'Brien-ის", "ფასი';--გეგმა 50%-იანი x_y ბლოკი/**/ტექსტი", null,
+                "published", false, List.of("All"), TbilisiTime.now());
+        Article lookalike = createArticle("ტარიფი OBrien-ის", "ფასი 5099-იანი xzy ბლოკიტექსტი", null,
+                "published", false, List.of("All"), TbilisiTime.now());
+        for (Article article : List.of(literal, lookalike)) {
+            article.setCategoryId(category.getId());
+            articleRepository.saveAndFlush(article);
+            searchReindexService.reindexArticle(article);
+        }
+
+        for (String q : List.of("O'Brien-ის", "ფასი';--გეგმა", "50%-იანი", "x_y", "ბლოკი/**/ტექსტი")) {
+            mockMvc.perform(authed(get("/api/search"), tokenFor(admin))
+                            .param("q", q).param("category_id", category.getId().toString()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$", hasSize(1)))
+                    .andExpect(jsonPath("$[0].id").value(literal.getId().intValue()));
+        }
+        mockMvc.perform(authed(get("/api/search"), tokenFor(admin)).param("q", "x' OR '1'='1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    /**
      * ASVS V15.3.7 through the running application rather than a probe:
      * RepeatedParameterGuard sits in front of every handler, so a term given
      * twice is refused instead of being searched for as "ინტერნეტი,ტარიფი".
