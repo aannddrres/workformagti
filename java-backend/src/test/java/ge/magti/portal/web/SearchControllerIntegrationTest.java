@@ -217,6 +217,20 @@ class SearchControllerIntegrationTest {
                 .andExpect(jsonPath("$[1].id").value(contentMatch.getId().intValue()));
     }
 
+    /**
+     * ASVS V15.3.7 through the running application rather than a probe:
+     * RepeatedParameterGuard sits in front of every handler, so a term given
+     * twice is refused instead of being searched for as "ინტერნეტი,ტარიფი".
+     */
+    @Test
+    void aSearchTermGivenTwiceIsRefused() throws Exception {
+        User operator = createUser("search-hpp@magti.ge", Role.OPERATOR, "ტექნიკური");
+
+        mockMvc.perform(authed(get("/api/search"), tokenFor(operator)).param("q", "ინტერნეტი").param("q", "ტარიფი"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("მოთხოვნის პარამეტრი არასწორია"));
+    }
+
     /** Proves the write-side reindex hooks (task: wire into controllers), not just the read side. */
     @Test
     void createUpdateAndDeleteViaRealEndpointsKeepTheIndexInSync() throws Exception {

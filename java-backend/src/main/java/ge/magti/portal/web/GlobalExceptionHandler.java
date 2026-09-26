@@ -138,6 +138,18 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * A single-valued parameter given twice (RepeatedParameterGuard, ASVS
+     * V15.3.7). The caller's error for the same reason as above, and answered
+     * the same way.
+     */
+    @ExceptionHandler(RepeatedParameterGuard.RepeatedParameterException.class)
+    public ResponseEntity<Map<String, String>> handleRepeatedParameter(
+            RepeatedParameterGuard.RepeatedParameterException exception) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                "detail", "მოთხოვნის პარამეტრი არასწორია"));
+    }
+
+    /**
      * The route exists but not for this method -- 405, and per RFC 9110 a 405
      * must name what is allowed, so the header is not optional decoration.
      *
