@@ -1,5 +1,6 @@
 package ge.magti.portal.web;
 
+import ge.magti.portal.content.ItemKey;
 import ge.magti.portal.content.ItemTitleResolver;
 import ge.magti.portal.domain.Favorite;
 import ge.magti.portal.domain.User;
@@ -45,10 +46,13 @@ public class FavoriteController {
         if (denial != null) {
             return denial;
         }
-        List<FavoriteResponse> favorites = CompleteResultGuard.enforce(
-                        favoriteRepository.findByUserId(user.getId(), CompleteResultGuard.sentinelPage())).stream()
-                .map(f -> FavoriteResponse.from(f,
-                        itemTitleResolver.resolveFor(f.getItemType(), f.getItemId(), user).orElse(null)))
+        List<Favorite> rows = CompleteResultGuard.enforce(
+                favoriteRepository.findByUserId(user.getId(), CompleteResultGuard.sentinelPage()));
+        // One lookup for the whole list; titles only of what this user may open (A17).
+        Map<ItemKey, String> titles = itemTitleResolver.visibleTitles(
+                rows.stream().map(f -> new ItemKey(f.getItemType(), f.getItemId())).toList(), user);
+        List<FavoriteResponse> favorites = rows.stream()
+                .map(f -> FavoriteResponse.from(f, titles.get(new ItemKey(f.getItemType(), f.getItemId()))))
                 .toList();
         return ResponseEntity.ok(favorites);
     }

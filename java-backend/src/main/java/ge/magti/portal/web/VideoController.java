@@ -110,7 +110,7 @@ public class VideoController {
             return notFound();
         }
         VideoInstruction video = found.get();
-        if (!isVideoVisibleTo(user, video)) {
+        if (!VideoVisibility.isVisible(video, user)) {
             return notFound();
         }
         video.setViewsCount(video.getViewsCount() + 1);
@@ -256,12 +256,6 @@ public class VideoController {
 
     private static ResponseEntity<?> notFound() {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", NOT_FOUND_DETAIL));
-    }
-
-    private static boolean isVideoVisibleTo(User user, VideoInstruction video) {
-        return user.getRole().isContentAdmin()
-                || (!video.isArchived()
-                && VideoVisibility.isInAudience(video, user));
     }
 
     private ResponseEntity<Map<String, String>> requireVideosArchivePermission(User user) {
