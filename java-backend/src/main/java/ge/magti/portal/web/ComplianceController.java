@@ -1,6 +1,5 @@
 package ge.magti.portal.web;
 
-import ge.magti.portal.article.ArticleVisibility;
 import ge.magti.portal.compliance.ComplianceCalculator;
 import ge.magti.portal.compliance.ComplianceQueryService;
 import ge.magti.portal.compliance.RequiredReadingMutationService;
@@ -65,7 +64,7 @@ import java.util.Optional;
 public class ComplianceController {
 
     private static final String READING_NOT_FOUND = "სავალდებულო მასალა ვერ მოიძებნა";
-    private static final String ITEM_NOT_FOUND = "სტატია ვერ მოიძებნა";
+    private static final String ITEM_NOT_FOUND = "მასალა ვერ მოიძებნა";
     private static final String READING_HAS_READ_RECEIPTS =
             "სავალდებულო მასალის წაშლა ვერ ხერხდება -- მომხმარებლებმა უკვე გაიცნეს იგი";
 
@@ -390,10 +389,8 @@ public class ComplianceController {
         return null;
     }
 
-    /** Another author's private draft article, which this caller may not address at all (PO-34). */
+    /** Another author's private draft, which this caller may not address at all (PO-34, D2). */
     private boolean isPrivateDraftOfAnother(String itemType, Long itemId, User user) {
-        return "article".equals(itemType) && itemId != null && articleRepository.findById(itemId)
-                .map(article -> ArticleVisibility.isPrivateDraftOfAnother(article, user))
-                .orElse(false);
+        return itemTitleResolver.isPrivateDraftOfAnother(itemType, itemId, user);
     }
 }

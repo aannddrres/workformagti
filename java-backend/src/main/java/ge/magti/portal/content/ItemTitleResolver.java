@@ -5,6 +5,7 @@ import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.News;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.domain.VideoInstruction;
+import ge.magti.portal.news.NewsVisibility;
 import ge.magti.portal.repository.ArticleRepository;
 import ge.magti.portal.repository.NewsRepository;
 import ge.magti.portal.repository.VideoInstructionRepository;
@@ -13,7 +14,6 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -58,9 +58,27 @@ public class ItemTitleResolver {
                     .filter(a -> !ArticleVisibility.isPrivateDraftOfAnother(a, viewer))
                     .map(Article::getTitle);
             case "news" -> newsRepository.findById(itemId)
-                    .filter(n -> !n.isDraft() || Objects.equals(n.getAuthorId(), viewer.getId()))
+                    .filter(n -> !NewsVisibility.isPrivateDraftOfAnother(n, viewer))
                     .map(News::getTitle);
             default -> resolve(itemType, itemId);
+        };
+    }
+
+    /**
+     * Whether (itemType, itemId) is another author's private draft, the one
+     * kind of item a caller may not address at all (PO-34, D2). Here because
+     * this is the class that already loads an item from its wire name and id.
+     */
+    public boolean isPrivateDraftOfAnother(String itemType, Long itemId, User viewer) {
+        if (itemId == null) {
+            return false;
+        }
+        return switch (itemType == null ? "" : itemType) {
+            case "article" -> articleRepository.findById(itemId)
+                    .map(a -> ArticleVisibility.isPrivateDraftOfAnother(a, viewer)).orElse(false);
+            case "news" -> newsRepository.findById(itemId)
+                    .map(n -> NewsVisibility.isPrivateDraftOfAnother(n, viewer)).orElse(false);
+            default -> false;
         };
     }
 

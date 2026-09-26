@@ -14,9 +14,18 @@ public final class NewsVisibility {
 
     public static boolean isVisible(News news, User user) {
         if (user.getRole().isContentAdmin()) {
-            return !news.isDraft() || Objects.equals(news.getAuthorId(), user.getId());
+            return !isPrivateDraftOfAnother(news, user);
         }
         return !news.isDraft() && !news.isArchived() && news.getTargetDepartment() != null
                 && DepartmentMatcher.matches(user.getDepartment(), List.of(news.getTargetDepartment()));
+    }
+
+    /**
+     * The draft half alone: is_draft set, and the caller is not the author.
+     * For the endpoints that change or reveal one news item without applying
+     * the reader rules (PO-34, D2); an item with no author is nobody's.
+     */
+    public static boolean isPrivateDraftOfAnother(News news, User user) {
+        return news.isDraft() && !Objects.equals(news.getAuthorId(), user.getId());
     }
 }

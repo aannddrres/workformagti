@@ -7,6 +7,7 @@ import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.ArticleTargetDepartment;
 import ge.magti.portal.domain.ArticleViewLog;
 import ge.magti.portal.domain.Category;
+import ge.magti.portal.domain.News;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
@@ -15,6 +16,8 @@ import ge.magti.portal.repository.ArticleRepository;
 import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
 import ge.magti.portal.repository.ArticleViewLogRepository;
 import ge.magti.portal.repository.CategoryRepository;
+import ge.magti.portal.repository.NewsHistoryRepository;
+import ge.magti.portal.repository.NewsRepository;
 import ge.magti.portal.repository.UserPermissionOverrideRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.search.SearchReindexService;
@@ -22,6 +25,7 @@ import ge.magti.portal.security.JwtService;
 import ge.magti.portal.util.TbilisiTime;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -83,6 +87,8 @@ class PrivateDraftIsolationIntegrationTest {
     @Autowired private ArticleRepository articleRepository;
     @Autowired private ArticleTargetDepartmentRepository targets;
     @Autowired private ArticleViewLogRepository viewLogs;
+    @Autowired private NewsRepository newsRepository;
+    @Autowired private NewsHistoryRepository newsHistory;
     @Autowired private SearchReindexService searchReindexService;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private JwtService jwtService;
@@ -308,7 +314,79 @@ class PrivateDraftIsolationIntegrationTest {
         }
     }
 
+    // ── news ───────────────────────────────────────────────────────────
+
+    /**
+     * D2 names is_draft, not articles: a news item carries the same flag, and
+     * NewsVisibility already gives GET /api/news/{id} the author-only answer.
+     * Its changes and its history answered anyone holding content.manage.
+     */
+    @Test
+    void anotherAuthorsPrivateNewsDraftIsReachableFromNoEndpoint() throws Exception {
+        Fixture f = fixture("pd-news");
+        News draft = news(DRAFT_TITLE, true, f.author());
+        News published = news("pd-news ჩვეულებრივი", false, f.author());
+        // One saved revision, so the history item and restore have a target.
+        assertEquals(200, call(authed(put("/api/news/" + draft.getId()), token(f.author()))
+                .contentType(MediaType.APPLICATION_JSON).content(newsBody(DRAFT_TITLE))).getStatus());
+        long historyId = newsHistory.findByNewsIdOrderByUpdatedAtDesc(draft.getId(), PageRequest.of(0, 1))
+                .getFirst().getId();
+        String base = "/api/news/" + draft.getId();
+
+        for (User other : f.others()) {
+            String token = token(other);
+            String who = other.getEmail();
+            expectNotFound(authed(put(base), token)
+                    .contentType(MediaType.APPLICATION_JSON).content(newsBody("გადაწერილი")), who);
+            expectNotFound(authed(put(base + "/command"), token).contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"news\":" + newsBody("გადაწერილი") + ",\"mandatory\":false}"), who);
+            expectNotFound(authed(patch(base + "/autosave"), token)
+                    .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"გადაწერილი\"}"), who);
+            expectNotFound(authed(post(base + "/archive"), token), who);
+            expectNotFound(authed(post(base + "/unarchive"), token), who);
+            expectNotFound(authed(delete(base), token), who);
+            expectNotFound(authed(get(base + "/history"), token), who);
+            expectNotFound(authed(get(base + "/history-summary"), token), who);
+            expectNotFound(authed(get(base + "/history/" + historyId), token), who);
+            expectNotFound(authed(post(base + "/history/" + historyId + "/restore"), token), who);
+            expectNotFound(authed(post("/api/compliance/required-readings"), token)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"item_type\":\"news\",\"item_id\":" + draft.getId() + ",\"target_department\":\"All\","
+                            + "\"due_date\":\"" + TbilisiTime.now().plusDays(7) + "\",\"priority\":\"high\"}"), who);
+            MockHttpServletResponse bookmarked = call(authed(post("/api/favorites"), token)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"item_type\":\"news\",\"item_id\":" + draft.getId() + "}"));
+            assertEquals(200, bookmarked.getStatus(), who);
+            assertFalse(bookmarked.getContentAsString(StandardCharsets.UTF_8).contains(DRAFT_TITLE), who + " favorite");
+
+            // The same editor may archive an ordinary news item.
+            assertEquals(200, call(authed(post("/api/news/" + published.getId() + "/archive"), token)).getStatus(),
+                    who + " must pass the gate itself");
+        }
+
+        entityManager.clear();
+        News after = newsRepository.findById(draft.getId()).orElseThrow();
+        assertEquals(DRAFT_TITLE, after.getTitle());
+        assertTrue(after.isDraft());
+        assertEquals(null, after.getExpiresAt(), "archive must not have touched it");
+    }
+
     // ── helpers ────────────────────────────────────────────────────────
+
+    private News news(String title, boolean isDraft, User author) {
+        News news = new News();
+        news.setTitle(title);
+        news.setContent("სიახლე, რომელიც მხოლოდ ავტორმა უნდა ნახოს");
+        news.setTargetDepartment("All");
+        news.setDraft(isDraft);
+        news.setAuthorId(author.getId());
+        news.setCreatedAt(TbilisiTime.now());
+        return newsRepository.saveAndFlush(news);
+    }
+
+    private static String newsBody(String title) {
+        return "{\"title\":\"" + title + "\",\"content\":\"შინაარსი\",\"target_department\":\"All\"}";
+    }
 
     private User user(String local, Role role) {
         User user = new User();
