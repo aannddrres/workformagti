@@ -16,7 +16,7 @@ from here, so that neither half goes stale by being restated.
 |---|---|
 | Backend | `java-backend/` — Java 21, Spring Boot 4.1.0, Maven wrapper (`mvnw` / `mvnw.cmd`) |
 | Frontend | `angular-frontend/` — Angular 22, Node 22.22.3 (pinned in `.nvmrc`) |
-| Database | Oracle. Flyway owns the schema; the highest migration is `V50` |
+| Database | Oracle. Flyway owns the schema; the highest migration is `V51` |
 | Tooling | Four Python seeders in `scripts/`, covered by `tests/` |
 
 The FastAPI/PostgreSQL/server-rendered implementation was deleted on

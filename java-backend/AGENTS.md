@@ -51,7 +51,7 @@ specific migrations; there is no Flyway **checksum** test, and no ArchUnit.
 
 ## Migrations
 
-Next is `V51`. `V37` does not exist — the numbering skips it deliberately, so
+Next is `V52`. `V37` does not exist — the numbering skips it deliberately, so
 do not fill the gap. A new migration also bumps `EXPECTED_FLYWAY_VERSION` in
 `scripts/presentation/common.py`: the demo and UAT seeders demand that exact
 version, and `DocumentedFactsTest` fails if the two drift.

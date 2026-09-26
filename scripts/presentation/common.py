@@ -86,7 +86,7 @@ EXPECTED_ORACLE_CONTEXT = ("MAGTI_APP", "XEPDB1", "XEPDB1")
 # 48 -> 49 (2026-09-23): audit chain hash/previous-hash indexes only.
 # Seeders write no audit hashes directly; the V28 trigger continues to do so.
 # Existing duplicates make the unique index fail loudly and need investigation.
-EXPECTED_FLYWAY_VERSION = "50"
+EXPECTED_FLYWAY_VERSION = "51"
 SEARCH_ENTITY_TYPES = {
     "article": "ARTICLE",
     "news": "NEWS",
