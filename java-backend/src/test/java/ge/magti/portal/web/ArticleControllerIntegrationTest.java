@@ -594,6 +594,9 @@ class ArticleControllerIntegrationTest {
         Category cat = createCategory("კატ-10");
         Article article = createArticle("თავდაპირველი სათაური", cat.getId(), "draft", true,
                 List.of("ტექნიკური"), null);
+        // Autosave is the author's own flow; a private draft is nobody else's (PO-34).
+        article.setAuthorId(admin.getId());
+        articleRepository.saveAndFlush(article);
 
         mockMvc.perform(authed(patch("/api/articles/" + article.getId() + "/autosave"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -624,6 +627,9 @@ class ArticleControllerIntegrationTest {
         User admin = createUser("aa13@magti.ge", Role.CONTENT_ADMIN, "All");
         Category cat = createCategory("კატ-11");
         Article article = createArticle("სათაური", cat.getId(), "draft", true, List.of("ტექნიკური"), null);
+        // Autosave is the author's own flow; a private draft is nobody else's (PO-34).
+        article.setAuthorId(admin.getId());
+        articleRepository.saveAndFlush(article);
 
         mockMvc.perform(authed(patch("/api/articles/" + article.getId() + "/autosave"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -670,6 +676,9 @@ class ArticleControllerIntegrationTest {
         User admin = createUser("aa19@magti.ge", Role.CONTENT_ADMIN, "All");
         Category cat = createCategory("კატ-17");
         Article article = createArticle("დრაფტი", cat.getId(), "draft", true, List.of("All"), null);
+        // Autosave is the author's own flow; a private draft is nobody else's (PO-34).
+        article.setAuthorId(admin.getId());
+        articleRepository.saveAndFlush(article);
 
         mockMvc.perform(authed(patch("/api/articles/" + article.getId() + "/autosave"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)

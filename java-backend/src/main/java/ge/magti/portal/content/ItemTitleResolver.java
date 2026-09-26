@@ -1,7 +1,9 @@
 package ge.magti.portal.content;
 
+import ge.magti.portal.article.ArticleVisibility;
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.News;
+import ge.magti.portal.domain.User;
 import ge.magti.portal.domain.VideoInstruction;
 import ge.magti.portal.repository.ArticleRepository;
 import ge.magti.portal.repository.NewsRepository;
@@ -11,6 +13,7 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -41,6 +44,24 @@ public class ItemTitleResolver {
         this.articleRepository = articleRepository;
         this.newsRepository = newsRepository;
         this.videoInstructionRepository = videoInstructionRepository;
+    }
+
+    /**
+     * {@link #resolve}, except that another author's private draft has no
+     * title for this viewer. It resolves like an item that does not exist, so
+     * the caller shows its own placeholder -- a bookmark answered with any
+     * article's title, a colleague's private draft included (PO-34).
+     */
+    public Optional<String> resolveFor(String itemType, Long itemId, User viewer) {
+        return switch (itemType == null ? "" : itemType) {
+            case "article" -> articleRepository.findById(itemId)
+                    .filter(a -> !ArticleVisibility.isPrivateDraftOfAnother(a, viewer))
+                    .map(Article::getTitle);
+            case "news" -> newsRepository.findById(itemId)
+                    .filter(n -> !n.isDraft() || Objects.equals(n.getAuthorId(), viewer.getId()))
+                    .map(News::getTitle);
+            default -> resolve(itemType, itemId);
+        };
     }
 
     public Optional<String> resolve(String itemType, Long itemId) {

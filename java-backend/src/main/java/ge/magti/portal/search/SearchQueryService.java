@@ -1,21 +1,21 @@
 package ge.magti.portal.search;
 
 import ge.magti.portal.article.ArticleTargetQueryService;
+import ge.magti.portal.article.ArticleVisibility;
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.News;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.domain.VideoInstruction;
+import ge.magti.portal.news.NewsVisibility;
 import ge.magti.portal.repository.ArticleRepository;
 import ge.magti.portal.repository.NewsRepository;
 import ge.magti.portal.repository.SearchTrigramRepository;
 import ge.magti.portal.repository.VideoInstructionRepository;
 import ge.magti.portal.util.DepartmentMatcher;
-import ge.magti.portal.util.TbilisiTime;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
-import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -142,23 +142,19 @@ public class SearchQueryService {
             scores = scored;
         }
 
+        // ArticleVisibility, the rule the article page itself applies. The
+        // copy written out here never looked at is_draft: an administrator's
+        // search returned every colleague's private draft in full
+        // (ArticleResponse carries the content), and a legacy row that said
+        // published with is_draft still set reached operators too (PO-34).
+        // An administrator's audience is not consulted, so it is not loaded.
+        Map<Long, List<String>> deptsByArticle = isAdmin ? Map.of()
+                : articleTargetQueryService.targetDepartmentsByArticleWithinLimit(
+                        candidates.stream().map(Article::getId).collect(Collectors.toSet()));
         List<Article> visible = new ArrayList<>();
-        if (isAdmin) {
-            visible.addAll(candidates);
-        } else {
-            OffsetDateTime now = TbilisiTime.now();
-            Set<Long> ids = candidates.stream().map(Article::getId).collect(Collectors.toSet());
-            Map<Long, List<String>> deptsByArticle =
-                    articleTargetQueryService.targetDepartmentsByArticleWithinLimit(ids);
-            for (Article article : candidates) {
-                boolean statusOk = "published".equals(article.getStatus())
-                        || ("scheduled".equals(article.getStatus())
-                                && article.getPublishedAt() != null && !article.getPublishedAt().isAfter(now));
-                boolean deptOk = DepartmentMatcher.matches(
-                        user.getDepartment(), deptsByArticle.getOrDefault(article.getId(), List.of()));
-                if (statusOk && deptOk) {
-                    visible.add(article);
-                }
+        for (Article article : candidates) {
+            if (ArticleVisibility.isVisible(article, deptsByArticle.getOrDefault(article.getId(), List.of()), user)) {
+                visible.add(article);
             }
         }
 
@@ -181,12 +177,12 @@ public class SearchQueryService {
         boolean isAdmin = user.getRole().isContentAdmin();
 
         List<Article> articles = searchArticles(q, null, user).stream().limit(8).toList();
-        List<News> news = searchNews(words, isAdmin, user);
+        List<News> news = searchNews(words, user);
         List<VideoInstruction> videos = searchVideos(words, isAdmin, user);
         return new GlobalSearchResult(articles, news, videos);
     }
 
-    private List<News> searchNews(List<String> words, boolean isAdmin, User user) {
+    private List<News> searchNews(List<String> words, User user) {
         Set<Long> candidateIds = candidateIds(SearchReindexService.NEWS, words);
         List<News> fetched = candidateIds == null ? newestNews() : newsRepository.findAllById(candidateIds);
 
@@ -200,16 +196,11 @@ public class SearchQueryService {
             }
         }
 
-        List<News> visible;
-        if (isAdmin) {
-            visible = matched;
-        } else {
-            visible = matched.stream()
-                    .filter(n -> !n.isDraft())
-                    .filter(n -> !n.isArchived())
-                    .filter(n -> DepartmentMatcher.matches(user.getDepartment(), List.of(n.getTargetDepartment())))
-                    .collect(Collectors.toCollection(ArrayList::new));
-        }
+        // NewsVisibility, the rule GET /api/news/{id} applies: an
+        // administrator sees archived news but not a colleague's private draft.
+        List<News> visible = matched.stream()
+                .filter(n -> NewsVisibility.isVisible(n, user))
+                .collect(Collectors.toCollection(ArrayList::new));
         visible.sort(Comparator.comparingInt((News n) -> scores.getOrDefault(n.getId(), 0)).reversed());
         return visible.stream().limit(5).toList();
     }

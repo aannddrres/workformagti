@@ -47,7 +47,8 @@ public class FavoriteController {
         }
         List<FavoriteResponse> favorites = CompleteResultGuard.enforce(
                         favoriteRepository.findByUserId(user.getId(), CompleteResultGuard.sentinelPage())).stream()
-                .map(f -> FavoriteResponse.from(f, itemTitleResolver.resolve(f.getItemType(), f.getItemId()).orElse(null)))
+                .map(f -> FavoriteResponse.from(f,
+                        itemTitleResolver.resolveFor(f.getItemType(), f.getItemId(), user).orElse(null)))
                 .toList();
         return ResponseEntity.ok(favorites);
     }
@@ -68,7 +69,7 @@ public class FavoriteController {
         Favorite favorite = favoriteRepository
                 .findByUserIdAndItemTypeAndItemId(user.getId(), request.itemType(), request.itemId())
                 .orElseThrow();
-        String title = itemTitleResolver.resolve(favorite.getItemType(), favorite.getItemId()).orElse(null);
+        String title = itemTitleResolver.resolveFor(favorite.getItemType(), favorite.getItemId(), user).orElse(null);
         return ResponseEntity.ok(FavoriteResponse.from(favorite, title));
     }
 

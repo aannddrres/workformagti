@@ -27,7 +27,7 @@
 
 | ფაილი | თარიღი | რაზეა |
 |---|---|---|
-| [`PRODUCT_OWNER_DECISIONS_KA.md`](PRODUCT_OWNER_DECISIONS_KA.md) | 2026-09-21 | პროდუქტის ქცევის ოფიციალური რეესტრი (PO-nn / DEC-nn) |
+| [`PRODUCT_OWNER_DECISIONS_KA.md`](PRODUCT_OWNER_DECISIONS_KA.md) | 2026-09-26 | პროდუქტის ქცევის ოფიციალური რეესტრი (PO-nn / DEC-nn) |
 | [`ACCESS_CONTRACT_MATRIX_KA.md`](ACCESS_CONTRACT_MATRIX_KA.md) | 2026-09-21 | თითო ენდპოინტზე: ვინ იძახებს დღეს და ვინ უნდა იძახებდეს. **მანქანურად შემოწმებადი** — `AccessContractCoverageTest` build-ს ვარდენს შეუსაბამობაზე |
 | [`ENTERPRISE_READINESS_DECISIONS_KA.md`](ENTERPRISE_READINESS_DECISIONS_KA.md) | 2026-08-28 | DEC-001… — რომ იგივე გადაწყვეტილება თავიდან არ მიიღოს ვინმემ |
 | [`ROLLOUT_ROLLBACK_KA.md`](ROLLOUT_ROLLBACK_KA.md) | 2026-09-21 | თითო `ROLLOUT_*` დროშა: რას აკეთებს და როგორ ბრუნდება უკან. `RolloutSwitchWiringTest` ამოწმებს |

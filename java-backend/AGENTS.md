@@ -40,6 +40,7 @@ to extend rather than replace.
 | `docs/DocsIndexCoverageTest` | A file under `docs/` is missing from `docs/README.md`, or a link there does not resolve |
 | `article/ArticleVisibilityParityTest` | The Java visibility rule and its Angular mirror disagree on a case in `docs/api-contract/article-visibility-cases.json` |
 | `article/ArticleVisibilityDraftTest` | `ArticleVisibility` stops hiding another author's `is_draft` row from any caller, including administrators, or starts hiding the author's own |
+| `web/PrivateDraftIsolationIntegrationTest` | Another author's `is_draft` article is reachable again through a change, bulk, evidence, list, search, cache or assignment endpoint, for a content admin, a system admin or a `content.manage` holder (PO-34, D2) |
 | `web/ArticleRequestDraftConsistencyTest` | Create/update accepts `is_draft: true` beside a reader-visible status again |
 | `util/DepartmentVisibilityTargetsTest` | A seventh place builds `List.of(user.getDepartment(), …)` inline — it throws on a null department |
 | `web/ControllerGuardConsolidationTest` | A controller re-declares `requireAuthenticated` or `requireContentManage`, or the `requireSystemAdmin` inventory shifts |

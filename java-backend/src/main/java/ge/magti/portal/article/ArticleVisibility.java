@@ -45,7 +45,7 @@ public final class ArticleVisibility {
         // GET /api/articles/{id}: another author's private draft, if its
         // status happened to say published, came back in full to any of the
         // ~600 operators in its target departments.
-        if (article.isDraft() && !isAuthor(article, user)) {
+        if (isPrivateDraftOfAnother(article, user)) {
             return false;
         }
         if (user.getRole().isContentAdmin()) {
@@ -57,6 +57,25 @@ public final class ArticleVisibility {
         // Ownership is already settled above, so what is left is the
         // status-and-date clause alone.
         return isPublishedByLifecycle(article.getStatus(), article.getPublishedAt());
+    }
+
+    /**
+     * The draft half of the rule alone: {@code is_draft} set, and the caller
+     * is not the author. No role, no permission and no department changes the
+     * answer (PO-34; the owner's D2 of 2026-09-25 extends it to every
+     * endpoint).
+     *
+     * <p>Public for the endpoints that must not apply the rest of
+     * {@link #isVisible}: an editor may change an article outside their own
+     * audience, and a status change is exactly how an unpublished article
+     * becomes readable, so those ask this question only. Before they asked
+     * it, another administrator could overwrite, archive, verify or trash a
+     * colleague's private draft, and bulk-status -- which clears
+     * {@code is_draft} -- could publish it to the whole company
+     * (PrivateDraftIsolationIntegrationTest).
+     */
+    public static boolean isPrivateDraftOfAnother(Article article, User user) {
+        return article.isDraft() && !isAuthor(article, user);
     }
 
     /**

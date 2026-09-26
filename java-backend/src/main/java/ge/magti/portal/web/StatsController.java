@@ -1,5 +1,6 @@
 package ge.magti.portal.web;
 
+import ge.magti.portal.article.ArticleVisibility;
 import ge.magti.portal.compliance.ComplianceCalculator;
 import ge.magti.portal.compliance.ComplianceQueryService;
 import ge.magti.portal.domain.Article;
@@ -195,7 +196,9 @@ public class StatsController {
         List<TopArticleResponse> topArticles = new ArrayList<>();
         for (Long id : topIds) {
             Article a = articlesById.get(id);
-            if (a != null) {
+            // A private draft can carry reads only if it was published before
+            // its author withdrew it; its title is still theirs alone (PO-34).
+            if (a != null && !ArticleVisibility.isPrivateDraftOfAnother(a, user)) {
                 topArticles.add(new TopArticleResponse(a.getId(), a.getTitle(), readCountsByArticleId.get(id)));
             }
         }

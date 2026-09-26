@@ -212,7 +212,7 @@ class EndpointServiceFailureContractTest {
         ArticleRepository articles = mock(ArticleRepository.class);
         ArticleHistoryRepository history = mock(ArticleHistoryRepository.class);
         ArticleViewLogRepository views = mock(ArticleViewLogRepository.class);
-        when(articles.findStaleReferences(eq("published"), any(), any()))
+        when(articles.findStaleReferences(eq("published"), any(), any(), any()))
                 .thenThrow(new IllegalStateException("private-article-marker"));
         when(history.findSummaryByArticleIdOrderByUpdatedAtDesc(eq(99L), any()))
                 .thenThrow(new IllegalStateException("private-article-marker"));

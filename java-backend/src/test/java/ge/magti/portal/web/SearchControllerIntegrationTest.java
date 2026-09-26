@@ -258,23 +258,32 @@ class SearchControllerIntegrationTest {
                 .andExpect(jsonPath("$", hasSize(0)));
     }
 
+    /**
+     * PO-34: a private draft belongs to its author, administrators included.
+     * This test used to assert that any administrator found it -- in full,
+     * since search answers with ArticleResponse.
+     */
     @Test
-    void nonAdminNeverSeesADraftArticleInSearchButAdminDoes() throws Exception {
+    void onlyItsAuthorFindsAPrivateDraftArticleInSearch() throws Exception {
         // Scoped to a fresh category -- "დამალული" ("hidden") is a common
         // enough word to also match real imported content on this shared
         // Oracle instance.
         User operator = createUser("search-op1@magti.ge", Role.OPERATOR, "All");
         User admin = createUser("search-admin3@magti.ge", Role.CONTENT_ADMIN, "All");
+        User otherAdmin = createUser("search-admin4@magti.ge", Role.CONTENT_ADMIN, "All");
         Category category = createCategory("დამალული-კატეგორია");
         Article draft = createArticle("დამალული დრაფტი", "შინაარსი", null, "draft", true, List.of("All"), null);
         draft.setCategoryId(category.getId());
+        draft.setAuthorId(admin.getId());
         articleRepository.saveAndFlush(draft);
         searchReindexService.reindexArticle(draft);
 
-        mockMvc.perform(authed(get("/api/search"), tokenFor(operator))
-                        .param("q", "დამალული").param("category_id", category.getId().toString()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(0)));
+        for (User notTheAuthor : List.of(operator, otherAdmin)) {
+            mockMvc.perform(authed(get("/api/search"), tokenFor(notTheAuthor))
+                            .param("q", "დამალული").param("category_id", category.getId().toString()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$", hasSize(0)));
+        }
         mockMvc.perform(authed(get("/api/search"), tokenFor(admin))
                         .param("q", "დამალული").param("category_id", category.getId().toString()))
                 .andExpect(status().isOk())
@@ -341,17 +350,27 @@ class SearchControllerIntegrationTest {
      * confidentiality gap presented to and fixed per the user's decision.
      */
     @Test
-    void globalSearchHidesDraftNewsFromOperatorButAdminStillSeesIt() throws Exception {
+    void globalSearchShowsDraftNewsToItsAuthorOnly() throws Exception {
         User operator = createUser("search-op4@magti.ge", Role.OPERATOR, "All");
         User admin = createUser("search-admin5@magti.ge", Role.CONTENT_ADMIN, "All");
-        createNews("დრაფტნიუსი გამოცემა", "x", "All", true, null);
+        User otherAdmin = createUser("search-admin6@magti.ge", Role.CONTENT_ADMIN, "All");
+        News draft = createNews("დრაფტნიუსი გამოცემა", "x", "All", true, null);
+        // NewsVisibility, as GET /api/news/{id} applies it: another
+        // administrator gets a 404 there, so search does not name it either.
+        draft.setAuthorId(admin.getId());
+        newsRepository.saveAndFlush(draft);
 
-        mockMvc.perform(authed(get("/api/search/global"), tokenFor(operator)).param("q", "დრაფტნიუსი"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.news", hasSize(0)));
+        // The author first: global search caches its answer for 60 s, and a
+        // key shared by role and department handed the author's draft to the
+        // next administrator of the same department.
         mockMvc.perform(authed(get("/api/search/global"), tokenFor(admin)).param("q", "დრაფტნიუსი"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.news", hasSize(1)));
+        for (User notTheAuthor : List.of(operator, otherAdmin)) {
+            mockMvc.perform(authed(get("/api/search/global"), tokenFor(notTheAuthor)).param("q", "დრაფტნიუსი"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.news", hasSize(0)));
+        }
     }
 
     @Test

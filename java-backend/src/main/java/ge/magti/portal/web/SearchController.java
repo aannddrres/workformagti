@@ -98,7 +98,12 @@ public class SearchController {
         }
 
         String normalizedQuery = q.strip().toLowerCase(Locale.ROOT);
-        String cacheKey = "search:" + normalizedQuery + ":" + user.getRole().name() + ":" + user.getDepartment();
+        // Per person, not per role and department. An author's results carry
+        // their own private drafts (ArticleVisibility, NewsVisibility), and a
+        // key shared by role and department served them for the next 60 s to
+        // every colleague with the same two (PO-34).
+        String cacheKey = "search:" + normalizedQuery + ":" + user.getId() + ":" + user.getRole().name()
+                + ":" + user.getDepartment();
         SearchQueryService.GlobalSearchResult result =
                 globalSearchCache.getOrCompute(cacheKey, () -> searchQueryService.searchGlobal(q, user));
 

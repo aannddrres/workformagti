@@ -90,6 +90,9 @@ class FavoriteControllerIntegrationTest {
         Article article = new Article();
         article.setTitle(title);
         article.setContent("შინაარსი");
+        // The entity defaults is_draft to true; an authorless private draft
+        // has no title for anyone (PO-34), and this fixture is an ordinary article.
+        article.setDraft(false);
         return articleRepository.saveAndFlush(article);
     }
 

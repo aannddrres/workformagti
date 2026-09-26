@@ -314,6 +314,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (ArticleVisibility.isPrivateDraftOfAnother(article, user)) {
+            return notFound();
+        }
         List<String> previousTargets = resolveTargetDepartments(id);
         Map<String, Object> before = MutationAuditService.articleSnapshot(article, previousTargets);
 
@@ -426,6 +429,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (ArticleVisibility.isPrivateDraftOfAnother(article, user)) {
+            return notFound();
+        }
         List<String> previousTargetDepartments = resolveTargetDepartments(id);
         Map<String, Object> before = MutationAuditService.articleSnapshot(article, previousTargetDepartments);
 
@@ -546,7 +552,7 @@ public class ArticleController {
         }
 
         Optional<Article> found = articleRepository.findById(id);
-        if (found.isEmpty()) {
+        if (found.isEmpty() || ArticleVisibility.isPrivateDraftOfAnother(found.get(), user)) {
             return notFound();
         }
         ContentLifecycleService.Status status = contentLifecycleService.moveToTrash(
@@ -571,6 +577,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (ArticleVisibility.isPrivateDraftOfAnother(article, user)) {
+            return notFound();
+        }
         if ("archived".equals(article.getStatus())) {
             return ResponseEntity.ok(ArticleResponse.from(article, resolveTargetDepartments(id)));
         }
@@ -599,6 +608,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (ArticleVisibility.isPrivateDraftOfAnother(article, user)) {
+            return notFound();
+        }
         if (!"archived".equals(article.getStatus())) {
             return ResponseEntity.badRequest().body(Map.of("detail", "სტატია არ არის არქივში"));
         }
@@ -690,7 +702,7 @@ public class ArticleController {
             return ResponseEntity.badRequest().body(Map.of("detail", "კატეგორია ვერ მოიძებნა"));
         }
 
-        List<Article> rows = articleRepository.findAllById(request.ids());
+        List<Article> rows = changeableBy(articleRepository.findAllById(request.ids()), user);
         Set<Long> found = rows.stream().map(Article::getId).collect(Collectors.toSet());
         List<Long> skipped = new ArrayList<>();
         for (Long requestedId : request.ids()) {
@@ -730,6 +742,15 @@ public class ArticleController {
     }
 
     /**
+     * Another author's private draft is reported as skipped, exactly like an
+     * id that does not exist. bulk-status clears {@code is_draft}, so without
+     * this it published a colleague's autosave to its whole audience.
+     */
+    private static List<Article> changeableBy(List<Article> rows, User user) {
+        return rows.stream().filter(a -> !ArticleVisibility.isPrivateDraftOfAnother(a, user)).toList();
+    }
+
+    /**
      * The single implementation behind both status endpoints.
      *
      * <p>Audits each article individually with its own before/after snapshot
@@ -738,7 +759,7 @@ public class ArticleController {
      * decided -- and a batch row cannot answer it.
      */
     private BulkStatusOutcome applyBulkStatus(List<Long> ids, String target, User user) {
-        List<Article> rows = articleRepository.findAllById(ids);
+        List<Article> rows = changeableBy(articleRepository.findAllById(ids), user);
         Set<Long> found = rows.stream().map(Article::getId).collect(Collectors.toSet());
         List<Long> skipped = new ArrayList<>();
         for (Long requestedId : ids) {
@@ -843,6 +864,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (ArticleVisibility.isPrivateDraftOfAnother(article, user)) {
+            return notFound();
+        }
         List<String> targetDepartments = resolveTargetDepartments(id);
         Map<String, Object> before = MutationAuditService.articleSnapshot(article, targetDepartments);
         article.setLastVerifiedAt(TbilisiTime.now());
@@ -863,7 +887,7 @@ public class ArticleController {
 
         OffsetDateTime cutoff = TbilisiTime.now().minusDays(180);
         List<StaleArticleResponse> stale = CompleteResultGuard.enforce(articleRepository
-                .findStaleReferences("published", cutoff, CompleteResultGuard.sentinelPage())).stream()
+                .findStaleReferences("published", cutoff, user.getId(), CompleteResultGuard.sentinelPage())).stream()
                 .map(a -> new StaleArticleResponse(
                         a.id(), a.title(), resolveTargetDepartments(a.id()), a.lastVerifiedAt(),
                         Duration.between(a.lastVerifiedAt(), TbilisiTime.now()).toDays()))
@@ -893,7 +917,7 @@ public class ArticleController {
 
         List<ArticleReferenceItem> published = CompleteResultGuard.enforce(
                         articleRepository.findReferencesByStatus(
-                                "published", CompleteResultGuard.sentinelPage())).stream()
+                                "published", user.getId(), CompleteResultGuard.sentinelPage())).stream()
                 .filter(a -> !a.id().equals(id))
                 .toList();
         Set<Long> candidateIds = published.stream().map(ArticleReferenceItem::id).collect(Collectors.toSet());
@@ -1248,6 +1272,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (ArticleVisibility.isPrivateDraftOfAnother(article, user)) {
+            return notFound();
+        }
 
         OffsetDateTime dueDate = requiredReadingRepository.findFirstByItemTypeAndItemId("article", id)
                 .map(RequiredReading::getDueDate).orElse(null);
@@ -1420,6 +1447,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (ArticleVisibility.isPrivateDraftOfAnother(article, user)) {
+            return notFound();
+        }
 
         int safeOffset = Math.max(offset, 0);
         int safeLimit = Math.max(1, Math.min(limit, 200));
@@ -1445,6 +1475,7 @@ public class ArticleController {
         List<ArticleViewLog> rows = articleViewLogRepository.findTop30ByOperatorIdOrderByViewedAtDesc(user.getId());
         Set<Long> articleIds = rows.stream().map(ArticleViewLog::getArticleId).filter(Objects::nonNull).collect(Collectors.toSet());
         Map<Long, String> titlesByArticleId = articleRepository.findAllById(articleIds).stream()
+                .filter(a -> !ArticleVisibility.isPrivateDraftOfAnother(a, user))
                 .collect(Collectors.toMap(Article::getId, Article::getTitle));
 
         Set<Long> seenIds = new LinkedHashSet<>();

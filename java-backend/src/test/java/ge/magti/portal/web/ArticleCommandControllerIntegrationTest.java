@@ -92,7 +92,9 @@ class ArticleCommandControllerIntegrationTest {
         row.setContent("საწყისი შინაარსი");
         row.setCategoryId(categoryId);
         row.setStatus("draft");
-        row.setDraft(true);
+        // An editorial draft, which any editor may change. A private one
+        // (is_draft) would be its author's alone (PO-34), and has none here.
+        row.setDraft(false);
         row.setVersion(1);
         row.setCreatedAt(TbilisiTime.now());
         row.setUpdatedAt(TbilisiTime.now());

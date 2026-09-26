@@ -123,6 +123,9 @@ class ComplianceControllerIntegrationTest {
         article.setContent("შინაარსი");
         article.setVersion(1);
         article.setQuizEnabled(quizEnabled);
+        // The entity defaults is_draft to true: without this every fixture
+        // was an authorless private draft, which nobody may assign (PO-34).
+        article.setDraft(false);
         return articleRepository.saveAndFlush(article);
     }
 
