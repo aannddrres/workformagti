@@ -16,8 +16,10 @@ import java.util.Base64;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
@@ -179,5 +181,74 @@ class CorporateAuthClientTest {
         properties.getSecurity().getCorporate().setServiceUri("https://oauth.example.test/auth");
         rebuild();
         assertEquals(TOKEN_URI, client.tokenUri());
+    }
+
+    /** ASVS V6.2.8/V6.2.9: no trimming, truncation or case change on the way to the directory. */
+    @Test
+    void aLongPasswordIsSentExactlyAsTyped() {
+        String password = "  Tbilisi-" + "ქართული პაროლი ".repeat(7) + "!@#$%^&*()_+=[]{}|;:'\",.<>/?`~  ";
+        assertTrue(password.length() >= 128, "long enough to catch a 64- or 72-character cap");
+        server.expect(requestTo(TOKEN_URI))
+                .andExpect(content().string("grant_type=ldap_auth&username=test.user%40example.ge&password="
+                        + java.net.URLEncoder.encode(password, StandardCharsets.UTF_8) + "&client_id=InfoPortal"))
+                .andRespond(withSuccess(successBody("{}"), MediaType.APPLICATION_JSON));
+
+        assertInstanceOf(CorporateAuthClient.Authenticated.class, client.authenticate("test.user@example.ge", password));
+        server.verify();
+    }
+
+    /**
+     * ASVS V10.1.1: the directory's access and refresh tokens are read for the
+     * identity and then dropped. Nothing that leaves the client carries them.
+     */
+    @Test
+    void theDirectorysTokensNeverLeaveTheClient() {
+        String body = successBody("{\"user_name\":\"test.user\"}");
+        String accessToken = body.replaceAll(".*\"access_token\":\"([^\"]+)\".*", "$1");
+        String refreshToken = body.replaceAll(".*\"refresh_token\":\"([^\"]+)\".*", "$1");
+        server.expect(requestTo(TOKEN_URI)).andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+
+        CorporateAuthClient.Outcome outcome = client.authenticate("test.user@example.ge", "x");
+
+        String everythingReturned = outcome.toString();
+        assertFalse(everythingReturned.contains(accessToken), everythingReturned);
+        assertFalse(everythingReturned.contains(refreshToken), everythingReturned);
+    }
+
+    /**
+     * ASVS V15.3.2, against the real HTTP client rather than the mock (which
+     * never follows anything): a redirect from the token endpoint is an
+     * outage, and the password is not re-sent to wherever it points.
+     */
+    @Test
+    void aRedirectFromTheTokenEndpointIsNotFollowed() throws IOException {
+        java.util.concurrent.atomic.AtomicInteger followed = new java.util.concurrent.atomic.AtomicInteger();
+        com.sun.net.httpserver.HttpServer directory =
+                com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        directory.createContext("/auth/oauth/token", exchange -> {
+            exchange.getResponseHeaders().add("Location", "/elsewhere/oauth/token");
+            exchange.sendResponseHeaders(302, -1);
+            exchange.close();
+        });
+        directory.createContext("/elsewhere/oauth/token", exchange -> {
+            followed.incrementAndGet();
+            byte[] ok = successBody("{}").getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, ok.length);
+            exchange.getResponseBody().write(ok);
+            exchange.close();
+        });
+        directory.start();
+        try {
+            properties.getSecurity().getCorporate().setServiceUri(
+                    "http://127.0.0.1:" + directory.getAddress().getPort() + "/auth/");
+
+            CorporateAuthClient.Outcome outcome = new CorporateAuthClient(properties).authenticate("test.user@example.ge", "x");
+
+            assertInstanceOf(CorporateAuthClient.Unavailable.class, outcome);
+            assertEquals(0, followed.get(), "the redirect target must never be asked");
+        } finally {
+            directory.stop(0);
+        }
     }
 }

@@ -133,6 +133,17 @@ class ProductionSafetyGuardTest {
 		assertTrue(ex.getMessage().contains("COOKIE_SECURE"));
 	}
 
+	/** ASVS V3.3.2: Lax would send the session cookie on a cross-site top-level GET. */
+	@Test
+	void productionWithNonStrictSameSiteFailsLoud() {
+		for (String weaker : new String[] {"lax", "Lax", "none", ""}) {
+			PortalProperties properties = propertiesWith("production", STRONG_SECRET, true);
+			properties.getSecurity().getCookie().setSameSite(weaker);
+			IllegalStateException ex = assertThrows(IllegalStateException.class, () -> guard(properties).verify(), weaker);
+			assertTrue(ex.getMessage().contains("COOKIE_SAMESITE"), ex.getMessage());
+		}
+	}
+
 	@Test
 	void productionWithRealSecretAndSecureCookiePasses() {
 		PortalProperties properties = propertiesWith("production", STRONG_SECRET, true);

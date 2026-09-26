@@ -61,6 +61,34 @@ describe('Login company form', () => {
     expect(page.submitting()).toBe(false);
   });
 
+  /**
+   * ASVS V6.2.6/V6.2.7: masked entry, and nothing that fights a password
+   * manager -- no autocomplete="off", no blocked paste.
+   */
+  it('masks the password and leaves it to the browser password manager', () => {
+    const fixture = TestBed.createComponent(Login);
+    (fixture.componentInstance as any).isLocal = false;
+    fixture.detectChanges();
+    const password = fixture.nativeElement.querySelector('#login-password') as HTMLInputElement;
+
+    expect(password.type).toBe('password');
+    expect(password.getAttribute('autocomplete')).toBe('current-password');
+    const paste = new Event('paste', { bubbles: true, cancelable: true });
+    password.dispatchEvent(paste);
+    expect(paste.defaultPrevented).toBe(false);
+  });
+
+  /** ASVS V6.2.8: only the address is normalised; the password goes as typed. */
+  it('sends the password exactly as typed', () => {
+    const login = vi.spyOn(TestBed.inject(AuthService), 'login').mockReturnValue(of({ email: 'a.b@magticom.ge', role: 'operator' }));
+    vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+    const typed = '  Pass Word ქართული  ';
+
+    component().submitCorporate(new Event('submit'), 'a.b@magticom.ge', typed);
+
+    expect(login).toHaveBeenCalledWith('a.b@magticom.ge', typed);
+  });
+
   it('does not send an empty address or password', () => {
     const login = vi.spyOn(TestBed.inject(AuthService), 'login');
     const page = component();
