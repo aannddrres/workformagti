@@ -12,7 +12,7 @@ if (!['localhost', '127.0.0.1'].includes(url.hostname) || ['8081', '8082', '4200
 
 export default defineConfig({
   testDir: './e2e',
-  testMatch: 'nginx-upload.spec.ts',
+  testMatch: ['nginx-upload.spec.ts', 'nginx-headers.spec.ts'],
   workers: 1,
   retries: 0,
   timeout: 120_000,

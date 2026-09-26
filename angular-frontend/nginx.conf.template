@@ -30,6 +30,13 @@ server {
     server_name _;
     root /usr/share/nginx/html;
 
+    # ASVS V4.1.1: text the portal serves itself declares its encoding.
+    # `charset` is switched on per location below, never here: at server
+    # level it would also stamp utf-8 onto a proxied text/plain upload,
+    # which may be in another encoding. These types only say what it
+    # applies to where it is on.
+    charset_types text/html text/css application/javascript application/json;
+
     # ---- Caching -------------------------------------------------------
     #
     # Nothing here sent Cache-Control at all, so browsers fell back to
@@ -52,6 +59,7 @@ server {
     # Content-addressed by the build: the name changes whenever the bytes do.
     location ~* "^/(?:chunk|main|polyfills|styles|scripts)-[A-Za-z0-9_-]{8,}\.(?:js|css)$" {
         expires 1y;
+        charset utf-8;
         add_header X-Content-Type-Options "nosniff" always;
     }
 
@@ -68,6 +76,7 @@ server {
     # someone last release's wording.
     location ~* "^/(?:i18n|fonts)/|^/(?:favicon\.ico|magticom-logo(?:-white)?\.png)$" {
         expires -1;
+        charset utf-8;
         add_header X-Content-Type-Options "nosniff" always;
     }
 
@@ -84,6 +93,7 @@ server {
     # across two blocks and duplicate the CSP into a second place to drift.
     location / {
         try_files $uri $uri/ /index.html;
+        charset utf-8;
 
         # index.html names every hashed bundle, so caching it caches the whole
         # release.
