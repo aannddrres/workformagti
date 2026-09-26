@@ -6,6 +6,7 @@ import { Router } from '@angular/router';
 
 import { unauthorizedInterceptor } from './unauthorized.interceptor';
 import { AuthService } from '../auth/auth.service';
+import { LoginPage } from '../auth/login-page';
 
 /**
  * The second way an operator is put out of a session that has ended -- the
@@ -23,11 +24,11 @@ import { AuthService } from '../auth/auth.service';
 describe('unauthorizedInterceptor', () => {
   let http: HttpClient;
   let backend: HttpTestingController;
-  let navigate: ReturnType<typeof vi.fn>;
+  let open: ReturnType<typeof vi.fn>;
   let clearSession: ReturnType<typeof vi.fn>;
 
   function configure(currentUrl: string): void {
-    navigate = vi.fn();
+    open = vi.fn();
     clearSession = vi.fn();
 
     TestBed.resetTestingModule();
@@ -35,8 +36,9 @@ describe('unauthorizedInterceptor', () => {
       providers: [
         provideHttpClient(withInterceptors([unauthorizedInterceptor])),
         provideHttpClientTesting(),
-        { provide: Router, useValue: { navigate, url: currentUrl } },
-        { provide: AuthService, useValue: { clearSession } }
+        { provide: Router, useValue: { url: currentUrl } },
+        { provide: AuthService, useValue: { clearSession } },
+        { provide: LoginPage, useValue: { open } }
       ]
     });
     http = TestBed.inject(HttpClient);
@@ -55,7 +57,7 @@ describe('unauthorizedInterceptor', () => {
     respondWith('/api/articles/113', 401);
 
     expect(clearSession).toHaveBeenCalled();
-    expect(navigate).toHaveBeenCalledWith(['/login'], { queryParams: { returnUrl: '/articles/113' } });
+    expect(open).toHaveBeenCalledWith({ returnUrl: '/articles/113' });
   });
 
   it('leaves other failures alone', () => {
@@ -67,7 +69,7 @@ describe('unauthorizedInterceptor', () => {
     respondWith('/api/articles/113', 403);
     respondWith('/api/articles/113', 500);
 
-    expect(navigate).not.toHaveBeenCalled();
+    expect(open).not.toHaveBeenCalled();
     expect(clearSession).not.toHaveBeenCalled();
   });
 
@@ -76,7 +78,7 @@ describe('unauthorizedInterceptor', () => {
 
     respondWith('/api/auth/login', 401);
 
-    expect(navigate)
+    expect(open)
       .not.toHaveBeenCalled();
   });
 
@@ -89,7 +91,7 @@ describe('unauthorizedInterceptor', () => {
 
     respondWith('/api/auth/logout', 401);
 
-    expect(navigate).not.toHaveBeenCalled();
+    expect(open).not.toHaveBeenCalled();
   });
 
   it('does not redirect to the login screen from the login screen', () => {
@@ -98,7 +100,7 @@ describe('unauthorizedInterceptor', () => {
     respondWith('/api/users/me', 401);
 
     expect(clearSession).toHaveBeenCalled();
-    expect(navigate)
+    expect(open)
       .not.toHaveBeenCalled();
   });
 });

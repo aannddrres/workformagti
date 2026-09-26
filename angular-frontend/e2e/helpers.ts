@@ -315,8 +315,13 @@ const PICKER_PATHS: Record<string, { role: string; dept?: string; group?: number
  * "სხვა ანგარიშით შესვლა" field. That is the same dev-login path behind the
  * same loopback gate, not a test-only back door.
  */
-export async function signInAsPersona(page: Page, email: string) {
-  await page.goto('/login');
+export async function signInAsPersona(page: Page, email: string, options: { onCurrentPage?: boolean } = {}) {
+  // onCurrentPage: sign in on the login screen already open -- the one a
+  // sign-out leaves behind -- instead of loading it afresh, which would wipe
+  // whatever the previous person left in memory before anyone could see it.
+  if (!options.onCurrentPage) {
+    await page.goto('/login');
+  }
   const path = PICKER_PATHS[email];
   const loginResponse = page.waitForResponse((r) => r.url().includes('/api/auth/login'));
 

@@ -7,6 +7,7 @@ import { Router } from '@angular/router';
 
 import { IdleSessionService } from './idle-session.service';
 import { AuthService } from './auth.service';
+import { LoginPage } from './login-page';
 
 /**
  * An operator must not be left holding a session they have walked away from.
@@ -23,19 +24,20 @@ describe('IdleSessionService', () => {
 
   let service: IdleSessionService;
   let http: HttpTestingController;
-  let navigate: ReturnType<typeof vi.fn>;
+  let open: ReturnType<typeof vi.fn>;
   let logout: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
-    navigate = vi.fn();
+    open = vi.fn();
     logout = vi.fn().mockReturnValue(of(void 0));
 
     await TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: Router, useValue: { navigate, url: '/articles/113' } },
-        { provide: AuthService, useValue: { logout } }
+        { provide: Router, useValue: { url: '/articles/113' } },
+        { provide: AuthService, useValue: { logout } },
+        { provide: LoginPage, useValue: { open } }
       ]
     }).compileComponents();
 
@@ -72,11 +74,9 @@ describe('IdleSessionService', () => {
 
     expect(logout).toHaveBeenCalled();
     // returnUrl so signing back in resumes the article they were reading;
-    // reason so the login screen can say why they are looking at it.
-    expect(navigate).toHaveBeenCalledWith(
-      ['/login'],
-      { queryParams: { returnUrl: '/articles/113', reason: 'session-expired' } }
-    );
+    // reason so the login screen can say why they are looking at it. Loaded
+    // afresh (LoginPage), so nothing of theirs is left for whoever sits down.
+    expect(open).toHaveBeenCalledWith({ returnUrl: '/articles/113', reason: 'session-expired' });
   });
 
   it('does not let stray activity extend a session once the warning is up', () => {

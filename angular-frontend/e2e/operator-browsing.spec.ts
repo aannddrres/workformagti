@@ -1,5 +1,5 @@
 import { test, expect, APIRequestContext } from '@playwright/test';
-import { apiLogin, createArticle, createCategory, runId, seedTokenIntoPage } from './helpers';
+import { apiLogin, createArticle, createCategory, runId, seedTokenIntoPage, signInAsPersona } from './helpers';
 
 /**
  * The pages an operator actually spends the day in: the news list, the
@@ -261,6 +261,62 @@ test.describe('operator browsing', () => {
     // category A while category B is selected can match nothing.
     await search.fill(titleA);
     await expect(page.getByText('შედეგი ვერ მოიძებნა.')).toBeVisible();
+  });
+
+  /**
+   * ASVS V14.3.1 on a shared call-centre PC: one person signs out, the next
+   * signs in on the screen the sign-out left, in the same tab. Nothing the
+   * first one loaded may still be on the page -- here, their bookmark.
+   */
+  test('the next person on the same browser sees nothing of the last', async ({ page, request }) => {
+    test.setTimeout(120_000);
+    const id = runId();
+    const adminToken = await apiLogin(request, 'admin@magti.ge');
+    const category = await createCategory(request, adminToken, `E2E გადაბარების კატეგორია ${id}`);
+    const title = `E2E გადაბარება ${id}`;
+    const articleId = await createArticle(request, adminToken, {
+      title,
+      categoryId: category.id,
+      targetDepartments: ['საინფორმაციო']
+    });
+    const starred = await request.post('/api/favorites', {
+      headers: { Authorization: `Bearer ${adminToken}` },
+      data: { item_type: 'article', item_id: articleId }
+    });
+    expect(starred.ok()).toBeTruthy();
+    const star = page.locator('app-article-card', { hasText: title }).locator('app-favorite-star button');
+
+    await signInAsPersona(page, 'admin@magti.ge');
+    await page.getByRole('link', { name: 'ცოდნის ბაზა' }).first().click();
+    await page.getByPlaceholder('ძიება თემით ...').fill(title);
+    await expect(star).toHaveAttribute('aria-pressed', 'true');
+
+    await page.getByRole('button', { name: 'ანგარიშის მენიუ' }).click();
+    await page.getByRole('button', { name: 'სისტემიდან გასვლა' }).click();
+    await expect(page).toHaveURL(/\/login/);
+
+    await signInAsPersona(page, 'info@magti.ge', { onCurrentPage: true });
+    await page.getByRole('link', { name: 'ცოდნის ბაზა' }).first().click();
+    await page.getByPlaceholder('ძიება თემით ...').fill(title);
+    await expect(star).toHaveCount(1);
+    await expect(star, 'the operator never bookmarked it; the star was the admin\'s').toHaveAttribute('aria-pressed', 'false');
+  });
+
+  /**
+   * ASVS V7.4.4: the way out is on every page. That the token it held stops
+   * working (V7.4.1) is shell-and-stats.spec.ts, "logout clears the session...".
+   */
+  test('sign out from any page ends the session', async ({ page }) => {
+    await signInAsPersona(page, 'info@magti.ge');
+    for (const section of ['ცოდნის ბაზა', 'სიახლეები', 'რჩეულები']) {
+      await page.getByRole('link', { name: section }).first().click();
+      await expect(page.getByRole('button', { name: 'ანგარიშის მენიუ' }), section).toBeVisible();
+    }
+
+    await page.getByRole('button', { name: 'ანგარიშის მენიუ' }).click();
+    await page.getByRole('button', { name: 'სისტემიდან გასვლა' }).click();
+    await expect(page).toHaveURL(/\/login/);
+    expect((await page.request.get('/api/users/me')).status()).toBe(401);
   });
 
   test('favourites: the page opens what it lists and removes what it drops', async ({
