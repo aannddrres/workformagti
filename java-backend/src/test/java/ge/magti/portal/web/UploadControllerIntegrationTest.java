@@ -262,4 +262,21 @@ class UploadControllerIntegrationTest {
                 .andExpect(header().string("X-Content-Type-Options", "nosniff"))
                 .andExpect(header().string("Content-Security-Policy", "default-src 'none'; sandbox"));
     }
+
+    /** ASVS V4.1.1 through the real upload and download: a .txt goes out naming its encoding. */
+    @Test
+    void anUploadedTextFileIsServedWithItsCharset() throws Exception {
+        User admin = createUser("up-charset@magti.ge", Role.CONTENT_ADMIN);
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "notes.txt", "text/plain", "ინსტრუქცია".getBytes(StandardCharsets.UTF_8));
+
+        String body = mockMvc.perform(authed(multipart("/api/upload").file(file), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        mockMvc.perform(get(objectMapper.readTree(body).get("url").asText())
+                        .header("Authorization", "Bearer " + tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "text/plain;charset=UTF-8"));
+    }
 }
