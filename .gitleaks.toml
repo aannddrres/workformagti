@@ -51,3 +51,11 @@ condition = "AND"
 regexTarget = "match"
 paths = ['''(^|/)java-backend/src/test/java/ge/magti/portal/config/ProductionSafetyGuardTest\.java$''']
 regexes = ['''^STRONG_SECRET = "[A-Za-z0-9]{64}"$''']
+
+[[allowlists]]
+description = "Synthetic Basic value (test-client:test-secret) in one historical commit; the file has built its fixture at run time since the candidate merge"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "match"
+paths = ['''(^|/)commits/3d5fc97808cce7fbc9c700c4d5b27990623cb10c/java-backend/src/test/java/ge/magti/portal/web/ConcurrentLoginIntegrationTest\.java$''']
+regexes = ['''^portal\.security\.corporate\.client-credential=dGVzdC1jbGllbnQ6dGVzdC1zZWNyZXQ="$''']
