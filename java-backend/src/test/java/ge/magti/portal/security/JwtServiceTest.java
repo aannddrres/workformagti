@@ -15,6 +15,7 @@ import java.util.Date;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -42,6 +43,57 @@ class JwtServiceTest {
 
     private static String segment(String json) {
         return URL.encodeToString(json.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static String algorithmOf(String token) {
+        String header = new String(Base64.getUrlDecoder().decode(token.substring(0, token.indexOf('.'))), StandardCharsets.UTF_8);
+        return header.replaceAll(".*\"alg\":\"([A-Z0-9]+)\".*", "$1");
+    }
+
+    private static JwtService serviceWith(String algorithm, String secret) {
+        PortalProperties properties = new PortalProperties();
+        properties.getSecurity().getJwt().setSecret(secret);
+        properties.getSecurity().getJwt().setAlgorithm(algorithm);
+        return new JwtService(properties);
+    }
+
+    /**
+     * ASVS V11.2.2 and V11.1.2. JWT_ALGORITHM was read by nothing: jjwt chose
+     * the algorithm from the key's length, so the 48-character minimum
+     * production enforces signed with HS384 while the setting said HS256.
+     */
+    @Test
+    void theConfiguredAlgorithmIsTheOneThatSigns() {
+        String productionLength = "p".repeat(24) + "RODUCTION-length-secret!";
+
+        assertEquals("HS256", algorithmOf(serviceWith("HS256", productionLength).createAccessToken(Map.of("sub", "a@example.ge"))));
+        assertEquals("HS512", algorithmOf(serviceWith("HS512", productionLength + productionLength)
+                .createAccessToken(Map.of("sub", "a@example.ge"))));
+    }
+
+    /** Deploying the honoured setting logs nobody out: what the key signed before still verifies. */
+    @Test
+    void aTokenSignedBeforeTheSettingWasHonouredStillVerifies() {
+        String secret = "p".repeat(24) + "RODUCTION-length-secret!";
+        String before = Jwts.builder()
+                .subject("operator@example.ge")
+                .expiration(Date.from(Instant.now().plus(Duration.ofHours(1))))
+                .signWith(Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8)))
+                .compact();
+
+        assertEquals("HS384", algorithmOf(before), "what jjwt chose by key length");
+        assertEquals("operator@example.ge", serviceWith("HS256", secret).parseAndValidate(before).orElseThrow().getSubject());
+    }
+
+    /** A name the service cannot honour stops it starting, rather than signing with something else. */
+    @Test
+    void anUnknownOrTooWeakAlgorithmRefusesToStart() {
+        String secret = "s".repeat(48);
+
+        assertThrows(IllegalStateException.class, () -> serviceWith("RS256", secret));
+        assertThrows(IllegalStateException.class, () -> serviceWith("none", secret));
+        assertThrows(IllegalStateException.class, () -> serviceWith("HS512", secret),
+                "a 48-byte key is too short for HS512 and must not quietly fall back");
     }
 
     @Test

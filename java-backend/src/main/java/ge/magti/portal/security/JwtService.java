@@ -5,6 +5,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.security.MacAlgorithm;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
@@ -34,10 +35,35 @@ public class JwtService {
 
 	private final PortalProperties.Jwt jwtConfig;
 	private final SecretKey signingKey;
+	private final MacAlgorithm algorithm;
 
 	public JwtService(PortalProperties properties) {
 		this.jwtConfig = properties.getSecurity().getJwt();
 		this.signingKey = Keys.hmacShaKeyFor(jwtConfig.getSecret().getBytes(StandardCharsets.UTF_8));
+		this.algorithm = macAlgorithm(jwtConfig.getAlgorithm(), signingKey);
+	}
+
+	/**
+	 * JWT_ALGORITHM, honoured (ASVS V11.2.2). Nothing read it: jjwt chose the
+	 * algorithm from the key's length, so production's 48-character minimum
+	 * signed with HS384 while the setting said HS256. Only the HMAC family
+	 * fits a shared secret. A name outside it, or a key too short for the one
+	 * named, stops the service starting rather than signing with something
+	 * other than what was configured. Verification still accepts any HMAC
+	 * member under this same key, so changing the setting logs nobody out.
+	 */
+	private static MacAlgorithm macAlgorithm(String name, SecretKey key) {
+		MacAlgorithm algorithm = switch (name == null ? "" : name) {
+			case "HS256" -> Jwts.SIG.HS256;
+			case "HS384" -> Jwts.SIG.HS384;
+			case "HS512" -> Jwts.SIG.HS512;
+			default -> throw new IllegalStateException("JWT_ALGORITHM must be HS256, HS384 or HS512, not '" + name + "'");
+		};
+		if (key.getEncoded().length * 8 < algorithm.getKeyBitLength()) {
+			throw new IllegalStateException("SECRET_KEY has " + key.getEncoded().length * 8 + " bits; "
+					+ name + " needs at least " + algorithm.getKeyBitLength());
+		}
+		return algorithm;
 	}
 
 	/**
@@ -91,7 +117,7 @@ public class JwtService {
 				.claims(claims)
 				.issuedAt(Date.from(now))
 				.expiration(Date.from(now.plus(expiresIn)))
-				.signWith(signingKey)
+				.signWith(signingKey, algorithm)
 				.compact();
 	}
 
