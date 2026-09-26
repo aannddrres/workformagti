@@ -1,5 +1,6 @@
 package ge.magti.portal.security;
 
+import ge.magti.portal.config.PortalProperties;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.repository.UserRepository;
 import io.jsonwebtoken.Claims;
@@ -8,6 +9,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -46,25 +48,28 @@ import java.util.stream.Stream;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private static final String ACCESS_TOKEN_COOKIE = "access_token";
     public static final String SESSION_REQUEST_ATTRIBUTE = "portal.session_id";
 
     private final JwtService jwtService;
     private final UserRepository userRepository;
     private final PortalSessionService sessionService;
 
-    @org.springframework.beans.factory.annotation.Autowired
-    public JwtAuthenticationFilter(
-            JwtService jwtService, UserRepository userRepository, PortalSessionService sessionService) {
+    /** PortalProperties.Cookie#sessionCookieName: __Host-access_token wherever cookies are Secure. */
+    private final String sessionCookieName;
+
+    @Autowired
+    public JwtAuthenticationFilter(JwtService jwtService, UserRepository userRepository,
+            PortalSessionService sessionService, PortalProperties properties) {
         this.jwtService = jwtService;
         this.userRepository = userRepository;
         this.sessionService = sessionService;
+        this.sessionCookieName = properties.getSecurity().getCookie().sessionCookieName();
     }
 
     /** Keeps the DB-free filter tests focused on JWT validation. Browser
      * session enforcement is covered by the integration/session tests. */
     JwtAuthenticationFilter(JwtService jwtService, UserRepository userRepository) {
-        this(jwtService, userRepository, null);
+        this(jwtService, userRepository, null, new PortalProperties());
     }
 
     @Override
@@ -128,7 +133,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     /**
      * Mirrors security.py's {@code _candidate_tokens}: the Authorization
-     * header is tried first, then the httpOnly {@code access_token}
+     * header is tried first, then the httpOnly session
      * cookie -- same precedence, same reasoning (an explicit bearer token
      * wins over a possibly-stale cookie).
      */
@@ -142,7 +147,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         Cookie[] cookies = request.getCookies();
         if (cookies != null) {
             for (Cookie cookie : cookies) {
-                if (ACCESS_TOKEN_COOKIE.equals(cookie.getName())) {
+                if (sessionCookieName.equals(cookie.getName())) {
                     cookieToken = cookie.getValue();
                     break;
                 }
@@ -156,7 +161,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         Cookie[] cookies = request.getCookies();
         if (cookies == null) return false;
         for (Cookie cookie : cookies) {
-            if (ACCESS_TOKEN_COOKIE.equals(cookie.getName()) && token.equals(cookie.getValue())) return true;
+            if (sessionCookieName.equals(cookie.getName()) && token.equals(cookie.getValue())) return true;
         }
         return false;
     }

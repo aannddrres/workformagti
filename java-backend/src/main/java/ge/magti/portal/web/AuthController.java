@@ -309,8 +309,13 @@ public class AuthController {
                     clientIpResolver.resolve(request),
                     truncatedUserAgent(request));
         }
-        ResponseCookie cleared = ResponseCookie.from("access_token", "")
+        // Same name and attributes as the cookie being removed: a browser
+        // ignores a __Host- cookie without Secure, deletions included.
+        PortalProperties.Cookie cookieConfig = properties.getSecurity().getCookie();
+        ResponseCookie cleared = ResponseCookie.from(cookieConfig.sessionCookieName(), "")
                 .httpOnly(true)
+                .secure(cookieConfig.isSecure())
+                .sameSite(cookieConfig.getSameSite())
                 .path("/")
                 .maxAge(0)
                 .build();
@@ -330,7 +335,7 @@ public class AuthController {
 
     private ResponseCookie accessTokenCookie(String accessToken) {
         PortalProperties.Cookie cookieConfig = properties.getSecurity().getCookie();
-        return ResponseCookie.from("access_token", accessToken)
+        return ResponseCookie.from(cookieConfig.sessionCookieName(), accessToken)
                 .httpOnly(true)
                 .secure(cookieConfig.isSecure())
                 .sameSite(cookieConfig.getSameSite())

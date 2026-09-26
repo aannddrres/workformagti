@@ -98,6 +98,7 @@ public class SecurityConfig {
 		// Cookie attributes, and the lifetime that keeps it from outliving or
 		// dying before the session -- see SessionLifetimeCsrfTokenRepository.
 		CsrfTokenRepository csrfRepository = new SessionLifetimeCsrfTokenRepository(
+				portalProperties.getSecurity().getCookie().csrfCookieName(),
 				portalProperties.getSecurity().getCookie().isSecure(),
 				Duration.ofMinutes(portalProperties.getSecurity().getJwt().getAccessTokenExpireMinutes()));
 		RequestMatcher bearerRequest = request -> {
@@ -140,6 +141,10 @@ public class SecurityConfig {
 						// state-changing request.
 						.sessionAuthenticationStrategy(new NullAuthenticatedSessionStrategy())
 						.ignoringRequestMatchers(unauthenticatedAuthStart, bearerRequest))
+				// ASVS V3.4.6: frame-ancestors on every response, not only on the
+				// page nginx serves. Spring's other defaults (nosniff, DENY,
+				// no-store) stay as they are; nothing here is ever framed.
+				.headers(headers -> headers.contentSecurityPolicy(csp -> csp.policyDirectives("frame-ancestors 'none'")))
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
 				.exceptionHandling(exceptions -> exceptions
