@@ -299,9 +299,13 @@ test.describe('operator browsing', () => {
     await expect(page.locator('article', { hasText: title })).toHaveCount(0);
     await expect(page).toHaveURL(/\/favorites$/);
 
+    // By type and id: an id alone also matches another type's bookmark that
+    // shares the number (see the same check in shared-components.spec.ts).
     const after = await request.get('/api/favorites', { headers: auth });
     expect(
-      (await after.json()).some((f: { item_id: number }) => f.item_id === articleId),
+      (await after.json()).some(
+        (f: { item_type: string; item_id: number }) => f.item_type === 'article' && f.item_id === articleId
+      ),
       'the row left the screen but the favourite is still stored'
     ).toBe(false);
 
