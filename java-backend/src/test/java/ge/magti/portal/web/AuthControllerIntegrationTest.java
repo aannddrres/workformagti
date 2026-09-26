@@ -433,4 +433,66 @@ class AuthControllerIntegrationTest {
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.detail").isNotEmpty());
     }
+
+    /** Collects what AuthController logs while the given body runs. */
+    private static List<ch.qos.logback.classic.spi.ILoggingEvent> logged(ThrowingRunnable body) throws Exception {
+        ch.qos.logback.classic.Logger logger = (ch.qos.logback.classic.Logger)
+                org.slf4j.LoggerFactory.getLogger(AuthController.class);
+        ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent> appender =
+                new ch.qos.logback.core.read.ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            body.run();
+        } finally {
+            logger.detachAppender(appender);
+        }
+        return appender.list;
+    }
+
+    @FunctionalInterface
+    private interface ThrowingRunnable {
+        void run() throws Exception;
+    }
+
+    /**
+     * ASVS V16.3.1. A failure against a known account is audited
+     * (knownAccountFailureIsSchemaAuditedWithoutPasswordOrEmailInDetails); one
+     * against an address with no account left no trace at all, which is
+     * exactly what credential stuffing looks like. It is logged now, with a
+     * hash of the address instead of the address, because what people type
+     * into the username field is sometimes their password.
+     */
+    @Test
+    void everyFailedSignInIsLoggedEvenForAnUnknownAddress() throws Exception {
+        List<ch.qos.logback.classic.spi.ILoggingEvent> events = logged(() ->
+                mockMvc.perform(withIp(post("/api/auth/login"), "10.0.0.41")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"email\":\"no.such.person@magti.ge\",\"password\":\"whatever\"}"))
+                        .andExpect(status().isUnauthorized()));
+
+        String failure = events.stream().map(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage)
+                .filter(message -> message.startsWith("SIGN_IN_FAILED")).findFirst()
+                .orElseThrow(() -> new AssertionError("no SIGN_IN_FAILED line"));
+        assertTrue(failure.contains("account=unknown:"), failure);
+        assertTrue(failure.contains("client_ip=10.0.0.41"), failure);
+        assertFalse(failure.contains("no.such.person"), "the typed address is never logged in clear: " + failure);
+        assertFalse(failure.contains("whatever"), failure);
+    }
+
+    /** ASVS V16.3.3: the throttle refusing an attempt is itself a security event. */
+    @Test
+    void aThrottledSignInIsLogged() throws Exception {
+        String body = "{\"email\":\"throttle.logged@magti.ge\",\"password\":\"whatever\"}";
+        List<ch.qos.logback.classic.spi.ILoggingEvent> events = logged(() -> {
+            for (int i = 0; i < 11; i++) {
+                mockMvc.perform(withIp(post("/api/auth/login"), "10.0.0.42")
+                        .contentType(MediaType.APPLICATION_JSON).content(body));
+            }
+        });
+
+        assertTrue(events.stream().map(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage)
+                .anyMatch(message -> message.startsWith("SIGN_IN_THROTTLED") && message.contains("client_ip=10.0.0.42")
+                        && !message.contains("throttle.logged")), events.toString());
+    }
 }

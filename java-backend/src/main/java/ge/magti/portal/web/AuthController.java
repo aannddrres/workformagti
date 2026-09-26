@@ -16,6 +16,8 @@ import ge.magti.portal.security.JwtAuthenticationFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -27,8 +29,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -82,6 +89,23 @@ public class AuthController {
     private static final String LOCAL_CHANNEL = "LOCAL_DEVELOPMENT_ONLY";
     private static final String CORPORATE_CHANNEL = "CORPORATE_OAUTH";
 
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
+
+    /**
+     * The typed address as it may appear in a log: the first 16 hex digits of
+     * its SHA-256. Enough to see many attempts at one address, and never the
+     * text itself, which is sometimes a password typed into the wrong field.
+     */
+    static String addressHash(String email) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(String.valueOf(email).trim().toLowerCase(Locale.ROOT).getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest, 0, 8);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is part of every JDK", e);
+        }
+    }
+
     /**
      * Deliberately not {@code @Transactional}. It was, and that put two things
      * in one database transaction that must not share one. The throttle's
@@ -112,6 +136,8 @@ public class AuthController {
         // every user), and now includes the account being tried.
         String clientIp = clientIpResolver.resolve(httpRequest);
         if (!rateLimiter.tryAcquire(request.email(), clientIp)) {
+            // ASVS V16.3.3: the throttle refusing an attempt is a security event.
+            logger.warn("SIGN_IN_THROTTLED account=address:{} client_ip={}", addressHash(request.email()), clientIp);
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body(Map.of("detail", "ძალიან ბევრი მცდელობა. სცადეთ მოგვიანებით."));
         }
@@ -180,7 +206,12 @@ public class AuthController {
      */
     private void recordFailure(
             String email, String reason, String channel, String clientIp, HttpServletRequest httpRequest) {
-        authenticationService.findExistingAccount(email).ifPresent(existing -> mutationAuditService.recordResult(
+        Optional<User> account = authenticationService.findExistingAccount(email);
+        // ASVS V16.3.1: every failed sign-in, including one at an address with
+        // no account, which the audit table cannot hold (admin_id is a FK).
+        logger.warn("SIGN_IN_FAILED reason={} channel={} account={} client_ip={}", reason, channel,
+                account.map(user -> "user:" + user.getId()).orElse("unknown:" + addressHash(email)), clientIp);
+        account.ifPresent(existing -> mutationAuditService.recordResult(
                 existing,
                 "LOGIN_FAILED",
                 "user",
