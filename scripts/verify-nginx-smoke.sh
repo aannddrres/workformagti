@@ -63,7 +63,15 @@ for port in "$PORT" "$SLOW_PORT"; do
   done
   [[ "$ready" == true ]] || { echo 'nginx did not start'; exit 1; }
 done
-curl --silent --fail "http://127.0.0.1:$SLOW_PORT/api/ready" >/dev/null
+# The Python fixture starts slower than nginx in front of it: one early
+# probe met "connection refused" (502) on 2026-09-26. Wait for it the same
+# bounded way as for nginx above.
+ready=false
+for _ in $(seq 1 30); do
+  if curl --silent --fail "http://127.0.0.1:$SLOW_PORT/api/ready" >/dev/null; then ready=true; break; fi
+  sleep 1
+done
+[[ "$ready" == true ]] || { echo 'slow upstream fixture did not start'; exit 1; }
 export NGINX_SMOKE_ENV=isolated NGINX_SMOKE_IMAGE_ID="$IMAGE_ID"
 export NGINX_SMOKE_BASE_URL="http://127.0.0.1:$PORT" NGINX_SMOKE_SLOW_URL="http://127.0.0.1:$SLOW_PORT"
 cd "$ROOT/angular-frontend"
