@@ -1,6 +1,7 @@
 package ge.magti.portal.domain;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
@@ -80,6 +81,20 @@ public class ExportJob {
     @Column(name = "worker_instance_id", length = 36)
     private String workerInstanceId;
 
+    /**
+     * The one {@code OffsetDateTime} here that is not a Tbilisi wall-clock
+     * value: V50 made the column {@code TIMESTAMP WITH TIME ZONE}, and the
+     * lease is compared with {@code SYSTIMESTAMP} in SQL (startLease,
+     * renewLease, findExpiredProcessingIds). The auto-applied
+     * {@link ge.magti.portal.util.TbilisiTimestampConverter} writes a +04:00
+     * wall-clock without its zone, which Oracle then labels with the session
+     * zone. On any JVM not running at +04:00 -- CI, and the backend image,
+     * which runs UTC -- a lease was written four hours late and read back
+     * four hours early, so every export lost its own lease and stayed
+     * "processing" (ExportJobRecoveryIntegrationTest). Stored natively, the
+     * instant survives whatever zone the JVM and the session use.
+     */
+    @Convert(disableConversion = true)
     @Column(name = "lease_until")
     private OffsetDateTime leaseUntil;
 

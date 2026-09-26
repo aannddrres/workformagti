@@ -4,9 +4,12 @@ import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.ExportJob;
 import ge.magti.portal.repository.ExportJobRepository;
 import ge.magti.portal.repository.AuditLogRepository;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
@@ -25,6 +28,8 @@ class ExportJobRecoveryIntegrationTest {
     @Autowired private ExportJobLifecycle lifecycle;
     @Autowired private ExportJobLeaseOwner owner;
     @Autowired private AuditLogRepository audits;
+    @Autowired private JdbcTemplate jdbc;
+    @Autowired private EntityManager entityManager;
 
     @Test
     void anExpiredProcessingJobBecomesVisibleAsFailedInsteadOfDisappearing() {
@@ -78,6 +83,42 @@ class ExportJobRecoveryIntegrationTest {
         assertEquals(1, audits.findAll().stream()
                 .filter(row -> "EXPORT_JOB_INTERRUPTED".equals(row.getAction()))
                 .filter(row -> row.getDetails().contains(job.getId())).count());
+    }
+
+    /**
+     * The lease is compared with SYSTIMESTAMP in SQL, so what JPA writes has
+     * to be that same instant whatever zone the JVM and the session run in.
+     * The session is moved off both UTC and +04:00 so this holds on any
+     * workstation. Through the Tbilisi converter the lease landed five hours
+     * early under +09:00, and four hours late on a UTC JVM -- CI's, and the
+     * backend image's.
+     */
+    @Test
+    @Transactional
+    void aLeaseWrittenThroughJpaIsTheInstantSqlComparesItWith() {
+        String originalZone = jdbc.queryForObject("SELECT SESSIONTIMEZONE FROM dual", String.class);
+        jdbc.execute("ALTER SESSION SET TIME_ZONE = '+09:00'");
+        try {
+            ExportJob job = new ExportJob();
+            job.setId(UUID.randomUUID().toString());
+            job.setStatus("processing");
+            job.setExpiresAt(jobs.databaseNow().toEpochSecond() + 3600);
+            job.setWorkerInstanceId(owner.id());
+            job.setLeaseUntil(jobs.databaseNow().plusSeconds(90));
+            jobs.saveAndFlush(job);
+            entityManager.clear();
+
+            Long secondsAhead = jdbc.queryForObject(
+                    "SELECT ROUND((CAST(SYS_EXTRACT_UTC(lease_until) AS DATE) "
+                            + "- CAST(SYS_EXTRACT_UTC(SYSTIMESTAMP) AS DATE)) * 86400) "
+                            + "FROM export_jobs WHERE id = ?", Long.class, job.getId());
+            assertTrue(secondsAhead != null && secondsAhead >= 60 && secondsAhead <= 91,
+                    "the lease is " + secondsAhead + " s from SYSTIMESTAMP; 90 were written");
+            assertTrue(jobs.findById(job.getId()).orElseThrow().getLeaseUntil().isAfter(jobs.databaseNow()),
+                    "read back, the lease must still be in the future");
+        } finally {
+            jdbc.execute("ALTER SESSION SET TIME_ZONE = '" + originalZone + "'");
+        }
     }
 
     @Test
