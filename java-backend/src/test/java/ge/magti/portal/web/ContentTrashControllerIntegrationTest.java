@@ -87,7 +87,7 @@ class ContentTrashControllerIntegrationTest {
         mockMvc.perform(post("/api/content-trash/article/" + article.getId() + "/restore")
                         .header("Authorization", bearer(operator)))
                 .andExpect(status().isForbidden());
-        assertTrue(lifecycleService.listTrash().stream()
+        assertTrue(lifecycleService.listTrash(contentManager).stream()
                 .anyMatch(item -> item.itemId().equals(article.getId())));
 
         mockMvc.perform(post("/api/content-trash/article/" + article.getId() + "/restore")
@@ -95,14 +95,14 @@ class ContentTrashControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.detail").value("მასალა აღდგენილია"));
         assertTrue(articleRepository.findById(article.getId()).isPresent());
-        assertTrue(lifecycleService.listTrash().stream()
+        assertTrue(lifecycleService.listTrash(contentManager).stream()
                 .noneMatch(item -> item.itemId().equals(article.getId())));
 
         assertEquals(OK, lifecycleService.moveToTrash(ARTICLE, article.getId(), contentManager));
         mockMvc.perform(delete("/api/content-trash/article/" + article.getId())
                         .header("Authorization", bearer(contentManager)))
                 .andExpect(status().isForbidden());
-        assertTrue(lifecycleService.listTrash().stream()
+        assertTrue(lifecycleService.listTrash(contentManager).stream()
                 .anyMatch(item -> item.itemId().equals(article.getId())));
         mockMvc.perform(delete("/api/content-trash/article/" + article.getId())
                         .header("Authorization", bearer(systemAdmin)))
@@ -127,14 +127,14 @@ class ContentTrashControllerIntegrationTest {
                 .andExpect(jsonPath("$.detail").value("legal hold მართვის უფლება არ გაქვთ"));
         assertEquals(ContentLifecycleService.Status.NOT_AUTHORIZED,
                 lifecycleService.changeLegalHold(ARTICLE, articleId, true, unlistedAdmin));
-        assertTrue(lifecycleService.listTrash().stream()
+        assertTrue(lifecycleService.listTrash(contentManager).stream()
                 .anyMatch(item -> item.itemId().equals(articleId) && !item.legalHold()));
 
         mockMvc.perform(post("/api/content-trash/article/" + articleId + "/legal-hold")
                         .header("Authorization", bearer(authority)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.detail").value("legal hold ჩართულია"));
-        assertTrue(lifecycleService.listTrash().stream()
+        assertTrue(lifecycleService.listTrash(contentManager).stream()
                 .anyMatch(item -> item.itemType().equals("article")
                         && item.itemId().equals(articleId) && item.legalHold()));
 
@@ -158,7 +158,7 @@ class ContentTrashControllerIntegrationTest {
         mockMvc.perform(delete("/api/content-trash/article/" + articleId + "/legal-hold")
                         .header("Authorization", bearer(unlistedAdmin)))
                 .andExpect(status().isForbidden());
-        assertTrue(lifecycleService.listTrash().stream()
+        assertTrue(lifecycleService.listTrash(contentManager).stream()
                 .anyMatch(item -> item.itemId().equals(articleId) && item.legalHold()));
         mockMvc.perform(delete("/api/content-trash/article/" + articleId + "/legal-hold")
                         .header("Authorization", bearer(authority)))
@@ -173,7 +173,7 @@ class ContentTrashControllerIntegrationTest {
         mockMvc.perform(delete("/api/content-trash/article/" + articleId)
                         .header("Authorization", bearer(unlistedAdmin)))
                 .andExpect(status().isOk());
-        assertTrue(lifecycleService.listTrash().stream()
+        assertTrue(lifecycleService.listTrash(contentManager).stream()
                 .noneMatch(item -> item.itemId().equals(articleId)));
         assertEquals(0, jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM articles WHERE id = ?", Integer.class, articleId));
@@ -202,8 +202,47 @@ class ContentTrashControllerIntegrationTest {
                 .andExpect(status().isBadRequest());
 
         assertEquals(auditBefore, auditLogRepository.count());
-        assertTrue(lifecycleService.listTrash().stream()
+        assertTrue(lifecycleService.listTrash(contentManager).stream()
                 .anyMatch(item -> item.itemId().equals(article.getId()) && !item.legalHold()));
+    }
+
+    /**
+     * A3, closed with the owner's decision of 2026-09-26: the trash lists
+     * another author's private draft to nobody but its author, and restores
+     * it for nobody else either. It showed the title to every content
+     * manager and let any of them restore it (PO-34, D2). Legal hold and
+     * purge still reach it -- they are the company's legal and retention
+     * duties, not an editor's.
+     */
+    @Test
+    void anotherAuthorsPrivateDraftIsNeitherListedNorRestoredForAColleague() throws Exception {
+        User author = user("trash-draft-author", Role.CONTENT_ADMIN);
+        User colleague = user("trash-draft-colleague", Role.CONTENT_ADMIN);
+        Article draft = archivedArticle();
+        draft.setDraft(true);
+        draft.setAuthorId(author.getId());
+        articleRepository.saveAndFlush(draft);
+        assertEquals(OK, lifecycleService.moveToTrash(ARTICLE, draft.getId(), author));
+
+        mockMvc.perform(get("/api/content-trash").header("Authorization", bearer(colleague)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.item_type == 'article' && @.item_id == " + draft.getId() + ")]")
+                        .isEmpty());
+        mockMvc.perform(post("/api/content-trash/article/" + draft.getId() + "/restore")
+                        .header("Authorization", bearer(colleague)))
+                .andExpect(status().isNotFound());
+        assertEquals(1, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM articles WHERE id = ? AND trashed_at IS NOT NULL", Integer.class, draft.getId()),
+                "the colleague's restore changed nothing");
+
+        // Its author still finds it and gets it back.
+        mockMvc.perform(get("/api/content-trash").header("Authorization", bearer(author)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.item_type == 'article' && @.item_id == "
+                        + draft.getId() + ")].title").value("აღდგენადი მასალა"));
+        mockMvc.perform(post("/api/content-trash/article/" + draft.getId() + "/restore")
+                        .header("Authorization", bearer(author)))
+                .andExpect(status().isOk());
     }
 
     private User user(String localPart, Role role) {

@@ -489,7 +489,7 @@ class EndpointServiceFailureContractTest {
     @Test
     void trashListQueryFailureHasSanitizedResponse() throws Exception {
         ContentLifecycleService lifecycle = mock(ContentLifecycleService.class);
-        when(lifecycle.listTrash()).thenThrow(new IllegalStateException("private-trash-marker"));
+        when(lifecycle.listTrash(any())).thenThrow(new IllegalStateException("private-trash-marker"));
         User admin = user(10L, Role.CONTENT_ADMIN, "All");
         admin.setPermissions(Set.of(Permission.CONTENT_MANAGE.value()));
         ContentTrashController controller = new ContentTrashController(lifecycle,
