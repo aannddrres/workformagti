@@ -10,6 +10,7 @@ import ge.magti.portal.article.ArticleTargetQueryService;
 import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.content.ContentLifecycleService;
 import ge.magti.portal.content.ArticleHtmlSanitizer;
+import ge.magti.portal.compliance.ReadingAcknowledgementService;
 import ge.magti.portal.article.ArticleQueryService;
 import ge.magti.portal.article.ArticleViewQueryService;
 import ge.magti.portal.article.EligibleOperatorsService;
@@ -129,6 +130,7 @@ public class ArticleController {
     private final UserRepository userRepository;
     private final RequiredReadingRepository requiredReadingRepository;
     private final ReadStatusRepository readStatusRepository;
+    private final ReadingAcknowledgementService readingAcknowledgementService;
     private final QuizGateChecker quizGateChecker;
     private final PermissionChecker permissionChecker;
     private final ScopeResolver scopeResolver;
@@ -154,6 +156,7 @@ public class ArticleController {
             UserRepository userRepository,
             RequiredReadingRepository requiredReadingRepository,
             ReadStatusRepository readStatusRepository,
+            ReadingAcknowledgementService readingAcknowledgementService,
             QuizGateChecker quizGateChecker,
             PermissionChecker permissionChecker,
             ScopeResolver scopeResolver,
@@ -177,6 +180,7 @@ public class ArticleController {
         this.userRepository = userRepository;
         this.requiredReadingRepository = requiredReadingRepository;
         this.readStatusRepository = readStatusRepository;
+        this.readingAcknowledgementService = readingAcknowledgementService;
         this.quizGateChecker = quizGateChecker;
         this.permissionChecker = permissionChecker;
         this.scopeResolver = scopeResolver;
@@ -970,6 +974,10 @@ public class ArticleController {
         // No get_or_404 here, matching routers/articles.py:539-565 exactly:
         // a missing article_id isn't checked separately, it just yields zero
         // matching history rows -- an empty list, not a 404.
+        ResponseEntity<Map<String, String>> visibility = denyInvisibleExistingArticle(id, user);
+        if (visibility != null) {
+            return visibility;
+        }
         HistoryPayloadGuard.enforceFullResponseCharacters(
                 articleHistoryRepository.totalContentCharactersByArticleId(id));
         List<ArticleHistory> history = ArticleEvidenceCardinalityGuard.enforceWithinLimit(
@@ -1003,6 +1011,10 @@ public class ArticleController {
             return denial;
         }
 
+        ResponseEntity<Map<String, String>> visibility = denyInvisibleExistingArticle(id, user);
+        if (visibility != null) {
+            return visibility;
+        }
         List<ArticleHistorySummary> history = ArticleEvidenceCardinalityGuard.enforceWithinLimit(
                 articleHistoryRepository.findSummaryByArticleIdOrderByUpdatedAtDesc(
                         id, PageRequest.of(0, ArticleEvidenceCardinalityGuard.MAX_ROWS + 1)));
@@ -1027,6 +1039,10 @@ public class ArticleController {
             return denial;
         }
 
+        ResponseEntity<Map<String, String>> visibility = denyInvisibleExistingArticle(id, user);
+        if (visibility != null) {
+            return visibility;
+        }
         Optional<ArticleHistory> history = articleHistoryRepository.findByIdAndArticleId(historyId, id);
         if (history.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -1111,6 +1127,10 @@ public class ArticleController {
         }
         Article article = found.get();
         List<String> targetDepartments = resolveTargetDepartments(id);
+        ResponseEntity<Map<String, String>> visibility = assertArticleVisible(article, targetDepartments, user);
+        if (visibility != null) {
+            return visibility;
+        }
         Map<String, Object> before = MutationAuditService.articleSnapshot(article, targetDepartments);
 
         Optional<ArticleHistory> historyOpt = articleHistoryRepository.findByIdAndArticleId(historyId, id);
@@ -1311,13 +1331,6 @@ public class ArticleController {
             return quizGate;
         }
 
-        OffsetDateTime readAt = TbilisiTime.now();
-        articleReadReceiptRepository.upsert(id, article.getTitle(), article.getVersion(), user.getId(),
-                user.getName(), user.getEmail(), user.getDepartment(), readAt);
-        ArticleReadReceipt receipt = articleReadReceiptRepository
-                .findByArticleIdSnapshotAndArticleVersionAndOperatorId(id, article.getVersion(), user.getId())
-                .orElseThrow();
-
         // Compliance bridge (routers/articles.py:1207-1233): prefix-aware,
         // unlike EligibleOperatorsService's exact-match rule -- this one
         // reuses the same [dept, deptPrefix, "All"] pattern get_articles'
@@ -1327,22 +1340,7 @@ public class ArticleController {
                 requiredReadingRepository.findByItemTypeAndItemIdAndTargetDepartmentIn(
                         "article", id, DepartmentMatcher.visibilityTargets(user.getDepartment()),
                         CompleteResultGuard.sentinelPage()));
-        for (RequiredReading rr : covering) {
-            ReadStatus stat = readStatusRepository.findByUserIdAndRequiredReadingId(user.getId(), rr.getId())
-                    .orElseGet(() -> {
-                        ReadStatus fresh = new ReadStatus();
-                        fresh.setUserId(user.getId());
-                        fresh.setRequiredReadingId(rr.getId());
-                        return fresh;
-                    });
-            if ("read".equals(stat.getStatus())) {
-                continue;
-            }
-            stat.setStatus("read");
-            stat.setReadAt(TbilisiTime.now());
-            stat.setOperatorDepartmentSnapshot(user.getDepartment());
-            readStatusRepository.save(stat);
-        }
+        ArticleReadReceipt receipt = readingAcknowledgementService.acknowledgeArticle(article, user, covering);
 
         return ResponseEntity.ok(new CreateReadReceiptResponse("success", receipt.getReadAt(), receipt.getArticleVersion()));
     }
@@ -1557,6 +1555,13 @@ public class ArticleController {
             return notFoundMap();
         }
         return assertArticleVisible(found.get(), resolveTargetDepartments(articleId), user);
+    }
+
+    /** Preserve legacy missing-article history responses while hiding existing private drafts. */
+    private ResponseEntity<Map<String, String>> denyInvisibleExistingArticle(Long articleId, User user) {
+        return articleRepository.findById(articleId)
+                .map(article -> assertArticleVisible(article, resolveTargetDepartments(articleId), user))
+                .orElse(null);
     }
 
     /**

@@ -10,11 +10,15 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import javax.sql.DataSource;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -47,11 +51,17 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
         "portal.security.corporate.enabled=true",
         "portal.security.corporate.service-uri=https://oauth.example.test/auth/",
         "portal.security.corporate.client-id=InfoPortal",
-        "portal.security.corporate.client-credential=dGVzdC1jbGllbnQ6dGVzdC1zZWNyZXQ=",
         "portal.security.corporate.domain=@example.ge"
 })
 @AutoConfigureMockMvc
 class ConcurrentLoginIntegrationTest {
+
+    /** Built at run time, as CorporateLoginIntegrationTest does, so no credential-shaped literal is committed. */
+    @DynamicPropertySource
+    static void syntheticClientCredential(DynamicPropertyRegistry registry) {
+        registry.add("portal.security.corporate.client-credential", () -> Base64.getEncoder()
+                .encodeToString("InfoPortal:fixture".getBytes(StandardCharsets.UTF_8)));
+    }
 
     /** LoginRateLimiter.MAX_ATTEMPTS_PER_ACCOUNT. */
     private static final int ACCOUNT_LIMIT = 10;

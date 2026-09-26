@@ -1,17 +1,13 @@
 package ge.magti.portal.export;
 
-import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.domain.ExportJob;
 import ge.magti.portal.repository.ExportJobRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Mirrors {@code _async_file_worker} (routers/exports.py:347-379): compiles
@@ -37,7 +33,6 @@ import java.util.Map;
 public class ExportJobWorker {
 
     private static final Logger log = LoggerFactory.getLogger(ExportJobWorker.class);
-    private static final String WORKER_ACTOR = "EXPORT_WORKER";
 
     /** Mirrors {@code _EXPORT_JOB_TTL} (routers/exports.py:30) -- also used
      *  by {@link ge.magti.portal.web.ExportController} when it creates the
@@ -45,24 +40,38 @@ public class ExportJobWorker {
     public static final long EXPORT_JOB_TTL_SECONDS = 3600;
 
     private final ExportJobRepository exportJobRepository;
-    private final MutationAuditService mutationAuditService;
+    private final ExportJobLifecycle lifecycle;
+    private final ExportJobHeartbeat heartbeat;
 
     public ExportJobWorker(
             ExportJobRepository exportJobRepository,
-            MutationAuditService mutationAuditService) {
+            ExportJobLifecycle lifecycle,
+            ExportJobHeartbeat heartbeat) {
         this.exportJobRepository = exportJobRepository;
-        this.mutationAuditService = mutationAuditService;
+        this.lifecycle = lifecycle;
+        this.heartbeat = heartbeat;
+    }
+
+    /** Called after registration commits and before async dispatch. */
+    public void track(String jobId) {
+        heartbeat.track(jobId);
+    }
+
+    public void dispatchFailed(String jobId, String exportType) {
+        try {
+            lifecycle.failBuild(jobId, exportType);
+        } finally {
+            heartbeat.finished(jobId);
+        }
     }
 
     @Async
-    @Transactional
     public void buildAndStore(String jobId, String title, List<String> headers, List<List<Object>> rows, String exportType) {
         buildAndStore(jobId, title, headers, rows, exportType, "export");
     }
 
     /** Dedicated filename prefix for classified SYSTEM_ADMIN data exports. */
     @Async
-    @Transactional
     public void buildAdminAndStore(
             String jobId, String title, List<String> headers, List<List<Object>> rows, String filenamePrefix) {
         buildAndStore(jobId, title, headers, rows, "xlsx", filenamePrefix);
@@ -71,57 +80,21 @@ public class ExportJobWorker {
     private void buildAndStore(
             String jobId, String title, List<String> headers, List<List<Object>> rows,
             String exportType, String filenamePrefix) {
-        ExportJob job = exportJobRepository.findById(jobId).orElse(null);
-        if (job == null) {
-            return;
-        }
-        Map<String, Object> before = snapshot(job, exportType);
-
-        byte[] data;
         try {
-            data = "xlsx".equals(exportType)
+            if (!exportJobRepository.existsById(jobId)) {
+                return;
+            }
+            byte[] data = "xlsx".equals(exportType)
                     ? XlsxExportBuilder.build(title, headers, rows)
                     : PdfExportBuilder.build(title, headers, rows);
+            if (!lifecycle.complete(jobId, data, filenamePrefix + "_" + jobId + "." + exportType, exportType)) {
+                log.warn("discarded export bytes after lease loss (job {})", jobId);
+            }
         } catch (RuntimeException e) {
             log.warn("export worker failed (job {}): {}", jobId, e.getMessage());
-            markFailed(job, exportType, before);
-            return;
+            lifecycle.failBuild(jobId, exportType);
+        } finally {
+            heartbeat.finished(jobId);
         }
-
-        job.setStatus("completed");
-        job.setContent(data);
-        job.setFilename(filenamePrefix + "_" + jobId + "." + exportType);
-        job.setPath(null);
-        job.setExpiresAt(nowEpochSeconds() + EXPORT_JOB_TTL_SECONDS);
-        exportJobRepository.saveAndFlush(job);
-        mutationAuditService.recordSystemResult(
-                WORKER_ACTOR, "EXPORT_JOB_COMPLETED", "export_job", 0L,
-                "Export job", "SUCCESS", null, before, snapshot(job, exportType));
-    }
-
-    private void markFailed(ExportJob job, String exportType, Map<String, Object> before) {
-        job.setStatus("failed");
-        job.setPath(null);
-        job.setExpiresAt(nowEpochSeconds() + EXPORT_JOB_TTL_SECONDS);
-        exportJobRepository.saveAndFlush(job);
-        mutationAuditService.recordSystemResult(
-                WORKER_ACTOR, "EXPORT_JOB_FAILED", "export_job", 0L,
-                "Export job", "FAILURE", "EXPORT_BUILD_FAILED",
-                before, snapshot(job, exportType));
-    }
-
-    private static Map<String, Object> snapshot(ExportJob job, String exportType) {
-        Map<String, Object> snapshot = new LinkedHashMap<>();
-        snapshot.put("job_id", job.getId());
-        snapshot.put("owner_user_id", job.getOwnerUserId());
-        snapshot.put("export_family", job.getExportFamily());
-        snapshot.put("export_format", exportType);
-        snapshot.put("status", job.getStatus());
-        snapshot.put("byte_size", job.getContent() == null ? 0 : job.getContent().length);
-        return snapshot;
-    }
-
-    private static double nowEpochSeconds() {
-        return System.currentTimeMillis() / 1000.0;
     }
 }

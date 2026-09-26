@@ -29,5 +29,5 @@ test('an upload under the application limit reaches Spring; one over it gets the
   // to be Spring's, with its reason, not a proxy's error page.
   const overTheLimit = await upload(Math.round(10.5 * 1024 * 1024));
   expect(overTheLimit.status()).toBe(413);
-  expect((await overTheLimit.json()).detail).toContain('maximum allowed size');
+  expect((await overTheLimit.json()).detail).toContain('10 MiB');
 });

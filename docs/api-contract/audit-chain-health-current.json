@@ -1,0 +1,26 @@
+{
+  "endpoint": "GET /api/audit-logs/chain-health",
+  "implementation": "Java/Oracle, 2026-09-23",
+  "fields": {
+    "status": "ok or tampered",
+    "checked": "number of reachable chained rows inspected from the stored tip",
+    "window": "requested window clamped to 1..500",
+    "hash_mismatches": "inspected rows whose canonical content no longer hashes to row_hash",
+    "link_breaks": "inspected rows whose predecessor hash is missing or cyclic",
+    "bad_ids": "up to ten IDs of inspected damaged rows; never invent deleted IDs",
+    "unchained_total": "legacy rows written before the hash chain",
+    "tail_state_mismatch": "state row is absent, tip is missing/detached, or nonempty rows contradict an empty tip"
+  },
+  "examples": {
+    "healthy_empty": {
+      "status": "ok", "checked": 0, "window": 100, "hash_mismatches": 0,
+      "link_breaks": 0, "bad_ids": [], "unchained_total": 0,
+      "tail_state_mismatch": false
+    },
+    "deleted_tail": {
+      "status": "tampered", "checked": 0, "window": 100, "hash_mismatches": 0,
+      "link_breaks": 0, "bad_ids": [], "unchained_total": 0,
+      "tail_state_mismatch": true
+    }
+  }
+}

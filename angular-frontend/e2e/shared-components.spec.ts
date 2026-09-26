@@ -108,7 +108,12 @@ test.describe('shared components', () => {
     const star = card.locator('app-favorite-star button');
     await expect(star).toHaveAttribute('aria-pressed', 'false');
 
-    await star.click();
+    const [added] = await Promise.all([
+      page.waitForResponse((response) => response.url().endsWith('/api/favorites') &&
+        response.request().method() === 'POST'),
+      star.click()
+    ]);
+    expect(added.status(), 'the favourite write must finish before the UI changes').toBe(200);
     await expect(star).toHaveAttribute('aria-pressed', 'true');
 
     // The star sits ON the card, and the card navigates. Its stopPropagation

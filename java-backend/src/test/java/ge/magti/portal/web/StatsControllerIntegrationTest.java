@@ -475,6 +475,35 @@ class StatsControllerIntegrationTest {
     }
 
     @Test
+    void leadershipOptionsExposeOnlyOwnPrimaryAndActingTeams() throws Exception {
+        String suffix = Long.toString(System.nanoTime());
+        Team primary = createTeam("leadership-primary-" + suffix);
+        Team acting = createTeam("leadership-acting-" + suffix);
+        Team foreign = createTeam("leadership-foreign-" + suffix);
+        User manager = createUser("leadership-manager-" + suffix + "@magti.ge", Role.MANAGER, "All");
+        manager.setTeamId(primary.getId());
+        manager = userRepository.saveAndFlush(manager);
+        assignTeam(manager, acting, AssignmentType.ACTING);
+        User operator = createUser("leadership-operator-" + suffix + "@magti.ge", Role.OPERATOR, "All");
+        User admin = createUser("leadership-admin-" + suffix + "@magti.ge", Role.SYSTEM_ADMIN, "All");
+
+        mockMvc.perform(authed(get("/api/manager/leadership-options"), tokenFor(manager)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.defaultTeamId").value(primary.getId().intValue()))
+                .andExpect(jsonPath("$.canExportPrimary").value(true))
+                .andExpect(jsonPath("$.groups.length()").value(2))
+                .andExpect(jsonPath("$.groups[?(@.teamId == " + primary.getId() + ")]").exists())
+                .andExpect(jsonPath("$.groups[?(@.teamId == " + acting.getId() + ")]").exists())
+                .andExpect(jsonPath("$.groups[?(@.teamId == " + foreign.getId() + ")]").doesNotExist());
+        mockMvc.perform(authed(get("/api/manager/leadership-options"), tokenFor(operator)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(get("/api/manager/leadership-options"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.groups.length()").value(0))
+                .andExpect(jsonPath("$.canExportPrimary").value(true));
+    }
+
+    @Test
     void adminTeamStatsDefaultsToAllDepartmentsWithoutParam() throws Exception {
         User admin = createUser("stats-team-all-admin@magti.ge", Role.SYSTEM_ADMIN, "All");
 

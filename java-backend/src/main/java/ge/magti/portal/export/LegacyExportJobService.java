@@ -17,11 +17,14 @@ public class LegacyExportJobService {
 
     private final ExportJobRepository jobRepository;
     private final MutationAuditService mutationAuditService;
+    private final ExportJobLeaseOwner leaseOwner;
 
     public LegacyExportJobService(
-            ExportJobRepository jobRepository, MutationAuditService mutationAuditService) {
+            ExportJobRepository jobRepository, MutationAuditService mutationAuditService,
+            ExportJobLeaseOwner leaseOwner) {
         this.jobRepository = jobRepository;
         this.mutationAuditService = mutationAuditService;
+        this.leaseOwner = leaseOwner;
     }
 
     @Transactional
@@ -41,6 +44,9 @@ public class LegacyExportJobService {
         job.setPath(null);
         job.setExpiresAt(System.currentTimeMillis() / 1000.0 + ExportJobWorker.EXPORT_JOB_TTL_SECONDS);
         jobRepository.saveAndFlush(job);
+        if (jobRepository.startLease(jobId, leaseOwner.id()) != 1) {
+            throw new IllegalStateException("Could not initialize export job lease");
+        }
 
         Map<String, Object> after = new LinkedHashMap<>();
         after.put("job_id", jobId);

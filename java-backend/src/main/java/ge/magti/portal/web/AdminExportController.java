@@ -94,8 +94,13 @@ public class AdminExportController {
         try {
             AdminExportDataset dataset = queryService.load(family, from, through);
             String jobId = jobService.register(user, family, from, through, dataset.rows().size());
-            jobWorker.buildAdminAndStore(
-                    jobId, family.title(), dataset.headers(), dataset.rows(), family.filenamePrefix());
+            jobWorker.track(jobId);
+            try {
+                jobWorker.buildAdminAndStore(
+                        jobId, family.title(), dataset.headers(), dataset.rows(), family.filenamePrefix());
+            } catch (RuntimeException e) {
+                jobWorker.dispatchFailed(jobId, "xlsx");
+            }
             return ResponseEntity.status(HttpStatus.ACCEPTED).body(new ExportJobResponse(jobId));
         } catch (ExportTooLargeException e) {
             return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(Map.of(

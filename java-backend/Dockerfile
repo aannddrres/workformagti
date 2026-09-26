@@ -1,5 +1,5 @@
 # STAGE 1: Builder
-FROM eclipse-temurin:21-jdk-alpine AS builder
+FROM eclipse-temurin:21-jdk-alpine@sha256:cd87715a8d45cfaa42419207c64680234f62785c49055cccd20437b5c9018380 AS builder
 WORKDIR /build
 
 # Cache Maven dependencies in their own layer, invalidated only by pom.xml
@@ -13,7 +13,11 @@ COPY src/ src/
 RUN ./mvnw -q -DskipTests package -B
 
 # STAGE 2: Runtime
-FROM eclipse-temurin:21-jre-alpine AS runtime
+FROM eclipse-temurin:21-jre-alpine@sha256:1a29e1fe337eb28b5bec30f0ee8ed29f0ff80ab6f75dcf9313efe82911065a52 AS runtime
+
+# Patch Alpine packages in the pinned runtime base. CI scans the final image
+# and fails on fixable HIGH/CRITICAL advisories.
+RUN apk upgrade --no-cache
 
 RUN addgroup -g 1000 appgroup && adduser -D -u 1000 -G appgroup appuser
 

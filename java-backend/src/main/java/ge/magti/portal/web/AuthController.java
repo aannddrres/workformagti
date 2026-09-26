@@ -154,8 +154,10 @@ public class AuthController {
         CorporateIdentity identity = ((CorporateAuthClient.Authenticated) answer).identity();
         return transactionTemplate.execute(status -> {
             CorporateLoginService.Result result = corporateLoginService.provision(identity);
-            if (result instanceof CorporateLoginService.Rejected) {
-                recordFailure(request.email(), "ACCOUNT_DEACTIVATED", CORPORATE_CHANNEL, clientIp, httpRequest);
+            if (result instanceof CorporateLoginService.Rejected rejected) {
+                recordFailure(request.email(),
+                        rejected.deactivated() ? "ACCOUNT_DEACTIVATED" : "AUTHENTICATION_REJECTED",
+                        CORPORATE_CHANNEL, clientIp, httpRequest);
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("detail", LOGIN_FAILED_DETAIL));
             }
             CorporateLoginService.SignedIn signedIn = (CorporateLoginService.SignedIn) result;

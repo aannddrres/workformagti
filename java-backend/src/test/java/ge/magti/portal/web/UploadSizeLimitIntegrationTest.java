@@ -74,7 +74,7 @@ class UploadSizeLimitIntegrationTest {
                 HttpResponse.BodyHandlers.ofString());
 
         assertEquals(413, response.statusCode(), response.body());
-        assertTrue(response.body().contains("maximum allowed size"), response.body());
+        assertTrue(response.body().contains("10 MiB"), response.body());
     }
 
     @AfterEach

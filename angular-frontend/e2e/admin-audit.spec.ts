@@ -36,6 +36,20 @@ async function writeAuditRows(
 }
 
 test.describe('audit log', () => {
+  test('names a missing audit tail without inventing a deleted row id', async ({ page, request }) => {
+    const token = await apiLogin(request, 'admin@magti.ge');
+    await seedTokenIntoPage(page, token);
+    await page.route('**/api/audit-logs/chain-health**', (route) => route.fulfill({
+      json: {
+        status: 'tampered', checked: 0, window: 100, hash_mismatches: 0,
+        link_breaks: 0, bad_ids: [], unchained_total: 0, tail_state_mismatch: true
+      }
+    }));
+    await page.goto('/admin/audit');
+    await expect(page.getByText('აუდიტის ჯაჭვის ბოლო ან მდგომარეობა არ ემთხვევა შენახულ ჩანაწერებს.')).toBeVisible();
+    await expect(page.getByText(/^ID:/)).toHaveCount(0);
+  });
+
   test('filters, presets and the pager', async ({ page, request }) => {
     // 180s, not 120s. The fixture below writes PAGE_SIZE + 2 audit rows one
     // at a time, because each row hash-chains onto the previous one and there

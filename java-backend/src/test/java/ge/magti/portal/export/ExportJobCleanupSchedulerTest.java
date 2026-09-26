@@ -28,8 +28,8 @@ class ExportJobCleanupSchedulerTest {
 
         new ExportJobCleanupScheduler(repository).sweepExpiredJobs();
 
-        verify(repository).deleteExpiredByIds(List.of("first"));
-        verify(repository).deleteExpiredByIds(List.of("second"));
+        verify(repository).deleteExpiredByIds(org.mockito.ArgumentMatchers.eq(List.of("first")), anyDouble());
+        verify(repository).deleteExpiredByIds(org.mockito.ArgumentMatchers.eq(List.of("second")), anyDouble());
         ArgumentCaptor<Pageable> pages = ArgumentCaptor.forClass(Pageable.class);
         verify(repository, times(3)).findExpiredReferences(anyDouble(), pages.capture());
         assertEquals(3, pages.getAllValues().size());

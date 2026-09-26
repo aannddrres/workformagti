@@ -5,14 +5,21 @@ import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -431,6 +438,53 @@ class ProductionSafetyGuardTest {
 		return properties;
 	}
 
+	private static String encodedCredential(String text) {
+		return Base64.getEncoder().encodeToString(text.getBytes(StandardCharsets.UTF_8));
+	}
+
+	private static Stream<Arguments> invalidClientCredentials() {
+		return Stream.of(
+				Arguments.of("bad base64", "!invalid!"),
+				Arguments.of("Basic prefix", "Basic " + encodedCredential("InfoPortal:fixture")),
+				Arguments.of("missing separator", encodedCredential("InfoPortal")),
+				Arguments.of("empty client", encodedCredential(":fixture")),
+				Arguments.of("empty secret", encodedCredential("InfoPortal:")),
+				Arguments.of("different client", encodedCredential("DifferentClient:fixture")),
+				Arguments.of("raw control", encodedCredential("InfoPortal:fixture\n")),
+				Arguments.of("encoded control", encodedCredential("InfoPortal:fixture%0D")),
+				Arguments.of("bad percent escape", encodedCredential("InfoPortal:fixture%xy")),
+				Arguments.of("trailing newline", encodedCredential("InfoPortal:fixture") + "\n"));
+	}
+
+	@ParameterizedTest(name = "rejects {0} without disclosing credential")
+	@MethodSource("invalidClientCredentials")
+	void productionRejectsMalformedOrMismatchedClientCredentials(String label, String credential) {
+		var logger = ((LoggerContext) LoggerFactory.getILoggerFactory()).getLogger(ProductionSafetyGuard.class);
+		var captured = new ListAppender<ILoggingEvent>();
+		captured.start();
+		logger.addAppender(captured);
+		try {
+			var properties = productionWithCompanyLogin("https://oauth.example.test/auth/", credential, null);
+			var failure = assertThrows(IllegalStateException.class, () -> guard(properties).verify(), label);
+			assertTrue(failure.getMessage().contains("OAUTH_SECRET"));
+			String messages = failure.getMessage() + captured.list.stream()
+					.map(ILoggingEvent::getFormattedMessage).reduce("", String::concat);
+			assertFalse(messages.contains(credential), "encoded credential must not be logged");
+			assertFalse(messages.contains("fixture"), "decoded secret must not be logged");
+		} finally {
+			logger.detachAppender(captured);
+			captured.stop();
+		}
+	}
+
+	@Test
+	void productionAcceptsFormEncodedClientAndSecretContainingAdditionalColon() {
+		var properties = productionWithCompanyLogin("https://oauth.example.test/auth/",
+				encodedCredential("Info+Portal%2B:fixture:part%2Btwo"), null);
+		properties.getSecurity().getCorporate().setClientId("Info Portal+");
+		assertDoesNotThrow(() -> guard(properties).verify());
+	}
+
 	/**
 	 * A production portal with the company login off admits nobody. That is
 	 * legitimate while IT finishes its side, so it boots -- but says so on
@@ -459,7 +513,7 @@ class ProductionSafetyGuardTest {
 	@Test
 	void productionCompanyLoginOverPlainHttpFails() {
 		PortalProperties properties = productionWithCompanyLogin(
-				"http://oauth.example.test/auth/", "dGVzdC1jbGllbnQ6dGVzdC1zZWNyZXQ=", null);
+				"http://oauth.example.test/auth/", encodedCredential("InfoPortal:fixture"), null);
 		IllegalStateException ex = assertThrows(IllegalStateException.class, () -> guard(properties).verify());
 		assertTrue(ex.getMessage().contains("https://"));
 	}
@@ -472,17 +526,22 @@ class ProductionSafetyGuardTest {
 				productionWithCompanyLogin("https://oauth.example.test/auth/", "replace-me", null)).verify());
 	}
 
-	/** A typo here would demote every administrator to operator at their next sign-in. */
+	/** An invalid or incomplete map would lock out an essential portal role. */
 	@Test
 	void productionCompanyLoginWithAnUnparseableRoleMapFails() {
 		IllegalStateException ex = assertThrows(IllegalStateException.class, () -> guard(productionWithCompanyLogin(
-				"https://oauth.example.test/auth/", "dGVzdC1jbGllbnQ6dGVzdC1zZWNyZXQ=", "INFOPORTAL_ADMIN=superuser")).verify());
+				"https://oauth.example.test/auth/", encodedCredential("InfoPortal:fixture"), "INFOPORTAL_ADMIN=superuser")).verify());
 		assertTrue(ex.getMessage().contains("OAUTH_ROLE_MAP"));
+		assertThrows(IllegalStateException.class, () -> guard(productionWithCompanyLogin(
+				"https://oauth.example.test/auth/", encodedCredential("InfoPortal:fixture"), "")).verify());
+		assertThrows(IllegalStateException.class, () -> guard(productionWithCompanyLogin(
+				"https://oauth.example.test/auth/", encodedCredential("InfoPortal:fixture"),
+				"INFOPORTAL_OPERATOR=operator")).verify());
 	}
 
 	@Test
 	void productionWithACompleteCompanyLoginBoots() {
 		assertDoesNotThrow(() -> guard(productionWithCompanyLogin(
-				"https://oauth.example.test/auth/", "dGVzdC1jbGllbnQ6dGVzdC1zZWNyZXQ=", null)).verify());
+				"https://oauth.example.test/auth/", encodedCredential("InfoPortal:fixture"), null)).verify());
 	}
 }

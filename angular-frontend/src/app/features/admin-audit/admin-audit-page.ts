@@ -14,7 +14,7 @@ import {
   withCategoryToken
 } from '../../shared/audit-format';
 import { formatKaDateTime } from '../../shared/ka-date';
-import { tbilisiIsoDate, tbilisiIsoDateDaysBefore } from '../../shared/tbilisi-date';
+import { auditDatePreset } from './audit-date-presets';
 
 const PAGE_SIZE = 50;
 
@@ -194,9 +194,9 @@ export class AdminAuditPage {
   }
 
   setDatePreset(days: number): void {
-    const now = new Date();
-    this.startDate.set(tbilisiIsoDateDaysBefore(now, days));
-    this.endDate.set(tbilisiIsoDate(now));
+    const range = auditDatePreset(days);
+    this.startDate.set(range.start);
+    this.endDate.set(range.end);
     this.reload();
   }
 

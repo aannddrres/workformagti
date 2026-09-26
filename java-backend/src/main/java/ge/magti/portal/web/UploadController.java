@@ -59,7 +59,7 @@ public class UploadController {
     private static final long MAX_UPLOAD_SIZE_BYTES = 10L * 1024 * 1024;
 
     /** Also what a body over Spring's 11MB transport limit is told (GlobalExceptionHandler). */
-    static final String TOO_LARGE_DETAIL = "File exceeds the maximum allowed size of " + MAX_UPLOAD_SIZE_BYTES + " bytes";
+    static final String TOO_LARGE_DETAIL = "ფაილის ზომა აღემატება დასაშვებ 10 MiB-ს";
 
     /** Mirrors config.py's Settings.ALLOWED_UPLOAD_TYPES exactly. */
     private static final Map<String, String> ALLOWED_UPLOAD_TYPES = Map.ofEntries(

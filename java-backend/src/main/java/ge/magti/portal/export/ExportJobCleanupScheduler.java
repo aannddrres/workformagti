@@ -18,8 +18,10 @@ import java.util.List;
  * -- a finished export file sits on disk indefinitely unless someone
  * actually downloads it (which triggers {@code _cleanup_export}). This
  * periodic sweep is the missing other half: anything past its TTL --
- * completed, failed, or a job whose worker crashed mid-build -- gets its
- * file deleted and its row dropped. User-approved fix, 2026-08-06 (raised
+ * completed or failed -- gets its file deleted and its row dropped. A job
+ * whose worker crashed mid-build is first marked failed by
+ * {@link ExportJobRecoveryScheduler} and remains visible for another hour.
+ * User-approved fix, 2026-08-06 (raised
  * the moment this layer was reached, per this port's own "surface bugs
  * immediately" rule).
  *
@@ -61,7 +63,7 @@ public class ExportJobCleanupScheduler {
                 deleteFileIfPresent(job.path());
             }
             exportJobRepository.deleteExpiredByIds(
-                    stale.stream().map(ExpiredExportJobReference::id).toList());
+                    stale.stream().map(ExpiredExportJobReference::id).toList(), now);
             removed += stale.size();
         }
         if (removed > 0) {

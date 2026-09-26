@@ -1,12 +1,12 @@
 package ge.magti.portal.web;
 
 import ge.magti.portal.RequiresOracle;
+import ge.magti.portal.compliance.ReadingAcknowledgementService;
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.ArticleTargetDepartment;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
-import ge.magti.portal.repository.ArticleReadReceiptRepository;
 import ge.magti.portal.repository.ArticleRepository;
 import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
 import ge.magti.portal.repository.FavoriteRepository;
@@ -26,6 +26,7 @@ import org.springframework.test.web.servlet.RequestBuilder;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -50,6 +51,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
  * and -- once that transaction commits -- fails with ORA-00001. The caller
  * got a 500 for a bookmark or a receipt that by then existed.
  *
+ * <p>The two were fixed differently. The bookmark insert skips a duplicate
+ * key ({@code IGNORE_ROW_ON_DUPKEY_INDEX}). The receipt is written only by
+ * {@link ReadingAcknowledgementService}, under the operator's {@code users}
+ * row lock, so there transaction A takes that same path and B waits on the
+ * lock, then finds A's committed receipt.
+ *
  * <p>Deterministic rather than a thread race: transaction A writes and is
  * held open on a latch while request B runs, so B always meets A's
  * uncommitted key. B's elapsed time is asserted as well -- that is what
@@ -73,7 +80,7 @@ class ConcurrentUpsertIntegrationTest {
     @Autowired private ArticleRepository articleRepository;
     @Autowired private ArticleTargetDepartmentRepository targetDepartmentRepository;
     @Autowired private FavoriteRepository favoriteRepository;
-    @Autowired private ArticleReadReceiptRepository readReceiptRepository;
+    @Autowired private ReadingAcknowledgementService readingAcknowledgementService;
     @Autowired private JwtService jwtService;
     @Autowired private PasswordEncoder passwordEncoder;
 
@@ -103,8 +110,9 @@ class ConcurrentUpsertIntegrationTest {
         Fixture fixture = createFixture("conc-receipt");
         try {
             Outcome second = whileHeldOpen(
-                    () -> readReceiptRepository.upsert(fixture.articleId(), fixture.tag(), 1, fixture.userId(),
-                            fixture.tag(), fixture.email(), fixture.tag(), TbilisiTime.now()),
+                    () -> readingAcknowledgementService.acknowledgeArticle(
+                            articleRepository.findById(fixture.articleId()).orElseThrow(),
+                            userRepository.findById(fixture.userId()).orElseThrow(), List.of()),
                     post("/api/articles/" + fixture.articleId() + "/read-receipt")
                             .header("Authorization", "Bearer " + fixture.token()));
 
@@ -189,12 +197,18 @@ class ConcurrentUpsertIntegrationTest {
         });
     }
 
-    /** Children first: favorites has no cascade, and the receipts would otherwise outlive the article. */
+    /**
+     * Children first: favorites has no cascade, and the receipts would otherwise
+     * outlive the article. An account with audit rows stays: those rows are
+     * links in the hash chain, and deleting them would break it for every
+     * later check.
+     */
     private void removeFixture(Fixture fixture) {
         jdbcTemplate.update("DELETE FROM favorites WHERE user_id = ?", fixture.userId());
         jdbcTemplate.update("DELETE FROM article_read_receipts WHERE operator_id = ?", fixture.userId());
         jdbcTemplate.update("DELETE FROM articles WHERE id = ?", fixture.articleId());
-        jdbcTemplate.update("DELETE FROM users WHERE id = ?", fixture.userId());
+        jdbcTemplate.update("DELETE FROM users u WHERE u.id = ? "
+                + "AND NOT EXISTS (SELECT 1 FROM audit_logs a WHERE a.admin_id = u.id)", fixture.userId());
     }
 
     private long count(String sql, Object... args) {

@@ -59,6 +59,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 class AuthControllerIntegrationTest {
 
+    @Test
+    void ssoStartFailsClosedUntilCorporateRedirectIsImplemented() throws Exception {
+        mockMvc.perform(post("/api/auth/sso/start"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.detail").value(
+                        "კომპანიის ავტორიზაციის სერვისი ჯერ არ არის დაკავშირებული. წვდომა არ გაიცა."));
+    }
+
     @Autowired
     private MockMvc mockMvc;
     @Autowired

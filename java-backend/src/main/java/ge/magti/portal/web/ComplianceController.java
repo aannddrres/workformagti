@@ -3,6 +3,7 @@ package ge.magti.portal.web;
 import ge.magti.portal.compliance.ComplianceCalculator;
 import ge.magti.portal.compliance.ComplianceQueryService;
 import ge.magti.portal.compliance.RequiredReadingMutationService;
+import ge.magti.portal.compliance.ReadingAcknowledgementService;
 import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.reminder.ReminderService;
 import ge.magti.portal.content.ItemDetail;
@@ -77,6 +78,7 @@ public class ComplianceController {
     private final PermissionChecker permissionChecker;
     private final MutationAuditService mutationAuditService;
     private final RequiredReadingMutationService requiredReadingMutationService;
+    private final ReadingAcknowledgementService readingAcknowledgementService;
 
     public ComplianceController(
             ComplianceQueryService complianceQueryService,
@@ -89,7 +91,8 @@ public class ComplianceController {
             ItemTitleResolver itemTitleResolver,
             PermissionChecker permissionChecker,
             MutationAuditService mutationAuditService,
-            RequiredReadingMutationService requiredReadingMutationService) {
+            RequiredReadingMutationService requiredReadingMutationService,
+            ReadingAcknowledgementService readingAcknowledgementService) {
         this.complianceQueryService = complianceQueryService;
         this.requiredReadingRepository = requiredReadingRepository;
         this.readStatusRepository = readStatusRepository;
@@ -101,6 +104,7 @@ public class ComplianceController {
         this.permissionChecker = permissionChecker;
         this.mutationAuditService = mutationAuditService;
         this.requiredReadingMutationService = requiredReadingMutationService;
+        this.readingAcknowledgementService = readingAcknowledgementService;
     }
 
     /** Port of get_my_readings (routers/compliance.py:30-113). */
@@ -212,37 +216,9 @@ public class ComplianceController {
             }
         }
 
-        ReadStatus stat = readStatusRepository.findByUserIdAndRequiredReadingId(user.getId(), readingId)
-                .orElseGet(() -> {
-                    ReadStatus fresh = new ReadStatus();
-                    fresh.setUserId(user.getId());
-                    fresh.setRequiredReadingId(readingId);
-                    return fresh;
-                });
-        Map<String, Object> before = stat.getId() == null
-                ? null : MutationAuditService.readStatusSnapshot(stat);
-        stat.setStatus("read");
-        stat.setReadAt(TbilisiTime.now());
-        stat.setOperatorDepartmentSnapshot(user.getDepartment());
-        ReadStatus savedStat = readStatusRepository.saveAndFlush(stat);
-        ReadStatusResponse response = ReadStatusResponse.from(savedStat);
-
-        // Receipt bridge (routers/compliance.py:190-195): a mandatory-reading
-        // acknowledgement of an article is also a versioned read receipt. The
-        // atomic MERGE (clearAutomatically) runs after the ReadStatus flush
-        // above; single @Transactional makes Python's "commit first so the
-        // retry can't discard the ReadStatus" ordering moot -- there's no
-        // rollback-retry path here.
-        if (readingArticle != null) {
-            articleReadReceiptRepository.upsert(readingArticle.getId(), readingArticle.getTitle(),
-                    readingArticle.getVersion(), user.getId(), user.getName(), user.getEmail(),
-                    user.getDepartment(), TbilisiTime.now());
-        }
-        mutationAuditService.recordSuccess(
-                user, "MARK_REQUIRED_READING_READ", "read_status", savedStat.getId(),
-                reading.getItemTitleSnapshot(), before,
-                MutationAuditService.readStatusSnapshot(savedStat));
-        return ResponseEntity.ok(response);
+        ReadStatus savedStat = readingAcknowledgementService.acknowledgeRequiredReading(
+                reading, readingArticle, user);
+        return ResponseEntity.ok(ReadStatusResponse.from(savedStat));
     }
 
     /** Port of create_required_reading (routers/compliance.py:285-316). */

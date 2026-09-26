@@ -44,8 +44,8 @@ public class AuditChainService {
      * expression (V28's ux_audit_logs_chain_genesis) so Oracle can answer it
      * from that index.
      */
-    private static final String GENESIS_ROWS_SQL = "SELECT COUNT(*) FROM audit_logs "
-            + "WHERE CASE WHEN prev_hash IS NULL AND row_hash IS NOT NULL THEN 1 END = 1";
+    private static final String GENESIS_ROWS = "(SELECT COUNT(*) FROM audit_logs "
+            + "WHERE CASE WHEN prev_hash IS NULL AND row_hash IS NOT NULL THEN 1 END = 1)";
 
     /**
      * Whether a row's link to the chain holds: the row its prev_hash names is
@@ -63,7 +63,10 @@ public class AuditChainService {
      * <p>What tampering does to these counts: a deleted row leaves its
      * successor naming nothing; a row re-pointed at another predecessor gives
      * that predecessor two successors; a forged second genesis makes two rows
-     * that name nothing. An edited row fails its hash instead.
+     * that name nothing. An edited row fails its hash instead. The successor
+     * count is what catches a branch grafted onto the chain and made the tip:
+     * the walk from that tip passes only through rows that verify, and the
+     * genuine rows after the graft point are simply no longer on it.
      */
     static boolean linked(String prevHash, long predecessors, long successors, long genesisRows) {
         if (prevHash == null) {
@@ -80,9 +83,11 @@ public class AuditChainService {
     public Optional<AuditVerifyResponse> verify(Long id) {
         String sql = "SELECT al.row_hash, al.prev_hash, "
                 + "LOWER(RAWTOHEX(STANDARD_HASH(" + canonicalCall("al") + ", 'SHA256'))) AS recomputed_hash, "
-                + "(SELECT COUNT(*) FROM audit_logs p WHERE p.row_hash = al.prev_hash) AS predecessors, "
-                + "(SELECT COUNT(*) FROM audit_logs s WHERE s.prev_hash = al.prev_hash) AS successors "
-                + "FROM audit_logs al WHERE al.id = ?";
+                + "(SELECT COUNT(*) FROM audit_logs prev WHERE prev.row_hash = al.prev_hash) AS predecessor_count, "
+                + "(SELECT COUNT(*) FROM audit_logs s WHERE s.prev_hash = al.prev_hash) AS successor_count, "
+                + GENESIS_ROWS + " AS genesis_rows "
+                + "FROM audit_logs al "
+                + "WHERE al.id = ?";
 
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, id);
         if (rows.isEmpty()) {
@@ -97,11 +102,11 @@ public class AuditChainService {
         String prevHash = (String) row.get("prev_hash");
 
         boolean hashMatch = rowHash.equals(recomputedHash);
-        // Looks the predecessor up live rather than trusting the stored
-        // prev_hash blindly, so an altered or deleted predecessor is caught
-        // too, not just a directly altered row.
-        long genesisRows = prevHash == null ? genesisRows() : 0;
-        boolean chainMatch = linked(prevHash, count(row, "predecessors"), count(row, "successors"), genesisRows);
+        // Identity values are allocated before the trigger obtains the tip
+        // lock. Concurrent commits can therefore form a valid non-ID order,
+        // so the link is looked up by hash (see linked()).
+        boolean chainMatch = linked(prevHash, count(row, "predecessor_count"),
+                count(row, "successor_count"), count(row, "genesis_rows"));
         return Optional.of(AuditVerifyResponse.of(hashMatch, chainMatch, rowHash, recomputedHash));
     }
 
@@ -113,45 +118,64 @@ public class AuditChainService {
     public AuditChainHealthResponse chainHealth(int requestedWindow) {
         int n = Math.max(1, Math.min(requestedWindow, 500));
 
-        // The window is the last n rows by id; each row's link is then looked
-        // up by hash, wherever its predecessor sits (see linked()). The window
-        // joins back to the base table because the canonical string needs
-        // real column values, while the ordering/limit subquery only needs
-        // id. The link counts come from two semi-joins over audit_logs, once
-        // each, rather than two lookups per row.
-        String windowSql = "WITH win AS ("
-                + "  SELECT a.id, a.prev_hash, a.row_hash, "
-                + "  LOWER(RAWTOHEX(STANDARD_HASH(" + canonicalCall("a") + ", 'SHA256'))) AS recomputed "
-                + "  FROM audit_logs a JOIN ("
-                + "    SELECT id FROM audit_logs WHERE row_hash IS NOT NULL "
-                + "    ORDER BY id DESC FETCH FIRST ? ROWS ONLY"
-                + "  ) recent ON recent.id = a.id"
-                + "), links AS ("
-                + "  SELECT link_hash, SUM(named) AS predecessors, SUM(naming) AS successors FROM ("
-                + "    SELECT row_hash AS link_hash, 1 AS named, 0 AS naming FROM audit_logs "
-                + "    WHERE row_hash IN (SELECT prev_hash FROM win) "
-                + "    UNION ALL "
-                + "    SELECT prev_hash, 0, 1 FROM audit_logs WHERE prev_hash IN (SELECT prev_hash FROM win)"
-                + "  ) GROUP BY link_hash"
-                + ") "
-                + "SELECT w.id, w.prev_hash, w.row_hash, w.recomputed, "
-                + "NVL(l.predecessors, 0) AS predecessors, NVL(l.successors, 0) AS successors "
-                + "FROM win w LEFT JOIN links l ON l.link_hash = w.prev_hash "
-                + "ORDER BY w.id";
+        // One statement means one Oracle read-consistent snapshot for the
+        // state, links, boundary and legacy count, even during inserts.
+        // Follow hashes from the committed tip, never identity order. V49's
+        // unique row_hash index makes each predecessor unambiguous and lets
+        // Oracle seek by hash instead of grouping the whole history.
+        String windowSql = """
+                WITH state AS (
+                    SELECT COUNT(*) state_count, MAX(tip_hash) tip_hash
+                    FROM audit_chain_state WHERE id = 1
+                ), recent AS (
+                    SELECT id, LEVEL depth, CONNECT_BY_ISCYCLE is_cycle
+                    FROM audit_logs
+                    START WITH row_hash = (SELECT tip_hash FROM state)
+                    CONNECT BY NOCYCLE PRIOR prev_hash = row_hash AND LEVEL <= ?
+                ), summary AS (
+                    SELECT s.state_count, s.tip_hash,
+                        (SELECT COUNT(*) FROM audit_logs
+                            WHERE CASE WHEN row_hash IS NULL THEN id END IS NOT NULL) unchained_total,
+                        (SELECT CASE WHEN EXISTS (
+                            SELECT 1 FROM audit_logs WHERE row_hash IS NOT NULL
+                        ) THEN 1 ELSE 0 END FROM dual) chained_exists,
+                        (SELECT COUNT(*) FROM audit_logs WHERE row_hash = s.tip_hash) tip_count,
+                        (SELECT COUNT(*) FROM audit_logs WHERE prev_hash = s.tip_hash
+                            AND row_hash IS NOT NULL) tip_children,
+                        %s genesis_rows
+                    FROM state s
+                )
+                SELECT s.*, a.id, a.prev_hash, a.row_hash, r.is_cycle,
+                    (SELECT COUNT(*) FROM audit_logs p WHERE p.row_hash = a.prev_hash)
+                        predecessor_count,
+                    (SELECT COUNT(*) FROM audit_logs f WHERE f.prev_hash = a.prev_hash)
+                        successor_count,
+                """.formatted(GENESIS_ROWS)
+                + "CASE WHEN a.id IS NOT NULL THEN LOWER(RAWTOHEX(STANDARD_HASH("
+                + canonicalCall("a") + ", 'SHA256'))) END AS recomputed "
+                + "FROM summary s LEFT JOIN recent r ON 1 = 1 "
+                + "LEFT JOIN audit_logs a ON a.id = r.id "
+                + "ORDER BY r.depth";
 
         List<Map<String, Object>> windowRows = jdbcTemplate.queryForList(windowSql, n);
-
-        long unchainedTotal = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM audit_logs WHERE row_hash IS NULL", Long.class);
-
-        // Asked only when a row in the window names no predecessor.
-        boolean claimsGenesis = windowRows.stream().anyMatch(row -> row.get("prev_hash") == null);
-        long genesisRows = claimsGenesis ? genesisRows() : 0;
+        Map<String, Object> summary = windowRows.get(0); // aggregate exists even for an empty chain
+        long unchainedTotal = ((Number) summary.get("unchained_total")).longValue();
+        long genesisRows = count(summary, "genesis_rows");
+        boolean validTip = ((Number) summary.get("state_count")).intValue() == 1
+                && (summary.get("tip_hash") == null
+                    ? ((Number) summary.get("chained_exists")).intValue() == 0
+                    : ((Number) summary.get("tip_count")).intValue() == 1
+                        && ((Number) summary.get("tip_children")).intValue() == 0);
 
         int hashMismatches = 0;
         int linkBreaks = 0;
+        int checked = 0;
         List<Long> badIds = new ArrayList<>();
         for (Map<String, Object> row : windowRows) {
+            if (row.get("id") == null) {
+                continue; // state-only failure: no deleted ID can be reported
+            }
+            checked++;
             long id = ((Number) row.get("id")).longValue();
             String rowHash = (String) row.get("row_hash");
             String recomputed = (String) row.get("recomputed");
@@ -161,7 +185,8 @@ public class AuditChainService {
                 hashMismatches++;
                 bad = true;
             }
-            if (!linked(prevHash, count(row, "predecessors"), count(row, "successors"), genesisRows)) {
+            if (((Number) row.get("is_cycle")).intValue() != 0 || !linked(prevHash,
+                    count(row, "predecessor_count"), count(row, "successor_count"), genesisRows)) {
                 linkBreaks++;
                 bad = true;
             }
@@ -170,13 +195,9 @@ public class AuditChainService {
             }
         }
 
-        String status = (hashMismatches == 0 && linkBreaks == 0) ? "ok" : "tampered";
+        String status = (validTip && hashMismatches == 0 && linkBreaks == 0) ? "ok" : "tampered";
         return new AuditChainHealthResponse(
-                status, windowRows.size(), n, hashMismatches, linkBreaks, badIds, unchainedTotal);
-    }
-
-    private long genesisRows() {
-        return jdbcTemplate.queryForObject(GENESIS_ROWS_SQL, Long.class);
+                status, checked, n, hashMismatches, linkBreaks, badIds, unchainedTotal, !validTip);
     }
 
     private static long count(Map<String, Object> row, String column) {

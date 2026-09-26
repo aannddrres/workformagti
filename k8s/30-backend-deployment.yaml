@@ -3,8 +3,9 @@
 # Stateless: since PR-03 nothing in this application writes to a filesystem
 # at all -- uploads and generated exports live in Oracle as BLOBs. That is
 # why there is no PersistentVolumeClaim anywhere in this directory, and why
-# the root filesystem below can be read-only. It also means a pod can be
-# killed and replaced at any moment with nothing to drain.
+# the root filesystem below can be read-only. A pod lost during export build
+# leaves a leased job that becomes visibly failed after lease expiry; users
+# must start a new export. Graceful draining remains preferable.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

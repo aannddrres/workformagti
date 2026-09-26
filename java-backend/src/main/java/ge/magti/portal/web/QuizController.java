@@ -1,6 +1,7 @@
 package ge.magti.portal.web;
 
 import ge.magti.portal.article.ArticleTargetQueryService;
+import ge.magti.portal.article.ArticleVisibility;
 import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.QuizAnswer;
@@ -17,7 +18,6 @@ import ge.magti.portal.repository.QuizAnswerRepository;
 import ge.magti.portal.repository.QuizAttemptRepository;
 import ge.magti.portal.repository.QuizQuestionRepository;
 import ge.magti.portal.security.PermissionChecker;
-import ge.magti.portal.util.DepartmentMatcher;
 import ge.magti.portal.util.TbilisiTime;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -43,10 +43,8 @@ import java.util.stream.Collectors;
  * anywhere), server-side grading, and the two knowledge-score read
  * endpoints that share {@link KnowledgeScoreService}.
  *
- * <p>{@link #assertArticleVisible} is duplicated from {@link
- * ArticleController} rather than shared, matching this migration's
- * established per-controller pattern (each Python router file
- * independently wires its own dependencies too).
+ * <p>Quiz reads and writes use the same article visibility decision as
+ * article detail and attachments, including private {@code is_draft} rows.
  *
  * <p><b>Known, deliberate gap:</b> only the admin question-bank replace
  * (PUT quiz/admin) writes an audit row (UPDATE_QUIZ), exactly matching
@@ -92,7 +90,8 @@ public class QuizController {
         if (denial != null) {
             return denial;
         }
-        if (articleRepository.findById(id).isEmpty()) {
+        Optional<Article> found = articleRepository.findById(id);
+        if (found.isEmpty() || assertArticleVisible(found.get(), user) != null) {
             return articleNotFound();
         }
         return ResponseEntity.ok(buildAdminQuizView(id));
@@ -106,7 +105,8 @@ public class QuizController {
         if (denial != null) {
             return denial;
         }
-        if (articleRepository.findById(id).isEmpty()) {
+        Optional<Article> found = articleRepository.findById(id);
+        if (found.isEmpty() || assertArticleVisible(found.get(), user) != null) {
             return articleNotFound();
         }
 
@@ -311,24 +311,12 @@ public class QuizController {
         return new QuizAdminUpdate(dtos);
     }
 
-    /** Port of _assert_article_visible (routers/articles.py:61-94), duplicated from ArticleController. */
+    /** Keep quiz endpoints opaque whenever article detail would be opaque. */
     private ResponseEntity<Map<String, String>> assertArticleVisible(Article article, User user) {
-        if (user.getRole().isContentAdmin()) {
-            return null;
-        }
-        List<String> targetDepartments =
-                articleTargetQueryService.targetDepartmentsForArticleWithinLimit(article.getId());
-        if (!DepartmentMatcher.matches(user.getDepartment(), targetDepartments)) {
-            return articleNotFoundMap();
-        }
-        if ("published".equals(article.getStatus())) {
-            return null;
-        }
-        if ("scheduled".equals(article.getStatus()) && article.getPublishedAt() != null
-                && !article.getPublishedAt().isAfter(TbilisiTime.now())) {
-            return null;
-        }
-        return articleNotFoundMap();
+        List<String> targetDepartments = user.getRole().isContentAdmin() ? List.of()
+                : articleTargetQueryService.targetDepartmentsForArticleWithinLimit(article.getId());
+        return ArticleVisibility.isVisible(article, targetDepartments, user)
+                ? null : articleNotFoundMap();
     }
 
     private static ResponseEntity<?> articleNotFound() {
