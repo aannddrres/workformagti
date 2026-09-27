@@ -1,5 +1,5 @@
 <div class="portal-page">
-  <div class="mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+  <div class="mb-5 flex flex-col gap-4">
     <div>
       <h1 class="portal-title">{{ 'audit.heading' | translate }}</h1>
       <p class="text-xs text-slate-600 dark:text-slate-400">{{ 'audit.subtitle' | translate }}</p>
@@ -56,7 +56,7 @@
         [value]="searchText()"
         (input)="onSearchInput($event)"
         [attr.placeholder]="'audit.search_placeholder' | translate"
-        class="w-56 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-normal text-slate-600 shadow-e1 focus:border-red-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+        class="w-80 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-normal text-slate-600 shadow-e1 focus:border-red-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
       />
 
       <input
@@ -132,7 +132,7 @@
     </div>
   }
 
-  <div class="table-shell/60">
+  <div class="table-shell">
     @if (loading()) {
       <table>
         <tbody>
