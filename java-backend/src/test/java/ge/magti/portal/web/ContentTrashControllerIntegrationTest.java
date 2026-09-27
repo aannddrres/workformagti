@@ -87,7 +87,7 @@ class ContentTrashControllerIntegrationTest {
         mockMvc.perform(post("/api/content-trash/article/" + article.getId() + "/restore")
                         .header("Authorization", bearer(operator)))
                 .andExpect(status().isForbidden());
-        assertTrue(lifecycleService.listTrash().stream()
+        assertTrue(lifecycleService.listTrash(contentManager).stream()
                 .anyMatch(item -> item.itemId().equals(article.getId())));
 
         mockMvc.perform(post("/api/content-trash/article/" + article.getId() + "/restore")
@@ -95,14 +95,14 @@ class ContentTrashControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.detail").value("მასალა აღდგენილია"));
         assertTrue(articleRepository.findById(article.getId()).isPresent());
-        assertTrue(lifecycleService.listTrash().stream()
+        assertTrue(lifecycleService.listTrash(contentManager).stream()
                 .noneMatch(item -> item.itemId().equals(article.getId())));
 
         assertEquals(OK, lifecycleService.moveToTrash(ARTICLE, article.getId(), contentManager));
         mockMvc.perform(delete("/api/content-trash/article/" + article.getId())
                         .header("Authorization", bearer(contentManager)))
                 .andExpect(status().isForbidden());
-        assertTrue(lifecycleService.listTrash().stream()
+        assertTrue(lifecycleService.listTrash(contentManager).stream()
                 .anyMatch(item -> item.itemId().equals(article.getId())));
         mockMvc.perform(delete("/api/content-trash/article/" + article.getId())
                         .header("Authorization", bearer(systemAdmin)))
@@ -127,14 +127,14 @@ class ContentTrashControllerIntegrationTest {
                 .andExpect(jsonPath("$.detail").value("legal hold მართვის უფლება არ გაქვთ"));
         assertEquals(ContentLifecycleService.Status.NOT_AUTHORIZED,
                 lifecycleService.changeLegalHold(ARTICLE, articleId, true, unlistedAdmin));
-        assertTrue(lifecycleService.listTrash().stream()
+        assertTrue(lifecycleService.listTrash(contentManager).stream()
                 .anyMatch(item -> item.itemId().equals(articleId) && !item.legalHold()));
 
         mockMvc.perform(post("/api/content-trash/article/" + articleId + "/legal-hold")
                         .header("Authorization", bearer(authority)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.detail").value("legal hold ჩართულია"));
-        assertTrue(lifecycleService.listTrash().stream()
+        assertTrue(lifecycleService.listTrash(contentManager).stream()
                 .anyMatch(item -> item.itemType().equals("article")
                         && item.itemId().equals(articleId) && item.legalHold()));
 
@@ -158,7 +158,7 @@ class ContentTrashControllerIntegrationTest {
         mockMvc.perform(delete("/api/content-trash/article/" + articleId + "/legal-hold")
                         .header("Authorization", bearer(unlistedAdmin)))
                 .andExpect(status().isForbidden());
-        assertTrue(lifecycleService.listTrash().stream()
+        assertTrue(lifecycleService.listTrash(contentManager).stream()
                 .anyMatch(item -> item.itemId().equals(articleId) && item.legalHold()));
         mockMvc.perform(delete("/api/content-trash/article/" + articleId + "/legal-hold")
                         .header("Authorization", bearer(authority)))
@@ -173,7 +173,7 @@ class ContentTrashControllerIntegrationTest {
         mockMvc.perform(delete("/api/content-trash/article/" + articleId)
                         .header("Authorization", bearer(unlistedAdmin)))
                 .andExpect(status().isOk());
-        assertTrue(lifecycleService.listTrash().stream()
+        assertTrue(lifecycleService.listTrash(contentManager).stream()
                 .noneMatch(item -> item.itemId().equals(articleId)));
         assertEquals(0, jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM articles WHERE id = ?", Integer.class, articleId));
@@ -202,7 +202,7 @@ class ContentTrashControllerIntegrationTest {
                 .andExpect(status().isBadRequest());
 
         assertEquals(auditBefore, auditLogRepository.count());
-        assertTrue(lifecycleService.listTrash().stream()
+        assertTrue(lifecycleService.listTrash(contentManager).stream()
                 .anyMatch(item -> item.itemId().equals(article.getId()) && !item.legalHold()));
     }
 

@@ -1,5 +1,6 @@
 package ge.magti.portal.article;
 
+import ge.magti.portal.content.PrivateDraftAccess;
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.util.DepartmentMatcher;
@@ -45,7 +46,7 @@ public final class ArticleVisibility {
         // GET /api/articles/{id}: another author's private draft, if its
         // status happened to say published, came back in full to any of the
         // ~600 operators in its target departments.
-        if (article.isDraft() && !isAuthor(article, user)) {
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
             return false;
         }
         if (user.getRole().isContentAdmin()) {
@@ -85,13 +86,4 @@ public final class ArticleVisibility {
                 && !publishedAt.isAfter(TbilisiTime.now());
     }
 
-    /**
-     * Null-safe on both sides, and deliberately so: an article with no author
-     * belongs to nobody rather than to everybody, which is the same direction
-     * {@code ArticleQueryService}'s {@code a.authorId = :userId} resolves to
-     * for a null column.
-     */
-    private static boolean isAuthor(Article article, User user) {
-        return article.getAuthorId() != null && article.getAuthorId().equals(user.getId());
-    }
 }

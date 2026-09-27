@@ -1,5 +1,7 @@
 package ge.magti.portal.web;
 
+import ge.magti.portal.article.ArticleTargetQueryService;
+import ge.magti.portal.article.ArticleVisibility;
 import ge.magti.portal.compliance.ComplianceCalculator;
 import ge.magti.portal.compliance.ComplianceQueryService;
 import ge.magti.portal.compliance.RequiredReadingMutationService;
@@ -71,6 +73,7 @@ public class ComplianceController {
     private final RequiredReadingRepository requiredReadingRepository;
     private final ReadStatusRepository readStatusRepository;
     private final ArticleRepository articleRepository;
+    private final ArticleTargetQueryService articleTargetQueryService;
     private final ArticleReadReceiptRepository articleReadReceiptRepository;
     private final QuizGateChecker quizGateChecker;
     private final ReminderService reminderService;
@@ -85,6 +88,7 @@ public class ComplianceController {
             RequiredReadingRepository requiredReadingRepository,
             ReadStatusRepository readStatusRepository,
             ArticleRepository articleRepository,
+            ArticleTargetQueryService articleTargetQueryService,
             ArticleReadReceiptRepository articleReadReceiptRepository,
             QuizGateChecker quizGateChecker,
             ReminderService reminderService,
@@ -97,6 +101,7 @@ public class ComplianceController {
         this.requiredReadingRepository = requiredReadingRepository;
         this.readStatusRepository = readStatusRepository;
         this.articleRepository = articleRepository;
+        this.articleTargetQueryService = articleTargetQueryService;
         this.articleReadReceiptRepository = articleReadReceiptRepository;
         this.quizGateChecker = quizGateChecker;
         this.reminderService = reminderService;
@@ -208,6 +213,10 @@ public class ComplianceController {
                 // Keep the assignment and its past read evidence for audit,
                 // but never create a new acknowledgement for payload the
                 // employee can no longer open (trashed or purged).
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", READING_NOT_FOUND));
+            }
+            if (!ArticleVisibility.isVisible(readingArticle,
+                    articleTargetQueryService.targetDepartmentsForArticleWithinLimit(readingArticle.getId()), user)) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", READING_NOT_FOUND));
             }
             ResponseEntity<Map<String, String>> quizGate = quizGateChecker.denialFor(readingArticle, user);

@@ -72,6 +72,7 @@ services:
       # three anywhere.
       APP_ENV: development
       ALLOW_DEV_LOGIN: "true"
+      ROLLOUT_FILE_ENTITLEMENT: "true"
       COOKIE_SECURE: "false"
     # Not published to the host: the frontend proxies /api to it over the
     # compose network, the same shape as an in-cluster Service.

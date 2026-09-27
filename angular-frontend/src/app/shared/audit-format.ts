@@ -21,6 +21,7 @@ export function categoryBadge(category: string | null | undefined): AuditCategor
 
 const ACTION_LABELS: Record<string, string> = {
   LOGIN: 'სისტემაში შესვლა',
+  LOGOUT: 'სისტემიდან გასვლა',
   LOGIN_SSO: 'ერთიანი ავტორიზაციით შესვლა',
   LOGIN_FAILED: 'შესვლის წარუმატებელი მცდელობა',
   PASSWORD_CHANGE: 'პაროლის შეცვლა',
@@ -59,7 +60,7 @@ const ACTION_LABELS: Record<string, string> = {
   EXPORT_ADMIN_READ_EVIDENCE: 'ოფიციალური გაცნობის მტკიცებულების ექსპორტი',
   EXPORT_ADMIN_ARTICLE_VIEWS: 'სტატიის გახსნის ისტორიის ექსპორტი',
   EXPORT_ADMIN_SEARCH_HISTORY: 'ძებნის ისტორიის ექსპორტი',
-  EXPORT_ADMIN_QUIZ_ATTEMPTS: 'Quiz მცდელობების ექსპორტი',
+  EXPORT_ADMIN_QUIZ_ATTEMPTS: 'ქვიზის მცდელობების ექსპორტი',
   EXPORT_ADMIN_CHANGE_EVENTS: 'ცვლილებებისა და უსაფრთხოების მოვლენების ექსპორტი'
 };
 
@@ -93,6 +94,11 @@ export function formatAuditAction(action: string | null | undefined): string {
 export function formatAuditItemType(itemType: string | null | undefined): string {
   if (!itemType) return '—';
   return ITEM_TYPE_LABELS[itemType.toLowerCase()] ?? itemType;
+}
+
+/** Localize the old system label without changing stored, hashed audit evidence. */
+export function formatAuditItemName(itemType: string | null | undefined, name: string | null | undefined): string {
+  return itemType === 'audit_log' && name === 'Audit trail' ? 'აუდიტის ჟურნალი' : (name ?? '');
 }
 
 /**

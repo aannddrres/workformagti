@@ -35,7 +35,7 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
      */
     @Query("SELECT new ge.magti.portal.article.ArticleReferenceItem("
             + "a.id, a.title, a.categoryId, a.tags, a.createdAt, a.lastVerifiedAt) "
-            + "FROM Article a WHERE a.status = :status AND a.lastVerifiedAt < :cutoff "
+            + "FROM Article a WHERE a.isDraft = false AND a.status = :status AND a.lastVerifiedAt < :cutoff "
             + "ORDER BY a.lastVerifiedAt ASC")
     List<ArticleReferenceItem> findStaleReferences(
             @Param("status") String status,
@@ -44,7 +44,7 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
 
     @Query("SELECT new ge.magti.portal.article.ArticleReferenceItem("
             + "a.id, a.title, a.categoryId, a.tags, a.createdAt, a.lastVerifiedAt) "
-            + "FROM Article a WHERE a.status = :status")
+            + "FROM Article a WHERE a.isDraft = false AND a.status = :status")
     List<ArticleReferenceItem> findReferencesByStatus(
             @Param("status") String status,
             Pageable pageable);

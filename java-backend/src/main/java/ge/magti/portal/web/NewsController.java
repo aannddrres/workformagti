@@ -3,6 +3,7 @@ package ge.magti.portal.web;
 import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.content.ContentLifecycleService;
 import ge.magti.portal.content.ArticleHtmlSanitizer;
+import ge.magti.portal.content.PrivateDraftAccess;
 import ge.magti.portal.domain.News;
 import ge.magti.portal.domain.NewsHistory;
 import ge.magti.portal.domain.User;
@@ -115,6 +116,9 @@ public class NewsController {
             return notFound();
         }
         News news = found.get();
+        if (!PrivateDraftAccess.canAccess(news.isDraft(), news.getAuthorId(), user)) {
+            return notFound();
+        }
 
         if (!NewsVisibility.isVisible(news, user)) {
             return notFound();
@@ -180,6 +184,9 @@ public class NewsController {
             return notFound();
         }
         News news = found.get();
+        if (!PrivateDraftAccess.canAccess(news.isDraft(), news.getAuthorId(), user)) {
+            return notFound();
+        }
         Map<String, Object> before = MutationAuditService.newsSnapshot(news);
 
         archiveCurrentState(news, user.getId());
@@ -215,6 +222,9 @@ public class NewsController {
         if (found.isEmpty()) {
             return notFound();
         }
+        if (!PrivateDraftAccess.canAccess(found.get().isDraft(), found.get().getAuthorId(), user)) {
+            return notFound();
+        }
         ContentLifecycleService.Status status = contentLifecycleService.moveToTrash(
                 ContentLifecycleService.ItemType.NEWS, id, user);
         if (status == ContentLifecycleService.Status.OK) {
@@ -236,6 +246,9 @@ public class NewsController {
             return notFound();
         }
         News news = found.get();
+        if (!PrivateDraftAccess.canAccess(news.isDraft(), news.getAuthorId(), user)) {
+            return notFound();
+        }
         if (!news.isArchived()) {
             Map<String, Object> before = MutationAuditService.newsSnapshot(news);
             news.setExpiresAt(TbilisiTime.now());
@@ -260,6 +273,9 @@ public class NewsController {
             return notFound();
         }
         News news = found.get();
+        if (!PrivateDraftAccess.canAccess(news.isDraft(), news.getAuthorId(), user)) {
+            return notFound();
+        }
         if (!news.isArchived()) {
             return ResponseEntity.badRequest().body(Map.of("detail", "სიახლე არ არის არქივში"));
         }
@@ -287,6 +303,9 @@ public class NewsController {
             return notFound();
         }
         News news = found.get();
+        if (!PrivateDraftAccess.canAccess(news.isDraft(), news.getAuthorId(), user)) {
+            return notFound();
+        }
         Map<String, Object> before = MutationAuditService.newsSnapshot(news);
 
         // routers/news.py:229-230 -- self-heals a null author_id (e.g. a
@@ -344,6 +363,9 @@ public class NewsController {
         if (denial != null) {
             return denial;
         }
+        if (privateNewsIsHidden(id, user)) {
+            return notFound();
+        }
         HistoryPayloadGuard.enforceFullResponseCharacters(
                 newsHistoryRepository.totalContentCharactersByNewsId(id));
         List<NewsHistory> history = CompleteResultGuard.enforce(
@@ -367,6 +389,9 @@ public class NewsController {
         if (denial != null) {
             return denial;
         }
+        if (privateNewsIsHidden(id, user)) {
+            return notFound();
+        }
         List<NewsHistorySummary> history = CompleteResultGuard.enforce(
                 newsHistoryRepository.findSummaryByNewsIdOrderByUpdatedAtDesc(
                         id, CompleteResultGuard.sentinelPage()));
@@ -389,6 +414,9 @@ public class NewsController {
         ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
+        }
+        if (privateNewsIsHidden(id, user)) {
+            return notFound();
         }
         Optional<NewsHistory> history = newsHistoryRepository.findByIdAndNewsId(historyId, id);
         if (history.isEmpty()) {
@@ -416,6 +444,9 @@ public class NewsController {
             return notFound();
         }
         News news = found.get();
+        if (!PrivateDraftAccess.canAccess(news.isDraft(), news.getAuthorId(), user)) {
+            return notFound();
+        }
         Map<String, Object> before = MutationAuditService.newsSnapshot(news);
 
         Optional<NewsHistory> historyRow = newsHistoryRepository.findByIdAndNewsId(historyId, id);
@@ -465,6 +496,13 @@ public class NewsController {
 
     private static ResponseEntity<?> notFound() {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", NOT_FOUND_DETAIL));
+    }
+
+    /** Preserve empty history for absent IDs without exposing existing private content. */
+    private boolean privateNewsIsHidden(Long id, User user) {
+        return newsRepository.findById(id)
+                .map(item -> !PrivateDraftAccess.canAccess(item.isDraft(), item.getAuthorId(), user))
+                .orElse(false);
     }
 
 }

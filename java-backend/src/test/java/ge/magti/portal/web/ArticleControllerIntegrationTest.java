@@ -594,6 +594,8 @@ class ArticleControllerIntegrationTest {
         Category cat = createCategory("კატ-10");
         Article article = createArticle("თავდაპირველი სათაური", cat.getId(), "draft", true,
                 List.of("ტექნიკური"), null);
+        article.setAuthorId(admin.getId());
+        articleRepository.saveAndFlush(article);
 
         mockMvc.perform(authed(patch("/api/articles/" + article.getId() + "/autosave"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -624,6 +626,8 @@ class ArticleControllerIntegrationTest {
         User admin = createUser("aa13@magti.ge", Role.CONTENT_ADMIN, "All");
         Category cat = createCategory("კატ-11");
         Article article = createArticle("სათაური", cat.getId(), "draft", true, List.of("ტექნიკური"), null);
+        article.setAuthorId(admin.getId());
+        articleRepository.saveAndFlush(article);
 
         mockMvc.perform(authed(patch("/api/articles/" + article.getId() + "/autosave"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -670,6 +674,8 @@ class ArticleControllerIntegrationTest {
         User admin = createUser("aa19@magti.ge", Role.CONTENT_ADMIN, "All");
         Category cat = createCategory("კატ-17");
         Article article = createArticle("დრაფტი", cat.getId(), "draft", true, List.of("All"), null);
+        article.setAuthorId(admin.getId());
+        articleRepository.saveAndFlush(article);
 
         mockMvc.perform(authed(patch("/api/articles/" + article.getId() + "/autosave"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -1292,6 +1298,10 @@ class ArticleControllerIntegrationTest {
         Article sameCat1 = createArticle("იგივე კატეგორია 1", cat.getId(), "published", false, List.of("All"), null);
         Article sameCat2 = createArticle("იგივე კატეგორია 2", cat.getId(), "published", false, List.of("All"), null);
         createArticle("სხვა კატეგორია", otherCat.getId(), "published", false, List.of("All"), null);
+        // The schema permits legacy rows without a creation timestamp.
+        Article legacy = createArticle("ძველი მასალა", otherCat.getId(), "published", false, List.of("All"), null);
+        legacy.setCreatedAt(null);
+        articleRepository.saveAndFlush(legacy);
 
         mockMvc.perform(authed(get("/api/articles/" + source.getId() + "/related"), tokenFor(admin)))
                 .andExpect(status().isOk())

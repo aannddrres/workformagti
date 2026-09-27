@@ -27,6 +27,7 @@ import httpx
 import oracledb
 from passlib.context import CryptContext
 
+from audit_chain import assert_audit_chain_rows
 from common import (
     EXPECTED_ARTICLES,
     EXPECTED_ARTICLE_HISTORY,
@@ -1622,39 +1623,24 @@ def seed_baseline() -> dict[str, Any]:
 
 
 def _assert_audit_chain(cursor: oracledb.Cursor) -> dict[str, int]:
-    broken = int(_scalar(
-        cursor,
-        "WITH calculated AS ("
-        " SELECT a.id,a.prev_hash,a.row_hash,ROW_NUMBER() OVER (ORDER BY a.id) rn,"
-        " LAG(a.row_hash) OVER (ORDER BY a.id) expected_prev,"
+    # One Oracle statement supplies a read-consistent view of state and rows.
+    # Follow the committed hash tip, never MAX(id): IDs precede the tip lock.
+    cursor.execute(
+        "SELECT a.id,a.prev_hash,a.row_hash,"
         " LOWER(RAWTOHEX(STANDARD_HASH(audit_logs_canonical_string("
         " a.id,a.prev_hash,a.admin_id,a.action,a.item_type,a.item_id,a.timestamp,a.category,a.details,"
         " a.admin_name_snapshot,a.admin_email_snapshot,a.item_name_snapshot,a.ip_address,a.user_agent),"
-        " 'SHA256'))) calculated_hash FROM audit_logs a"
-        ") SELECT COUNT(*) FROM calculated WHERE row_hash IS NULL OR row_hash <> calculated_hash "
-        "OR (rn = 1 AND prev_hash IS NOT NULL) OR (rn > 1 AND NVL(prev_hash,'!') <> NVL(expected_prev,'!'))",
-    ))
-    if broken:
-        raise PresentationSafetyError(f"Audit hash chain contains {broken} broken rows")
-    tip_matches = int(_scalar(
-        cursor,
-        "SELECT COUNT(*) FROM audit_chain_state s WHERE s.id=1 AND s.tip_hash = "
-        "(SELECT row_hash FROM audit_logs WHERE id=(SELECT MAX(id) FROM audit_logs))",
-    ))
-    if tip_matches != 1:
-        raise PresentationSafetyError("audit_chain_state tip does not match the last audit row")
-    synthetic_unhashed = int(_scalar(
-        cursor,
-        "SELECT COUNT(*) FROM audit_logs WHERE DBMS_LOB.INSTR(details, '\"synthetic\":true') > 0 "
-        "AND row_hash IS NULL",
-    ))
-    if synthetic_unhashed:
-        raise PresentationSafetyError(f"Found {synthetic_unhashed} unhashed synthetic audit rows")
-    return {
-        "rows": int(_scalar(cursor, "SELECT COUNT(*) FROM audit_logs")),
-        "broken": broken,
-        "synthetic_unhashed": synthetic_unhashed,
-    }
+        " 'SHA256'))) calculated_hash,"
+        " CASE WHEN DBMS_LOB.INSTR(a.details, '\"synthetic\":true') > 0 THEN 1 ELSE 0 END,"
+        " s.state_count,s.tip_hash FROM"
+        " (SELECT CASE WHEN COUNT(*)=1 AND MIN(id)=1 THEN 1 ELSE 0 END state_count,"
+        " MAX(tip_hash) tip_hash FROM audit_chain_state) s"
+        " LEFT JOIN audit_logs a ON 1=1"
+    )
+    snapshot = cursor.fetchall()
+    state_count, tip_hash = snapshot[0][5:7]
+    rows = [row[:5] for row in snapshot if row[0] is not None]
+    return assert_audit_chain_rows(rows, int(state_count), tip_hash)
 
 
 def _verify_file_blobs(cursor: oracledb.Cursor) -> dict[str, Any]:

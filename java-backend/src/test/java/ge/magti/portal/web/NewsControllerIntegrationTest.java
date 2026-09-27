@@ -306,16 +306,14 @@ class NewsControllerIntegrationTest {
     @Test
     void updatingNewsPreservesAuthorIdIsDraftAndExpiresAt() throws Exception {
         User author = createUser("news-author@magti.ge", Role.CONTENT_ADMIN, "All");
-        User editor = createUser("news-editor@magti.ge", Role.CONTENT_ADMIN, "All");
         OffsetDateTime expiry = TbilisiTime.now().plusDays(30);
 
         News news = createNewsDirect("დრაფტი სიახლე", "All", true, author.getId());
         news.setExpiresAt(expiry);
         newsRepository.saveAndFlush(news);
 
-        // A second admin edits it (payload has no author_id/is_draft/expires_at,
-        // matching the real edit form exactly) -- none of the three should move.
-        mockMvc.perform(authed(put("/api/news/" + news.getId()), tokenFor(editor))
+        // The author edits their private draft without changing ownership or lifecycle fields.
+        mockMvc.perform(authed(put("/api/news/" + news.getId()), tokenFor(author))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(newsRequestJson("გასწორებული სათაური", "All")))
                 .andExpect(status().isOk())

@@ -86,13 +86,14 @@ class ArticleCommandControllerIntegrationTest {
                 Map.entry("quiz_enabled", quizEnabled));
     }
 
-    private Article draftRow(String title, Long categoryId) {
+    private Article draftRow(String title, Long categoryId, User author) {
         Article row = new Article();
         row.setTitle(title);
         row.setContent("საწყისი შინაარსი");
         row.setCategoryId(categoryId);
         row.setStatus("draft");
         row.setDraft(true);
+        row.setAuthorId(author.getId());
         row.setVersion(1);
         row.setCreatedAt(TbilisiTime.now());
         row.setUpdatedAt(TbilisiTime.now());
@@ -182,7 +183,7 @@ class ArticleCommandControllerIntegrationTest {
     void updateCommandChangesTheArticleAndMandatoryAssignmentTogether() throws Exception {
         Category category = createCategory();
         User admin = contentAdmin();
-        Article existing = draftRow("საწყისი", category.getId());
+        Article existing = draftRow("საწყისი", category.getId(), admin);
         Map<String, Object> body = Map.of(
                 "article", article("განახლებული", category.getId(), false),
                 "mandatory", true,
@@ -205,7 +206,7 @@ class ArticleCommandControllerIntegrationTest {
     void updateCommandRejectsRevokedEditPermissionWithoutChangingTheArticle() throws Exception {
         Category category = createCategory();
         User admin = contentAdmin();
-        Article existing = draftRow("საწყისი", category.getId());
+        Article existing = draftRow("საწყისი", category.getId(), admin);
         UserPermissionOverride denied = new UserPermissionOverride();
         denied.setUserId(admin.getId());
         denied.setPermission(Permission.ARTICLES_EDIT.value());
@@ -230,7 +231,7 @@ class ArticleCommandControllerIntegrationTest {
     void invalidUpdateQuizRollsBackTheArticleAndMandatoryAssignment() throws Exception {
         Category category = createCategory();
         User admin = contentAdmin();
-        Article existing = draftRow("საწყისი", category.getId());
+        Article existing = draftRow("საწყისი", category.getId(), admin);
         Map<String, Object> body = Map.of(
                 "article", article("არ უნდა შეინახოს", category.getId(), true),
                 "mandatory", true,

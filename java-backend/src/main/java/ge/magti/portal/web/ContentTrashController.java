@@ -41,7 +41,7 @@ public class ContentTrashController {
         if (denial != null) {
             return denial;
         }
-        return ResponseEntity.ok(lifecycleService.listTrash());
+        return ResponseEntity.ok(lifecycleService.listTrash(user));
     }
 
     @PostMapping("/api/content-trash/{itemType}/{itemId}/restore")

@@ -9,6 +9,7 @@ import {
   filterFromSearch,
   formatAuditAction,
   formatAuditItemType,
+  formatAuditItemName,
   parseAuditDetails,
   parseUserAgent,
   withCategoryToken
@@ -94,6 +95,7 @@ export class AdminAuditPage {
   protected readonly categoryBadge = categoryBadge;
   protected readonly actionLabel = formatAuditAction;
   protected readonly itemTypeLabel = formatAuditItemType;
+  protected readonly itemNameLabel = formatAuditItemName;
   protected readonly formatTimestamp = formatKaDateTime;
 
   load(): void {

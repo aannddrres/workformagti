@@ -489,7 +489,7 @@ class EndpointServiceFailureContractTest {
     @Test
     void trashListQueryFailureHasSanitizedResponse() throws Exception {
         ContentLifecycleService lifecycle = mock(ContentLifecycleService.class);
-        when(lifecycle.listTrash()).thenThrow(new IllegalStateException("private-trash-marker"));
+        when(lifecycle.listTrash(any(User.class))).thenThrow(new IllegalStateException("private-trash-marker"));
         User admin = user(10L, Role.CONTENT_ADMIN, "All");
         admin.setPermissions(Set.of(Permission.CONTENT_MANAGE.value()));
         ContentTrashController controller = new ContentTrashController(lifecycle,
@@ -534,6 +534,7 @@ class EndpointServiceFailureContractTest {
                 .thenThrow(new IllegalStateException("private-readings-marker"));
         ComplianceController controller = new ComplianceController(query, readings,
                 mock(ReadStatusRepository.class), mock(ArticleRepository.class),
+                mock(ge.magti.portal.article.ArticleTargetQueryService.class),
                 mock(ge.magti.portal.repository.ArticleReadReceiptRepository.class),
                 mock(QuizGateChecker.class), mock(ReminderService.class),
                 mock(ItemTitleResolver.class), new PermissionChecker(),

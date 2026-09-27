@@ -26,7 +26,7 @@ export class AdminExportsPage {
     { family: 'read-evidence', title: 'ოფიციალური გაცნობის მტკიცებულება', icon: 'fa-clipboard-check', filename: 'read-evidence.xlsx', description: 'სტატიის ოფიციალური დადასტურებები და სავალდებულო მასალის სტატუსები.' },
     { family: 'article-views', title: 'სტატიების გახსნის ისტორია', icon: 'fa-eye', filename: 'article-views.xlsx', description: 'უბრალო გახსნის ისტორია; ეს ოფიციალურ წაკითხვად არ ითვლება.' },
     { family: 'search-history', title: 'ძებნის ისტორია', icon: 'fa-magnifying-glass', filename: 'search-history.xlsx', description: 'ვინ რას ეძებდა და რამდენი შედეგი მიიღო.' },
-    { family: 'quiz-attempts', title: 'Quiz მცდელობები', icon: 'fa-list-check', filename: 'quiz-attempts.xlsx', description: 'რეალურად შენახული ქულა, ვერსია, მცდელობის ნომერი და შედეგი.' },
+    { family: 'quiz-attempts', title: 'ქვიზის მცდელობები', icon: 'fa-list-check', filename: 'quiz-attempts.xlsx', description: 'რეალურად შენახული ქულა, ვერსია, მცდელობის ნომერი და შედეგი.' },
     { family: 'change-events', title: 'ცვლილებები და უსაფრთხოების მოვლენები', icon: 'fa-user-lock', filename: 'change-events.xlsx', description: 'მომხმარებლის, კონტენტის, ადმინისტრაციული და უსაფრთხოების მოვლენები.' }
   ];
 

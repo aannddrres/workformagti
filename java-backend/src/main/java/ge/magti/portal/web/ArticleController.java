@@ -4,6 +4,7 @@ import ge.magti.portal.article.ArticleListFilter;
 import ge.magti.portal.article.ArticleListItem;
 import ge.magti.portal.article.ArticleEvidenceCardinalityGuard;
 import ge.magti.portal.article.ArticleVisibility;
+import ge.magti.portal.content.PrivateDraftAccess;
 import ge.magti.portal.article.ArticleHistorySummary;
 import ge.magti.portal.article.ArticleReferenceItem;
 import ge.magti.portal.article.ArticleTargetQueryService;
@@ -242,6 +243,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
         List<String> targetDepartments = resolveTargetDepartments(id);
 
         ResponseEntity<Map<String, String>> visibility = assertArticleVisible(article, targetDepartments, user);
@@ -314,6 +318,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
         List<String> previousTargets = resolveTargetDepartments(id);
         Map<String, Object> before = MutationAuditService.articleSnapshot(article, previousTargets);
 
@@ -426,6 +433,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
         List<String> previousTargetDepartments = resolveTargetDepartments(id);
         Map<String, Object> before = MutationAuditService.articleSnapshot(article, previousTargetDepartments);
 
@@ -549,6 +559,9 @@ public class ArticleController {
         if (found.isEmpty()) {
             return notFound();
         }
+        if (!PrivateDraftAccess.canAccess(found.get().isDraft(), found.get().getAuthorId(), user)) {
+            return notFound();
+        }
         ContentLifecycleService.Status status = contentLifecycleService.moveToTrash(
                 ContentLifecycleService.ItemType.ARTICLE, id, user);
         if (status == ContentLifecycleService.Status.OK) {
@@ -571,6 +584,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
         if ("archived".equals(article.getStatus())) {
             return ResponseEntity.ok(ArticleResponse.from(article, resolveTargetDepartments(id)));
         }
@@ -599,6 +615,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
         if (!"archived".equals(article.getStatus())) {
             return ResponseEntity.badRequest().body(Map.of("detail", "სტატია არ არის არქივში"));
         }
@@ -701,6 +720,10 @@ public class ArticleController {
 
         int updated = 0;
         for (Article article : rows) {
+            if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+                skipped.add(article.getId());
+                continue;
+            }
             List<String> before = resolveTargetDepartments(article.getId());
             Map<String, Object> snapshot = MutationAuditService.articleSnapshot(article, before);
 
@@ -755,6 +778,10 @@ public class ArticleController {
 
         int updated = 0;
         for (Article article : rows) {
+            if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+                skipped.add(article.getId());
+                continue;
+            }
             if (target.equals(article.getStatus())) {
                 skipped.add(article.getId());
                 continue;
@@ -843,6 +870,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
         List<String> targetDepartments = resolveTargetDepartments(id);
         Map<String, Object> before = MutationAuditService.articleSnapshot(article, targetDepartments);
         article.setLastVerifiedAt(TbilisiTime.now());
@@ -946,7 +976,8 @@ public class ArticleController {
             int remaining = 4 - results.size();
             List<ArticleReferenceItem> fillMatches = candidates.stream()
                     .filter(a -> !existingIds.contains(a.id()))
-                    .sorted(Comparator.comparing(ArticleReferenceItem::createdAt).reversed())
+                    .sorted(Comparator.comparing(ArticleReferenceItem::createdAt,
+                            Comparator.nullsLast(Comparator.reverseOrder())))
                     .limit(remaining)
                     .toList();
             for (ArticleReferenceItem a : fillMatches) {
@@ -1076,6 +1107,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
         ResponseEntity<Map<String, String>> visibility = assertArticleVisible(article, resolveTargetDepartments(id), user);
         if (visibility != null) {
             return visibility;
@@ -1126,6 +1160,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
         List<String> targetDepartments = resolveTargetDepartments(id);
         ResponseEntity<Map<String, String>> visibility = assertArticleVisible(article, targetDepartments, user);
         if (visibility != null) {
@@ -1182,6 +1219,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
         ResponseEntity<Map<String, String>> visibility = assertArticleVisible(article, resolveTargetDepartments(id), user);
         if (visibility != null) {
             return visibility;
@@ -1248,6 +1288,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
 
         OffsetDateTime dueDate = requiredReadingRepository.findFirstByItemTypeAndItemId("article", id)
                 .map(RequiredReading::getDueDate).orElse(null);
@@ -1322,6 +1365,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
         ResponseEntity<Map<String, String>> visibility = assertArticleVisible(article, resolveTargetDepartments(id), user);
         if (visibility != null) {
             return visibility;
@@ -1357,6 +1403,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
         ResponseEntity<Map<String, String>> visibility = assertArticleVisible(article, resolveTargetDepartments(id), user);
         if (visibility != null) {
             return visibility;
@@ -1383,6 +1432,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
         ResponseEntity<Map<String, String>> visibility = assertArticleVisible(article, resolveTargetDepartments(id), user);
         if (visibility != null) {
             return visibility;
@@ -1420,6 +1472,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
 
         int safeOffset = Math.max(offset, 0);
         int safeLimit = Math.max(1, Math.min(limit, 200));

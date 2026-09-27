@@ -3,6 +3,7 @@ package ge.magti.portal.web;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.Article;
+import ge.magti.portal.domain.ArticleTargetDepartment;
 import ge.magti.portal.domain.Reminder;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.QuizAttempt;
@@ -14,6 +15,7 @@ import ge.magti.portal.domain.UserPermissionOverride;
 import ge.magti.portal.domain.VideoInstruction;
 import ge.magti.portal.repository.ArticleReadReceiptRepository;
 import ge.magti.portal.repository.ArticleRepository;
+import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
 import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.ReminderRepository;
 import ge.magti.portal.repository.QuizAttemptRepository;
@@ -77,6 +79,8 @@ class ComplianceControllerIntegrationTest {
     @Autowired
     private ArticleRepository articleRepository;
     @Autowired
+    private ArticleTargetDepartmentRepository targetDepartmentRepository;
+    @Autowired
     private VideoInstructionRepository videoInstructionRepository;
     @Autowired
     private ArticleReadReceiptRepository articleReadReceiptRepository;
@@ -123,7 +127,14 @@ class ComplianceControllerIntegrationTest {
         article.setContent("შინაარსი");
         article.setVersion(1);
         article.setQuizEnabled(quizEnabled);
-        return articleRepository.saveAndFlush(article);
+        article.setDraft(false);
+        article.setStatus("published");
+        Article saved = articleRepository.saveAndFlush(article);
+        ArticleTargetDepartment target = new ArticleTargetDepartment();
+        target.setArticleId(saved.getId());
+        target.setDepartment("All");
+        targetDepartmentRepository.saveAndFlush(target);
+        return saved;
     }
 
     private VideoInstruction createVideo(String title, String url) {
@@ -157,6 +168,39 @@ class ComplianceControllerIntegrationTest {
     private String requiredReadingJson(String itemType, long itemId, String dept, String dueIso) {
         return "{\"item_type\":\"" + itemType + "\",\"item_id\":" + itemId + ",\"target_department\":\""
                 + dept + "\",\"due_date\":\"" + dueIso + "\",\"priority\":\"high\"}";
+    }
+
+    @Test
+    void retainedAssignmentCannotAcknowledgeAnInvisibleArticle() throws Exception {
+        for (String state : List.of("private", "archived", "scheduled", "retargeted")) {
+            User operator = createUser("invisible-" + state + "-" + System.nanoTime() + "@magti.ge",
+                    Role.OPERATOR, "Info");
+            Article article = createArticle("invisible-" + state, false);
+            RequiredReading reading = createReading("article", article.getId(), "Info", TbilisiTime.now().plusDays(1));
+            if (state.equals("private")) article.setDraft(true);
+            if (state.equals("archived")) article.setStatus("archived");
+            if (state.equals("scheduled")) {
+                article.setStatus("scheduled");
+                article.setPublishedAt(TbilisiTime.now().plusDays(1));
+            }
+            if (state.equals("retargeted")) {
+                entityManager.createNativeQuery("UPDATE article_target_departments SET department = 'Other' WHERE article_id = ?")
+                        .setParameter(1, article.getId()).executeUpdate();
+            }
+            articleRepository.saveAndFlush(article);
+            long receiptsBefore = articleReadReceiptRepository.count();
+            long statusesBefore = readStatusRepository.count();
+            long auditBefore = auditLogRepository.count();
+            String token = tokenFor(operator);
+            for (String endpoint : List.of("/api/articles/" + article.getId() + "/read-receipt",
+                    "/api/compliance/mark-read/" + reading.getId())) {
+                mockMvc.perform(authed(post(endpoint), token))
+                        .andExpect(result -> assertEquals(404, result.getResponse().getStatus(), state + " " + endpoint));
+            }
+            assertEquals(receiptsBefore, articleReadReceiptRepository.count(), state);
+            assertEquals(statusesBefore, readStatusRepository.count(), state);
+            assertEquals(auditBefore, auditLogRepository.count(), state);
+        }
     }
 
     @Test

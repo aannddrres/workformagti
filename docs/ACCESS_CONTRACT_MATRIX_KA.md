@@ -1,7 +1,15 @@
 # წვდომის კონტრაქტის მატრიცა
 
 **სტატუსი:** Phase 1 — decision/contract lock **დასრულებულია**; D-1…D-8 დახურულია
-**ბოლო განახლება:** 2026-09-23 (PO-30/31-ის შენიშვნები; endpoint gate-ები უცვლელია)
+**ბოლო განახლება:** 2026-09-28 (პირადი მონახაზის წვდომა და გაცნობის ხილვადობა)
+
+**2026-09-28 — ქვემოთ მოცემული endpoint-ების დამატებითი ობიექტური შეზღუდვები:**
+
+- სტატიისა და სიახლის private draft მხოლოდ ავტორისაა. არსებული permission gate-ის შემდეგ სხვისი მონახაზი 404-ია update/command/autosave/delete/archive/unarchive/verify, history/restore, receipts/views და სხვა ID-ით წვდომის გზებზე; ცარიელი autosave და payload-ში `is_draft=false` გამონაკლისს არ ქმნის. bulk archive/status/retarget ასეთ ID-ს `skipped_ids`-ში ტოვებს და არ ცვლის.
+- სიახლის history list/summary/item იგივე ავტორის წესს იცავს. არარსებული ID-ის ისტორიის სიის ძველი ცარიელი პასუხი უცვლელია.
+- `GET /api/content-trash` სხვის პირად article/news-ს არ აჩვენებს; restore/purge/legal-hold ოპერაციები მისთვის 404-ია, შესაბამისი role/named-authority gate-ის გავლის შემდეგ. ვიდეოს არსებული წესები უცვლელია.
+- სტატიის stale/related reference სიები პირად მონახაზს გამორიცხავს, მათ შორის ძველ შეუსაბამო `is_draft=true,status=published` ჩანაწერს.
+- `POST /api/compliance/mark-read/{readingId}`: article assignment-ის არსებობა ხილვადობას არ ანაცვლებს. `ArticleVisibility` მოწმდება სრული აუდიტორიით receipt/status/audit ცვლილებამდე; დამალული სტატია 404 `READING_NOT_FOUND`-ია. PO-30-ის პირველი receipt უცვლელია.
 **წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 150 endpoint
 **გეგმა:** `docs/ORG_ACCESS_ARCHITECTURE_PLAN_KA.md` (ფაზები, §9.1 სავალდებულო მტკიცებულებები)
 
