@@ -77,13 +77,17 @@ const ITEM_TYPE_LABELS: Record<string, string> = {
   team_stats: 'გუნდის სტატისტიკა',
   broadcast: 'საერთო განცხადება',
   reminder: 'შეხსენება',
-  admin_export: 'სისტემური ადმინისტრატორის ექსპორტი'
+  admin_export: 'სისტემური ადმინისტრატორის ექსპორტი',
+  export_job: 'საექსპორტო დავალება'
 };
 
 export function formatAuditAction(action: string | null | undefined, translate: (key: string) => string): string {
   if (!action) return '—';
   if (action === 'LOGOUT') return translate('audit.action_logout');
   if (action === 'EXPORT_ADMIN_QUIZ_ATTEMPTS') return translate('audit.action_export_quiz');
+  if (action === 'EXPORT_JOB_COMPLETED') return translate('audit.action_export_job_completed');
+  if (action === 'EXPORT_JOB_FAILED') return translate('audit.action_export_job_failed');
+  if (action === 'EXPORT_JOB_INTERRUPTED') return translate('audit.action_export_job_interrupted');
   if (action === 'UPDATE_STATUS_TO_TRUE') return 'მომხმარებლის გააქტიურება';
   if (action === 'UPDATE_STATUS_TO_FALSE') return 'მომხმარებლის გაუქმება';
   if (action.startsWith('BULK_ROLE_')) return 'როლის ჯგუფური შეცვლა';
@@ -96,10 +100,19 @@ export function formatAuditItemType(itemType: string | null | undefined): string
   return ITEM_TYPE_LABELS[itemType.toLowerCase()] ?? itemType;
 }
 
+export function formatAuditActor(name: string | null | undefined, translate: (key: string) => string): string {
+  if (!name) return translate('audit.unknown_user');
+  if (name === 'EXPORT_WORKER') return translate('audit.actor_export_worker');
+  if (name === 'EXPORT_RECOVERY') return translate('audit.actor_export_recovery');
+  return name;
+}
+
 /** Localize the old system label without changing stored, hashed audit evidence. */
 export function formatAuditItemName(itemType: string | null | undefined, name: string | null | undefined,
   translate: (key: string) => string): string {
-  return itemType === 'audit_log' && name === 'Audit trail' ? translate('audit.item_audit_trail') : (name ?? '');
+  if (itemType === 'audit_log' && name === 'Audit trail') return translate('audit.item_audit_trail');
+  if (itemType === 'export_job' && name === 'Export job') return translate('audit.item_export_job');
+  return name ?? '';
 }
 
 /**

@@ -7,6 +7,7 @@ import { AuditChainHealth, AuditLogEntry, AuditVerifyResult } from '../../core/m
 import {
   categoryBadge,
   filterFromSearch,
+  formatAuditActor,
   formatAuditAction,
   formatAuditItemType,
   formatAuditItemName,
@@ -96,6 +97,8 @@ export class AdminAuditPage {
   protected readonly categoryBadge = categoryBadge;
   protected readonly actionLabel = (action: string | null | undefined) =>
     formatAuditAction(action, key => this.translate.instant(key));
+  protected readonly actorLabel = (name: string | null | undefined) =>
+    formatAuditActor(name, key => this.translate.instant(key));
   protected readonly itemTypeLabel = formatAuditItemType;
   protected readonly itemNameLabel = (type: string | null | undefined, name: string | null | undefined) =>
     formatAuditItemName(type, name, key => this.translate.instant(key));
