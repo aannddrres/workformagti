@@ -20,6 +20,8 @@ import java.util.Set;
  * This service derives the established exact/prefix/All target set in Java,
  * asks Oracle for one row per relevant pair, validates the result shape, and
  * delegates the business formula and rounding to {@link ComplianceCalculator}.
+ * Only readings in force count (PO-40, {@link MandatoryReach}): an operator is
+ * never short of a percentage for material they could not open.
  */
 @Service
 public class ComplianceProgressQueryService {
@@ -27,9 +29,12 @@ public class ComplianceProgressQueryService {
     static final int MAX_TARGETS_PER_USER = 3;
 
     private final ComplianceAggregateRepository aggregateRepository;
+    private final MandatoryReach mandatoryReach;
 
-    public ComplianceProgressQueryService(ComplianceAggregateRepository aggregateRepository) {
+    public ComplianceProgressQueryService(
+            ComplianceAggregateRepository aggregateRepository, MandatoryReach mandatoryReach) {
         this.aggregateRepository = aggregateRepository;
+        this.mandatoryReach = mandatoryReach;
     }
 
     public Map<Long, ReadingProgress> progressByUser(List<User> users) {
@@ -41,7 +46,9 @@ public class ComplianceProgressQueryService {
         }
 
         List<ScopeTarget> scopes = scopeTargetsFor(users);
-        List<AggregateRow> rows = aggregateRepository.findRelevantCounts(scopes);
+        Set<Long> inForce = mandatoryReach.inForceIdsForTargets(
+                scopes.stream().map(ScopeTarget::targetDepartment).toList());
+        List<AggregateRow> rows = aggregateRepository.findRelevantCounts(scopes, inForce);
         if (rows.size() != scopes.size()) {
             throw new ComplianceAggregateShapeException();
         }

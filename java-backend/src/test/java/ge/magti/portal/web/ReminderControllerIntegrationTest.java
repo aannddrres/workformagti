@@ -23,6 +23,9 @@ import ge.magti.portal.repository.TeamRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.JwtService;
 import ge.magti.portal.util.TbilisiTime;
+import ge.magti.portal.compliance.OpenMaterial;
+import ge.magti.portal.repository.ArticleRepository;
+import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -65,6 +68,8 @@ class ReminderControllerIntegrationTest {
     @Autowired JwtService jwtService;
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired JdbcTemplate jdbcTemplate;
+    @Autowired ArticleRepository articleRepository;
+    @Autowired ArticleTargetDepartmentRepository articleTargetDepartmentRepository;
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     @Test
@@ -88,7 +93,7 @@ class ReminderControllerIntegrationTest {
                 .andExpect(jsonPath("$.total_elements").value(1))
                 .andExpect(jsonPath("$.items[0].id").value((int) reminderId))
                 .andExpect(jsonPath("$.items[0].type").value("ASSIGNMENT"))
-                .andExpect(jsonPath("$.items[0].content").value(org.hamcrest.Matchers.containsString("მასალა #")));
+                .andExpect(jsonPath("$.items[0].content").value(org.hamcrest.Matchers.containsString("ღია სტატია")));
 
         mockMvc.perform(authed(get("/api/reminders"), tokenFor(other)))
                 .andExpect(status().isOk())
@@ -265,13 +270,20 @@ class ReminderControllerIntegrationTest {
         leadershipRepository.saveAndFlush(assignment);
     }
 
+    /** PO-40: a reading binds only when its article can be opened, so fixtures use one that can. */
+    private Long openArticleId() {
+        return OpenMaterial.article(articleRepository, articleTargetDepartmentRepository, "ღია სტატია", "All").getId();
+    }
+
     private RequiredReading reading(String department, java.time.OffsetDateTime dueAt) {
         RequiredReading reading = new RequiredReading();
         reading.setItemType("article");
-        reading.setItemId(9_999_999L);
+        reading.setItemId(openArticleId());
         reading.setTargetDepartment(department);
         reading.setDueDate(dueAt);
         reading.setPriority("normal");
+        // As if created through the endpoint, which delivers its assignment at once (V52).
+        reading.setAssignmentDeliveredAt(TbilisiTime.now());
         return readingRepository.saveAndFlush(reading);
     }
 

@@ -1154,14 +1154,19 @@ def _seed_compliance(
     for source_id in REQUIRED_READING_SOURCE_IDS:
         reading_ids[source_id] = _insert_id(
             cursor,
-            "INSERT INTO required_readings (item_type,item_id,target_department,due_date,priority,item_title_snapshot) "
-            "VALUES ('article',:item_id,:target_department,:due_date,:priority,:title) "
+            "INSERT INTO required_readings (item_type,item_id,target_department,due_date,priority,item_title_snapshot,"
+            "assignment_delivered_at) "
+            "VALUES ('article',:item_id,:target_department,:due_date,:priority,:title,:delivered_at) "
             "RETURNING id INTO :generated_id",
             item_id=article_ids[source_id],
             target_department=targets[source_id],
             due_date=due_dates[source_id],
             priority="high" if due_dates[source_id] < now else "normal",
             title=str(article_rows[source_id]["title"]),
+            # The seed writes these readings' ASSIGNMENT reminders itself, below.
+            # V52: a null here would have the reminder sweep deliver them again
+            # and trip the one-reminder-per-person unique key every 15 minutes.
+            delivered_at=now,
         )
 
     operators = _present_operators(users)

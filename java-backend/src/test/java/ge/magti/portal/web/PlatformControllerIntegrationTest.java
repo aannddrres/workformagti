@@ -18,6 +18,9 @@ import ge.magti.portal.repository.TagRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.JwtService;
 import ge.magti.portal.util.TbilisiTime;
+import ge.magti.portal.compliance.OpenMaterial;
+import ge.magti.portal.repository.ArticleRepository;
+import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -63,6 +66,10 @@ class PlatformControllerIntegrationTest {
     @Autowired
     private ReminderRepository reminderRepository;
     @Autowired
+    private ArticleRepository articleRepository;
+    @Autowired
+    private ArticleTargetDepartmentRepository articleTargetDepartmentRepository;
+    @Autowired
     private JwtService jwtService;
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -98,10 +105,15 @@ class PlatformControllerIntegrationTest {
         return tagRepository.saveAndFlush(tag);
     }
 
+    /** PO-40: a reading binds only when its article can be opened, so fixtures use one that can. */
+    private Long openArticleId() {
+        return OpenMaterial.article(articleRepository, articleTargetDepartmentRepository, "ღია სტატია", "All").getId();
+    }
+
     private RequiredReading createReading(String targetDepartment, OffsetDateTime dueDate) {
         RequiredReading reading = new RequiredReading();
         reading.setItemType("article");
-        reading.setItemId(999999999L);
+        reading.setItemId(openArticleId());
         reading.setTargetDepartment(targetDepartment);
         reading.setDueDate(dueDate);
         reading.setPriority("normal");

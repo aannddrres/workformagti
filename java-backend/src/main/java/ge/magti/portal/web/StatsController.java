@@ -3,7 +3,10 @@ package ge.magti.portal.web;
 import ge.magti.portal.article.ArticleVisibility;
 import ge.magti.portal.compliance.ComplianceCalculator;
 import ge.magti.portal.compliance.ComplianceQueryService;
+import ge.magti.portal.compliance.MandatoryReach;
 import ge.magti.portal.domain.Article;
+import ge.magti.portal.domain.RequiredReading;
+import ge.magti.portal.query.CompleteResultGuard;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
@@ -51,6 +54,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Mirrors routers/stats.py -- all 12 statistics/dashboard endpoints. Reuses
@@ -86,6 +90,7 @@ public class StatsController {
     private final ScopeResolver scopeResolver;
     private final PermissionChecker permissionChecker;
     private final UserDirectoryQueryService userDirectoryQueryService;
+    private final MandatoryReach mandatoryReach;
 
     public StatsController(
             ComplianceQueryService complianceQueryService,
@@ -103,7 +108,6 @@ public class StatsController {
     }
 
     /** Phase 3 shadow only; the nine-argument constructor above keeps the DB-free tests unchanged. */
-    @org.springframework.beans.factory.annotation.Autowired
     public StatsController(
             ComplianceQueryService complianceQueryService,
             UserRepository userRepository,
@@ -117,6 +121,28 @@ public class StatsController {
             ScopeResolver scopeResolver,
             PermissionChecker permissionChecker,
             UserDirectoryQueryService userDirectoryQueryService) {
+        this(complianceQueryService, userRepository, searchLogRepository, requiredReadingRepository,
+                readStatusRepository, articleRepository, videoInstructionRepository, auditLogRepository,
+                articleViewLogRepository, scopeResolver, permissionChecker, userDirectoryQueryService, null);
+    }
+
+    /** PO-40 adds the in-force rule the KPI counts by; the two constructors above keep the DB-free tests unchanged. */
+    @org.springframework.beans.factory.annotation.Autowired
+    public StatsController(
+            ComplianceQueryService complianceQueryService,
+            UserRepository userRepository,
+            SearchLogRepository searchLogRepository,
+            RequiredReadingRepository requiredReadingRepository,
+            ReadStatusRepository readStatusRepository,
+            ArticleRepository articleRepository,
+            VideoInstructionRepository videoInstructionRepository,
+            AuditLogRepository auditLogRepository,
+            ArticleViewLogRepository articleViewLogRepository,
+            ScopeResolver scopeResolver,
+            PermissionChecker permissionChecker,
+            UserDirectoryQueryService userDirectoryQueryService,
+            MandatoryReach mandatoryReach) {
+        this.mandatoryReach = mandatoryReach;
         this.scopeResolver = scopeResolver;
         this.complianceQueryService = complianceQueryService;
         this.userRepository = userRepository;
@@ -614,10 +640,28 @@ public class StatsController {
         if (denial != null) {
             return denial;
         }
+        long activeUsers = userRepository.countByActiveTrue();
         KpiResponse result = new KpiResponse(
-                userRepository.countByActiveTrue(), articleRepository.count(),
-                requiredReadingRepository.count(), videoInstructionRepository.count());
+                activeUsers, articleRepository.count(),
+                mandatoryItemsInForce(), videoInstructionRepository.count());
         return ResponseEntity.ok(result);
+    }
+
+    /**
+     * The overview's "active mandatory material": items, not reading rows --
+     * an article for two departments is one piece of material with two
+     * readings -- and only those in force (PO-40). Every row once counted,
+     * including readings of archived, trashed and never-published items.
+     */
+    private long mandatoryItemsInForce() {
+        List<RequiredReading> readings = CompleteResultGuard.enforce(
+                requiredReadingRepository.findAll(CompleteResultGuard.sentinelPage()).getContent());
+        Set<Long> inForce = mandatoryReach.inForceIds(readings);
+        return readings.stream()
+                .filter(reading -> inForce.contains(reading.getId()))
+                .map(reading -> reading.getItemType() + ":" + reading.getItemId())
+                .distinct()
+                .count();
     }
 
     private static double roundHalfEven(double value, int scale) {

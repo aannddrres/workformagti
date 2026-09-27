@@ -230,7 +230,7 @@ class EndpointServiceFailureContractTest {
                 mock(ArticleViewQueryService.class), mock(EligibleOperatorsService.class),
                 mock(SearchReindexService.class), mock(ContentLifecycleService.class),
                 mock(ArticleHtmlSanitizer.class), mock(MutationAuditService.class),
-                mock(FileReferenceIndex.class));
+                mock(FileReferenceIndex.class), mock(ComplianceController.class));
         MockMvc adminMvc = mvc(controller, user(19L, Role.SYSTEM_ADMIN, "All"));
         MockMvc operatorMvc = mvc(controller, user(20L, Role.OPERATOR, "All"));
 
@@ -538,7 +538,9 @@ class EndpointServiceFailureContractTest {
                 mock(QuizGateChecker.class), mock(ReminderService.class),
                 mock(ItemTitleResolver.class), new PermissionChecker(),
                 mock(MutationAuditService.class), mock(RequiredReadingMutationService.class),
-                mock(ReadingAcknowledgementService.class));
+                mock(ReadingAcknowledgementService.class),
+                mock(ge.magti.portal.compliance.MandatoryReach.class),
+                mock(ge.magti.portal.security.ScopeResolver.class));
         MockMvc mvc = mvc(controller, user(12L, Role.OPERATOR, "ტექნიკური"));
 
         String progress = mvc.perform(get("/api/compliance/my-progress"))
@@ -562,7 +564,8 @@ class EndpointServiceFailureContractTest {
                 .thenThrow(new IllegalStateException("private-notification-marker"));
         PlatformController controller = new PlatformController(tags, readings,
                 mock(ReadStatusRepository.class), mock(NewsRepository.class),
-                mock(ReminderRepository.class), mock(ItemTitleResolver.class));
+                mock(ReminderRepository.class), mock(ItemTitleResolver.class),
+                mock(ge.magti.portal.compliance.MandatoryReach.class));
         MockMvc mvc = mvc(controller, user(13L, Role.OPERATOR, "ტექნიკური"));
 
         String tagBody = mvc.perform(get("/api/tags"))

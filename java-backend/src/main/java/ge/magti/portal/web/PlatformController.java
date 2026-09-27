@@ -1,6 +1,7 @@
 package ge.magti.portal.web;
 
 import ge.magti.portal.compliance.ComplianceCalculator;
+import ge.magti.portal.compliance.MandatoryReach;
 import ge.magti.portal.content.ItemDetail;
 import ge.magti.portal.content.ItemKey;
 import ge.magti.portal.content.ItemTitleResolver;
@@ -51,6 +52,7 @@ public class PlatformController {
     private final NewsRepository newsRepository;
     private final ReminderRepository reminderRepository;
     private final ItemTitleResolver itemTitleResolver;
+    private final MandatoryReach mandatoryReach;
 
     public PlatformController(
             TagRepository tagRepository,
@@ -58,13 +60,15 @@ public class PlatformController {
             ReadStatusRepository readStatusRepository,
             NewsRepository newsRepository,
             ReminderRepository reminderRepository,
-            ItemTitleResolver itemTitleResolver) {
+            ItemTitleResolver itemTitleResolver,
+            MandatoryReach mandatoryReach) {
         this.tagRepository = tagRepository;
         this.requiredReadingRepository = requiredReadingRepository;
         this.readStatusRepository = readStatusRepository;
         this.newsRepository = newsRepository;
         this.reminderRepository = reminderRepository;
         this.itemTitleResolver = itemTitleResolver;
+        this.mandatoryReach = mandatoryReach;
     }
 
     /** Port of get_tags (routers/platform.py:269-281). */
@@ -91,10 +95,13 @@ public class PlatformController {
 
         List<UnreadReadingSummaryItem> unreadReadings = new ArrayList<>();
         if (!ComplianceCalculator.MANAGEMENT_ROLES.contains(user.getRole())) {
-            List<RequiredReading> readings = CompleteResultGuard.enforce(
+            List<RequiredReading> addressed = CompleteResultGuard.enforce(
                     requiredReadingRepository.findByTargetDepartmentIn(
                             DepartmentMatcher.visibilityTargets(user.getDepartment()),
                             CompleteResultGuard.sentinelPage()));
+            // PO-40: the bell lists what is owed, and only what is in force is.
+            java.util.Set<Long> inForce = mandatoryReach.inForceIds(addressed);
+            List<RequiredReading> readings = addressed.stream().filter(r -> inForce.contains(r.getId())).toList();
             if (!readings.isEmpty()) {
                 Map<ItemKey, ItemDetail> details = itemTitleResolver.resolveDetailsBulk(
                         readings.stream().map(r -> new ItemKey(r.getItemType(), r.getItemId())).toList());

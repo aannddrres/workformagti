@@ -15,9 +15,11 @@ import { VideosService } from '../../core/services/videos.service';
 import { NewsSummary } from '../../core/models/news';
 import { VideoInstruction } from '../../core/models/video';
 import { ToastService } from '../../core/notifications/toast.service';
-import { Observable } from 'rxjs';
+import { Observable, firstValueFrom } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
-import { ConfirmService } from '../../core/notifications/confirm.service';
+import { ConfirmRequest, ConfirmService } from '../../core/notifications/confirm.service';
+import { RequiredReadingService } from '../../core/services/required-reading.service';
+import { lossLines, mandatoryLoss } from '../../shared/mandatory-reach';
 import { createTableSort } from '../../shared/table-sort';
 
 type ContentType = 'all' | 'article' | 'news' | 'video';
@@ -65,6 +67,7 @@ export class AdminContentPage {
   private readonly categoriesService = inject(CategoriesService);
   private readonly newsService = inject(NewsService);
   private readonly videosService = inject(VideosService);
+  private readonly requiredReadingService = inject(RequiredReadingService);
   private readonly toast = inject(ToastService);
   private readonly translate = inject(TranslateService);
   private readonly route = inject(ActivatedRoute);
@@ -430,13 +433,41 @@ export class AdminContentPage {
     const message = shouldArchive
       ? this.translate.instant('content.articles.confirm_archive_one')
       : this.translate.instant('content.articles.confirm_unarchive_one');
-    if (!(await this.confirmService.ask(message))) return;
+    const mandatoryWarning = shouldArchive ? await this.archiveMandatoryWarning(article.id) : null;
+    if (!(await this.confirmService.ask(mandatoryWarning ?? message))) return;
     this.actionError.set(null);
     const request = shouldArchive ? this.articlesService.archive(article.id) : this.articlesService.unarchive(article.id);
     request.subscribe({
       next: () => this.loadArticles(),
       error: (err) => this.actionError.set(err?.error?.detail ?? this.translate.instant('content.articles.archive_failed'))
     });
+  }
+
+  /**
+   * PO-40: archiving mandatory material pauses the obligation for everyone it
+   * binds. Asked before, naming them where the caller may see names and
+   * counting them otherwise; null -- the plain question -- when the article
+   * binds nobody or who it binds cannot be read.
+   */
+  private async archiveMandatoryWarning(articleId: number): Promise<ConfirmRequest | null> {
+    try {
+      const audience = await firstValueFrom(this.requiredReadingService.addressees('article', articleId));
+      const loss = mandatoryLoss(audience, { reach: 'never', departments: [] });
+      if (loss.total === 0) return null;
+      let message = this.translate.instant('content.articles.mandatory_loss_archive', { count: loss.total });
+      if (loss.confirmed > 0) {
+        message += ' ' + this.translate.instant('content.articles.mandatory_loss_confirmed', { count: loss.confirmed });
+      }
+      return {
+        title: this.translate.instant('content.articles.mandatory_loss_title'),
+        message,
+        details: lossLines(loss, (count) => this.translate.instant('content.articles.mandatory_loss_more', { count })),
+        confirmLabel: this.translate.instant('content.articles.mandatory_loss_archive_confirm'),
+        tone: 'danger'
+      };
+    } catch {
+      return null;
+    }
   }
 
   protected openHistory(article: ArticleSummary): void {

@@ -7,6 +7,8 @@ export interface ConfirmRequest {
   confirmLabel?: string;
   /** `danger` paints the confirm button as destructive. Use it for deletes. */
   tone?: 'default' | 'danger';
+  /** Already-translated lines listed under the message -- who or what the answer affects. */
+  details?: readonly string[];
 }
 
 interface PendingConfirm extends ConfirmRequest {

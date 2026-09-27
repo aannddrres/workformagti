@@ -14,6 +14,7 @@ import ge.magti.portal.compliance.ReadingAcknowledgementService;
 import ge.magti.portal.article.ArticleQueryService;
 import ge.magti.portal.article.ArticleViewQueryService;
 import ge.magti.portal.article.EligibleOperatorsService;
+import ge.magti.portal.compliance.MandatoryReach;
 import ge.magti.portal.diff.DiffResult;
 import ge.magti.portal.diff.HtmlDiffer;
 import ge.magti.portal.domain.Article;
@@ -143,6 +144,8 @@ public class ArticleController {
     private final ArticleHtmlSanitizer articleHtmlSanitizer;
     private final MutationAuditService contentMutationAuditService;
     private final FileReferenceIndex fileReferenceIndex;
+    /** PO-40: a bulk re-aim extends a mandatory article's obligation to the departments it adds. */
+    private final ComplianceController complianceController;
 
     public ArticleController(
             ArticleRepository articleRepository,
@@ -168,7 +171,8 @@ public class ArticleController {
             ContentLifecycleService contentLifecycleService,
             ArticleHtmlSanitizer articleHtmlSanitizer,
             MutationAuditService contentMutationAuditService,
-            FileReferenceIndex fileReferenceIndex) {
+            FileReferenceIndex fileReferenceIndex,
+            ComplianceController complianceController) {
         this.articleRepository = articleRepository;
         this.targetDepartmentRepository = targetDepartmentRepository;
         this.articleTargetQueryService = articleTargetQueryService;
@@ -193,6 +197,7 @@ public class ArticleController {
         this.articleHtmlSanitizer = articleHtmlSanitizer;
         this.contentMutationAuditService = contentMutationAuditService;
         this.fileReferenceIndex = fileReferenceIndex;
+        this.complianceController = complianceController;
     }
 
     @GetMapping("/api/articles")
@@ -726,6 +731,7 @@ public class ArticleController {
             if (request.targetDepartments() != null) {
                 after = request.targetDepartments().stream().distinct().toList();
                 replaceTargetDepartments(saved.getId(), after);
+                extendMandatoryToAudience(saved.getId(), after, user);
             }
 
             contentMutationAuditService.recordSuccess(
@@ -735,6 +741,30 @@ public class ArticleController {
         }
 
         return ResponseEntity.ok(new ArticleBulkResponse(updated, skipped));
+    }
+
+    /**
+     * PO-40: a mandatory article binds everyone its audience covers, so a
+     * department a bulk re-aim adds gets its own reading, with the due date
+     * and priority the article's obligation already has -- through the one
+     * create path, with its checks, reminders and audit. One the article
+     * cannot reach now (archived, unpublished) is refused there and skipped
+     * here; the editor's next mandatory save adds it. A department the re-aim
+     * drops keeps its reading and its confirmations, out of force.
+     */
+    private void extendMandatoryToAudience(Long articleId, List<String> audience, User user) {
+        List<RequiredReading> existing = requiredReadingRepository.findByItemTypeAndItemId("article", articleId);
+        if (existing.isEmpty()) {
+            return;
+        }
+        RequiredReading model = existing.get(0);
+        Set<String> targeted = existing.stream().map(RequiredReading::getTargetDepartment).collect(Collectors.toSet());
+        for (String target : MandatoryReach.readingTargets(audience)) {
+            if (!targeted.contains(target)) {
+                complianceController.createRequiredReading(new RequiredReadingRequest(
+                        "article", articleId, target, model.getDueDate(), model.getPriority()), user);
+            }
+        }
     }
 
     /** What one bulk status change did, before it is shaped into a response. */

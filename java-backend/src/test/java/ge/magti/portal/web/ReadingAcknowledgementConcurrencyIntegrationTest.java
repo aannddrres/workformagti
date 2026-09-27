@@ -90,6 +90,8 @@ class ReadingAcknowledgementConcurrencyIntegrationTest {
         reading.setItemTitleSnapshot("Concurrent read");
         reading.setTargetDepartment(department);
         reading.setDueDate(TbilisiTime.now().plusDays(1));
+        // As if created through the endpoint, which delivers its assignment at once (V52).
+        reading.setAssignmentDeliveredAt(TbilisiTime.now());
         reading = readings.saveAndFlush(reading);
         long readingId = reading.getId();
         String operatorToken = token(operator);

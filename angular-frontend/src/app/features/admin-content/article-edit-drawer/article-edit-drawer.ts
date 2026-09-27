@@ -1,4 +1,4 @@
-import { Component, effect, inject, input, output, signal, viewChild } from '@angular/core';
+import { Component, computed, effect, inject, input, output, signal, viewChild } from '@angular/core';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ArticlesService } from '../../../core/services/articles.service';
 import { CategoriesService } from '../../../core/services/categories.service';
@@ -6,12 +6,14 @@ import { QuizAdminService } from '../../../core/services/quiz-admin.service';
 import { RequiredReadingService } from '../../../core/services/required-reading.service';
 import { UploadService } from '../../../core/services/upload.service';
 import { ArticleCommandRequest, ArticleRequest } from '../../../core/models/article';
+import { MandatoryAddressees, MandatoryRefusal } from '../../../core/models/required-reading';
 import { Category } from '../../../core/models/category';
 import { RichTextEditor } from '../../../shared/rich-text-editor/rich-text-editor';
 import { QuizBuilder } from '../../../shared/quiz-builder/quiz-builder';
 import { ToastService } from '../../../core/notifications/toast.service';
 import { PortalDialog } from '../../../shared/portal-dialog/portal-dialog';
 import { ConfirmService } from '../../../core/notifications/confirm.service';
+import { articleReach, lossLines, mandatoryLoss } from '../../../shared/mandatory-reach';
 
 const DEPARTMENT_ORDER: { key: 'info' | 'tech' | 'office'; name: string }[] = [
   { key: 'info', name: 'საინფორმაციო' },
@@ -79,6 +81,19 @@ export class ArticleEditDrawer {
   protected readonly visibleServiceCenter = signal(false);
   protected readonly isMandatory = signal(false);
   protected readonly dueDate = signal('');
+  /** The article was mandatory when opened: its obligation may be paused, not only created. */
+  protected readonly wasMandatory = signal(false);
+  /** Who the obligation binds now (PO-40), for the warning before a change takes it away; null if unknown. */
+  private readonly mandatoryAudience = signal<MandatoryAddressees | null>(null);
+  /** When readers can open the article as the form stands: now, at its schedule, or not at all. */
+  protected readonly mandatoryReach = computed(() => articleReach(this.status(), this.scheduledAt() || null));
+  /**
+   * PO-40: nobody may be bound to what they cannot open, so a draft cannot
+   * become mandatory. One already mandatory keeps the box, to be unticked or
+   * left paused until it is published again.
+   */
+  protected readonly mandatoryAllowed = computed(() => this.mandatoryReach() !== 'never' || this.wasMandatory());
+  protected readonly dueBeforePublication = signal(false);
   protected readonly quizEnabled = signal(false);
   protected readonly notifyOperators = signal(false);
   protected readonly audienceProfile = signal('all');
@@ -91,6 +106,8 @@ export class ArticleEditDrawer {
   protected readonly saving = signal(false);
   protected readonly dirty = signal(false);
   protected readonly saveError = signal<string | null>(null);
+  /** The departments a refused assignment would have missed, under the error (PO-40). */
+  protected readonly saveErrorDetails = signal<string[]>([]);
   protected readonly departmentError = signal(false);
   protected readonly dueDateError = signal(false);
   /**
@@ -144,6 +161,10 @@ export class ArticleEditDrawer {
     this.visibleServiceCenter.set(false);
     this.isMandatory.set(false);
     this.dueDate.set('');
+    this.wasMandatory.set(false);
+    this.mandatoryAudience.set(null);
+    this.dueBeforePublication.set(false);
+    this.saveErrorDetails.set([]);
     this.quizEnabled.set(false);
     this.notifyOperators.set(false);
     this.audienceProfile.set('all');
@@ -159,6 +180,10 @@ export class ArticleEditDrawer {
 
   private loadForEdit(id: number): void {
     this.saveError.set(null);
+    this.saveErrorDetails.set([]);
+    this.wasMandatory.set(false);
+    this.mandatoryAudience.set(null);
+    this.dueBeforePublication.set(false);
     this.departmentError.set(false);
     this.dueDateError.set(false);
     this.articlesService.get(id).subscribe({
@@ -195,8 +220,16 @@ export class ArticleEditDrawer {
         this.requiredReadingService.byItem('article', id).subscribe({
           next: (rr) => {
             this.isMandatory.set(!!rr);
+            this.wasMandatory.set(!!rr);
             this.dueDate.set(rr?.due_date ? rr.due_date.slice(0, 10) : '');
             this.mandatoryUnknown.set(false);
+            if (rr) {
+              // Without it the save still works; it only cannot say who a change would release.
+              this.requiredReadingService.addressees('article', id).subscribe({
+                next: (audience) => this.mandatoryAudience.set(audience),
+                error: () => this.mandatoryAudience.set(null)
+              });
+            }
           },
           error: () => {
             this.mandatoryUnknown.set(true);
@@ -309,7 +342,7 @@ export class ArticleEditDrawer {
     this.closed.emit();
   }
 
-  protected submit(event: Event): void {
+  protected async submit(event: Event): Promise<void> {
     event.preventDefault();
     const departments = this.departmentOrder.filter((d) => this.deptChecked()[d.key]).map((d) => d.name);
     if (departments.length === 0) {
@@ -323,6 +356,18 @@ export class ArticleEditDrawer {
       return;
     }
     this.dueDateError.set(false);
+
+    // PO-40: made mandatory in advance, it comes into force at publication;
+    // a deadline before then would be born overdue. The server refuses it too.
+    const dueBeforePublication = this.isMandatory() && this.mandatoryReach() === 'later'
+      && new Date(this.dueDate()) <= new Date(this.scheduledAt());
+    this.dueBeforePublication.set(dueBeforePublication);
+    if (dueBeforePublication) {
+      return;
+    }
+    if (!(await this.confirmMandatoryLoss(departments))) {
+      return;
+    }
 
     let publishedAt: string | null = null;
     if (this.status() === 'scheduled' && this.scheduledAt()) {
@@ -348,6 +393,7 @@ export class ArticleEditDrawer {
 
     this.saving.set(true);
     this.saveError.set(null);
+    this.saveErrorDetails.set([]);
     const questions = this.quizEnabled() ? this.quizBuilder()?.getQuestions() ?? [] : [];
     const command: ArticleCommandRequest = {
       article: payload,
@@ -366,7 +412,42 @@ export class ArticleEditDrawer {
       error: (err) => {
         this.saving.set(false);
         this.saveError.set(err?.error?.detail ?? this.translate.instant('content.articles.save_failed'));
+        const refusal = err?.error as MandatoryRefusal | undefined;
+        this.saveErrorDetails.set((refusal?.blocked_departments ?? []).map(
+          ({ department, count }) => `${department} — ${count}`));
       }
+    });
+  }
+
+  /**
+   * PO-40: before a change takes a mandatory article out of someone's reach
+   * -- unpublishing it, scheduling it ahead, dropping their department -- say
+   * who, and let the editor stop. Nothing to ask when nothing is lost, when the
+   * obligation is being removed outright, or when who it binds is unknown.
+   */
+  private async confirmMandatoryLoss(departments: string[]): Promise<boolean> {
+    const audience = this.mandatoryAudience();
+    if (!this.wasMandatory() || !this.isMandatory() || !audience) {
+      return true;
+    }
+    const reach = this.mandatoryReach();
+    const loss = mandatoryLoss(audience, { reach, departments });
+    if (loss.total === 0) {
+      return true;
+    }
+    const key = reach === 'never' ? 'content.articles.mandatory_loss_unpublished'
+      : reach === 'later' ? 'content.articles.mandatory_loss_scheduled'
+      : 'content.articles.mandatory_loss_departments';
+    let message = this.translate.instant(key, { count: loss.total });
+    if (loss.confirmed > 0) {
+      message += ' ' + this.translate.instant('content.articles.mandatory_loss_confirmed', { count: loss.confirmed });
+    }
+    return this.confirmService.ask({
+      title: this.translate.instant('content.articles.mandatory_loss_title'),
+      message,
+      details: lossLines(loss, (count) => this.translate.instant('content.articles.mandatory_loss_more', { count })),
+      confirmLabel: this.translate.instant('content.articles.mandatory_loss_confirm'),
+      tone: 'danger'
     });
   }
 

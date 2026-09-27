@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, firstValueFrom } from 'rxjs';
-import { RequiredReadingItem, RequiredReadingRequest } from '../models/required-reading';
+import { MandatoryAddressees, RequiredReadingItem, RequiredReadingRequest } from '../models/required-reading';
 
 /** Wraps the admin required-readings endpoints -- see
  *  web.ComplianceController's create/by-item/update/delete 4 methods. */
@@ -11,6 +11,11 @@ export class RequiredReadingService {
 
   byItem(itemType: string, itemId: number): Observable<RequiredReadingItem | null> {
     return this.http.get<RequiredReadingItem | null>(`/api/compliance/required-readings/by-item/${itemType}/${itemId}`);
+  }
+
+  /** PO-40: who this item's mandatory reading binds now and at publication, for the editor's warnings. */
+  addressees(itemType: string, itemId: number): Observable<MandatoryAddressees> {
+    return this.http.get<MandatoryAddressees>(`/api/compliance/required-readings/by-item/${itemType}/${itemId}/addressees`);
   }
 
   create(request: RequiredReadingRequest): Observable<RequiredReadingItem> {

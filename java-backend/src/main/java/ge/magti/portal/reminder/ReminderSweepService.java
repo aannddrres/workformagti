@@ -26,6 +26,13 @@ public class ReminderSweepService {
     public int runOnce() {
         OffsetDateTime now = TbilisiTime.now();
         int delivered = 0;
+        // PO-40: an article made mandatory before publication comes into force
+        // at its moment, with nothing to flip a column then. Its assignment
+        // goes out on the first sweep after; the due-soon and overdue passes
+        // below seed from that assignment, so they run second.
+        for (Long id : deliveryWorker.awaitingAssignment(SWEEP_BATCH_SIZE)) {
+            delivered += deliveryWorker.deliverAssignmentLocked(id);
+        }
         for (Long id : reminderRepository.findPendingReadingIdsInWindow(
                 ReminderType.ASSIGNMENT, ReminderType.DUE_SOON, now, now.plusHours(24),
                 PageRequest.of(0, SWEEP_BATCH_SIZE))) {

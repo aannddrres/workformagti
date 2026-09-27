@@ -3,6 +3,7 @@ package ge.magti.portal.web;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.Article;
+import ge.magti.portal.domain.ArticleTargetDepartment;
 import ge.magti.portal.domain.Reminder;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.QuizAttempt;
@@ -14,6 +15,7 @@ import ge.magti.portal.domain.UserPermissionOverride;
 import ge.magti.portal.domain.VideoInstruction;
 import ge.magti.portal.repository.ArticleReadReceiptRepository;
 import ge.magti.portal.repository.ArticleRepository;
+import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
 import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.ReminderRepository;
 import ge.magti.portal.repository.QuizAttemptRepository;
@@ -77,6 +79,8 @@ class ComplianceControllerIntegrationTest {
     @Autowired
     private ArticleRepository articleRepository;
     @Autowired
+    private ArticleTargetDepartmentRepository articleTargetDepartmentRepository;
+    @Autowired
     private VideoInstructionRepository videoInstructionRepository;
     @Autowired
     private ArticleReadReceiptRepository articleReadReceiptRepository;
@@ -126,7 +130,16 @@ class ComplianceControllerIntegrationTest {
         // The entity defaults is_draft to true: without this every fixture
         // was an authorless private draft, which nobody may assign (PO-34).
         article.setDraft(false);
-        return articleRepository.saveAndFlush(article);
+        // And published, for everyone: an article operators cannot open binds
+        // nobody (PO-40), and these fixtures used to be exactly that -- status
+        // "draft", no audience -- assigned all the same.
+        article.setStatus("published");
+        Article saved = articleRepository.saveAndFlush(article);
+        ArticleTargetDepartment everyone = new ArticleTargetDepartment();
+        everyone.setArticleId(saved.getId());
+        everyone.setDepartment("All");
+        articleTargetDepartmentRepository.saveAndFlush(everyone);
+        return saved;
     }
 
     private VideoInstruction createVideo(String title, String url) {
@@ -291,8 +304,13 @@ class ComplianceControllerIntegrationTest {
                 .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(0)));
     }
 
+    /**
+     * A reading of an item that no longer exists used to be listed with an
+     * "Item #id" placeholder, owed like any other. PO-40: nobody owes what
+     * nobody can open, so it is left out; its record stays.
+     */
     @Test
-    void myReadingsResolvesVideoContentAndMissingItemFallback() throws Exception {
+    void myReadingsResolvesVideoContentAndLeavesOutAMissingItem() throws Exception {
         User operator = createUser("comp-op3@magti.ge", Role.OPERATOR, "All");
         VideoInstruction video = createVideo("ვიდეო ინსტრუქცია", "https://youtu.be/xyz");
         RequiredReading videoReading = createReading("video", video.getId(), "All", TbilisiTime.now().plusDays(5));
@@ -308,8 +326,8 @@ class ComplianceControllerIntegrationTest {
 
         assertEquals("ვიდეო ინსტრუქცია", byReadingId.get(videoReading.getId()).get("item_title").asText());
         assertEquals("https://youtu.be/xyz", byReadingId.get(videoReading.getId()).get("item_content").asText());
-        assertEquals("Item #999999999", byReadingId.get(ghostReading.getId()).get("item_title").asText());
-        assertEquals("Content not available.", byReadingId.get(ghostReading.getId()).get("item_content").asText());
+        assertTrue(!byReadingId.containsKey(ghostReading.getId()), "a missing item binds nobody");
+        assertTrue(requiredReadingRepository.findById(ghostReading.getId()).isPresent());
     }
 
     @Test

@@ -9,7 +9,7 @@ Chrome (ქართული ინტერფეისი, 1080p desktop)
   → nginx: Angular-ის სტატიკური ფაილები და /api, /uploads proxy
   → Java 21 / Spring Boot 4.1 API
   → Oracle: მომხმარებლები, კონტენტი, BLOB ფაილები/ექსპორტები, სესიები, აუდიტი
-                 ↘ Flyway V1…V51 იწყება backend-ის სტარტზე
+                 ↘ Flyway V1…V52 იწყება backend-ის სტარტზე
   Java → კომპანიის OAuth2 token endpoint (ldap_auth), მხოლოდ corporate login-ზე
 ```
 

@@ -2,6 +2,7 @@ package ge.magti.portal.web;
 
 import ge.magti.portal.compliance.ComplianceCalculator;
 import ge.magti.portal.compliance.ComplianceQueryService;
+import ge.magti.portal.compliance.MandatoryReach;
 import ge.magti.portal.compliance.RequiredReadingMutationService;
 import ge.magti.portal.compliance.ReadingAcknowledgementService;
 import ge.magti.portal.audit.MutationAuditService;
@@ -21,6 +22,8 @@ import ge.magti.portal.repository.ArticleRepository;
 import ge.magti.portal.repository.ReadStatusRepository;
 import ge.magti.portal.repository.RequiredReadingRepository;
 import ge.magti.portal.security.PermissionChecker;
+import ge.magti.portal.security.Scope;
+import ge.magti.portal.security.ScopeResolver;
 import ge.magti.portal.stats.ComplianceRecord;
 import ge.magti.portal.util.DepartmentMatcher;
 import ge.magti.portal.util.TbilisiTime;
@@ -41,9 +44,11 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Mirrors routers/compliance.py -- all 7 endpoints: the operator's own
@@ -67,6 +72,9 @@ public class ComplianceController {
     private static final String ITEM_NOT_FOUND = "მასალა ვერ მოიძებნა";
     private static final String READING_HAS_READ_RECEIPTS =
             "სავალდებულო მასალის წაშლა ვერ ხერხდება -- მომხმარებლებმა უკვე გაიცნეს იგი";
+    private static final String READING_NOT_IN_FORCE = "ეს მასალა ახლა თქვენთვის სავალდებულო არ არის";
+    private static final String DUE_BEFORE_PUBLICATION =
+            "ვადა სტატიის გამოქვეყნების შემდეგ უნდა იყოს -- სავალდებულო გამოქვეყნებისას ჩაირთვება";
 
     private final ComplianceQueryService complianceQueryService;
     private final RequiredReadingRepository requiredReadingRepository;
@@ -80,6 +88,8 @@ public class ComplianceController {
     private final MutationAuditService mutationAuditService;
     private final RequiredReadingMutationService requiredReadingMutationService;
     private final ReadingAcknowledgementService readingAcknowledgementService;
+    private final MandatoryReach mandatoryReach;
+    private final ScopeResolver scopeResolver;
 
     public ComplianceController(
             ComplianceQueryService complianceQueryService,
@@ -93,7 +103,9 @@ public class ComplianceController {
             PermissionChecker permissionChecker,
             MutationAuditService mutationAuditService,
             RequiredReadingMutationService requiredReadingMutationService,
-            ReadingAcknowledgementService readingAcknowledgementService) {
+            ReadingAcknowledgementService readingAcknowledgementService,
+            MandatoryReach mandatoryReach,
+            ScopeResolver scopeResolver) {
         this.complianceQueryService = complianceQueryService;
         this.requiredReadingRepository = requiredReadingRepository;
         this.readStatusRepository = readStatusRepository;
@@ -106,6 +118,8 @@ public class ComplianceController {
         this.mutationAuditService = mutationAuditService;
         this.requiredReadingMutationService = requiredReadingMutationService;
         this.readingAcknowledgementService = readingAcknowledgementService;
+        this.mandatoryReach = mandatoryReach;
+        this.scopeResolver = scopeResolver;
     }
 
     /** Port of get_my_readings (routers/compliance.py:30-113). */
@@ -121,10 +135,15 @@ public class ComplianceController {
             return ResponseEntity.ok(List.of());
         }
 
-        List<RequiredReading> readings = CompleteResultGuard.enforce(
+        List<RequiredReading> addressed = CompleteResultGuard.enforce(
                 requiredReadingRepository.findByTargetDepartmentIn(
                         DepartmentMatcher.visibilityTargets(user.getDepartment()),
                         CompleteResultGuard.sentinelPage()));
+        // PO-40: an assignment this operator could not open is not theirs to
+        // owe -- a draft, an archived item, a schedule still ahead, or a
+        // department the item does not address.
+        Set<Long> inForce = mandatoryReach.inForceIds(addressed);
+        List<RequiredReading> readings = addressed.stream().filter(r -> inForce.contains(r.getId())).toList();
         if (readings.isEmpty()) {
             return ResponseEntity.ok(List.of());
         }
@@ -201,6 +220,15 @@ public class ComplianceController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("detail", "ეს მასალა თქვენს დეპარტამენტს არ ეხება"));
         }
+        MandatoryReach.Reach reach = mandatoryReach.reachOf(reading);
+        if (!reach.inForce()) {
+            // A missing item keeps its old answer; anything else is an
+            // obligation not in force (PO-40), so there is nothing to confirm.
+            if (reach.obstacle() == MandatoryReach.Obstacle.MISSING) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", READING_NOT_FOUND));
+            }
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("detail", READING_NOT_IN_FORCE));
+        }
 
         Article readingArticle = null;
         if ("article".equals(reading.getItemType())) {
@@ -236,6 +264,15 @@ public class ComplianceController {
             // draft into every assignee's reading list and reminders (PO-34).
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", ITEM_NOT_FOUND));
         }
+        // PO-40: nobody is assigned what they could not open. Refused whole,
+        // with the people it would have missed named, rather than quietly
+        // narrowed: the editor chose this department and should know.
+        MandatoryReach.Assessment assessment = mandatoryReach.assess(
+                request.itemType(), request.itemId(), request.targetDepartmentOrDefault());
+        ResponseEntity<?> refusal = refusalFor(assessment, request.dueDate(), true);
+        if (refusal != null) {
+            return refusal;
+        }
         RequiredReading reading = new RequiredReading();
         reading.setItemType(request.itemType());
         reading.setItemId(request.itemId());
@@ -247,8 +284,12 @@ public class ComplianceController {
         RequiredReading saved = requiredReadingRepository.saveAndFlush(reading);
 
         // PO-16 makes assignment delivery part of the durable contract. The
-        // reading and its fixed reminders therefore commit atomically.
-        reminderService.deliverAssignment(saved, user);
+        // reading and its fixed reminders therefore commit atomically -- now,
+        // or, for an article scheduled for later, when the reminder sweep sees
+        // it come into force at publication (PO-40).
+        if (assessment.reach().inForce()) {
+            reminderService.deliverAssignment(saved, user);
+        }
         mutationAuditService.recordSuccess(
                 user, "CREATE_REQUIRED_READING", "required_reading", saved.getId(),
                 saved.getItemTitleSnapshot(), null,
@@ -274,6 +315,76 @@ public class ComplianceController {
             return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body("null");
         }
         return ResponseEntity.ok(RequiredReadingResponse.from(rr.get()));
+    }
+
+    /**
+     * PO-40: who a mandatory item binds now, and who it will bind when a
+     * scheduled article is published. The editor's form reads this before
+     * saving a change -- archiving, unpublishing, a department removed -- so
+     * the people who would stop owing it are named first. Same gate and the
+     * same private-draft answer as the by-item lookup beside it.
+     */
+    @GetMapping("/api/compliance/required-readings/by-item/{itemType}/{itemId}/addressees")
+    public ResponseEntity<?> getRequiredReadingAddressees(
+            @PathVariable String itemType, @PathVariable Long itemId, @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireComplianceAssign(user);
+        if (denial != null) {
+            return denial;
+        }
+        if (isPrivateDraftOfAnother(itemType, itemId, user)) {
+            return ResponseEntity.ok(MandatoryAddresseesResponse.empty());
+        }
+        List<RequiredReading> readings = requiredReadingRepository.findByItemTypeAndItemId(itemType, itemId);
+        Map<Long, MandatoryReach.Reach> reach = mandatoryReach.reachOf(readings);
+        List<RequiredReading> binding = readings.stream()
+                .filter(r -> reach.get(r.getId()).state() != MandatoryReach.State.SUSPENDED)
+                .toList();
+        if (binding.isEmpty()) {
+            return ResponseEntity.ok(MandatoryAddresseesResponse.empty());
+        }
+        Set<Long> confirmed = CompleteResultGuard.enforce(readStatusRepository.findByRequiredReadingIdInAndStatus(
+                        binding.stream().map(RequiredReading::getId).toList(), "read",
+                        CompleteResultGuard.sentinelPage())).stream()
+                .map(ReadStatus::getUserId)
+                .collect(java.util.stream.Collectors.toSet());
+        Map<String, List<User>> byTarget = mandatoryReach.addresseesByTarget(
+                binding.stream().map(RequiredReading::getTargetDepartment).toList());
+        Map<Long, User> people = new LinkedHashMap<>();
+        Map<Long, Boolean> pendingOnly = new LinkedHashMap<>();
+        for (RequiredReading r : binding) {
+            boolean pending = reach.get(r.getId()).state() == MandatoryReach.State.PENDING;
+            String target = r.getTargetDepartment() == null || r.getTargetDepartment().isBlank()
+                    ? DepartmentMatcher.WILDCARD_TARGET : r.getTargetDepartment();
+            for (User addressee : byTarget.getOrDefault(target, List.of())) {
+                people.putIfAbsent(addressee.getId(), addressee);
+                // In force wins over pending when two readings reach one person.
+                pendingOnly.merge(addressee.getId(), pending, Boolean::logicalAnd);
+            }
+        }
+
+        Map<String, int[]> byDepartment = new java.util.TreeMap<>();
+        List<MandatoryAddresseesResponse.Entry> named = new java.util.ArrayList<>();
+        Scope namedScope = scopeResolver.resolveGroupLeadership(user);
+        int pendingTotal = 0;
+        for (User person : people.values()) {
+            boolean pending = pendingOnly.get(person.getId());
+            boolean read = confirmed.contains(person.getId());
+            int[] row = byDepartment.computeIfAbsent(
+                    person.getDepartment() == null ? "—" : person.getDepartment(), d -> new int[3]);
+            row[pending ? 1 : 0]++;
+            row[2] += read ? 1 : 0;
+            pendingTotal += pending ? 1 : 0;
+            if (namedScope.includesTeam(person.getTeamId())) {
+                named.add(new MandatoryAddresseesResponse.Entry(
+                        person.getId(), person.getName(), person.getDepartment(), read, pending));
+            }
+        }
+        List<MandatoryAddresseesResponse.DepartmentRow> departments = byDepartment.entrySet().stream()
+                .map(e -> new MandatoryAddresseesResponse.DepartmentRow(
+                        e.getKey(), e.getValue()[0], e.getValue()[1], e.getValue()[2]))
+                .toList();
+        return ResponseEntity.ok(new MandatoryAddresseesResponse(
+                people.size() - pendingTotal, pendingTotal, departments, List.copyOf(named)));
     }
 
     /** Port of update_required_reading (routers/compliance.py:338-351). */
@@ -312,6 +423,19 @@ public class ComplianceController {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
                     "detail", "სავალდებულო მასალის სხვა ერთეულზე გადამისამართება შეუძლებელია — "
                             + "წაკითხვის სტატუსები მასზეა მიბმული. წაშალეთ და შექმენით ახალი."));
+        }
+
+        // PO-40: a new target must be one the item reaches. The same target
+        // may stay while the item is out of reach -- that is how an editor
+        // archives or unpublishes mandatory material, and the obligation is
+        // then simply not in force until the item is visible again.
+        boolean retargeted = !java.util.Objects.equals(
+                reading.getTargetDepartment(), request.targetDepartmentOrDefault());
+        MandatoryReach.Assessment assessment = mandatoryReach.assess(
+                request.itemType(), request.itemId(), request.targetDepartmentOrDefault());
+        ResponseEntity<?> refusal = refusalFor(assessment, request.dueDate(), retargeted);
+        if (refusal != null) {
+            return refusal;
         }
 
         reading.setTargetDepartment(request.targetDepartmentOrDefault());
@@ -365,6 +489,29 @@ public class ComplianceController {
      */
     private static OffsetDateTime normalizeDueDate(OffsetDateTime dueDate) {
         return dueDate == null ? null : dueDate.withOffsetSameInstant(TbilisiTime.OFFSET);
+    }
+
+    /**
+     * PO-40's two refusals: an assignment some or all of whose target could
+     * not open the item (409, naming them), and a scheduled article's deadline
+     * that falls at or before its publication (422) -- it would be born
+     * overdue the moment it came into force.
+     *
+     * @param refuseOutOfReach false for an update that keeps its target, which
+     *                         may leave an obligation out of force on purpose
+     */
+    private static ResponseEntity<?> refusalFor(
+            MandatoryReach.Assessment assessment, OffsetDateTime dueDate, boolean refuseOutOfReach) {
+        MandatoryReach.Reach reach = assessment.reach();
+        if (reach.state() == MandatoryReach.State.SUSPENDED && refuseOutOfReach) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(MandatoryReachRefusalResponse.from(reach.obstacle(), assessment.blocked()));
+        }
+        if (reach.state() == MandatoryReach.State.PENDING && dueDate != null
+                && !dueDate.isAfter(reach.startsAt())) {
+            return ResponseEntity.unprocessableEntity().body(Map.of("detail", DUE_BEFORE_PUBLICATION));
+        }
+        return null;
     }
 
     /**

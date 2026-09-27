@@ -14,6 +14,8 @@ import ge.magti.portal.repository.RequiredReadingRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.JwtService;
 import ge.magti.portal.util.TbilisiTime;
+import ge.magti.portal.domain.ArticleTargetDepartment;
+import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -41,6 +43,7 @@ class ReadingAcknowledgementRollbackIntegrationTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private UserRepository users;
     @Autowired private ArticleRepository articles;
+    @Autowired private ArticleTargetDepartmentRepository audiences;
     @Autowired private RequiredReadingRepository readings;
     @Autowired private ArticleReadReceiptRepository receipts;
     @Autowired private ReadStatusRepository statuses;
@@ -67,13 +70,22 @@ class ReadingAcknowledgementRollbackIntegrationTest {
         article.setTitle("Rollback article");
         article.setContent("body");
         article.setVersion(1);
+        // PO-40: published for the operator's department, or the reading binds nobody.
+        article.setStatus("published");
+        article.setDraft(false);
         article = articles.saveAndFlush(article);
+        ArticleTargetDepartment audience = new ArticleTargetDepartment();
+        audience.setArticleId(article.getId());
+        audience.setDepartment(department);
+        audiences.saveAndFlush(audience);
         RequiredReading reading = new RequiredReading();
         reading.setItemType("article");
         reading.setItemId(article.getId());
         reading.setItemTitleSnapshot(article.getTitle());
         reading.setTargetDepartment(department);
         reading.setDueDate(TbilisiTime.now().plusDays(1));
+        // As if created through the endpoint, which delivers its assignment at once (V52).
+        reading.setAssignmentDeliveredAt(TbilisiTime.now());
         reading = readings.saveAndFlush(reading);
 
         doThrow(new IllegalStateException("synthetic audit failure"))

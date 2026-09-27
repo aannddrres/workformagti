@@ -128,7 +128,7 @@
 
             <div class="flex flex-col gap-2 rounded-lg border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-4">
               <div class="flex items-center gap-3">
-                <input id="article-mandatory" type="checkbox" [checked]="isMandatory()" (change)="isMandatory.set($any($event.target).checked)" class="h-4 w-4 accent-brand" />
+                <input id="article-mandatory" type="checkbox" [checked]="isMandatory()" [disabled]="!mandatoryAllowed()" [attr.aria-describedby]="!mandatoryAllowed() || isMandatory() ? 'mandatory-reach-hint' : null" (change)="isMandatory.set($any($event.target).checked)" class="h-4 w-4 accent-brand disabled:cursor-not-allowed disabled:opacity-50" />
                 @if (mandatoryUnknown()) {
                   <!-- The unchecked box below is not a fact here; say so, so the
                        editor does not save it as one. -->
@@ -153,7 +153,19 @@
                 }
               </div>
               @if (dueDateError()) {
-                <p id="due-date-error" role="alert" class="text-xs text-red-700">{{ 'content.articles.mandatory_due_date_required' | translate }}</p>
+                <p id="due-date-error" role="alert" class="text-xs text-red-700 dark:text-red-400">{{ 'content.articles.mandatory_due_date_required' | translate }}</p>
+              }
+              @if (dueBeforePublication()) {
+                <p role="alert" class="text-xs text-red-700 dark:text-red-400">{{ 'content.articles.mandatory_due_before_publication' | translate }}</p>
+              }
+              <!-- PO-40: nobody is bound to what they cannot open. Say why the box is
+                   unavailable, or when a ticked one will actually bind anyone. -->
+              @if (!mandatoryAllowed()) {
+                <p id="mandatory-reach-hint" class="text-xs text-slate-600 dark:text-slate-400">{{ 'content.articles.mandatory_needs_publication' | translate }}</p>
+              } @else if (isMandatory() && mandatoryReach() === 'later') {
+                <p id="mandatory-reach-hint" class="text-xs text-slate-600 dark:text-slate-400">{{ 'content.articles.mandatory_starts_at_publication' | translate }}</p>
+              } @else if (isMandatory() && mandatoryReach() === 'never') {
+                <p id="mandatory-reach-hint" class="text-xs font-semibold text-amber-700 dark:text-amber-400">{{ 'content.articles.mandatory_paused_unpublished' | translate }}</p>
               }
             </div>
 
@@ -200,7 +212,12 @@
 
           <div class="sticky bottom-0 flex justify-end gap-3 items-center flex-wrap bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-t border-slate-100 dark:border-slate-800 p-4">
             @if (saveError()) {
-              <span class="text-xs text-red-700 mr-auto">{{ saveError() }}</span>
+              <span class="text-xs text-red-700 dark:text-red-400 mr-auto">
+                {{ saveError() }}
+                @if (saveErrorDetails().length) {
+                  <span class="block">{{ saveErrorDetails().join(', ') }}</span>
+                }
+              </span>
             }
             <label class="inline-flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 select-none cursor-pointer">
               <input type="checkbox" [checked]="notifyOperators()" (change)="notifyOperators.set($any($event.target).checked)" class="h-4 w-4 rounded-sm border-slate-300 accent-brand dark:border-slate-600" />

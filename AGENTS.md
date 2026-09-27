@@ -16,7 +16,7 @@ from here, so that neither half goes stale by being restated.
 |---|---|
 | Backend | `java-backend/` — Java 21, Spring Boot 4.1.0, Maven wrapper (`mvnw` / `mvnw.cmd`) |
 | Frontend | `angular-frontend/` — Angular 22, Node 22.22.3 (pinned in `.nvmrc`) |
-| Database | Oracle. Flyway owns the schema; the highest migration is `V51` |
+| Database | Oracle. Flyway owns the schema; the highest migration is `V52` |
 | Tooling | Four Python seeders in `scripts/`, covered by `tests/` |
 
 The FastAPI/PostgreSQL/server-rendered implementation was deleted on
@@ -126,6 +126,13 @@ could easily become, several. Read the file before writing a second copy.
   departments. Since 2026-09-24, the draft check precedes the content-admin
   bypass: only its author may open a private draft by id or its attachment.
   `ArticleVisibilityDraftTest` records both sides.
+- `compliance/MandatoryReach.java` — does a mandatory reading bind anyone
+  now (PO-40). It asks the item's own rule (`ArticleVisibility`,
+  `NewsVisibility`, `VideoVisibility`) through a probe operator of the
+  reading's target department; the reading lists, mark-read, the compliance
+  numbers, the reminders and the KPI all filter through it. Before it, a
+  draft, another department's article or an archived one left operators
+  overdue on material they could not open.
 - `util/DepartmentMatcher.visibilityTargets` — the department values a
   caller's content is delivered by. Six places built this list inline, and
   `List.of` throws on the null department the schema allows.

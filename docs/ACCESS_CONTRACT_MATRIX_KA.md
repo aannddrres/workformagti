@@ -1,8 +1,8 @@
 # წვდომის კონტრაქტის მატრიცა
 
 **სტატუსი:** Phase 1 — decision/contract lock **დასრულებულია**; D-1…D-8 დახურულია
-**ბოლო განახლება:** 2026-09-23 (PO-30/31-ის შენიშვნები; endpoint gate-ები უცვლელია)
-**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 150 endpoint
+**ბოლო განახლება:** 2026-09-27 (PO-40: ახალი `…/by-item/{itemType}/{itemId}/addressees`, POST/PUT-ის 409 უარი; არსებული gate-ები უცვლელია)
+**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 151 endpoint
 **გეგმა:** `docs/ORG_ACCESS_ARCHITECTURE_PLAN_KA.md` (ფაზები, §9.1 სავალდებულო მტკიცებულებები)
 
 ეს ფაილი არის ორგანიზაციული წვდომის **კონტრაქტი**: თითოეული backend endpoint-ისთვის
@@ -72,8 +72,8 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 ## ციფრებში
 
-- **150** endpoint;
-- **44** ატარებს თანამშრომლის საიდენტიფიკაციო მონაცემს (`PII = **yes**`; კიდევ 1 — `content-dependent`);
+- **151** endpoint;
+- **45** ატარებს თანამშრომლის საიდენტიფიკაციო მონაცემს (`PII = **yes**`; კიდევ 1 — `content-dependent`);
 - **11** უკვე leadership-scoped (`scope` სვეტი `GROUP`-ით იწყება, ე.ი. leadership assignment-ით შემოსაზღვრულია);
 - **0** ღია გადაწყვეტილება (D-1…D-8 დახურულია).
 
@@ -151,17 +151,18 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | `DELETE /api/categories/{id}` | `CategoryController.deleteCategory` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | R5: გამოყენებული კატეგორია `409`-ით იკეტება; ჩუმი fallback reassignment აღარ ხდება. |
 | `PUT /api/categories/{id}` | `CategoryController.updateCategory` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. |
 
-### Compliance (7)
+### Compliance (8)
 
 | endpoint | handler | gate (დღეს) | capability (სამიზნე) | scope | PII | შენიშვნა |
 |---|---|---|---|---|---|---|
 | `POST /api/compliance/mark-read/{readingId}` | `ComplianceController.markRead` | `requireAuthenticated` | AUTH | `SELF` | no | PO-30: პირველი `read_at` და შესაბამისი versioned receipt უცვლელია განმეორებაზე; ორივე ცვლილება და განმეორებითი მცდელობა აუდიტდება. Status `(user_id, required_reading_id)`-ზე და receipt caller-ზე bind-დება; სხვა eligible caller `unread` რჩება. Retention purge-იდან გამორიცხულია. |
 | `GET /api/compliance/my-progress` | `ComplianceController.getMyProgress` | `requireAuthenticated` | AUTH | `SELF` | no | eligible-reading total audience წესს მიჰყვება; completed/pending/percentage მხოლოდ caller-ის read-status rows-იდან ითვლება და სხვა caller-ის completion არ ერთვის. |
 | `GET /api/compliance/my-readings` | `ComplianceController.getMyReadings` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის საკუთარი status ერთვის eligible reading-ს; სხვა caller-ის acknowledgement არ ჩანს. |
-| `POST /api/compliance/required-readings` | `ComplianceController.createRequiredReading` | `requireComplianceAssign` | compliance.assign | `ORG-CONTENT` | no | წესი #12: target არის დეპარტამენტი ან `All`, არასოდეს ჯგუფი. 2026-09-26 (PO-34/D2): სხვა ავტორის პირად `is_draft` სტატიასა და სიახლეზე 404-ია. სათაურის snapshot-ი მის სახელს შემსრულებლების სიებსა და შეხსენებებში გაიტანდა (`PrivateDraftIsolationIntegrationTest`). |
+| `POST /api/compliance/required-readings` | `ComplianceController.createRequiredReading` | `requireComplianceAssign` | compliance.assign | `ORG-CONTENT` | no | წესი #12: target არის დეპარტამენტი ან `All`, არასოდეს ჯგუფი. 2026-09-26 (PO-34/D2): სხვა ავტორის პირად `is_draft` სტატიასა და სიახლეზე 404-ია. სათაურის snapshot-ი მის სახელს შემსრულებლების სიებსა და შეხსენებებში გაიტანდა (`PrivateDraftIsolationIntegrationTest`). 2026-09-27 (PO-40): მასალა, რომელსაც target-ის ყველა თანამშრომელი ვერ ხსნის (მონახაზი, არქივი, სხვა აუდიტორია, არარსებული), 409-ით უარიყოფა; პასუხში მიზეზი და დეპარტამენტების მიხედვით რაოდენობებია, სახელები არა. მომავალში დაგეგმილ სტატიაზე შეიქმნება, ვადა გამოქვეყნების შემდეგ უნდა იყოს (სხვაგვარად 422), შეხსენებები კი გამოქვეყნებისას მიდის. |
 | `GET /api/compliance/required-readings/by-item/{itemType}/{itemId}` | `ComplianceController.getRequiredReadingForItem` | `requireComplianceAssign` | compliance.assign | `ORG-CONTENT` | no | Phase 6: read/edit drawer-იც იმავე capability-ით იმართება. 2026-09-26 (PO-34/D2): სხვა ავტორის პირად `is_draft` სტატიასა და სიახლეზე literal `null`-ია, როგორც დავალების არარსებობისას. |
+| `GET /api/compliance/required-readings/by-item/{itemType}/{itemId}/addressees` | `ComplianceController.getRequiredReadingAddressees` | `requireComplianceAssign` | compliance.assign | `GROUP` (`SYSTEM_ADMIN`: `ORG`; `compliance.assign`: aggregate-only) | **yes** | 2026-09-27 (PO-40): ვის ავალდებულებს მასალა ახლა და ვის — დაგეგმილი სტატიის გამოქვეყნებისას. რედაქტორის ფორმა ამას შენახვამდე კითხულობს, რომ არქივი, გამოქვეყნების გაუქმება ან დეპარტამენტის მოხსნა წინასწარ თქვას, ვისაც ვალდებულება შეუჩერდება. დეპარტამენტების მიხედვით რაოდენობები ყველა `compliance.assign`-ს; სახელები მხოლოდ მოქმედი ჯგუფის assignment-ის ფარგლებში, `SYSTEM_ADMIN`-ს org-wide — `read-receipts`-ის (content.evidence) წესით. სხვა ავტორის პირად `is_draft`-ზე ცარიელი პასუხია. |
 | `DELETE /api/compliance/required-readings/{readingId}` | `ComplianceController.deleteRequiredReading` | `requireComplianceAssign` | compliance.assign | `ORG-CONTENT` | no | წესი #12: target არის დეპარტამენტი ან `All`, არასოდეს ჯგუფი. |
-| `PUT /api/compliance/required-readings/{readingId}` | `ComplianceController.updateRequiredReading` | `requireComplianceAssign` | compliance.assign | `ORG-CONTENT` | no | წესი #12: target არის დეპარტამენტი ან `All`, არასოდეს ჯგუფი. |
+| `PUT /api/compliance/required-readings/{readingId}` | `ComplianceController.updateRequiredReading` | `requireComplianceAssign` | compliance.assign | `ORG-CONTENT` | no | წესი #12: target არის დეპარტამენტი ან `All`, არასოდეს ჯგუფი. 2026-09-27 (PO-40): ახალი target იმავე 409-ით მოწმდება; უცვლელი target მასალის დროებით დამალვისას (არქივი, გამოქვეყნების გაუქმება) დაშვებულია — ვალდებულება მაშინ უბრალოდ არ მოქმედებს. |
 
 ### Export (12)
 

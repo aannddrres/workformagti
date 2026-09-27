@@ -21,6 +21,8 @@ import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.repository.UserPermissionOverrideRepository;
 import ge.magti.portal.security.JwtService;
 import ge.magti.portal.util.TbilisiTime;
+import ge.magti.portal.domain.ArticleTargetDepartment;
+import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -71,6 +73,8 @@ class UserControllerIntegrationTest {
     private TeamRepository teamRepository;
     @Autowired
     private ArticleRepository articleRepository;
+    @Autowired
+    private ArticleTargetDepartmentRepository articleTargetDepartmentRepository;
     @Autowired
     private RequiredReadingRepository requiredReadingRepository;
     @Autowired
@@ -136,7 +140,16 @@ class UserControllerIntegrationTest {
         article.setTitle(title);
         article.setContent("შინაარსი");
         article.setVersion(1);
-        return articleRepository.saveAndFlush(article);
+        // PO-40: an article operators cannot open binds nobody, so the fixture
+        // is published for everyone rather than the entity's private draft.
+        article.setStatus("published");
+        article.setDraft(false);
+        Article saved = articleRepository.saveAndFlush(article);
+        ArticleTargetDepartment everyone = new ArticleTargetDepartment();
+        everyone.setArticleId(saved.getId());
+        everyone.setDepartment("All");
+        articleTargetDepartmentRepository.saveAndFlush(everyone);
+        return saved;
     }
 
     private RequiredReading createReading(Long articleId, String targetDepartment) {

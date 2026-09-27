@@ -141,6 +141,35 @@ class ResponseShapeContractTest {
                 wireFieldsOf(ArticleViewRowResponse.class));
     }
 
+    // ---- mandatory reach (PO-40) -----------------------------------------
+
+    /**
+     * Who a mandatory item binds: names only in {@code addressees}, and those
+     * only within the caller's leadership scope; {@code departments} is the
+     * aggregate every assigner may see. The same split as the read receipts.
+     */
+    @Test
+    void mandatoryAddresseesSplitTheNamedRowsFromTheDepartmentAggregate() {
+        assertEquals(List.of("in_force_total", "pending_total", "departments", "addressees"),
+                wireFieldsOf(MandatoryAddresseesResponse.class));
+        assertEquals(List.of("department", "in_force", "pending", "read"),
+                wireFieldsOf(MandatoryAddresseesResponse.DepartmentRow.class));
+        assertEquals(List.of("user_id", "user_name", "department", "read", "pending"),
+                wireFieldsOf(MandatoryAddresseesResponse.Entry.class));
+    }
+
+    /**
+     * A refused assignment reaches every assigner through the editor's save
+     * commands, so it counts the people it would have missed and names none.
+     */
+    @Test
+    void aMandatoryRefusalCountsByDepartmentAndNamesNobody() {
+        assertEquals(List.of("detail", "reason", "blocked_total", "blocked_departments"),
+                wireFieldsOf(MandatoryReachRefusalResponse.class));
+        assertEquals(List.of("department", "count"),
+                wireFieldsOf(MandatoryReachRefusalResponse.DepartmentCount.class));
+    }
+
     // D-1 resolved 2026-08-21: /api/knowledge-leaderboard was removed, so
     // LeaderboardEntryResponse no longer exists and has no shape to pin. The
     // reason it was pinned in the first place is worth keeping: while a
