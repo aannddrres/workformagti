@@ -12,6 +12,7 @@ import { FontScaleService } from '../core/accessibility/font-scale.service';
 import { IdleSessionService } from '../core/auth/idle-session.service';
 import { LoginPage } from '../core/auth/login-page';
 import { PortalDialog } from '../shared/portal-dialog/portal-dialog';
+import { nameInitials } from '../shared/name-initials';
 
 interface NavLink {
   label: string;
@@ -180,11 +181,7 @@ export class AppShell implements OnDestroy {
   }
 
   initials(): string {
-    const name = this.profiles.profile()?.name?.trim();
-    if (name) {
-      return name.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
-    }
-    return (this.auth.currentUser()?.email?.[0] ?? 'M').toUpperCase();
+    return nameInitials(this.profiles.profile()?.name, this.auth.currentUser()?.email?.[0] ?? 'M');
   }
 
   @HostListener('document:keydown.escape')
