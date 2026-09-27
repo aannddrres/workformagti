@@ -137,6 +137,7 @@ class BroadcastControllerIntegrationTest {
         User operator = createUser("broadcast-denied-op", Role.OPERATOR);
         User manager = createUser("broadcast-denied-manager", Role.MANAGER);
         String body = requestJson("არ უნდა შეიქმნას", "IMPORTANT", TbilisiTime.now().plusHours(1));
+        long countBefore = broadcastRepository.count();
 
         for (User user : new User[]{operator, manager}) {
             mockMvc.perform(authed(post("/api/broadcasts"), tokenFor(user))
@@ -145,6 +146,7 @@ class BroadcastControllerIntegrationTest {
             mockMvc.perform(authed(get("/api/broadcasts/history"), tokenFor(user)))
                     .andExpect(status().isForbidden());
         }
+        assertEquals(countBefore, broadcastRepository.count(), "denied publishers must not create announcements");
     }
 
     @Test

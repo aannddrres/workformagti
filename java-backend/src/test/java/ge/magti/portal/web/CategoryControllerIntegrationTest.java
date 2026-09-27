@@ -124,12 +124,33 @@ class CategoryControllerIntegrationTest {
     @Test
     void operatorCannotCreateACategory() throws Exception {
         User operator = createUser("ca2@magti.ge", Role.OPERATOR);
+        long before = categoryRepository.count();
 
         mockMvc.perform(authed(post("/api/categories"), tokenFor(operator))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"x\"}"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.detail").value("წვდომა უარყოფილია: არასაკმარისი უფლებები"));
+        assertEquals(before, categoryRepository.count());
+    }
+
+    @Test
+    void operatorCannotUpdateOrDeleteCategoryAndOriginalRowRemainsActive() throws Exception {
+        User operator = createUser("category-denied-" + System.nanoTime() + "@magti.ge", Role.OPERATOR);
+        Category category = createCategory("დაცული კატეგორია " + System.nanoTime());
+        long auditBefore = auditLogRepository.count();
+
+        mockMvc.perform(authed(put("/api/categories/" + category.getId()), tokenFor(operator))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"არ უნდა შეიცვალოს\"}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(delete("/api/categories/" + category.getId()), tokenFor(operator)))
+                .andExpect(status().isForbidden());
+
+        Category reloaded = categoryRepository.findById(category.getId()).orElseThrow();
+        assertEquals(category.getName(), reloaded.getName());
+        assertTrue(reloaded.isActive());
+        assertEquals(auditBefore, auditLogRepository.count());
     }
 
     @Test
@@ -323,12 +344,14 @@ class CategoryControllerIntegrationTest {
         User admin = createUser("bl08a@magti.ge", Role.CONTENT_ADMIN);
         String name = "უნიკალური კატეგორია " + System.nanoTime();
         createCategory(name);
+        long before = categoryRepository.count();
 
         mockMvc.perform(authed(post("/api/categories"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"" + name + "\",\"slug\":\"dupe\","
                                 + "\"icon\":\"fa-flask\",\"pastel_color_class\":\"general\"}"))
                 .andExpect(status().isConflict());
+        assertEquals(before, categoryRepository.count());
     }
 
     /** Case is not a distinction a user can see in a dropdown, so it is not one here either. */

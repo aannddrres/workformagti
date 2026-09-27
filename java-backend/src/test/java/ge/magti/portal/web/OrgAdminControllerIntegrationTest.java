@@ -118,6 +118,7 @@ class OrgAdminControllerIntegrationTest {
     void allFourEndpointsRequireTheSystemAdminRoleEvenWithContentManage() throws Exception {
         Team team = createTeam("gate");
         User target = createUser("p8-gate-target", Role.OPERATOR);
+        long assignmentsBefore = assignmentRepository.count();
         for (Role role : List.of(Role.OPERATOR, Role.MANAGER, Role.CONTENT_ADMIN)) {
             User caller = createUser("p8-gate-" + role.value(), role);
             if (role == Role.OPERATOR) {
@@ -141,6 +142,41 @@ class OrgAdminControllerIntegrationTest {
         }
 
         mockMvc.perform(get("/api/admin/org/structure")).andExpect(status().isUnauthorized());
+        assertEquals(assignmentsBefore, assignmentRepository.count());
+    }
+
+    @Test
+    void structureAndAssignmentListsExposeOnlyExpectedShapesToSystemAdmin() throws Exception {
+        User admin = createUser("p8-list-admin-" + System.nanoTime(), Role.SYSTEM_ADMIN);
+        Team team = createTeam("list-" + System.nanoTime());
+        User leader = createUser("p8-list-leader-" + System.nanoTime(), Role.MANAGER);
+        String created = mockMvc.perform(authed(post("/api/admin/org/assignments"), admin, jwtService)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"user_id\":" + leader.getId() + ",\"team_id\":" + team.getId()
+                                + ",\"assignment_type\":\"ACTING\"}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        long assignmentId = objectMapper.readTree(created).get("id").asLong();
+
+        mockMvc.perform(authed(get("/api/admin/org/structure"), admin, jwtService))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.departments[?(@.stable_key == 'TECHNICAL')].teams[*].id")
+                        .value(org.hamcrest.Matchers.hasItem((int) team.getId().longValue())));
+        mockMvc.perform(authed(get("/api/admin/org/assignments"), admin, jwtService))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == " + assignmentId + ")].user_name")
+                        .value(leader.getName()));
+    }
+
+    @Test
+    void deactivatingMissingAssignmentIs404WithoutAnAuditMutation() throws Exception {
+        User admin = createUser("p8-missing-admin-" + System.nanoTime(), Role.SYSTEM_ADMIN);
+        long auditBefore = auditLogRepository.count();
+
+        mockMvc.perform(authed(delete("/api/admin/org/assignments/999999999"), admin, jwtService))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").isNotEmpty());
+        assertEquals(auditBefore, auditLogRepository.count());
     }
 
     @Test

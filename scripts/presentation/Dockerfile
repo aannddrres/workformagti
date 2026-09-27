@@ -10,7 +10,7 @@ WORKDIR /app
 COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir --requirement /app/requirements.txt
 
-COPY __init__.py common.py seed_oracle_demo.py activity_pulse.py qa_regression.py /app/
+COPY __init__.py common.py audit_chain.py seed_oracle_demo.py activity_pulse.py qa_regression.py /app/
 
 USER presentation
 ENTRYPOINT ["python", "/app/seed_oracle_demo.py"]

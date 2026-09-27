@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -48,12 +47,8 @@ public class AuditChainService {
     public Optional<AuditVerifyResponse> verify(Long id) {
         String sql = "SELECT al.row_hash, al.prev_hash, "
                 + "LOWER(RAWTOHEX(STANDARD_HASH(" + canonicalCall("al") + ", 'SHA256'))) AS recomputed_hash, "
-                + "prev.row_hash AS actual_prev_row_hash "
+                + "(SELECT COUNT(*) FROM audit_logs prev WHERE prev.row_hash = al.prev_hash) AS predecessor_count "
                 + "FROM audit_logs al "
-                + "LEFT JOIN audit_logs prev ON prev.id = ("
-                + "  SELECT id FROM audit_logs WHERE id < al.id AND row_hash IS NOT NULL "
-                + "  ORDER BY id DESC FETCH FIRST 1 ROW ONLY"
-                + ") "
                 + "WHERE al.id = ?";
 
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, id);
@@ -67,13 +62,12 @@ public class AuditChainService {
         }
         String recomputedHash = (String) row.get("recomputed_hash");
         String prevHash = (String) row.get("prev_hash");
-        String actualPrevRowHash = (String) row.get("actual_prev_row_hash");
+        int predecessorCount = ((Number) row.get("predecessor_count")).intValue();
 
         boolean hashMatch = rowHash.equals(recomputedHash);
-        // Re-derives the expected predecessor live rather than trusting the
-        // stored prev_hash blindly, so an altered/deleted predecessor is
-        // caught too, not just a directly-altered row.
-        boolean chainMatch = Objects.equals(prevHash, actualPrevRowHash);
+        // Identity values are allocated before the trigger obtains the tip
+        // lock. Concurrent commits can therefore form a valid non-ID order.
+        boolean chainMatch = prevHash == null || predecessorCount == 1;
         return Optional.of(AuditVerifyResponse.of(hashMatch, chainMatch, rowHash, recomputedHash));
     }
 
@@ -85,40 +79,60 @@ public class AuditChainService {
     public AuditChainHealthResponse chainHealth(int requestedWindow) {
         int n = Math.max(1, Math.min(requestedWindow, 500));
 
-        // JOINs back to the base table rather than selecting from the CTE
-        // directly: audit_logs_canonical_string needs real column values,
-        // and the ordering/limit subquery only needs to select id.
-        String windowSql = "SELECT a.id, a.prev_hash, a.row_hash, "
-                + "LOWER(RAWTOHEX(STANDARD_HASH(" + canonicalCall("a") + ", 'SHA256'))) AS recomputed "
-                + "FROM audit_logs a JOIN ("
-                + "  SELECT id FROM audit_logs WHERE row_hash IS NOT NULL "
-                + "  ORDER BY id DESC FETCH FIRST ? ROWS ONLY"
-                + ") recent ON recent.id = a.id "
-                + "ORDER BY a.id";
+        // One statement means one Oracle read-consistent snapshot for the
+        // state, links, boundary and legacy count, even during inserts.
+        // Follow hashes from the committed tip, never identity order. V49's
+        // unique row_hash index makes each predecessor unambiguous and lets
+        // Oracle seek by hash instead of grouping the whole history.
+        String windowSql = """
+                WITH state AS (
+                    SELECT COUNT(*) state_count, MAX(tip_hash) tip_hash
+                    FROM audit_chain_state WHERE id = 1
+                ), recent AS (
+                    SELECT id, LEVEL depth, CONNECT_BY_ISCYCLE is_cycle
+                    FROM audit_logs
+                    START WITH row_hash = (SELECT tip_hash FROM state)
+                    CONNECT BY NOCYCLE PRIOR prev_hash = row_hash AND LEVEL <= ?
+                ), summary AS (
+                    SELECT s.state_count, s.tip_hash,
+                        (SELECT COUNT(*) FROM audit_logs
+                            WHERE CASE WHEN row_hash IS NULL THEN id END IS NOT NULL) unchained_total,
+                        (SELECT CASE WHEN EXISTS (
+                            SELECT 1 FROM audit_logs WHERE row_hash IS NOT NULL
+                        ) THEN 1 ELSE 0 END FROM dual) chained_exists,
+                        (SELECT COUNT(*) FROM audit_logs WHERE row_hash = s.tip_hash) tip_count,
+                        (SELECT COUNT(*) FROM audit_logs WHERE prev_hash = s.tip_hash
+                            AND row_hash IS NOT NULL) tip_children
+                    FROM state s
+                )
+                SELECT s.*, a.id, a.prev_hash, a.row_hash, r.is_cycle,
+                    (SELECT COUNT(*) FROM audit_logs p WHERE p.row_hash = a.prev_hash)
+                        predecessor_count,
+                """
+                + "CASE WHEN a.id IS NOT NULL THEN LOWER(RAWTOHEX(STANDARD_HASH("
+                + canonicalCall("a") + ", 'SHA256'))) END AS recomputed "
+                + "FROM summary s LEFT JOIN recent r ON 1 = 1 "
+                + "LEFT JOIN audit_logs a ON a.id = r.id "
+                + "ORDER BY r.depth";
 
         List<Map<String, Object>> windowRows = jdbcTemplate.queryForList(windowSql, n);
-
-        long unchainedTotal = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM audit_logs WHERE row_hash IS NULL", Long.class);
-
-        // Boundary predecessor: the chained row just before the window, so
-        // the window's oldest row gets a real link check instead of a
-        // skipped one (this also catches a fake "second genesis" inside
-        // the window).
-        String expectedPrev = null;
-        if (!windowRows.isEmpty()) {
-            long minId = ((Number) windowRows.get(0).get("id")).longValue();
-            expectedPrev = jdbcTemplate.query(
-                    "SELECT row_hash FROM audit_logs WHERE row_hash IS NOT NULL AND id < ? "
-                            + "ORDER BY id DESC FETCH FIRST 1 ROW ONLY",
-                    rs -> rs.next() ? rs.getString(1) : null,
-                    minId);
-        }
+        Map<String, Object> summary = windowRows.get(0); // aggregate exists even for an empty chain
+        long unchainedTotal = ((Number) summary.get("unchained_total")).longValue();
+        boolean validTip = ((Number) summary.get("state_count")).intValue() == 1
+                && (summary.get("tip_hash") == null
+                    ? ((Number) summary.get("chained_exists")).intValue() == 0
+                    : ((Number) summary.get("tip_count")).intValue() == 1
+                        && ((Number) summary.get("tip_children")).intValue() == 0);
 
         int hashMismatches = 0;
         int linkBreaks = 0;
+        int checked = 0;
         List<Long> badIds = new ArrayList<>();
         for (Map<String, Object> row : windowRows) {
+            if (row.get("id") == null) {
+                continue; // state-only failure: no deleted ID can be reported
+            }
+            checked++;
             long id = ((Number) row.get("id")).longValue();
             String rowHash = (String) row.get("row_hash");
             String recomputed = (String) row.get("recomputed");
@@ -128,18 +142,18 @@ public class AuditChainService {
                 hashMismatches++;
                 bad = true;
             }
-            if (!Objects.equals(prevHash, expectedPrev)) {
+            if (((Number) row.get("is_cycle")).intValue() != 0
+                    || (prevHash != null && ((Number) row.get("predecessor_count")).intValue() != 1)) {
                 linkBreaks++;
                 bad = true;
             }
             if (bad && badIds.size() < 10) {
                 badIds.add(id);
             }
-            expectedPrev = rowHash;
         }
 
-        String status = (hashMismatches == 0 && linkBreaks == 0) ? "ok" : "tampered";
+        String status = (validTip && hashMismatches == 0 && linkBreaks == 0) ? "ok" : "tampered";
         return new AuditChainHealthResponse(
-                status, windowRows.size(), n, hashMismatches, linkBreaks, badIds, unchainedTotal);
+                status, checked, n, hashMismatches, linkBreaks, badIds, unchainedTotal, !validTip);
     }
 }

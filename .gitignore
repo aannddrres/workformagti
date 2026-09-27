@@ -1,5 +1,6 @@
 magti_portal.db*
 venv/
+.venv/
 __pycache__/
 *.pyc
 *.bak
@@ -43,6 +44,7 @@ src/data/news/news_data.json
 # Real JWTs from fetch_tokens.sh -- never commit live tokens even for a
 # dev-only test instance.
 scripts/load/tokens.json
+scripts/load/staging-users.json
 
 # Local-only presentation stack credentials and generated verification reports.
 .presentation.env

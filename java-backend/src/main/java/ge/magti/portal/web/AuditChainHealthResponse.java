@@ -17,6 +17,7 @@ public record AuditChainHealthResponse(
         @JsonProperty("hash_mismatches") int hashMismatches,
         @JsonProperty("link_breaks") int linkBreaks,
         @JsonProperty("bad_ids") List<Long> badIds,
-        @JsonProperty("unchained_total") long unchainedTotal
+        @JsonProperty("unchained_total") long unchainedTotal,
+        @JsonProperty("tail_state_mismatch") boolean tailStateMismatch
 ) {
 }

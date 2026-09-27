@@ -38,10 +38,10 @@ spec:
             matchLabels:
               app.kubernetes.io/name: portal-frontend
       securityContext:
-        # uid 101 is the `nginx` user in the nginx:1.27-alpine base image;
+        # uid 101 is the `nginx` user in the pinned nginx:1.30.5-alpine3.24 image;
         # angular-frontend/Dockerfile drops to it and chowns the three paths
         # nginx writes to at runtime. Verified on a running container
-        # (2026-08-29): `id` reports uid=101(nginx).
+        # (2026-09-24): `id` reports uid=101(nginx).
         runAsNonRoot: true
         runAsUser: 101
         runAsGroup: 101

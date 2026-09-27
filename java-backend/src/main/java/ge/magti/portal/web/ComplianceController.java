@@ -1,8 +1,11 @@
 package ge.magti.portal.web;
 
+import ge.magti.portal.article.ArticleTargetQueryService;
+import ge.magti.portal.article.ArticleVisibility;
 import ge.magti.portal.compliance.ComplianceCalculator;
 import ge.magti.portal.compliance.ComplianceQueryService;
 import ge.magti.portal.compliance.RequiredReadingMutationService;
+import ge.magti.portal.compliance.ReadingAcknowledgementService;
 import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.reminder.ReminderService;
 import ge.magti.portal.content.ItemDetail;
@@ -70,6 +73,7 @@ public class ComplianceController {
     private final RequiredReadingRepository requiredReadingRepository;
     private final ReadStatusRepository readStatusRepository;
     private final ArticleRepository articleRepository;
+    private final ArticleTargetQueryService articleTargetQueryService;
     private final ArticleReadReceiptRepository articleReadReceiptRepository;
     private final QuizGateChecker quizGateChecker;
     private final ReminderService reminderService;
@@ -77,23 +81,27 @@ public class ComplianceController {
     private final PermissionChecker permissionChecker;
     private final MutationAuditService mutationAuditService;
     private final RequiredReadingMutationService requiredReadingMutationService;
+    private final ReadingAcknowledgementService readingAcknowledgementService;
 
     public ComplianceController(
             ComplianceQueryService complianceQueryService,
             RequiredReadingRepository requiredReadingRepository,
             ReadStatusRepository readStatusRepository,
             ArticleRepository articleRepository,
+            ArticleTargetQueryService articleTargetQueryService,
             ArticleReadReceiptRepository articleReadReceiptRepository,
             QuizGateChecker quizGateChecker,
             ReminderService reminderService,
             ItemTitleResolver itemTitleResolver,
             PermissionChecker permissionChecker,
             MutationAuditService mutationAuditService,
-            RequiredReadingMutationService requiredReadingMutationService) {
+            RequiredReadingMutationService requiredReadingMutationService,
+            ReadingAcknowledgementService readingAcknowledgementService) {
         this.complianceQueryService = complianceQueryService;
         this.requiredReadingRepository = requiredReadingRepository;
         this.readStatusRepository = readStatusRepository;
         this.articleRepository = articleRepository;
+        this.articleTargetQueryService = articleTargetQueryService;
         this.articleReadReceiptRepository = articleReadReceiptRepository;
         this.quizGateChecker = quizGateChecker;
         this.reminderService = reminderService;
@@ -101,6 +109,7 @@ public class ComplianceController {
         this.permissionChecker = permissionChecker;
         this.mutationAuditService = mutationAuditService;
         this.requiredReadingMutationService = requiredReadingMutationService;
+        this.readingAcknowledgementService = readingAcknowledgementService;
     }
 
     /** Port of get_my_readings (routers/compliance.py:30-113). */
@@ -133,8 +142,13 @@ public class ComplianceController {
                 .collect(java.util.stream.Collectors.toMap(ReadStatus::getRequiredReadingId, s -> s, (a, b) -> a));
 
         OffsetDateTime now = TbilisiTime.now();
+        java.util.Set<ItemKey> hidden = itemTitleResolver.hiddenPrivateDrafts(
+                readings.stream().map(r -> new ItemKey(r.getItemType(), r.getItemId())).toList(), user);
         List<MyReadingResponse> results = new java.util.ArrayList<>();
         for (RequiredReading r : readings) {
+            if (hidden.contains(new ItemKey(r.getItemType(), r.getItemId()))) {
+                continue;
+            }
             ReadStatus stat = statusByReadingId.get(r.getId());
             String currentStatus = stat != null ? stat.getStatus() : "unread";
             OffsetDateTime readAt = stat != null ? stat.getReadAt() : null;
@@ -197,6 +211,9 @@ public class ComplianceController {
                     .body(Map.of("detail", "ეს მასალა თქვენს დეპარტამენტს არ ეხება"));
         }
 
+        if (itemTitleResolver.privateDraftIsHidden(reading.getItemType(), reading.getItemId(), user)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", READING_NOT_FOUND));
+        }
         Article readingArticle = null;
         if ("article".equals(reading.getItemType())) {
             readingArticle = articleRepository.findById(reading.getItemId()).orElse(null);
@@ -206,43 +223,19 @@ public class ComplianceController {
                 // employee can no longer open (trashed or purged).
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", READING_NOT_FOUND));
             }
+            if (!ArticleVisibility.isVisible(readingArticle,
+                    articleTargetQueryService.targetDepartmentsForArticleWithinLimit(readingArticle.getId()), user)) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", READING_NOT_FOUND));
+            }
             ResponseEntity<Map<String, String>> quizGate = quizGateChecker.denialFor(readingArticle, user);
             if (quizGate != null) {
                 return quizGate;
             }
         }
 
-        ReadStatus stat = readStatusRepository.findByUserIdAndRequiredReadingId(user.getId(), readingId)
-                .orElseGet(() -> {
-                    ReadStatus fresh = new ReadStatus();
-                    fresh.setUserId(user.getId());
-                    fresh.setRequiredReadingId(readingId);
-                    return fresh;
-                });
-        Map<String, Object> before = stat.getId() == null
-                ? null : MutationAuditService.readStatusSnapshot(stat);
-        stat.setStatus("read");
-        stat.setReadAt(TbilisiTime.now());
-        stat.setOperatorDepartmentSnapshot(user.getDepartment());
-        ReadStatus savedStat = readStatusRepository.saveAndFlush(stat);
-        ReadStatusResponse response = ReadStatusResponse.from(savedStat);
-
-        // Receipt bridge (routers/compliance.py:190-195): a mandatory-reading
-        // acknowledgement of an article is also a versioned read receipt. The
-        // atomic MERGE (clearAutomatically) runs after the ReadStatus flush
-        // above; single @Transactional makes Python's "commit first so the
-        // retry can't discard the ReadStatus" ordering moot -- there's no
-        // rollback-retry path here.
-        if (readingArticle != null) {
-            articleReadReceiptRepository.upsert(readingArticle.getId(), readingArticle.getTitle(),
-                    readingArticle.getVersion(), user.getId(), user.getName(), user.getEmail(),
-                    user.getDepartment(), TbilisiTime.now());
-        }
-        mutationAuditService.recordSuccess(
-                user, "MARK_REQUIRED_READING_READ", "read_status", savedStat.getId(),
-                reading.getItemTitleSnapshot(), before,
-                MutationAuditService.readStatusSnapshot(savedStat));
-        return ResponseEntity.ok(response);
+        ReadStatus savedStat = readingAcknowledgementService.acknowledgeRequiredReading(
+                reading, readingArticle, user);
+        return ResponseEntity.ok(ReadStatusResponse.from(savedStat));
     }
 
     /** Port of create_required_reading (routers/compliance.py:285-316). */
@@ -255,6 +248,9 @@ public class ComplianceController {
             return denial;
         }
         RequiredReading reading = new RequiredReading();
+        if (itemTitleResolver.privateDraftIsHidden(request.itemType(), request.itemId(), user)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", READING_NOT_FOUND));
+        }
         reading.setItemType(request.itemType());
         reading.setItemId(request.itemId());
         reading.setItemTitleSnapshot(itemTitleResolver.resolve(request.itemType(), request.itemId())
@@ -284,6 +280,9 @@ public class ComplianceController {
             return denial;
         }
         Optional<RequiredReading> rr = requiredReadingRepository.findFirstByItemTypeAndItemIdOrderByIdAsc(itemType, itemId);
+        if (itemTitleResolver.privateDraftIsHidden(itemType, itemId, user)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", READING_NOT_FOUND));
+        }
         if (rr.isEmpty()) {
             // FastAPI's Optional[schema] returns the literal 4-char body "null";
             // ResponseEntity.ok(null) would write zero bytes and break a
@@ -309,6 +308,9 @@ public class ComplianceController {
         }
         RequiredReading reading = found.get();
         Map<String, Object> before = MutationAuditService.requiredReadingSnapshot(reading);
+        if (itemTitleResolver.privateDraftIsHidden(reading.getItemType(), reading.getItemId(), user)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", READING_NOT_FOUND));
+        }
 
         // BL-04: read_statuses is keyed on required_reading_id (V22:11), not
         // on the item. So re-pointing an existing reading at a different
@@ -359,8 +361,12 @@ public class ComplianceController {
         if (found.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", READING_NOT_FOUND));
         }
+        RequiredReading reading = found.get();
+        if (itemTitleResolver.privateDraftIsHidden(reading.getItemType(), reading.getItemId(), user)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", READING_NOT_FOUND));
+        }
         try {
-            requiredReadingMutationService.delete(found.get(), user);
+            requiredReadingMutationService.delete(reading, user);
         } catch (DataIntegrityViolationException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(Map.of("detail", READING_HAS_READ_RECEIPTS));

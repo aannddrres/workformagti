@@ -71,41 +71,16 @@ class ArticleVisibilityDraftTest {
                         + "target departments, and its attachments from /uploads/{filename}.");
     }
 
-    /**
-     * The disagreement this clause did not settle, pinned so it stays visible.
-     *
-     * <p>The repository documents {@code is_draft} as hiding a row from
-     * everyone but its author, <i>content administrators included</i>, and
-     * {@code ArticleQueryService} implements exactly that: its
-     * {@code a.isDraft = false OR a.authorId = :userId} sits outside the
-     * {@code :isAdmin} branch, so an administrator's own list hides a
-     * colleague's draft. {@code ArticleControllerIntegrationTest}'s
-     * {@code adminCanSeeADraftArticleById} asserts the opposite for a direct
-     * fetch, deliberately and by name.
-     *
-     * <p>Both were true before 2026-09-06 because each went down a different
-     * code path and nothing made them meet; adding the draft clause here is
-     * what made them meet. Preserving the fetch behaviour was the conservative
-     * call: the defect being fixed is that ~600 operators could read a private
-     * draft, and that is fixed either way. Whether one content administrator
-     * may open another's autosave is a product decision, and it is the owner's.
-     *
-     * <p>So this test asserts what the code does, not what the document says,
-     * and says so. If the decision goes the other way, this is the test that
-     * flips, together with one line in {@link ArticleVisibility}.
-     */
     @Test
-    void aContentAdministratorStillOpensAnotherAuthorsDraft() {
+    void aContentAdministratorCannotOpenAnotherAuthorsDraft() {
         for (Role role : List.of(Role.CONTENT_ADMIN, Role.SYSTEM_ADMIN)) {
             User admin = new User();
             admin.setId(AUTHOR_ID);
             admin.setRole(role);
             admin.setDepartment("ტექნიკური");
-            assertTrue(ArticleVisibility.isVisible(
+            assertFalse(ArticleVisibility.isVisible(
                     draftBySomebodyElse("published"), TARGETED_AT_EVERYONE, admin),
-                    role + " could do this before the draft clause was added and still can. "
-                            + "Unresolved against ArticleQueryService, which hides the same row from "
-                            + "the same person's list -- see this method's comment.");
+                    role + " must obey the same author-only rule as ArticleQueryService's list");
         }
     }
 

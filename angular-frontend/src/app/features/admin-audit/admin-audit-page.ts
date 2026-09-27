@@ -1,5 +1,5 @@
 import { computed, Component, inject, signal } from '@angular/core';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { AuditService } from '../../core/services/audit.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { PortalDialog } from '../../shared/portal-dialog/portal-dialog';
@@ -7,19 +7,18 @@ import { AuditChainHealth, AuditLogEntry, AuditVerifyResult } from '../../core/m
 import {
   categoryBadge,
   filterFromSearch,
+  formatAuditActor,
   formatAuditAction,
   formatAuditItemType,
+  formatAuditItemName,
   parseAuditDetails,
   parseUserAgent,
   withCategoryToken
 } from '../../shared/audit-format';
 import { formatKaDateTime } from '../../shared/ka-date';
+import { auditDatePreset } from './audit-date-presets';
 
 const PAGE_SIZE = 50;
-
-function isoDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
 
 /**
  * Port of #admin-audit (base-layout.html:2345-2387) + its render layer
@@ -61,6 +60,7 @@ export class AdminAuditPage {
    */
   protected readonly isManager = computed(() => this.auth.currentUser()?.role === 'manager');
   private readonly auditService = inject(AuditService);
+  private readonly translate = inject(TranslateService);
 
   protected readonly rows = signal<AuditLogEntry[]>([]);
   protected readonly total = signal(0);
@@ -95,8 +95,13 @@ export class AdminAuditPage {
   }
 
   protected readonly categoryBadge = categoryBadge;
-  protected readonly actionLabel = formatAuditAction;
+  protected readonly actionLabel = (action: string | null | undefined) =>
+    formatAuditAction(action, key => this.translate.instant(key));
+  protected readonly actorLabel = (name: string | null | undefined) =>
+    formatAuditActor(name, key => this.translate.instant(key));
   protected readonly itemTypeLabel = formatAuditItemType;
+  protected readonly itemNameLabel = (type: string | null | undefined, name: string | null | undefined) =>
+    formatAuditItemName(type, name, key => this.translate.instant(key));
   protected readonly formatTimestamp = formatKaDateTime;
 
   load(): void {
@@ -197,11 +202,9 @@ export class AdminAuditPage {
   }
 
   setDatePreset(days: number): void {
-    const end = new Date();
-    const start = new Date();
-    start.setDate(end.getDate() - days);
-    this.startDate.set(isoDate(start));
-    this.endDate.set(isoDate(end));
+    const range = auditDatePreset(days);
+    this.startDate.set(range.start);
+    this.endDate.set(range.end);
     this.reload();
   }
 

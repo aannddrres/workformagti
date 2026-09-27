@@ -4,12 +4,14 @@ import ge.magti.portal.article.ArticleListFilter;
 import ge.magti.portal.article.ArticleListItem;
 import ge.magti.portal.article.ArticleEvidenceCardinalityGuard;
 import ge.magti.portal.article.ArticleVisibility;
+import ge.magti.portal.content.PrivateDraftAccess;
 import ge.magti.portal.article.ArticleHistorySummary;
 import ge.magti.portal.article.ArticleReferenceItem;
 import ge.magti.portal.article.ArticleTargetQueryService;
 import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.content.ContentLifecycleService;
 import ge.magti.portal.content.ArticleHtmlSanitizer;
+import ge.magti.portal.compliance.ReadingAcknowledgementService;
 import ge.magti.portal.article.ArticleQueryService;
 import ge.magti.portal.article.ArticleViewQueryService;
 import ge.magti.portal.article.EligibleOperatorsService;
@@ -129,6 +131,7 @@ public class ArticleController {
     private final UserRepository userRepository;
     private final RequiredReadingRepository requiredReadingRepository;
     private final ReadStatusRepository readStatusRepository;
+    private final ReadingAcknowledgementService readingAcknowledgementService;
     private final QuizGateChecker quizGateChecker;
     private final PermissionChecker permissionChecker;
     private final ScopeResolver scopeResolver;
@@ -154,6 +157,7 @@ public class ArticleController {
             UserRepository userRepository,
             RequiredReadingRepository requiredReadingRepository,
             ReadStatusRepository readStatusRepository,
+            ReadingAcknowledgementService readingAcknowledgementService,
             QuizGateChecker quizGateChecker,
             PermissionChecker permissionChecker,
             ScopeResolver scopeResolver,
@@ -177,6 +181,7 @@ public class ArticleController {
         this.userRepository = userRepository;
         this.requiredReadingRepository = requiredReadingRepository;
         this.readStatusRepository = readStatusRepository;
+        this.readingAcknowledgementService = readingAcknowledgementService;
         this.quizGateChecker = quizGateChecker;
         this.permissionChecker = permissionChecker;
         this.scopeResolver = scopeResolver;
@@ -238,6 +243,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
         List<String> targetDepartments = resolveTargetDepartments(id);
 
         ResponseEntity<Map<String, String>> visibility = assertArticleVisible(article, targetDepartments, user);
@@ -310,6 +318,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
         List<String> previousTargets = resolveTargetDepartments(id);
         Map<String, Object> before = MutationAuditService.articleSnapshot(article, previousTargets);
 
@@ -422,6 +433,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
         List<String> previousTargetDepartments = resolveTargetDepartments(id);
         Map<String, Object> before = MutationAuditService.articleSnapshot(article, previousTargetDepartments);
 
@@ -545,6 +559,9 @@ public class ArticleController {
         if (found.isEmpty()) {
             return notFound();
         }
+        if (!PrivateDraftAccess.canAccess(found.get().isDraft(), found.get().getAuthorId(), user)) {
+            return notFound();
+        }
         ContentLifecycleService.Status status = contentLifecycleService.moveToTrash(
                 ContentLifecycleService.ItemType.ARTICLE, id, user);
         if (status == ContentLifecycleService.Status.OK) {
@@ -567,6 +584,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
         if ("archived".equals(article.getStatus())) {
             return ResponseEntity.ok(ArticleResponse.from(article, resolveTargetDepartments(id)));
         }
@@ -595,6 +615,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
         if (!"archived".equals(article.getStatus())) {
             return ResponseEntity.badRequest().body(Map.of("detail", "სტატია არ არის არქივში"));
         }
@@ -697,6 +720,10 @@ public class ArticleController {
 
         int updated = 0;
         for (Article article : rows) {
+            if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+                skipped.add(article.getId());
+                continue;
+            }
             List<String> before = resolveTargetDepartments(article.getId());
             Map<String, Object> snapshot = MutationAuditService.articleSnapshot(article, before);
 
@@ -751,6 +778,10 @@ public class ArticleController {
 
         int updated = 0;
         for (Article article : rows) {
+            if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+                skipped.add(article.getId());
+                continue;
+            }
             if (target.equals(article.getStatus())) {
                 skipped.add(article.getId());
                 continue;
@@ -839,6 +870,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
         List<String> targetDepartments = resolveTargetDepartments(id);
         Map<String, Object> before = MutationAuditService.articleSnapshot(article, targetDepartments);
         article.setLastVerifiedAt(TbilisiTime.now());
@@ -942,7 +976,8 @@ public class ArticleController {
             int remaining = 4 - results.size();
             List<ArticleReferenceItem> fillMatches = candidates.stream()
                     .filter(a -> !existingIds.contains(a.id()))
-                    .sorted(Comparator.comparing(ArticleReferenceItem::createdAt).reversed())
+                    .sorted(Comparator.comparing(ArticleReferenceItem::createdAt,
+                            Comparator.nullsLast(Comparator.reverseOrder())))
                     .limit(remaining)
                     .toList();
             for (ArticleReferenceItem a : fillMatches) {
@@ -970,6 +1005,10 @@ public class ArticleController {
         // No get_or_404 here, matching routers/articles.py:539-565 exactly:
         // a missing article_id isn't checked separately, it just yields zero
         // matching history rows -- an empty list, not a 404.
+        ResponseEntity<Map<String, String>> visibility = denyInvisibleExistingArticle(id, user);
+        if (visibility != null) {
+            return visibility;
+        }
         HistoryPayloadGuard.enforceFullResponseCharacters(
                 articleHistoryRepository.totalContentCharactersByArticleId(id));
         List<ArticleHistory> history = ArticleEvidenceCardinalityGuard.enforceWithinLimit(
@@ -1003,6 +1042,10 @@ public class ArticleController {
             return denial;
         }
 
+        ResponseEntity<Map<String, String>> visibility = denyInvisibleExistingArticle(id, user);
+        if (visibility != null) {
+            return visibility;
+        }
         List<ArticleHistorySummary> history = ArticleEvidenceCardinalityGuard.enforceWithinLimit(
                 articleHistoryRepository.findSummaryByArticleIdOrderByUpdatedAtDesc(
                         id, PageRequest.of(0, ArticleEvidenceCardinalityGuard.MAX_ROWS + 1)));
@@ -1027,6 +1070,10 @@ public class ArticleController {
             return denial;
         }
 
+        ResponseEntity<Map<String, String>> visibility = denyInvisibleExistingArticle(id, user);
+        if (visibility != null) {
+            return visibility;
+        }
         Optional<ArticleHistory> history = articleHistoryRepository.findByIdAndArticleId(historyId, id);
         if (history.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -1060,6 +1107,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
         ResponseEntity<Map<String, String>> visibility = assertArticleVisible(article, resolveTargetDepartments(id), user);
         if (visibility != null) {
             return visibility;
@@ -1110,7 +1160,14 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
         List<String> targetDepartments = resolveTargetDepartments(id);
+        ResponseEntity<Map<String, String>> visibility = assertArticleVisible(article, targetDepartments, user);
+        if (visibility != null) {
+            return visibility;
+        }
         Map<String, Object> before = MutationAuditService.articleSnapshot(article, targetDepartments);
 
         Optional<ArticleHistory> historyOpt = articleHistoryRepository.findByIdAndArticleId(historyId, id);
@@ -1162,6 +1219,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
         ResponseEntity<Map<String, String>> visibility = assertArticleVisible(article, resolveTargetDepartments(id), user);
         if (visibility != null) {
             return visibility;
@@ -1228,6 +1288,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
 
         OffsetDateTime dueDate = requiredReadingRepository.findFirstByItemTypeAndItemId("article", id)
                 .map(RequiredReading::getDueDate).orElse(null);
@@ -1302,6 +1365,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
         ResponseEntity<Map<String, String>> visibility = assertArticleVisible(article, resolveTargetDepartments(id), user);
         if (visibility != null) {
             return visibility;
@@ -1310,13 +1376,6 @@ public class ArticleController {
         if (quizGate != null) {
             return quizGate;
         }
-
-        OffsetDateTime readAt = TbilisiTime.now();
-        articleReadReceiptRepository.upsert(id, article.getTitle(), article.getVersion(), user.getId(),
-                user.getName(), user.getEmail(), user.getDepartment(), readAt);
-        ArticleReadReceipt receipt = articleReadReceiptRepository
-                .findByArticleIdSnapshotAndArticleVersionAndOperatorId(id, article.getVersion(), user.getId())
-                .orElseThrow();
 
         // Compliance bridge (routers/articles.py:1207-1233): prefix-aware,
         // unlike EligibleOperatorsService's exact-match rule -- this one
@@ -1327,22 +1386,7 @@ public class ArticleController {
                 requiredReadingRepository.findByItemTypeAndItemIdAndTargetDepartmentIn(
                         "article", id, DepartmentMatcher.visibilityTargets(user.getDepartment()),
                         CompleteResultGuard.sentinelPage()));
-        for (RequiredReading rr : covering) {
-            ReadStatus stat = readStatusRepository.findByUserIdAndRequiredReadingId(user.getId(), rr.getId())
-                    .orElseGet(() -> {
-                        ReadStatus fresh = new ReadStatus();
-                        fresh.setUserId(user.getId());
-                        fresh.setRequiredReadingId(rr.getId());
-                        return fresh;
-                    });
-            if ("read".equals(stat.getStatus())) {
-                continue;
-            }
-            stat.setStatus("read");
-            stat.setReadAt(TbilisiTime.now());
-            stat.setOperatorDepartmentSnapshot(user.getDepartment());
-            readStatusRepository.save(stat);
-        }
+        ArticleReadReceipt receipt = readingAcknowledgementService.acknowledgeArticle(article, user, covering);
 
         return ResponseEntity.ok(new CreateReadReceiptResponse("success", receipt.getReadAt(), receipt.getArticleVersion()));
     }
@@ -1359,6 +1403,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
         ResponseEntity<Map<String, String>> visibility = assertArticleVisible(article, resolveTargetDepartments(id), user);
         if (visibility != null) {
             return visibility;
@@ -1385,6 +1432,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
         ResponseEntity<Map<String, String>> visibility = assertArticleVisible(article, resolveTargetDepartments(id), user);
         if (visibility != null) {
             return visibility;
@@ -1422,6 +1472,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
+            return notFound();
+        }
 
         int safeOffset = Math.max(offset, 0);
         int safeLimit = Math.max(1, Math.min(limit, 200));
@@ -1446,7 +1499,9 @@ public class ArticleController {
 
         List<ArticleViewLog> rows = articleViewLogRepository.findTop30ByOperatorIdOrderByViewedAtDesc(user.getId());
         Set<Long> articleIds = rows.stream().map(ArticleViewLog::getArticleId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, List<String>> targets = articleTargetQueryService.targetDepartmentsByArticleWithinLimit(articleIds);
         Map<Long, String> titlesByArticleId = articleRepository.findAllById(articleIds).stream()
+                .filter(article -> ArticleVisibility.isVisible(article, targets.getOrDefault(article.getId(), List.of()), user))
                 .collect(Collectors.toMap(Article::getId, Article::getTitle));
 
         Set<Long> seenIds = new LinkedHashSet<>();
@@ -1534,7 +1589,7 @@ public class ArticleController {
         }
     }
 
-    private static ResponseEntity<?> notFound() {
+    private static ResponseEntity<Map<String, String>> notFound() {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", NOT_FOUND_DETAIL));
     }
 
@@ -1557,6 +1612,16 @@ public class ArticleController {
             return notFoundMap();
         }
         return assertArticleVisible(found.get(), resolveTargetDepartments(articleId), user);
+    }
+
+    /** Preserve legacy missing-article history responses while hiding existing private drafts. */
+    private ResponseEntity<Map<String, String>> denyInvisibleExistingArticle(Long articleId, User user) {
+        if (articleRepository.countInaccessiblePrivateDraftIncludingTrash(articleId, user.getId()) > 0) {
+            return notFound();
+        }
+        return articleRepository.findById(articleId)
+                .map(article -> assertArticleVisible(article, resolveTargetDepartments(articleId), user))
+                .orElse(null);
     }
 
     /**

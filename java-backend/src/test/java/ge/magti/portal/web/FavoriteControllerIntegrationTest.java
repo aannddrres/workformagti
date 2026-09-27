@@ -35,6 +35,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 
 /**
  * Real Oracle, real HTTP, real Spring Security filter chain -- same
@@ -89,6 +90,7 @@ class FavoriteControllerIntegrationTest {
         Article article = new Article();
         article.setTitle(title);
         article.setContent("შინაარსი");
+        article.setDraft(false);
         return articleRepository.saveAndFlush(article);
     }
 
@@ -96,6 +98,7 @@ class FavoriteControllerIntegrationTest {
         News news = new News();
         news.setTitle(title);
         news.setContent("შინაარსი");
+        news.setDraft(false);
         news.setTargetDepartment("All");
         news.setCreatedAt(TbilisiTime.now());
         return newsRepository.saveAndFlush(news);
@@ -106,6 +109,18 @@ class FavoriteControllerIntegrationTest {
         mockMvc.perform(get("/api/favorites"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.detail").value("Could not validate credentials"));
+    }
+
+    @Test
+    void anonymousBookmarkRequestCannotCreateAFavorite() throws Exception {
+        Article article = createArticle("anonymous-bookmark-target");
+        long favoritesBefore = favoriteRepository.count();
+
+        mockMvc.perform(post("/api/favorites").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"item_type\":\"article\",\"item_id\":" + article.getId() + "}"))
+                .andExpect(status().isUnauthorized());
+        assertEquals(favoritesBefore, favoriteRepository.count());
     }
 
     @Test
@@ -220,5 +235,20 @@ class FavoriteControllerIntegrationTest {
         mockMvc.perform(authed(delete("/api/favorites/999999999"), tokenFor(operator)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.detail").value("რჩეული ვერ მოიძებნა"));
+    }
+
+    @Test
+    void invalidFavoriteBodyDoesNotCreateABookmark() throws Exception {
+        User operator = createUser("fav-invalid-" + System.nanoTime() + "@magti.ge", Role.OPERATOR);
+        long before = favoriteRepository.findByUserId(
+                operator.getId(), CompleteResultGuard.sentinelPage()).size();
+
+        mockMvc.perform(authed(post("/api/favorites"), tokenFor(operator))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"item_type\":\"\",\"item_id\":999999999}"))
+                .andExpect(status().isBadRequest());
+
+        assertEquals(before, favoriteRepository.findByUserId(
+                operator.getId(), CompleteResultGuard.sentinelPage()).size());
     }
 }

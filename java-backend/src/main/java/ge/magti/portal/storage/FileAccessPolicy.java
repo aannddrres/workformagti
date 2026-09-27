@@ -1,18 +1,18 @@
 package ge.magti.portal.storage;
 
 import ge.magti.portal.article.ArticleVisibility;
+import ge.magti.portal.article.ArticleTargetQueryService;
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.News;
 import ge.magti.portal.domain.StoredFile;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.domain.VideoInstruction;
+import ge.magti.portal.news.NewsVisibility;
 import ge.magti.portal.repository.ArticleRepository;
-import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
 import ge.magti.portal.repository.NewsRepository;
 import ge.magti.portal.repository.StoredFileRepository;
 import ge.magti.portal.repository.VideoInstructionRepository;
-import ge.magti.portal.util.DepartmentMatcher;
-import org.springframework.data.domain.PageRequest;
+import ge.magti.portal.video.VideoVisibility;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -45,7 +45,7 @@ public class FileAccessPolicy {
     private final FileReferenceIndex referenceIndex;
     private final StoredFileRepository storedFileRepository;
     private final ArticleRepository articleRepository;
-    private final ArticleTargetDepartmentRepository targetDepartmentRepository;
+    private final ArticleTargetQueryService articleTargetQueryService;
     private final NewsRepository newsRepository;
     private final VideoInstructionRepository videoInstructionRepository;
 
@@ -53,13 +53,13 @@ public class FileAccessPolicy {
             FileReferenceIndex referenceIndex,
             StoredFileRepository storedFileRepository,
             ArticleRepository articleRepository,
-            ArticleTargetDepartmentRepository targetDepartmentRepository,
+            ArticleTargetQueryService articleTargetQueryService,
             NewsRepository newsRepository,
             VideoInstructionRepository videoInstructionRepository) {
         this.referenceIndex = referenceIndex;
         this.storedFileRepository = storedFileRepository;
         this.articleRepository = articleRepository;
-        this.targetDepartmentRepository = targetDepartmentRepository;
+        this.articleTargetQueryService = articleTargetQueryService;
         this.newsRepository = newsRepository;
         this.videoInstructionRepository = videoInstructionRepository;
     }
@@ -115,30 +115,17 @@ public class FileAccessPolicy {
         if (found.isEmpty()) {
             return false;
         }
-        List<String> targets = targetDepartmentRepository
-                .findByArticleId(articleId, PageRequest.of(0, 100))
-                .stream()
-                .map(target -> target.getDepartment())
-                .toList();
+        List<String> targets = articleTargetQueryService.targetDepartmentsForArticleWithinLimit(articleId);
         return ArticleVisibility.isVisible(found.get(), targets, user);
     }
 
-    /**
-     * News has no shared visibility helper to borrow, and no scheduling: the
-     * list endpoint filters on department and archived state, so this matches
-     * that and nothing more. Content admins see everything, as they do for
-     * articles.
-     */
+    /** Private drafts stay private even when their uploaded filename is known. */
     private boolean canReadNews(Long newsId, User user) {
         Optional<News> found = newsRepository.findById(newsId);
         if (found.isEmpty() || found.get().isArchived()) {
             return false;
         }
-        if (user.getRole().isContentAdmin()) {
-            return true;
-        }
-        return DepartmentMatcher.matches(
-                user.getDepartment(), List.of(String.valueOf(found.get().getTargetDepartment())));
+        return NewsVisibility.isVisible(found.get(), user);
     }
 
     private boolean canReadVideo(Long videoId, User user) {
@@ -146,7 +133,7 @@ public class FileAccessPolicy {
         if (found.isEmpty() || found.get().isArchived()) {
             return false;
         }
-        return true;
+        return VideoVisibility.isInAudience(found.get(), user);
     }
 
     /**

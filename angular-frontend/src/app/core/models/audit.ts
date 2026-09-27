@@ -53,4 +53,5 @@ export interface AuditChainHealth {
   link_breaks: number;
   bad_ids: number[];
   unchained_total: number;
+  tail_state_mismatch: boolean;
 }

@@ -25,7 +25,7 @@
     @for (definition of definitions; track definition.family) {
       <article class="surface-card flex flex-col p-5">
         <span class="flex h-11 w-11 items-center justify-center rounded-lg bg-brand/10 text-brand-accent"><i class="fa-solid" [class]="definition.icon" aria-hidden="true"></i></span>
-        <h2 class="mt-4 text-base font-bold text-slate-900 dark:text-white">{{ definition.title }}</h2>
+        <h2 class="mt-4 text-base font-bold text-slate-900 dark:text-white">{{ definition.family === 'quiz-attempts' ? (definition.title | translate) : definition.title }}</h2>
         <p class="mt-2 flex-1 text-sm leading-6 text-slate-600 dark:text-slate-400">{{ definition.description }}</p>
         <button type="button" class="primary-button mt-5 w-full justify-center" (click)="submit(definition)" [disabled]="running() !== null">
           @if (running() === definition.family) { <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> მზადდება… } @else { <i class="fa-solid fa-file-excel" aria-hidden="true"></i> XLSX ექსპორტი }

@@ -152,6 +152,7 @@ public class ProductionSafetyGuard {
 			throw new IllegalStateException(
 					"OAUTH_SECRET is not set, or is still a placeholder, with CORPORATE_AUTH_ENABLED=true.");
 		}
+		ge.magti.portal.security.CorporateClientCredential.validate(credential, corporate.getClientId());
 		try {
 			ge.magti.portal.security.DirectoryRoleMapper.validate(corporate.getRoleMap());
 		} catch (IllegalArgumentException e) {

@@ -2,6 +2,7 @@ package ge.magti.portal.content;
 
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.News;
+import ge.magti.portal.domain.User;
 import ge.magti.portal.domain.VideoInstruction;
 import ge.magti.portal.repository.ArticleRepository;
 import ge.magti.portal.repository.NewsRepository;
@@ -44,12 +45,45 @@ public class ItemTitleResolver {
     }
 
     public Optional<String> resolve(String itemType, Long itemId) {
+        return resolve(itemType, itemId, null);
+    }
+
+    /** A background delivery has no private-draft owner; it receives no private title. */
+    public Optional<String> resolve(String itemType, Long itemId, User user) {
         return switch (itemType == null ? "" : itemType) {
-            case "article" -> articleRepository.findById(itemId).map(Article::getTitle);
-            case "news" -> newsRepository.findById(itemId).map(News::getTitle);
+            case "article" -> articleRepository.findById(itemId)
+                    .filter(a -> PrivateDraftAccess.canAccess(a.isDraft(), a.getAuthorId(), user)).map(Article::getTitle);
+            case "news" -> newsRepository.findById(itemId)
+                    .filter(n -> PrivateDraftAccess.canAccess(n.isDraft(), n.getAuthorId(), user)).map(News::getTitle);
             case "video" -> videoInstructionRepository.findById(itemId).map(VideoInstruction::getTitle);
             default -> Optional.empty();
         };
+    }
+
+    public boolean privateDraftIsHidden(String itemType, Long itemId, User user) {
+        return switch (itemType == null ? "" : itemType) {
+            case "article" -> articleRepository.countInaccessiblePrivateDraftIncludingTrash(itemId, user.getId()) > 0;
+            case "news" -> newsRepository.countInaccessiblePrivateDraftIncludingTrash(itemId, user.getId()) > 0;
+            default -> false;
+        };
+    }
+
+    /** Also covers trashed parents so a stored assignment snapshot cannot bypass privacy. */
+    public Set<ItemKey> hiddenPrivateDrafts(List<ItemKey> keys, User user) {
+        Set<ItemKey> hidden = new java.util.HashSet<>();
+        Set<Long> articleIds = keys.stream().filter(k -> "article".equals(k.itemType()))
+                .map(ItemKey::itemId).collect(Collectors.toSet());
+        Set<Long> newsIds = keys.stream().filter(k -> "news".equals(k.itemType()))
+                .map(ItemKey::itemId).collect(Collectors.toSet());
+        if (!articleIds.isEmpty()) {
+            articleRepository.findInaccessiblePrivateDraftIdsIncludingTrash(articleIds, user.getId())
+                    .forEach(id -> hidden.add(new ItemKey("article", id)));
+        }
+        if (!newsIds.isEmpty()) {
+            newsRepository.findInaccessiblePrivateDraftIdsIncludingTrash(newsIds, user.getId())
+                    .forEach(id -> hidden.add(new ItemKey("news", id)));
+        }
+        return hidden;
     }
 
     /**

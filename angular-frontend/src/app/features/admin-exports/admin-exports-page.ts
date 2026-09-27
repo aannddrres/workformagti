@@ -1,5 +1,6 @@
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AdminExportDefinition, AdminExportFamily } from '../../core/models/admin-export';
 import { AdminExportService } from '../../core/services/admin-export.service';
@@ -8,12 +9,14 @@ import { ExportPollTimeoutError, ExportService } from '../../core/services/expor
 @Component({
   selector: 'app-admin-exports-page',
   standalone: true,
+  imports: [TranslatePipe],
   templateUrl: './admin-exports-page.html'
 })
 export class AdminExportsPage {
   private readonly adminExport = inject(AdminExportService);
   private readonly exports = inject(ExportService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly translate = inject(TranslateService);
 
   protected readonly from = signal('');
   protected readonly through = signal('');
@@ -26,7 +29,7 @@ export class AdminExportsPage {
     { family: 'read-evidence', title: 'ოფიციალური გაცნობის მტკიცებულება', icon: 'fa-clipboard-check', filename: 'read-evidence.xlsx', description: 'სტატიის ოფიციალური დადასტურებები და სავალდებულო მასალის სტატუსები.' },
     { family: 'article-views', title: 'სტატიების გახსნის ისტორია', icon: 'fa-eye', filename: 'article-views.xlsx', description: 'უბრალო გახსნის ისტორია; ეს ოფიციალურ წაკითხვად არ ითვლება.' },
     { family: 'search-history', title: 'ძებნის ისტორია', icon: 'fa-magnifying-glass', filename: 'search-history.xlsx', description: 'ვინ რას ეძებდა და რამდენი შედეგი მიიღო.' },
-    { family: 'quiz-attempts', title: 'Quiz მცდელობები', icon: 'fa-list-check', filename: 'quiz-attempts.xlsx', description: 'რეალურად შენახული ქულა, ვერსია, მცდელობის ნომერი და შედეგი.' },
+    { family: 'quiz-attempts', title: 'audit.quiz_attempts_title', icon: 'fa-list-check', filename: 'quiz-attempts.xlsx', description: 'რეალურად შენახული ქულა, ვერსია, მცდელობის ნომერი და შედეგი.' },
     { family: 'change-events', title: 'ცვლილებები და უსაფრთხოების მოვლენები', icon: 'fa-user-lock', filename: 'change-events.xlsx', description: 'მომხმარებლის, კონტენტის, ადმინისტრაციული და უსაფრთხოების მოვლენები.' }
   ];
 
@@ -59,15 +62,19 @@ export class AdminExportsPage {
   private waitAndDownload(jobId: string, definition: AdminExportDefinition): void {
     this.exports.pollUntilDone(jobId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (status) => {
+        if (status.status === 'processing') {
+          return;
+        }
         if (status.status !== 'completed') {
-          this.fail('ექსპორტის ფაილის აგება ვერ მოხერხდა.');
+          this.fail('ექსპორტის მომზადება შეწყდა. სცადეთ ხელახლა.');
           return;
         }
         this.exports.download(jobId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
           next: (blob) => {
             this.downloadBlob(blob, definition.filename);
             this.running.set(null);
-            this.success.set(`„${definition.title}“ მომზადდა და ჩამოიტვირთა.`);
+            const title = definition.family === 'quiz-attempts' ? this.translate.instant(definition.title) : definition.title;
+            this.success.set(`„${title}“ მომზადდა და ჩამოიტვირთა.`);
           },
           error: () => this.fail('მომზადებული ფაილის ჩამოტვირთვა ვერ მოხერხდა.')
         });

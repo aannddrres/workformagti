@@ -39,3 +39,36 @@ saved result from approved production-like staging with representative data.
 
 `tokens.json` (gitignored) holds real JWTs — never commit it, and only run
 this against a throwaway/test instance.
+
+## 600 distinct users and writes on staging
+
+`k6-staging-600.js` is a separate capacity gate for a production-like,
+isolated staging environment. IT must first provision 600 **synthetic**
+InfoPortal identities named `loadtest.*`, each with a short-lived token from
+the staging client and an article ID visible to that identity. Put them in
+gitignored `staging-users.json` next to the script:
+
+```json
+[{"email":"loadtest.0001@example.test","token":"<staging JWT>","articleId":123}]
+```
+
+The real file needs 600 distinct entries. The script checks `/api/users/me`
+against each entry before sending that identity's one article-view write. Run
+it only after confirming that staging has disposable data and no real users:
+
+```bash
+LOAD_CONFIRM=isolated-synthetic-staging \
+TARGET_BASE_URL=https://staging.example.test \
+k6 run --summary-export=staging-600-summary.json k6-staging-600.js
+```
+
+The hard thresholds are HTTP errors below 1%, business checks above 99%,
+global-search p95 below 2 seconds, exactly 600 verified identities and write
+attempts, zero identity mismatches, and zero failed writes. A green k6 result
+still needs database reconciliation: record the
+start timestamp before the run, then have the DBA verify that
+`article_view_logs` has 600 distinct `operator_email_snapshot` values starting
+with `loadtest.` after that timestamp, with one row per expected account.
+Record JVM, Hikari, Oracle, request latency and any stuck export jobs during
+the run. Save the summary and the reconciliation query/result with the
+release evidence. Do not commit `staging-users.json` or any token.

@@ -83,6 +83,7 @@ services:
       COOKIE_SECURE: "false"
       ROLLOUT_LEADERSHIP_SCOPE: "true"
       ROLLOUT_COMPLIANCE_ELIGIBILITY: "true"
+      ROLLOUT_FILE_ENTITLEMENT: "true"
       # The 30-minute idle sign-out is right for a shared call-centre
       # workstation and wrong for a presentation: talking over one dashboard
       # for half an hour counts as inactivity, and the portal signs itself

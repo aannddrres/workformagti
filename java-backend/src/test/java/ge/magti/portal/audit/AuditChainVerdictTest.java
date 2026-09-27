@@ -4,7 +4,6 @@ import ge.magti.portal.web.AuditChainHealthResponse;
 import ge.magti.portal.web.AuditVerifyResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.ResultSetExtractor;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -13,7 +12,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -41,8 +39,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * arithmetic on values the database hands over, so they are checked here on
  * values a stub hands over instead.
  *
- * <p>{@link StubJdbcTemplate} returns rows shaped exactly like the three
- * queries in {@link AuditChainService#chainHealth} produce. That couples
+ * <p>{@link StubJdbcTemplate} returns rows shaped like the one consistent
+ * snapshot query in {@link AuditChainService#chainHealth}. That couples
  * this test to those queries' column names -- deliberately the smallest
  * coupling available, since the alternative is extracting the loop into a
  * pure function, which means editing tamper-detection code that no test
@@ -55,8 +53,8 @@ class AuditChainVerdictTest {
     private static final String HASH_C = "cc33";
 
     /**
-     * Stands in for the three calls {@code chainHealth} makes and the one
-     * {@code verify} makes. A hand-written stub rather than a mock: the
+     * Stands in for the single snapshot call {@code chainHealth} makes and
+     * the one {@code verify} makes. A hand-written stub rather than a mock: the
      * varargs on {@code queryForList}/{@code query} make matcher-based
      * stubbing read worse than the thing it replaces, and the recorded
      * fields below are what several of the assertions are about.
@@ -68,29 +66,41 @@ class AuditChainVerdictTest {
         private String boundaryPredecessor;
 
         private Object windowArgument;
-        private boolean askedForBoundaryPredecessor;
+        private int snapshotQueries;
 
         @Override
         public List<Map<String, Object>> queryForList(String sql, Object... args) {
+            if (!sql.contains("WITH state AS")) {
+                return rows; // verify(id) has its own one-row query
+            }
+            snapshotQueries++;
             windowArgument = args.length > 0 ? args[0] : null;
-            return rows;
-        }
-
-        @Override
-        @SuppressWarnings("unchecked")
-        public <T> T queryForObject(String sql, Class<T> requiredType) {
-            return (T) Long.valueOf(unchainedTotal);
-        }
-
-        @Override
-        @SuppressWarnings("unchecked")
-        public <T> T query(String sql, ResultSetExtractor<T> extractor, Object... args) {
-            askedForBoundaryPredecessor = true;
-            return (T) boundaryPredecessor;
+            List<Map<String, Object>> snapshot = new ArrayList<>();
+            List<Map<String, Object>> window = rows.isEmpty() ? List.of(Map.of()) : rows;
+            for (Map<String, Object> row : window) {
+                Map<String, Object> shaped = new LinkedHashMap<>(row);
+                shaped.putIfAbsent("id", null);
+                shaped.put("state_count", 1);
+                shaped.put("tip_hash", rows.isEmpty() ? null : rows.get(rows.size() - 1).get("row_hash"));
+                shaped.put("unchained_total", unchainedTotal);
+                shaped.put("chained_exists", rows.isEmpty() ? 0 : 1);
+                shaped.put("tip_count", rows.isEmpty() ? 0 : 1);
+                shaped.put("tip_children", 0);
+                shaped.put("is_cycle", 0);
+                Object predecessor = row.get("prev_hash");
+                long count = predecessor == null ? 0 : rows.stream()
+                        .filter(candidate -> predecessor.equals(candidate.get("row_hash"))).count();
+                if (count == 0 && predecessor != null && predecessor.equals(boundaryPredecessor)) {
+                    count = 1;
+                }
+                shaped.put("predecessor_count", count);
+                snapshot.add(shaped);
+            }
+            return snapshot;
         }
     }
 
-    /** One row as the window query returns it. */
+    /** One row as the window query returns it before snapshot metadata. */
     private static Map<String, Object> row(long id, String prevHash, String rowHash, String recomputed) {
         Map<String, Object> values = new LinkedHashMap<>();
         values.put("id", id);
@@ -113,7 +123,7 @@ class AuditChainVerdictTest {
 
     /**
      * {@code n} is clamped to [1, 500] before it reaches the query. Zero or
-     * a negative would make {@code FETCH FIRST ? ROWS ONLY} an error rather
+     * a negative would make the hierarchical depth bound invalid rather
      * than an empty answer, and an unbounded value turns a dashboard mount
      * into a full-table rehash.
      */
@@ -222,12 +232,13 @@ class AuditChainVerdictTest {
         jdbc.rows = List.of(intactRow(2, HASH_A, HASH_B), intactRow(3, HASH_B, HASH_C));
 
         assertEquals("ok", healthOf(jdbc, 2).status());
-        assertTrue(jdbc.askedForBoundaryPredecessor);
+        assertEquals(1, jdbc.snapshotQueries);
 
         StubJdbcTemplate forgedGenesis = new StubJdbcTemplate();
         forgedGenesis.boundaryPredecessor = HASH_A;
-        // prev_hash null claims "nothing came before me", but something did.
-        forgedGenesis.rows = List.of(intactRow(2, null, HASH_B), intactRow(3, HASH_B, HASH_C));
+        // The oldest row points outside the sampled window, but that hash
+        // is absent from the table. The boundary is still checked.
+        forgedGenesis.rows = List.of(intactRow(2, "missing", HASH_B), intactRow(3, HASH_B, HASH_C));
 
         AuditChainHealthResponse health = healthOf(forgedGenesis, 2);
         assertEquals("tampered", health.status());
@@ -267,9 +278,7 @@ class AuditChainVerdictTest {
 
         assertEquals("ok", health.status());
         assertEquals(0, health.checked());
-        assertFalse(jdbc.askedForBoundaryPredecessor,
-                "with no rows there is no oldest row to link, and the boundary query would be a "
-                        + "needless round trip on every dashboard mount");
+        assertEquals(1, jdbc.snapshotQueries, "even an empty chain uses one consistent snapshot");
     }
 
     /**

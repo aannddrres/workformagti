@@ -14,7 +14,7 @@
     "response": {
       "status_code": 200,
       "body": {
-        "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJvcGVyYXRvci50ZWNoQG1hZ3RpLmdlIiwicm9sZSI6Im9wZXJhdG9yIiwiZXhwIjoxNzg1MzMyNTQyfQ.sfs6Sv-H8g9IFBTPZ5Noon0Ua6JuM8BlAHMc8SsTjwc",
+        "access_token": "NOT_A_CREDENTIAL_API_EXAMPLE",
         "token_type": "bearer"
       }
     },
@@ -3325,7 +3325,7 @@
     "response": {
       "status_code": 200,
       "body": {
-        "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjb250ZW50QG1hZ3RpLmdlIiwicm9sZSI6ImNvbnRlbnRfYWRtaW4iLCJleHAiOjE3ODUzMzI1NDd9.IM6wmordogpj39OEfMHy5l5qEfHQ6hHhs5BlSa8wQd4",
+        "access_token": "NOT_A_CREDENTIAL_API_EXAMPLE",
         "token_type": "bearer"
       }
     },

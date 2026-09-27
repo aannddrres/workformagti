@@ -241,7 +241,9 @@ class ExportControllerIntegrationTest {
                 .andExpect(header().string("Content-Disposition", "attachment; filename=readings_export.csv"))
                 .andReturn().getResponse().getContentAsString();
 
-        assertTrue(csv.startsWith("User ID,User Name,Item Type,Item ID,Status,Read At\r\n"));
+        assertTrue(csv.startsWith("თანამშრომლის ID,თანამშრომელი,მასალის ტიპი,მასალის ID,სტატუსი,წაკითხვის თარიღი\r\n"));
+        assertTrue(csv.contains("სტატია"), "known article type must be Georgian in the exported data");
+        assertTrue(csv.contains("წაკითხულია"), "known reading status must be Georgian in the exported data");
         assertTrue(csv.contains("'=cmd|'/c calc'!A1"), "operator's formula-leading name must be sanitized");
         assertFalse(csv.contains(manager.getId() + ","), "manager (management role) must be excluded from the eligible export");
     }
@@ -297,6 +299,7 @@ class ExportControllerIntegrationTest {
                 .andReturn().getResponse().getContentAsByteArray();
         try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(xlsxBytes))) {
             var sheet = wb.getSheetAt(0);
+            assertEquals("გაცნობის სტატუსი", sheet.getSheetName());
             assertEquals("თანამშრომელი", sheet.getRow(0).getCell(0).getStringCellValue());
             // eligibleReadingRows(admin) is system-wide for an unscoped role
             // (SEC-02 pins only MANAGER), so it is not scoped to this test's
@@ -309,6 +312,8 @@ class ExportControllerIntegrationTest {
                 var row = sheet.getRow(i);
                 if (row != null && row.getCell(0) != null
                         && operator.getName().equals(row.getCell(0).getStringCellValue())) {
+                    assertEquals("სტატია", row.getCell(2).getStringCellValue());
+                    assertEquals("წაკითხულია", row.getCell(4).getStringCellValue());
                     foundOperatorRow = true;
                     break;
                 }
@@ -460,6 +465,7 @@ class ExportControllerIntegrationTest {
             String text = new PDFTextStripper().getText(document);
             assertTrue(text.contains("სავალდებულოდ"));
             assertTrue(text.contains(eligibleOperator.getName()));
+            assertTrue(text.contains("წაკითხულია"));
         }
     }
 

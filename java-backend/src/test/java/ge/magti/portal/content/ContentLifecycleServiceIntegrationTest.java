@@ -136,7 +136,7 @@ class ContentLifecycleServiceIntegrationTest {
         entityManager.clear();
         assertTrue(articleRepository.findById(articleId).isEmpty(), "ordinary queries must hide trash");
         assertTrue(storedFileRepository.findById(filename).isEmpty(), "trashed attachment must not be served");
-        assertEquals(1, lifecycleService.listTrash().stream()
+        assertEquals(1, lifecycleService.listTrash(admin).stream()
                 .filter(item -> item.itemType().equals("article") && item.itemId().equals(articleId)).count());
         AuditLog trashAudit = audit("TRASH", articleId);
         var trashDetails = objectMapper.readTree(trashAudit.getDetails());

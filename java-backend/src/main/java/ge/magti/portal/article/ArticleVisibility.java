@@ -1,5 +1,6 @@
 package ge.magti.portal.article;
 
+import ge.magti.portal.content.PrivateDraftAccess;
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.util.DepartmentMatcher;
@@ -34,12 +35,6 @@ public final class ArticleVisibility {
      *                          in rather than fetched here.
      */
     public static boolean isVisible(Article article, List<String> targetDepartments, User user) {
-        // Content administrators read everything, drafts included. See the
-        // note below on why this line sits above the draft clause and not
-        // under it -- it is an open product question, not a settled one.
-        if (user.getRole().isContentAdmin()) {
-            return true;
-        }
         // is_draft is the personal-autosave flag, not editorial state. This
         // clause was missing entirely until 2026-09-06, and its absence did
         // not show up as a wrong list -- ArticleQueryService's SQL carries
@@ -51,22 +46,11 @@ public final class ArticleVisibility {
         // GET /api/articles/{id}: another author's private draft, if its
         // status happened to say published, came back in full to any of the
         // ~600 operators in its target departments.
-        //
-        // OPEN QUESTION, deliberately left as it was found. The repository
-        // documents this rule as "hides a row from everyone but its author,
-        // content administrators included", and ArticleQueryService's
-        // "a.isDraft = false OR a.authorId = :userId" implements exactly that
-        // -- outside its :isAdmin branch, so an administrator's own list hides
-        // a colleague's draft. But ArticleControllerIntegrationTest's
-        // adminCanSeeADraftArticleById asserts the opposite for a direct
-        // fetch, deliberately and by name. Those two have disagreed since
-        // before this clause existed; each went through a different code
-        // path, so nothing made them meet. Putting the draft check above the
-        // bypass would settle it in the document's favour and change what
-        // administrators can open -- a product decision, not a bug fix, so it
-        // is not taken here. Where it lands, this is the line that moves.
-        if (article.isDraft() && !isAuthor(article, user)) {
+        if (!PrivateDraftAccess.canAccess(article.isDraft(), article.getAuthorId(), user)) {
             return false;
+        }
+        if (user.getRole().isContentAdmin()) {
+            return true;
         }
         if (!DepartmentMatcher.matches(user.getDepartment(), targetDepartments)) {
             return false;
@@ -102,13 +86,4 @@ public final class ArticleVisibility {
                 && !publishedAt.isAfter(TbilisiTime.now());
     }
 
-    /**
-     * Null-safe on both sides, and deliberately so: an article with no author
-     * belongs to nobody rather than to everybody, which is the same direction
-     * {@code ArticleQueryService}'s {@code a.authorId = :userId} resolves to
-     * for a null column.
-     */
-    private static boolean isAuthor(Article article, User user) {
-        return article.getAuthorId() != null && article.getAuthorId().equals(user.getId());
-    }
 }

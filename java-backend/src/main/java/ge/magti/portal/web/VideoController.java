@@ -9,7 +9,7 @@ import ge.magti.portal.query.CompleteResultGuard;
 import ge.magti.portal.repository.VideoInstructionRepository;
 import ge.magti.portal.search.SearchReindexService;
 import ge.magti.portal.security.PermissionChecker;
-import ge.magti.portal.util.DepartmentMatcher;
+import ge.magti.portal.video.VideoVisibility;
 import ge.magti.portal.storage.FileReferenceIndex;
 import ge.magti.portal.util.TbilisiTime;
 import ge.magti.portal.video.TagSyncService;
@@ -92,7 +92,7 @@ public class VideoController {
                         videoRepository.findAll(CompleteResultGuard.sentinelPage()).getContent())
                 : CompleteResultGuard.enforce(
                         videoRepository.findByArchivedFalse(CompleteResultGuard.sentinelPage())).stream()
-                        .filter(v -> DepartmentMatcher.matches(user.getDepartment(), List.of(v.getTargetDepartment())))
+                        .filter(v -> VideoVisibility.isInAudience(v, user))
                         .toList();
 
         return ResponseEntity.ok(videos.stream().map(VideoInstructionResponse::from).toList());
@@ -261,7 +261,7 @@ public class VideoController {
     private static boolean isVideoVisibleTo(User user, VideoInstruction video) {
         return user.getRole().isContentAdmin()
                 || (!video.isArchived()
-                && DepartmentMatcher.matches(user.getDepartment(), List.of(video.getTargetDepartment())));
+                && VideoVisibility.isInAudience(video, user));
     }
 
     private ResponseEntity<Map<String, String>> requireVideosArchivePermission(User user) {

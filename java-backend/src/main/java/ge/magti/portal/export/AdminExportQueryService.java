@@ -33,6 +33,15 @@ public class AdminExportQueryService {
         };
         List<List<Object>> rows = run(query);
         ExportSizeGuard.checkSize(rows.size());
+        if (family == AdminExportFamily.READ_EVIDENCE) {
+            rows = rows.stream().map(row -> {
+                List<Object> displayed = new ArrayList<>(row);
+                displayed.set(0, ExportDisplayLabels.evidenceType((String) row.get(0)));
+                displayed.set(6, ExportDisplayLabels.itemType((String) row.get(6)));
+                displayed.set(10, ExportDisplayLabels.readingStatus((String) row.get(10)));
+                return displayed;
+            }).toList();
+        }
         return new AdminExportDataset(family, query.headers(), rows);
     }
 

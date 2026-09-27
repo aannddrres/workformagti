@@ -16,7 +16,7 @@ from here, so that neither half goes stale by being restated.
 |---|---|
 | Backend | `java-backend/` — Java 21, Spring Boot 4.1.0, Maven wrapper (`mvnw` / `mvnw.cmd`) |
 | Frontend | `angular-frontend/` — Angular 22, Node 22.22.3 (pinned in `.nvmrc`) |
-| Database | Oracle. Flyway owns the schema; the highest migration is `V48` |
+| Database | Oracle. Flyway owns the schema; the highest migration is `V50` |
 | Tooling | Four Python seeders in `scripts/`, covered by `tests/` |
 
 The FastAPI/PostgreSQL/server-rendered implementation was deleted on
@@ -53,11 +53,13 @@ Verify a change — **this is the one to reach for**:
 scripts/verify-like-ci.sh fast
 ```
 
-`fast` is what every branch push runs in CI; `oracle` is the Oracle-backed
-Java suite; no argument runs both. It runs the same commands CI runs, in the
-same order, and exits non-zero rather than report success for a job it could
-not run here. The Oracle-backed CI jobs are gated to pull requests and `main`,
-so between a branch push and a PR this script *is* the verification.
+`fast` runs CI's language/test jobs; `oracle` is the Oracle-backed Java suite;
+no argument runs both. It runs those commands in order and exits non-zero
+rather than report success for one it could not run here. The separate
+`supply-chain` CI job (SBOM and runtime image scanning) and browser E2E still
+need their own results. The Oracle-backed CI jobs are gated to pull requests
+and `main`, so between a branch push and a PR this script provides the local
+Java/Angular/Python regression result.
 
 The individual loops, when you want one of them alone:
 
@@ -121,9 +123,8 @@ could easily become, several. Read the file before writing a second copy.
   It did not evaluate `is_draft` at all until 2026-09-06, so another
   author's private draft — if its status said `published` — came back in
   full from `GET /api/articles/{id}` to any operator in its target
-  departments. **Open question, deliberately not settled:** the draft check
-  sits *below* the content-admin bypass, so an administrator can still open
-  a colleague's draft by id even though their own list hides it.
+  departments. Since 2026-09-24, the draft check precedes the content-admin
+  bypass: only its author may open a private draft by id or its attachment.
   `ArticleVisibilityDraftTest` records both sides.
 - `util/DepartmentMatcher.visibilityTargets` — the department values a
   caller's content is delivered by. Six places built this list inline, and
@@ -159,9 +160,13 @@ could easily become, several. Read the file before writing a second copy.
   against each other and fails the build on any mismatch; they are listed in
   `java-backend/AGENTS.md`.
 - **Flyway migrations are not individually idempotent and must not carry
-  `IF NOT EXISTS`-style guards.** Flyway takes an exclusive lock on
-  `flyway_schema_history` before applying anything, so simultaneous instances
-  serialise — one applies, the other skips. Plain `CREATE TABLE` is correct.
+  `IF NOT EXISTS`-style guards.** A two-JVM start against fresh Oracle XE 21c
+  on 2026-09-24 observed the instances interleave: each applied 25 disjoint
+  migrations, and the final history had 50 unique successful versions through
+  V50. Both replicas became ready. Do not assume one JVM applies the entire
+  sequence while the other waits. Plain `CREATE TABLE` remains correct; a
+  guard could hide a partly applied migration. Repeat the two-replica startup
+  on the actual staging Oracle version before production.
 - **`is_draft` is not `status='draft'`.** `is_draft` is the personal-autosave
   flag, and it hides a row from everyone but its author — content
   administrators included. Editorial state goes in `status`. Getting this
@@ -205,9 +210,10 @@ Corporate login is **wired but not yet switched on**. With
 password against the company's OAuth2 token endpoint (`ldap_auth` grant) —
 `security/CorporateAuthClient.java` for the exchange, `CorporateLoginService`
 for the account — and never keeps the tokens it gets back. Roles come from the
-directory on **every** sign-in through `OAUTH_ROLE_MAP` (owner decision,
-2026-09-21), so the admin screens show roles read-only and the API refuses a
-role change; deactivation stays the portal's and outranks a correct password.
+directory on **every** sign-in through `OAUTH_ROLE_MAP` (owner decisions,
+2026-09-21/23). No mapped InfoPortal role means no portal entry and revokes
+previous portal tokens. The admin screens show roles read-only and the API
+refuses a role change; deactivation stays the portal's and outranks a correct password.
 `POST /api/auth/sso/start` still answers 503 — no redirect flow exists or is
 planned. What blocks going live is on IT's side: the InfoPortal client's own
 credential (the one in their email belongs to another application) and the

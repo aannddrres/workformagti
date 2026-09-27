@@ -14,6 +14,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
@@ -30,12 +31,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @RequiresOracle
 @SpringBootTest
 @AutoConfigureMockMvc
+@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 @Transactional
 class SecurityConfigIntegrationTest {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private UserRepository userRepository;
     @Autowired private JwtService jwtService;
+    @Autowired private PortalSessionService sessionService;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private PortalProperties properties;
 
@@ -54,12 +57,17 @@ class SecurityConfigIntegrationTest {
         return userRepository.saveAndFlush(user);
     }
 
+    private Cookie browserSession(User user) {
+        var session = sessionService.create(user, "127.0.0.1", "csrf-cookie-test");
+        return new Cookie("access_token", jwtService.createAccessTokenFor(user, session.getId()));
+    }
+
     @Test
     void theCsrfCookieExpiresWithTheSessionItProtects() throws Exception {
-        String token = jwtService.createAccessTokenFor(operator("csrf-lifetime-operator@magti.ge"));
+        Cookie accessCookie = browserSession(operator("csrf-lifetime-operator@magti.ge"));
 
         MvcResult result = mockMvc.perform(get("/api/not-a-real-route")
-                        .header("Authorization", "Bearer " + token))
+                        .cookie(accessCookie))
                 .andReturn();
 
         Cookie issued = result.getResponse().getCookie("XSRF-TOKEN");
@@ -75,17 +83,16 @@ class SecurityConfigIntegrationTest {
 
     @Test
     void anAuthenticatedRequestDoesNotReissueTheCsrfCookie() throws Exception {
-        String token = jwtService.createAccessTokenFor(operator("csrf-rotation-operator@magti.ge"));
+        Cookie accessCookie = browserSession(operator("csrf-rotation-operator@magti.ge"));
 
         MvcResult first = mockMvc.perform(get("/api/not-a-real-route")
-                        .header("Authorization", "Bearer " + token))
+                        .cookie(accessCookie))
                 .andReturn();
         Cookie issued = first.getResponse().getCookie("XSRF-TOKEN");
         assertNotNull(issued, "the first request should establish a CSRF cookie");
 
         MvcResult second = mockMvc.perform(get("/api/not-a-real-route")
-                        .header("Authorization", "Bearer " + token)
-                        .cookie(issued))
+                        .cookie(accessCookie, issued))
                 .andReturn();
 
         assertNull(second.getResponse().getCookie("XSRF-TOKEN"),

@@ -21,8 +21,8 @@ import java.util.Set;
  * <p>A user holds one role, so two mapped authorities need a winner: system
  * admin, then content admin, then manager, then operator. A user with more
  * than one is almost certainly a mistake in the directory rather than a
- * design, so the caller is told and logs it. No mapped authority at all means
- * operator -- the least a signed-in employee can be.
+ * design, so the caller is told and logs it. No mapped authority means no
+ * portal admission, even when another company application granted a role.
  */
 public final class DirectoryRoleMapper {
 
@@ -60,7 +60,10 @@ public final class DirectoryRoleMapper {
 
     /** Parses the map and throws on anything wrong -- for the boot-time guard. */
     public static void validate(String specification) {
-        new DirectoryRoleMapper(specification);
+        DirectoryRoleMapper mapper = new DirectoryRoleMapper(specification);
+        if (!mapper.roleByAuthority.values().containsAll(PRECEDENCE)) {
+            throw new IllegalArgumentException("OAUTH_ROLE_MAP must define all four portal roles");
+        }
     }
 
     /** Every portal role the authorities map to, however many. */
@@ -82,6 +85,6 @@ public final class DirectoryRoleMapper {
                 return candidate;
             }
         }
-        return Role.OPERATOR;
+        throw new IllegalArgumentException("No mapped InfoPortal authority");
     }
 }

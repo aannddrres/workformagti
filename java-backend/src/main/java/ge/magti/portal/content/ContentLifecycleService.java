@@ -99,16 +99,16 @@ public class ContentLifecycleService {
     }
 
     @Transactional(readOnly = true)
-    public List<ContentTrashItem> listTrash() {
+    public List<ContentTrashItem> listTrash(User actor) {
         String sql = """
                 SELECT t.item_type, t.item_id, t.title, t.trashed_at, t.purge_after,
                        t.trashed_by, u.name, t.legal_hold
                 FROM (
                     SELECT 'article' item_type, id item_id, title, trashed_at, purge_after, trashed_by, legal_hold
-                    FROM articles WHERE trashed_at IS NOT NULL
+                    FROM articles WHERE trashed_at IS NOT NULL AND (is_draft = 0 OR author_id = ?)
                     UNION ALL
                     SELECT 'news', id, title, trashed_at, purge_after, trashed_by, legal_hold
-                    FROM news WHERE trashed_at IS NOT NULL
+                    FROM news WHERE trashed_at IS NOT NULL AND (is_draft = 0 OR author_id = ?)
                     UNION ALL
                     SELECT 'video', id, title, trashed_at, purge_after, trashed_by, legal_hold
                     FROM video_instructions WHERE trashed_at IS NOT NULL
@@ -119,7 +119,8 @@ public class ContentLifecycleService {
         return jdbcTemplate.query(sql, (rs, rowNum) -> new ContentTrashItem(
                 rs.getString(1), rs.getLong(2), rs.getString(3),
                 atTbilisi(rs.getTimestamp(4)), atTbilisi(rs.getTimestamp(5)),
-                rs.getLong(6), rs.getString(7), rs.getInt(8) == 1));
+                rs.getLong(6), rs.getString(7), rs.getInt(8) == 1),
+                actor == null ? null : actor.getId(), actor == null ? null : actor.getId());
     }
 
     @Transactional
@@ -129,7 +130,7 @@ public class ContentLifecycleService {
         // evaluates the database's current state, not its pre-request value.
         entityManager.flush();
         Payload payload = loadPayload(type, itemId, false);
-        if (payload == null) {
+        if (payload == null || !PrivateDraftAccess.canAccess(payload.privateDraft(), payload.authorId(), actor)) {
             return Status.NOT_FOUND;
         }
         if (!payload.archived()) {
@@ -158,7 +159,7 @@ public class ContentLifecycleService {
     @Transactional
     public Status restore(ItemType type, Long itemId, User actor) {
         Payload payload = loadPayload(type, itemId, true);
-        if (payload == null) {
+        if (payload == null || !PrivateDraftAccess.canAccess(payload.privateDraft(), payload.authorId(), actor)) {
             return Status.NOT_FOUND;
         }
         if (payload.legalHold()) {
@@ -195,7 +196,7 @@ public class ContentLifecycleService {
             return Status.NOT_AUTHORIZED;
         }
         Payload payload = loadPayload(type, itemId, true, true);
-        if (payload == null) {
+        if (payload == null || !PrivateDraftAccess.canAccess(payload.privateDraft(), payload.authorId(), actor)) {
             return Status.NOT_FOUND;
         }
         if (payload.legalHold() == hold) {
@@ -223,7 +224,7 @@ public class ContentLifecycleService {
         // dependent references. The final DELETE remains conditional as a
         // second fail-closed boundary.
         Payload payload = loadPayload(type, itemId, true, true);
-        if (payload == null) {
+        if (payload == null || !PrivateDraftAccess.canAccess(payload.privateDraft(), payload.authorId(), actor)) {
             return Status.NOT_FOUND;
         }
         if (payload.legalHold()) {
@@ -256,14 +257,14 @@ public class ContentLifecycleService {
     private Payload loadPayload(ItemType type, Long itemId, boolean trashed, boolean forUpdate) {
         String select = switch (type) {
             case ARTICLE -> "SELECT title, content, attachment_url, "
-                    + "CASE WHEN status = 'archived' THEN 1 ELSE 0 END, version, purge_after, legal_hold "
+                    + "CASE WHEN status = 'archived' THEN 1 ELSE 0 END, version, purge_after, legal_hold, is_draft, author_id "
                     + "FROM articles WHERE id = ? AND trashed_at IS " + (trashed ? "NOT NULL" : "NULL");
             case NEWS -> "SELECT title, content, attachment_url, "
                     + "CASE WHEN expires_at IS NOT NULL AND expires_at <= ? THEN 1 ELSE 0 END, "
-                    + "version, purge_after, legal_hold FROM news WHERE id = ? AND trashed_at IS "
+                    + "version, purge_after, legal_hold, is_draft, author_id FROM news WHERE id = ? AND trashed_at IS "
                     + (trashed ? "NOT NULL" : "NULL");
             case VIDEO -> "SELECT title, CAST(NULL AS VARCHAR2(1)), video_url, is_archived, "
-                    + "CAST(NULL AS NUMBER), purge_after, legal_hold "
+                    + "CAST(NULL AS NUMBER), purge_after, legal_hold, 0, CAST(NULL AS NUMBER) "
                     + "FROM video_instructions WHERE id = ? AND trashed_at IS " + (trashed ? "NOT NULL" : "NULL");
         };
         if (forUpdate) {
@@ -276,24 +277,24 @@ public class ContentLifecycleService {
                 ps.setLong(2, itemId);
             }, (rs, rowNum) -> payload(rs.getString(1), clobText(rs.getObject(2)), rs.getString(3),
                     rs.getInt(4) == 1, rs.getObject(5) == null ? null : rs.getInt(5),
-                    rs.getTimestamp(6), rs.getInt(7) == 1));
+                    rs.getTimestamp(6), rs.getInt(7) == 1, rs.getInt(8) == 1, rs.getObject(9, Long.class)));
         } else {
             rows = jdbcTemplate.query(select, ps -> ps.setLong(1, itemId),
                     (rs, rowNum) -> payload(rs.getString(1), clobText(rs.getObject(2)), rs.getString(3),
                             rs.getInt(4) == 1, rs.getObject(5) == null ? null : rs.getInt(5),
-                            rs.getTimestamp(6), rs.getInt(7) == 1));
+                            rs.getTimestamp(6), rs.getInt(7) == 1, rs.getInt(8) == 1, rs.getObject(9, Long.class)));
         }
         return rows.isEmpty() ? null : rows.getFirst();
     }
 
     private static Payload payload(
             String title, String content, String directUrl, boolean archived,
-            Integer version, Timestamp purgeAfter, boolean legalHold) {
+            Integer version, Timestamp purgeAfter, boolean legalHold, boolean privateDraft, Long authorId) {
         Set<String> filenames = new LinkedHashSet<>();
         collectFilenames(content, filenames);
         collectFilenames(directUrl, filenames);
         return new Payload(title, archived, version, filenames,
-                purgeAfter == null ? null : atTbilisi(purgeAfter), legalHold);
+                purgeAfter == null ? null : atTbilisi(purgeAfter), legalHold, privateDraft, authorId);
     }
 
     private void snapshotEvidence(ItemType type, Long itemId, String title) {
@@ -394,6 +395,8 @@ public class ContentLifecycleService {
             Integer version,
             Set<String> filenames,
             OffsetDateTime purgeAfter,
-            boolean legalHold) {
+            boolean legalHold,
+            boolean privateDraft,
+            Long authorId) {
     }
 }

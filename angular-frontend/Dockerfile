@@ -17,7 +17,11 @@ ARG BUILD_CONFIGURATION=production
 RUN npm run build -- --configuration "$BUILD_CONFIGURATION"
 
 # STAGE 2: Runtime
-FROM nginx:1.27-alpine AS runtime
+FROM nginx:1.30.5-alpine3.24@sha256:bf3201ab56f23e5954646379c775d511fc466e9f11376d9725361064ad07ed35 AS runtime
+
+# The pinned base still contains libexpat 2.8.4-r0; Alpine has 2.8.5-r0.
+# Apply current security fixes, then let the CI image scan catch new ones.
+RUN apk upgrade --no-cache
 
 # Default assumes a Kubernetes Service named "portal-backend" listening on
 # 8080 (java-backend/Dockerfile's EXPOSE) -- override both at `docker run`/
@@ -39,13 +43,9 @@ COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 # /var/cache/nginx (proxy/temp buffers), /var/run (pid file), and
 # /etc/nginx/conf.d (where docker-entrypoint.sh renders the template through
 # envsubst). The `nginx` user already exists in this base image.
-# NOT VERIFIED BY A BUILD: the container this was written in has the Docker
-# CLI but no daemon. Verify with
-#   docker build -t magti-fe . && docker run --rm -p 8080:8080 magti-fe
-# and check the page serves. If the entrypoint fails on a path not covered
-# below, the purpose-built alternative is to base this stage on
-# nginxinc/nginx-unprivileged:1.27-alpine, which needs none of these chowns
-# and already defaults to port 8080.
+# Verified on 2026-09-24 with the built runtime image: the non-root nginx
+# served the full Playwright suite and upload boundary checks on an isolated
+# Oracle-backed test stack. CI repeats the shipping-image path on Linux.
 RUN chown -R nginx:nginx /var/cache/nginx /var/run /etc/nginx/conf.d /usr/share/nginx/html \
     && touch /var/run/nginx.pid && chown nginx:nginx /var/run/nginx.pid
 
