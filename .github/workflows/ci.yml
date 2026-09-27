@@ -93,7 +93,7 @@ jobs:
       # The Oracle-backed fixture tests skip themselves unless
       # RUN_ORACLE_FIXTURE_TESTS=true, so this runs green without a database.
       - name: Run tests
-        run: pytest tests/ -q
+        run: python -m pytest tests/ -q
 
   # The Java backend is what actually goes to production, but nothing here
   # compiled or tested it until now (audit finding PR-01) -- every PR went
@@ -604,7 +604,7 @@ jobs:
           npm run sbom
 
       - name: Install Trivy
-        uses: aquasecurity/setup-trivy@v0.2.3
+        uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6
         with:
           version: v0.58.1
 
