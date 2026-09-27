@@ -7,6 +7,7 @@ import ge.magti.portal.repository.AuditLogRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.UUID;
 
@@ -25,6 +26,7 @@ class ExportJobRecoveryIntegrationTest {
     @Autowired private ExportJobLifecycle lifecycle;
     @Autowired private ExportJobLeaseOwner owner;
     @Autowired private AuditLogRepository audits;
+    @Autowired private JdbcTemplate jdbc;
 
     @Test
     void anExpiredProcessingJobBecomesVisibleAsFailedInsteadOfDisappearing() {
@@ -46,9 +48,8 @@ class ExportJobRecoveryIntegrationTest {
         job.setId(UUID.randomUUID().toString());
         job.setStatus("processing");
         job.setExpiresAt(jobs.databaseNow().toEpochSecond() - 60);
-        job.setWorkerInstanceId(UUID.randomUUID().toString());
-        job.setLeaseUntil(jobs.databaseNow().plusSeconds(90));
         jobs.saveAndFlush(job);
+        assertEquals(1, jobs.startLease(job.getId(), UUID.randomUUID().toString()));
 
         recovery.recover();
         cleanup.sweepExpiredJobs();
@@ -63,9 +64,9 @@ class ExportJobRecoveryIntegrationTest {
         job.setId(UUID.randomUUID().toString());
         job.setStatus("processing");
         job.setExpiresAt(jobs.databaseNow().toEpochSecond() + 3600);
-        job.setWorkerInstanceId(owner.id());
-        job.setLeaseUntil(jobs.databaseNow().minusSeconds(1));
         jobs.saveAndFlush(job);
+        assertEquals(1, jobs.startLease(job.getId(), owner.id()));
+        jdbc.update("UPDATE export_jobs SET lease_until = SYSTIMESTAMP - NUMTODSINTERVAL(1, 'SECOND') WHERE id = ?", job.getId());
 
         recovery.recover();
         recovery.recover();
@@ -86,9 +87,8 @@ class ExportJobRecoveryIntegrationTest {
         job.setId(UUID.randomUUID().toString());
         job.setStatus("processing");
         job.setExpiresAt(jobs.databaseNow().toEpochSecond() + 3600);
-        job.setWorkerInstanceId(owner.id());
-        job.setLeaseUntil(jobs.databaseNow().plusSeconds(90));
         jobs.saveAndFlush(job);
+        assertEquals(1, jobs.startLease(job.getId(), owner.id()));
 
         assertTrue(lifecycle.complete(job.getId(), new byte[]{1, 2}, "ready.xlsx", "xlsx"));
         ExportJob persisted = jobs.findById(job.getId()).orElseThrow();

@@ -27,7 +27,7 @@ public class ExportJobLifecycle {
     @Transactional
     public boolean complete(String jobId, byte[] data, String filename, String format) {
         ExportJob job = jobs.findByIdForUpdate(jobId).orElse(null);
-        if (!ownsLiveLease(job, jobs.databaseNow())) {
+        if (!ownsLiveLease(job)) {
             return false;
         }
         Map<String, Object> before = snapshot(job, format);
@@ -47,7 +47,7 @@ public class ExportJobLifecycle {
     @Transactional
     public boolean failBuild(String jobId, String format) {
         ExportJob job = jobs.findByIdForUpdate(jobId).orElse(null);
-        if (!ownsLiveLease(job, jobs.databaseNow())) {
+        if (!ownsLiveLease(job)) {
             return false;
         }
         Map<String, Object> before = snapshot(job, format);
@@ -69,10 +69,7 @@ public class ExportJobLifecycle {
             return false;
         }
         OffsetDateTime now = jobs.databaseNow();
-        boolean expired = job.getLeaseUntil() == null
-                ? job.getExpiresAt() <= now.toEpochSecond()
-                : !job.getLeaseUntil().isAfter(now);
-        if (!expired) {
+        if (jobs.countExpiredProcessingLease(jobId) != 1) {
             return false;
         }
         Map<String, Object> before = snapshot(job, "unknown");
@@ -87,10 +84,10 @@ public class ExportJobLifecycle {
         return true;
     }
 
-    private boolean ownsLiveLease(ExportJob job, OffsetDateTime now) {
+    private boolean ownsLiveLease(ExportJob job) {
         return job != null && "processing".equals(job.getStatus())
                 && owner.id().equals(job.getWorkerInstanceId())
-                && job.getLeaseUntil() != null && job.getLeaseUntil().isAfter(now);
+                && jobs.countLiveLease(job.getId(), owner.id()) == 1;
     }
 
     private static Map<String, Object> snapshot(ExportJob job, String format) {

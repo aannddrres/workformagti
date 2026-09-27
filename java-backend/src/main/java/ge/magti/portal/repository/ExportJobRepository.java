@@ -52,6 +52,19 @@ public interface ExportJobRepository extends JpaRepository<ExportJob, String> {
             + "AND lease_until > SYSTIMESTAMP", nativeQuery = true)
     int renewLease(@Param("jobId") String jobId, @Param("owner") String owner);
 
+    /** Compare lease instants in Oracle; JDBC can assign a wrong offset when reading this column. */
+    @Query(value = "SELECT COUNT(*) FROM export_jobs WHERE id = :jobId "
+            + "AND status = 'processing' AND worker_instance_id = :owner "
+            + "AND lease_until > SYSTIMESTAMP", nativeQuery = true)
+    int countLiveLease(@Param("jobId") String jobId, @Param("owner") String owner);
+
+    @Query(value = "SELECT COUNT(*) FROM export_jobs WHERE id = :jobId "
+            + "AND status = 'processing' AND (lease_until <= SYSTIMESTAMP "
+            + "OR (lease_until IS NULL AND expires_at <= "
+            + "(CAST(SYS_EXTRACT_UTC(SYSTIMESTAMP) AS DATE) - DATE '1970-01-01') * 86400))",
+            nativeQuery = true)
+    int countExpiredProcessingLease(@Param("jobId") String jobId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT j FROM ExportJob j WHERE j.id = :jobId")
     Optional<ExportJob> findByIdForUpdate(@Param("jobId") String jobId);
