@@ -1,5 +1,5 @@
 import { computed, Component, inject, signal } from '@angular/core';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { AuditService } from '../../core/services/audit.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { PortalDialog } from '../../shared/portal-dialog/portal-dialog';
@@ -59,6 +59,7 @@ export class AdminAuditPage {
    */
   protected readonly isManager = computed(() => this.auth.currentUser()?.role === 'manager');
   private readonly auditService = inject(AuditService);
+  private readonly translate = inject(TranslateService);
 
   protected readonly rows = signal<AuditLogEntry[]>([]);
   protected readonly total = signal(0);
@@ -93,9 +94,11 @@ export class AdminAuditPage {
   }
 
   protected readonly categoryBadge = categoryBadge;
-  protected readonly actionLabel = formatAuditAction;
+  protected readonly actionLabel = (action: string | null | undefined) =>
+    formatAuditAction(action, key => this.translate.instant(key));
   protected readonly itemTypeLabel = formatAuditItemType;
-  protected readonly itemNameLabel = formatAuditItemName;
+  protected readonly itemNameLabel = (type: string | null | undefined, name: string | null | undefined) =>
+    formatAuditItemName(type, name, key => this.translate.instant(key));
   protected readonly formatTimestamp = formatKaDateTime;
 
   load(): void {

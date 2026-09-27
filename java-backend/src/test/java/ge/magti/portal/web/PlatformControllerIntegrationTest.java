@@ -112,6 +112,7 @@ class PlatformControllerIntegrationTest {
         News news = new News();
         news.setTitle(title);
         news.setContent("შინაარსი");
+        news.setDraft(false);
         news.setTargetDepartment(targetDepartment);
         news.setCreatedAt(TbilisiTime.now());
         return newsRepository.saveAndFlush(news);

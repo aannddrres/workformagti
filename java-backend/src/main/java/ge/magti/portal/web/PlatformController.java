@@ -105,7 +105,12 @@ public class PlatformController {
                         .collect(java.util.stream.Collectors.toMap(
                                 ReadStatus::getRequiredReadingId, s -> s, (a, b) -> a));
 
+                java.util.Set<ItemKey> hidden = itemTitleResolver.hiddenPrivateDrafts(
+                        readings.stream().map(r -> new ItemKey(r.getItemType(), r.getItemId())).toList(), user);
                 for (RequiredReading r : readings) {
+                    if (hidden.contains(new ItemKey(r.getItemType(), r.getItemId()))) {
+                        continue;
+                    }
                     ReadStatus stat = statusByReadingId.get(r.getId());
                     if (stat != null && "read".equals(stat.getStatus())) {
                         continue;
@@ -124,11 +129,9 @@ public class PlatformController {
         // prefix-aware match the readings half above (and NewsQueryService's
         // own GET /api/news) already use -- a sub-group operator's bell icon
         // silently dropped news targeted at their parent department.
-        List<News> newsList = Role.CONTENT_ADMIN_ROLES.contains(user.getRole())
-                ? newsRepository.findByCreatedAtGreaterThanEqualOrderByCreatedAtDesc(sevenDaysAgo, PageRequest.of(0, 10))
-                : newsRepository.findByCreatedAtGreaterThanEqualAndTargetDepartmentInOrderByCreatedAtDesc(
-                        sevenDaysAgo, DepartmentMatcher.visibilityTargets(user.getDepartment()),
-                        PageRequest.of(0, 10));
+        List<News> newsList = newsRepository.findVisibleRecent(sevenDaysAgo, now, user.getId(),
+                Role.CONTENT_ADMIN_ROLES.contains(user.getRole()),
+                DepartmentMatcher.visibilityTargets(user.getDepartment()), PageRequest.of(0, 10));
         List<RecentNewsSummaryItem> recentNews = newsList.stream()
                 .map(n -> new RecentNewsSummaryItem(n.getId(), n.getTitle(), n.getTargetDepartment(), n.getCreatedAt()))
                 .toList();

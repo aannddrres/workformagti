@@ -469,6 +469,10 @@
     }
   },
   "audit": {
+    "quiz_attempts_title": "Quiz attempts",
+    "action_logout": "Sign out",
+    "action_export_quiz": "Export quiz attempts",
+    "item_audit_trail": "Audit trail",
     "heading": "Audit Log",
     "subtitle": "Actions taken in the system — content, users, access",
     "preset_today": "Today",

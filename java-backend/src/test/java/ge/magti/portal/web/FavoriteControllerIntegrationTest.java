@@ -90,6 +90,7 @@ class FavoriteControllerIntegrationTest {
         Article article = new Article();
         article.setTitle(title);
         article.setContent("შინაარსი");
+        article.setDraft(false);
         return articleRepository.saveAndFlush(article);
     }
 
@@ -97,6 +98,7 @@ class FavoriteControllerIntegrationTest {
         News news = new News();
         news.setTitle(title);
         news.setContent("შინაარსი");
+        news.setDraft(false);
         news.setTargetDepartment("All");
         news.setCreatedAt(TbilisiTime.now());
         return newsRepository.saveAndFlush(news);

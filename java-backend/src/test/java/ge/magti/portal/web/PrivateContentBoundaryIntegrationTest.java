@@ -41,6 +41,7 @@ class PrivateContentBoundaryIntegrationTest {
     @Autowired ArticleHistoryRepository articleHistory;
     @Autowired NewsRepository news;
     @Autowired NewsHistoryRepository newsHistory;
+    @Autowired RequiredReadingRepository readings;
     @Autowired JwtService jwt;
     @Autowired JdbcTemplate jdbc;
     @Autowired EntityManager em;
@@ -109,6 +110,14 @@ class PrivateContentBoundaryIntegrationTest {
         item.setDraft(true);
         item.setCreatedAt(TbilisiTime.now());
         item = news.saveAndFlush(item);
+        long articleHistoryId = history(article, author);
+        NewsHistory newsSnapshot = new NewsHistory();
+        newsSnapshot.setNewsId(item.getId());
+        newsSnapshot.setTitle(item.getTitle());
+        newsSnapshot.setContent(item.getContent());
+        newsSnapshot.setUpdatedBy(author.getId());
+        newsSnapshot.setUpdatedAt(TbilisiTime.now());
+        long newsHistoryId = newsHistory.saveAndFlush(newsSnapshot).getId();
         for (var target : Map.of("article", article.getId(), "news", item.getId()).entrySet()) {
             String type = target.getKey();
             long id = target.getValue();
@@ -117,6 +126,12 @@ class PrivateContentBoundaryIntegrationTest {
                     + "purge_after = CURRENT_TIMESTAMP + INTERVAL '30' DAY, trashed_by = ? WHERE id = ?",
                     author.getId(), id);
             em.clear();
+            String contentPath = "/api/" + (type.equals("article") ? "articles" : "news") + "/" + id;
+            long snapshotId = type.equals("article") ? articleHistoryId : newsHistoryId;
+            for (String suffix : List.of("/history", "/history-summary", "/history/" + snapshotId)) {
+                mvc.perform(as(get(contentPath + suffix), other)).andExpect(status().isNotFound());
+                mvc.perform(as(get(contentPath + suffix), author)).andExpect(status().isOk());
+            }
             String path = "/api/content-trash/" + type + "/" + id;
             mvc.perform(as(get("/api/content-trash"), other)).andExpect(status().isOk())
                     .andExpect(jsonPath("$[?(@.item_type == '" + type + "' && @.item_id == " + id + ")]").isEmpty());
@@ -146,6 +161,66 @@ class PrivateContentBoundaryIntegrationTest {
                 .andExpect(jsonPath("$[?(@.id == " + article.getId() + ")]").isEmpty());
         assertTrue(articles.findReferencesByStatus("published", org.springframework.data.domain.PageRequest.of(0, 100))
                 .stream().noneMatch(row -> row.id().equals(article.getId())));
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = Role.class, names = {"OPERATOR", "CONTENT_ADMIN", "SYSTEM_ADMIN"})
+    void privateTitlesStayOutOfSummariesFavoritesAndAssignments(Role role) throws Exception {
+        User author = user(Role.CONTENT_ADMIN);
+        User other = user(role);
+        Article article = article(author);
+        article.setDraft(false);
+        article.setStatus("published");
+        articles.saveAndFlush(article);
+        jdbc.update("INSERT INTO article_target_departments (article_id, department) VALUES (?, 'All')", article.getId());
+        mvc.perform(as(post("/api/articles/" + article.getId() + "/view"), other)).andExpect(status().isOk());
+        article.setDraft(true);
+        article.setStatus("draft");
+        article.setTitle("საიდუმლო შეცვლილი სათაური");
+        articles.saveAndFlush(article);
+        News item = new News();
+        item.setTitle("საიდუმლო სიახლის სათაური");
+        item.setContent("საიდუმლო შინაარსი");
+        item.setAuthorId(author.getId());
+        item.setDraft(true);
+        item.setTargetDepartment("All");
+        item.setCreatedAt(TbilisiTime.now());
+        item = news.saveAndFlush(item);
+        for (var target : Map.of("article", article.getId(), "news", item.getId()).entrySet()) {
+            RequiredReading assignment = new RequiredReading();
+            assignment.setItemType(target.getKey());
+            assignment.setItemId(target.getValue());
+            assignment.setItemTitleSnapshot("საიდუმლო ძველი სათაური");
+            assignment.setTargetDepartment("All");
+            assignment.setDueDate(TbilisiTime.now().plusDays(1));
+            assignment = readings.saveAndFlush(assignment);
+            mvc.perform(as(post("/api/favorites"), other).contentType(MediaType.APPLICATION_JSON)
+                    .content(json.writeValueAsBytes(Map.of("item_type", target.getKey(), "item_id", target.getValue()))))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.item_title").value("მასალა #" + target.getValue()));
+            mvc.perform(as(post("/api/compliance/mark-read/" + assignment.getId()), other))
+                    .andExpect(status().isNotFound());
+            if (role != Role.OPERATOR) {
+                Map<String, Object> body = Map.of("item_type", target.getKey(), "item_id", target.getValue(),
+                        "target_department", "All", "due_date", TbilisiTime.now().plusDays(1).toString());
+                long before = readings.count();
+                mvc.perform(as(post("/api/compliance/required-readings"), other)
+                        .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(body)))
+                        .andExpect(status().isNotFound());
+                mvc.perform(as(get("/api/compliance/required-readings/by-item/" + target.getKey() + "/" + target.getValue()), other))
+                        .andExpect(status().isNotFound());
+                mvc.perform(as(put("/api/compliance/required-readings/" + assignment.getId()), other)
+                        .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(body)))
+                        .andExpect(status().isNotFound());
+                mvc.perform(as(delete("/api/compliance/required-readings/" + assignment.getId()), other))
+                        .andExpect(status().isNotFound());
+                assertEquals(before, readings.count());
+            }
+        }
+        for (String path : List.of("/api/notifications/summary", "/api/compliance/my-readings",
+                "/api/me/recently-viewed", "/api/favorites")) {
+            mvc.perform(as(get(path), other)).andExpect(status().isOk())
+                    .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("საიდუმლო"))));
+        }
     }
 
     @ParameterizedTest

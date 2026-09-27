@@ -142,8 +142,13 @@ public class ComplianceController {
                 .collect(java.util.stream.Collectors.toMap(ReadStatus::getRequiredReadingId, s -> s, (a, b) -> a));
 
         OffsetDateTime now = TbilisiTime.now();
+        java.util.Set<ItemKey> hidden = itemTitleResolver.hiddenPrivateDrafts(
+                readings.stream().map(r -> new ItemKey(r.getItemType(), r.getItemId())).toList(), user);
         List<MyReadingResponse> results = new java.util.ArrayList<>();
         for (RequiredReading r : readings) {
+            if (hidden.contains(new ItemKey(r.getItemType(), r.getItemId()))) {
+                continue;
+            }
             ReadStatus stat = statusByReadingId.get(r.getId());
             String currentStatus = stat != null ? stat.getStatus() : "unread";
             OffsetDateTime readAt = stat != null ? stat.getReadAt() : null;
@@ -206,6 +211,9 @@ public class ComplianceController {
                     .body(Map.of("detail", "ეს მასალა თქვენს დეპარტამენტს არ ეხება"));
         }
 
+        if (itemTitleResolver.privateDraftIsHidden(reading.getItemType(), reading.getItemId(), user)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", READING_NOT_FOUND));
+        }
         Article readingArticle = null;
         if ("article".equals(reading.getItemType())) {
             readingArticle = articleRepository.findById(reading.getItemId()).orElse(null);
@@ -240,6 +248,9 @@ public class ComplianceController {
             return denial;
         }
         RequiredReading reading = new RequiredReading();
+        if (itemTitleResolver.privateDraftIsHidden(request.itemType(), request.itemId(), user)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", READING_NOT_FOUND));
+        }
         reading.setItemType(request.itemType());
         reading.setItemId(request.itemId());
         reading.setItemTitleSnapshot(itemTitleResolver.resolve(request.itemType(), request.itemId())
@@ -269,6 +280,9 @@ public class ComplianceController {
             return denial;
         }
         Optional<RequiredReading> rr = requiredReadingRepository.findFirstByItemTypeAndItemIdOrderByIdAsc(itemType, itemId);
+        if (itemTitleResolver.privateDraftIsHidden(itemType, itemId, user)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", READING_NOT_FOUND));
+        }
         if (rr.isEmpty()) {
             // FastAPI's Optional[schema] returns the literal 4-char body "null";
             // ResponseEntity.ok(null) would write zero bytes and break a
@@ -294,6 +308,9 @@ public class ComplianceController {
         }
         RequiredReading reading = found.get();
         Map<String, Object> before = MutationAuditService.requiredReadingSnapshot(reading);
+        if (itemTitleResolver.privateDraftIsHidden(reading.getItemType(), reading.getItemId(), user)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", READING_NOT_FOUND));
+        }
 
         // BL-04: read_statuses is keyed on required_reading_id (V22:11), not
         // on the item. So re-pointing an existing reading at a different
@@ -344,8 +361,12 @@ public class ComplianceController {
         if (found.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", READING_NOT_FOUND));
         }
+        RequiredReading reading = found.get();
+        if (itemTitleResolver.privateDraftIsHidden(reading.getItemType(), reading.getItemId(), user)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", READING_NOT_FOUND));
+        }
         try {
-            requiredReadingMutationService.delete(found.get(), user);
+            requiredReadingMutationService.delete(reading, user);
         } catch (DataIntegrityViolationException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(Map.of("detail", READING_HAS_READ_RECEIPTS));

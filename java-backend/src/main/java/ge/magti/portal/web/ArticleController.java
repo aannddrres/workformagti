@@ -1499,7 +1499,9 @@ public class ArticleController {
 
         List<ArticleViewLog> rows = articleViewLogRepository.findTop30ByOperatorIdOrderByViewedAtDesc(user.getId());
         Set<Long> articleIds = rows.stream().map(ArticleViewLog::getArticleId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, List<String>> targets = articleTargetQueryService.targetDepartmentsByArticleWithinLimit(articleIds);
         Map<Long, String> titlesByArticleId = articleRepository.findAllById(articleIds).stream()
+                .filter(article -> ArticleVisibility.isVisible(article, targets.getOrDefault(article.getId(), List.of()), user))
                 .collect(Collectors.toMap(Article::getId, Article::getTitle));
 
         Set<Long> seenIds = new LinkedHashSet<>();
@@ -1587,7 +1589,7 @@ public class ArticleController {
         }
     }
 
-    private static ResponseEntity<?> notFound() {
+    private static ResponseEntity<Map<String, String>> notFound() {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", NOT_FOUND_DETAIL));
     }
 
@@ -1614,6 +1616,9 @@ public class ArticleController {
 
     /** Preserve legacy missing-article history responses while hiding existing private drafts. */
     private ResponseEntity<Map<String, String>> denyInvisibleExistingArticle(Long articleId, User user) {
+        if (articleRepository.countInaccessiblePrivateDraftIncludingTrash(articleId, user.getId()) > 0) {
+            return notFound();
+        }
         return articleRepository.findById(articleId)
                 .map(article -> assertArticleVisible(article, resolveTargetDepartments(articleId), user))
                 .orElse(null);

@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { provideTranslateService } from '@ngx-translate/core';
 import { Subject, of } from 'rxjs';
 import { vi } from 'vitest';
 import { AdminExportService } from '../../core/services/admin-export.service';
@@ -14,6 +15,7 @@ describe('AdminExportsPage', () => {
     await TestBed.configureTestingModule({
       imports: [AdminExportsPage],
       providers: [
+        provideTranslateService(),
         { provide: AdminExportService, useValue: { submit } },
         { provide: ExportService, useValue: { pollUntilDone: () => statuses.asObservable(), download } }
       ]

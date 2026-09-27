@@ -21,7 +21,6 @@ export function categoryBadge(category: string | null | undefined): AuditCategor
 
 const ACTION_LABELS: Record<string, string> = {
   LOGIN: 'სისტემაში შესვლა',
-  LOGOUT: 'სისტემიდან გასვლა',
   LOGIN_SSO: 'ერთიანი ავტორიზაციით შესვლა',
   LOGIN_FAILED: 'შესვლის წარუმატებელი მცდელობა',
   PASSWORD_CHANGE: 'პაროლის შეცვლა',
@@ -60,7 +59,6 @@ const ACTION_LABELS: Record<string, string> = {
   EXPORT_ADMIN_READ_EVIDENCE: 'ოფიციალური გაცნობის მტკიცებულების ექსპორტი',
   EXPORT_ADMIN_ARTICLE_VIEWS: 'სტატიის გახსნის ისტორიის ექსპორტი',
   EXPORT_ADMIN_SEARCH_HISTORY: 'ძებნის ისტორიის ექსპორტი',
-  EXPORT_ADMIN_QUIZ_ATTEMPTS: 'ქვიზის მცდელობების ექსპორტი',
   EXPORT_ADMIN_CHANGE_EVENTS: 'ცვლილებებისა და უსაფრთხოების მოვლენების ექსპორტი'
 };
 
@@ -82,8 +80,10 @@ const ITEM_TYPE_LABELS: Record<string, string> = {
   admin_export: 'სისტემური ადმინისტრატორის ექსპორტი'
 };
 
-export function formatAuditAction(action: string | null | undefined): string {
+export function formatAuditAction(action: string | null | undefined, translate: (key: string) => string): string {
   if (!action) return '—';
+  if (action === 'LOGOUT') return translate('audit.action_logout');
+  if (action === 'EXPORT_ADMIN_QUIZ_ATTEMPTS') return translate('audit.action_export_quiz');
   if (action === 'UPDATE_STATUS_TO_TRUE') return 'მომხმარებლის გააქტიურება';
   if (action === 'UPDATE_STATUS_TO_FALSE') return 'მომხმარებლის გაუქმება';
   if (action.startsWith('BULK_ROLE_')) return 'როლის ჯგუფური შეცვლა';
@@ -97,8 +97,9 @@ export function formatAuditItemType(itemType: string | null | undefined): string
 }
 
 /** Localize the old system label without changing stored, hashed audit evidence. */
-export function formatAuditItemName(itemType: string | null | undefined, name: string | null | undefined): string {
-  return itemType === 'audit_log' && name === 'Audit trail' ? 'აუდიტის ჟურნალი' : (name ?? '');
+export function formatAuditItemName(itemType: string | null | undefined, name: string | null | undefined,
+  translate: (key: string) => string): string {
+  return itemType === 'audit_log' && name === 'Audit trail' ? translate('audit.item_audit_trail') : (name ?? '');
 }
 
 /**

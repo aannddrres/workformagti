@@ -502,7 +502,7 @@ public class NewsController {
     private boolean privateNewsIsHidden(Long id, User user) {
         return newsRepository.findById(id)
                 .map(item -> !PrivateDraftAccess.canAccess(item.isDraft(), item.getAuthorId(), user))
-                .orElse(false);
+                .orElseGet(() -> newsRepository.countInaccessiblePrivateDraftIncludingTrash(id, user.getId()) > 0);
     }
 
 }

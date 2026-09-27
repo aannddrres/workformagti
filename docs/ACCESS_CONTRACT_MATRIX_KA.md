@@ -7,6 +7,9 @@
 
 - სტატიისა და სიახლის private draft მხოლოდ ავტორისაა. არსებული permission gate-ის შემდეგ სხვისი მონახაზი 404-ია update/command/autosave/delete/archive/unarchive/verify, history/restore, receipts/views და სხვა ID-ით წვდომის გზებზე; ცარიელი autosave და payload-ში `is_draft=false` გამონაკლისს არ ქმნის. bulk archive/status/retarget ასეთ ID-ს `skipped_ids`-ში ტოვებს და არ ცვლის.
 - სიახლის history list/summary/item იგივე ავტორის წესს იცავს. არარსებული ID-ის ისტორიის სიის ძველი ცარიელი პასუხი უცვლელია.
+- სტატიისა და სიახლის history ownership მოწმდება კალათაში მყოფ მშობელზეც. კალათის entity filter-ს ამ წესის გვერდის ავლა არ შეუძლია.
+- `GET /api/notifications/summary` და `GET /api/me/recently-viewed` სხვისი პირადი მასალის სათაურს არ აბრუნებს. `GET/POST /api/favorites` ასეთ სათაურს „მასალა #ID“-ით ცვლის, bookmark-ის წაშლის გარეშე.
+- compliance-ის create/by-item/update/delete გზები სხვის private article/news-ზე 404-ია. `my-readings` და შეტყობინებების დავალებები სხვის პირად მასალას არ აჩვენებს; historical rows უცვლელია. ფონური reminder-ის სათაურში პირადი კონტენტის მიმდინარე სათაური არ გადადის.
 - `GET /api/content-trash` სხვის პირად article/news-ს არ აჩვენებს; restore/purge/legal-hold ოპერაციები მისთვის 404-ია, შესაბამისი role/named-authority gate-ის გავლის შემდეგ. ვიდეოს არსებული წესები უცვლელია.
 - სტატიის stale/related reference სიები პირად მონახაზს გამორიცხავს, მათ შორის ძველ შეუსაბამო `is_draft=true,status=published` ჩანაწერს.
 - `POST /api/compliance/mark-read/{readingId}`: article assignment-ის არსებობა ხილვადობას არ ანაცვლებს. `ArticleVisibility` მოწმდება სრული აუდიტორიით receipt/status/audit ცვლილებამდე; დამალული სტატია 404 `READING_NOT_FOUND`-ია. PO-30-ის პირველი receipt უცვლელია.
