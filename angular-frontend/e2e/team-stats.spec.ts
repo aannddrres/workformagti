@@ -44,11 +44,13 @@ test('manager dashboard is scoped, interactive and export-fail-closed without a 
     groupCard.click()
   ]);
   expect(groupUsers.status()).toBe(200);
-  // Chrome may discard a navigated response body after the dialog closes.
-  // Capture the payload while that response is still attached to the page.
-  const members = (await groupUsers.json()).users as { first_name: string }[];
   const groupDialog = page.getByRole('dialog');
   await expect(groupDialog).toBeVisible();
+  // Chrome can discard the page response body even while the dialog is open.
+  // Repeat the read-only request with the manager's token for a stable server payload.
+  const serverGroupUsers = await request.get(groupUsers.url(), { headers });
+  expect(serverGroupUsers.status()).toBe(200);
+  const members = (await serverGroupUsers.json()).users as { first_name: string }[];
   // Assert the dialog shows the members the SERVER just returned, rather than
   // a name typed into the spec. This used to look for "ნიკოლოზი აღდგომელაძე",
   // which appears nowhere in this repository: it was a row in whichever
