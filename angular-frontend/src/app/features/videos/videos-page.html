@@ -2,14 +2,14 @@
   <h1 class="portal-title mb-6">{{ 'videos.page.heading' | translate }}</h1>
 
   <div class="relative mb-8 w-full">
+    <i class="fa-solid fa-magnifying-glass pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 dark:text-slate-400"></i>
     <input
       type="search"
       [placeholder]="'videos.page.search_placeholder' | translate"
       [value]="searchQuery()"
       (input)="onSearchInput($any($event.target).value)"
-      class="w-full rounded-lg border border-slate-200 bg-white py-3 pl-5 pr-12 text-sm text-slate-800 placeholder-slate-400 focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+      class="w-full rounded-lg border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-800 placeholder-slate-400 focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
     />
-    <i class="fa-solid fa-magnifying-glass pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 text-slate-600 dark:text-slate-400"></i>
   </div>
 
   @if (videos() === null && !errorMessage()) {
