@@ -35,7 +35,7 @@ class ProtectedEndpointAnonymousMatrixIntegrationTest {
 
     static Stream<String> protectedRoutes() throws IOException {
         List<String> routes = Files.readAllLines(Path.of("..", "docs", "security",
-                        "LOCAL_ENDPOINT_CASE_REVIEW_2026-09-24.csv"), StandardCharsets.UTF_8)
+                        "ENDPOINT_CASE_REVIEW_2026-09-27.csv"), StandardCharsets.UTF_8)
                 .stream().skip(1).map(line -> line.substring(0, line.indexOf(','))).toList();
         assertEquals(150, routes.size(), "the anonymous matrix must not silently lose an API action");
         assertEquals(150, Set.copyOf(routes).size(), "duplicate rows would hide an untested action");
