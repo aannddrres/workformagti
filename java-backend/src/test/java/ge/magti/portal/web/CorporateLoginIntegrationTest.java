@@ -12,6 +12,8 @@ import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.CorporateAuthClient;
 import ge.magti.portal.security.CorporateIdentity;
 import ge.magti.portal.security.JwtService;
+import ge.magti.portal.util.TbilisiTime;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -25,6 +27,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.Base64;
 import java.nio.charset.StandardCharsets;
@@ -35,6 +39,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -82,6 +88,8 @@ class CorporateLoginIntegrationTest {
     private PasswordEncoder passwordEncoder;
     @Autowired
     private JwtService jwtService;
+    @Autowired
+    private EntityManager entityManager;
 
     @MockitoBean
     private CorporateAuthClient directory;
@@ -183,6 +191,26 @@ class CorporateLoginIntegrationTest {
                 .andExpect(jsonPath("$.detail").value(AuthController.LOGIN_FAILED_DETAIL));
 
         assertEquals("ACCOUNT_DEACTIVATED", failureReason(user));
+    }
+
+    /** PO-24's leaver filter reads last_active: a company sign-in records it, a refused one does not. */
+    @Test
+    void aCompanySignInRecordsLastActiveAndARefusedOneDoesNot() throws Exception {
+        User returning = account("corp.returning@example.ge", Role.OPERATOR, null, true);
+        User gone = account("corp.gone@example.ge", Role.OPERATOR, null, false);
+        directoryAccepts("corp.returning@example.ge", Set.of("INFOPORTAL_OPERATOR"));
+        directoryAccepts("corp.gone@example.ge", Set.of("INFOPORTAL_OPERATOR"));
+        OffsetDateTime before = TbilisiTime.now().truncatedTo(ChronoUnit.SECONDS);
+
+        mockMvc.perform(login("corp.returning@example.ge", "pw", "10.9.0.20")).andExpect(status().isOk());
+        mockMvc.perform(login("corp.gone@example.ge", "pw", "10.9.0.21")).andExpect(status().isUnauthorized());
+
+        entityManager.clear();
+        OffsetDateTime recorded = userRepository.findById(returning.getId()).orElseThrow().getLastActive();
+        assertNotNull(recorded, "a company sign-in records last_active");
+        assertFalse(recorded.isBefore(before));
+        assertNull(userRepository.findById(gone.getId()).orElseThrow().getLastActive(),
+                "a refused sign-in records nothing");
     }
 
     @Test

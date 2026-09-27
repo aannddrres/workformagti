@@ -24,12 +24,15 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -134,6 +137,36 @@ class AuthControllerIntegrationTest {
         assertEquals("SUCCESS", details.path("result").asText());
         assertEquals("LOCAL_DEVELOPMENT_ONLY", details.path("after").path("auth_channel").asText());
         assertFalse(audit.getDetails().contains("access_token"));
+    }
+
+    /**
+     * PO-24's leaver filter reads users.last_active, and nothing wrote it:
+     * every account read "never signed in". Signed in twice so the first
+     * request can provision the account on a fresh database; the second is
+     * the one measured.
+     */
+    @Test
+    void signingInRecordsLastActiveWithoutAdvancingTheLockVersion() throws Exception {
+        mockMvc.perform(withIp(post("/api/auth/login"), "10.0.0.40")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"info@magti.ge\",\"password\":\"anything\"}"))
+                .andExpect(status().isOk());
+        entityManager.clear();
+        long lockVersion = userRepository.findByEmailIgnoreCase("info@magti.ge").orElseThrow().getLockVersion();
+        OffsetDateTime before = TbilisiTime.now().truncatedTo(ChronoUnit.SECONDS);
+
+        mockMvc.perform(withIp(post("/api/auth/login"), "10.0.0.40")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"info@magti.ge\",\"password\":\"anything\"}"))
+                .andExpect(status().isOk());
+
+        entityManager.clear();
+        User signedIn = userRepository.findByEmailIgnoreCase("info@magti.ge").orElseThrow();
+        assertNotNull(signedIn.getLastActive(), "a sign-in records last_active");
+        assertFalse(signedIn.getLastActive().isBefore(before));
+        assertEquals(TbilisiTime.OFFSET, signedIn.getLastActive().getOffset());
+        // An administrator saving this person at the same moment must not get a 409.
+        assertEquals(lockVersion, signedIn.getLockVersion(), "a sign-in must not advance lock_version");
     }
 
     @Test

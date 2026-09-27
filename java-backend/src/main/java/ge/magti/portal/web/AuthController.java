@@ -13,6 +13,7 @@ import ge.magti.portal.security.JwtService;
 import ge.magti.portal.security.LoginRateLimiter;
 import ge.magti.portal.security.PortalSessionService;
 import ge.magti.portal.security.JwtAuthenticationFilter;
+import ge.magti.portal.util.TbilisiTime;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -248,6 +249,9 @@ public class AuthController {
                 details,
                 clientIp,
                 truncatedUserAgent(httpRequest));
+        // PO-24's leaver filter reads last_active. Last, because the update
+        // clears the persistence context and nothing after it touches the user.
+        userRepository.recordSignIn(user.getId(), TbilisiTime.now());
 
         httpResponse.addHeader(HttpHeaders.SET_COOKIE, accessTokenCookie(accessToken).toString());
 

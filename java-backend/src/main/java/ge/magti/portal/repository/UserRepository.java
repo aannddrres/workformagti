@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.query.Param;
 
+import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -47,6 +48,17 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE User u SET u.tokenVersion = u.tokenVersion + 1 WHERE u.id = :userId")
     int revokeIssuedTokens(@Param("userId") Long userId);
+
+    /**
+     * PO-24's "last sign-in", written by every successful sign-in. Nothing wrote
+     * {@code last_active} before this, so the leaver filter found every account
+     * "never signed in". A targeted update like {@link #revokeIssuedTokens}: it
+     * must not advance {@code lock_version}, or an administrator saving that
+     * person while they sign in would get a 409 over nothing.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE User u SET u.lastActive = :signedInAt WHERE u.id = :userId")
+    int recordSignIn(@Param("userId") Long userId, @Param("signedInAt") OffsetDateTime signedInAt);
 
     /** Case-sensitive -- mirrors get_current_user's exact-match lookup (security.py:299). */
     Optional<User> findByEmail(String email);
