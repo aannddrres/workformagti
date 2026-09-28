@@ -28,6 +28,8 @@ import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.repository.UserPermissionOverrideRepository;
 import ge.magti.portal.security.JwtService;
 import ge.magti.portal.util.TbilisiTime;
+import ge.magti.portal.domain.ArticleTargetDepartment;
+import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -69,6 +71,8 @@ class StatsControllerIntegrationTest {
     private UserPermissionOverrideRepository permissionOverrideRepository;
     @Autowired
     private ArticleRepository articleRepository;
+    @Autowired
+    private ArticleTargetDepartmentRepository articleTargetDepartmentRepository;
     @Autowired
     private RequiredReadingRepository requiredReadingRepository;
     @Autowired
@@ -152,7 +156,16 @@ class StatsControllerIntegrationTest {
         article.setTitle(title);
         article.setContent("შინაარსი");
         article.setVersion(1);
-        return articleRepository.saveAndFlush(article);
+        // PO-40: an article operators cannot open binds nobody, so the fixture
+        // is published for everyone rather than the entity's private draft.
+        article.setStatus("published");
+        article.setDraft(false);
+        Article saved = articleRepository.saveAndFlush(article);
+        ArticleTargetDepartment everyone = new ArticleTargetDepartment();
+        everyone.setArticleId(saved.getId());
+        everyone.setDepartment("All");
+        articleTargetDepartmentRepository.saveAndFlush(everyone);
+        return saved;
     }
 
     private Team createTeam(String name) {
@@ -472,6 +485,35 @@ class StatsControllerIntegrationTest {
                         .param("team_id", ownTeam.getId().toString()), tokenFor(manager)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.members[?(@.user_id == " + ownMember.getId() + ")]").exists());
+    }
+
+    @Test
+    void leadershipOptionsExposeOnlyOwnPrimaryAndActingTeams() throws Exception {
+        String suffix = Long.toString(System.nanoTime());
+        Team primary = createTeam("leadership-primary-" + suffix);
+        Team acting = createTeam("leadership-acting-" + suffix);
+        Team foreign = createTeam("leadership-foreign-" + suffix);
+        User manager = createUser("leadership-manager-" + suffix + "@magti.ge", Role.MANAGER, "All");
+        manager.setTeamId(primary.getId());
+        manager = userRepository.saveAndFlush(manager);
+        assignTeam(manager, acting, AssignmentType.ACTING);
+        User operator = createUser("leadership-operator-" + suffix + "@magti.ge", Role.OPERATOR, "All");
+        User admin = createUser("leadership-admin-" + suffix + "@magti.ge", Role.SYSTEM_ADMIN, "All");
+
+        mockMvc.perform(authed(get("/api/manager/leadership-options"), tokenFor(manager)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.defaultTeamId").value(primary.getId().intValue()))
+                .andExpect(jsonPath("$.canExportPrimary").value(true))
+                .andExpect(jsonPath("$.groups.length()").value(2))
+                .andExpect(jsonPath("$.groups[?(@.teamId == " + primary.getId() + ")]").exists())
+                .andExpect(jsonPath("$.groups[?(@.teamId == " + acting.getId() + ")]").exists())
+                .andExpect(jsonPath("$.groups[?(@.teamId == " + foreign.getId() + ")]").doesNotExist());
+        mockMvc.perform(authed(get("/api/manager/leadership-options"), tokenFor(operator)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(get("/api/manager/leadership-options"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.groups.length()").value(0))
+                .andExpect(jsonPath("$.canExportPrimary").value(true));
     }
 
     @Test

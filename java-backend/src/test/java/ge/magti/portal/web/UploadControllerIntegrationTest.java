@@ -105,12 +105,16 @@ class UploadControllerIntegrationTest {
     @Test
     void operatorCannotUpload() throws Exception {
         User operator = createUser("up1@magti.ge", Role.OPERATOR);
+        long filesBefore = storedFileRepository.count();
+        long auditsBefore = auditLogRepository.count();
         MockMultipartFile file = new MockMultipartFile(
                 "file", "note.txt", "text/plain", "hello".getBytes(StandardCharsets.UTF_8));
 
         mockMvc.perform(authed(multipart("/api/upload").file(file), tokenFor(operator)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.detail").value("წვდომა უარყოფილია: არასაკმარისი უფლებები"));
+        assertEquals(filesBefore, storedFileRepository.count());
+        assertEquals(auditsBefore, auditLogRepository.count());
     }
 
     @Test
@@ -185,8 +189,11 @@ class UploadControllerIntegrationTest {
         byte[] tooBig = new byte[10 * 1024 * 1024 + 512 * 1024];
         MockMultipartFile file = new MockMultipartFile("file", "big.png", "image/png", tooBig);
 
+        long storedBefore = storedFileRepository.count();
         mockMvc.perform(authed(multipart("/api/upload").file(file), tokenFor(admin)))
-                .andExpect(status().isPayloadTooLarge());
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(jsonPath("$.detail").value("ფაილის ზომა აღემატება დასაშვებ 10 MiB-ს"));
+        assertEquals(storedBefore, storedFileRepository.count(), "rejected file must not create a BLOB");
     }
 
     /**
@@ -206,9 +213,9 @@ class UploadControllerIntegrationTest {
     }
 
     /**
-     * ...but a type with no usable signature is still accepted rather than
-     * blocked, since refusing it would break real .txt uploads. The verifier
-     * reports UNVERIFIABLE for these and the upload proceeds knowingly.
+     * ...but text, which has no signature, is checked only for being text
+     * (no NUL byte), so a real .txt in any encoding still uploads. Until
+     * 2026-09-26 the verifier did not look at it at all (ASVS V5.2.2).
      */
     @Test
     void aPlainTextUploadStillWorksBecauseTextHasNoSignature() throws Exception {
@@ -254,5 +261,22 @@ class UploadControllerIntegrationTest {
                 .andExpect(header().string("Content-Type", "image/png"))
                 .andExpect(header().string("X-Content-Type-Options", "nosniff"))
                 .andExpect(header().string("Content-Security-Policy", "default-src 'none'; sandbox"));
+    }
+
+    /** ASVS V4.1.1 through the real upload and download: a .txt goes out naming its encoding. */
+    @Test
+    void anUploadedTextFileIsServedWithItsCharset() throws Exception {
+        User admin = createUser("up-charset@magti.ge", Role.CONTENT_ADMIN);
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "notes.txt", "text/plain", "ინსტრუქცია".getBytes(StandardCharsets.UTF_8));
+
+        String body = mockMvc.perform(authed(multipart("/api/upload").file(file), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        mockMvc.perform(get(objectMapper.readTree(body).get("url").asText())
+                        .header("Authorization", "Bearer " + tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "text/plain;charset=UTF-8"));
     }
 }

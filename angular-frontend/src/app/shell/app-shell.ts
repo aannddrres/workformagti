@@ -10,7 +10,9 @@ import { GlobalSearch } from '../shared/global-search/global-search';
 import { UserProfileService } from '../core/auth/user-profile.service';
 import { FontScaleService } from '../core/accessibility/font-scale.service';
 import { IdleSessionService } from '../core/auth/idle-session.service';
+import { LoginPage } from '../core/auth/login-page';
 import { PortalDialog } from '../shared/portal-dialog/portal-dialog';
+import { nameInitials } from '../shared/name-initials';
 
 interface NavLink {
   label: string;
@@ -44,6 +46,7 @@ export class AppShell implements OnDestroy {
   protected readonly idleSession = inject(IdleSessionService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly loginPage = inject(LoginPage);
   private readonly mobileViewport = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
     ? window.matchMedia('(max-width: 1023px)')
     : null;
@@ -178,11 +181,7 @@ export class AppShell implements OnDestroy {
   }
 
   initials(): string {
-    const name = this.profiles.profile()?.name?.trim();
-    if (name) {
-      return name.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
-    }
-    return (this.auth.currentUser()?.email?.[0] ?? 'M').toUpperCase();
+    return nameInitials(this.profiles.profile()?.name, this.auth.currentUser()?.email?.[0] ?? 'M');
   }
 
   @HostListener('document:keydown.escape')
@@ -192,7 +191,7 @@ export class AppShell implements OnDestroy {
   }
 
   logout(): void {
-    this.auth.logout().subscribe(() => this.router.navigateByUrl('/login'));
+    this.auth.logout().subscribe(() => this.loginPage.open());
   }
 
   private updatePageTitle(): void {

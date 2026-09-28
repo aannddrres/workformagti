@@ -36,13 +36,28 @@ export class FavoritesService {
 
   private readonly loaded = signal(false);
 
+  /**
+   * Writes that have completed, counted. The list is first read when the
+   * first star renders -- exactly when a person is likely to click one -- so
+   * a read can be answered after a click's write, describing the server as it
+   * was before it. Applied, that unfilled a star the server had just stored
+   * or brought back one just removed (20 of 100 repeated runs of the star's
+   * E2E spec). A read overtaken by a write is dropped and taken again.
+   */
+  private writes = 0;
+
   constructor() {
     this.refresh().subscribe();
   }
 
   refresh(): Observable<Favorite[]> {
+    const writesAtStart = this.writes;
     return this.http.get<Favorite[]>('/api/favorites').pipe(
       tap((favorites) => {
+        if (this.writes !== writesAtStart) {
+          this.refresh().subscribe();
+          return;
+        }
         this._favorites.set(favorites);
         this.loaded.set(true);
       })
@@ -64,7 +79,10 @@ export class FavoritesService {
       this.remove(existingId);
     } else {
       this.http.post<Favorite>('/api/favorites', { item_type: itemType, item_id: itemId }).subscribe({
-        next: (favorite) => this._favorites.set([...this._favorites(), favorite]),
+        next: (favorite) => {
+          this.writes++;
+          this._favorites.set([...this._favorites().filter((f) => f.id !== favorite.id), favorite]);
+        },
         error: () => void 0
       });
     }
@@ -72,7 +90,10 @@ export class FavoritesService {
 
   remove(favoriteId: number): void {
     this.http.delete<void>(`/api/favorites/${favoriteId}`).subscribe({
-      next: () => this._favorites.set(this._favorites().filter((f) => f.id !== favoriteId)),
+      next: () => {
+        this.writes++;
+        this._favorites.set(this._favorites().filter((f) => f.id !== favoriteId));
+      },
       error: () => void 0
     });
   }

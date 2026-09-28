@@ -108,7 +108,12 @@ test.describe('shared components', () => {
     const star = card.locator('app-favorite-star button');
     await expect(star).toHaveAttribute('aria-pressed', 'false');
 
-    await star.click();
+    const [added] = await Promise.all([
+      page.waitForResponse((response) => response.url().endsWith('/api/favorites') &&
+        response.request().method() === 'POST'),
+      star.click()
+    ]);
+    expect(added.status(), 'the favourite write must finish before the UI changes').toBe(200);
     await expect(star).toHaveAttribute('aria-pressed', 'true');
 
     // The star sits ON the card, and the card navigates. Its stopPropagation
@@ -126,9 +131,16 @@ test.describe('shared components', () => {
 
     await star.click();
     await expect(star).toHaveAttribute('aria-pressed', 'false');
+    // Matched on type as well as id: news and videos number from their own
+    // sequences, and this account keeps bookmarks from other specs. By id
+    // alone, a news bookmark that happened to share this article's number
+    // failed the run -- 17 times in 300 repeats, the article's own bookmark
+    // gone every time.
     const afterRemove = await request.get('/api/favorites', { headers: auth });
     expect(
-      (await afterRemove.json()).some((f: { item_id: number }) => f.item_id === articleId),
+      (await afterRemove.json()).some(
+        (f: { item_type: string; item_id: number }) => f.item_type === 'article' && f.item_id === articleId
+      ),
       'un-starring left the favourite behind'
     ).toBe(false);
 

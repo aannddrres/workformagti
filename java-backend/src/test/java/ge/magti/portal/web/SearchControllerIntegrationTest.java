@@ -217,6 +217,54 @@ class SearchControllerIntegrationTest {
                 .andExpect(jsonPath("$[1].id").value(contentMatch.getId().intValue()));
     }
 
+    /**
+     * ASVS V1.2.4. What an operator types reaches the database only as bind
+     * values (the trigram lookup) and is then compared as plain text. A quote,
+     * a statement terminator, a comment marker, % and _ are characters like
+     * any other: each finds the one article that contains it, never the
+     * look-alike that a LIKE pattern or a spliced string would also return,
+     * and the classic tautology finds nothing rather than everything.
+     */
+    @Test
+    void sqlMetacharactersInASearchAreMatchedLiterally() throws Exception {
+        User admin = createUser("search-sqlmeta@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category category = createCategory("სპეცსიმბოლოების კატეგორია");
+        Article literal = createArticle("ტარიფი O'Brien-ის", "ფასი';--გეგმა 50%-იანი x_y ბლოკი/**/ტექსტი", null,
+                "published", false, List.of("All"), TbilisiTime.now());
+        Article lookalike = createArticle("ტარიფი OBrien-ის", "ფასი 5099-იანი xzy ბლოკიტექსტი", null,
+                "published", false, List.of("All"), TbilisiTime.now());
+        for (Article article : List.of(literal, lookalike)) {
+            article.setCategoryId(category.getId());
+            articleRepository.saveAndFlush(article);
+            searchReindexService.reindexArticle(article);
+        }
+
+        for (String q : List.of("O'Brien-ის", "ფასი';--გეგმა", "50%-იანი", "x_y", "ბლოკი/**/ტექსტი")) {
+            mockMvc.perform(authed(get("/api/search"), tokenFor(admin))
+                            .param("q", q).param("category_id", category.getId().toString()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$", hasSize(1)))
+                    .andExpect(jsonPath("$[0].id").value(literal.getId().intValue()));
+        }
+        mockMvc.perform(authed(get("/api/search"), tokenFor(admin)).param("q", "x' OR '1'='1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    /**
+     * ASVS V15.3.7 through the running application rather than a probe:
+     * RepeatedParameterGuard sits in front of every handler, so a term given
+     * twice is refused instead of being searched for as "ინტერნეტი,ტარიფი".
+     */
+    @Test
+    void aSearchTermGivenTwiceIsRefused() throws Exception {
+        User operator = createUser("search-hpp@magti.ge", Role.OPERATOR, "ტექნიკური");
+
+        mockMvc.perform(authed(get("/api/search"), tokenFor(operator)).param("q", "ინტერნეტი").param("q", "ტარიფი"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("მოთხოვნის პარამეტრი არასწორია"));
+    }
+
     /** Proves the write-side reindex hooks (task: wire into controllers), not just the read side. */
     @Test
     void createUpdateAndDeleteViaRealEndpointsKeepTheIndexInSync() throws Exception {
@@ -258,23 +306,32 @@ class SearchControllerIntegrationTest {
                 .andExpect(jsonPath("$", hasSize(0)));
     }
 
+    /**
+     * PO-34: a private draft belongs to its author, administrators included.
+     * This test used to assert that any administrator found it -- in full,
+     * since search answers with ArticleResponse.
+     */
     @Test
-    void nonAdminNeverSeesADraftArticleInSearchButAdminDoes() throws Exception {
+    void onlyItsAuthorFindsAPrivateDraftArticleInSearch() throws Exception {
         // Scoped to a fresh category -- "დამალული" ("hidden") is a common
         // enough word to also match real imported content on this shared
         // Oracle instance.
         User operator = createUser("search-op1@magti.ge", Role.OPERATOR, "All");
         User admin = createUser("search-admin3@magti.ge", Role.CONTENT_ADMIN, "All");
+        User otherAdmin = createUser("search-admin4@magti.ge", Role.CONTENT_ADMIN, "All");
         Category category = createCategory("დამალული-კატეგორია");
         Article draft = createArticle("დამალული დრაფტი", "შინაარსი", null, "draft", true, List.of("All"), null);
         draft.setCategoryId(category.getId());
+        draft.setAuthorId(admin.getId());
         articleRepository.saveAndFlush(draft);
         searchReindexService.reindexArticle(draft);
 
-        mockMvc.perform(authed(get("/api/search"), tokenFor(operator))
-                        .param("q", "დამალული").param("category_id", category.getId().toString()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(0)));
+        for (User notTheAuthor : List.of(operator, otherAdmin)) {
+            mockMvc.perform(authed(get("/api/search"), tokenFor(notTheAuthor))
+                            .param("q", "დამალული").param("category_id", category.getId().toString()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$", hasSize(0)));
+        }
         mockMvc.perform(authed(get("/api/search"), tokenFor(admin))
                         .param("q", "დამალული").param("category_id", category.getId().toString()))
                 .andExpect(status().isOk())
@@ -341,17 +398,27 @@ class SearchControllerIntegrationTest {
      * confidentiality gap presented to and fixed per the user's decision.
      */
     @Test
-    void globalSearchHidesDraftNewsFromOperatorButAdminStillSeesIt() throws Exception {
+    void globalSearchShowsDraftNewsToItsAuthorOnly() throws Exception {
         User operator = createUser("search-op4@magti.ge", Role.OPERATOR, "All");
         User admin = createUser("search-admin5@magti.ge", Role.CONTENT_ADMIN, "All");
-        createNews("დრაფტნიუსი გამოცემა", "x", "All", true, null);
+        User otherAdmin = createUser("search-admin6@magti.ge", Role.CONTENT_ADMIN, "All");
+        News draft = createNews("დრაფტნიუსი გამოცემა", "x", "All", true, null);
+        // NewsVisibility, as GET /api/news/{id} applies it: another
+        // administrator gets a 404 there, so search does not name it either.
+        draft.setAuthorId(admin.getId());
+        newsRepository.saveAndFlush(draft);
 
-        mockMvc.perform(authed(get("/api/search/global"), tokenFor(operator)).param("q", "დრაფტნიუსი"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.news", hasSize(0)));
+        // The author first: global search caches its answer for 60 s, and a
+        // key shared by role and department handed the author's draft to the
+        // next administrator of the same department.
         mockMvc.perform(authed(get("/api/search/global"), tokenFor(admin)).param("q", "დრაფტნიუსი"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.news", hasSize(1)));
+        for (User notTheAuthor : List.of(operator, otherAdmin)) {
+            mockMvc.perform(authed(get("/api/search/global"), tokenFor(notTheAuthor)).param("q", "დრაფტნიუსი"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.news", hasSize(0)));
+        }
     }
 
     @Test

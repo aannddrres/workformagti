@@ -2,6 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { AuthService } from './auth.service';
+import { LoginPage } from './login-page';
 import { environment } from '../../../environments/environment';
 
 /**
@@ -20,6 +21,7 @@ export class IdleSessionService {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly loginPage = inject(LoginPage);
   private readonly activityEvents = ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const;
   private timer: ReturnType<typeof setInterval> | null = null;
   private lastActivity = Date.now();
@@ -91,7 +93,7 @@ export class IdleSessionService {
     const returnUrl = this.router.url.startsWith('/login') ? '/' : this.router.url;
     this.stop();
     this.auth.logout().subscribe(() => {
-      this.router.navigate(['/login'], { queryParams: { returnUrl, reason: 'session-expired' } });
+      this.loginPage.open({ returnUrl, reason: 'session-expired' });
     });
   }
 }

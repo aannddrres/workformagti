@@ -40,6 +40,13 @@ public interface ReadStatusRepository extends JpaRepository<ReadStatus, Long> {
     List<ReadStatus> findByUserIdAndRequiredReadingIdIn(Long userId, List<Long> requiredReadingIds);
 
     /**
+     * PO-40's editor warning: who has confirmed any of one item's readings.
+     * Callers pass a sentinel page and fail loudly past it.
+     */
+    List<ReadStatus> findByRequiredReadingIdInAndStatus(
+            List<Long> requiredReadingIds, String status, Pageable pageable);
+
+    /**
      * Mirrors get_statistics_breakdown's "status" dimension
      * (routers/stats.py:902,921-925) -- every read status row, unfiltered.
      * Object[] = {status (String), count (Long)}.

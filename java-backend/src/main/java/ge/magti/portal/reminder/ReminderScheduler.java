@@ -5,7 +5,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/** Runs the portal-only due-soon/overdue delivery sweep every 15 minutes. */
+/**
+ * Runs the portal-only reminder sweep every 15 minutes: assignments that came
+ * into force at a scheduled publication (PO-40), then due-soon and overdue.
+ */
 @Component
 public class ReminderScheduler {
 

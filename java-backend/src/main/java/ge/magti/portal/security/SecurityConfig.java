@@ -13,6 +13,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.session.NullAuthenticatedSessionStrategy;
+import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
@@ -98,6 +99,7 @@ public class SecurityConfig {
 		// Cookie attributes, and the lifetime that keeps it from outliving or
 		// dying before the session -- see SessionLifetimeCsrfTokenRepository.
 		CsrfTokenRepository csrfRepository = new SessionLifetimeCsrfTokenRepository(
+				portalProperties.getSecurity().getCookie().csrfCookieName(),
 				portalProperties.getSecurity().getCookie().isSecure(),
 				Duration.ofMinutes(portalProperties.getSecurity().getJwt().getAccessTokenExpireMinutes()));
 		RequestMatcher bearerRequest = request -> {
@@ -140,8 +142,13 @@ public class SecurityConfig {
 						// state-changing request.
 						.sessionAuthenticationStrategy(new NullAuthenticatedSessionStrategy())
 						.ignoringRequestMatchers(unauthenticatedAuthStart, bearerRequest))
+				// ASVS V3.4.6: frame-ancestors on every response, not only on the
+				// page nginx serves. Spring's other defaults (nosniff, DENY,
+				// no-store) stay as they are; nothing here is ever framed.
+				.headers(headers -> headers.contentSecurityPolicy(csp -> csp.policyDirectives("frame-ancestors 'none'")))
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+				.addFilterBefore(new AccessDenialLoggingFilter(), CsrfFilter.class)
 				.exceptionHandling(exceptions -> exceptions
 						.authenticationEntryPoint((request, response, exception) -> {
 							response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

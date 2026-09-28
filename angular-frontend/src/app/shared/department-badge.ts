@@ -38,14 +38,18 @@ export function formatDepartmentLabel(department: string | null | undefined): st
 export function getDepartmentBadge(department: string | null | undefined): DepartmentBadge {
   switch (department) {
     case 'ტექნიკური':
-      return { label: 'ტექნიკური', colorClass: 'bg-blue-50 text-blue-600 border border-blue-100' };
+      return { label: 'ტექნიკური', colorClass: 'bg-blue-50 text-blue-600 border border-blue-100 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60' };
+    // 'საინფორმაციო' is what the news form, the news filter (FE-07) and the
+    // seeders store; 'საინფო' is the older spelling, kept so a row still
+    // carrying it gets the same badge.
+    case 'საინფორმაციო':
     case 'საინფო':
-      return { label: 'საინფორმაციო', colorClass: 'bg-emerald-50 text-emerald-700 border border-emerald-100' };
+      return { label: 'საინფორმაციო', colorClass: 'bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60' };
     case 'ოფისი':
-      return { label: 'ოფისი', colorClass: 'bg-amber-50 text-amber-700 border border-amber-100' };
+      return { label: 'ოფისი', colorClass: 'bg-amber-50 text-amber-700 border border-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60' };
     case 'All':
-      return { label: 'საერთო', colorClass: 'bg-purple-50 text-purple-600 border border-purple-100' };
+      return { label: 'საერთო', colorClass: 'bg-purple-50 text-purple-600 border border-purple-100 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/60' };
     default:
-      return { label: formatDepartmentLabel(department), colorClass: 'bg-slate-100 text-slate-600' };
+      return { label: formatDepartmentLabel(department), colorClass: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' };
   }
 }

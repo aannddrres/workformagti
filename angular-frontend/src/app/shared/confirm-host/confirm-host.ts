@@ -34,6 +34,13 @@ import { PortalDialog } from '../portal-dialog/portal-dialog';
           <p id="confirm-message" class="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
             {{ request.message }}
           </p>
+          @if (request.details?.length) {
+            <ul class="mt-3 max-h-48 overflow-y-auto rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-200">
+              @for (line of request.details; track $index) {
+                <li class="py-0.5">{{ line }}</li>
+              }
+            </ul>
+          }
           <div class="mt-6 flex justify-end gap-2">
             <button type="button" class="secondary-button" (click)="confirmService.respond(false)">
               {{ 'shared.confirm.cancel' | translate }}

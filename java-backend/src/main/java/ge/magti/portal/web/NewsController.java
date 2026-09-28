@@ -15,7 +15,7 @@ import ge.magti.portal.repository.NewsRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.search.SearchReindexService;
 import ge.magti.portal.security.PermissionChecker;
-import ge.magti.portal.util.DepartmentMatcher;
+import ge.magti.portal.news.NewsVisibility;
 import ge.magti.portal.storage.FileReferenceIndex;
 import ge.magti.portal.util.TbilisiTime;
 import jakarta.validation.Valid;
@@ -116,17 +116,8 @@ public class NewsController {
         }
         News news = found.get();
 
-        if (user.getRole().isContentAdmin()) {
-            if (news.isDraft() && !java.util.Objects.equals(news.getAuthorId(), user.getId())) {
-                return notFound();
-            }
-        } else {
-            if (news.isDraft()) {
-                return notFound();
-            }
-            if (!DepartmentMatcher.matches(user.getDepartment(), List.of(news.getTargetDepartment()))) {
-                return notFound();
-            }
+        if (!NewsVisibility.isVisible(news, user)) {
+            return notFound();
         }
         return ResponseEntity.ok(NewsResponse.from(news));
     }
@@ -189,6 +180,9 @@ public class NewsController {
             return notFound();
         }
         News news = found.get();
+        if (NewsVisibility.isPrivateDraftOfAnother(news, user)) {
+            return notFound();
+        }
         Map<String, Object> before = MutationAuditService.newsSnapshot(news);
 
         archiveCurrentState(news, user.getId());
@@ -221,7 +215,7 @@ public class NewsController {
             return denial;
         }
         Optional<News> found = newsRepository.findById(id);
-        if (found.isEmpty()) {
+        if (found.isEmpty() || NewsVisibility.isPrivateDraftOfAnother(found.get(), user)) {
             return notFound();
         }
         ContentLifecycleService.Status status = contentLifecycleService.moveToTrash(
@@ -245,6 +239,9 @@ public class NewsController {
             return notFound();
         }
         News news = found.get();
+        if (NewsVisibility.isPrivateDraftOfAnother(news, user)) {
+            return notFound();
+        }
         if (!news.isArchived()) {
             Map<String, Object> before = MutationAuditService.newsSnapshot(news);
             news.setExpiresAt(TbilisiTime.now());
@@ -269,6 +266,9 @@ public class NewsController {
             return notFound();
         }
         News news = found.get();
+        if (NewsVisibility.isPrivateDraftOfAnother(news, user)) {
+            return notFound();
+        }
         if (!news.isArchived()) {
             return ResponseEntity.badRequest().body(Map.of("detail", "სიახლე არ არის არქივში"));
         }
@@ -296,6 +296,11 @@ public class NewsController {
             return notFound();
         }
         News news = found.get();
+        // Before the self-heal below: an authorless private draft is nobody's
+        // (PO-34), so it is not adopted by whoever autosaves it first.
+        if (NewsVisibility.isPrivateDraftOfAnother(news, user)) {
+            return notFound();
+        }
         Map<String, Object> before = MutationAuditService.newsSnapshot(news);
 
         // routers/news.py:229-230 -- self-heals a null author_id (e.g. a
@@ -353,6 +358,9 @@ public class NewsController {
         if (denial != null) {
             return denial;
         }
+        if (isExistingPrivateDraftOfAnother(id, user)) {
+            return notFound();
+        }
         HistoryPayloadGuard.enforceFullResponseCharacters(
                 newsHistoryRepository.totalContentCharactersByNewsId(id));
         List<NewsHistory> history = CompleteResultGuard.enforce(
@@ -376,6 +384,9 @@ public class NewsController {
         if (denial != null) {
             return denial;
         }
+        if (isExistingPrivateDraftOfAnother(id, user)) {
+            return notFound();
+        }
         List<NewsHistorySummary> history = CompleteResultGuard.enforce(
                 newsHistoryRepository.findSummaryByNewsIdOrderByUpdatedAtDesc(
                         id, CompleteResultGuard.sentinelPage()));
@@ -398,6 +409,9 @@ public class NewsController {
         ResponseEntity<Map<String, String>> denial = Guards.requireContentManage(user, permissionChecker);
         if (denial != null) {
             return denial;
+        }
+        if (isExistingPrivateDraftOfAnother(id, user)) {
+            return notFound();
         }
         Optional<NewsHistory> history = newsHistoryRepository.findByIdAndNewsId(historyId, id);
         if (history.isEmpty()) {
@@ -425,6 +439,9 @@ public class NewsController {
             return notFound();
         }
         News news = found.get();
+        if (NewsVisibility.isPrivateDraftOfAnother(news, user)) {
+            return notFound();
+        }
         Map<String, Object> before = MutationAuditService.newsSnapshot(news);
 
         Optional<NewsHistory> historyRow = newsHistoryRepository.findByIdAndNewsId(historyId, id);
@@ -476,4 +493,15 @@ public class NewsController {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", NOT_FOUND_DETAIL));
     }
 
+
+    /**
+     * History is read by news id without loading the item, and a missing id
+     * keeps its legacy answer (an empty list). An existing private draft of
+     * another author is a 404, like the item itself (PO-34, D2).
+     */
+    private boolean isExistingPrivateDraftOfAnother(Long newsId, User user) {
+        return newsRepository.findById(newsId)
+                .map(news -> NewsVisibility.isPrivateDraftOfAnother(news, user))
+                .orElse(false);
+    }
 }

@@ -10,9 +10,11 @@ import ge.magti.portal.article.ArticleTargetQueryService;
 import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.content.ContentLifecycleService;
 import ge.magti.portal.content.ArticleHtmlSanitizer;
+import ge.magti.portal.compliance.ReadingAcknowledgementService;
 import ge.magti.portal.article.ArticleQueryService;
 import ge.magti.portal.article.ArticleViewQueryService;
 import ge.magti.portal.article.EligibleOperatorsService;
+import ge.magti.portal.compliance.MandatoryReach;
 import ge.magti.portal.diff.DiffResult;
 import ge.magti.portal.diff.HtmlDiffer;
 import ge.magti.portal.domain.Article;
@@ -129,6 +131,7 @@ public class ArticleController {
     private final UserRepository userRepository;
     private final RequiredReadingRepository requiredReadingRepository;
     private final ReadStatusRepository readStatusRepository;
+    private final ReadingAcknowledgementService readingAcknowledgementService;
     private final QuizGateChecker quizGateChecker;
     private final PermissionChecker permissionChecker;
     private final ScopeResolver scopeResolver;
@@ -141,6 +144,8 @@ public class ArticleController {
     private final ArticleHtmlSanitizer articleHtmlSanitizer;
     private final MutationAuditService contentMutationAuditService;
     private final FileReferenceIndex fileReferenceIndex;
+    /** PO-40: a bulk re-aim extends a mandatory article's obligation to the departments it adds. */
+    private final ComplianceController complianceController;
 
     public ArticleController(
             ArticleRepository articleRepository,
@@ -154,6 +159,7 @@ public class ArticleController {
             UserRepository userRepository,
             RequiredReadingRepository requiredReadingRepository,
             ReadStatusRepository readStatusRepository,
+            ReadingAcknowledgementService readingAcknowledgementService,
             QuizGateChecker quizGateChecker,
             PermissionChecker permissionChecker,
             ScopeResolver scopeResolver,
@@ -165,7 +171,8 @@ public class ArticleController {
             ContentLifecycleService contentLifecycleService,
             ArticleHtmlSanitizer articleHtmlSanitizer,
             MutationAuditService contentMutationAuditService,
-            FileReferenceIndex fileReferenceIndex) {
+            FileReferenceIndex fileReferenceIndex,
+            ComplianceController complianceController) {
         this.articleRepository = articleRepository;
         this.targetDepartmentRepository = targetDepartmentRepository;
         this.articleTargetQueryService = articleTargetQueryService;
@@ -177,6 +184,7 @@ public class ArticleController {
         this.userRepository = userRepository;
         this.requiredReadingRepository = requiredReadingRepository;
         this.readStatusRepository = readStatusRepository;
+        this.readingAcknowledgementService = readingAcknowledgementService;
         this.quizGateChecker = quizGateChecker;
         this.permissionChecker = permissionChecker;
         this.scopeResolver = scopeResolver;
@@ -189,6 +197,7 @@ public class ArticleController {
         this.articleHtmlSanitizer = articleHtmlSanitizer;
         this.contentMutationAuditService = contentMutationAuditService;
         this.fileReferenceIndex = fileReferenceIndex;
+        this.complianceController = complianceController;
     }
 
     @GetMapping("/api/articles")
@@ -310,6 +319,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (ArticleVisibility.isPrivateDraftOfAnother(article, user)) {
+            return notFound();
+        }
         List<String> previousTargets = resolveTargetDepartments(id);
         Map<String, Object> before = MutationAuditService.articleSnapshot(article, previousTargets);
 
@@ -422,6 +434,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (ArticleVisibility.isPrivateDraftOfAnother(article, user)) {
+            return notFound();
+        }
         List<String> previousTargetDepartments = resolveTargetDepartments(id);
         Map<String, Object> before = MutationAuditService.articleSnapshot(article, previousTargetDepartments);
 
@@ -542,7 +557,7 @@ public class ArticleController {
         }
 
         Optional<Article> found = articleRepository.findById(id);
-        if (found.isEmpty()) {
+        if (found.isEmpty() || ArticleVisibility.isPrivateDraftOfAnother(found.get(), user)) {
             return notFound();
         }
         ContentLifecycleService.Status status = contentLifecycleService.moveToTrash(
@@ -567,6 +582,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (ArticleVisibility.isPrivateDraftOfAnother(article, user)) {
+            return notFound();
+        }
         if ("archived".equals(article.getStatus())) {
             return ResponseEntity.ok(ArticleResponse.from(article, resolveTargetDepartments(id)));
         }
@@ -595,6 +613,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (ArticleVisibility.isPrivateDraftOfAnother(article, user)) {
+            return notFound();
+        }
         if (!"archived".equals(article.getStatus())) {
             return ResponseEntity.badRequest().body(Map.of("detail", "სტატია არ არის არქივში"));
         }
@@ -686,7 +707,7 @@ public class ArticleController {
             return ResponseEntity.badRequest().body(Map.of("detail", "კატეგორია ვერ მოიძებნა"));
         }
 
-        List<Article> rows = articleRepository.findAllById(request.ids());
+        List<Article> rows = changeableBy(articleRepository.findAllById(request.ids()), user);
         Set<Long> found = rows.stream().map(Article::getId).collect(Collectors.toSet());
         List<Long> skipped = new ArrayList<>();
         for (Long requestedId : request.ids()) {
@@ -710,6 +731,7 @@ public class ArticleController {
             if (request.targetDepartments() != null) {
                 after = request.targetDepartments().stream().distinct().toList();
                 replaceTargetDepartments(saved.getId(), after);
+                extendMandatoryToAudience(saved.getId(), after, user);
             }
 
             contentMutationAuditService.recordSuccess(
@@ -721,8 +743,41 @@ public class ArticleController {
         return ResponseEntity.ok(new ArticleBulkResponse(updated, skipped));
     }
 
+    /**
+     * PO-40: a mandatory article binds everyone its audience covers, so a
+     * department a bulk re-aim adds gets its own reading, with the due date
+     * and priority the article's obligation already has -- through the one
+     * create path, with its checks, reminders and audit. One the article
+     * cannot reach now (archived, unpublished) is refused there and skipped
+     * here; the editor's next mandatory save adds it. A department the re-aim
+     * drops keeps its reading and its confirmations, out of force.
+     */
+    private void extendMandatoryToAudience(Long articleId, List<String> audience, User user) {
+        List<RequiredReading> existing = requiredReadingRepository.findByItemTypeAndItemId("article", articleId);
+        if (existing.isEmpty()) {
+            return;
+        }
+        RequiredReading model = existing.get(0);
+        Set<String> targeted = existing.stream().map(RequiredReading::getTargetDepartment).collect(Collectors.toSet());
+        for (String target : MandatoryReach.readingTargets(audience)) {
+            if (!targeted.contains(target)) {
+                complianceController.createRequiredReading(new RequiredReadingRequest(
+                        "article", articleId, target, model.getDueDate(), model.getPriority()), user);
+            }
+        }
+    }
+
     /** What one bulk status change did, before it is shaped into a response. */
     private record BulkStatusOutcome(int updated, List<Long> skipped) {
+    }
+
+    /**
+     * Another author's private draft is reported as skipped, exactly like an
+     * id that does not exist. bulk-status clears {@code is_draft}, so without
+     * this it published a colleague's autosave to its whole audience.
+     */
+    private static List<Article> changeableBy(List<Article> rows, User user) {
+        return rows.stream().filter(a -> !ArticleVisibility.isPrivateDraftOfAnother(a, user)).toList();
     }
 
     /**
@@ -734,7 +789,7 @@ public class ArticleController {
      * decided -- and a batch row cannot answer it.
      */
     private BulkStatusOutcome applyBulkStatus(List<Long> ids, String target, User user) {
-        List<Article> rows = articleRepository.findAllById(ids);
+        List<Article> rows = changeableBy(articleRepository.findAllById(ids), user);
         Set<Long> found = rows.stream().map(Article::getId).collect(Collectors.toSet());
         List<Long> skipped = new ArrayList<>();
         for (Long requestedId : ids) {
@@ -839,6 +894,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (ArticleVisibility.isPrivateDraftOfAnother(article, user)) {
+            return notFound();
+        }
         List<String> targetDepartments = resolveTargetDepartments(id);
         Map<String, Object> before = MutationAuditService.articleSnapshot(article, targetDepartments);
         article.setLastVerifiedAt(TbilisiTime.now());
@@ -859,7 +917,7 @@ public class ArticleController {
 
         OffsetDateTime cutoff = TbilisiTime.now().minusDays(180);
         List<StaleArticleResponse> stale = CompleteResultGuard.enforce(articleRepository
-                .findStaleReferences("published", cutoff, CompleteResultGuard.sentinelPage())).stream()
+                .findStaleReferences("published", cutoff, user.getId(), CompleteResultGuard.sentinelPage())).stream()
                 .map(a -> new StaleArticleResponse(
                         a.id(), a.title(), resolveTargetDepartments(a.id()), a.lastVerifiedAt(),
                         Duration.between(a.lastVerifiedAt(), TbilisiTime.now()).toDays()))
@@ -889,7 +947,7 @@ public class ArticleController {
 
         List<ArticleReferenceItem> published = CompleteResultGuard.enforce(
                         articleRepository.findReferencesByStatus(
-                                "published", CompleteResultGuard.sentinelPage())).stream()
+                                "published", user.getId(), CompleteResultGuard.sentinelPage())).stream()
                 .filter(a -> !a.id().equals(id))
                 .toList();
         Set<Long> candidateIds = published.stream().map(ArticleReferenceItem::id).collect(Collectors.toSet());
@@ -970,6 +1028,10 @@ public class ArticleController {
         // No get_or_404 here, matching routers/articles.py:539-565 exactly:
         // a missing article_id isn't checked separately, it just yields zero
         // matching history rows -- an empty list, not a 404.
+        ResponseEntity<Map<String, String>> visibility = denyInvisibleExistingArticle(id, user);
+        if (visibility != null) {
+            return visibility;
+        }
         HistoryPayloadGuard.enforceFullResponseCharacters(
                 articleHistoryRepository.totalContentCharactersByArticleId(id));
         List<ArticleHistory> history = ArticleEvidenceCardinalityGuard.enforceWithinLimit(
@@ -1003,6 +1065,10 @@ public class ArticleController {
             return denial;
         }
 
+        ResponseEntity<Map<String, String>> visibility = denyInvisibleExistingArticle(id, user);
+        if (visibility != null) {
+            return visibility;
+        }
         List<ArticleHistorySummary> history = ArticleEvidenceCardinalityGuard.enforceWithinLimit(
                 articleHistoryRepository.findSummaryByArticleIdOrderByUpdatedAtDesc(
                         id, PageRequest.of(0, ArticleEvidenceCardinalityGuard.MAX_ROWS + 1)));
@@ -1027,6 +1093,10 @@ public class ArticleController {
             return denial;
         }
 
+        ResponseEntity<Map<String, String>> visibility = denyInvisibleExistingArticle(id, user);
+        if (visibility != null) {
+            return visibility;
+        }
         Optional<ArticleHistory> history = articleHistoryRepository.findByIdAndArticleId(historyId, id);
         if (history.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -1111,6 +1181,10 @@ public class ArticleController {
         }
         Article article = found.get();
         List<String> targetDepartments = resolveTargetDepartments(id);
+        ResponseEntity<Map<String, String>> visibility = assertArticleVisible(article, targetDepartments, user);
+        if (visibility != null) {
+            return visibility;
+        }
         Map<String, Object> before = MutationAuditService.articleSnapshot(article, targetDepartments);
 
         Optional<ArticleHistory> historyOpt = articleHistoryRepository.findByIdAndArticleId(historyId, id);
@@ -1228,6 +1302,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (ArticleVisibility.isPrivateDraftOfAnother(article, user)) {
+            return notFound();
+        }
 
         OffsetDateTime dueDate = requiredReadingRepository.findFirstByItemTypeAndItemId("article", id)
                 .map(RequiredReading::getDueDate).orElse(null);
@@ -1311,13 +1388,6 @@ public class ArticleController {
             return quizGate;
         }
 
-        OffsetDateTime readAt = TbilisiTime.now();
-        articleReadReceiptRepository.upsert(id, article.getTitle(), article.getVersion(), user.getId(),
-                user.getName(), user.getEmail(), user.getDepartment(), readAt);
-        ArticleReadReceipt receipt = articleReadReceiptRepository
-                .findByArticleIdSnapshotAndArticleVersionAndOperatorId(id, article.getVersion(), user.getId())
-                .orElseThrow();
-
         // Compliance bridge (routers/articles.py:1207-1233): prefix-aware,
         // unlike EligibleOperatorsService's exact-match rule -- this one
         // reuses the same [dept, deptPrefix, "All"] pattern get_articles'
@@ -1327,22 +1397,7 @@ public class ArticleController {
                 requiredReadingRepository.findByItemTypeAndItemIdAndTargetDepartmentIn(
                         "article", id, DepartmentMatcher.visibilityTargets(user.getDepartment()),
                         CompleteResultGuard.sentinelPage()));
-        for (RequiredReading rr : covering) {
-            ReadStatus stat = readStatusRepository.findByUserIdAndRequiredReadingId(user.getId(), rr.getId())
-                    .orElseGet(() -> {
-                        ReadStatus fresh = new ReadStatus();
-                        fresh.setUserId(user.getId());
-                        fresh.setRequiredReadingId(rr.getId());
-                        return fresh;
-                    });
-            if ("read".equals(stat.getStatus())) {
-                continue;
-            }
-            stat.setStatus("read");
-            stat.setReadAt(TbilisiTime.now());
-            stat.setOperatorDepartmentSnapshot(user.getDepartment());
-            readStatusRepository.save(stat);
-        }
+        ArticleReadReceipt receipt = readingAcknowledgementService.acknowledgeArticle(article, user, covering);
 
         return ResponseEntity.ok(new CreateReadReceiptResponse("success", receipt.getReadAt(), receipt.getArticleVersion()));
     }
@@ -1422,6 +1477,9 @@ public class ArticleController {
             return notFound();
         }
         Article article = found.get();
+        if (ArticleVisibility.isPrivateDraftOfAnother(article, user)) {
+            return notFound();
+        }
 
         int safeOffset = Math.max(offset, 0);
         int safeLimit = Math.max(1, Math.min(limit, 200));
@@ -1447,6 +1505,7 @@ public class ArticleController {
         List<ArticleViewLog> rows = articleViewLogRepository.findTop30ByOperatorIdOrderByViewedAtDesc(user.getId());
         Set<Long> articleIds = rows.stream().map(ArticleViewLog::getArticleId).filter(Objects::nonNull).collect(Collectors.toSet());
         Map<Long, String> titlesByArticleId = articleRepository.findAllById(articleIds).stream()
+                .filter(a -> !ArticleVisibility.isPrivateDraftOfAnother(a, user))
                 .collect(Collectors.toMap(Article::getId, Article::getTitle));
 
         Set<Long> seenIds = new LinkedHashSet<>();
@@ -1557,6 +1616,13 @@ public class ArticleController {
             return notFoundMap();
         }
         return assertArticleVisible(found.get(), resolveTargetDepartments(articleId), user);
+    }
+
+    /** Preserve legacy missing-article history responses while hiding existing private drafts. */
+    private ResponseEntity<Map<String, String>> denyInvisibleExistingArticle(Long articleId, User user) {
+        return articleRepository.findById(articleId)
+                .map(article -> assertArticleVisible(article, resolveTargetDepartments(articleId), user))
+                .orElse(null);
     }
 
     /**

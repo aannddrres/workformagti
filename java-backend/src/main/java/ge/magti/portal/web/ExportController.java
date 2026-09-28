@@ -6,6 +6,7 @@ import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.export.CsvExportBuilder;
+import ge.magti.portal.export.ExportDisplayLabels;
 import ge.magti.portal.export.ExportJobWorker;
 import ge.magti.portal.export.LegacyExportJobService;
 import ge.magti.portal.export.ExportQueryService;
@@ -104,7 +105,8 @@ public class ExportController {
         this.exportJobRepository = exportJobRepository;
         this.exportJobWorker = exportJobWorker;
         this.mutationAuditService = auditService;
-        this.exportJobService = new LegacyExportJobService(exportJobRepository, auditService);
+        this.exportJobService = new LegacyExportJobService(
+                exportJobRepository, auditService, new ge.magti.portal.export.ExportJobLeaseOwner());
         this.permissionChecker = permissionChecker;
         this.scopeResolver = null;
     }
@@ -138,12 +140,14 @@ public class ExportController {
             return tooLargeResponse(e);
         }
 
-        List<String> headers = List.of("User ID", "User Name", "Item Type", "Item ID", "Status", "Read At");
+        List<String> headers = List.of("თანამშრომლის ID", "თანამშრომელი", "მასალის ტიპი", "მასალის ID",
+                "სტატუსი", "წაკითხვის თარიღი");
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         List<List<Object>> tableRows = rows.stream()
                 .map(r -> List.<Object>of(
-                        r.userId(), r.userName(), r.itemType(), r.itemId(), r.status(),
-                        r.readAt() != null ? r.readAt().format(fmt) : "N/A"))
+                        r.userId(), r.userName(), ExportDisplayLabels.itemType(r.itemType()), r.itemId(),
+                        ExportDisplayLabels.readingStatus(r.status()),
+                        r.readAt() != null ? r.readAt().format(fmt) : ExportDisplayLabels.missingDate()))
                 .toList();
         String csv = CsvExportBuilder.build(headers, tableRows);
         writeInlineAudit(admin, "EXPORT", "readings", "csv", rows.size());
@@ -173,7 +177,7 @@ public class ExportController {
         List<List<Object>> tableRows = readingRowsForSpreadsheet(rows);
 
         String jobId = enqueueJob(
-                admin, tableRows, headers, "Compliance", "xlsx", "EXPORT_XLSX", "readings");
+                admin, tableRows, headers, "გაცნობის სტატუსი", "xlsx", "EXPORT_XLSX", "readings");
         return ResponseEntity.ok(new ExportJobResponse(jobId));
     }
 
@@ -337,9 +341,9 @@ public class ExportController {
                 .map(r -> List.<Object>of(
                         r.userName(),
                         r.department() == null ? "" : r.department(),
-                        r.itemType() == null ? "" : r.itemType(),
+                        ExportDisplayLabels.itemType(r.itemType()),
                         String.valueOf(r.itemId()),
-                        r.status(),
+                        ExportDisplayLabels.readingStatus(r.status()),
                         r.readAt() != null ? r.readAt().format(dtFmt) : "",
                         r.dueDate() != null ? r.dueDate().format(dFmt) : ""))
                 .toList();
@@ -350,7 +354,12 @@ public class ExportController {
             String exportType, String action, String itemType) {
         String jobId = exportJobService.register(
                 owner, action, itemType, title, exportType, rows.size(), scopeDepartment(owner));
-        exportJobWorker.buildAndStore(jobId, title, headers, rows, exportType);
+        exportJobWorker.track(jobId);
+        try {
+            exportJobWorker.buildAndStore(jobId, title, headers, rows, exportType);
+        } catch (RuntimeException e) {
+            exportJobWorker.dispatchFailed(jobId, exportType);
+        }
         return jobId;
     }
 
@@ -429,7 +438,8 @@ public class ExportController {
      */
     private static boolean maySeeJob(User caller, ExportJob job) {
         if (job.getExportFamily() != null && job.getExportFamily().startsWith("ADMIN_")) {
-            return job.getOwnerUserId() != null && job.getOwnerUserId().equals(caller.getId());
+            return caller.getRole() == Role.SYSTEM_ADMIN
+                    && job.getOwnerUserId() != null && job.getOwnerUserId().equals(caller.getId());
         }
         if (caller.getRole() == Role.SYSTEM_ADMIN) {
             return true;

@@ -24,12 +24,15 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -58,6 +61,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Transactional
 class AuthControllerIntegrationTest {
+
+    @Test
+    void ssoStartFailsClosedUntilCorporateRedirectIsImplemented() throws Exception {
+        mockMvc.perform(post("/api/auth/sso/start"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.detail").value(
+                        "კომპანიის ავტორიზაციის სერვისი ჯერ არ არის დაკავშირებული. წვდომა არ გაიცა."));
+    }
 
     @Autowired
     private MockMvc mockMvc;
@@ -126,6 +137,36 @@ class AuthControllerIntegrationTest {
         assertEquals("SUCCESS", details.path("result").asText());
         assertEquals("LOCAL_DEVELOPMENT_ONLY", details.path("after").path("auth_channel").asText());
         assertFalse(audit.getDetails().contains("access_token"));
+    }
+
+    /**
+     * PO-24's leaver filter reads users.last_active, and nothing wrote it:
+     * every account read "never signed in". Signed in twice so the first
+     * request can provision the account on a fresh database; the second is
+     * the one measured.
+     */
+    @Test
+    void signingInRecordsLastActiveWithoutAdvancingTheLockVersion() throws Exception {
+        mockMvc.perform(withIp(post("/api/auth/login"), "10.0.0.40")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"info@magti.ge\",\"password\":\"anything\"}"))
+                .andExpect(status().isOk());
+        entityManager.clear();
+        long lockVersion = userRepository.findByEmailIgnoreCase("info@magti.ge").orElseThrow().getLockVersion();
+        OffsetDateTime before = TbilisiTime.now().truncatedTo(ChronoUnit.SECONDS);
+
+        mockMvc.perform(withIp(post("/api/auth/login"), "10.0.0.40")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"info@magti.ge\",\"password\":\"anything\"}"))
+                .andExpect(status().isOk());
+
+        entityManager.clear();
+        User signedIn = userRepository.findByEmailIgnoreCase("info@magti.ge").orElseThrow();
+        assertNotNull(signedIn.getLastActive(), "a sign-in records last_active");
+        assertFalse(signedIn.getLastActive().isBefore(before));
+        assertEquals(TbilisiTime.OFFSET, signedIn.getLastActive().getOffset());
+        // An administrator saving this person at the same moment must not get a 409.
+        assertEquals(lockVersion, signedIn.getLockVersion(), "a sign-in must not advance lock_version");
     }
 
     @Test
@@ -424,5 +465,67 @@ class AuthControllerIntegrationTest {
                         .content(body))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.detail").isNotEmpty());
+    }
+
+    /** Collects what AuthController logs while the given body runs. */
+    private static List<ch.qos.logback.classic.spi.ILoggingEvent> logged(ThrowingRunnable body) throws Exception {
+        ch.qos.logback.classic.Logger logger = (ch.qos.logback.classic.Logger)
+                org.slf4j.LoggerFactory.getLogger(AuthController.class);
+        ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent> appender =
+                new ch.qos.logback.core.read.ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            body.run();
+        } finally {
+            logger.detachAppender(appender);
+        }
+        return appender.list;
+    }
+
+    @FunctionalInterface
+    private interface ThrowingRunnable {
+        void run() throws Exception;
+    }
+
+    /**
+     * ASVS V16.3.1. A failure against a known account is audited
+     * (knownAccountFailureIsSchemaAuditedWithoutPasswordOrEmailInDetails); one
+     * against an address with no account left no trace at all, which is
+     * exactly what credential stuffing looks like. It is logged now, with a
+     * hash of the address instead of the address, because what people type
+     * into the username field is sometimes their password.
+     */
+    @Test
+    void everyFailedSignInIsLoggedEvenForAnUnknownAddress() throws Exception {
+        List<ch.qos.logback.classic.spi.ILoggingEvent> events = logged(() ->
+                mockMvc.perform(withIp(post("/api/auth/login"), "10.0.0.41")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"email\":\"no.such.person@magti.ge\",\"password\":\"whatever\"}"))
+                        .andExpect(status().isUnauthorized()));
+
+        String failure = events.stream().map(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage)
+                .filter(message -> message.startsWith("SIGN_IN_FAILED")).findFirst()
+                .orElseThrow(() -> new AssertionError("no SIGN_IN_FAILED line"));
+        assertTrue(failure.contains("account=unknown:"), failure);
+        assertTrue(failure.contains("client_ip=10.0.0.41"), failure);
+        assertFalse(failure.contains("no.such.person"), "the typed address is never logged in clear: " + failure);
+        assertFalse(failure.contains("whatever"), failure);
+    }
+
+    /** ASVS V16.3.3: the throttle refusing an attempt is itself a security event. */
+    @Test
+    void aThrottledSignInIsLogged() throws Exception {
+        String body = "{\"email\":\"throttle.logged@magti.ge\",\"password\":\"whatever\"}";
+        List<ch.qos.logback.classic.spi.ILoggingEvent> events = logged(() -> {
+            for (int i = 0; i < 11; i++) {
+                mockMvc.perform(withIp(post("/api/auth/login"), "10.0.0.42")
+                        .contentType(MediaType.APPLICATION_JSON).content(body));
+            }
+        });
+
+        assertTrue(events.stream().map(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage)
+                .anyMatch(message -> message.startsWith("SIGN_IN_THROTTLED") && message.contains("client_ip=10.0.0.42")
+                        && !message.contains("throttle.logged")), events.toString());
     }
 }

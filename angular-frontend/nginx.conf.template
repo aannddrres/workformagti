@@ -20,10 +20,22 @@
 # Resolved the location-level way. Nothing is declared at server level, so
 # the proxied locations inherit nothing and Spring stays the sole author of
 # its own headers. The static locations each say what they need.
+log_format audit_timing 'request_id=$request_id method=$request_method path=$uri '
+                        'status=$status request_time=$request_time upstream_time=$upstream_response_time';
 server {
+    access_log /dev/stdout audit_timing;
+    # Keep the transport cap above the backend's 10 MiB file cap for multipart overhead.
+    client_max_body_size 11m;
     listen 8080;
     server_name _;
     root /usr/share/nginx/html;
+
+    # ASVS V4.1.1: text the portal serves itself declares its encoding.
+    # `charset` is switched on per location below, never here: at server
+    # level it would also stamp utf-8 onto a proxied text/plain upload,
+    # which may be in another encoding. These types only say what it
+    # applies to where it is on.
+    charset_types text/html text/css application/javascript application/json;
 
     # ---- Caching -------------------------------------------------------
     #
@@ -47,6 +59,7 @@ server {
     # Content-addressed by the build: the name changes whenever the bytes do.
     location ~* "^/(?:chunk|main|polyfills|styles|scripts)-[A-Za-z0-9_-]{8,}\.(?:js|css)$" {
         expires 1y;
+        charset utf-8;
         add_header X-Content-Type-Options "nosniff" always;
     }
 
@@ -63,6 +76,7 @@ server {
     # someone last release's wording.
     location ~* "^/(?:i18n|fonts)/|^/(?:favicon\.ico|magticom-logo(?:-white)?\.png)$" {
         expires -1;
+        charset utf-8;
         add_header X-Content-Type-Options "nosniff" always;
     }
 
@@ -79,6 +93,7 @@ server {
     # across two blocks and duplicate the CSP into a second place to drift.
     location / {
         try_files $uri $uri/ /index.html;
+        charset utf-8;
 
         # index.html names every hashed bundle, so caching it caches the whole
         # release.
@@ -141,19 +156,31 @@ server {
     # plus an explicit nosniff and a sandbox CSP on uploads,
     # UploadedFileController:92-93).
     location /api/ {
+        # The ingress in front of this server sets the same two limits
+        # (k8s/50-ingress.yaml), for the same reasons: the application caps
+        # uploads at 10MB and Spring's transport at 11MB, and an export of the
+        # whole company is built synchronously. Every request passes through
+        # here after the ingress, so without them nginx's defaults decided
+        # instead: a 5MB PDF came back as nginx's own HTML 413 before Spring
+        # saw it, and a response had 60s. The body limit is the server-level
+        # client_max_body_size above.
+        proxy_read_timeout 120s;
         proxy_pass http://${BACKEND_HOST}:${BACKEND_PORT}/api/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Request-ID $request_id;
     }
 
     location /uploads/ {
+        proxy_read_timeout 120s;
         proxy_pass http://${BACKEND_HOST}:${BACKEND_PORT}/uploads/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Request-ID $request_id;
         proxy_no_cache 1;
         proxy_cache_bypass 1;
     }

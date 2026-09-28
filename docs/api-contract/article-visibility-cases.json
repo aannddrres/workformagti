@@ -7,7 +7,7 @@
     "",
     "Only the clause both sides actually evaluate is listed here -- status,",
     "publishedAt and isDraft. The backend additionally decides audience",
-    "(DepartmentMatcher) and lets content administrators through; that is not",
+    "(DepartmentMatcher) and lets content administrators through for non-drafts; that is not",
     "duplicated between the two and so is not compared here.",
     "",
     "isDraft is optional and defaults to false, which is what every case",

@@ -59,8 +59,11 @@ export class AdminExportsPage {
   private waitAndDownload(jobId: string, definition: AdminExportDefinition): void {
     this.exports.pollUntilDone(jobId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (status) => {
+        if (status.status === 'processing') {
+          return;
+        }
         if (status.status !== 'completed') {
-          this.fail('ექსპორტის ფაილის აგება ვერ მოხერხდა.');
+          this.fail('ექსპორტის მომზადება შეწყდა. სცადეთ ხელახლა.');
           return;
         }
         this.exports.download(jobId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({

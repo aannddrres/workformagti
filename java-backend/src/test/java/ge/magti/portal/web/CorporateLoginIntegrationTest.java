@@ -12,6 +12,8 @@ import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.CorporateAuthClient;
 import ge.magti.portal.security.CorporateIdentity;
 import ge.magti.portal.security.JwtService;
+import ge.magti.portal.util.TbilisiTime;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -19,11 +21,17 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
+import java.util.Base64;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +39,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -56,12 +66,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "portal.security.corporate.enabled=true",
         "portal.security.corporate.service-uri=https://oauth.example.test/auth/",
         "portal.security.corporate.client-id=InfoPortal",
-        "portal.security.corporate.client-credential=dGVzdC1jbGllbnQ6dGVzdC1zZWNyZXQ=",
         "portal.security.corporate.domain=@example.ge"
 })
 @AutoConfigureMockMvc
 @Transactional
 class CorporateLoginIntegrationTest {
+
+    @DynamicPropertySource
+    static void syntheticClientCredential(DynamicPropertyRegistry registry) {
+        registry.add("portal.security.corporate.client-credential", () -> Base64.getEncoder()
+                .encodeToString("InfoPortal:fixture".getBytes(StandardCharsets.UTF_8)));
+    }
 
     @Autowired
     private MockMvc mockMvc;
@@ -73,6 +88,8 @@ class CorporateLoginIntegrationTest {
     private PasswordEncoder passwordEncoder;
     @Autowired
     private JwtService jwtService;
+    @Autowired
+    private EntityManager entityManager;
 
     @MockitoBean
     private CorporateAuthClient directory;
@@ -176,18 +193,80 @@ class CorporateLoginIntegrationTest {
         assertEquals("ACCOUNT_DEACTIVATED", failureReason(user));
     }
 
+    /** PO-24's leaver filter reads last_active: a company sign-in records it, a refused one does not. */
     @Test
-    void aRoleWithdrawnInTheDirectoryIsWithdrawnAndTheChangeIsAudited() throws Exception {
+    void aCompanySignInRecordsLastActiveAndARefusedOneDoesNot() throws Exception {
+        User returning = account("corp.returning@example.ge", Role.OPERATOR, null, true);
+        User gone = account("corp.gone@example.ge", Role.OPERATOR, null, false);
+        directoryAccepts("corp.returning@example.ge", Set.of("INFOPORTAL_OPERATOR"));
+        directoryAccepts("corp.gone@example.ge", Set.of("INFOPORTAL_OPERATOR"));
+        OffsetDateTime before = TbilisiTime.now().truncatedTo(ChronoUnit.SECONDS);
+
+        mockMvc.perform(login("corp.returning@example.ge", "pw", "10.9.0.20")).andExpect(status().isOk());
+        mockMvc.perform(login("corp.gone@example.ge", "pw", "10.9.0.21")).andExpect(status().isUnauthorized());
+
+        entityManager.clear();
+        OffsetDateTime recorded = userRepository.findById(returning.getId()).orElseThrow().getLastActive();
+        assertNotNull(recorded, "a company sign-in records last_active");
+        assertFalse(recorded.isBefore(before));
+        assertNull(userRepository.findById(gone.getId()).orElseThrow().getLastActive(),
+                "a refused sign-in records nothing");
+    }
+
+    @Test
+    void aRoleWithdrawnInTheDirectoryRefusesEntryAndRevokesOldToken() throws Exception {
         User user = account("corp.formerlead@example.ge", Role.MANAGER, "ტექნიკური — ჯგუფი 03", true);
+        String oldBearer = bearer(user);
+        mockMvc.perform(get("/api/users/me").header("Authorization", oldBearer))
+                .andExpect(status().isOk());
         directoryAccepts("corp.formerlead@example.ge", Set.of("MAGTICOM_USER"));
 
-        mockMvc.perform(login("corp.formerlead@example.ge", "pw", "10.9.0.5")).andExpect(status().isOk());
+        mockMvc.perform(login("corp.formerlead@example.ge", "pw", "10.9.0.5"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.detail").value(AuthController.LOGIN_FAILED_DETAIL))
+                .andExpect(result -> assertTrue(result.getResponse().getHeaders("Set-Cookie").stream()
+                        .noneMatch(cookie -> cookie.startsWith("access_token="))));
+        mockMvc.perform(get("/api/users/me").header("Authorization", oldBearer))
+                .andExpect(status().isUnauthorized());
 
         User after = userRepository.findById(user.getId()).orElseThrow();
-        assertEquals(Role.OPERATOR, after.getRole());
+        assertEquals(Role.MANAGER, after.getRole());
         assertEquals("ტექნიკური — ჯგუფი 03", after.getDepartment(), "a department is never blanked");
-        JsonNode details = objectMapper.readTree(audits("LOGIN", user.getId()).getLast().getDetails());
-        assertEquals("manager->operator", details.path("after").path("directory_role_change").asText());
+        assertEquals(1, after.getTokenVersion());
+        JsonNode details = objectMapper.readTree(audits("CORPORATE_ROLE_ACCESS_REVOKED", user.getId())
+                .getLast().getDetails());
+        assertEquals("NO_PORTAL_ROLE", details.path("reason").asText());
+        assertEquals(0, details.path("before").path("token_version").asInt());
+        assertEquals(1, details.path("after").path("token_version").asInt());
+    }
+
+    @Test
+    void unmappedNewIdentityDoesNotCreateAnAccountOrSession() throws Exception {
+        directoryAccepts("corp.roleless@example.ge", Set.of("MAGTICOM_USER"));
+
+        mockMvc.perform(login("corp.roleless@example.ge", "pw", "10.9.0.7"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.detail").value(AuthController.LOGIN_FAILED_DETAIL))
+                .andExpect(result -> assertTrue(result.getResponse().getHeaders("Set-Cookie").stream()
+                        .noneMatch(cookie -> cookie.startsWith("access_token="))));
+        assertTrue(userRepository.findByEmailIgnoreCase("corp.roleless@example.ge").isEmpty());
+    }
+
+    @Test
+    void rejectedPasswordAndDirectoryOutageDoNotRevokeAnExistingToken() throws Exception {
+        User user = account("corp-temporary-failure@example.ge", Role.OPERATOR, "All", true);
+        String oldBearer = bearer(user);
+        when(directory.authenticate(user.getEmail(), "wrong")).thenReturn(new CorporateAuthClient.Rejected());
+        when(directory.authenticate(user.getEmail(), "pw"))
+                .thenReturn(new CorporateAuthClient.Unavailable("HTTP 503"));
+
+        mockMvc.perform(login(user.getEmail(), "wrong", "10.9.0.8"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(login(user.getEmail(), "pw", "10.9.0.8"))
+                .andExpect(status().isServiceUnavailable());
+        mockMvc.perform(get("/api/users/me").header("Authorization", oldBearer))
+                .andExpect(status().isOk());
+        assertEquals(0, userRepository.findById(user.getId()).orElseThrow().getTokenVersion());
     }
 
     /** The demo and test personas keep their bypass outside production, directory or not. */

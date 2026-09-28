@@ -31,9 +31,10 @@ class DirectoryRoleMapperTest {
      * internal systems. None of them may leak into a portal role.
      */
     @Test
-    void authoritiesOfOtherSystemsAreIgnoredAndNoneMappedMeansOperator() {
-        assertEquals(Role.OPERATOR, mapper.roleFor(List.of("MAGTICOM_USER", "LIST_ALL_PAYMENTS")));
-        assertEquals(Role.OPERATOR, mapper.roleFor(List.of()));
+    void authoritiesOfOtherSystemsAreIgnoredAndNoneMappedCannotBecomeOperator() {
+        assertThrows(IllegalArgumentException.class,
+                () -> mapper.roleFor(List.of("MAGTICOM_USER", "LIST_ALL_PAYMENTS")));
+        assertThrows(IllegalArgumentException.class, () -> mapper.roleFor(List.of()));
     }
 
     @Test
@@ -53,6 +54,9 @@ class DirectoryRoleMapperTest {
         assertThrows(IllegalArgumentException.class, () -> DirectoryRoleMapper.validate("INFOPORTAL_ADMIN=superuser"));
         assertThrows(IllegalArgumentException.class, () -> DirectoryRoleMapper.validate("INFOPORTAL_ADMIN"));
         assertThrows(IllegalArgumentException.class, () -> DirectoryRoleMapper.validate("=admin"));
+        assertThrows(IllegalArgumentException.class, () -> DirectoryRoleMapper.validate(""));
+        assertThrows(IllegalArgumentException.class,
+                () -> DirectoryRoleMapper.validate("INFOPORTAL_OPERATOR=operator"));
         assertDoesNotThrow(() -> DirectoryRoleMapper.validate(PROPOSED + ", "));
     }
 }

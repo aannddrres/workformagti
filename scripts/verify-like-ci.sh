@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Runs what CI runs, against a local Oracle.
+# Runs the language/test jobs from CI, against a local Oracle. CI's separate
+# supply-chain job builds and scans both runtime images and both SBOMs; that
+# gate needs its own runner result and is not represented by this script.
 #
 # Exists because CI no longer answers on every push. The Oracle-backed jobs
 # (java-integration and e2e) are gated to pull requests and main -- they were
@@ -52,18 +54,28 @@ unverified() { UNVERIFIED+=("$1"); printf '\n\033[33m!! not verified here: %s\03
 
 cd "$ROOT"
 
-# --- the three jobs a branch push still runs in CI -------------------------
+# --- local language/test checks from the branch-push jobs -------------------
 
 if [ "$MODE" = "all" ] || [ "$MODE" = "fast" ]; then
   step "seeder-tools (ruff + pytest)"
   "$PYTHON" -m ruff check scripts/ tests/
   "$PYTHON" -m pytest tests/ -q
 
+  step "credential hygiene (permitted tracked files)"
+  if command -v "${GITLEAKS_BIN:-gitleaks}" >/dev/null 2>&1; then
+    GITLEAKS_BIN="${GITLEAKS_BIN:-gitleaks}" "$PYTHON" -m pytest tests/test_secret_scan.py -q
+    bash scripts/scan-secrets.sh
+  else
+    unverified "credential hygiene -- Gitleaks 8.30.1 is not available; no automatic local installation"
+  fi
+
   step "java-unit (DB-free)"
   (cd java-backend && ./mvnw -B test -DexcludedGroups=oracle)
 
   step "frontend (i18n guard, lint, production build, unit tests)"
   (cd angular-frontend && npm ci >/dev/null)
+  (cd angular-frontend && npm audit --omit=dev --audit-level=moderate)
+  (cd angular-frontend && npm audit --audit-level=moderate)
   # Plain Node, no Angular CLI -- so these two run even where the build cannot.
   (cd angular-frontend && npm run check:i18n)
   # Added with the CI step, 2026-09-05. Kept next to check:i18n rather than in

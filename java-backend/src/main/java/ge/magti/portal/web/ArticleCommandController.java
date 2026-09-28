@@ -1,8 +1,10 @@
 package ge.magti.portal.web;
 
+import ge.magti.portal.compliance.MandatoryReach;
 import ge.magti.portal.domain.RequiredReading;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.repository.RequiredReadingRepository;
+import ge.magti.portal.util.DepartmentMatcher;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -55,24 +58,35 @@ public class ArticleCommandController {
                 || !(articleResult.getBody() instanceof ArticleResponse article)) {
             return rollback(articleResult);
         }
-        Optional<RequiredReading> existing = requiredReadings
-                .findFirstByItemTypeAndItemIdOrderByIdAsc("article", article.id());
+        List<RequiredReading> existing = requiredReadings.findByItemTypeAndItemId("article", article.id());
         if (command.mandatory()) {
             if (command.dueDate() == null) {
                 return rollback(ResponseEntity.unprocessableEntity()
                         .body(Map.of("detail", "სავალდებულო მასალას ვადა უნდა ჰქონდეს")));
             }
-            String target = command.targetDepartment() == null || command.targetDepartment().isBlank()
-                    ? command.article().legacyTargetDepartment() : command.targetDepartment();
-            RequiredReadingRequest reading = new RequiredReadingRequest(
-                    "article", article.id(), target, command.dueDate(), "high");
-            ResponseEntity<?> readingResult = existing.isPresent()
-                    ? compliance.updateRequiredReading(existing.get().getId(), reading, user)
-                    : compliance.createRequiredReading(reading, user);
-            if (!readingResult.getStatusCode().is2xxSuccessful()) return rollback(readingResult);
-        } else if (existing.isPresent()) {
-            ResponseEntity<?> readingResult = compliance.deleteRequiredReading(existing.get().getId(), user);
-            if (!readingResult.getStatusCode().is2xxSuccessful()) return rollback(readingResult);
+            // PO-40: mandatory for everyone the article is written for -- one
+            // reading per department of its audience. The form used to send
+            // its first ticked department as the only target, so an article
+            // for two departments bound one of them; command.targetDepartment
+            // is no longer read for articles. A department that has left the
+            // audience keeps its reading and its confirmations, out of force.
+            List<String> targets = MandatoryReach.readingTargets(article.targetDepartments());
+            for (String target : targets.isEmpty() ? List.of(DepartmentMatcher.WILDCARD_TARGET) : targets) {
+                Optional<RequiredReading> same = existing.stream()
+                        .filter(reading -> target.equals(reading.getTargetDepartment()))
+                        .findFirst();
+                RequiredReadingRequest reading = new RequiredReadingRequest(
+                        "article", article.id(), target, command.dueDate(), "high");
+                ResponseEntity<?> readingResult = same.isPresent()
+                        ? compliance.updateRequiredReading(same.get().getId(), reading, user)
+                        : compliance.createRequiredReading(reading, user);
+                if (!readingResult.getStatusCode().is2xxSuccessful()) return rollback(readingResult);
+            }
+        } else {
+            for (RequiredReading reading : existing) {
+                ResponseEntity<?> readingResult = compliance.deleteRequiredReading(reading.getId(), user);
+                if (!readingResult.getStatusCode().is2xxSuccessful()) return rollback(readingResult);
+            }
         }
         if (command.article().quizEnabledOrDefault()) {
             if (command.quiz() == null) {

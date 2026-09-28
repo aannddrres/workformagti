@@ -128,6 +128,29 @@ class JwtAuthenticationFilterTest {
         verify(chain).doFilter(request, response);
     }
 
+    /**
+     * ASVS V14.2.1: a token in a URL ends up in access logs, browser history
+     * and Referer headers. The filter reads only the header and the cookie,
+     * so a valid token offered as a query parameter authenticates nobody.
+     */
+    @Test
+    void aTokenInTheQueryStringIsIgnored() throws Exception {
+        String token = jwtService.createAccessToken(Map.of("sub", "operator@magti.ge"));
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        FilterChain chain = mock(FilterChain.class);
+        when(request.getHeader("Authorization")).thenReturn(null);
+        when(request.getCookies()).thenReturn(null);
+        when(request.getQueryString()).thenReturn("access_token=" + token + "&token=" + token);
+        when(request.getParameter("access_token")).thenReturn(token);
+        when(request.getParameter("token")).thenReturn(token);
+
+        filter.doFilter(request, response, chain);
+
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+        verify(chain).doFilter(request, response);
+    }
+
     @Test
     void malformedTokenLeavesContextEmptyButChainStillProceeds() throws Exception {
         HttpServletRequest request = mock(HttpServletRequest.class);

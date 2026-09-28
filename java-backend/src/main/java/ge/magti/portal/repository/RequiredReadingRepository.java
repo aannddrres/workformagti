@@ -46,6 +46,14 @@ public interface RequiredReadingRepository extends JpaRepository<RequiredReading
     /** get_required_reading_for_item's by-item lookup (routers/compliance.py:331-334). Distinct from findFirstBy... only in name/intent; both return the first row. */
     Optional<RequiredReading> findFirstByItemTypeAndItemIdOrderByIdAsc(String itemType, Long itemId);
 
+    /**
+     * PO-40: readings whose assignment reminders have not gone out yet -- made
+     * mandatory before their article is published. The reminder sweep
+     * delivers each once it comes into force.
+     */
+    @Query("SELECT rr.id FROM RequiredReading rr WHERE rr.assignmentDeliveredAt IS NULL ORDER BY rr.id")
+    List<Long> findIdsAwaitingAssignmentDelivery(Pageable pageable);
+
     /** Mirrors get_my_readings' visibility filter (routers/compliance.py:49-51) -- caller passes [dept, deptPrefix, "All"]. */
     List<RequiredReading> findByTargetDepartmentIn(List<String> targetDepartments, Pageable pageable);
 

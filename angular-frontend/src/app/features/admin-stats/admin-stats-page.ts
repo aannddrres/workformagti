@@ -16,8 +16,22 @@ import { formatKaDateTime } from '../../shared/ka-date';
 import { getCategoryIcon } from '../../shared/category-visuals';
 import { formatDepartmentLabel } from '../../shared/department-badge';
 import { UserProfileService } from '../../core/auth/user-profile.service';
+import { ThemeService } from '../../core/theme/theme.service';
 
 type ProgressSort = 'perf_desc' | 'perf_asc' | 'name';
+
+/**
+ * Canvas never sees a `dark:` class, so the charts take their ink from here
+ * and are redrawn when the theme flips. Light is Chart.js's own defaults
+ * (plus the doughnut's grey track), spelled out so a flip can return to them;
+ * dark is the page's slate-400 text on the slate-900 card, and a slate-700
+ * track where #E5E7EB would be a white ring.
+ */
+const CHART_INK = {
+  light: { text: '#666', grid: 'rgba(0, 0, 0, 0.1)', track: '#E5E7EB' },
+  dark: { text: '#94A3B8', grid: 'rgba(148, 163, 184, 0.15)', track: '#334155' }
+} as const;
+type ChartInk = (typeof CHART_INK)[keyof typeof CHART_INK];
 
 function parsePercentage(label: string): number {
   return parseInt(label.replace('%', ''), 10) || 0;
@@ -61,6 +75,7 @@ export class AdminStatsPage {
   private readonly categoriesService = inject(CategoriesService);
   private readonly articlesService = inject(ArticlesService);
   private readonly auditService = inject(AuditService);
+  private readonly theme = inject(ThemeService);
 
   protected readonly isSystemAdmin = computed(() => this.authService.currentUser()?.role === 'admin');
   protected readonly canManageContent = computed(() => this.profiles.hasPermission('content.manage'));
@@ -152,30 +167,36 @@ export class AdminStatsPage {
   private complianceChart: Chart | null = null;
   private top5Chart: Chart | null = null;
 
+  /** Read inside each chart effect, so the theme toggle redraws all three. */
+  private readonly chartInk = computed<ChartInk>(() => (this.theme.isDark() ? CHART_INK.dark : CHART_INK.light));
+
   constructor() {
     this.loadAll();
 
     effect(() => {
       const canvas = this.activityCanvas();
       const points = this.activityPoints();
+      const ink = this.chartInk();
       if (canvas && points.length) {
-        this.renderActivityChart(canvas.nativeElement, points);
+        this.renderActivityChart(canvas.nativeElement, points, ink);
       }
     });
 
     effect(() => {
       const canvas = this.complianceCanvas();
       const data = this.compliance();
+      const ink = this.chartInk();
       if (canvas && data) {
-        this.renderComplianceChart(canvas.nativeElement, data);
+        this.renderComplianceChart(canvas.nativeElement, data, ink);
       }
     });
 
     effect(() => {
       const canvas = this.top5Canvas();
       const data = this.compliance();
+      const ink = this.chartInk();
       if (canvas && data) {
-        this.renderTop5Chart(canvas.nativeElement, data.top_articles);
+        this.renderTop5Chart(canvas.nativeElement, data.top_articles, ink);
       }
     });
   }
@@ -321,7 +342,7 @@ export class AdminStatsPage {
     } as Record<string, string>)[action] ?? action.replaceAll('_', ' ').toLocaleLowerCase('ka');
   }
 
-  private renderActivityChart(canvas: HTMLCanvasElement, points: ActivityPoint[]): void {
+  private renderActivityChart(canvas: HTMLCanvasElement, points: ActivityPoint[], ink: ChartInk): void {
     this.activityChart?.destroy();
     this.activityChart = new Chart(canvas, {
       type: 'line',
@@ -341,12 +362,15 @@ export class AdminStatsPage {
         responsive: true,
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        scales: {
+          x: { ticks: { color: ink.text }, grid: { color: ink.grid } },
+          y: { beginAtZero: true, ticks: { precision: 0, color: ink.text }, grid: { color: ink.grid } }
+        }
       }
     });
   }
 
-  private renderComplianceChart(canvas: HTMLCanvasElement, data: ComplianceStats): void {
+  private renderComplianceChart(canvas: HTMLCanvasElement, data: ComplianceStats, ink: ChartInk): void {
     this.complianceChart?.destroy();
     this.complianceChart = new Chart(canvas, {
       type: 'doughnut',
@@ -357,7 +381,7 @@ export class AdminStatsPage {
         ],
         datasets: [{
           data: [data.read_percentage, data.unread_percentage],
-          backgroundColor: ['#10B981', '#E5E7EB'],
+          backgroundColor: ['#10B981', ink.track],
           borderWidth: 0
         }]
       },
@@ -365,12 +389,12 @@ export class AdminStatsPage {
         responsive: true,
         maintainAspectRatio: false,
         cutout: '70%',
-        plugins: { legend: { position: 'bottom' } }
+        plugins: { legend: { position: 'bottom', labels: { color: ink.text } } }
       }
     });
   }
 
-  private renderTop5Chart(canvas: HTMLCanvasElement, articles: TopArticle[]): void {
+  private renderTop5Chart(canvas: HTMLCanvasElement, articles: TopArticle[], ink: ChartInk): void {
     this.top5Chart?.destroy();
     this.top5Chart = null;
     if (!articles.length) {
@@ -391,7 +415,10 @@ export class AdminStatsPage {
         responsive: true,
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
-        scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
+        scales: {
+          x: { beginAtZero: true, ticks: { precision: 0, color: ink.text }, grid: { color: ink.grid } },
+          y: { ticks: { color: ink.text }, grid: { color: ink.grid } }
+        }
       }
     });
   }

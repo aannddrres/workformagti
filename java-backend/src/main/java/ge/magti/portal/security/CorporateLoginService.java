@@ -1,5 +1,6 @@
 package ge.magti.portal.security;
 
+import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.config.PortalProperties;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
@@ -9,9 +10,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.LinkedHashSet;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -64,40 +68,82 @@ public class CorporateLoginService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final PortalProperties.Corporate settings;
+    private final TransactionTemplate transactions;
+    private final MutationAuditService audit;
 
     public CorporateLoginService(
             CorporateAuthClient client,
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
-            PortalProperties properties) {
+            PortalProperties properties,
+            PlatformTransactionManager transactionManager,
+            MutationAuditService audit) {
         this.client = client;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.settings = properties.getSecurity().getCorporate();
+        this.transactions = new TransactionTemplate(transactionManager);
+        this.audit = audit;
     }
 
+    /**
+     * The whole sign-in in one call: {@link #verify}, then {@link #provision}.
+     * AuthController calls the two halves itself, because its database
+     * transaction must start only after the directory has answered.
+     */
     public Result login(String typedEmail, String password) {
-        String email = typedEmail.trim().toLowerCase(Locale.ROOT);
-        String domain = settings.getDomain() == null ? "" : settings.getDomain().trim().toLowerCase(Locale.ROOT);
-        if (!domain.isEmpty() && !email.endsWith(domain)) {
-            // Not an address the directory can know. Refused here rather than
-            // sent on: no reason to hand an outsider's password to it at all.
-            return new Rejected(false);
-        }
-
-        CorporateAuthClient.Outcome outcome = client.authenticate(email, password);
+        CorporateAuthClient.Outcome outcome = verify(typedEmail, password);
         if (outcome instanceof CorporateAuthClient.Rejected) {
             return new Rejected(false);
         }
         if (outcome instanceof CorporateAuthClient.Unavailable) {
             return new Unavailable();
         }
-        return provision(((CorporateAuthClient.Authenticated) outcome).identity());
+        // The remote password exchange is complete before the database transaction begins.
+        CorporateIdentity identity = ((CorporateAuthClient.Authenticated) outcome).identity();
+        return transactions.execute(ignored -> provision(identity));
     }
 
-    private Result provision(CorporateIdentity identity) {
+    /**
+     * Asks the directory whether the address and password are right. Touches
+     * no database, so a caller outside a transaction holds no pooled
+     * connection for the directory's 5 s + 10 s timeouts.
+     */
+    public CorporateAuthClient.Outcome verify(String typedEmail, String password) {
+        String email = typedEmail.trim().toLowerCase(Locale.ROOT);
+        String domain = settings.getDomain() == null ? "" : settings.getDomain().trim().toLowerCase(Locale.ROOT);
+        if (!domain.isEmpty() && !email.endsWith(domain)) {
+            // Not an address the directory can know. Refused here rather than
+            // sent on: no reason to hand an outsider's password to it at all.
+            return new CorporateAuthClient.Rejected();
+        }
+        return client.authenticate(email, password);
+    }
+
+    /**
+     * Brings the portal account in step with what the directory said. Writes,
+     * so it belongs inside the caller's transaction -- the one that also
+     * writes the session and the LOGIN audit row, whose details record an
+     * account this created or a role it changed.
+     */
+    public Result provision(CorporateIdentity identity) {
         DirectoryRoleMapper mapper = new DirectoryRoleMapper(settings.getRoleMap());
         Set<Role> mapped = mapper.mappedRoles(identity.authorities());
+        if (mapped.isEmpty()) {
+            User existing = userRepository.findByEmailIgnoreCase(identity.email()).orElse(null);
+            if (existing != null && existing.isActive()) {
+                long previousTokenVersion = existing.getTokenVersion();
+                if (userRepository.revokeIssuedTokens(existing.getId()) != 1) {
+                    throw new IllegalStateException("Could not revoke portal sessions after directory role loss");
+                }
+                audit.recordResult(existing, "CORPORATE_ROLE_ACCESS_REVOKED", "user", existing.getId(),
+                        existing.getName(), "SUCCESS", "NO_PORTAL_ROLE",
+                        Map.of("role", existing.getRole().value(), "token_version", previousTokenVersion),
+                        Map.of("role", existing.getRole().value(), "token_version", previousTokenVersion + 1),
+                        null, null);
+            }
+            return new Rejected(existing != null && !existing.isActive());
+        }
         if (mapped.size() > 1) {
             logger.warn("Directory grants {} more than one portal role {}; using the highest",
                     identity.email(), mapped);

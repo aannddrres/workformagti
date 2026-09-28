@@ -16,6 +16,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -97,7 +102,7 @@ public class UploadedFileController {
 
         recordAccess(user, filename, content);
         return ResponseEntity.ok()
-                .contentType(parseOrOctetStream(content.contentType()))
+                .contentType(servedType(content.contentType(), content.content()))
                 .header("X-Content-Type-Options", "nosniff")
                 .header("Content-Security-Policy", "default-src 'none'; sandbox")
                 .cacheControl(CacheControl.noStore())
@@ -139,6 +144,44 @@ public class UploadedFileController {
         mutationAuditService.recordResult(
                 user, action, "stored_file", 0L, filename,
                 result, decision.name(), null, after, null, null);
+    }
+
+    /**
+     * The stored type, plus the encoding when it is text (ASVS V4.1.1). An
+     * uploaded .txt went out as bare text/plain, leaving the encoding to the
+     * browser's guess. FileTypeVerifier admits text that carries a UTF-16
+     * byte-order mark or no NUL byte at all, so the label follows the bytes:
+     * UTF-16 by its mark, UTF-8 when they decode as UTF-8, and otherwise
+     * ISO-8859-1, which every byte sequence satisfies, rather than a label
+     * the bytes contradict.
+     */
+    static MediaType servedType(String storedType, byte[] content) {
+        MediaType type = parseOrOctetStream(storedType);
+        if (!"text".equals(type.getType()) || type.getCharset() != null) {
+            return type;
+        }
+        Charset charset = hasUtf16ByteOrderMark(content) ? StandardCharsets.UTF_16
+                : decodesAsUtf8(content) ? StandardCharsets.UTF_8
+                : StandardCharsets.ISO_8859_1;
+        return new MediaType(type, charset);
+    }
+
+    private static boolean hasUtf16ByteOrderMark(byte[] content) {
+        return content.length >= 2
+                && ((content[0] == (byte) 0xFE && content[1] == (byte) 0xFF)
+                        || (content[0] == (byte) 0xFF && content[1] == (byte) 0xFE));
+    }
+
+    private static boolean decodesAsUtf8(byte[] content) {
+        try {
+            StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                    .decode(ByteBuffer.wrap(content));
+            return true;
+        } catch (CharacterCodingException notUtf8) {
+            return false;
+        }
     }
 
     private static MediaType parseOrOctetStream(String contentType) {

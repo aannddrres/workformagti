@@ -46,6 +46,21 @@ public class RequiredReading {
     @Column(name = "priority", length = 20)
     private String priority = "normal";
 
+    /**
+     * When the ASSIGNMENT reminders went out; null until then (V52, PO-40).
+     * Null only for a reading made mandatory before its article is published.
+     */
+    @Column(name = "assignment_delivered_at")
+    private OffsetDateTime assignmentDeliveredAt;
+
+    public OffsetDateTime getAssignmentDeliveredAt() {
+        return assignmentDeliveredAt;
+    }
+
+    public void setAssignmentDeliveredAt(OffsetDateTime assignmentDeliveredAt) {
+        this.assignmentDeliveredAt = assignmentDeliveredAt;
+    }
+
     public Long getId() {
         return id;
     }

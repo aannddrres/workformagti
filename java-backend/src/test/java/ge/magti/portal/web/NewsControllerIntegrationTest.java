@@ -122,6 +122,72 @@ class NewsControllerIntegrationTest {
     }
 
     @Test
+    void operatorCannotMutateNewsOrReadItsHistory() throws Exception {
+        User operator = createUser("news-denied-" + System.nanoTime() + "@magti.ge", Role.OPERATOR, "All");
+        News existing = createNewsDirect("დაცული სიახლე", "All", false, null);
+        long newsBefore = newsRepository.count();
+        long auditBefore = auditLogRepository.count();
+        String token = tokenFor(operator);
+
+        mockMvc.perform(authed(post("/api/news"), token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(newsRequestJson("არ უნდა შეიქმნას", "All")))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(put("/api/news/" + existing.getId()), token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(newsRequestJson("არ უნდა შეიცვალოს", "All")))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(patch("/api/news/" + existing.getId() + "/autosave"), token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"არ უნდა შეინახოს\"}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(delete("/api/news/" + existing.getId()), token))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(post("/api/news/" + existing.getId() + "/archive"), token))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(post("/api/news/" + existing.getId() + "/unarchive"), token))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(get("/api/news/" + existing.getId() + "/history"), token))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(get("/api/news/" + existing.getId() + "/history-summary"), token))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(get("/api/news/" + existing.getId() + "/history/1"), token))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(authed(post("/api/news/" + existing.getId() + "/history/1/restore"), token))
+                .andExpect(status().isForbidden());
+
+        assertEquals(newsBefore, newsRepository.count());
+        assertEquals("დაცული სიახლე", newsRepository.findById(existing.getId()).orElseThrow().getTitle());
+        assertEquals(auditBefore, auditLogRepository.count());
+    }
+
+    @Test
+    void malformedCreateAndUnknownNewsMutationsDoNotChangeContent() throws Exception {
+        User admin = createUser("news-errors-" + System.nanoTime() + "@magti.ge", Role.CONTENT_ADMIN, "All");
+        News existing = createNewsDirect("არსებული სიახლე", "All", false, admin.getId());
+        long countBefore = newsRepository.count();
+        long auditBefore = auditLogRepository.count();
+        String token = tokenFor(admin);
+
+        mockMvc.perform(authed(post("/api/news"), token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"\",\"content\":\"შინაარსი\"}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(authed(post("/api/news/999999999/archive"), token))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(patch("/api/news/999999999/autosave"), token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"უცნობი\"}"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(post("/api/news/" + existing.getId() + "/unarchive"), token))
+                .andExpect(status().isBadRequest());
+
+        assertEquals(countBefore, newsRepository.count());
+        assertEquals("არსებული სიახლე", newsRepository.findById(existing.getId()).orElseThrow().getTitle());
+        assertEquals(auditBefore, auditLogRepository.count());
+    }
+
+    @Test
     void listRejectsInvalidOrUnboundedCardinality() throws Exception {
         User operator = createUser("news-list-bounds@magti.ge", Role.OPERATOR, "All");
         String token = tokenFor(operator);
@@ -247,9 +313,11 @@ class NewsControllerIntegrationTest {
         news.setExpiresAt(expiry);
         newsRepository.saveAndFlush(news);
 
-        // A second admin edits it (payload has no author_id/is_draft/expires_at,
-        // matching the real edit form exactly) -- none of the three should move.
-        mockMvc.perform(authed(put("/api/news/" + news.getId()), tokenFor(editor))
+        // The payload has no author_id/is_draft/expires_at, matching the real
+        // edit form exactly -- none of the three should move. A private draft
+        // is edited by its author: another administrator gets a 404 there
+        // (PO-34, D2; PrivateDraftIsolationIntegrationTest).
+        mockMvc.perform(authed(put("/api/news/" + news.getId()), tokenFor(author))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(newsRequestJson("გასწორებული სათაური", "All")))
                 .andExpect(status().isOk())
@@ -261,6 +329,21 @@ class NewsControllerIntegrationTest {
         assertEquals(author.getId(), reloaded.getAuthorId());
         assertTrue(reloaded.isDraft());
         assertEquals(expiry.toEpochSecond(), reloaded.getExpiresAt().toEpochSecond());
+
+        // A second administrator editing a published item must not take its
+        // authorship or its expiry either.
+        News published = createNewsDirect("გამოქვეყნებული სიახლე", "All", false, author.getId());
+        published.setExpiresAt(expiry);
+        newsRepository.saveAndFlush(published);
+        mockMvc.perform(authed(put("/api/news/" + published.getId()), tokenFor(editor))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(newsRequestJson("სხვის მიერ გასწორებული", "All")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.author_id").value(author.getId()))
+                .andExpect(jsonPath("$.is_draft").value(false));
+        News edited = newsRepository.findById(published.getId()).orElseThrow();
+        assertEquals(author.getId(), edited.getAuthorId());
+        assertEquals(expiry.toEpochSecond(), edited.getExpiresAt().toEpochSecond());
     }
 
     @Test
@@ -304,7 +387,7 @@ class NewsControllerIntegrationTest {
     }
 
     @Test
-    void expiredNewsIsExcludedFromListButStillFetchableDirectly() throws Exception {
+    void expiredNewsIsHiddenFromOperatorsEvenByDirectLink() throws Exception {
         User admin = createUser("news-expiry-admin@magti.ge", Role.CONTENT_ADMIN, "All");
         User operator = createUser("news-expiry-op@magti.ge", Role.OPERATOR, "All");
 
@@ -312,14 +395,14 @@ class NewsControllerIntegrationTest {
         expired.setExpiresAt(TbilisiTime.now().minusDays(1));
         newsRepository.saveAndFlush(expired);
 
-        // Excluded from the list (routers/news.py:85-90's expiry filter)...
+        // Archived content is absent from both the list and direct reader access.
         mockMvc.perform(authed(get("/api/news"), tokenFor(operator)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[*].id").value(not(hasItem(expired.getId().intValue()))));
 
-        // ...but a direct link still works: get_news_item has no expiry check
-        // at all, a deliberate asymmetry preserved faithfully from Python.
         mockMvc.perform(authed(get("/api/news/" + expired.getId()), tokenFor(operator)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(get("/api/news/" + expired.getId()), tokenFor(admin)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("ვადაგასული სიახლე"));
     }

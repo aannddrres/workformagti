@@ -33,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -118,7 +119,7 @@ class AuditLogControllerIntegrationTest {
 
         Long adminId = userRepository.findByEmail("admin@magti.ge").orElseThrow().getId();
         Long loginRowId = auditLogRepository.findAll().stream()
-                .filter(row -> row.getAdminId().equals(adminId) && "LOGIN".equals(row.getAction()))
+                .filter(row -> adminId.equals(row.getAdminId()) && "LOGIN".equals(row.getAction()))
                 .findFirst().orElseThrow().getId();
 
         mockMvc.perform(get("/api/audit-logs/" + loginRowId + "/verify")
@@ -130,6 +131,16 @@ class AuditLogControllerIntegrationTest {
     }
 
     @Test
+    void verifyingMissingAuditIdIs404AndCannotExposeOtherRows() throws Exception {
+        User admin = createUser("audit-missing-" + System.nanoTime() + "@magti.ge",
+                Role.SYSTEM_ADMIN, "All", Set.of());
+        mockMvc.perform(get("/api/audit-logs/999999999/verify")
+                        .header("Authorization", "Bearer " + tokenFor(admin)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("ჩანაწერი ვერ მოიძებნა"));
+    }
+
+    @Test
     void systemAdminCanReadChainHealth() throws Exception {
         String token = loginAndGetToken("admin@magti.ge", "10.20.0.2");
 
@@ -137,6 +148,16 @@ class AuditLogControllerIntegrationTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("ok"));
+    }
+
+    @Test
+    void malformedChainWindowIsRejectedBeforeAuditQuery() throws Exception {
+        User admin = createUser("audit-window-" + System.nanoTime() + "@magti.ge",
+                Role.SYSTEM_ADMIN, "All", Set.of());
+        mockMvc.perform(get("/api/audit-logs/chain-health?n=invalid")
+                        .header("Authorization", "Bearer " + tokenFor(admin)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("მოთხოვნის პარამეტრი არასწორია"));
     }
 
     @Test
@@ -264,6 +285,55 @@ class AuditLogControllerIntegrationTest {
                 .andExpect(jsonPath("$[0].details").value("შეიცავს უნიკალურ-სიტყვას-XYZ"));
     }
 
+    /**
+     * ASVS V1.2.4. The free-text filter is a bind variable inside SQL this
+     * service assembles from constant fragments. A quote, a terminator and
+     * both comment forms are matched as the characters they are, and the
+     * tautologies find nothing rather than every row. {@code %} and {@code _}
+     * do act as LIKE wildcards here, deliberately left so: the text filter
+     * is one predicate AND-ed with the caller's scope and every other
+     * filter, so a wildcard widens the match only within what may be read.
+     */
+    @Test
+    void sqlMetacharactersInTheFreeTextFilterAreMatchedLiterally() throws Exception {
+        User admin = createUser("audit.sqlmeta@magti.ge", Role.SYSTEM_ADMIN, "All", Set.of());
+        writeAuditRow(admin.getId(), "UPDATE", "system", 0L, "O'Brien'); DROP TABLE audit_logs; -- /* x */");
+        writeAuditRow(admin.getId(), "UPDATE", "system", 0L, "სხვა დეტალები");
+
+        assertEquals("1", auditRowsMatching(admin, "O'Brien'); DROP TABLE audit_logs; --"),
+                "quote, terminator and line comment are data");
+        assertEquals("1", auditRowsMatching(admin, "/* x */"), "a block comment is data");
+        assertEquals("0", auditRowsMatching(admin, "' OR '1'='1"), "the tautology is text no row contains");
+        assertEquals("0", auditRowsMatching(admin, "') OR 1=1 --"), "closing the pattern early does not work either");
+        assertEquals("2", auditRowsMatching(admin, "%"), "% is a LIKE wildcard, within the other filters");
+    }
+
+    /**
+     * X-Total-Count for {@code q} among the admin's own UPDATE rows. The
+     * action filter keeps out the VIEW_AUDIT_LOG row each call writes, whose
+     * details repeat the q it was given.
+     */
+    private String auditRowsMatching(User admin, String q) throws Exception {
+        return mockMvc.perform(get("/api/audit-logs")
+                        .param("q", q)
+                        .param("user_id", String.valueOf(admin.getId()))
+                        .param("action", "UPDATE")
+                        .header("Authorization", "Bearer " + tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getHeader("X-Total-Count");
+    }
+
+    @Test
+    void malformedAuditUserFilterIsRejectedBeforeQuery() throws Exception {
+        User admin = createUser("audit.invalidfilter-" + System.nanoTime() + "@magti.ge",
+                Role.SYSTEM_ADMIN, "All", Set.of());
+
+        mockMvc.perform(get("/api/audit-logs")
+                        .param("user_id", "not-a-number")
+                        .header("Authorization", "Bearer " + tokenFor(admin)))
+                .andExpect(status().isBadRequest());
+    }
+
     @Test
     void actionFilterLoginAggregatesPasswordAndSsoLogins() throws Exception {
         User admin = createUser("audit.admin3@magti.ge", Role.SYSTEM_ADMIN, "All", Set.of());
@@ -307,6 +377,8 @@ class AuditLogControllerIntegrationTest {
                         .header("Authorization", "Bearer " + tokenFor(contentAdmin)))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Disposition", "attachment; filename=audit_logs.csv"))
+                // ASVS V4.1.1: text says which encoding it is in.
+                .andExpect(content().contentType("text/csv;charset=UTF-8"))
                 .andReturn().getResponse().getContentAsString();
 
         assertTrue(csv.startsWith("ID,დრო,ვინ,ქმედება,ობიექტი,დეტალები\r\n"));
@@ -327,5 +399,19 @@ class AuditLogControllerIntegrationTest {
                         .header("Authorization", "Bearer " + tokenFor(manager)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.detail").value("ეს ფუნქცია ხელმისაწვდომია მხოლოდ სისტემური ადმინისტრატორისთვის"));
+    }
+
+    @Test
+    void malformedExportUserFilterReturns400WithoutCsvOrMetaAudit() throws Exception {
+        User admin = createUser("audit-export-invalid-" + System.nanoTime() + "@magti.ge",
+                Role.SYSTEM_ADMIN, "All", Set.of());
+        long auditBefore = auditLogRepository.count();
+
+        mockMvc.perform(get("/api/audit-logs/export?user_id=not-a-number")
+                        .header("Authorization", "Bearer " + tokenFor(admin)))
+                .andExpect(status().isBadRequest())
+                .andExpect(header().doesNotExist("Content-Disposition"))
+                .andExpect(jsonPath("$.detail").value("მოთხოვნის პარამეტრი არასწორია"));
+        assertEquals(auditBefore, auditLogRepository.count());
     }
 }

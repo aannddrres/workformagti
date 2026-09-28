@@ -13,13 +13,21 @@
 
 მუშა წესები კოდისთვის `AGENTS.md`-შია, repo-ს ძირში, არა აქ.
 
+## მიმდინარე handoff — დათარიღებული სნეპშოტი
+
+| ფაილი | თარიღი | რაზეა |
+|---|---|---|
+| [`agents/HANDOFF.md`](agents/HANDOFF.md) | 2026-09-26 | შემდეგი AI აგენტისთვის პირდაპირ გადასაცემი დავალება: მიზანი, მიღების კრიტერიუმი, შესრულებული სამუშაო, მტკიცებულება და პრიორიტეტული გეგმის მოთხოვნა |
+
+**საოპერაციო ორი შესასვლელი:** პროდუქტის მფლობელი იწყებს [Windows-ზე გაშვების მოკლე ინსტრუქციით](RUN_LOCALLY.md); Magti-ს IT თანამშრომელი — [„აქედან დაიწყეთ“ გვერდით](IT_START_HERE_KA.md), საიდანაც გადადის [დეტალურ საოპერაციო სახელმძღვანელოზე](IT_OPERATIONS_RUNBOOK_KA.md). Production-ის წინაპირობები ამ ლოკალური ცდისგან ცალკეა.
+
 ---
 
 ## გადაწყვეტილებები — ავტორიტეტული
 
 | ფაილი | თარიღი | რაზეა |
 |---|---|---|
-| [`PRODUCT_OWNER_DECISIONS_KA.md`](PRODUCT_OWNER_DECISIONS_KA.md) | 2026-09-21 | პროდუქტის ქცევის ოფიციალური რეესტრი (PO-nn / DEC-nn) |
+| [`PRODUCT_OWNER_DECISIONS_KA.md`](PRODUCT_OWNER_DECISIONS_KA.md) | 2026-09-26 | პროდუქტის ქცევის ოფიციალური რეესტრი (PO-nn / DEC-nn) |
 | [`ACCESS_CONTRACT_MATRIX_KA.md`](ACCESS_CONTRACT_MATRIX_KA.md) | 2026-09-21 | თითო ენდპოინტზე: ვინ იძახებს დღეს და ვინ უნდა იძახებდეს. **მანქანურად შემოწმებადი** — `AccessContractCoverageTest` build-ს ვარდენს შეუსაბამობაზე |
 | [`ENTERPRISE_READINESS_DECISIONS_KA.md`](ENTERPRISE_READINESS_DECISIONS_KA.md) | 2026-08-28 | DEC-001… — რომ იგივე გადაწყვეტილება თავიდან არ მიიღოს ვინმემ |
 | [`ROLLOUT_ROLLBACK_KA.md`](ROLLOUT_ROLLBACK_KA.md) | 2026-09-21 | თითო `ROLLOUT_*` დროშა: რას აკეთებს და როგორ ბრუნდება უკან. `RolloutSwitchWiringTest` ამოწმებს |
@@ -31,10 +39,21 @@
 |---|---|---|
 | [`HOW_IT_WORKS_KA.md`](HOW_IT_WORKS_KA.md) | 2026-08-31 | პრინციპები მარტივი ენით, პროდუქტის მფლობელისთვის |
 | [`PROJECT_TECHNOLOGY_GUIDE_KA.md`](PROJECT_TECHNOLOGY_GUIDE_KA.md) | 2026-09-21 | 31 ტექნოლოგიური ბარათი არაპროგრამისტისთვის. თავად აღნიშნავს, რომელი ბარათია დაძველებული |
-| [`RUN_LOCALLY.md`](RUN_LOCALLY.md) | 2026-08-20 | ლოკალური გაშვება, Windows-ის დათქმებით (Docker-ს ≥6 GB სჭირდება) |
+| [`RUN_LOCALLY.md`](RUN_LOCALLY.md) | 2026-09-23 | მფლობელისთვის: Windows/Docker Desktop-ის ნაბიჯები, საცდელი შესვლა და მონაცემების შენარჩუნებით გაჩერება |
+| [`IT_START_HERE_KA.md`](IT_START_HERE_KA.md) | 2026-09-23 | IT-ის მოკლე შესასვლელი: კომპონენტები, გარემოები, health, ლოგები და ღია პასუხები |
+| [`IT_OPERATIONS_RUNBOOK_KA.md`](IT_OPERATIONS_RUNBOOK_KA.md) | 2026-09-23 | IT-ის საოპერაციო სახელმძღვანელო: დიაგნოსტიკა, ინციდენტი, backup/rollback საზღვრები და მიღების მტკიცებულება |
 | [`PRESENTATION_RUNBOOK_KA.md`](PRESENTATION_RUNBOOK_KA.md) | 2026-09-21 | დემო სტეკი პორტ 8081-ზე: მომზადება, ანგარიშები, 25-წუთიანი სცენარი |
 | [`LEGACY_CONTENT_IMPORT_KA.md`](LEGACY_CONTENT_IMPORT_KA.md) | 2026-08-31 | 122 ძველი სტატიის შემოტანა Oracle-ში |
 | [`SUPPLY_CHAIN_SBOM_KA.md`](SUPPLY_CHAIN_SBOM_KA.md) | 2026-08-31 | SBOM და მოწყვლადობის სკანირება CI-ში |
+| [`security/README_KA.md`](security/README_KA.md) | 2026-09-24 | ASVS 5.0-ის 345 მოთხოვნის სამუშაო რეესტრი და 150 endpoint-ის ტესტების კანდიდატები; სრული case-level აუდიტი ჯერ ღიაა |
+| [`security/RELEASE_COVERAGE_2026-09-24_KA.md`](security/RELEASE_COVERAGE_2026-09-24_KA.md) | 2026-09-24 | ფუნქციების/როლების/გადასვლების დაფარვა და დარჩენილი UAT სიცარიელეები |
+| [`security/LOCAL_AUDIT_EXECUTION_PLAN_2026-09-24_KA.md`](security/LOCAL_AUDIT_EXECUTION_PLAN_2026-09-24_KA.md) | 2026-09-24; დახურვის დამატება 2026-09-25 | იზოლირებული კანდიდატის ტესტირების გეგმა, 133 API/327 ASVS შემთხვევისა და A06-ის დახურვის ნაბიჯები |
+| [`security/LOCAL_ENDPOINT_CASE_REVIEW_2026-09-24.csv`](security/LOCAL_ENDPOINT_CASE_REVIEW_2026-09-24.csv) | 2026-09-24 | 150 API მოქმედების ზუსტი assertion-ებისა და ღია შემთხვევების ლოკალური რეესტრი. ისტორიული საბაზისოა: ტესტებს ხაზის ნომრით უთითებს, რაც 2026-09-27-მდე 513-დან 44-ში აცდა. მემკვიდრე — ქვემოთ |
+| [`security/ENDPOINT_CASE_REVIEW_2026-09-27.csv`](security/ENDPOINT_CASE_REVIEW_2026-09-27.csv) | 2026-09-27 | **ცოცხალი რეესტრი.** 150 API მოქმედების success, denial და error შემთხვევა, თითოეული ტესტის სახელით (`File.java#method`). endpoint-ები და gate-ები წვდომის მატრიცას ემთხვევა; ყოველ ბმულს `tests/test_endpoint_case_register.py` ამოწმებს, anonymous-ის უარს კი — `ProtectedEndpointAnonymousMatrixIntegrationTest` |
+| [`security/LOCAL_ASVS_CASE_REVIEW_2026-09-24.csv`](security/LOCAL_ASVS_CASE_REVIEW_2026-09-24.csv) | 2026-09-24 | ASVS 5.0-ის 345 მოთხოვნის ინდივიდუალური ლოკალური სტატუსი, აღწერა და დარჩენილი მტკიცებულება |
+| [`security/LOCAL_QUALITY_RECOMMENDATIONS_2026-09-24_KA.md`](security/LOCAL_QUALITY_RECOMMENDATIONS_2026-09-24_KA.md) | 2026-09-24 | ახალი ფუნქციების გარეშე ხარისხის გაუმჯობესების პრიორიტეტები, მტკიცებულება, რისკი და ძალისხმევა |
+| [`security/SECURITY_CONTROLS_KA.md`](security/SECURITY_CONTROLS_KA.md) | 2026-09-26 | **ცოცხალი ცნობარი.** ASVS 5.0 L2-ის დოკუმენტაციის 26 მოთხოვნა ერთ ადგილას: ვალიდაციის წესები, ლიმიტები, ფაილები, ავთენტიფიკაციის გზები, სესიები, კრიპტოგრაფიის ინვენტარი, კავშირები, მონაცემთა კლასები, გამოსწორების ვადები, რესურსტევადი ფუნქციები, ლოგების ინვენტარი |
+| [`security/ASVS_L2_REVIEW_2026-09-26.csv`](security/ASVS_L2_REVIEW_2026-09-26.csv) | 2026-09-26 | ASVS 5.0-ის 345 მოთხოვნა სამიზნე L2 დონეზე (D1): L1+L2-ის 253 სტრიქონის თითოეულს აქვს განაწილება და მტკიცებულება — შესრულებული ტესტი, ფაილი, IT-ის კითხვა ან ლედჯერის სტრიქონი; L3 — `OUT_OF_TARGET_LEVEL`. ყოველ ბმულს `tests/test_asvs_register.py` ამოწმებს. 2026-09-24-ის CSV-ის მემკვიდრეა |
 | [`SYSTEM_ADMIN_EXPORT_INVENTORY_KA.md`](SYSTEM_ADMIN_EXPORT_INVENTORY_KA.md) | 2026-08-22 | რა მონაცემი შედის SYSTEM_ADMIN-ის ექსპორტში და რა — არა |
 
 ## გეგმები
@@ -50,7 +69,8 @@
 
 | ფაილი | თარიღი | რაზეა |
 |---|---|---|
-| [`QUESTIONS_FOR_IT.md`](QUESTIONS_FOR_IT.md) | 2026-09-21 | **ოფიციალური მოკლე რეესტრი.** 13 კითხვა; პასუხები აქ ჩაიწერება. ახალი კითხვა აქ ემატება, არა მფლობელს |
+| [`QUESTIONS_FOR_IT.md`](QUESTIONS_FOR_IT.md) | 2026-09-26 | **ოფიციალური მოკლე რეესტრი.** 15 კითხვა; პასუხები აქ ჩაიწერება. ახალი კითხვა აქ ემატება, არა მფლობელს. №13-ს დაემატა გასაღების ზეპირი დადასტურება და AD-ის დაბლოკვის ზღვარი (13.6), №14 ითხოვს აუდიტის ჯაჭვის გარე საკონტროლო ასლს, №15 — გასაღებების მართვას, საიდუმლოების საცავს და ბაზის დაშიფვრას |
+| [`RELEASE_EXTERNAL_REQUESTS_KA.md`](RELEASE_EXTERNAL_REQUESTS_KA.md) | 2026-09-25 | **გამოშვების ლედჯერის სია B წერილებად** — IT, IT უსაფრთხოება, DBA, platform, ბიზნესი. წერილი 1 №13-ის ამჟამინდელ მოთხოვნებს შეიცავს. გასაგზავნად მზადაა |
 | [`IT_REQUEST_AUTH_FOLLOWUP_KA.md`](IT_REQUEST_AUTH_FOLLOWUP_KA.md) | 2026-09-18 | №13 წერილის სახით — ავტორიზაციის პასუხის დაზუსტება. გასაგზავნად მზადაა |
 | [`IT_DISCOVERY_REQUEST_KA.md`](IT_DISCOVERY_REQUEST_KA.md) | 2026-08-22 | 12 შეკრული მოთხოვნა — ეს იგზავნება |
 | [`IT_DISCOVERY_QUESTIONNAIRE_KA.md`](IT_DISCOVERY_QUESTIONNAIRE_KA.md) | 2026-08-29 | 93-პუნქტიანი ტექნიკური ჩამონათვალი. მთლიანად ერთ ადამიანს არ ეგზავნება |
@@ -60,7 +80,9 @@
 
 | ფაილი | თარიღი | რაზეა |
 |---|---|---|
+| [`RELEASE_READINESS_LEDGER_KA.md`](RELEASE_READINESS_LEDGER_KA.md) | 2026-09-26 | **გამოშვების ლედჯერი.** სია A — ჩვენზე დამოკიდებული, სია B — სხვებზე, თითოეული მტკიცებულებით. `scripts/readiness_check.py` მტკიცებულებას ამოწმებს, სიტყვა „დახურულს“ არ ენდობა |
 | [`ENTERPRISE_READINESS_ACCEPTANCE_MATRIX_KA.md`](ENTERPRISE_READINESS_ACCEPTANCE_MATRIX_KA.md) | 2026-08-31 | WS-nn მიღების მატრიცა. ვერდიქტი: NOT READY |
+| [`RELEASE_AUDIT_2026-09-24_KA.md`](RELEASE_AUDIT_2026-09-24_KA.md) | 2026-09-24 | იზოლირებული კანდიდატის ტესტები, დახურული და ღია მიგნებები, production NO-GO |
 | [`uat/UAT_00_RUNBOOK_KA.md`](uat/UAT_00_RUNBOOK_KA.md) | 2026-08-31 | UAT-ის გაშვების ინსტრუქცია — **აქ იწყება** |
 | [`uat/UAT_01_OPERATOR_KA.md`](uat/UAT_01_OPERATOR_KA.md) | 2026-08-29 | ოპერატორის სცენარები + შესრულების შედეგი |
 | [`uat/UAT_02_MANAGER_KA.md`](uat/UAT_02_MANAGER_KA.md) | 2026-08-29 | მენეჯერის სცენარები |
@@ -75,7 +97,10 @@
 
 | ფაილი | რაზეა |
 |---|---|
-| [`api-contract/`](api-contract/) | `openapi.json` და `golden_master_v1.json` — API-ის ჩაწერილი ფორმა. `article-visibility-cases.json` — შემთხვევები, რომლებზეც Java-ს და Angular-ის ხილვადობის წესები უნდა ემთხვეოდნენ |
+| [`api-contract/`](api-contract/) | `openapi.json` და `golden_master_v1.json` — ძველი API-ის ისტორიული ჩაწერა; [`audit-chain-health-current.json`](api-contract/audit-chain-health-current.json) — მოქმედი Java/Oracle პასუხი; `article-visibility-cases.json` — Java-ს და Angular-ის საერთო ხილვადობის შემთხვევები |
+| [`api-contract/read-acknowledgement-current.md`](api-contract/read-acknowledgement-current.md) | PO-30-ის მოქმედი Java კონტრაქტი: პირველი დადასტურების დრო, ორივე API და აუდიტი; ძველი Python-ის golden master-ისგან განსხვავებით მიმდინარე წესი |
+| [`security/ASVS_5_0_0_MATRIX.csv`](security/ASVS_5_0_0_MATRIX.csv) | ASVS 5.0.0-ის 345 მოთხოვნის სამუშაო სტატუსი; სრული განხილვა ჯერ ღიაა |
+| [`security/ENDPOINT_COVERAGE_CANDIDATES_2026-09-24.csv`](security/ENDPOINT_COVERAGE_CANDIDATES_2026-09-24.csv) | 150 endpoint-ის სავარაუდო ტესტები; ყველა case-level შედეგი ჯერ დაუდასტურებელია |
 | [`i18n-catalog/README.md`](i18n-catalog/README.md) | ქართული სტრიქონების კატალოგის წარმომავლობა (2026-08-06). ამოღებულია უკვე წაშლილი `static/js` და `routers/`-იდან |
 | [`wireframes/`](wireframes/) | `system-admin-wireframes.html` |
 
@@ -91,6 +116,8 @@
 
 | ფაილი | თარიღი | რაზეა |
 |---|---|---|
+| [`DEPLOYMENT_READINESS_2026-09-22_KA.md`](archive/audits/DEPLOYMENT_READINESS_2026-09-22_KA.md) | 2026-09-22 | პირველი production გაშვების დამოუკიდებელი შემოწმება: ლოკალური შესრულების მტკიცებულებები, მიგნებები, პასუხისმგებლები და DevOps-ისთვის ჩაბარება; ვერდიქტი — ჯერ არ გაეშვას |
+| [`DEPLOYMENT_READINESS_2026-09-22_FIX_PLAN_KA.md`](archive/audits/DEPLOYMENT_READINESS_2026-09-22_FIX_PLAN_KA.md) | 2026-09-23 | აუდიტის 12 სამუშაოს გეგმა და დათარიღებული შესრულების ჩანაწერი; შიდა გასწორებები შემოწმებულია, IT/DevOps/DBA-ს მიღება დარჩენილია |
 | [`READINESS_REPORT_2026-08-23.md`](archive/audits/READINESS_REPORT_2026-08-23.md) | 2026-08-23 | production-მზაობის აუდიტი. ვერდიქტი NOT READY, 14/14 exit criteria |
 | [`ENTERPRISE_READINESS_REPORT_2026-08-25_KA.md`](archive/audits/ENTERPRISE_READINESS_REPORT_2026-08-25_KA.md) | 2026-08-25 | P0/P1 პარტიების შესრულების ანგარიში |
 | [`ENTERPRISE_READINESS_TEST_EVIDENCE_KA.md`](archive/audits/ENTERPRISE_READINESS_TEST_EVIDENCE_KA.md) | 2026-08-27 | EV-nnn: ბრძანების დონის მტკიცებულებები |

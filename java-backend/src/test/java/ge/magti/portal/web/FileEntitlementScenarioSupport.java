@@ -80,7 +80,7 @@ abstract class FileEntitlementScenarioSupport {
 
         String adminToken = tokenFor(admin);
         String filename = upload(adminToken);
-        createArticle(adminToken, marker, insiderDepartment, filename);
+        createArticle(adminToken, marker, List.of(insiderDepartment), filename, false);
 
         return new Fixture(
                 filename,
@@ -103,7 +103,7 @@ abstract class FileEntitlementScenarioSupport {
         }
     }
 
-    private String upload(String adminToken) throws Exception {
+    protected String upload(String adminToken) throws Exception {
         MockMultipartFile file = new MockMultipartFile("file", "picture.png", "image/png", PNG_BYTES);
         String body = mockMvc.perform(multipart("/api/upload").file(file)
                         .header("Authorization", "Bearer " + adminToken))
@@ -112,7 +112,8 @@ abstract class FileEntitlementScenarioSupport {
         return objectMapper.readTree(body).get("filename").asText();
     }
 
-    private void createArticle(String adminToken, long marker, String department, String filename)
+    protected Long createArticle(String adminToken, long marker, List<String> departments, String filename,
+            boolean draft)
             throws Exception {
         Category category = new Category();
         category.setName("fe-category-" + marker);
@@ -123,19 +124,20 @@ abstract class FileEntitlementScenarioSupport {
                 Map.entry("title", "fe-article-" + marker),
                 Map.entry("content", "<p>ტექსტი <img src=\"/uploads/" + filename + "\"></p>"),
                 Map.entry("category_id", category.getId()),
-                Map.entry("target_departments", List.of(department)),
-                Map.entry("status", "published"),
-                Map.entry("is_draft", false),
+                Map.entry("target_departments", departments),
+                Map.entry("status", draft ? "draft" : "published"),
+                Map.entry("is_draft", draft),
                 Map.entry("quiz_enabled", false));
 
-        mockMvc.perform(post("/api/articles")
+        String body = mockMvc.perform(post("/api/articles")
                         .header("Authorization", "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsBytes(article)))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        return objectMapper.readTree(body).get("id").asLong();
     }
 
-    private User createUser(String email, Role role, String department) {
+    protected User createUser(String email, Role role, String department) {
         User user = new User();
         user.setEmail(email);
         user.setName("ფაილის უფლების ტესტი");
@@ -149,9 +151,31 @@ abstract class FileEntitlementScenarioSupport {
         return userRepository.saveAndFlush(user);
     }
 
-    private String tokenFor(User user) {
+    protected String tokenFor(User user) {
         return jwtService.createAccessToken(
                 Map.of("sub", user.getEmail(), "role", user.getRole().value()));
+    }
+
+    protected Long createNews(String token, String department, String filename, boolean draft) throws Exception {
+        var request = new java.util.LinkedHashMap<String, Object>();
+        request.put("title", "პირადი სიახლის ტესტი");
+        request.put("content", "<p>fixture</p>");
+        request.put("attachment_url", "/uploads/" + filename);
+        request.put("target_department", department);
+        request.put("is_draft", draft);
+        String body = mockMvc.perform(post("/api/news").header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsBytes(request)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        return objectMapper.readTree(body).get("id").asLong();
+    }
+
+    protected Long createVideo(String token, String department, String filename) throws Exception {
+        var request = Map.of("title", "ვიდეოს დანართის ტესტი", "video_url", "/uploads/" + filename,
+                "target_department", department);
+        String body = mockMvc.perform(post("/api/videos").header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsBytes(request)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        return objectMapper.readTree(body).get("id").asLong();
     }
 
     protected record Fixture(

@@ -6,7 +6,7 @@ public enum AdminExportFamily {
     READ_EVIDENCE("ADMIN_READ_EVIDENCE", "ოფიციალური გაცნობის მტკიცებულება", "EXPORT_ADMIN_READ_EVIDENCE"),
     ARTICLE_VIEWS("ADMIN_ARTICLE_VIEWS", "სტატიების გახსნის ისტორია", "EXPORT_ADMIN_ARTICLE_VIEWS"),
     SEARCH_HISTORY("ADMIN_SEARCH_HISTORY", "ძებნის ისტორია", "EXPORT_ADMIN_SEARCH_HISTORY"),
-    QUIZ_ATTEMPTS("ADMIN_QUIZ_ATTEMPTS", "Quiz მცდელობები", "EXPORT_ADMIN_QUIZ_ATTEMPTS"),
+    QUIZ_ATTEMPTS("ADMIN_QUIZ_ATTEMPTS", "ქვიზის მცდელობები", "EXPORT_ADMIN_QUIZ_ATTEMPTS"),
     CHANGE_EVENTS("ADMIN_CHANGE_EVENTS", "ცვლილებები და უსაფრთხოების მოვლენები", "EXPORT_ADMIN_CHANGE_EVENTS");
 
     private final String code;

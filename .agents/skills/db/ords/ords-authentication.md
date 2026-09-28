@@ -187,7 +187,7 @@ Response:
 
 ```json
 {
-  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "access_token": "NOT_A_REAL_ACCESS_TOKEN",
   "token_type": "Bearer",
   "expires_in": 3600
 }

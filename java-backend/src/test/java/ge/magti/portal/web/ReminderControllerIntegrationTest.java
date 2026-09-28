@@ -23,6 +23,9 @@ import ge.magti.portal.repository.TeamRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.JwtService;
 import ge.magti.portal.util.TbilisiTime;
+import ge.magti.portal.compliance.OpenMaterial;
+import ge.magti.portal.repository.ArticleRepository;
+import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -65,6 +68,8 @@ class ReminderControllerIntegrationTest {
     @Autowired JwtService jwtService;
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired JdbcTemplate jdbcTemplate;
+    @Autowired ArticleRepository articleRepository;
+    @Autowired ArticleTargetDepartmentRepository articleTargetDepartmentRepository;
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     @Test
@@ -88,7 +93,7 @@ class ReminderControllerIntegrationTest {
                 .andExpect(jsonPath("$.total_elements").value(1))
                 .andExpect(jsonPath("$.items[0].id").value((int) reminderId))
                 .andExpect(jsonPath("$.items[0].type").value("ASSIGNMENT"))
-                .andExpect(jsonPath("$.items[0].content").value(org.hamcrest.Matchers.containsString("მასალა #")));
+                .andExpect(jsonPath("$.items[0].content").value(org.hamcrest.Matchers.containsString("ღია სტატია")));
 
         mockMvc.perform(authed(get("/api/reminders"), tokenFor(other)))
                 .andExpect(status().isOk())
@@ -116,6 +121,18 @@ class ReminderControllerIntegrationTest {
         assertEquals("SUCCESS", readDetails.path("result").asText());
         assertTrue(readDetails.path("before").path("read_at").isNull());
         assertFalse(readDetails.path("after").path("read_at").isNull());
+    }
+
+    @Test
+    void missingReminderReadReturns404WithoutAnAuditEvent() throws Exception {
+        User operator = user("reminder-missing", Role.OPERATOR, uniqueDepartment("missing"), null);
+        long auditBefore = auditLogRepository.count();
+
+        mockMvc.perform(authed(post("/api/reminders/999999999/read"), tokenFor(operator)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").isNotEmpty());
+
+        assertEquals(auditBefore, auditLogRepository.count());
     }
 
     @Test
@@ -176,9 +193,11 @@ class ReminderControllerIntegrationTest {
         assignment(acting, ownTeam, AssignmentType.ACTING);
         assignment(outsiderLeader, otherTeam, AssignmentType.PRIMARY);
         reading(department, TbilisiTime.now().plusDays(1));
+        long remindersBefore = reminderRepository.count();
 
         mockMvc.perform(authed(post("/api/reminders/users/" + target.getId() + "/send"), tokenFor(outsiderLeader)))
                 .andExpect(status().isForbidden());
+        assertEquals(remindersBefore, reminderRepository.count(), "foreign leader must not send a reminder");
 
         String body = mockMvc.perform(authed(post("/api/reminders/users/" + target.getId() + "/send"), tokenFor(primary))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -251,13 +270,20 @@ class ReminderControllerIntegrationTest {
         leadershipRepository.saveAndFlush(assignment);
     }
 
+    /** PO-40: a reading binds only when its article can be opened, so fixtures use one that can. */
+    private Long openArticleId() {
+        return OpenMaterial.article(articleRepository, articleTargetDepartmentRepository, "ღია სტატია", "All").getId();
+    }
+
     private RequiredReading reading(String department, java.time.OffsetDateTime dueAt) {
         RequiredReading reading = new RequiredReading();
         reading.setItemType("article");
-        reading.setItemId(9_999_999L);
+        reading.setItemId(openArticleId());
         reading.setTargetDepartment(department);
         reading.setDueDate(dueAt);
         reading.setPriority("normal");
+        // As if created through the endpoint, which delivers its assignment at once (V52).
+        reading.setAssignmentDeliveredAt(TbilisiTime.now());
         return readingRepository.saveAndFlush(reading);
     }
 

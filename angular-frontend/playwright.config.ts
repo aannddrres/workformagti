@@ -16,6 +16,7 @@ const reportDirectory = process.env.PLAYWRIGHT_REPORT_DIR ?? 'playwright-report'
  */
 export default defineConfig({
   testDir: './e2e',
+  testIgnore: ['nginx-upload.spec.ts', 'nginx-headers.spec.ts'], // shipping-image gate (verify-nginx-smoke.sh), never ng serve
   // Logs the shared personas in once for the whole run. Without it every
   // spec that needs admin@magti.ge spends one of that account's ten logins
   // per minute (LoginRateLimiter.java:70) and the suite starts failing on
@@ -59,6 +60,7 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
+        viewport: { width: 1920, height: 1080 },
         // The runner image ships a Chromium that the pinned Playwright may
         // not match; PLAYWRIGHT_CHROMIUM_PATH lets the workflow point at the
         // one it installed instead of failing on a version mismatch.

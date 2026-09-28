@@ -1,0 +1,61 @@
+title = "Magti Portal credential checks"
+
+[extend]
+useDefault = true
+
+# Signed session examples are forbidden even when expired or synthetic.
+[[rules]]
+id = "portal-jwt-example"
+description = "JWT-shaped credential must not be stored as an example"
+regex = '''eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+'''
+keywords = ["eyJ"]
+
+# These exceptions require BOTH one exact file and one exact benign match.
+# They apply only to the named default rule; the custom JWT rule still runs.
+[[allowlists]]
+description = "Sonar quality-gate example passes a variable name, not a credential"
+targetRules = ["curl-auth-user"]
+condition = "AND"
+regexTarget = "match"
+paths = ['''(^|/)\.agents/skills/db/plsql/plsql-code-quality\.md$''']
+regexes = ['''^curl -s -u "\$SONAR_TOKEN:"''']
+
+[[allowlists]]
+description = "Architecture checklist prose has no key value"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "match"
+paths = ['''(^|/)docs/PROJECT_TECHNOLOGY_GUIDE_KA\.md$''']
+regexes = ['''^auth transport, expiry/revoke/CSRF/XSS''']
+
+[[allowlists]]
+description = "Security responsibility matrix names key management, not a key"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "match"
+paths = ['''(^|/)docs/ENTERPRISE_DEVELOPMENT_SCENARIOS_KA\.md$''']
+regexes = ['''^secrets, vulnerability/penetration''']
+
+[[allowlists]]
+description = "Historical handoff records the length of a synthetic guard fixture"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "match"
+paths = ['''(^|/)docs/archive/handoffs/EV-REMOTE-2026-08-27_JAVA_REGRESSION_KA\.md$''']
+regexes = ['''^SECRET_KEY': '[A-Za-z0-9]{16}'$''']
+
+[[allowlists]]
+description = "Synthetic strong-secret constant used only by the production guard test"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "match"
+paths = ['''(^|/)java-backend/src/test/java/ge/magti/portal/config/ProductionSafetyGuardTest\.java$''']
+regexes = ['''^STRONG_SECRET = "[A-Za-z0-9]{64}"$''']
+
+[[allowlists]]
+description = "Synthetic Basic value (test-client:test-secret) in one historical commit; the file has built its fixture at run time since the candidate merge"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "match"
+paths = ['''(^|/)commits/3d5fc97808cce7fbc9c700c4d5b27990623cb10c/java-backend/src/test/java/ge/magti/portal/web/ConcurrentLoginIntegrationTest\.java$''']
+regexes = ['''^portal\.security\.corporate\.client-credential=dGVzdC1jbGllbnQ6dGVzdC1zZWNyZXQ="$''']

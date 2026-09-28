@@ -39,3 +39,69 @@ saved result from approved production-like staging with representative data.
 
 `tokens.json` (gitignored) holds real JWTs — never commit it, and only run
 this against a throwaway/test instance.
+
+## Audited writes — `audited_writes.py`
+
+The k6 run above is reads only. Every audited write takes the audit chain's
+single tip row (`audit_chain_state`, locked by `trg_audit_logs_chain`, V28)
+until its transaction commits, so audited writes from the whole portal queue
+behind one another. This script measures that queue: 50 simultaneous first
+sign-ins, then 50 quiz submissions, then 50 bookmarks as the unaudited
+control, while sampling `v$session` for sessions waiting on the lock.
+
+```bash
+ORACLE_SYSTEM_PASSWORD=... python scripts/load/audited_writes.py \
+  --base-url http://localhost:8080 --users 50 --oracle-dsn localhost:1522/XEPDB1
+```
+
+Needs `APP_ENV=development` and `ALLOW_DEV_LOGIN=true` on the target. One
+address may sign in 60 times a minute, so do not run it within a minute of
+another sign-in heavy run.
+
+Result on 2026-09-25, Oracle XE 21c and the backend on one host, two runs:
+
+| Burst | p50 | p90 | max | Most sessions waiting on the audit lock |
+|---|---|---|---|---|
+| sign-in | 1239–1301 ms | 1372–1431 ms | 1463 ms | 2 |
+| quiz submission | 190–254 ms | 253–323 ms | 340 ms | 3–6 |
+| bookmark (not audited) | 103–174 ms | 139–221 ms | 232 ms | 0 |
+
+All 300 requests returned 200. The queue is real but short: at 50 at once it
+never held more than six sessions, and no submission took over 340 ms. The
+sign-in time is the first-login password hashing of 50 new accounts, not the
+lock. So the lock keeps waiting without a timeout, as V28 has it. One host
+cannot show network time to the database, which lengthens every hold, so the
+same run belongs on staging before go-live.
+
+## 600 distinct users and writes on staging
+
+`k6-staging-600.js` is a separate capacity gate for a production-like,
+isolated staging environment. IT must first provision 600 **synthetic**
+InfoPortal identities named `loadtest.*`, each with a short-lived token from
+the staging client and an article ID visible to that identity. Put them in
+gitignored `staging-users.json` next to the script:
+
+```json
+[{"email":"loadtest.0001@example.test","token":"<staging JWT>","articleId":123}]
+```
+
+The real file needs 600 distinct entries. The script checks `/api/users/me`
+against each entry before sending that identity's one article-view write. Run
+it only after confirming that staging has disposable data and no real users:
+
+```bash
+LOAD_CONFIRM=isolated-synthetic-staging \
+TARGET_BASE_URL=https://staging.example.test \
+k6 run --summary-export=staging-600-summary.json k6-staging-600.js
+```
+
+The hard thresholds are HTTP errors below 1%, business checks above 99%,
+global-search p95 below 2 seconds, exactly 600 verified identities and write
+attempts, zero identity mismatches, and zero failed writes. A green k6 result
+still needs database reconciliation: record the
+start timestamp before the run, then have the DBA verify that
+`article_view_logs` has 600 distinct `operator_email_snapshot` values starting
+with `loadtest.` after that timestamp, with one row per expected account.
+Record JVM, Hikari, Oracle, request latency and any stuck export jobs during
+the run. Save the summary and the reconciliation query/result with the
+release evidence. Do not commit `staging-users.json` or any token.

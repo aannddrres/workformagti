@@ -1,6 +1,12 @@
 spring:
   application:
     name: portal-backend
+  task:
+    scheduling:
+      pool:
+        # Five scheduled jobs share this pool. Leave room for the export
+        # heartbeat while recovery, cleanup, reminders and login cleanup run.
+        size: 6
   datasource:
     url: ${ORACLE_DB_URL:jdbc:oracle:thin:@localhost:1521/orclpdb1}
     username: ${ORACLE_DB_USER:magti_app}
@@ -72,6 +78,16 @@ spring:
 server:
   port: 8080
 
+# ASVS V16.4.1. Spring Boot's own console pattern with one change: line
+# breaks in the message fold into a space, so a value quoted from a request
+# (an address typed at sign-in, a path, an exception message) can never start
+# a forged log line (LogInjectionTest). The MDC request id replaces the PID,
+# which is 1 in every container, so each line carries nginx's X-Request-ID.
+# No ${...} here: Spring would resolve them before logback saw them.
+logging:
+  pattern:
+    console: '%clr(%d{yyyy-MM-dd''T''HH:mm:ss.SSSXXX}){faint} %clr(%5p) %clr(%X{requestId:-}){magenta} %clr(--- [%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %replace(%m){''[\r\n]+'', '' ''}%n%wEx'
+
 # Kubernetes/orchestrator-safe health contract. Liveness deliberately excludes
 # Oracle so a dependency outage does not restart a healthy JVM in a loop;
 # readiness includes Oracle and maps DOWN/OUT_OF_SERVICE to HTTP 503. Details
@@ -124,9 +140,8 @@ portal:
   # Defaults to production so a missing APP_ENV fails SAFE (SEC-01).
   # Local development sets APP_ENV=development explicitly.
   app-env: ${APP_ENV:production}
-  # Mirrors config.py's UPLOAD_DIR (default "uploads", relative to wherever
-  # the process starts) -- the Exports domain writes generated xlsx/pdf
-  # files under <uploads-dir>/exports.
+  # Legacy pre-Oracle-BLOB upload lookup only. New attachments and exports
+  # are stored in Oracle; this path is read for old files, never written.
   uploads-dir: ${UPLOAD_DIR:uploads}
   rollout:
     # Phase 4 infrastructure only. Phase 9A binds the switch but does not
@@ -157,9 +172,11 @@ portal:
     # Behind this project's nginx, leaving it empty makes every user share
     # one rate-limit bucket and one audit-log IP (SEC-04/PR-04). Setting it
     # to something too wide is worse: anyone inside that range can then forge
-    # both. Set it to the proxy, not the pod network.
-    #   TRUSTED_PROXIES=10.42.0.7          # a single nginx pod
-    #   TRUSTED_PROXIES=10.42.0.0/24       # the ingress subnet, if stable
+    # both. Path: employee -> ingress -> portal-frontend nginx -> backend.
+    # Trust the frontend socket peer AND trusted ingress hops, as observed
+    # after any SNAT. Restrict backend network access to those proxies.
+    # Synthetic two-hop example ONLY; DevOps supplies the real addresses:
+    #   TRUSTED_PROXIES=10.42.0.7,10.43.0.4  # frontend peer, ingress hop
     trusted-proxies: ${TRUSTED_PROXIES:}
     # The company's OAuth2 ldap_auth login -- see PortalProperties.Corporate.
     # Names mirror IT's configuration sheet. OAUTH_SECRET is a secret: it is

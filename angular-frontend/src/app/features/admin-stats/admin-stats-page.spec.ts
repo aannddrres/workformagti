@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
@@ -10,6 +11,7 @@ import { StatsService } from '../../core/services/stats.service';
 import { CategoriesService } from '../../core/services/categories.service';
 import { ArticlesService } from '../../core/services/articles.service';
 import { AuditService } from '../../core/services/audit.service';
+import { ThemeService } from '../../core/theme/theme.service';
 
 describe('AdminStatsPage capability isolation', () => {
   function createPage(role: string, permissions: string[]) {
@@ -77,5 +79,54 @@ describe('AdminStatsPage capability isolation', () => {
     expect(services.articles.list).toHaveBeenCalledOnce();
     expect(services.audit.chainHealth).toHaveBeenCalledOnce();
     expect(services.audit.list).toHaveBeenCalledOnce();
+  });
+});
+
+describe('AdminStatsPage chart theme', () => {
+  // Canvas cannot be drawn here, so the doughnut's renderer is stubbed and
+  // what it is asked to draw is checked instead.
+  type ChartRenderers = { renderComplianceChart: (...args: unknown[]) => void };
+
+  it('redraws the compliance doughnut with a dark track when the theme flips', () => {
+    TestBed.resetTestingModule();
+    const isDark = signal(false);
+    const render = vi
+      .spyOn(AdminStatsPage.prototype as unknown as ChartRenderers, 'renderComplianceChart')
+      .mockImplementation(() => undefined);
+    TestBed.configureTestingModule({
+      imports: [AdminStatsPage],
+      providers: [
+        provideRouter([]),
+        { provide: AuthService, useValue: { currentUser: () => ({ role: 'operator' }) } },
+        { provide: UserProfileService, useValue: { hasPermission: () => false } },
+        {
+          provide: StatsService,
+          useValue: {
+            kpi: () => of({ users: 0, articles: 0, required_readings: 0, videos: 0 }),
+            activity: () => of([]),
+            compliance: () => of({ read_percentage: 50, unread_percentage: 50, top_articles: [] }),
+            popularSearches: () => of([]),
+            failedSearches: () => of([])
+          }
+        },
+        { provide: CategoriesService, useValue: {} },
+        { provide: ArticlesService, useValue: {} },
+        { provide: AuditService, useValue: {} },
+        { provide: TranslateService, useValue: { instant: (value: string) => value } },
+        { provide: ThemeService, useValue: { isDark } }
+      ]
+    });
+
+    const fixture = TestBed.createComponent(AdminStatsPage);
+    fixture.detectChanges();
+    expect(render).toHaveBeenCalledTimes(1);
+    expect(render.mock.lastCall?.[2]).toMatchObject({ track: '#E5E7EB' });
+
+    isDark.set(true);
+    fixture.detectChanges();
+    expect(render).toHaveBeenCalledTimes(2);
+    expect(render.mock.lastCall?.[2]).toMatchObject({ track: '#334155', text: '#94A3B8' });
+
+    render.mockRestore();
   });
 });

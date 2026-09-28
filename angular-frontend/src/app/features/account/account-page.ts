@@ -5,6 +5,8 @@ import { FontScaleService } from '../../core/accessibility/font-scale.service';
 import { ThemeService } from '../../core/theme/theme.service';
 import { ComplianceService } from '../../core/services/compliance.service';
 import { MyProgress, MyReading } from '../../core/models/compliance';
+import { CurrentUserProfile } from '../../core/models/user';
+import { nameInitials } from '../../shared/name-initials';
 import { formatKaDateTime } from '../../shared/ka-date';
 import { formatDepartmentLabel } from '../../shared/department-badge';
 import { BroadcastBanner } from '../../shared/broadcast-banner/broadcast-banner';
@@ -89,6 +91,11 @@ export class AccountPage {
 
   protected selectTab(tab: AccountTab): void {
     this.activeTab.set(tab);
+  }
+
+  /** The same letters the header and sidebar avatars show. */
+  protected avatarInitials(profile: CurrentUserProfile): string {
+    return nameInitials(profile.name, profile.email?.[0] ?? 'M');
   }
 
   protected roleLabel(role: string | null | undefined): string {

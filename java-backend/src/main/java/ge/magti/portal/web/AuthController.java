@@ -6,26 +6,37 @@ import ge.magti.portal.domain.User;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.AuthenticationService;
 import ge.magti.portal.security.ClientIpResolver;
+import ge.magti.portal.security.CorporateAuthClient;
+import ge.magti.portal.security.CorporateIdentity;
 import ge.magti.portal.security.CorporateLoginService;
 import ge.magti.portal.security.JwtService;
 import ge.magti.portal.security.LoginRateLimiter;
 import ge.magti.portal.security.PortalSessionService;
 import ge.magti.portal.security.JwtAuthenticationFilter;
+import ge.magti.portal.util.TbilisiTime;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -48,6 +59,7 @@ public class AuthController {
     private final UserRepository userRepository;
     private final PortalSessionService sessionService;
     private final CorporateLoginService corporateLoginService;
+    private final TransactionTemplate transactionTemplate;
 
     public AuthController(
             AuthenticationService authenticationService,
@@ -58,7 +70,8 @@ public class AuthController {
             ClientIpResolver clientIpResolver,
             UserRepository userRepository,
             PortalSessionService sessionService,
-            CorporateLoginService corporateLoginService) {
+            CorporateLoginService corporateLoginService,
+            TransactionTemplate transactionTemplate) {
         this.authenticationService = authenticationService;
         this.jwtService = jwtService;
         this.mutationAuditService = mutationAuditService;
@@ -68,6 +81,7 @@ public class AuthController {
         this.userRepository = userRepository;
         this.sessionService = sessionService;
         this.corporateLoginService = corporateLoginService;
+        this.transactionTemplate = transactionTemplate;
     }
 
     /** PO-26: one sentence for every failed sign-in, so the answer never says which part was wrong. */
@@ -76,8 +90,37 @@ public class AuthController {
     private static final String LOCAL_CHANNEL = "LOCAL_DEVELOPMENT_ONLY";
     private static final String CORPORATE_CHANNEL = "CORPORATE_OAUTH";
 
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
+
+    /**
+     * The typed address as it may appear in a log: the first 16 hex digits of
+     * its SHA-256. Enough to see many attempts at one address, and never the
+     * text itself, which is sometimes a password typed into the wrong field.
+     */
+    static String addressHash(String email) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(String.valueOf(email).trim().toLowerCase(Locale.ROOT).getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest, 0, 8);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is part of every JDK", e);
+        }
+    }
+
+    /**
+     * Deliberately not {@code @Transactional}. It was, and that put two things
+     * in one database transaction that must not share one. The throttle's
+     * recorded attempt stayed invisible to simultaneous attempts until the
+     * whole sign-in committed, so a burst all counted "one" and all went
+     * through. And the directory call kept a pooled connection checked out
+     * for as long as the directory took -- up to its 5 s + 10 s timeouts,
+     * out of a pool of 30 shared with every request in the portal. Now the
+     * attempt commits on its own before the decision, the directory is asked
+     * with no connection held, and only what must be atomic -- the account,
+     * its session and its audit row -- shares a transaction
+     * (ConcurrentLoginIntegrationTest).
+     */
     @PostMapping("/api/auth/login")
-    @Transactional
     public ResponseEntity<?> login(
             @Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
         boolean corporate = properties.getSecurity().getCorporate().isEnabled();
@@ -94,6 +137,8 @@ public class AuthController {
         // every user), and now includes the account being tried.
         String clientIp = clientIpResolver.resolve(httpRequest);
         if (!rateLimiter.tryAcquire(request.email(), clientIp)) {
+            // ASVS V16.3.3: the throttle refusing an attempt is a security event.
+            logger.warn("SIGN_IN_THROTTLED account=address:{} client_ip={}", addressHash(request.email()), clientIp);
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body(Map.of("detail", "ძალიან ბევრი მცდელობა. სცადეთ მოგვიანებით."));
         }
@@ -107,10 +152,12 @@ public class AuthController {
 
         Optional<User> authenticated = authenticationService.authenticate(request.email(), request.password());
         if (authenticated.isEmpty()) {
-            recordFailure(request.email(), "AUTHENTICATION_REJECTED", LOCAL_CHANNEL, clientIp, httpRequest);
+            transactionTemplate.executeWithoutResult(status ->
+                    recordFailure(request.email(), "AUTHENTICATION_REJECTED", LOCAL_CHANNEL, clientIp, httpRequest));
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("detail", LOGIN_FAILED_DETAIL));
         }
-        return completeLogin(authenticated.get(), LOCAL_CHANNEL, Map.of(), clientIp, httpRequest, httpResponse);
+        return transactionTemplate.execute(status ->
+                completeLogin(authenticated.get(), LOCAL_CHANNEL, Map.of(), clientIp, httpRequest, httpResponse));
     }
 
     /**
@@ -121,27 +168,36 @@ public class AuthController {
      */
     private ResponseEntity<?> corporateLogin(
             LoginRequest request, String clientIp, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
-        CorporateLoginService.Result result = corporateLoginService.login(request.email(), request.password());
-        if (result instanceof CorporateLoginService.Unavailable) {
+        CorporateAuthClient.Outcome answer = corporateLoginService.verify(request.email(), request.password());
+        if (answer instanceof CorporateAuthClient.Unavailable) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
                     "detail", "კომპანიის ავტორიზაციის სერვისი დროებით მიუწვდომელია. სცადეთ მოგვიანებით."));
         }
-        if (result instanceof CorporateLoginService.Rejected rejected) {
-            recordFailure(request.email(),
-                    rejected.deactivated() ? "ACCOUNT_DEACTIVATED" : "AUTHENTICATION_REJECTED",
-                    CORPORATE_CHANNEL, clientIp, httpRequest);
+        if (answer instanceof CorporateAuthClient.Rejected) {
+            transactionTemplate.executeWithoutResult(status ->
+                    recordFailure(request.email(), "AUTHENTICATION_REJECTED", CORPORATE_CHANNEL, clientIp, httpRequest));
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("detail", LOGIN_FAILED_DETAIL));
         }
-        CorporateLoginService.SignedIn signedIn = (CorporateLoginService.SignedIn) result;
-        Map<String, Object> directory = new LinkedHashMap<>();
-        if (signedIn.created()) {
-            directory.put("account_created", true);
-        }
-        if (signedIn.previousRole() != null) {
-            directory.put("directory_role_change",
-                    signedIn.previousRole().value() + "->" + signedIn.user().getRole().value());
-        }
-        return completeLogin(signedIn.user(), CORPORATE_CHANNEL, directory, clientIp, httpRequest, httpResponse);
+        CorporateIdentity identity = ((CorporateAuthClient.Authenticated) answer).identity();
+        return transactionTemplate.execute(status -> {
+            CorporateLoginService.Result result = corporateLoginService.provision(identity);
+            if (result instanceof CorporateLoginService.Rejected rejected) {
+                recordFailure(request.email(),
+                        rejected.deactivated() ? "ACCOUNT_DEACTIVATED" : "AUTHENTICATION_REJECTED",
+                        CORPORATE_CHANNEL, clientIp, httpRequest);
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("detail", LOGIN_FAILED_DETAIL));
+            }
+            CorporateLoginService.SignedIn signedIn = (CorporateLoginService.SignedIn) result;
+            Map<String, Object> directory = new LinkedHashMap<>();
+            if (signedIn.created()) {
+                directory.put("account_created", true);
+            }
+            if (signedIn.previousRole() != null) {
+                directory.put("directory_role_change",
+                        signedIn.previousRole().value() + "->" + signedIn.user().getRole().value());
+            }
+            return completeLogin(signedIn.user(), CORPORATE_CHANNEL, directory, clientIp, httpRequest, httpResponse);
+        });
     }
 
     /**
@@ -151,7 +207,12 @@ public class AuthController {
      */
     private void recordFailure(
             String email, String reason, String channel, String clientIp, HttpServletRequest httpRequest) {
-        authenticationService.findExistingAccount(email).ifPresent(existing -> mutationAuditService.recordResult(
+        Optional<User> account = authenticationService.findExistingAccount(email);
+        // ASVS V16.3.1: every failed sign-in, including one at an address with
+        // no account, which the audit table cannot hold (admin_id is a FK).
+        logger.warn("SIGN_IN_FAILED reason={} channel={} account={} client_ip={}", reason, channel,
+                account.map(user -> "user:" + user.getId()).orElse("unknown:" + addressHash(email)), clientIp);
+        account.ifPresent(existing -> mutationAuditService.recordResult(
                 existing,
                 "LOGIN_FAILED",
                 "user",
@@ -188,6 +249,9 @@ public class AuthController {
                 details,
                 clientIp,
                 truncatedUserAgent(httpRequest));
+        // PO-24's leaver filter reads last_active. Last, because the update
+        // clears the persistence context and nothing after it touches the user.
+        userRepository.recordSignIn(user.getId(), TbilisiTime.now());
 
         httpResponse.addHeader(HttpHeaders.SET_COOKIE, accessTokenCookie(accessToken).toString());
 
@@ -280,8 +344,13 @@ public class AuthController {
                     clientIpResolver.resolve(request),
                     truncatedUserAgent(request));
         }
-        ResponseCookie cleared = ResponseCookie.from("access_token", "")
+        // Same name and attributes as the cookie being removed: a browser
+        // ignores a __Host- cookie without Secure, deletions included.
+        PortalProperties.Cookie cookieConfig = properties.getSecurity().getCookie();
+        ResponseCookie cleared = ResponseCookie.from(cookieConfig.sessionCookieName(), "")
                 .httpOnly(true)
+                .secure(cookieConfig.isSecure())
+                .sameSite(cookieConfig.getSameSite())
                 .path("/")
                 .maxAge(0)
                 .build();
@@ -301,7 +370,7 @@ public class AuthController {
 
     private ResponseCookie accessTokenCookie(String accessToken) {
         PortalProperties.Cookie cookieConfig = properties.getSecurity().getCookie();
-        return ResponseCookie.from("access_token", accessToken)
+        return ResponseCookie.from(cookieConfig.sessionCookieName(), accessToken)
                 .httpOnly(true)
                 .secure(cookieConfig.isSecure())
                 .sameSite(cookieConfig.getSameSite())

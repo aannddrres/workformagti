@@ -6,6 +6,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.io.StringReader;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -20,6 +21,11 @@ import java.util.List;
  * Department parsing remains Java-owned by {@code DepartmentMatcher}; Oracle
  * only joins exact strings, so the established matching rule cannot drift into
  * a second SQL implementation.
+ *
+ * <p>The same holds for PO-40's "in force": which readings bind anyone is
+ * decided in Java by {@link MandatoryReach}, through the items' own
+ * visibility rules, and arrives here as a list of ids. A reading out of force
+ * is left out of both counts, so a confirmation of it neither adds nor hides.
  */
 @Repository
 public class ComplianceAggregateRepository {
@@ -32,6 +38,10 @@ public class ComplianceAggregateRepository {
                         user_id NUMBER PATH '$.userId',
                         target_department VARCHAR2(200 CHAR) PATH '$.targetDepartment'
                     )) jt
+            ),
+            in_force AS (
+                SELECT jf.reading_id
+                FROM JSON_TABLE(?, '$[*]' COLUMNS (reading_id NUMBER PATH '$')) jf
             )
             SELECT st.user_id,
                    st.target_department,
@@ -40,6 +50,7 @@ public class ComplianceAggregateRepository {
             FROM scope_targets st
             LEFT JOIN required_readings rr
                    ON rr.target_department = st.target_department
+                  AND rr.id IN (SELECT reading_id FROM in_force)
             LEFT JOIN read_statuses rs
                    ON rs.required_reading_id = rr.id
                   AND rs.user_id = st.user_id
@@ -55,14 +66,22 @@ public class ComplianceAggregateRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public List<AggregateRow> findRelevantCounts(List<ScopeTarget> scopeTargets) {
+    /**
+     * @param inForceReadingIds the readings that bind anyone now (PO-40); the
+     *                          rest count neither as owed nor as read
+     */
+    public List<AggregateRow> findRelevantCounts(List<ScopeTarget> scopeTargets, Collection<Long> inForceReadingIds) {
         if (scopeTargets.isEmpty()) {
             return List.of();
         }
         String json = serialize(scopeTargets);
+        String inForceJson = serialize(List.copyOf(inForceReadingIds));
         return jdbcTemplate.query(
                 RELEVANT_COUNTS_SQL,
-                statement -> statement.setClob(1, new StringReader(json)),
+                statement -> {
+                    statement.setClob(1, new StringReader(json));
+                    statement.setClob(2, new StringReader(inForceJson));
+                },
                 (resultSet, rowNumber) -> new AggregateRow(
                         resultSet.getLong("user_id"),
                         resultSet.getString("target_department"),
@@ -70,9 +89,9 @@ public class ComplianceAggregateRepository {
                         Math.toIntExact(resultSet.getLong("read_count"))));
     }
 
-    private String serialize(List<ScopeTarget> scopeTargets) {
+    private String serialize(List<?> values) {
         try {
-            return objectMapper.writeValueAsString(scopeTargets);
+            return objectMapper.writeValueAsString(values);
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("Could not serialize bounded compliance query scope", exception);
         }

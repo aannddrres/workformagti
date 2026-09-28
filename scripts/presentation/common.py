@@ -83,7 +83,10 @@ EXPECTED_ORACLE_CONTEXT = ("MAGTI_APP", "XEPDB1", "XEPDB1")
 # it finds back. A missing index degrades to slow-and-correct on first access
 # and heals itself. So the seeder is not required to populate it, and this
 # guard does not need to hold the line at 45 on its account.
-EXPECTED_FLYWAY_VERSION = "48"
+# 48 -> 49 (2026-09-23): audit chain hash/previous-hash indexes only.
+# Seeders write no audit hashes directly; the V28 trigger continues to do so.
+# Existing duplicates make the unique index fail loudly and need investigation.
+EXPECTED_FLYWAY_VERSION = "52"
 SEARCH_ENTITY_TYPES = {
     "article": "ARTICLE",
     "news": "NEWS",

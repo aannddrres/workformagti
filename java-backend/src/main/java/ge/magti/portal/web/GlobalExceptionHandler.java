@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.List;
@@ -137,6 +138,18 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * A single-valued parameter given twice (RepeatedParameterGuard, ASVS
+     * V15.3.7). The caller's error for the same reason as above, and answered
+     * the same way.
+     */
+    @ExceptionHandler(RepeatedParameterGuard.RepeatedParameterException.class)
+    public ResponseEntity<Map<String, String>> handleRepeatedParameter(
+            RepeatedParameterGuard.RepeatedParameterException exception) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                "detail", "მოთხოვნის პარამეტრი არასწორია"));
+    }
+
+    /**
      * The route exists but not for this method -- 405, and per RFC 9110 a 405
      * must name what is allowed, so the header is not optional decoration.
      *
@@ -178,6 +191,19 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleMissingResource(NoResourceFoundException exception) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
                 "detail", "მისამართი ვერ მოიძებნა"));
+    }
+
+    /**
+     * A body over Spring's multipart limit (11MB) is the sender's mistake:
+     * the same 413 and reason as a file over the application's own 10MB
+     * check, not the catch-all's 500 and an ERROR-level stack trace.
+     * Behind the production nginx the body is refused at 11MB before it
+     * gets here; straight to the backend it was not
+     * (UploadSizeLimitIntegrationTest).
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, String>> handleUploadTooLarge() {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(Map.of("detail", UploadController.TOO_LARGE_DETAIL));
     }
 
     /** Complete-result administrative views fail loudly instead of truncating. */

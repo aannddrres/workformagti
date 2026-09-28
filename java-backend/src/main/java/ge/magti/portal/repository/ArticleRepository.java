@@ -32,21 +32,30 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
      * A NULL lastVerifiedAt never matches "< cutoff" in SQL (NULL
      * comparisons are never true), same as Python's SQLAlchemy filter --
      * not something this query needs to special-case separately.
+     *
+     * <p>Both reference queries carry ArticleQueryService's draft clause
+     * ({@code a.isDraft = false OR a.authorId = :viewerId}): a legacy row can
+     * say published while is_draft is still set, and its title belongs to
+     * its author alone (PO-34).
      */
     @Query("SELECT new ge.magti.portal.article.ArticleReferenceItem("
             + "a.id, a.title, a.categoryId, a.tags, a.createdAt, a.lastVerifiedAt) "
             + "FROM Article a WHERE a.status = :status AND a.lastVerifiedAt < :cutoff "
+            + "AND (a.isDraft = false OR a.authorId = :viewerId) "
             + "ORDER BY a.lastVerifiedAt ASC")
     List<ArticleReferenceItem> findStaleReferences(
             @Param("status") String status,
             @Param("cutoff") OffsetDateTime cutoff,
+            @Param("viewerId") Long viewerId,
             Pageable pageable);
 
     @Query("SELECT new ge.magti.portal.article.ArticleReferenceItem("
             + "a.id, a.title, a.categoryId, a.tags, a.createdAt, a.lastVerifiedAt) "
-            + "FROM Article a WHERE a.status = :status")
+            + "FROM Article a WHERE a.status = :status "
+            + "AND (a.isDraft = false OR a.authorId = :viewerId)")
     List<ArticleReferenceItem> findReferencesByStatus(
             @Param("status") String status,
+            @Param("viewerId") Long viewerId,
             Pageable pageable);
 
     /** Bounded category-only search fallback; callers supply the hard ceiling. */

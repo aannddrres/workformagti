@@ -2,6 +2,9 @@ package ge.magti.portal.security;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.dao.RecoverableDataAccessException;
+import org.springframework.dao.TransientDataAccessResourceException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -19,14 +22,14 @@ import java.time.Instant;
  * write and a counted read to a request that was going to talk to Oracle
  * regardless. Login volume is a few per second at the very worst.
  *
- * <p><b>The count joins the caller's transaction, deliberately.</b>
- * {@code AuthController.login} is {@code @Transactional}, so a recorded
- * attempt commits with it -- including when the login fails, because a
- * rejected password is a normal return, not an exception. The one case
- * where an attempt would go uncounted is a login that throws and rolls
- * back, which is already a 500 someone is being paged about. Forcing a
- * separate transaction here would close that gap and cost a second
- * connection per attempt; the gap is not worth the connection.
+ * <p><b>No caller transaction, deliberately.</b> {@code AuthController.login}
+ * is not {@code @Transactional}, so the insert below commits on its own
+ * before the count -- which is what lets simultaneous attempts see one
+ * another, the whole point of counting first. It used to join the login's
+ * transaction, and then an attempt stayed invisible to everyone else until
+ * the sign-in finished: a burst of twelve all counted "one" and all reached
+ * the directory (ConcurrentLoginIntegrationTest). Calling this from inside a
+ * transaction brings that back.
  */
 @Component
 public class JdbcLoginAttemptStore implements LoginAttemptStore {
@@ -67,13 +70,24 @@ public class JdbcLoginAttemptStore implements LoginAttemptStore {
                     Integer.class, storedKey, Timestamp.from(now.minus(window)));
 
             return attempts != null && attempts <= maxAttempts;
+        } catch (DataAccessResourceFailureException | RecoverableDataAccessException
+                | TransientDataAccessResourceException unreachable) {
+            // The database itself is unreachable: fail CLOSED. The sign-in
+            // cannot finish without it -- the account, its session and its
+            // audit row all live there -- but a company sign-in asks the
+            // directory first, with no connection held (AuthController.login).
+            // Let through, every attempt of the outage would reach the
+            // directory unthrottled, counting toward whatever lockout it
+            // enforces, and fail only afterwards. Rethrown, the sign-in ends
+            // here as a 500, where it ended when login was one transaction
+            // (JdbcLoginAttemptStoreTest).
+            throw unreachable;
         } catch (RuntimeException e) {
-            // Fails OPEN, and that is not the hole it looks like: the login
-            // this guards reads the user from the same database, so a caller
-            // who gets past here still meets the same failure one step
-            // later. Failing closed would turn a table-level problem into
-            // "nobody in the company can sign in", which is a worse outcome
-            // than a throttle being briefly unenforced.
+            // Anything else is a problem with this table alone, and fails
+            // OPEN: everything else the sign-in needs is working, and failing
+            // closed would turn that into "nobody in the company can sign
+            // in", which is a worse outcome than a throttle being briefly
+            // unenforced.
             //
             // Logged at WARN with the key omitted -- it contains the
             // attempted email.

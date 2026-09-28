@@ -58,6 +58,9 @@ public class UploadController {
 
     private static final long MAX_UPLOAD_SIZE_BYTES = 10L * 1024 * 1024;
 
+    /** Also what a body over Spring's 11MB transport limit is told (GlobalExceptionHandler). */
+    static final String TOO_LARGE_DETAIL = "ფაილის ზომა აღემატება დასაშვებ 10 MiB-ს";
+
     /** Mirrors config.py's Settings.ALLOWED_UPLOAD_TYPES exactly. */
     private static final Map<String, String> ALLOWED_UPLOAD_TYPES = Map.ofEntries(
             Map.entry("application/pdf", ".pdf"),
@@ -109,8 +112,7 @@ public class UploadController {
         }
 
         if (file.getSize() > MAX_UPLOAD_SIZE_BYTES) {
-            return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(Map.of(
-                    "detail", "File exceeds the maximum allowed size of " + MAX_UPLOAD_SIZE_BYTES + " bytes"));
+            return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(Map.of("detail", TOO_LARGE_DETAIL));
         }
 
         String uniqueFilename = UUID.randomUUID() + ext;

@@ -92,15 +92,38 @@ class FileTypeVerifierTest {
      * report UNVERIFIABLE rather than a reassuring MATCHES.
      */
     @Test
-    void formatsWithoutAUsableSignatureAreReportedAsUnverifiableNotAsMatching() {
-        assertEquals(FileTypeVerifier.Result.UNVERIFIABLE,
-                FileTypeVerifier.verify("text/plain", HTML));
-        assertEquals(FileTypeVerifier.Result.UNVERIFIABLE,
-                FileTypeVerifier.verify("application/msword", HTML));
-        assertEquals(FileTypeVerifier.Result.UNVERIFIABLE,
-                FileTypeVerifier.verify("application/vnd.ms-excel", HTML));
-        assertEquals(FileTypeVerifier.Result.UNVERIFIABLE,
-                FileTypeVerifier.verify("video/mp4", HTML));
+    void theLegacyOfficeFormatsMustBeOle2Containers() {
+        byte[] ole2 = bytes(0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1, 0, 0, 0, 0);
+        for (String type : new String[] {"application/msword", "application/vnd.ms-excel"}) {
+            assertEquals(FileTypeVerifier.Result.MISMATCH, FileTypeVerifier.verify(type, HTML), type);
+            // doc and xls share the container; the declared type says which.
+            assertEquals(FileTypeVerifier.Result.MATCHES, FileTypeVerifier.verify(type, ole2), type);
+        }
+    }
+
+    @Test
+    void anMp4MustCarryItsFtypBox() {
+        assertEquals(FileTypeVerifier.Result.MISMATCH, FileTypeVerifier.verify("video/mp4", HTML));
+        assertEquals(FileTypeVerifier.Result.MATCHES,
+                FileTypeVerifier.verify("video/mp4", bytes(0, 0, 0, 0x20, 'f', 't', 'y', 'p', 'i', 's', 'o', 'm')));
+    }
+
+    /**
+     * Text has no signature, so the check is that it is text: no NUL byte,
+     * which every executable, image and archive has near its start and no
+     * 8-bit text encoding produces. The encoding itself is not policed, so an
+     * old-codepage .txt still uploads. Markup declared as text/plain is
+     * served as text/plain with nosniff, which a browser shows as text.
+     */
+    @Test
+    void plainTextMustBeText() {
+        assertEquals(FileTypeVerifier.Result.MATCHES,
+                FileTypeVerifier.verify("text/plain", "ქართული ტექსტი".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        assertEquals(FileTypeVerifier.Result.MATCHES, FileTypeVerifier.verify("text/plain", HTML));
+        assertEquals(FileTypeVerifier.Result.MATCHES,
+                FileTypeVerifier.verify("text/plain", bytes(0xFF, 0xFE, 'a', 0, 'b', 0)), "UTF-16 with its BOM");
+        assertEquals(FileTypeVerifier.Result.MISMATCH, FileTypeVerifier.verify("text/plain", bytes('M', 'Z', 0x90, 0, 3, 0)));
+        assertEquals(FileTypeVerifier.Result.MISMATCH, FileTypeVerifier.verify("text/plain", bytes('a', 'b', 0, 'c')));
     }
 
     /** A truncated file must not read past the end of the array. */

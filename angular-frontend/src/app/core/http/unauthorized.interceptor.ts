@@ -3,6 +3,7 @@ import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
+import { LoginPage } from '../auth/login-page';
 
 /**
  * Sends an expired or rejected session back to /login instead of leaving the
@@ -27,7 +28,7 @@ import { AuthService } from '../auth/auth.service';
  * a live session, so signing out of one the server has already ended answers
  * 401 -- and that 401 is the expected end of a logout, not a session dying
  * mid-task. Without the exemption this interceptor would race
- * IdleSessionService to the router and win, replacing
+ * IdleSessionService to the login screen and win, replacing
  * "?reason=session-expired" with a bare redirect and dropping the only
  * explanation the operator gets for why they are back at the login screen.
  * AuthService.logout() clears local state on that 401 by itself.
@@ -35,6 +36,7 @@ import { AuthService } from '../auth/auth.service';
 export const unauthorizedInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
   const router = inject(Router);
+  const loginPage = inject(LoginPage);
 
   return next(req).pipe(
     catchError((error: unknown) => {
@@ -45,7 +47,7 @@ export const unauthorizedInterceptor: HttpInterceptorFn = (req, next) => {
         const returnUrl = router.url;
         // Guard against redirect loops if a 401 arrives while already leaving.
         if (!returnUrl.startsWith('/login')) {
-          router.navigate(['/login'], { queryParams: { returnUrl } });
+          loginPage.open({ returnUrl });
         }
       }
       return throwError(() => error);

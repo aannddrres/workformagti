@@ -6,8 +6,11 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
+import org.springframework.security.web.csrf.DefaultCsrfToken;
 
+import java.security.SecureRandom;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.function.Consumer;
 
 /**
@@ -37,17 +40,20 @@ import java.util.function.Consumer;
  */
 final class SessionLifetimeCsrfTokenRepository implements CsrfTokenRepository {
 
+    private static final SecureRandom RANDOM = new SecureRandom();
+
     private final CookieCsrfTokenRepository issuing;
     private final CookieCsrfTokenRepository deleting;
 
-    SessionLifetimeCsrfTokenRepository(boolean secure, Duration lifetime) {
-        this.issuing = configured(secure, (cookie) -> cookie.maxAge(lifetime));
-        this.deleting = configured(secure, (cookie) -> { });
+    SessionLifetimeCsrfTokenRepository(String cookieName, boolean secure, Duration lifetime) {
+        this.issuing = configured(cookieName, secure, (cookie) -> cookie.maxAge(lifetime));
+        this.deleting = configured(cookieName, secure, (cookie) -> { });
     }
 
     private static CookieCsrfTokenRepository configured(
-            boolean secure, Consumer<ResponseCookie.ResponseCookieBuilder> lifetime) {
+            String cookieName, boolean secure, Consumer<ResponseCookie.ResponseCookieBuilder> lifetime) {
         CookieCsrfTokenRepository repository = CookieCsrfTokenRepository.withHttpOnlyFalse();
+        repository.setCookieName(cookieName);
         repository.setCookieCustomizer((cookie) -> {
             cookie.path("/").sameSite("Strict").secure(secure);
             lifetime.accept(cookie);
@@ -55,9 +61,17 @@ final class SessionLifetimeCsrfTokenRepository implements CsrfTokenRepository {
         return repository;
     }
 
+    /**
+     * ASVS V11.5.1: 256 bits from SecureRandom. Spring's own generator uses a
+     * UUID, 122 random bits, below the 128 the standard asks for.
+     */
     @Override
     public CsrfToken generateToken(HttpServletRequest request) {
-        return this.issuing.generateToken(request);
+        CsrfToken template = this.issuing.generateToken(request);
+        byte[] random = new byte[32];
+        RANDOM.nextBytes(random);
+        return new DefaultCsrfToken(template.getHeaderName(), template.getParameterName(),
+                Base64.getUrlEncoder().withoutPadding().encodeToString(random));
     }
 
     @Override

@@ -3,6 +3,9 @@ import { apiLogin, seedTokenIntoPage } from './helpers';
 
 test('manager dashboard is scoped, interactive and export-fail-closed without a primary team', async ({ page, request }) => {
   test.setTimeout(120_000);
+  // The drill-down needs a member in the manager's department. Create that
+  // persona here so this spec also works first against a fresh Oracle schema.
+  await apiLogin(request, 'tech@magti.ge');
   const token = await apiLogin(request, 'manager@magti.ge');
   const headers = { Authorization: `Bearer ${token}` };
 
@@ -48,7 +51,15 @@ test('manager dashboard is scoped, interactive and export-fail-closed without a 
   // which appears nowhere in this repository: it was a row in whichever
   // developer database the spec was written against, so it could only pass
   // there and failed against every fresh Oracle -- CI's included.
-  const members = (await groupUsers.json()).users as { first_name: string }[];
+  //
+  // Asked again through the API client rather than read from the browser's
+  // copy. The trace records the page's request as 200 followed by
+  // net::ERR_ABORTED, after which Chromium has no body to return
+  // ("Network.getResponseBody: No data found") -- CI's only E2E failure on
+  // main since 2026-09-21. Same URL, same caller: still the server's answer.
+  const groupResponse = await request.get(groupUsers.url(), { headers });
+  expect(groupResponse.ok()).toBeTruthy();
+  const members = (await groupResponse.json()).users as { first_name: string }[];
   expect(members.length, 'the group the dashboard offered has no members to show').toBeGreaterThan(0);
   await expect(groupDialog.getByText(members[0].first_name).first()).toBeVisible();
   await groupDialog.getByRole('button', { name: 'დახურვა' }).click();

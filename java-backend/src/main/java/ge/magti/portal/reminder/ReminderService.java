@@ -1,6 +1,7 @@
 package ge.magti.portal.reminder;
 
 import ge.magti.portal.audit.MutationAuditService;
+import ge.magti.portal.compliance.MandatoryReach;
 import ge.magti.portal.content.ItemTitleResolver;
 import ge.magti.portal.domain.LeadershipAssignment;
 import ge.magti.portal.domain.ReadStatus;
@@ -16,7 +17,6 @@ import ge.magti.portal.repository.RequiredReadingRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.Scope;
 import ge.magti.portal.security.ScopeResolver;
-import ge.magti.portal.user.UserDirectoryQueryService;
 import ge.magti.portal.util.DepartmentMatcher;
 import ge.magti.portal.util.TbilisiTime;
 import org.springframework.data.domain.Page;
@@ -48,8 +48,9 @@ public class ReminderService {
     private final MutationAuditService mutationAuditService;
     private final ItemTitleResolver itemTitleResolver;
     private final ScopeResolver scopeResolver;
-    private final UserDirectoryQueryService userDirectoryQueryService;
     private final OrgDirectoryQueryService orgDirectoryQueryService;
+    /** Who an assignment addresses and whether it is in force (PO-40); it reads the directory. */
+    private final MandatoryReach mandatoryReach;
 
     public ReminderService(
             ReminderRepository reminderRepository,
@@ -59,8 +60,8 @@ public class ReminderService {
             MutationAuditService mutationAuditService,
             ItemTitleResolver itemTitleResolver,
             ScopeResolver scopeResolver,
-            UserDirectoryQueryService userDirectoryQueryService,
-            OrgDirectoryQueryService orgDirectoryQueryService) {
+            OrgDirectoryQueryService orgDirectoryQueryService,
+            MandatoryReach mandatoryReach) {
         this.reminderRepository = reminderRepository;
         this.readingRepository = readingRepository;
         this.readStatusRepository = readStatusRepository;
@@ -68,8 +69,8 @@ public class ReminderService {
         this.mutationAuditService = mutationAuditService;
         this.itemTitleResolver = itemTitleResolver;
         this.scopeResolver = scopeResolver;
-        this.userDirectoryQueryService = userDirectoryQueryService;
         this.orgDirectoryQueryService = orgDirectoryQueryService;
+        this.mandatoryReach = mandatoryReach;
     }
 
     @Transactional(readOnly = true)
@@ -92,25 +93,32 @@ public class ReminderService {
         return reminder;
     }
 
-    /** Called in the same transaction that creates the required-reading row. */
+    /**
+     * Delivers a reading's ASSIGNMENT reminders, once, when it is in force:
+     * in the transaction that creates it, or from the sweep when an article
+     * made mandatory in advance is published (PO-40). Out of force nothing is
+     * sent and the reading keeps waiting; {@code creator} is null from the
+     * sweep, which the audit records as the system.
+     */
     @Transactional
     public int deliverAssignment(RequiredReading reading, User creator) {
+        if (!mandatoryReach.reachOf(reading).inForce()) {
+            return 0;
+        }
         String title = titleOf(reading);
-        Set<Long> activeLeaderIds = activeLeaderIds();
 
         int delivered = 0;
         // Obtain the complete bounded snapshot before the first reminder write,
         // so an oversized directory rolls the enclosing assignment transaction
         // back instead of creating a partial recipient set.
-        for (User recipient : userDirectoryQueryService.listActiveUsersWithinLimit()) {
-            if (!isEligible(recipient, activeLeaderIds) || !targets(reading, recipient)) {
-                continue;
-            }
+        for (User recipient : mandatoryReach.addressees(reading.getTargetDepartment())) {
             Reminder reminder = buildReadingReminder(reading, recipient, ReminderType.ASSIGNMENT, creator, title);
             Reminder saved = reminderRepository.saveAndFlush(reminder);
             writeAudit(saved, creator, "SEND_AUTOMATIC_REMINDER", null, Map.of("delivery", "ASSIGNMENT"));
             delivered++;
         }
+        reading.setAssignmentDeliveredAt(TbilisiTime.now());
+        readingRepository.saveAndFlush(reading);
         return delivered;
     }
 
@@ -119,6 +127,10 @@ public class ReminderService {
     public int deliverScheduled(RequiredReading reading, ReminderType type) {
         if (type != ReminderType.DUE_SOON && type != ReminderType.OVERDUE) {
             throw new IllegalArgumentException("Scheduled reminder type required");
+        }
+        // PO-40: nobody is chased about material they cannot open now.
+        if (!mandatoryReach.reachOf(reading).inForce()) {
+            return 0;
         }
         String title = titleOf(reading);
         Set<Long> activeLeaderIds = activeLeaderIds();
@@ -193,8 +205,11 @@ public class ReminderService {
             return 0;
         }
         List<String> departments = targetDepartments(recipient);
-        List<RequiredReading> readings = CompleteResultGuard.enforce(
+        List<RequiredReading> addressed = CompleteResultGuard.enforce(
                 readingRepository.findByTargetDepartmentIn(departments, CompleteResultGuard.sentinelPage()));
+        // PO-40: only what is in force is outstanding.
+        Set<Long> inForce = mandatoryReach.inForceIds(addressed);
+        List<RequiredReading> readings = addressed.stream().filter(r -> inForce.contains(r.getId())).toList();
         if (readings.isEmpty()) {
             return 0;
         }
@@ -237,12 +252,6 @@ public class ReminderService {
     private String titleOf(RequiredReading reading) {
         return itemTitleResolver.resolve(reading.getItemType(), reading.getItemId())
                 .orElse("მასალა #" + reading.getItemId());
-    }
-
-    private static boolean targets(RequiredReading reading, User recipient) {
-        String target = reading.getTargetDepartment();
-        return DepartmentMatcher.matches(
-                recipient.getDepartment(), List.of(target == null || target.isBlank() ? "All" : target));
     }
 
     private static List<String> targetDepartments(User recipient) {

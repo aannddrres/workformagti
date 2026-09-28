@@ -61,9 +61,10 @@ class ExportColumnAllowlistTest {
 
     private final ExportQueryService exportQueryService = mock(ExportQueryService.class);
     private final ExportJobWorker exportJobWorker = mock(ExportJobWorker.class);
+    private final ExportJobRepository exportJobRepository = mock(ExportJobRepository.class);
     private final ExportController controller = new ExportController(
             exportQueryService,
-            mock(ExportJobRepository.class),
+            exportJobRepository,
             exportJobWorker,
             mock(AuditLogRepository.class),
             new PermissionChecker());
@@ -71,6 +72,7 @@ class ExportColumnAllowlistTest {
     ExportColumnAllowlistTest() {
         when(exportQueryService.eligibleReadingRows(any())).thenReturn(List.of());
         when(exportQueryService.departmentComplianceTotals(any())).thenReturn(new TreeMap<>());
+        when(exportJobRepository.startLease(anyString(), anyString())).thenReturn(1);
     }
 
     private static User exporter() {
@@ -98,7 +100,8 @@ class ExportColumnAllowlistTest {
     @Test
     void theCsvReadingsExportHasExactlyTheAllowedColumns() {
         assertEquals(
-                List.of("User ID", "User Name", "Item Type", "Item ID", "Status", "Read At"),
+                List.of("თანამშრომლის ID", "თანამშრომელი", "მასალის ტიპი", "მასალის ID",
+                        "სტატუსი", "წაკითხვის თარიღი"),
                 csvHeaderOf(controller.exportReadingsCsv(exporter())));
     }
 

@@ -52,11 +52,15 @@ data:
 
   # ---- Who may be believed about the caller's IP ----------------------
   #
-  # Comma-separated addresses or CIDR ranges of the proxy/ingress in front
-  # of this service, and nothing else.
+  # Path: employee -> ingress -> portal-frontend nginx -> backend.
+  # Trust the frontend socket peer AS SEEN BY BACKEND (including any SNAT),
+  # plus every trusted ingress/proxy hop in X-Forwarded-For. Ingress alone
+  # is insufficient: an untrusted frontend peer makes the header ignored.
+  # Use exact addresses or narrowly controlled CIDRs, with network access
+  # restricted to these proxies. Never blindly trust the whole pod network.
   #
   # EMPTY IS SAFE BUT LOSSY. Left empty, X-Forwarded-For is ignored entirely
-  # and every request appears to come from the ingress: the audit log records
+  # and every request appears to come from frontend nginx: the audit log records
   # the proxy rather than the employee, and login rate limiting puts the whole
   # company in one bucket, so ten wrong passwords anywhere can lock out
   # everyone. Filling this in is not optional for a real deployment.
@@ -83,7 +87,8 @@ data:
   # domain. Re-measure with the InfoPortal client once it is issued.
   OAUTH_USERNAME_FORMAT: "email"
   # Directory authority -> portal role. Roles come from the directory on
-  # every sign-in (owner decision, 2026-09-21). These are the names proposed
+  # every sign-in (owner decisions, 2026-09-21/23). Unmapped authorities are
+  # refused and revoke earlier portal tokens. These four names are proposed
   # to IT; confirm them once IT creates InfoPortal's roles (IT-16).
   OAUTH_ROLE_MAP: "INFOPORTAL_ADMIN=admin,INFOPORTAL_CONTENT_ADMIN=content_admin,INFOPORTAL_MANAGER=manager,INFOPORTAL_OPERATOR=operator"
 

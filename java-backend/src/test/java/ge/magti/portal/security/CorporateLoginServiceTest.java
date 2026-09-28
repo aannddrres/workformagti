@@ -1,5 +1,6 @@
 package ge.magti.portal.security;
 
+import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.config.PortalProperties;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
@@ -8,6 +9,8 @@ import ge.magti.portal.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionStatus;
 
 import java.util.Optional;
 import java.util.Set;
@@ -34,6 +37,7 @@ class CorporateLoginServiceTest {
     private CorporateAuthClient client;
     private UserRepository userRepository;
     private CorporateLoginService service;
+    private MutationAuditService audit;
 
     @BeforeEach
     void setUp() {
@@ -46,7 +50,10 @@ class CorporateLoginServiceTest {
         PortalProperties properties = new PortalProperties();
         properties.getSecurity().getCorporate().setEnabled(true);
         properties.getSecurity().getCorporate().setDomain("@example.ge");
-        service = new CorporateLoginService(client, userRepository, passwordEncoder, properties);
+        PlatformTransactionManager transactions = mock(PlatformTransactionManager.class);
+        when(transactions.getTransaction(any())).thenReturn(mock(TransactionStatus.class));
+        audit = mock(MutationAuditService.class);
+        service = new CorporateLoginService(client, userRepository, passwordEncoder, properties, transactions, audit);
     }
 
     private void directorySays(String email, Set<String> authorities, String department, String name) {
@@ -90,19 +97,31 @@ class CorporateLoginServiceTest {
                 Permission.defaultsFor(Role.CONTENT_ADMIN).stream().map(Permission::value).toList()));
     }
 
-    /** Withdrawn in the directory, withdrawn here -- at the very next sign-in. */
+    /** A successful directory authentication without a portal role cannot create an account. */
     @Test
-    void aRoleWithdrawnInTheDirectoryIsWithdrawnAtTheNextSignIn() {
-        when(userRepository.findByEmailIgnoreCase("test.user@example.ge"))
-                .thenReturn(Optional.of(existing(Role.MANAGER, "ტექნიკური — ჯგუფი 03", true)));
+    void unknownOrEmptyAuthoritiesNeverCreateAPortalAccount() {
+        when(userRepository.findByEmailIgnoreCase("test.user@example.ge")).thenReturn(Optional.empty());
         directorySays("test.user@example.ge", Set.of("MAGTICOM_USER"), null, null);
 
-        CorporateLoginService.SignedIn signedIn = assertInstanceOf(CorporateLoginService.SignedIn.class,
+        assertInstanceOf(CorporateLoginService.Rejected.class,
+                service.login("test.user@example.ge", "pw"));
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    /** Withdrawn in the directory: refuse entry and revoke existing portal tokens. */
+    @Test
+    void aRoleWithdrawnInTheDirectoryRevokesExistingSessions() {
+        when(userRepository.findByEmailIgnoreCase("test.user@example.ge"))
+                .thenReturn(Optional.of(existing(Role.MANAGER, "ტექნიკური — ჯგუფი 03", true)));
+        when(userRepository.revokeIssuedTokens(7L)).thenReturn(1);
+        directorySays("test.user@example.ge", Set.of("MAGTICOM_USER"), null, null);
+
+        CorporateLoginService.Rejected rejected = assertInstanceOf(CorporateLoginService.Rejected.class,
                 service.login("test.user@example.ge", "pw"));
 
-        assertEquals(Role.OPERATOR, signedIn.user().getRole());
-        assertEquals(Role.MANAGER, signedIn.previousRole(), "reported so the sign-in audit row records the change");
-        assertFalse(signedIn.created());
+        assertFalse(rejected.deactivated());
+        verify(userRepository).revokeIssuedTokens(7L);
+        verify(userRepository, never()).save(any(User.class));
     }
 
     /** PO-24: an administrator's deactivation outranks a correct password. */
@@ -137,7 +156,7 @@ class CorporateLoginServiceTest {
     void aDepartmentAndNameTheDirectorySendsAreTaken() {
         User user = existing(Role.OPERATOR, null, true);
         when(userRepository.findByEmailIgnoreCase("test.user@example.ge")).thenReturn(Optional.of(user));
-        directorySays("test.user@example.ge", Set.of(), "ოფისი — ჯგუფი 01", "ახალი სახელი");
+        directorySays("test.user@example.ge", Set.of("INFOPORTAL_OPERATOR"), "ოფისი — ჯგუფი 01", "ახალი სახელი");
 
         service.login("test.user@example.ge", "pw");
 

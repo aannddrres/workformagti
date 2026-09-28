@@ -98,28 +98,37 @@ public class ContentLifecycleService {
         }
     }
 
+    /**
+     * Everything in the trash this viewer may see: all of it, except another
+     * author's private draft (A3, the owner's decision of 2026-09-26). That
+     * is {@code is_draft} set with an author other than the viewer, or with
+     * no author at all -- the same rule as ArticleVisibility and
+     * NewsVisibility. Videos have no private drafts.
+     */
     @Transactional(readOnly = true)
-    public List<ContentTrashItem> listTrash() {
+    public List<ContentTrashItem> listTrash(User viewer) {
         String sql = """
                 SELECT t.item_type, t.item_id, t.title, t.trashed_at, t.purge_after,
                        t.trashed_by, u.name, t.legal_hold
                 FROM (
-                    SELECT 'article' item_type, id item_id, title, trashed_at, purge_after, trashed_by, legal_hold
+                    SELECT 'article' item_type, id item_id, title, trashed_at, purge_after, trashed_by, legal_hold,
+                           is_draft, author_id
                     FROM articles WHERE trashed_at IS NOT NULL
                     UNION ALL
-                    SELECT 'news', id, title, trashed_at, purge_after, trashed_by, legal_hold
+                    SELECT 'news', id, title, trashed_at, purge_after, trashed_by, legal_hold, is_draft, author_id
                     FROM news WHERE trashed_at IS NOT NULL
                     UNION ALL
-                    SELECT 'video', id, title, trashed_at, purge_after, trashed_by, legal_hold
+                    SELECT 'video', id, title, trashed_at, purge_after, trashed_by, legal_hold, 0, CAST(NULL AS NUMBER)
                     FROM video_instructions WHERE trashed_at IS NOT NULL
                 ) t
                 LEFT JOIN users u ON u.id = t.trashed_by
+                WHERE NOT (t.is_draft = 1 AND (t.author_id IS NULL OR t.author_id <> ?))
                 ORDER BY t.trashed_at DESC, t.item_type, t.item_id
                 """;
         return jdbcTemplate.query(sql, (rs, rowNum) -> new ContentTrashItem(
                 rs.getString(1), rs.getLong(2), rs.getString(3),
                 atTbilisi(rs.getTimestamp(4)), atTbilisi(rs.getTimestamp(5)),
-                rs.getLong(6), rs.getString(7), rs.getInt(8) == 1));
+                rs.getLong(6), rs.getString(7), rs.getInt(8) == 1), viewer.getId());
     }
 
     @Transactional
@@ -158,7 +167,9 @@ public class ContentLifecycleService {
     @Transactional
     public Status restore(ItemType type, Long itemId, User actor) {
         Payload payload = loadPayload(type, itemId, true);
-        if (payload == null) {
+        // Another author's private draft answers as though it were not there,
+        // as it does on every other endpoint (A3; PO-34, D2).
+        if (payload == null || isPrivateDraftOfAnother(type, itemId, actor)) {
             return Status.NOT_FOUND;
         }
         if (payload.legalHold()) {
@@ -247,6 +258,21 @@ public class ContentLifecycleService {
                 lifecycleSnapshot(payload, true, payload.purgeAfter(), payload.legalHold(), "TRASHED"),
                 lifecycleSnapshot(payload, false, null, false, "PURGED"));
         return Status.OK;
+    }
+
+    /**
+     * {@code is_draft} set, and the author is someone else or nobody. Legal
+     * hold and purge deliberately do not ask: they are the company's legal
+     * and retention duties, not an editor's (the owner's decision on A3).
+     */
+    private boolean isPrivateDraftOfAnother(ItemType type, Long itemId, User viewer) {
+        if (type == ItemType.VIDEO) {
+            return false;
+        }
+        List<Boolean> rows = jdbcTemplate.query("SELECT CASE WHEN is_draft = 1 AND (author_id IS NULL OR author_id <> ?)"
+                        + " THEN 1 ELSE 0 END FROM " + type.tableName() + " WHERE id = ?",
+                (rs, rowNum) -> rs.getInt(1) == 1, viewer.getId(), itemId);
+        return !rows.isEmpty() && rows.getFirst();
     }
 
     private Payload loadPayload(ItemType type, Long itemId, boolean trashed) {

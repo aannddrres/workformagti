@@ -375,5 +375,21 @@ public class PortalProperties {
 		public void setSameSite(String sameSite) {
 			this.sameSite = sameSite;
 		}
+
+		/**
+		 * The httpOnly cookie carrying the session token. ASVS V3.3.1/V3.3.3:
+		 * a browser accepts a __Host- cookie only when it is Secure, Path=/
+		 * and has no Domain, so no other host under the same parent domain can
+		 * plant one. The prefix needs Secure, hence plain HTTP (local
+		 * development, the E2E stack) keeps the bare name.
+		 */
+		public String sessionCookieName() {
+			return secure ? "__Host-access_token" : "access_token";
+		}
+
+		/** The cookie Angular copies into X-XSRF-TOKEN (core/http/portal-xsrf-token-extractor.ts reads both names). */
+		public String csrfCookieName() {
+			return secure ? "__Host-XSRF-TOKEN" : "XSRF-TOKEN";
+		}
 	}
 }
