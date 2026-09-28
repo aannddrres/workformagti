@@ -53,7 +53,6 @@
       "subtitle": "Sign in with the same email and password you use for Magticom's internal systems.",
       "email_label": "Email",
       "password_label": "Password",
-      "password_placeholder": "Any password",
       "submit_button": "Sign In",
       "submit_button_loading": "Signing in...",
       "error_generic": "Sign-in failed",

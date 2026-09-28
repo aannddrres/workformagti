@@ -53,7 +53,6 @@
       "subtitle": "ავტორიზაცია იმ ელ. ფოსტითა და პაროლით, რომლითაც მაგთიკომის სისტემებში შესვლა ხდება.",
       "email_label": "ელ. ფოსტა",
       "password_label": "პაროლი",
-      "password_placeholder": "ნებისმიერი პაროლი",
       "submit_button": "შესვლა",
       "submit_button_loading": "შესვლა...",
       "error_generic": "ავტორიზაცია ვერ მოხერხდა",
