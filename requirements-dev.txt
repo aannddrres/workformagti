@@ -5,7 +5,7 @@
 # own requirements files for their container images, left with their stacks
 # at the production handover (2026-09-29).
 pytest==8.4.2
-ruff==0.15.22
+ruff==0.16.9
 
 # scripts/seed_phase8_org_fixtures.py talks to Oracle directly.
 oracledb==4.0.2
