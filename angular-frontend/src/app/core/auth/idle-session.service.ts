@@ -7,10 +7,9 @@ import { environment } from '../../../environments/environment';
 
 /**
  * Was hard-coded at 30 minutes. That is the right shared-workstation default
- * and it stays the default -- but it could only be changed by editing this
- * file, so the loopback-only demo stack had no way to opt out of signing
- * itself out mid-presentation. It now comes from the build environment; see
- * environment.presentation.ts.
+ * and it stays the default; it comes from the build environment
+ * (`environment.idleLimitMinutes`), which must match the backend's own
+ * session idle limit.
  */
 const IDLE_LIMIT_MS = environment.idleLimitMinutes * 60 * 1000;
 const WARNING_MS = 2 * 60 * 1000;

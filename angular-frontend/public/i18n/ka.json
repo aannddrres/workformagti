@@ -53,7 +53,6 @@
       "subtitle": "ავტორიზაცია იმ ელ. ფოსტითა და პაროლით, რომლითაც მაგთიკომის სისტემებში შესვლა ხდება.",
       "email_label": "ელ. ფოსტა",
       "password_label": "პაროლი",
-      "password_placeholder": "ნებისმიერი პაროლი",
       "submit_button": "შესვლა",
       "submit_button_loading": "შესვლა...",
       "error_generic": "ავტორიზაცია ვერ მოხერხდა",
@@ -469,6 +468,15 @@
     }
   },
   "audit": {
+    "action_logout": "სისტემიდან გასვლა",
+    "action_export_quiz": "ქვიზის მცდელობების ექსპორტი",
+    "action_export_job_completed": "ექსპორტის ფაილის მომზადება დასრულდა",
+    "action_export_job_failed": "ექსპორტის ფაილის მომზადება ვერ დასრულდა",
+    "action_export_job_interrupted": "ექსპორტის ფაილის მომზადება შეწყდა",
+    "actor_export_worker": "ექსპორტის დამმუშავებელი",
+    "actor_export_recovery": "ექსპორტის აღდგენის სერვისი",
+    "item_audit_trail": "აუდიტის ჟურნალი",
+    "item_export_job": "საექსპორტო დავალება",
     "heading": "აუდიტი და უსაფრთხოება",
     "subtitle": "სისტემაში მომხდარი მოქმედებები — კონტენტი, მომხმარებლები, წვდომა",
     "preset_today": "დღეს",

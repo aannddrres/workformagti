@@ -28,6 +28,16 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
     long countAllByCategoryIdIncludingTrash(Long categoryId);
 
     /**
+     * ArticleVisibility.isPrivateDraftOfAnother in SQL, trash included. The
+     * entity's trashed_at restriction hides a trashed row from findById, and
+     * the history endpoints read "not found" as an id with no article -- and
+     * answered with its history, a colleague's private draft included.
+     */
+    @Query(value = "SELECT COUNT(*) FROM articles WHERE id = :id AND is_draft = 1 "
+            + "AND (author_id IS NULL OR author_id <> :viewerId)", nativeQuery = true)
+    long countPrivateDraftOfAnotherIncludingTrash(@Param("id") Long id, @Param("viewerId") Long viewerId);
+
+    /**
      * Port of get_stale_articles' filter (routers/articles.py:1543-1547).
      * A NULL lastVerifiedAt never matches "< cutoff" in SQL (NULL
      * comparisons are never true), same as Python's SQLAlchemy filter --

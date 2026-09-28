@@ -4,7 +4,7 @@
     <div class="mb-6"><app-logo size="lg" /></div>
     <h1 class="mb-1 text-2xl font-semibold text-slate-800 dark:text-slate-100">{{ 'auth.login_page.heading' | translate }}</h1>
     <p class="mb-6 text-sm text-slate-600 dark:text-slate-400">
-      {{ isLocal ? 'აირჩიეთ როლი ლოკალური UX და ფუნქციური ტესტირებისთვის.' : ('auth.login_page.subtitle' | translate) }}
+      {{ 'auth.login_page.subtitle' | translate }}
     </p>
 
     <div class="flex flex-col gap-4">
@@ -12,145 +12,38 @@
         <p role="alert" class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">{{ errorMessage() }}</p>
       }
 
-      @if (isLocal) {
+      <form class="flex flex-col gap-4" novalidate (submit)="submit($event, emailInput.value, passwordInput.value)">
         <div>
-          <p class="mb-3 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">აირჩიეთ როლი</p>
-          <div class="grid grid-cols-2 gap-2">
-            @for (option of roleOptions; track option.value) {
-              <button
-                type="button"
-                [disabled]="submitting()"
-                (click)="setRole(option.value)"
-                [attr.aria-pressed]="role() === option.value"
-                class="secondary-button min-h-20 flex-col justify-center text-center"
-                [class.ring-2]="role() === option.value"
-                [class.ring-red-500]="role() === option.value">
-                <i class="fa-solid" [class]="option.icon" aria-hidden="true"></i>
-                <span>{{ option.label }}</span>
-              </button>
-            }
-          </div>
-
-          @if (role(); as selectedRole) {
-            <div class="mt-4 flex flex-col gap-3">
-              <!-- Content admin: pick which of the four. -->
-              @if (selectedRole === 'content_admin') {
-                <label class="block">
-                  <span class="mb-1 block text-xs font-normal text-slate-600 dark:text-slate-400">კონტენტ-ადმინი</span>
-                  <select [disabled]="submitting()" (change)="setPerson($any($event.target).value)"
-                    class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-slate-400 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
-                    <option value="">— აირჩიეთ —</option>
-                    @for (slot of contentSlots; track slot) {
-                      <option [value]="slot">კონტენტ-ადმინი {{ slot }}</option>
-                    }
-                  </select>
-                </label>
-              }
-
-              <!-- Leader / operator: department, then group. -->
-              @if (selectedRole === 'manager' || selectedRole === 'operator') {
-                <label class="block">
-                  <span class="mb-1 block text-xs font-normal text-slate-600 dark:text-slate-400">დეპარტამენტი</span>
-                  <select [disabled]="submitting()" (change)="setDept($any($event.target).value)"
-                    class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-slate-400 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
-                    <option value="">— აირჩიეთ —</option>
-                    @for (option of deptOptions; track option.value) {
-                      <option [value]="option.value">{{ option.label }}</option>
-                    }
-                  </select>
-                </label>
-
-                @if (dept()) {
-                  <label class="block">
-                    <span class="mb-1 block text-xs font-normal text-slate-600 dark:text-slate-400">ჯგუფი</span>
-                    <select [disabled]="submitting()" (change)="setGroup($any($event.target).value)"
-                      class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-slate-400 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
-                      <option value="">— აირჩიეთ —</option>
-                      @for (g of groups; track g) {
-                        <option [value]="g">ჯგუფი {{ g < 10 ? '0' + g : g }}</option>
-                      }
-                    </select>
-                  </label>
-                }
-
-                <!-- Which of the ten operators in the chosen group. -->
-                @if (selectedRole === 'operator' && group()) {
-                  <label class="block">
-                    <span class="mb-1 block text-xs font-normal text-slate-600 dark:text-slate-400">ოპერატორი</span>
-                    <select [disabled]="submitting()" (change)="setPerson($any($event.target).value)"
-                      class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-slate-400 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
-                      <option value="">— აირჩიეთ —</option>
-                      @for (slot of operatorSlots; track slot) {
-                        <option [value]="slot">ოპერატორი {{ slot < 10 ? '0' + slot : slot }}</option>
-                      }
-                    </select>
-                  </label>
-                }
-              }
-
-              <button type="button" [disabled]="submitting() || !canSubmit()" (click)="submitSelected()"
-                class="primary-button w-full justify-center py-3">
-                <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>
-                {{ submitting() ? 'შესვლა…' : 'შესვლა' }}
-              </button>
-            </div>
-          }
-
-          <p class="mt-3 text-xs leading-5 text-slate-600 dark:text-slate-400">პაროლი არ გამოიყენება. ეს არჩევანი ხელმისაწვდომია მხოლოდ loopback მისამართზე და backend-ის development რეჟიმში.</p>
-
-          <!-- Escape hatch: sign in as any seeded account by address. -->
-          <div class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700">
-            <label for="uat-email" class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">სხვა ანგარიშით შესვლა</label>
-            <div class="flex gap-2">
-              <input
-                id="uat-email"
-                #emailField
-                type="email"
-                autocomplete="username"
-                placeholder="uat.operator1@magti.ge"
-                [disabled]="submitting()"
-                (keyup.enter)="loginByEmail(emailField.value)"
-                class="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-500 focus:border-slate-400 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100" />
-              <button type="button" [disabled]="submitting()" (click)="loginByEmail(emailField.value)" class="secondary-button shrink-0">
-                შესვლა
-              </button>
-            </div>
-          </div>
+          <label for="login-email" class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">{{ 'auth.login_page.email_label' | translate }}</label>
+          <input
+            #emailInput
+            id="login-email"
+            type="email"
+            autocomplete="username"
+            [placeholder]="'auth.login_page.email_placeholder' | translate"
+            [disabled]="submitting()"
+            class="field-control w-full" />
         </div>
-      } @else {
-        <form class="flex flex-col gap-4" novalidate (submit)="submitCorporate($event, emailInput.value, passwordInput.value)">
-          <div>
-            <label for="login-email" class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">{{ 'auth.login_page.email_label' | translate }}</label>
-            <input
-              #emailInput
-              id="login-email"
-              type="email"
-              autocomplete="username"
-              [placeholder]="'auth.login_page.email_placeholder' | translate"
-              [disabled]="submitting()"
-              class="field-control w-full" />
-          </div>
-          <div>
-            <label for="login-password" class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">{{ 'auth.login_page.password_label' | translate }}</label>
-            <input
-              #passwordInput
-              id="login-password"
-              type="password"
-              autocomplete="current-password"
-              [disabled]="submitting()"
-              class="field-control w-full" />
-          </div>
-          <button type="submit" [disabled]="submitting()" class="primary-button w-full justify-center py-3">
-            <i class="fa-solid fa-building-shield" aria-hidden="true"></i>
-            @if (submitting()) {
-              {{ 'auth.login_page.submit_button_loading' | translate }}
-            } @else {
-              {{ 'auth.login_page.submit_button' | translate }}
-            }
-          </button>
-          <p class="text-center text-xs leading-5 text-slate-600 dark:text-slate-400">{{ 'auth.login_page.corporate_note' | translate }}</p>
-        </form>
-      }
+        <div>
+          <label for="login-password" class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">{{ 'auth.login_page.password_label' | translate }}</label>
+          <input
+            #passwordInput
+            id="login-password"
+            type="password"
+            autocomplete="current-password"
+            [disabled]="submitting()"
+            class="field-control w-full" />
+        </div>
+        <button type="submit" [disabled]="submitting()" class="primary-button w-full justify-center py-3">
+          <i class="fa-solid fa-building-shield" aria-hidden="true"></i>
+          @if (submitting()) {
+            {{ 'auth.login_page.submit_button_loading' | translate }}
+          } @else {
+            {{ 'auth.login_page.submit_button' | translate }}
+          }
+        </button>
+        <p class="text-center text-xs leading-5 text-slate-600 dark:text-slate-400">{{ 'auth.login_page.corporate_note' | translate }}</p>
+      </form>
     </div>
   </div>
 </div>

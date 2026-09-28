@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -112,33 +113,13 @@ class AuthenticationServiceTest {
         assertEquals(Role.OPERATOR, result.get().getRole());
     }
 
+    /**
+     * The demo org's prefix left with the demo stack (2026-09-29). With the
+     * development login fully on, such an address is an ordinary one: its
+     * real password is checked, and an unknown one is not provisioned.
+     */
     @Test
-    void presentationPrefixBypassesPasswordForAnExistingDemoAccount() {
-        // A real seeded demo operator, hashed with the presentation password.
-        // The persona picker signs in with "local-persona", which is NOT that
-        // password -- the prefix bypass is what lets it through in the demo.
-        User demoOperator = new User();
-        demoOperator.setEmail("presentation.tech.g02.op05@magti.ge");
-        demoOperator.setRole(Role.OPERATOR);
-        demoOperator.setDepartment("ტექნიკური — ჯგუფი 02");
-        demoOperator.setActive(true);
-        demoOperator.setHashedPassword("$2a$presentation-password-hash");
-        when(userRepository.findByEmailIgnoreCase("presentation.tech.g02.op05@magti.ge"))
-                .thenReturn(Optional.of(demoOperator));
-
-        User result = service.authenticate("presentation.tech.g02.op05@magti.ge", "local-persona").orElseThrow();
-
-        assertEquals(Role.OPERATOR, result.getRole());
-        // Its group department must be left exactly as seeded -- the bypass
-        // must not rewrite a presentation account the way it canonicalises the
-        // six named personas.
-        assertEquals("ტექნიკური — ჯგუფი 02", result.getDepartment());
-        verify(passwordEncoder, never()).matches(anyString(), anyString());
-    }
-
-    @Test
-    void presentationPrefixIsInertInProduction() {
-        properties.setAppEnv("production");
+    void theRetiredDemoPrefixEarnsNothingEvenWithDevLoginOn() {
         User demoOperator = new User();
         demoOperator.setEmail("presentation.tech.g02.op05@magti.ge");
         demoOperator.setRole(Role.OPERATOR);
@@ -147,10 +128,12 @@ class AuthenticationServiceTest {
         when(userRepository.findByEmailIgnoreCase("presentation.tech.g02.op05@magti.ge"))
                 .thenReturn(Optional.of(demoOperator));
         when(passwordEncoder.matches("local-persona", "$2a$presentation-password-hash")).thenReturn(false);
+        when(userRepository.findByEmailIgnoreCase("presentation.nobody@magti.ge")).thenReturn(Optional.empty());
 
-        // In production the prefix earns nothing: it falls through to the real
-        // bcrypt check, which the persona password fails.
+        assertFalse(service.isDevLoginAccount("presentation.tech.g02.op05@magti.ge"));
         assertTrue(service.authenticate("presentation.tech.g02.op05@magti.ge", "local-persona").isEmpty());
+        assertTrue(service.authenticate("presentation.nobody@magti.ge", "local-persona").isEmpty());
+        verify(userRepository, never()).save(any(User.class));
     }
 
     /**

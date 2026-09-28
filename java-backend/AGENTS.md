@@ -52,9 +52,7 @@ specific migrations; there is no Flyway **checksum** test, and no ArchUnit.
 ## Migrations
 
 Next is `V53`. `V37` does not exist — the numbering skips it deliberately, so
-do not fill the gap. A new migration also bumps `EXPECTED_FLYWAY_VERSION` in
-`scripts/presentation/common.py`: the demo and UAT seeders demand that exact
-version, and `DocumentedFactsTest` fails if the two drift.
+do not fill the gap.
 
 Three Oracle facts that cost time to rediscover. The container is XE **21c**,
 not 23ai: 23ai's native `BOOLEAN` breaks `ddl-auto=validate` against this

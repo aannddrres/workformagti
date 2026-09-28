@@ -10,11 +10,11 @@ import { Login } from './login';
 import { AuthService } from '../../core/auth/auth.service';
 
 /**
- * The company login form (every host but loopback). The page hands the
- * address and password to the portal and shows the server's sentence as it
- * comes -- it never talks to the directory itself.
+ * The login form, the only one on every host. The page hands the address and
+ * password to the portal and shows the server's sentence as it comes -- it
+ * never talks to the directory itself.
  */
-describe('Login company form', () => {
+describe('Login form', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [Login],
@@ -37,7 +37,7 @@ describe('Login company form', () => {
     const login = vi.spyOn(auth, 'login').mockReturnValue(of({ email: 'a.b@magticom.ge', role: 'manager' }));
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
 
-    component().submitCorporate(new Event('submit'), '  A.B@Magticom.ge ', 'secret-pw');
+    component().submit(new Event('submit'), '  A.B@Magticom.ge ', 'secret-pw');
 
     expect(login).toHaveBeenCalledWith('a.b@magticom.ge', 'secret-pw');
     expect(navigate).toHaveBeenCalledWith('/manager');
@@ -55,10 +55,22 @@ describe('Login company form', () => {
     })));
     const page = component();
 
-    page.submitCorporate(new Event('submit'), 'a.b@magticom.ge', 'pw');
+    page.submit(new Event('submit'), 'a.b@magticom.ge', 'pw');
 
     expect(page.errorMessage()).toBe('კომპანიის ავტორიზაციის სერვისი დროებით მიუწვდომელია. სცადეთ მოგვიანებით.');
     expect(page.submitting()).toBe(false);
+  });
+
+  /** One form on every host: no persona picker, no password-less address field. */
+  it('offers the address-and-password form and nothing else', () => {
+    const fixture = TestBed.createComponent(Login);
+    fixture.detectChanges();
+    const page = fixture.nativeElement as HTMLElement;
+
+    expect(page.querySelectorAll('form')).toHaveLength(1);
+    expect(page.querySelector('#login-email')).not.toBeNull();
+    expect(page.querySelector('#login-password')).not.toBeNull();
+    expect(page.querySelectorAll('button')).toHaveLength(1);
   });
 
   /**
@@ -67,7 +79,6 @@ describe('Login company form', () => {
    */
   it('masks the password and leaves it to the browser password manager', () => {
     const fixture = TestBed.createComponent(Login);
-    (fixture.componentInstance as any).isLocal = false;
     fixture.detectChanges();
     const password = fixture.nativeElement.querySelector('#login-password') as HTMLInputElement;
 
@@ -84,7 +95,7 @@ describe('Login company form', () => {
     vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
     const typed = '  Pass Word ქართული  ';
 
-    component().submitCorporate(new Event('submit'), 'a.b@magticom.ge', typed);
+    component().submit(new Event('submit'), 'a.b@magticom.ge', typed);
 
     expect(login).toHaveBeenCalledWith('a.b@magticom.ge', typed);
   });
@@ -93,8 +104,8 @@ describe('Login company form', () => {
     const login = vi.spyOn(TestBed.inject(AuthService), 'login');
     const page = component();
 
-    page.submitCorporate(new Event('submit'), '   ', 'pw');
-    page.submitCorporate(new Event('submit'), 'a.b@magticom.ge', '');
+    page.submit(new Event('submit'), '   ', 'pw');
+    page.submit(new Event('submit'), 'a.b@magticom.ge', '');
 
     expect(login).not.toHaveBeenCalled();
     expect(page.errorMessage()).toBeTruthy();

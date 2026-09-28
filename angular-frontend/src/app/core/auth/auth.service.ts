@@ -35,12 +35,6 @@ export class AuthService {
     );
   }
 
-  /** Local presentation personas. The backend accepts these only when its
-   * explicit non-production dev-login switch is enabled. */
-  loginPersona(email: string): Observable<CurrentUser> {
-    return this.login(email, 'local-persona');
-  }
-
   restoreSession(): Observable<CurrentUser | null> {
     const current = this._currentUser();
     if (current) {

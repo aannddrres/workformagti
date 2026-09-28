@@ -497,11 +497,10 @@ public class NewsController {
     /**
      * History is read by news id without loading the item, and a missing id
      * keeps its legacy answer (an empty list). An existing private draft of
-     * another author is a 404, like the item itself (PO-34, D2).
+     * another author is a 404, like the item itself (PO-34, D2) -- in the
+     * trash too, which findById cannot see.
      */
     private boolean isExistingPrivateDraftOfAnother(Long newsId, User user) {
-        return newsRepository.findById(newsId)
-                .map(news -> NewsVisibility.isPrivateDraftOfAnother(news, user))
-                .orElse(false);
+        return newsRepository.countPrivateDraftOfAnotherIncludingTrash(newsId, user.getId()) > 0;
     }
 }

@@ -66,33 +66,16 @@ updates:
     commit-message:
       prefix: "chore(deps)"
 
-  # The four seeder/import tools. They never run in production, but they hold
+  # The seeder/import tools. They never run in production, but they hold
   # real credentials while they run and they parse content from an untrusted
   # source database, so their parsers are worth watching.
-  # Written as three entries rather than one with `directories`, because a
-  # config GitHub rejects is silently no coverage at all -- and this file's
-  # whole purpose is to not be the thing nobody was watching.
+  # One entry since the demo and UAT seeders, which had their own
+  # requirements files, left with their stacks (2026-09-29).
   - package-ecosystem: pip
     directory: /
     schedule:
       interval: monthly
     open-pull-requests-limit: 3
-    commit-message:
-      prefix: "chore(deps)"
-
-  - package-ecosystem: pip
-    directory: /scripts/presentation
-    schedule:
-      interval: monthly
-    open-pull-requests-limit: 2
-    commit-message:
-      prefix: "chore(deps)"
-
-  - package-ecosystem: pip
-    directory: /scripts/uat
-    schedule:
-      interval: monthly
-    open-pull-requests-limit: 2
     commit-message:
       prefix: "chore(deps)"
 

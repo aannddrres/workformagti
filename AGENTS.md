@@ -17,7 +17,7 @@ from here, so that neither half goes stale by being restated.
 | Backend | `java-backend/` — Java 21, Spring Boot 4.1.0, Maven wrapper (`mvnw` / `mvnw.cmd`) |
 | Frontend | `angular-frontend/` — Angular 22, Node 22.22.3 (pinned in `.nvmrc`) |
 | Database | Oracle. Flyway owns the schema; the highest migration is `V52` |
-| Tooling | Four Python seeders in `scripts/`, covered by `tests/` |
+| Tooling | Python tools in `scripts/` — the legacy content importer above all — covered by `tests/` |
 
 The FastAPI/PostgreSQL/server-rendered implementation was deleted on
 2026-08-31 (112 files). It is in git history; nothing in the tree depends on
@@ -41,7 +41,7 @@ with the Angular dev server on `:4200`. Docker Desktop needs **6 GB or more**
 of memory or Oracle dies without saying why, and a first run takes 10–15
 minutes. Any password logs in as `admin@magti.ge`, `content@magti.ge`,
 `manager@magti.ge`, `info@magti.ge`, `tech@magti.ge` or `nino@magti.ge`, and
-as any `test_operator_*` or `presentation.*` address (created on first login)
+as any `test_operator_*` address (created on first login)
 — but only while **both** `APP_ENV=development` and `ALLOW_DEV_LOGIN=true` are
 set (`AuthenticationService.authenticate`). Both commands above set both; a
 backend started by hand with `APP_ENV` alone refuses every one of these
@@ -87,14 +87,13 @@ start one. The recipe is the `e2e` job in `.github/workflows/ci.yml`, and
 `scripts/verify-like-ci.sh` deliberately refuses to automate it rather than
 get it quietly wrong.
 
-Two more stacks exist, driven by their PowerShell wrappers and published on
-`127.0.0.1` only. Neither is a deployment manifest, and both run Oracle XE in
-a container like the local one:
-
-| | Port | For |
-|---|---|---|
-| `presentation.ps1 prepare` | 8081 | The demo. Persona login on, ~600-person org (exact count: `docs/PRESENTATION_RUNBOOK_KA.md`), real content |
-| `uat.ps1 prepare` | 8082 | Acceptance testing. Eleven named accounts; writes test data, so a separate stack and volume on purpose |
+The demo (`:8081`) and UAT (`:8082`) stacks, their seeders and the login
+screen's persona picker left the repository at the production handover
+(2026-09-29); their runbooks are in `docs/archive/demo-and-uat/`. Production
+starts from an empty schema: Flyway creates the tables and the three
+departments, people arrive through the company login, and the 122 real
+articles come in once through `scripts/import_legacy_content.py`
+(`docs/LEGACY_CONTENT_IMPORT_KA.md`).
 
 ## Where things are
 
@@ -178,9 +177,8 @@ could easily become, several. Read the file before writing a second copy.
   flag, and it hides a row from everyone but its author — content
   administrators included. Editorial state goes in `status`. Getting this
   wrong once made all 122 imported articles visible to exactly one account.
-- **Never commit secrets.** The presentation and UAT compose files read every
-  secret as `${VAR:?…}`, so a missing value fails the start rather than
-  defaulting; in Kubernetes they come from a Secret created outside git.
+- **Never commit secrets.** In Kubernetes they come from a Secret created
+  outside git.
   `docker-compose.local.yml` deliberately hardcodes throwaway local-only values,
   and `application.yml` carries development defaults — what keeps those out of
   production is `ProductionSafetyGuard`, which refuses to boot on a blank,

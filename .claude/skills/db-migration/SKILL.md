@@ -19,15 +19,6 @@ The highest version is stated in `AGENTS.md` and in `java-backend/AGENTS.md`,
 and `DocumentedFactsTest` fails the build if those statements fall behind the
 folder. Update them in the same commit.
 
-**A third copy lives outside the docs, and it is stricter:**
-`EXPECTED_FLYWAY_VERSION` in `scripts/presentation/common.py`. The demo and UAT
-seeders refuse to seed or verify unless Flyway's latest applied version is
-*exactly* that value (`seed_oracle_demo.py`, "requires successful Flyway
-through V… exactly"), so a migration that forgets it passes every Java and
-Angular check and then breaks `presentation.ps1` and `uat.ps1` the next time
-either prepares. Bump it in the same commit; `DocumentedFactsTest` checks it
-too.
-
 ## No `IF NOT EXISTS` guards
 
 **Migrations here are not individually idempotent, and must not be written as
@@ -92,7 +83,7 @@ migration applies from empty — starts only when nothing answers.
 
 To prove it from empty on purpose, point `ORACLE_DB_URL`, `ORACLE_DB_USER` and
 `ORACLE_DB_PASSWORD` at a fresh schema — the E2E recipe's `MAGTI_QA`, made by
-`scripts/presentation/qa_schema_create.sql` — or let CI do it: its Oracle job
+`scripts/qa_schema_create.sql` — or let CI do it: its Oracle job
 always starts from an empty XE 21c.
 
 ## Data

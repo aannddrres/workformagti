@@ -80,12 +80,9 @@ public class AuthenticationService {
      * environment that was not exactly "production" -- including a
      * deployment whose manifest simply omitted APP_ENV.
      *
-     * <p>The "presentation." prefix is the demo org's own accounts (the ~600
-     * seeded operators/leaders behind docker-compose.presentation.yml).
-     * Like test_operator_, it lets the login screen's persona picker sign
-     * in as any of them without shipping their bcrypt password to the
-     * browser -- and it rides the exact same two guards, so it is inert in
-     * production (isProduction()) and off unless allow-dev-login is set.
+     * <p>The demo org's "presentation." prefix rode these same guards until
+     * the demo stack left the repository (2026-09-29); an address with it is
+     * an ordinary one now, and needs its real password.
      *
      * <p>Public so the login endpoint can keep these personas on the bypass
      * while every other address goes to the company directory.
@@ -95,7 +92,6 @@ public class AuthenticationService {
         return !properties.isProduction()
                 && properties.getSecurity().isAllowDevLogin()
                 && (lowerEmail.startsWith("test_operator_")
-                        || lowerEmail.startsWith("presentation.")
                         || DEV_TEST_EMAILS.contains(lowerEmail));
     }
 

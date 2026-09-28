@@ -126,6 +126,9 @@ class PlatformControllerIntegrationTest {
         news.setContent("შინაარსი");
         news.setTargetDepartment(targetDepartment);
         news.setCreatedAt(TbilisiTime.now());
+        // Published: a new News is a draft, and the bell listed drafts to
+        // operators until it followed NewsVisibility -- this fixture relied on it.
+        news.setDraft(false);
         return newsRepository.saveAndFlush(news);
     }
 

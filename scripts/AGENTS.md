@@ -1,7 +1,9 @@
 # scripts/ — notes for coding agents
 
-Shell entry points that drive the whole repository, and four Python tools that
-are **current tooling, not leftovers** from the deleted FastAPI application.
+Shell entry points that drive the whole repository, and Python tools -- the
+legacy content importer above all -- that are **current tooling, not
+leftovers** from the deleted FastAPI application. The demo and UAT seeders
+left with their stacks at the production handover (2026-09-29).
 Each script explains itself in its own header — `verify-like-ci.sh` at length.
 What follows is only what those headers do not say.
 
@@ -10,7 +12,7 @@ What follows is only what those headers do not say.
 | | |
 |---|---|
 | Git Bash only | `run-local.sh`, `verify-like-ci.sh`, `seed-demo-content.sh`, `load/fetch_tokens.sh` |
-| Native PowerShell | `link-skills.ps1`, and `presentation.ps1` / `uat.ps1` at the repository root |
+| Native PowerShell | `link-skills.ps1` |
 
 `seed-demo-content.sh` is POSIX `sh`, not bash, because it also runs inside
 `curlimages/curl` as the compose `seed` service. `.gitattributes` pins it to
@@ -32,16 +34,15 @@ content administrators included; editorial state belongs in `status`, which is
 why everything imports as `status='draft'`. Getting this wrong on the first
 import made all 122 articles visible to exactly one person.
 
-**`requirements-dev.txt` pins the versions the seeder container images use.**
-Change one and change the other. Ruff is configured in the root
+**`requirements-dev.txt` is the one list of Python dependencies** -- for the
+tools and for `tests/`. Ruff is configured in the root
 `pyproject.toml` and selects only `E9` and `F` — real errors, not style.
 
 ## Never
 
 - **Never commit or delete `magti_portal.db`.** About 183 MB, gitignored, and
-  the content source for the demo and UAT stacks — the articles shown in a
-  presentation are read out of it. `uploads/` is its companion.
-- **Never run the demo seeder against anything but a local stack.** It refuses
-  without `PRESENTATION_SEED_CONFIRM` set to its exact sentinel, and
-  `seed_phase8_org_fixtures.py` refuses non-local DSNs; those guards are the
-  point, not an obstacle.
+  the only copy of the 122 real articles `import_legacy_content.py` brings
+  into production -- they exist nowhere else. `uploads/` is its companion.
+- **Never run `seed_phase8_org_fixtures.py` against anything but a local
+  stack.** It refuses non-local DSNs; that guard is the point, not an
+  obstacle.
