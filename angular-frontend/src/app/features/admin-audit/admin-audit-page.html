@@ -59,6 +59,8 @@
         class="w-80 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-normal text-slate-600 shadow-e1 focus:border-red-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
       />
 
+      <label class="flex flex-col gap-1 text-xs text-slate-600 dark:text-slate-300">
+        {{ 'audit.start_date_label' | translate }}
       <input
         type="date"
         lang="ka-GE"
@@ -67,6 +69,9 @@
         [attr.aria-label]="'audit.start_date_label' | translate"
         class="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal text-slate-600 shadow-e1 focus:border-red-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
       />
+      </label>
+      <label class="flex flex-col gap-1 text-xs text-slate-600 dark:text-slate-300">
+        {{ 'audit.end_date_label' | translate }}
       <input
         type="date"
         lang="ka-GE"
@@ -76,6 +81,7 @@
         class="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal text-slate-600 shadow-e1 focus:border-red-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
       />
 
+      </label>
       <select
         (change)="onCategoryChange($event)"
         class="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-normal text-slate-600 shadow-e1 focus:border-red-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
@@ -171,14 +177,14 @@
               class="cursor-pointer transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/60"
             >
               <td class="whitespace-nowrap px-5 py-2.5 text-xs text-slate-600 dark:text-slate-400">{{ formatTimestamp(log.timestamp) }}</td>
-              <td class="px-5 py-2.5 font-normal text-slate-800 dark:text-slate-200">{{ log.admin_name || ('audit.unknown_user' | translate) }}</td>
+              <td class="px-5 py-2.5 font-normal text-slate-800 dark:text-slate-200">{{ actorLabel(log.admin_name) }}</td>
               <td class="px-5 py-2.5">
                 <span class="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-bold" [class]="categoryBadge(log.category).badgeClass">
                   <span class="h-1.5 w-1.5 rounded-full" [class]="categoryBadge(log.category).dotClass"></span>{{ categoryBadge(log.category).label }}
                 </span>
               </td>
               <td class="px-5 py-2.5"><span [attr.title]="log.action" class="rounded-md border border-slate-200/60 bg-slate-50 px-2 py-0.5 text-xs font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">{{ actionLabel(log.action) }}</span></td>
-              <td class="px-5 py-2.5 text-slate-700 dark:text-slate-300">{{ log.item_name ? (itemTypeLabel(log.item_type) + ': ' + log.item_name) : itemTypeLabel(log.item_type) }}</td>
+              <td [attr.title]="log.item_name" class="px-5 py-2.5 text-slate-700 dark:text-slate-300">{{ log.item_name ? (itemTypeLabel(log.item_type) + ': ' + itemNameLabel(log.item_type, log.item_name)) : itemTypeLabel(log.item_type) }}</td>
               <td class="px-5 py-2.5 text-center">
                 @if (log.row_hash) {
                   <button
@@ -243,11 +249,11 @@
       <div class="grid grid-cols-2 gap-3 rounded-lg border border-slate-100 bg-slate-50/60 p-4 text-xs dark:border-slate-800 dark:bg-slate-800/40">
         <div>
           <span class="block text-slate-600 dark:text-slate-400">{{ 'audit.detail_actor' | translate }}</span>
-          <span class="font-normal text-slate-800 dark:text-slate-200">{{ log.admin_name || ('audit.unknown_user' | translate) }}</span>
+          <span class="font-normal text-slate-800 dark:text-slate-200">{{ actorLabel(log.admin_name) }}</span>
         </div>
         <div>
           <span class="block text-slate-600 dark:text-slate-400">{{ 'audit.detail_object' | translate }}</span>
-          <span class="font-normal text-slate-800 dark:text-slate-200">{{ log.item_name ? (itemTypeLabel(log.item_type) + ': ' + log.item_name) : itemTypeLabel(log.item_type) }} (#{{ log.item_id }})</span>
+          <span [attr.title]="log.item_name" class="font-normal text-slate-800 dark:text-slate-200">{{ log.item_name ? (itemTypeLabel(log.item_type) + ': ' + itemNameLabel(log.item_type, log.item_name)) : itemTypeLabel(log.item_type) }} (#{{ log.item_id }})</span>
         </div>
         <div>
           <span class="block text-slate-600 dark:text-slate-400">{{ 'audit.detail_ip' | translate }}</span>

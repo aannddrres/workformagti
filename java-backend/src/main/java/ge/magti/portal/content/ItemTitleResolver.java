@@ -114,17 +114,17 @@ public class ItemTitleResolver {
     /**
      * Whether (itemType, itemId) is another author's private draft, the one
      * kind of item a caller may not address at all (PO-34, D2). Here because
-     * this is the class that already loads an item from its wire name and id.
+     * this is the class that already resolves an item from its wire name and
+     * id. Asked in SQL so that a trashed draft, which findById cannot see,
+     * stays its author's too.
      */
     public boolean isPrivateDraftOfAnother(String itemType, Long itemId, User viewer) {
         if (itemId == null) {
             return false;
         }
         return switch (itemType == null ? "" : itemType) {
-            case "article" -> articleRepository.findById(itemId)
-                    .map(a -> ArticleVisibility.isPrivateDraftOfAnother(a, viewer)).orElse(false);
-            case "news" -> newsRepository.findById(itemId)
-                    .map(n -> NewsVisibility.isPrivateDraftOfAnother(n, viewer)).orElse(false);
+            case "article" -> articleRepository.countPrivateDraftOfAnotherIncludingTrash(itemId, viewer.getId()) > 0;
+            case "news" -> newsRepository.countPrivateDraftOfAnotherIncludingTrash(itemId, viewer.getId()) > 0;
             default -> false;
         };
     }

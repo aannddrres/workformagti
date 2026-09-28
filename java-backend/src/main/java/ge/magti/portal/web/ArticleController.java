@@ -1620,6 +1620,11 @@ public class ArticleController {
 
     /** Preserve legacy missing-article history responses while hiding existing private drafts. */
     private ResponseEntity<Map<String, String>> denyInvisibleExistingArticle(Long articleId, User user) {
+        // Before findById, which cannot see a trashed row: a private draft in
+        // the trash is still its author's alone.
+        if (articleRepository.countPrivateDraftOfAnotherIncludingTrash(articleId, user.getId()) > 0) {
+            return notFoundMap();
+        }
         return articleRepository.findById(articleId)
                 .map(article -> assertArticleVisible(article, resolveTargetDepartments(articleId), user))
                 .orElse(null);

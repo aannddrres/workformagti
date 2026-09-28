@@ -130,12 +130,12 @@ public class PlatformController {
         // Bug #315 fix, confirmed live: this list was missing the same
         // prefix-aware match the readings half above (and NewsQueryService's
         // own GET /api/news) already use -- a sub-group operator's bell icon
-        // silently dropped news targeted at their parent department.
-        List<News> newsList = Role.CONTENT_ADMIN_ROLES.contains(user.getRole())
-                ? newsRepository.findByCreatedAtGreaterThanEqualOrderByCreatedAtDesc(sevenDaysAgo, PageRequest.of(0, 10))
-                : newsRepository.findByCreatedAtGreaterThanEqualAndTargetDepartmentInOrderByCreatedAtDesc(
-                        sevenDaysAgo, DepartmentMatcher.visibilityTargets(user.getDepartment()),
-                        PageRequest.of(0, 10));
+        // silently dropped news targeted at their parent department. And it
+        // listed drafts and expired news by title: only what NewsVisibility
+        // lets this person read belongs here.
+        List<News> newsList = newsRepository.findRecentVisibleTo(
+                sevenDaysAgo, now, user.getId(), Role.CONTENT_ADMIN_ROLES.contains(user.getRole()),
+                DepartmentMatcher.visibilityTargets(user.getDepartment()), PageRequest.of(0, 10));
         List<RecentNewsSummaryItem> recentNews = newsList.stream()
                 .map(n -> new RecentNewsSummaryItem(n.getId(), n.getTitle(), n.getTargetDepartment(), n.getCreatedAt()))
                 .toList();

@@ -398,7 +398,10 @@ public class ComplianceController {
             return denial;
         }
         Optional<RequiredReading> found = requiredReadingRepository.findById(readingId);
-        if (found.isEmpty()) {
+        // An assignment over a colleague's private draft is theirs to change,
+        // as the draft is -- and its response carries the title (PO-34, D2).
+        if (found.isEmpty()
+                || isPrivateDraftOfAnother(found.get().getItemType(), found.get().getItemId(), user)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", READING_NOT_FOUND));
         }
         RequiredReading reading = found.get();
@@ -463,7 +466,8 @@ public class ComplianceController {
             return denial;
         }
         Optional<RequiredReading> found = requiredReadingRepository.findById(readingId);
-        if (found.isEmpty()) {
+        if (found.isEmpty()
+                || isPrivateDraftOfAnother(found.get().getItemType(), found.get().getItemId(), user)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", READING_NOT_FOUND));
         }
         try {
