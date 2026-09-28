@@ -59,8 +59,6 @@
         class="w-80 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-normal text-slate-600 shadow-e1 focus:border-red-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
       />
 
-      <label class="flex flex-col gap-1 text-xs text-slate-600 dark:text-slate-300">
-        {{ 'audit.start_date_label' | translate }}
       <input
         type="date"
         lang="ka-GE"
@@ -69,9 +67,6 @@
         [attr.aria-label]="'audit.start_date_label' | translate"
         class="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal text-slate-600 shadow-e1 focus:border-red-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
       />
-      </label>
-      <label class="flex flex-col gap-1 text-xs text-slate-600 dark:text-slate-300">
-        {{ 'audit.end_date_label' | translate }}
       <input
         type="date"
         lang="ka-GE"
@@ -81,7 +76,6 @@
         class="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal text-slate-600 shadow-e1 focus:border-red-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
       />
 
-      </label>
       <select
         (change)="onCategoryChange($event)"
         class="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-normal text-slate-600 shadow-e1 focus:border-red-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"

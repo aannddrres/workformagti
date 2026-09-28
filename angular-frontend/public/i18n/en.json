@@ -469,7 +469,6 @@
     }
   },
   "audit": {
-    "quiz_attempts_title": "Quiz attempts",
     "action_logout": "Sign out",
     "action_export_quiz": "Export quiz attempts",
     "action_export_job_completed": "Export file prepared",

@@ -469,7 +469,6 @@
     }
   },
   "audit": {
-    "quiz_attempts_title": "ქვიზის მცდელობები",
     "action_logout": "სისტემიდან გასვლა",
     "action_export_quiz": "ქვიზის მცდელობების ექსპორტი",
     "action_export_job_completed": "ექსპორტის ფაილის მომზადება დასრულდა",
