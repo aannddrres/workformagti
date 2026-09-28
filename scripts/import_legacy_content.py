@@ -5,20 +5,14 @@ actual reference material -- roaming tariffs, GPON parameters, the porting
 procedure -- and they exist nowhere else. This brings them across as ordinary
 articles, along with the 11 categories they sit in and the images they embed.
 
-WHY NOT THE PRESENTATION SEEDER
--------------------------------
+WHAT IT DOES NOT WRITE
+----------------------
 
-``scripts/presentation/seed_oracle_demo.py`` already knows how to read this
-content, and it is deliberately unable to do this job:
-
-  * it refuses any target that is not a local throwaway, by design;
-  * it requires the database to be EMPTY and aborts otherwise;
-  * it invents 605 employees, four personas and a shared demo password.
-
-Those are the right rules for a demo and the wrong ones for a real import.
-The sanitisation and asset handling are shared (``scripts/presentation/common.py``),
-so the two cannot disagree about what the content says -- only about what
-else comes with it. Nothing here writes a user, a team or a password.
+Nothing here writes a user, a team or a password. The demo seeder that read
+this same content for the presentation stack also invented 605 employees and
+a shared demo password; it was removed from the repository with that stack
+at the production handover (2026-09-29). The source inventory and the HTML
+sanitiser it shared with this script live on in ``scripts/legacy_content.py``.
 
 WHAT IT WRITES
 --------------
@@ -77,9 +71,9 @@ from pathlib import Path
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO_ROOT / "scripts" / "presentation"))
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
-from common import (  # noqa: E402
+from legacy_content import (  # noqa: E402
     SOURCE_ARTICLE_MAX_ID,
     SOURCE_ARTICLE_MIN_ID,
     SanitizationStats,
@@ -251,10 +245,10 @@ def _adopt_existing(
     """Link rows that are already in the target to the source rows they came from.
 
     For a database this importer has never touched but whose content arrived
-    by another route. The demo/UAT seeder (scripts/presentation) reads the
-    same 122 source articles and writes them straight to Oracle without
-    recording anything in ``legacy_content_imports`` -- so a first --apply
-    there would insert a second copy of all 122, and of their categories.
+    by another route. The retired demo/UAT seeder read the same 122 source
+    articles and wrote them straight to Oracle without recording anything
+    in ``legacy_content_imports`` -- so a first --apply there would insert
+    a second copy of all 122, and of their categories.
 
     Matching is by exact title (articles) and exact name (categories), and an
     ambiguous match is REFUSED rather than resolved. Two rows sharing a title
@@ -771,7 +765,7 @@ def main(argv: list[str] | None = None) -> int:
         help=(
             "adopt articles/categories already in the target that match a source row by "
             "title/name, instead of inserting a second copy. For a database seeded by "
-            "another route (the demo and UAT stacks). Refuses on an ambiguous match."
+            "another route (the retired demo and UAT stacks). Refuses on an ambiguous match."
         ),
     )
     parser.add_argument("--author-email", default=None, help="attribute the import to this user")

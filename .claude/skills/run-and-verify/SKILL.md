@@ -30,7 +30,8 @@ failure — it is a one-shot container finishing.
 
 Any password logs in as `admin@magti.ge`, `content@magti.ge`,
 `manager@magti.ge`, `info@magti.ge`, `tech@magti.ge` or `nino@magti.ge`, and
-as any `test_operator_*` or `presentation.*` address (created on first login)
+as any `test_operator_*` address (created on first login), all through the
+one standard login form
 — but only while **both** `APP_ENV=development` and `ALLOW_DEV_LOGIN=true` are
 set. Both commands above set both; a backend started by hand needs both, or
 every one of these logins fails — CI's first E2E run did exactly that.
@@ -44,9 +45,9 @@ real values, and an older English value is corrected on the next login
 anyway. For a check at *group* level (`ტექნიკური — ჯგუფი 03`), create a
 `test_operator_*` user with that exact department string.
 
-The demo and acceptance stacks are separate and PowerShell-driven:
-`./presentation.ps1 prepare` (`:8081`, persona login, ~600-person org) and
-`./uat.ps1 prepare` (`:8082`, eleven named accounts, writes test data).
+There is no demo or acceptance stack any more: `presentation.ps1` (`:8081`)
+and `uat.ps1` (`:8082`) left the repository on 2026-09-29. Containers from
+them can still be running on the owner's machine — leave them alone.
 
 ## Verifying
 

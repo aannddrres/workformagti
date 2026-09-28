@@ -65,15 +65,16 @@ jobs:
           bash scripts/scan-secrets.sh --base "$base"
 
   # What is left of Python after the legacy FastAPI stack was deleted
-  # (2026-08-31): the seeders that fill the demo and UAT environments, and
-  # the Phase 8 Oracle fixture seeder. This job used to run the whole legacy
+  # (2026-08-31): the legacy content importer, the Phase 8 Oracle fixture
+  # seeder and the load/secret-scan tools. The demo and UAT seeders left with
+  # their stacks at the production handover (2026-09-29). This job used to run the whole legacy
   # application's suite -- 31 test files against an app that no longer
   # exists -- and was for a long time the ONLY thing CI ran, which is how
   # the Java and Angular halves went untested on every push (audit PR-01).
   #
   # Kept rather than deleted because these tools are still load-bearing:
-  # nothing else fills a demo database, and a seeder that silently stops
-  # working is discovered in front of an audience.
+  # the importer is how the 122 real articles reach production, and an
+  # importer that silently stops working is discovered on the day it runs.
   seeder-tools:
     name: Seeder tooling (Python)
     runs-on: ubuntu-latest

@@ -30,9 +30,7 @@
       "Bash(docker info *)",
       "Bash(docker version *)",
       "Bash(docker ps *)",
-      "Bash(docker context ls)",
-      "PowerShell(.\\presentation.ps1 *)",
-      "PowerShell(.\\uat.ps1 *)"
+      "Bash(docker context ls)"
     ],
     "deny": [
       "Bash(sc.exe *)",
@@ -46,19 +44,11 @@
       "Bash(docker volume rm *)",
       "Bash(docker volume prune*)",
       "Bash(docker system prune*)",
-      "Bash(*presentation.ps1*reset*)",
-      "Bash(*uat.ps1*reset*)",
       "PowerShell(docker compose *down*-v*)",
       "PowerShell(docker-compose *down*-v*)",
       "PowerShell(docker volume rm *)",
       "PowerShell(docker volume prune*)",
-      "PowerShell(docker system prune*)",
-      "PowerShell(*presentation.ps1*reset*)",
-      "PowerShell(*uat.ps1*reset*)"
-    ],
-    "ask": [
-      "Bash(*presentation.ps1*test regression*)",
-      "PowerShell(*presentation.ps1*test regression*)"
+      "PowerShell(docker system prune*)"
     ]
   }
 }

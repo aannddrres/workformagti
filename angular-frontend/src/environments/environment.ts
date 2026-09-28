@@ -12,10 +12,6 @@ export const environment = {
    * backend's `portal.security.session.idle-minutes` default; raise BOTH or
    * neither, since the backend expires the session on its own clock and the
    * frontend only stops sending heartbeats once the user stops interacting.
-   *
-   * Overridden by the `presentation` build configuration -- a demo where
-   * someone talks over one screen for half an hour is exactly the case this
-   * shared-workstation timer is meant to punish, and it did.
    */
   idleLimitMinutes: 30
 };

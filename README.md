@@ -30,15 +30,12 @@ at:
 scripts/seed-demo-content.sh
 ```
 
-### The other two environments
+### No demo environment
 
-| | Port | For |
-|---|---|---|
-| `docker-compose.presentation.yml` | 8081 | The demo. A persona picker on the login page, ~600-person org, real content |
-| `docker-compose.uat.yml` | 8082 | Acceptance testing. Eleven named accounts; writes test data, so it is deliberately a separate stack |
-
-Both are driven by their PowerShell wrappers (`presentation.ps1`, `uat.ps1`)
-and are published on `127.0.0.1` only. Neither is a deployment manifest.
+The demo (`:8081`) and UAT (`:8082`) stacks were removed at the production
+handover (2026-09-29). Production starts from an empty database; the 122 real
+articles are imported once with `scripts/import_legacy_content.py`
+(`docs/LEGACY_CONTENT_IMPORT_KA.md`).
 
 ---
 

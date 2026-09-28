@@ -37,13 +37,12 @@ know nothing about this project; the four above do. On a fresh clone run
 project-scoped allowlist, so a new session does not re-approve the same
 commands. It denies reading `.env`, `.presentation.env` and `.uat.env` — those
 hold real local credentials and nothing in the codebase needs them opened.
-It also denies everything that wipes the demo (`:8081`) or UAT (`:8082`)
-database — `docker compose … down -v`/`--volumes`, `docker volume rm`/`prune`,
-`docker system prune`, and `reset` of `presentation.ps1` or `uat.ps1` (whose
-`-Force` skips the confirmation) — and asks before `presentation.ps1 test
-regression`, which rebuilds the demo volume when it passes. Deny beats the
-broad `docker compose *` and `*.ps1 *` allows, in every permission mode; those
-operations stay the owner's to run by hand. Machine-specific additions belong
+It also denies everything that wipes a Docker database volume —
+`docker compose … down -v`/`--volumes`, `docker volume rm`/`prune` and
+`docker system prune`. The demo and UAT stacks left the repository on
+2026-09-29, but their containers and volumes can outlive it on the owner's
+machine. Deny beats the broad `docker compose *` allow, in every permission
+mode; those operations stay the owner's to run by hand. Machine-specific additions belong
 in `.claude/settings.local.json`, which is gitignored.
 
 **Preview.** `.claude/launch.json` has two entries: `angular-frontend` starts

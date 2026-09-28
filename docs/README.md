@@ -42,7 +42,6 @@
 | [`RUN_LOCALLY.md`](RUN_LOCALLY.md) | 2026-09-23 | მფლობელისთვის: Windows/Docker Desktop-ის ნაბიჯები, საცდელი შესვლა და მონაცემების შენარჩუნებით გაჩერება |
 | [`IT_START_HERE_KA.md`](IT_START_HERE_KA.md) | 2026-09-23 | IT-ის მოკლე შესასვლელი: კომპონენტები, გარემოები, health, ლოგები და ღია პასუხები |
 | [`IT_OPERATIONS_RUNBOOK_KA.md`](IT_OPERATIONS_RUNBOOK_KA.md) | 2026-09-23 | IT-ის საოპერაციო სახელმძღვანელო: დიაგნოსტიკა, ინციდენტი, backup/rollback საზღვრები და მიღების მტკიცებულება |
-| [`PRESENTATION_RUNBOOK_KA.md`](PRESENTATION_RUNBOOK_KA.md) | 2026-09-21 | დემო სტეკი პორტ 8081-ზე: მომზადება, ანგარიშები, 25-წუთიანი სცენარი |
 | [`LEGACY_CONTENT_IMPORT_KA.md`](LEGACY_CONTENT_IMPORT_KA.md) | 2026-08-31 | 122 ძველი სტატიის შემოტანა Oracle-ში |
 | [`SUPPLY_CHAIN_SBOM_KA.md`](SUPPLY_CHAIN_SBOM_KA.md) | 2026-08-31 | SBOM და მოწყვლადობის სკანირება CI-ში |
 | [`security/README_KA.md`](security/README_KA.md) | 2026-09-24 | ASVS 5.0-ის 345 მოთხოვნის სამუშაო რეესტრი და 150 endpoint-ის ტესტების კანდიდატები; სრული case-level აუდიტი ჯერ ღიაა |
@@ -76,22 +75,13 @@
 | [`IT_DISCOVERY_QUESTIONNAIRE_KA.md`](IT_DISCOVERY_QUESTIONNAIRE_KA.md) | 2026-08-29 | 93-პუნქტიანი ტექნიკური ჩამონათვალი. მთლიანად ერთ ადამიანს არ ეგზავნება |
 | [`ENTERPRISE_READINESS_EXTERNAL_DEPENDENCIES_KA.md`](ENTERPRISE_READINESS_EXTERNAL_DEPENDENCIES_KA.md) | 2026-08-28 | EXT-nnn: გარე ბლოკერები (IAM, ქსელი, DBA) |
 
-## მიღება და UAT
+## მიღება
 
 | ფაილი | თარიღი | რაზეა |
 |---|---|---|
 | [`RELEASE_READINESS_LEDGER_KA.md`](RELEASE_READINESS_LEDGER_KA.md) | 2026-09-26 | **გამოშვების ლედჯერი.** სია A — ჩვენზე დამოკიდებული, სია B — სხვებზე, თითოეული მტკიცებულებით. `scripts/readiness_check.py` მტკიცებულებას ამოწმებს, სიტყვა „დახურულს“ არ ენდობა |
 | [`ENTERPRISE_READINESS_ACCEPTANCE_MATRIX_KA.md`](ENTERPRISE_READINESS_ACCEPTANCE_MATRIX_KA.md) | 2026-08-31 | WS-nn მიღების მატრიცა. ვერდიქტი: NOT READY |
 | [`RELEASE_AUDIT_2026-09-24_KA.md`](RELEASE_AUDIT_2026-09-24_KA.md) | 2026-09-24 | იზოლირებული კანდიდატის ტესტები, დახურული და ღია მიგნებები, production NO-GO |
-| [`uat/UAT_00_RUNBOOK_KA.md`](uat/UAT_00_RUNBOOK_KA.md) | 2026-08-31 | UAT-ის გაშვების ინსტრუქცია — **აქ იწყება** |
-| [`uat/UAT_01_OPERATOR_KA.md`](uat/UAT_01_OPERATOR_KA.md) | 2026-08-29 | ოპერატორის სცენარები + შესრულების შედეგი |
-| [`uat/UAT_02_MANAGER_KA.md`](uat/UAT_02_MANAGER_KA.md) | 2026-08-29 | მენეჯერის სცენარები |
-| [`uat/UAT_03_CONTENT_KA.md`](uat/UAT_03_CONTENT_KA.md) | 2026-08-31 | კონტენტ-ადმინის სცენარები |
-| [`uat/UAT_04_ADMIN_KA.md`](uat/UAT_04_ADMIN_KA.md) | 2026-08-29 (შენიშვნა 2026-09-21) | სისტემური ადმინის სცენარები |
-| [`uat/UAT_05_CROSS_ROLE_KA.md`](uat/UAT_05_CROSS_ROLE_KA.md) | 2026-08-29 | როლებს შორის იზოლაცია |
-| [`uat/UAT_06_ADVERSARIAL_KA.md`](uat/UAT_06_ADVERSARIAL_KA.md) | 2026-08-31 | მტრული ტესტირება, F-1…F-4 მიგნებებით და დათარიღებული გადამოწმებით |
-| [`uat/UAT_07_CONTENT_CORRECTNESS_KA.md`](uat/UAT_07_CONTENT_CORRECTNESS_KA.md) | 2026-08-31 | 122 შემოტანილი სტატიის სისწორე |
-| [`uat/UAT_SIGNOFF_KA.md`](uat/UAT_SIGNOFF_KA.md) | 2026-08-29 (შენიშვნა 2026-09-21) | მიღების ოქმი. **ხელმოწერის ველები ჯერ ცარიელია** |
 
 ## მანქანური არტეფაქტები
 
@@ -162,6 +152,25 @@
 | [`AI_BROWSER_TEST_PROMPT_KA.md`](archive/prompts/AI_BROWSER_TEST_PROMPT_KA.md) | 2026-08-28 | ბრაუზერით ხელით ტესტირების სცენარი #1 |
 | [`AI_BROWSER_TEST_PROMPT_2_KA.md`](archive/prompts/AI_BROWSER_TEST_PROMPT_2_KA.md) | 2026-08-28 | სცენარი #2 — მიზეზ-შედეგობრივი ჯაჭვები |
 | [`AI_BROWSER_TEST_PROMPT_3_KA.md`](archive/prompts/AI_BROWSER_TEST_PROMPT_3_KA.md) | 2026-08-29 | სცენარი #3 — იერარქია, ექსპორტი, შესაბამისობა |
+
+### `archive/demo-and-uat/` — დემო (8081) და UAT (8082) სტეკები
+
+**ორივე სტეკი repo-დან 2026-09-29-ს ამოიღო მფლობელმა, production-ის ჩაბარებისას.**
+ფაილები აქ ინახება, რადგან UAT-ის მიგნებებს (F-1…F-4) კოდი და
+`ACCESS_CONTRACT_MATRIX_KA.md` დღესაც იმოწმებს.
+
+| ფაილი | თარიღი | რაზეა |
+|---|---|---|
+| [`PRESENTATION_RUNBOOK_KA.md`](archive/demo-and-uat/PRESENTATION_RUNBOOK_KA.md) | 2026-09-21 | დემო სტეკი პორტ 8081-ზე: მომზადება, ანგარიშები, 25-წუთიანი სცენარი |
+| [`uat/UAT_00_RUNBOOK_KA.md`](archive/demo-and-uat/uat/UAT_00_RUNBOOK_KA.md) | 2026-08-31 | UAT-ის გაშვების ინსტრუქცია — **აქ იწყება** |
+| [`uat/UAT_01_OPERATOR_KA.md`](archive/demo-and-uat/uat/UAT_01_OPERATOR_KA.md) | 2026-08-29 | ოპერატორის სცენარები + შესრულების შედეგი |
+| [`uat/UAT_02_MANAGER_KA.md`](archive/demo-and-uat/uat/UAT_02_MANAGER_KA.md) | 2026-08-29 | მენეჯერის სცენარები |
+| [`uat/UAT_03_CONTENT_KA.md`](archive/demo-and-uat/uat/UAT_03_CONTENT_KA.md) | 2026-08-31 | კონტენტ-ადმინის სცენარები |
+| [`uat/UAT_04_ADMIN_KA.md`](archive/demo-and-uat/uat/UAT_04_ADMIN_KA.md) | 2026-08-29 (შენიშვნა 2026-09-21) | სისტემური ადმინის სცენარები |
+| [`uat/UAT_05_CROSS_ROLE_KA.md`](archive/demo-and-uat/uat/UAT_05_CROSS_ROLE_KA.md) | 2026-08-29 | როლებს შორის იზოლაცია |
+| [`uat/UAT_06_ADVERSARIAL_KA.md`](archive/demo-and-uat/uat/UAT_06_ADVERSARIAL_KA.md) | 2026-08-31 | მტრული ტესტირება, F-1…F-4 მიგნებებით და დათარიღებული გადამოწმებით |
+| [`uat/UAT_07_CONTENT_CORRECTNESS_KA.md`](archive/demo-and-uat/uat/UAT_07_CONTENT_CORRECTNESS_KA.md) | 2026-08-31 | 122 შემოტანილი სტატიის სისწორე |
+| [`uat/UAT_SIGNOFF_KA.md`](archive/demo-and-uat/uat/UAT_SIGNOFF_KA.md) | 2026-08-29 (შენიშვნა 2026-09-21) | მიღების ოქმი. **ხელმოწერის ველები ჯერ ცარიელია** |
 
 ### `archive/legacy-stack/` — წაშლილი Python აპლიკაცია
 

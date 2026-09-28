@@ -1,4 +1,4 @@
-"""Source inventory, safety gates and sanitizer for the presentation seed.
+"""Source inventory and sanitizer for the legacy content import.
 
 This module deliberately has no Oracle dependency so its failure-prone input
 validation can be unit-tested without a database.  The Oracle writer imports
@@ -10,7 +10,6 @@ from __future__ import annotations
 import hashlib
 import html
 import json
-import os
 import re
 import sqlite3
 from dataclasses import asdict, dataclass, field
@@ -25,7 +24,7 @@ SOURCE_ARTICLE_MIN_ID = 17
 SOURCE_ARTICLE_MAX_ID = 138
 # The original pre-checkpoint file hash was
 # 569afcd6d7c56f72bb22fd0c0797a95608046672f0c7a6bc8003b2b1a27c8ac7.
-# SQLite normalized the physical file while the presentation stack was first
+# SQLite normalized the physical file while the retired demo stack was first
 # being diagnosed.  Before approving the resulting immutable source, its whole
 # controlled import projection was compared with the Oracle baseline produced
 # from the original file: 122 articles, 132 history rows, 5 news rows, 3 videos,
@@ -40,53 +39,6 @@ EXPECTED_CATEGORIES = 11
 EXPECTED_NEWS = 5
 EXPECTED_VIDEOS = 3
 
-EXPECTED_DSN = "oracle:1521/XEPDB1"
-EXPECTED_ORACLE_USER = "magti_app"
-EXPECTED_CONFIRMATION = "LOCAL_ONLY_MAGTI_PRESENTATION_V1"
-EXPECTED_ORACLE_CONTEXT = ("MAGTI_APP", "XEPDB1", "XEPDB1")
-
-# The exact Flyway version this seeder was written against. It is an equality
-# check, not a minimum, on purpose: the seeder writes rows directly into a
-# schema it cannot see the source of, so a migration it has not been reviewed
-# against must stop it rather than silently produce a half-correct database.
-#
-# Raising this is a deliberate act. Before changing it, read every migration
-# between the old value and the new one and confirm none of them removes a
-# table the seeder writes, or adds a NOT NULL column without a default to one.
-#
-# 42 -> 45 (2026-08-29), reviewed for exactly that:
-#   V43 drops knowledge_feedback  -- the seeder never writes it
-#   V44 adds portal_sessions      -- new table, nothing here touches it
-#   V45 adds articles.read_time   -- NOT NULL but DEFAULT 1, so the existing
-#                                    article inserts still satisfy it
-# Found because a fresh presentation/UAT stack could not be seeded at all
-# while the guard sat at 42 and the schema had moved to 45.
-#
-# 45 -> 48 (2026-09-11), reviewed the same way. All three are CREATE TABLE
-# only: nothing is dropped, and no existing table gains a column, so every
-# INSERT this seeder writes still matches the schema it writes into.
-#   V46 adds stored_file_references -- see below, the one that needed thought
-#   V47 adds legacy_content_imports -- the importer's own provenance map,
-#                                      written by scripts/import_legacy_content.py
-#   V48 adds login_attempts         -- throwaway throttle counters
-#
-# V46 is the one worth recording. It is the index behind DEC-P01 ("a file is
-# readable when content referencing it is readable"), and this seeder does not
-# write it -- it writes stored_files and articles and stops. V46's own backfill
-# cannot cover a fresh volume either, because it runs at migration time, before
-# any of those rows exist. That reads like every demo image being visible to
-# content@magti.ge alone.
-#
-# It is not, and the reason is deliberate rather than lucky:
-# FileReferenceIndex.referencesTo falls through to an authoritative scan when
-# the index has no row, logs that a save path is out of sync, and writes what
-# it finds back. A missing index degrades to slow-and-correct on first access
-# and heals itself. So the seeder is not required to populate it, and this
-# guard does not need to hold the line at 45 on its account.
-# 48 -> 49 (2026-09-23): audit chain hash/previous-hash indexes only.
-# Seeders write no audit hashes directly; the V28 trigger continues to do so.
-# Existing duplicates make the unique index fail loudly and need investigation.
-EXPECTED_FLYWAY_VERSION = "52"
 SEARCH_ENTITY_TYPES = {
     "article": "ARTICLE",
     "news": "NEWS",
@@ -127,11 +79,11 @@ _TAG_ATTRS = {
 _SAFE_SCHEMES = {"http", "https", "mailto", "tel"}
 
 
-class PresentationSafetyError(RuntimeError):
-    """Raised when the local-only or source-integrity contract is violated."""
+class SourceSafetyError(RuntimeError):
+    """Raised when the source database or its content breaks the import contract."""
 
 
-class SanitizationLossError(PresentationSafetyError):
+class SanitizationLossError(SourceSafetyError):
     """Raised when sanitization removes a material amount of article text."""
 
 
@@ -139,7 +91,7 @@ def normalize_search_entity_type(value: str) -> str:
     try:
         return SEARCH_ENTITY_TYPES[value.lower()]
     except (AttributeError, KeyError) as exc:
-        raise PresentationSafetyError(f"Unknown search entity type: {value!r}") from exc
+        raise SourceSafetyError(f"Unknown search entity type: {value!r}") from exc
 
 
 @dataclass(frozen=True)
@@ -194,7 +146,7 @@ def sha256_file(path: Path) -> str:
 def normalize_department(value: str | None) -> str:
     normalized = (value or "All").strip() or "All"
     if normalized not in DEPARTMENT_MAP:
-        raise PresentationSafetyError(f"Unknown department label in source: {normalized!r}")
+        raise SourceSafetyError(f"Unknown department label in source: {normalized!r}")
     return DEPARTMENT_MAP[normalized]
 
 
@@ -220,7 +172,7 @@ def open_source_database(path: Path) -> sqlite3.Connection:
     missing = required_tables - actual_tables
     if missing:
         connection.close()
-        raise PresentationSafetyError(f"SQLite source is missing required tables: {sorted(missing)!r}")
+        raise SourceSafetyError(f"SQLite source is missing required tables: {sorted(missing)!r}")
     return connection
 
 
@@ -277,14 +229,14 @@ def detect_image_type(path: Path) -> str:
         return "image/jpeg"
     if header.startswith((b"GIF87a", b"GIF89a")) and suffix == ".gif":
         return "image/gif"
-    raise PresentationSafetyError(f"Image extension/magic mismatch: {path.name}")
+    raise SourceSafetyError(f"Image extension/magic mismatch: {path.name}")
 
 
 def build_source_inventory(database_path: Path, uploads_path: Path) -> SourceInventory:
     if not database_path.is_file():
-        raise PresentationSafetyError(f"Source database is missing: {database_path}")
+        raise SourceSafetyError(f"Source database is missing: {database_path}")
     if not uploads_path.is_dir():
-        raise PresentationSafetyError(f"Source uploads directory is missing: {uploads_path}")
+        raise SourceSafetyError(f"Source uploads directory is missing: {uploads_path}")
 
     database_sha256 = sha256_file(database_path)
     connection = open_source_database(database_path)
@@ -320,7 +272,7 @@ def build_source_inventory(database_path: Path, uploads_path: Path) -> SourceInv
         asset_digest.update(b"\0")
         asset_digest.update(payload_digest)
     if missing:
-        raise PresentationSafetyError(
+        raise SourceSafetyError(
             f"Referenced upload files are missing ({len(missing)}): {missing[:5]!r}"
         )
 
@@ -350,60 +302,11 @@ def assert_expected_inventory(inventory: SourceInventory) -> None:
         videos=EXPECTED_VIDEOS,
     )
     if inventory != expected:
-        raise PresentationSafetyError(
-            "Source inventory differs from the approved presentation manifest.\n"
+        raise SourceSafetyError(
+            "Source inventory differs from the approved source manifest.\n"
             f"expected={json.dumps(expected.as_dict(), ensure_ascii=False, sort_keys=True)}\n"
             f"actual={json.dumps(inventory.as_dict(), ensure_ascii=False, sort_keys=True)}"
         )
-
-
-def assert_local_environment(*, app_env: str, dsn: str, user: str, confirmation: str) -> None:
-    if app_env.strip().lower() != "development":
-        raise PresentationSafetyError("Presentation seeding requires APP_ENV=development exactly")
-    normalized_dsn = dsn.removeprefix("jdbc:oracle:thin:@").removeprefix("//")
-    if normalized_dsn != EXPECTED_DSN:
-        raise PresentationSafetyError(
-            f"Refusing Oracle DSN {normalized_dsn!r}; expected {EXPECTED_DSN!r}"
-        )
-    if user.strip().lower() != EXPECTED_ORACLE_USER:
-        raise PresentationSafetyError(
-            f"Refusing Oracle user {user!r}; expected {EXPECTED_ORACLE_USER!r}"
-        )
-    if confirmation != EXPECTED_CONFIRMATION:
-        raise PresentationSafetyError("Missing exact local presentation confirmation marker")
-
-
-def _decode_mount_path(value: str) -> str:
-    return value.replace("\\040", " ").replace("\\011", "\t").replace("\\134", "\\")
-
-
-def path_is_on_read_only_mount(path: Path, mountinfo: str | None = None) -> bool:
-    """Return true when Linux mountinfo says the longest covering mount is ro."""
-    if os.name == "nt" and mountinfo is None:
-        return False
-    text = mountinfo if mountinfo is not None else Path("/proc/self/mountinfo").read_text("utf-8")
-    target = path.as_posix() if mountinfo is not None else str(path.resolve())
-    matches: list[tuple[int, set[str]]] = []
-    for line in text.splitlines():
-        before, separator, _after = line.partition(" - ")
-        if not separator:
-            continue
-        fields = before.split()
-        if len(fields) < 6:
-            continue
-        mount_point = _decode_mount_path(fields[4])
-        options = set(fields[5].split(","))
-        if target == mount_point or target.startswith(mount_point.rstrip("/") + "/"):
-            matches.append((len(mount_point), options))
-    return bool(matches) and "ro" in max(matches, key=lambda item: item[0])[1]
-
-
-def assert_read_only_sources(database_path: Path, uploads_path: Path) -> None:
-    if os.getenv("PRESENTATION_REQUIRE_RO_MOUNTS", "true").lower() != "true":
-        raise PresentationSafetyError("PRESENTATION_REQUIRE_RO_MOUNTS must remain true")
-    for path in (database_path, uploads_path):
-        if not path_is_on_read_only_mount(path):
-            raise PresentationSafetyError(f"Source path is not on a read-only mount: {path}")
 
 
 def _visible_text(value: str) -> str:

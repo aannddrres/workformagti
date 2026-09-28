@@ -11,8 +11,7 @@ RUN npm ci
 COPY . .
 
 # Which angular.json configuration to build. "production" for every real
-# deployment; docker-compose.presentation.yml passes "presentation", which
-# differs only in the inactivity timer (see environment.presentation.ts).
+# deployment.
 ARG BUILD_CONFIGURATION=production
 RUN npm run build -- --configuration "$BUILD_CONFIGURATION"
 
