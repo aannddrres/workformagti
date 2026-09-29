@@ -322,9 +322,22 @@ export class AdminUsersPage {
    *
    * loadUsers() also runs on the error path, so the row snaps back to the
    * server's truth instead of showing the state the admin intended.
+   *
+   * Deactivating one account asks first, as the bulk sweep does: it takes
+   * the person out of the portal on their next request, mid-shift if one
+   * menu item was mistaken for another. Reactivating does not ask.
    */
-  toggleStatus(user: AdminUser): void {
+  async toggleStatus(user: AdminUser): Promise<void> {
     const next = !user.is_active;
+    if (!next && !(await this.confirmService.ask({
+      title: this.translate.instant('users.admin_page.deactivate_confirm_title'),
+      message: this.translate.instant('users.admin_page.deactivate_confirm'),
+      details: [`${user.name} (${user.email})`],
+      confirmLabel: this.translate.instant('users.admin_page.deactivate_confirm_label'),
+      tone: 'danger'
+    }))) {
+      return;
+    }
     this.usersService.updateStatus(user.id, next).subscribe({
       next: () => this.loadUsers(),
       error: (err: HttpErrorResponse) => {

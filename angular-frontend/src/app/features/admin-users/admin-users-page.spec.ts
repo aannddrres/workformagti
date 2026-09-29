@@ -49,8 +49,9 @@ describe('AdminUsersPage error paths', () => {
    * system admin". Throwing that away and showing a generic message loses
    * the only sentence that tells the admin what to do instead.
    */
-  it('surfaces the backend detail when toggling a user status fails', () => {
+  it('surfaces the backend detail when toggling a user status fails', async () => {
     const { component, usersService } = componentWithStubbedLoads();
+    vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
     const toast = TestBed.inject(ToastService);
     const toastSpy = vi.spyOn(toast, 'error');
     vi.spyOn(usersService, 'updateStatus').mockReturnValue(
@@ -60,7 +61,7 @@ describe('AdminUsersPage error paths', () => {
       }))
     );
 
-    component.toggleStatus({ id: 7, is_active: true, email: 'x@magti.ge' });
+    await component.toggleStatus({ id: 7, is_active: true, email: 'x@magti.ge' });
 
     expect(toastSpy).toHaveBeenCalledWith('საკუთარი ანგარიშის დეაქტივაცია არ შეიძლება');
   });
@@ -70,17 +71,42 @@ describe('AdminUsersPage error paths', () => {
    * the failed click was aiming for. A toggle that visually succeeded while
    * the server refused is worse than the error itself.
    */
-  it('reloads the list after a failed toggle so the displayed state stays truthful', () => {
+  it('reloads the list after a failed toggle so the displayed state stays truthful', async () => {
     const { component, usersService } = componentWithStubbedLoads();
+    vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
     const listSpy = vi.spyOn(usersService, 'list');
     const callsBefore = listSpy.mock.calls.length;
     vi.spyOn(usersService, 'updateStatus').mockReturnValue(
       throwError(() => new HttpErrorResponse({ status: 500 }))
     );
 
-    component.toggleStatus({ id: 7, is_active: true, email: 'x@magti.ge' });
+    await component.toggleStatus({ id: 7, is_active: true, email: 'x@magti.ge' });
 
     expect(listSpy.mock.calls.length).toBeGreaterThan(callsBefore);
+  });
+
+  /** Deactivating one account asks first, as the bulk sweep does; reactivating does not. */
+  it('asks before deactivating one account, naming it, and does nothing when declined', async () => {
+    const { component, usersService } = componentWithStubbedLoads();
+    const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(false);
+    const updateSpy = vi.spyOn(usersService, 'updateStatus');
+
+    await component.toggleStatus({ id: 7, name: 'ნინო', is_active: true, email: 'nino@magti.ge' });
+
+    expect(ask).toHaveBeenCalledTimes(1);
+    expect(ask.mock.calls[0][0]).toMatchObject({ tone: 'danger', details: ['ნინო (nino@magti.ge)'] });
+    expect(updateSpy).not.toHaveBeenCalled();
+  });
+
+  it('reactivates without asking', async () => {
+    const { component, usersService } = componentWithStubbedLoads();
+    const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask');
+    const updateSpy = vi.spyOn(usersService, 'updateStatus').mockReturnValue(of({} as any));
+
+    await component.toggleStatus({ id: 7, name: 'ნინო', is_active: false, email: 'nino@magti.ge' });
+
+    expect(ask).not.toHaveBeenCalled();
+    expect(updateSpy).toHaveBeenCalledWith(7, true);
   });
 
   /** FE-04: a failed group-leader load must be visible, not an empty dropdown. */

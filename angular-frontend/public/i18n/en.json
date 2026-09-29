@@ -140,6 +140,9 @@
       "bulk_confirm_title": "Deactivate accounts",
       "bulk_confirm": "Deactivate {{count}} account(s)? They will no longer be able to sign in. Their history and records stay, and they can be reactivated at any time.",
       "bulk_confirm_label": "Deactivate",
+      "deactivate_confirm_title": "Deactivate account",
+      "deactivate_confirm": "Deactivate this account? They will no longer be able to sign in. Their history and records stay, and they can be reactivated at any time.",
+      "deactivate_confirm_label": "Deactivate",
       "bulk_done": "{{count}} account(s) deactivated",
       "bulk_none_changed": "No account was deactivated — the selected ones were already off",
       "bulk_error": "The bulk deactivation could not be completed"
