@@ -231,7 +231,7 @@ test.describe('reading and version history', () => {
     await overlay.getByRole('button', { name: 'დახურვა' }).click();
     await expect(overlay).toHaveCount(0);
 
-    await page.getByRole('button', { name: 'უკან დაბრუნება' }).click();
+    await page.getByRole('button', { name: 'უკან', exact: true }).click();
     await expect(page).not.toHaveURL(new RegExp(`/article/${articleId}$`));
   });
 });

@@ -123,7 +123,7 @@ test.describe('audit log', () => {
     //
     // The exclusion is what makes this worth asserting: LOGIN rows exist on
     // every run (the personas log in) and they must all be gone.
-    const search = page.getByPlaceholder('ძებნა… actor:admin category:SECURITY');
+    const search = page.getByPlaceholder('ძებნა: სახელი, მოქმედება ან ობიექტი');
     const [filtered] = await Promise.all([
       page.waitForResponse(
         (r) => r.url().includes('/api/audit-logs?') && r.url().includes('action=ARCHIVE')
@@ -148,8 +148,10 @@ test.describe('audit log', () => {
     await expect(archiveRows.first()).toBeVisible();
 
     // --- date presets and the date inputs ---------------------------------
-    const startDate = page.locator('input[type="date"]').first();
-    const endDate = page.locator('input[type="date"]').nth(1);
+    // shared/date-field: typed as the Georgian day.month.year, committed on
+    // Enter or when the field is left.
+    const startDate = page.getByLabel('დაწყების თარიღი');
+    const endDate = page.getByLabel('დასრულების თარიღი');
 
     await page.getByRole('button', { name: '30 დღე' }).click();
     await expect(startDate).not.toHaveValue('');
@@ -165,13 +167,17 @@ test.describe('audit log', () => {
     await expect(archiveRows.first()).toBeVisible();
 
     // A window that begins after the rows were written has to empty the table.
-    await startDate.fill('2030-01-01');
-    await endDate.fill('2030-12-31');
+    await startDate.fill('01.01.2030');
+    await startDate.press('Enter');
+    await endDate.fill('31.12.2030');
+    await endDate.press('Enter');
     await expect(page.getByText('ლოგები არ მოიძებნა')).toBeVisible();
 
     // --- search ------------------------------------------------------------
     await startDate.fill('');
+    await startDate.press('Enter');
     await endDate.fill('');
+    await endDate.press('Enter');
     await search.fill('category:SECURITY');
     await expect(archiveRows).toHaveCount(0);
 

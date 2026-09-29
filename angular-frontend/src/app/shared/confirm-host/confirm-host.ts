@@ -52,7 +52,7 @@ import { PortalDialog } from '../portal-dialog/portal-dialog';
               [class.hover:bg-danger-700]="request.tone === 'danger'"
               (click)="confirmService.respond(true)"
             >
-              {{ request.confirmLabel || ('shared.confirm.confirm' | translate) }}
+              {{ request.confirmLabel }}
             </button>
           </div>
         </div>

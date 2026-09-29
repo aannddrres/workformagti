@@ -2,6 +2,23 @@ const pad2 = (part: number): string => String(part).padStart(2, '0');
 
 const KA_SHORT_MONTHS = ['იან.', 'თებ.', 'მარ.', 'აპრ.', 'მაი.', 'ივნ.', 'ივლ.', 'აგვ.', 'სექ.', 'ოქტ.', 'ნოე.', 'დეკ.'];
 
+/** The calendar's heading (shared/date-field). */
+export const KA_MONTHS = [
+  'იანვარი', 'თებერვალი', 'მარტი', 'აპრილი', 'მაისი', 'ივნისი',
+  'ივლისი', 'აგვისტო', 'სექტემბერი', 'ოქტომბერი', 'ნოემბერი', 'დეკემბერი'
+];
+
+/** Monday first, as the Georgian week runs. */
+export const KA_WEEKDAYS = [
+  { short: 'ორშ', full: 'ორშაბათი' },
+  { short: 'სამ', full: 'სამშაბათი' },
+  { short: 'ოთხ', full: 'ოთხშაბათი' },
+  { short: 'ხუთ', full: 'ხუთშაბათი' },
+  { short: 'პარ', full: 'პარასკევი' },
+  { short: 'შაბ', full: 'შაბათი' },
+  { short: 'კვი', full: 'კვირა' }
+];
+
 /**
  * Every date the portal shows goes through this file, in one of four shapes
  * (owner decision კ4, 2026-09-29):

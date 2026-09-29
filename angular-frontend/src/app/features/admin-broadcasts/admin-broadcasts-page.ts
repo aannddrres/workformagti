@@ -1,4 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
+import { DateField } from '../../shared/date-field/date-field';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { BroadcastAnnouncement, BroadcastPriority } from '../../core/models/broadcast';
 import { BroadcastService } from '../../core/services/broadcast.service';
@@ -13,7 +14,7 @@ function toLocalInput(date: Date): string {
 @Component({
   selector: 'app-admin-broadcasts-page',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, DateField],
   templateUrl: './admin-broadcasts-page.html'
 })
 export class AdminBroadcastsPage {
@@ -97,7 +98,7 @@ export class AdminBroadcastsPage {
   }
 
   protected async endEarly(item: BroadcastAnnouncement): Promise<void> {
-    if (!item.can_end_early || !(await this.confirmService.ask('ნამდვილად გსურთ ამ განცხადების დროზე ადრე დასრულება?'))) {
+    if (!item.can_end_early || !(await this.confirmService.ask({ message: 'ნამდვილად გსურთ ამ განცხადების დროზე ადრე დასრულება?', confirmLabel: 'დასრულება' }))) {
       return;
     }
     this.endingId.set(item.id);

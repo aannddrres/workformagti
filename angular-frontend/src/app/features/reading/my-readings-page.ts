@@ -92,7 +92,7 @@ export class MyReadingsPage {
     this.load();
   }
 
-  private load(): void {
+  protected load(): void {
     this.loading.set(true);
     this.errorMessage.set(null);
     this.complianceService.myReadings().subscribe({

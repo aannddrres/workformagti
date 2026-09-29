@@ -75,9 +75,9 @@ test.describe('operator browsing', () => {
     await page.goto('/news');
     await expect(page.getByRole('heading', { name: 'სიახლეები' })).toBeVisible();
 
-    // Narrowed by the star each row carries, not by role alone: app-article-card
-    // is also a div[role="button"], and a bare role match would start counting
-    // article cards the day anything puts one on this page.
+    // Narrowed by the star each row carries, not by role alone: a bare role
+    // match would start counting other clickable rows the day anything puts
+    // one on this page.
     const rows = page.locator('div[role="button"]:has(app-favorite-star)');
     const techRow = rows.filter({ hasText: techTitle });
     const infoRow = rows.filter({ hasText: infoTitle });
@@ -178,7 +178,7 @@ test.describe('operator browsing', () => {
     await expect(page).toHaveURL(/\/news\/\d+$/);
     await expect(page.getByRole('heading', { name: techTitle })).toBeVisible();
 
-    await page.getByRole('button', { name: 'უკან დაბრუნება' }).click();
+    await page.getByRole('button', { name: 'უკან', exact: true }).click();
     await expect(page).toHaveURL(/\/news$/);
 
     // Cleanup is not this test's job, but leaving a starred item behind would
@@ -231,8 +231,9 @@ test.describe('operator browsing', () => {
     await page.goto('/info');
     await expect(page.getByRole('heading', { name: 'ცოდნის ბაზა' })).toBeVisible();
 
-    const cardA = page.locator('app-article-card', { hasText: titleA });
-    const cardB = page.locator('app-article-card', { hasText: titleB });
+    // The knowledge base is a list since owner decision კ10: a row per article.
+    const cardA = page.locator('app-article-list tbody tr', { hasText: titleA });
+    const cardB = page.locator('app-article-list tbody tr', { hasText: titleB });
 
     // Wait for the initial categories + article list chain to finish before
     // driving the debounced search. Otherwise the constructor's initial

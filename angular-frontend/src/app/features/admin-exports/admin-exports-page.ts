@@ -4,10 +4,12 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { AdminExportDefinition, AdminExportFamily } from '../../core/models/admin-export';
 import { AdminExportService } from '../../core/services/admin-export.service';
 import { ExportPollTimeoutError, ExportService } from '../../core/services/export.service';
+import { DateField } from '../../shared/date-field/date-field';
 
 @Component({
   selector: 'app-admin-exports-page',
   standalone: true,
+  imports: [DateField],
   templateUrl: './admin-exports-page.html'
 })
 export class AdminExportsPage {
@@ -22,21 +24,13 @@ export class AdminExportsPage {
   protected readonly success = signal<string | null>(null);
 
   protected readonly definitions: AdminExportDefinition[] = [
-    { family: 'audit-ledger', title: 'აუდიტის სრული ჟურნალი', icon: 'fa-shield-halved', filename: 'audit-ledger.xlsx', description: 'მოქმედებები, IP, user agent და hash-chain-ის მთლიანობის ველები.' },
+    { family: 'audit-ledger', title: 'აუდიტის სრული ჟურნალი', icon: 'fa-shield-halved', filename: 'audit-ledger.xlsx', description: 'მოქმედებები, IP მისამართი, ბრაუზერი და ჩანაწერების მთლიანობის შემოწმება.' },
     { family: 'read-evidence', title: 'ოფიციალური გაცნობის მტკიცებულება', icon: 'fa-clipboard-check', filename: 'read-evidence.xlsx', description: 'სტატიის ოფიციალური დადასტურებები და სავალდებულო მასალის სტატუსები.' },
     { family: 'article-views', title: 'სტატიების გახსნის ისტორია', icon: 'fa-eye', filename: 'article-views.xlsx', description: 'უბრალო გახსნის ისტორია; ეს ოფიციალურ წაკითხვად არ ითვლება.' },
     { family: 'search-history', title: 'ძებნის ისტორია', icon: 'fa-magnifying-glass', filename: 'search-history.xlsx', description: 'ვინ რას ეძებდა და რამდენი შედეგი მიიღო.' },
     { family: 'quiz-attempts', title: 'ქვიზის მცდელობები', icon: 'fa-list-check', filename: 'quiz-attempts.xlsx', description: 'რეალურად შენახული ქულა, ვერსია, მცდელობის ნომერი და შედეგი.' },
     { family: 'change-events', title: 'ცვლილებები და უსაფრთხოების მოვლენები', icon: 'fa-user-lock', filename: 'change-events.xlsx', description: 'მომხმარებლის, კონტენტის, ადმინისტრაციული და უსაფრთხოების მოვლენები.' }
   ];
-
-  protected setFrom(event: Event): void {
-    this.from.set((event.target as HTMLInputElement).value);
-  }
-
-  protected setThrough(event: Event): void {
-    this.through.set((event.target as HTMLInputElement).value);
-  }
 
   protected submit(definition: AdminExportDefinition): void {
     if (this.running() !== null) return;

@@ -38,7 +38,7 @@
       "primary_navigation": "Main navigation",
       "font_size": "Font size",
       "account_menu": "Account menu",
-      "admin_backfill": "Backfill control"
+      "admin_backfill": "Structure backfill report"
     },
     "topbar": {
       "user_menu_label": "User menu",
@@ -84,6 +84,7 @@
     "status_active": "Active",
     "status_inactive": "Disabled",
     "edit": "Edit",
+    "row_actions": "User actions",
     "create_heading": "Create new user",
     "field_name": "Full name",
     "field_email": "Email",
@@ -116,13 +117,12 @@
     "perm_reports_export": "Export reports",
     "perm_stats_view": "View company-wide statistics",
     "perm_inherited": "(from role)",
-    "perm_role_grants": "The selected role grants this permission by default",
-    "perm_role_denies": "The selected role does not grant this permission by default",
+    "perm_inherit_note": "\"Inherited from role\" means the permission is on when the chosen role grants it.",
     "perm_effective_on": "Active",
     "perm_effective_off": "Inactive",
     "perm_state_inherit": "Inherit from role",
-    "perm_state_allow": "Explicitly allow (ALLOW)",
-    "perm_state_deny": "Explicitly deny (DENY)",
+    "perm_state_allow": "Allow directly",
+    "perm_state_deny": "Deny directly",
     "perm_admin_bypass_note": "A system administrator holds every permission by definition — the controls below cannot restrict them. Change the role to restrict access.",
     "admin_page": {
       "status_error": "Could not change status",
@@ -333,8 +333,21 @@
     "remove_attachment_label": "Remove attachment",
     "confirm": {
       "title": "Confirm",
-      "confirm": "Yes",
       "cancel": "Cancel"
+    },
+    "date_field": {
+      "placeholder": "dd.mm.yyyy",
+      "placeholder_time": "dd.mm.yyyy hh:mm",
+      "open": "Open calendar",
+      "dialog_label": "Choose a date",
+      "previous_month": "Previous month",
+      "next_month": "Next month",
+      "time": "Time",
+      "hour": "Hour",
+      "minute": "Minute",
+      "today": "Today",
+      "clear": "Clear",
+      "done": "Done"
     }
   },
   "favorites": {
@@ -488,7 +501,7 @@
     "preset_today": "Today",
     "preset_7d": "7 days",
     "preset_30d": "30 days",
-    "search_placeholder": "Search… actor:admin category:SECURITY",
+    "search_placeholder": "Search: name, action or object",
     "start_date_label": "Start date",
     "end_date_label": "End date",
     "category_all": "All categories",
@@ -529,8 +542,17 @@
     "detail_object": "Object",
     "detail_ip": "IP address",
     "detail_device": "Device",
-    "detail_changes_heading": "Change details",
+    "detail_changes_heading": "Details",
     "detail_no_details": "No details available",
+    "detail_field": "Field",
+    "detail_before": "Before",
+    "detail_after": "After",
+    "detail_value": "Value",
+    "detail_outcome": "Outcome",
+    "detail_reason": "Reason",
+    "detail_no_changes": "No recorded field changed",
+    "detail_unchanged": "Unchanged fields ({{count}})",
+    "detail_technical": "Technical detail",
     "detail_integrity_heading": "Integrity chain",
     "detail_verify_button": "Verify chain",
     "detail_verifying": "Verifying…",
@@ -552,7 +574,8 @@
     "move": "Move",
     "no_members": "No users in this role.",
     "no_selection": "No users selected",
-    "confirm_message": "This will change the selected users' role. Continue?"
+    "confirm_message": "This will change the selected users' role. Continue?",
+    "confirm_label": "Change role"
   },
   "content": {
     "heading": "Content Management",
@@ -742,6 +765,7 @@
     "orphan_parent": "#{{id}} (no longer exists)",
     "edit": "Edit",
     "delete": "Delete",
+    "row_actions": "Category actions",
     "confirm_delete": "Delete this category? The action is blocked while any content uses it.",
     "save_failed": "Could not save",
     "color_general": "Default (Slate)",

@@ -65,6 +65,7 @@
     <div role="alert" class="error-state">
       <i class="fa-solid fa-triangle-exclamation text-2xl" aria-hidden="true"></i>
       <p>{{ errorMessage() }}</p>
+      <button type="button" class="secondary-button" (click)="refresh()">{{ 'shared.retry' | translate }}</button>
     </div>
   } @else if (filteredItems().length === 0) {
     <div class="empty-state">

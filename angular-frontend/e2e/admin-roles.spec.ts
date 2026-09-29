@@ -85,7 +85,7 @@ test.describe('user administration', () => {
     await seedTokenIntoPage(page, token);
     await page.route('**/api/admin/group-leaders', (route) => route.abort());
     await page.goto('/admin/access');
-    await expect(page.getByRole('heading', { name: 'მომხმარებლები და წვდომა' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'მომხმარებლები', level: 1 })).toBeVisible();
 
     const retry = page.getByRole('button', { name: /ჯგუფების სია ვერ ჩაიტვირთა/ });
     await expect(retry).toBeVisible();

@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { Subject, catchError, debounceTime, map, of, switchMap } from 'rxjs';
+import { Subject, catchError, debounceTime, forkJoin, map, of, switchMap } from 'rxjs';
 import { CategoriesService } from '../../core/services/categories.service';
 import { ArticlesService } from '../../core/services/articles.service';
 import { Category } from '../../core/models/category';
@@ -35,7 +35,7 @@ export class KnowledgeBasePage {
       (category) =>
         category.parent_id == null &&
         category.is_active &&
-        (this.categoryCounts().get(category.id) ?? 0) > 0,
+        (!this.articlesLoaded() || (this.categoryCounts().get(category.id) ?? 0) > 0),
     ),
   );
   protected readonly activeCategories = computed(() =>
@@ -49,6 +49,8 @@ export class KnowledgeBasePage {
   protected readonly canLoadMore = computed(() => this.cards().length < this.resultCards().length);
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
+  /** Whether the article list behind the counts and the default view arrived. */
+  protected readonly articlesLoaded = signal(false);
 
   /** Broader (but still bounded, unlike the original's 1000-article client
    *  cache) dataset used only to compute the bento grid's per-category
@@ -82,28 +84,47 @@ export class KnowledgeBasePage {
     this.searchQuery.set(initialQuery);
     this.selectedCategoryId.set(initialCategory);
 
-    this.categoriesService.list().subscribe({
-      next: (categories) => {
+    this.load();
+  }
+
+  /**
+   * Categories and articles load side by side, and a failure of one no longer
+   * takes the other with it: the article list failing used to empty the
+   * category row as well (UI audit bug 14), because the row only shows
+   * categories that have articles.
+   */
+  private load(): void {
+    this.loading.set(true);
+    this.errorMessage.set(null);
+    forkJoin({
+      categories: this.categoriesService.list().pipe(catchError(() => of(null))),
+      articles: this.articlesService.list({ limit: 1000 }).pipe(catchError(() => of(null))),
+    }).subscribe(({ categories, articles }) => {
+      if (categories) {
         this.categories.set(categories);
-        this.articlesService.list({ limit: 1000 }).subscribe({
-          next: (articles) => {
-            this.countingSet.set(articles.filter(isReaderVisibleArticle));
-            // The current filters, not the ones the page opened with: anything
-            // typed while this list was loading is already in them, and
-            // re-running the opening query here silently replaced it.
-            this.search$.next({ q: this.searchQuery(), categoryId: this.selectedCategoryId() });
-          },
-          error: () => {
-            this.loading.set(false);
-            this.errorMessage.set(this.translate.instant('articles.kb_page.search_error'));
-          },
-        });
-      },
-      error: () => {
+      }
+      if (!articles) {
         this.loading.set(false);
         this.errorMessage.set(this.translate.instant('articles.kb_page.search_error'));
-      },
+        return;
+      }
+      this.countingSet.set(articles.filter(isReaderVisibleArticle));
+      this.articlesLoaded.set(true);
+      // The current filters, not the ones the page opened with: anything
+      // typed while this list was loading is already in them, and
+      // re-running the opening query here silently replaced it.
+      this.search$.next({ q: this.searchQuery(), categoryId: this.selectedCategoryId() });
     });
+  }
+
+  protected retry(): void {
+    if (!this.articlesLoaded()) {
+      this.load();
+      return;
+    }
+    this.loading.set(true);
+    this.errorMessage.set(null);
+    this.search$.next({ q: this.searchQuery(), categoryId: this.selectedCategoryId() });
   }
 
   private uncategorizedLabel(): string {

@@ -144,7 +144,10 @@ export class ArticleHistoryModal {
   }
 
   protected async restore(item: ArticleHistorySummaryItem): Promise<void> {
-    if (!(await this.confirmService.ask(this.translate.instant('content.history.confirm_restore')))) {
+    if (!(await this.confirmService.ask({
+      message: this.translate.instant('content.history.confirm_restore'),
+      confirmLabel: this.translate.instant('content.history.restore')
+    }))) {
       return;
     }
     this.restoringId.set(item.id);

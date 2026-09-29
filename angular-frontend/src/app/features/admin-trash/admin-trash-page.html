@@ -3,7 +3,7 @@
     <div>
       <h1 class="portal-title">სანაგვე</h1>
       <p class="portal-subtitle">
-        აქ მასალა 30 დღე ინახება. აღდგენისას ის ისევ არქივში ბრუნდება; ავტომატური საბოლოო წაშლა ჩართული არ არის.
+        მასალა აქ 30 დღე ინახება და აღდგენისას არქივში ბრუნდება. წაკითხვის, ქვიზისა და აუდიტის ჩანაწერები წაშლის შემდეგაც რჩება.
       </p>
     </div>
     <button type="button" class="secondary-button" (click)="load()" [disabled]="loading()">
@@ -19,11 +19,6 @@
       </button>
     </div>
   }
-
-  <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-    <strong>მნიშვნელოვანი:</strong> საბოლოო წაშლა მხოლოდ სისტემურ ადმინისტრატორს შეუძლია 30 დღის გასვლის შემდეგ.
-    legal hold-ის მქონე ჩანაწერი არ იშლება. წაკითხვის, ნახვის, ქვიზისა და audit-ის მტკიცებულება რჩება.
-  </div>
 
   <div class="table-shell">
     <table>
@@ -47,7 +42,7 @@
                 <div class="font-semibold text-slate-900 dark:text-slate-100">{{ item.title }}</div>
                 <div class="mt-1 text-xs text-slate-600 dark:text-slate-400">{{ itemTypeLabel(item.item_type) }} · ID {{ item.item_id }}</div>
                 @if (item.legal_hold) {
-                  <span class="mt-2 inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-300">legal hold</span>
+                  <span class="mt-2 inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-300">იურიდიულად დაცულია</span>
                 }
               </td>
               <td class="px-5 py-4 text-slate-600 dark:text-slate-300">
@@ -63,7 +58,7 @@
                   @if (isSystemAdmin()) {
                     <button type="button" class="secondary-button text-red-700 dark:text-red-400" (click)="purge(item)"
                             [disabled]="busy(item) || !canPurge(item)"
-                            [title]="item.legal_hold ? 'legal hold კრძალავს წაშლას' : (!canPurge(item) ? '30 დღე ჯერ არ გასულა' : 'საბოლოო წაშლა')">
+                            [title]="item.legal_hold ? 'იურიდიულად დაცული ჩანაწერი არ იშლება' : (!canPurge(item) ? '30 დღე ჯერ არ გასულა' : 'საბოლოო წაშლა')">
                       <i class="fa-solid fa-trash" aria-hidden="true"></i> საბოლოო წაშლა
                     </button>
                   }

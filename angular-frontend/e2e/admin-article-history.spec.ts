@@ -43,7 +43,7 @@ test('article history: expand, diff, and restore an older version', async ({ pag
 
   const row = page.locator('tr', { hasText: revisedTitle });
   await expect(row).toHaveCount(1);
-  await row.getByRole('button').first().click();       // ellipsis
+  await row.getByRole('button', { name: 'სტატიის მოქმედებები' }).click();
   await row.getByRole('button', { name: 'ისტორია' }).click();
 
   const modal = page.locator('app-article-history-modal');

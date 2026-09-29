@@ -293,4 +293,21 @@ describe('design rules', () => {
     const offenders = scan(/\[class\.[^\]=\s]*\.[^=\s]*\]\s*=/g, () => true);
     expect(offenders).toEqual([]);
   });
+
+  /** Chrome draws a native date input in the operating system's language and
+   *  order -- `mm/dd/yyyy`, English month names, an AM/PM clock -- beside a
+   *  portal that writes `29 სექ. 2026` everywhere else. shared/date-field is
+   *  the one date control (owner decision კ6). */
+  it('asks for dates through the Georgian date field only', () => {
+    const offenders = scan(/type="(?:date|datetime-local|time|month|week)"/g, () => true);
+    expect(offenders).toEqual([]);
+  });
+
+  /** A confirmation's button says what it does -- "დაარქივება", not "დიახ"
+   *  (UI audit bug 22). ConfirmRequest makes the label required; this keeps a
+   *  bare-string question from coming back through a cast. */
+  it('names the action on every confirmation button', () => {
+    const offenders = scan(/confirmService\.ask\(\s*['`]/g, () => true);
+    expect(offenders).toEqual([]);
+  });
 });

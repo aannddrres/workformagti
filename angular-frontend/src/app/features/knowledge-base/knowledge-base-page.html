@@ -48,7 +48,9 @@
   <!-- Search first, then the categories as one row, then the articles as a
        list (owner decision კ10). The tile grid used to fill the first screen,
        so the search an operator came for sat below it. -->
-  <app-category-strip [categories]="topLevelCategories()" [counts]="categoryCounts()" />
+  <!-- Without the article list there are no counts; the categories still
+       show, without them, rather than disappearing with the list. -->
+  <app-category-strip [categories]="topLevelCategories()" [counts]="articlesLoaded() ? categoryCounts() : null" />
 
   @if (loading()) {
     <div class="table-shell divide-y divide-slate-100 dark:divide-slate-800">
@@ -60,6 +62,7 @@
     <div role="alert" class="error-state">
       <i class="fa-solid fa-triangle-exclamation text-2xl" aria-hidden="true"></i>
       <p>{{ errorMessage() }}</p>
+      <button type="button" class="secondary-button" (click)="retry()">{{ 'shared.retry' | translate }}</button>
     </div>
   } @else if (cards().length === 0) {
     <div class="empty-state">

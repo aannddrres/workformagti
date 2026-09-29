@@ -57,22 +57,24 @@ test('article drawer: what the form is set to is what gets saved', async ({ page
   // --- scheduled publishing --------------------------------------------
   // The datetime field does not exist until the status says it should.
   const statusSelect = formSelects.nth(1);
-  const scheduledAt = drawer.locator('input[type="datetime-local"]');
+  const scheduledAt = drawer.locator('#article-scheduled-at');
   await expect(scheduledAt).toHaveCount(0);
   await statusSelect.selectOption('scheduled');
   await expect(scheduledAt).toBeVisible();
-  await scheduledAt.fill('2030-01-15T09:30');
+  await scheduledAt.fill('15.01.2030 09:30');
+  await scheduledAt.press('Enter');
 
   // --- department, mandatory + due date ---------------------------------
   const department = drawer.locator('label', { hasText: 'საინფორმაციო' }).locator('input[type="checkbox"]');
   await department.check();
 
-  const dueDate = drawer.locator('input[type="date"]');
+  const dueDate = drawer.locator('#article-due-date');
   await expect(dueDate).toHaveCount(0);
   const mandatory = drawer.locator('input[type="checkbox"]').first();
   await mandatory.check();
   await expect(dueDate).toBeVisible();
-  await dueDate.fill('2030-02-20');
+  await dueDate.fill('20.02.2030');
+  await dueDate.press('Enter');
 
   // --- quiz --------------------------------------------------------------
   // The builder is the toggle's whole visible effect.

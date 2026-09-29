@@ -244,8 +244,53 @@
     @apply inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white;
   }
 
-  .queue-action {
-    @apply flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed dark:text-slate-200 dark:hover:bg-slate-800;
+  /* Card rows that reflow with the text size, not only the window (UI audit
+   * bug 15). The breakpoints are in pixels and the portal's text scale is in
+   * rem, so at 200% the overview kept four columns of cards whose words no
+   * longer fit them. A column is at least 18rem, so larger text means fewer,
+   * wider columns: four at 100%, two at 200%. */
+  .reflow-grid {
+    @apply grid gap-4;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  }
+
+  /* A table row's one visible action, and the "⋮" menu that holds the rest
+   * (UI audit bug 22; shared/row-menu). */
+  .row-action {
+    @apply inline-flex min-h-9 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white;
+  }
+
+  .row-actions {
+    @apply flex items-center justify-end gap-1;
+  }
+
+  .row-menu-panel {
+    @apply fixed z-modal min-w-52 rounded-lg border border-slate-200 bg-white p-1.5 text-left shadow-e3 dark:border-slate-700 dark:bg-slate-900;
+  }
+
+  /* shared/date-field's calendar (owner decision კ6). */
+  .date-panel {
+    @apply fixed z-modal w-80 rounded-lg border border-slate-200 bg-white p-3 shadow-e3 dark:border-slate-700 dark:bg-slate-900;
+  }
+
+  .date-day {
+    @apply h-9 w-9 rounded-md text-sm font-semibold text-slate-800 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-transparent dark:text-slate-100 dark:hover:bg-slate-800 dark:disabled:text-slate-600;
+  }
+
+  .date-day-outside {
+    @apply font-normal text-slate-500 dark:text-slate-500;
+  }
+
+  .date-day-today {
+    @apply ring-1 ring-inset ring-slate-400 dark:ring-slate-500;
+  }
+
+  .date-day[aria-selected='true'] {
+    @apply bg-brand text-white ring-0 hover:bg-brand-700 dark:bg-brand-700 dark:text-white;
+  }
+
+  .row-menu-item {
+    @apply flex w-full items-center gap-2.5 whitespace-nowrap rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-200 dark:hover:bg-slate-800;
   }
 
   .field-control {

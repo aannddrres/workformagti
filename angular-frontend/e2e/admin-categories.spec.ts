@@ -85,7 +85,7 @@ test('categories: create, nest, expand, edit, and the delete order the tree allo
 
   // --- edit the child ----------------------------------------------------
   const renamed = `${childName} გადარქმეული`;
-  await childRow.getByRole('button', { name: 'რედაქტ.' }).click();
+  await childRow.getByRole('button', { name: 'რედაქტირება' }).click();
   // The edit form must arrive holding the category, not empty.
   await expect(form.locator('input[type="text"]').first()).toHaveValue(childName);
   await form.locator('input[type="text"]').first().fill(renamed);
@@ -105,7 +105,11 @@ test('categories: create, nest, expand, edit, and the delete order the tree allo
     page.waitForResponse(
       (r) => /\/api\/categories\/\d+$/.test(r.url()) && r.request().method() === 'DELETE'
     ),
-    parentRow.getByRole('button', { name: 'წაშლა' }).click().then(() => acceptConfirmation(page))
+    parentRow
+      .getByRole('button', { name: 'კატეგორიის მოქმედებები' })
+      .click()
+      .then(() => parentRow.getByRole('button', { name: 'წაშლა' }).click())
+      .then(() => acceptConfirmation(page))
   ]);
   expect(refused.status(), 'a parent with an active child must not be deletable').toBe(409);
 
@@ -116,10 +120,12 @@ test('categories: create, nest, expand, edit, and the delete order the tree allo
   await expect(page.locator('tr', { hasText: renamed })).toHaveCount(1);
 
   // --- child first, then the parent: the order the guard leaves open -----
+  await page.locator('tr', { hasText: renamed }).getByRole('button', { name: 'კატეგორიის მოქმედებები' }).click();
   await page.locator('tr', { hasText: renamed }).getByRole('button', { name: 'წაშლა' }).click();
   await acceptConfirmation(page);
   await expect(page.locator('tr', { hasText: renamed })).toHaveCount(0);
 
+  await parentRow.getByRole('button', { name: 'კატეგორიის მოქმედებები' }).click();
   await parentRow.getByRole('button', { name: 'წაშლა' }).click();
   await acceptConfirmation(page);
   await expect(parentRow).toHaveCount(0);

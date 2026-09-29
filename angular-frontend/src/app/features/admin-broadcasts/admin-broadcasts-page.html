@@ -2,13 +2,9 @@
   <header class="portal-page-header">
     <div>
       <h1 class="portal-title">განცხადებები</h1>
-      <p class="portal-subtitle">მოკლე საოპერაციო ინფორმაცია, რომელსაც ყველა ავტორიზებული თანამშრომელი მთავარ გვერდსა და პროფილში ხედავს.</p>
+      <p class="portal-subtitle">მოკლე ინფორმაცია მთელი კომპანიისთვის. დადასტურებას არ ითხოვს — ოფიციალური გაცნობისთვის გამოიყენეთ სავალდებულო მასალა.</p>
     </div>
   </header>
-
-  <section class="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-950 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100">
-    განცხადება არ არის პირადი შეტყობინება და „გავეცანი“ დადასტურებას არ ითხოვს. ოფიციალური გაცნობისთვის გამოიყენეთ სავალდებულო სტატია ან სიახლე. აუდიტორია ყოველთვის მთელი კომპანიაა.
-  </section>
 
   <section class="surface-card mb-6 p-5">
     <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100">ახალი განცხადება</h2>
@@ -28,7 +24,7 @@
       </label>
       <label class="text-sm font-semibold text-slate-700 dark:text-slate-300">
         დასრულების დრო
-        <input data-broadcast-ends-at type="datetime-local" formControlName="endsAt" [min]="minEndTime" class="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900" />
+        <app-date-field data-broadcast-ends-at class="mt-1.5 font-normal" formControlName="endsAt" [withTime]="true" [min]="minEndTime" />
       </label>
       <div class="flex items-end lg:col-span-2">
         <button data-publish-broadcast type="submit" class="primary-button" [disabled]="saving()">

@@ -1,6 +1,7 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { RowMenu } from '../../shared/row-menu/row-menu';
 import { AdminUsersService } from '../../core/services/admin-users.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { AdminUser, GroupLeader } from '../../core/models/admin-user';
@@ -35,7 +36,7 @@ import { createTableSort } from '../../shared/table-sort';
 @Component({
   selector: 'app-admin-users-page',
   standalone: true,
-  imports: [TranslatePipe, UserEditModal],
+  imports: [TranslatePipe, UserEditModal, RowMenu],
   templateUrl: './admin-users-page.html'
 })
 export class AdminUsersPage {
@@ -152,7 +153,7 @@ export class AdminUsersPage {
     });
   }
 
-  private loadUsers(): void {
+  protected loadUsers(): void {
     this.loading.set(true);
     this.error.set(false);
     this.usersService.list(this.selectedManagerId()).subscribe({

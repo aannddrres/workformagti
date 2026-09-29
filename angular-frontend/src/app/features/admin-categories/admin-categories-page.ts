@@ -4,6 +4,7 @@ import { CategoriesService } from '../../core/services/categories.service';
 import { Category, CategoryRequest } from '../../core/models/category';
 import { ConfirmService } from '../../core/notifications/confirm.service';
 import { categoryIconClass } from '../../shared/category-visuals';
+import { RowMenu } from '../../shared/row-menu/row-menu';
 
 const PASTEL_COLOR_OPTIONS = [
   { value: 'general', labelKey: 'categories.color_general' },
@@ -36,7 +37,7 @@ const PASTEL_COLOR_OPTIONS = [
 @Component({
   selector: 'app-admin-categories-page',
   standalone: true,
-  imports: [TranslatePipe],
+  imports: [TranslatePipe, RowMenu],
   templateUrl: './admin-categories-page.html'
 })
 export class AdminCategoriesPage {
@@ -215,7 +216,7 @@ export class AdminCategoriesPage {
   }
 
   async deleteCategory(category: Category): Promise<void> {
-    if (!(await this.confirmService.ask({ message: this.translate.instant('categories.confirm_delete'), tone: 'danger' }))) {
+    if (!(await this.confirmService.ask({ message: this.translate.instant('categories.confirm_delete'), confirmLabel: this.translate.instant('categories.delete'), tone: 'danger' }))) {
       return;
     }
     this.categoriesService.remove(category.id).subscribe({

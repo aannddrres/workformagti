@@ -22,6 +22,7 @@ import { lossLines, mandatoryLoss } from '../../shared/mandatory-reach';
 import { createTableSort } from '../../shared/table-sort';
 import { KaDatePipe } from '../../shared/ka-date.pipe';
 import { CategoryStrip } from '../../shared/category-strip/category-strip';
+import { RowMenu } from '../../shared/row-menu/row-menu';
 
 type ContentType = 'all' | 'article' | 'news' | 'video';
 type QueueRow = {
@@ -59,7 +60,7 @@ const STATUS_BADGE: Record<string, string> = {
 @Component({
   selector: 'app-admin-content-page',
   standalone: true,
-  imports: [TranslatePipe, KaDatePipe, CategoryStrip, ArticleEditDrawer, ArticleHistoryModal, NewsEditDrawer, VideoEditDrawer],
+  imports: [TranslatePipe, KaDatePipe, CategoryStrip, RowMenu, ArticleEditDrawer, ArticleHistoryModal, NewsEditDrawer, VideoEditDrawer],
   templateUrl: './admin-content-page.html'
 })
 export class AdminContentPage {
@@ -220,7 +221,6 @@ export class AdminContentPage {
   protected readonly editingArticle = signal<ArticleSummary | { id: null } | null>(null);
   protected readonly editingNews = signal<NewsSummary | { id: null } | null>(null);
   protected readonly editingVideo = signal<VideoInstruction | { id: null } | null>(null);
-  protected readonly openMenuFor = signal<number | null>(null);
   protected readonly historyForArticleId = signal<number | null>(null);
   protected readonly actionError = signal<string | null>(null);
   /**
@@ -339,8 +339,8 @@ export class AdminContentPage {
     });
   }
 
-  protected toggleMenu(id: number): void {
-    this.openMenuFor.update((current) => (current === id ? null : id));
+  protected rowMenuLabel(row: QueueRow): string {
+    return { article: 'სტატიის მოქმედებები', news: 'სიახლის მოქმედებები', video: 'ვიდეოს მოქმედებები' }[row.type];
   }
 
   protected toggleSelectAllOnPage(checked: boolean): void {
@@ -417,7 +417,7 @@ export class AdminContentPage {
   protected async removeRow(row: QueueRow): Promise<void> {
     if (row.type === 'article') { await this.deleteArticle(row.original as ArticleSummary); return; }
     if (!this.rowArchived(row)) { this.toast.error('კონტენტი ჯერ უნდა დაარქივოთ.'); return; }
-    if (!(await this.confirmService.ask('გადავიტანოთ ჩანაწერი სანაგვეში? ისტორიული მტკიცებულებები შენარჩუნდება.'))) return;
+    if (!(await this.confirmService.ask({ message: 'გადავიტანოთ ჩანაწერი სანაგვეში? ისტორიული მტკიცებულებები შენარჩუნდება.', confirmLabel: 'სანაგვეში გადატანა', tone: 'danger' }))) return;
     const request: Observable<unknown> = row.type === 'news' ? this.newsService.remove(row.id) : this.videosService.remove(row.id);
     request.subscribe({
       next: () => row.type === 'news' ? this.loadNews() : this.loadVideos(),
@@ -426,7 +426,6 @@ export class AdminContentPage {
   }
 
   protected openEditArticle(article: ArticleSummary): void {
-    this.openMenuFor.set(null);
     this.editingArticle.set(article);
   }
 
@@ -440,13 +439,13 @@ export class AdminContentPage {
   }
 
   protected async toggleArchive(article: ArticleSummary): Promise<void> {
-    this.openMenuFor.set(null);
     const shouldArchive = article.status !== 'archived';
     const message = shouldArchive
       ? this.translate.instant('content.articles.confirm_archive_one')
       : this.translate.instant('content.articles.confirm_unarchive_one');
     const mandatoryWarning = shouldArchive ? await this.archiveMandatoryWarning(article.id) : null;
-    if (!(await this.confirmService.ask(mandatoryWarning ?? message))) return;
+    const plain = { message, confirmLabel: shouldArchive ? 'დაარქივება' : 'არქივიდან ამოღება' };
+    if (!(await this.confirmService.ask(mandatoryWarning ?? plain))) return;
     this.actionError.set(null);
     const request = shouldArchive ? this.articlesService.archive(article.id) : this.articlesService.unarchive(article.id);
     request.subscribe({
@@ -483,7 +482,6 @@ export class AdminContentPage {
   }
 
   protected openHistory(article: ArticleSummary): void {
-    this.openMenuFor.set(null);
     this.historyForArticleId.set(article.id);
   }
 
@@ -497,12 +495,11 @@ export class AdminContentPage {
   }
 
   protected async deleteArticle(article: ArticleSummary): Promise<void> {
-    this.openMenuFor.set(null);
     if (article.status !== 'archived') {
       this.actionError.set('სტატია ჯერ უნდა დაარქივოთ და მხოლოდ შემდეგ გადაიტანოთ სანაგვეში.');
       return;
     }
-    if (!(await this.confirmService.ask({ message: this.translate.instant('content.articles.confirm_delete'), tone: 'danger' }))) return;
+    if (!(await this.confirmService.ask({ message: this.translate.instant('content.articles.confirm_delete'), confirmLabel: 'სანაგვეში გადატანა', tone: 'danger' }))) return;
     this.actionError.set(null);
     this.articlesService.remove(article.id).subscribe({
       next: () => this.loadArticles(),
@@ -521,7 +518,7 @@ export class AdminContentPage {
   protected async bulkStatus(status: ArticleBulkStatus): Promise<void> {
     const ids = [...this.selection()];
     if (ids.length === 0) return;
-    if (status === 'published' && !(await this.confirmService.ask(`გამოქვეყნდეს ${ids.length} მასალა. გავაგრძელოთ?`))) {
+    if (status === 'published' && !(await this.confirmService.ask({ message: `გამოქვეყნდეს ${ids.length} მასალა. გავაგრძელოთ?`, confirmLabel: 'გამოქვეყნება' }))) {
       return;
     }
     this.runBulk(this.articlesService.bulkStatus(ids, status));

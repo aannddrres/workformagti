@@ -11,6 +11,7 @@
     <div role="alert" class="error-state">
       <i class="fa-solid fa-triangle-exclamation text-2xl" aria-hidden="true"></i>
       <p>{{ errorMessage() }}</p>
+      <button type="button" class="secondary-button" (click)="load()">{{ 'shared.retry' | translate }}</button>
     </div>
   } @else if (groups().length === 0) {
     <div class="empty-state">

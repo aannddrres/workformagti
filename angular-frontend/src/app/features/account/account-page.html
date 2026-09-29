@@ -40,13 +40,11 @@
 
         <section class="surface-card p-6">
           <div class="flex flex-wrap items-start justify-between gap-3">
-            <div><h2 class="text-lg font-bold text-slate-900 dark:text-slate-100">მოქმედი წვდომა</h2><p class="mt-1 text-sm text-slate-600 dark:text-slate-400">ინტერფეისი აჩვენებს სერვერიდან მიღებულ რეალურ უფლებებს.</p></div>
+            <div><h2 class="text-lg font-bold text-slate-900 dark:text-slate-100">მოქმედი წვდომა</h2></div>
             <span class="status-pill bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">{{ roleLabel(profile.role) }}</span>
           </div>
           @if (profile.role === 'admin') {
-            <div class="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
-              <i class="fa-solid fa-shield-halved mr-2" aria-hidden="true"></i>სისტემურ ადმინს სერვერზე ყველა უფლება უპირობოდ აქვს. ქვემოთ ნაჩვენები ჩამონათვალი მხოლოდ საინფორმაციოა და ამ წვდომას არ ზღუდავს.
-            </div>
+            <p class="mt-3 text-sm text-slate-600 dark:text-slate-400">სისტემურ ადმინისტრატორს ყველა უფლება აქვს.</p>
           }
           <div class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
             @for (permission of profile.permissions; track permission) {

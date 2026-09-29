@@ -35,6 +35,12 @@ export class VideosPage {
   });
 
   constructor() {
+    this.load();
+  }
+
+  protected load(): void {
+    this.videos.set(null);
+    this.errorMessage.set(null);
     this.videosService.list().subscribe({
       next: (videos) => this.videos.set(videos),
       error: () => this.errorMessage.set(this.translate.instant('videos.page.load_error'))

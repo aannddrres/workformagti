@@ -51,13 +51,13 @@ export class AdminTrashPage {
   }
 
   protected async restore(item: ContentTrashItem): Promise<void> {
-    if (!(await this.confirmService.ask(`აღვადგინოთ „${item.title}“? მასალა არქივში დაბრუნდება.`))) return;
+    if (!(await this.confirmService.ask({ message: `აღვადგინოთ „${item.title}“? მასალა არქივში დაბრუნდება.`, confirmLabel: 'აღდგენა' }))) return;
     this.run(item, this.trashService.restore(item.item_type, item.item_id));
   }
 
   protected async purge(item: ContentTrashItem): Promise<void> {
     if (!this.canPurge(item)) return;
-    if (!(await this.confirmService.ask({ message: `საბოლოოდ წავშალოთ „${item.title}“? კონტენტის payload ვეღარ აღდგება.`, tone: 'danger' }))) return;
+    if (!(await this.confirmService.ask({ message: `საბოლოოდ წავშალოთ „${item.title}“? მასალის ტექსტი ვეღარ აღდგება.`, confirmLabel: 'საბოლოო წაშლა', tone: 'danger' }))) return;
     this.run(item, this.trashService.purge(item.item_type, item.item_id));
   }
 

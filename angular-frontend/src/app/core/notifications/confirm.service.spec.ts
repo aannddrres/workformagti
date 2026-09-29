@@ -5,7 +5,7 @@ describe('ConfirmService', () => {
   it('resolves with the answer the host reports', async () => {
     const service = new ConfirmService();
 
-    const answer = service.ask('delete?');
+    const answer = service.ask({ message: 'delete?', confirmLabel: 'delete' });
     expect(service.pending()?.message).toBe('delete?');
 
     service.respond(true);
@@ -17,8 +17,8 @@ describe('ConfirmService', () => {
     const service = new ConfirmService();
 
     // A stranded promise is worse than a "no": the caller would wait forever.
-    const first = service.ask('first');
-    const second = service.ask('second');
+    const first = service.ask({ message: 'first', confirmLabel: 'go' });
+    const second = service.ask({ message: 'second', confirmLabel: 'go' });
 
     await expect(first).resolves.toBe(false);
     expect(service.pending()?.message).toBe('second');

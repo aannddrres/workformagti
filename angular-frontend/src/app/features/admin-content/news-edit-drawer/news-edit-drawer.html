@@ -83,13 +83,7 @@
           @if (isMandatory()) {
             <div class="ml-4 flex flex-1 items-center gap-3 border-l border-slate-300 dark:border-slate-700 pl-4">
               <label for="news-due-date" class="text-sm font-normal text-slate-600 dark:text-slate-400">{{ 'content.articles.field_due_date' | translate }}</label>
-              <input
-                id="news-due-date"
-                type="date"
-                [value]="dueDate()"
-                (input)="dueDate.set($any($event.target).value)"
-                class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-800 focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-              />
+              <app-date-field class="w-44" inputId="news-due-date" [value]="dueDate()" (valueChange)="dueDate.set($event)" [invalid]="dueDateError()" />
             </div>
           }
         </div>

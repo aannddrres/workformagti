@@ -7,6 +7,7 @@ import { News, NewsRequest } from '../../../core/models/news';
 import { DEPARTMENTS } from '../../../shared/user-roles';
 import { ToastService } from '../../../core/notifications/toast.service';
 import { PortalDialog } from '../../../shared/portal-dialog/portal-dialog';
+import { DateField } from '../../../shared/date-field/date-field';
 import { ConfirmService } from '../../../core/notifications/confirm.service';
 
 /**
@@ -21,7 +22,7 @@ import { ConfirmService } from '../../../core/notifications/confirm.service';
 @Component({
   selector: 'app-news-edit-drawer',
   standalone: true,
-  imports: [TranslatePipe, PortalDialog],
+  imports: [TranslatePipe, PortalDialog, DateField],
   templateUrl: './news-edit-drawer.html'
 })
 export class NewsEditDrawer {
@@ -150,7 +151,7 @@ export class NewsEditDrawer {
   }
 
   protected async close(): Promise<void> {
-    if (this.dirty() && !(await this.confirmService.ask('შეუნახავი ცვლილებები დაიკარგება. გსურთ დახურვა?'))) {
+    if (this.dirty() && !(await this.confirmService.ask({ message: 'შეუნახავი ცვლილებები დაიკარგება. გსურთ დახურვა?', confirmLabel: 'დახურვა შენახვის გარეშე', tone: 'danger' }))) {
       return;
     }
     this.closed.emit();

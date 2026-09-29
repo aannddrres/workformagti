@@ -9,10 +9,10 @@
     <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">ცარიელი თარიღები ნიშნავს მთელ შენახულ ისტორიას. თუ ჩანაწერი 20 000-ზე მეტია, სისტემა მოგთხოვთ პერიოდის შემცირებას.</p>
     <div class="mt-4 grid max-w-2xl gap-4 sm:grid-cols-2">
       <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">საწყისი თარიღი
-        <input type="date" class="field-control mt-1 w-full" [value]="from()" (input)="setFrom($event)" />
+        <app-date-field class="mt-1" [value]="from()" (valueChange)="from.set($event)" />
       </label>
       <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">საბოლოო თარიღი
-        <input type="date" class="field-control mt-1 w-full" [value]="through()" (input)="setThrough($event)" />
+        <app-date-field class="mt-1" [value]="through()" (valueChange)="through.set($event)" />
       </label>
     </div>
   </section>
@@ -27,13 +27,13 @@
         <h2 class="mt-4 text-base font-bold text-slate-900 dark:text-white">{{ definition.title }}</h2>
         <p class="mt-2 flex-1 text-sm leading-6 text-slate-600 dark:text-slate-400">{{ definition.description }}</p>
         <button type="button" class="secondary-button mt-5 w-full justify-center" (click)="submit(definition)" [disabled]="running() !== null">
-          @if (running() === definition.family) { <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> მზადდება… } @else { <i class="fa-solid fa-file-excel" aria-hidden="true"></i> XLSX ექსპორტი }
+          @if (running() === definition.family) { <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> მზადდება… } @else { <i class="fa-solid fa-file-excel" aria-hidden="true"></i> Excel ფაილის ჩამოტვირთვა }
         </button>
       </article>
     }
   </section>
 
-  <aside class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-200">
-    <strong>უსაფრთხოება:</strong> პაროლი, password hash, token, session credential, private key და სხვა secret ექსპორტში არასოდეს გადის. Java/Kubernetes/ingress runtime log-ები ამ ეკრანზე არ არის — მათზე წვდომას კომპანიის IT/SOC განსაზღვრავს.
-  </aside>
+  <p class="text-sm text-slate-600 dark:text-slate-400">
+    <i class="fa-solid fa-lock mr-1.5" aria-hidden="true"></i>პაროლები და სხვა საიდუმლო მონაცემები ექსპორტში არასოდეს ხვდება.
+  </p>
 </div>
