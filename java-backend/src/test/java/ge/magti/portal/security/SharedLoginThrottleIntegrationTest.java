@@ -7,7 +7,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.Timestamp;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -94,9 +96,7 @@ class SharedLoginThrottleIntegrationTest {
         // does not advance between two adjacent calls, so both rows land on
         // the same microsecond and the test measures the clock rather than
         // the query.
-        jdbcTemplate.update(
-                "INSERT INTO login_attempts (attempt_key, attempted_at) "
-                        + "VALUES (?, SYSTIMESTAMP - INTERVAL '5' MINUTE)", key);
+        insertAttempt(key, Duration.ofMinutes(5));
 
         // Limit of one, and one attempt already on record -- but that one is
         // outside the minute being asked about, so this must still be let
@@ -115,15 +115,26 @@ class SharedLoginThrottleIntegrationTest {
         String key = "sweep-" + UUID.randomUUID();
         store.tryConsume(key, 10, Duration.ofMinutes(1));
 
-        jdbcTemplate.update(
-                "INSERT INTO login_attempts (attempt_key, attempted_at) "
-                        + "VALUES (?, SYSTIMESTAMP - INTERVAL '60' MINUTE)", key);
+        insertAttempt(key, Duration.ofMinutes(60));
         assertEquals(2, countFor(key));
 
         store.sweepExpiredAttempts();
 
         assertEquals(1, countFor(key),
                 "the sweep must take the hour-old row and leave the one still inside every window");
+    }
+
+    /**
+     * An attempt {@code age} ago, on the JVM's clock -- the clock
+     * JdbcLoginAttemptStore writes and compares with. SYSTIMESTAMP was used
+     * here once, and it is the database server's clock in the server's zone:
+     * against a +04:00 Oracle and the UTC JVM surefire runs, both tests failed,
+     * the rows landing four hours from where the store looks.
+     */
+    private void insertAttempt(String key, Duration age) {
+        jdbcTemplate.update(
+                "INSERT INTO login_attempts (attempt_key, attempted_at) VALUES (?, ?)",
+                key, Timestamp.from(Instant.now().minus(age)));
     }
 
     private int countFor(String key) {

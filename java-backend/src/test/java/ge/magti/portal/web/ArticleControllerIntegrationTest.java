@@ -1309,6 +1309,27 @@ class ArticleControllerIntegrationTest {
     }
 
     @Test
+    void relatedArticlesSurviveACandidateWithNoCreationDate() throws Exception {
+        // created_at is nullable (V4) and only the create endpoint fills it.
+        // A row written any other way -- a DBA insert, another suite's
+        // fixture -- turned the fill-by-recency sort into a 500 for every
+        // reader. Found on 2026-09-30 by running the Oracle suite twice
+        // against one schema. Two candidates, so the sort really compares.
+        User admin = createUser("related-undated@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-უთარიღო-წყარო");
+        Category otherCat = createCategory("კატ-უთარიღო-სხვა");
+        Article source = createArticle("წყარო-უთარიღო", cat.getId(), "published", false, List.of("All"), null);
+        Article undated = createArticle("თარიღის გარეშე", otherCat.getId(), "published", false, List.of("All"), null);
+        createArticle("თარიღით", otherCat.getId(), "published", false, List.of("All"), null);
+        undated.setCreatedAt(null);
+        articleRepository.saveAndFlush(undated);
+
+        mockMvc.perform(authed(get("/api/articles/" + source.getId() + "/related"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].title").value(org.hamcrest.Matchers.hasItem("თარიღით")));
+    }
+
+    @Test
     void relatedArticlesDeptFilterIsExactMatchOnlyNotPrefixAware() throws Exception {
         // Deliberately different from every other visibility check in this
         // file: get_related_articles doesn't use the prefix-aware rule, so

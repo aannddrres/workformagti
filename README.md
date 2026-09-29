@@ -1,5 +1,9 @@
 # Magti Portal — Internal Call Centre Portal
 
+> **Magti-ს IT-სთვის:** დაიწყეთ [`docs/IT_START_HERE_KA.md`](docs/IT_START_HERE_KA.md)-ით
+> (მოკლე სურათი). შემდეგ: [ტექნიკური ჩაბარება](docs/IT_TECHNICAL_HANDOVER_KA.md),
+> [Kubernetes-ზე გაშვება](k8s/README_KA.md) და [თქვენთვის ღია კითხვები](docs/QUESTIONS_FOR_IT.md).
+
 A knowledge base and compliance-tracking system for Magti's ~600-person call
 centre: articles and news, mandatory reading with quizzes, department-scoped
 visibility, an audit trail, and exports for managers.

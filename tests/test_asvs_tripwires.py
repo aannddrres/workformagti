@@ -42,7 +42,9 @@ def hits(paths: list[Path], pattern: str, flags: int = 0) -> list[str]:
     for path in paths:
         for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
             if regex.search(line):
-                found.append(f"{path.relative_to(ROOT)}:{number}: {line.strip()}")
+                # as_posix: the allow-lists are written with "/", and on Windows
+                # relative_to() yields "\", which made every tripwire fire there.
+                found.append(f"{path.relative_to(ROOT).as_posix()}:{number}: {line.strip()}")
     return found
 
 
@@ -107,10 +109,10 @@ def test_sql_is_never_built_from_request_values():
         text = path.read_text(encoding="utf-8")
         for match in joined_after.finditer(text):
             if sql.search(match.group(0).split("+")[0]) and not re.fullmatch(r"[A-Z][A-Z0-9_]*", match.group(1)):
-                dynamic.add(str(path.relative_to(ROOT)))
+                dynamic.add(path.relative_to(ROOT).as_posix())
         for match in joined_before.finditer(text):
             if sql.search(match.group(2)) and not re.fullmatch(r"[A-Z][A-Z0-9_]*", match.group(1)):
-                dynamic.add(str(path.relative_to(ROOT)))
+                dynamic.add(path.relative_to(ROOT).as_posix())
     assert dynamic <= REVIEWED_DYNAMIC_SQL, sorted(dynamic - REVIEWED_DYNAMIC_SQL)
 
 

@@ -106,7 +106,10 @@ class Git:
         self.root = root
 
     def _git(self, *args: str) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(["git", *args], cwd=self.root, capture_output=True, text=True)
+        # UTF-8 explicitly: the ledger and the files it cites are Georgian, and
+        # text=True alone decodes with the Windows ANSI codepage there.
+        return subprocess.run(["git", *args], cwd=self.root, capture_output=True, text=True,
+                              encoding="utf-8")
 
     def head(self) -> str:
         return self._git("rev-parse", "HEAD").stdout.strip()
