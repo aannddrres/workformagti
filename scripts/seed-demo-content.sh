@@ -64,7 +64,7 @@ article() {
  \"target_departments\":[\"საინფორმაციო\",\"ტექნიკური\"],\"status\":\"published\",
  \"published_at\":null,\"attachment_url\":null,\"audience_profile\":\"all\",
  \"visible_to_tech_info\":true,\"visible_to_service_center\":false,
- \"is_draft\":false,\"quiz_enabled\":false,\"notify_operators\":false}" > /dev/null
+ \"is_draft\":false,\"quiz_enabled\":false}" > /dev/null
 }
 
 article '"ინტერნეტი არ მუშაობს — პირველი ნაბიჯები"' \

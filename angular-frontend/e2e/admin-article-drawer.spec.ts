@@ -97,14 +97,7 @@ test('article drawer: what the form is set to is what gets saved', async ({ page
   await drawer.getByRole('button', { name: 'კომპიუტერი' }).click();
   await expect.poll(async () => (await frame.boundingBox())?.width ?? 0).toBeGreaterThan(360);
 
-  // --- notify operators, then save --------------------------------------
-  // Addressed through its label rather than as "the last checkbox": the quiz
-  // builder above it renders its own controls once it has a question.
-  const notify = drawer
-    .locator('label', { hasText: 'ოპერატორების შეტყობინება' })
-    .locator('input[type="checkbox"]');
-  await notify.check();
-
+  // --- save --------------------------------------------------------------
   await drawer.getByRole('button', { name: 'შენახვა' }).click();
   await expect(drawer).toHaveCount(0); // the drawer closes only on success
 

@@ -47,7 +47,6 @@ export interface ArticleRequest {
   visible_to_service_center: boolean;
   is_draft: boolean;
   quiz_enabled: boolean;
-  notify_operators?: boolean;
 }
 
 export interface ArticleCommandRequest {

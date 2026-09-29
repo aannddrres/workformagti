@@ -183,7 +183,6 @@ def main() -> int:
             "tags": None, "target_departments": ["All"], "status": "published", "published_at": None,
             "attachment_url": None, "audience_profile": "all", "visible_to_tech_info": True,
             "visible_to_service_center": False, "is_draft": False, "quiz_enabled": True,
-            "notify_operators": False,
         })
         article.raise_for_status()
         article_id = article.json()["id"]

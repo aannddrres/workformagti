@@ -97,7 +97,6 @@ export class ArticleEditDrawer {
   protected readonly mandatoryAllowed = computed(() => this.mandatoryReach() !== 'never' || this.wasMandatory());
   protected readonly dueBeforePublication = signal(false);
   protected readonly quizEnabled = signal(false);
-  protected readonly notifyOperators = signal(false);
   protected readonly audienceProfile = signal('all');
 
   protected readonly previewDevice = signal<'desktop' | 'mobile'>('desktop');
@@ -168,7 +167,6 @@ export class ArticleEditDrawer {
     this.dueBeforePublication.set(false);
     this.saveErrorDetails.set([]);
     this.quizEnabled.set(false);
-    this.notifyOperators.set(false);
     this.audienceProfile.set('all');
     this.saveError.set(null);
     this.departmentError.set(false);
@@ -206,7 +204,6 @@ export class ArticleEditDrawer {
         this.visibleServiceCenter.set(article.visible_to_service_center);
         this.quizEnabled.set(article.quiz_enabled);
         this.audienceProfile.set(article.audience_profile ?? 'all');
-        this.notifyOperators.set(false);
 
         queueMicrotask(() => {
           this.richTextEditor()?.setHtml(article.content);
@@ -389,8 +386,7 @@ export class ArticleEditDrawer {
       visible_to_tech_info: this.visibleTechInfo(),
       visible_to_service_center: this.visibleServiceCenter(),
       is_draft: false,
-      quiz_enabled: this.quizEnabled(),
-      notify_operators: this.notifyOperators()
+      quiz_enabled: this.quizEnabled()
     };
 
     this.saving.set(true);
