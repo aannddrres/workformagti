@@ -58,9 +58,7 @@
       "submit_button": "შესვლა",
       "submit_button_loading": "შესვლა...",
       "error_generic": "ავტორიზაცია ვერ მოხერხდა",
-      "email_placeholder": "სახელი.გვარი@magticom.ge",
-      "error_missing": "შეიყვანეთ ელ. ფოსტა და პაროლი",
-      "corporate_note": "პაროლს კომპანიის სისტემა ამოწმებს. პორტალი მას არ ინახავს."
+      "error_missing": "შეიყვანეთ ელ. ფოსტა და პაროლი"
     }
   },
   "users": {
