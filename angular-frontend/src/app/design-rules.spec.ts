@@ -240,4 +240,48 @@ describe('design rules', () => {
     const offenders = scan(/toLocale(?:Date|Time)?String\s*\(/g, () => true);
     expect(offenders).toEqual([]);
   });
+
+  /** DatePipe takes a free-form format string, and six templates each wrote
+   *  their own, so one day read `29.09.2026` in a table and `29 სექ. 2026` in
+   *  the row's history beside it. Templates use `kaDate`, whose shapes are the
+   *  four in ka-date.ts (owner decision კ4). */
+  it('shows dates in the four shapes ka-date.ts defines', () => {
+    const offenders = scan(/\|\s*date\b|\bDatePipe\b/g, () => true);
+    expect(offenders).toEqual([]);
+  });
+
+  /** Georgian has no case, but Chrome maps `text-transform: uppercase` onto
+   *  Mtavruli, the capital-only script -- so 42 labels, table headers and
+   *  section titles rendered in a letterform the rest of the page never used,
+   *  and letter-spacing (up to 0.18em) pulled the joined Georgian shapes
+   *  apart. Hierarchy comes from size, weight and colour instead
+   *  (owner decision კ2, 2026-09-29). */
+  it('never sets Georgian in capitals or spaces its letters', () => {
+    const utilities = scan(/(?<![\w-])(?:[a-z-]+:)*(?:uppercase|tracking-[^\s"'`]+)(?![\w-])/g, () => true);
+    const css = shippedSource(readFileSync(resolve(APP_ROOT, '../styles.css'), 'utf8'));
+    const sheet = [...css.matchAll(/text-transform:\s*uppercase|@apply[^;]*\b(?:uppercase|tracking-\S+)/g)].map(
+      (m) => `styles.css  ${m[0]}`,
+    );
+    expect([...utilities, ...sheet]).toEqual([]);
+  });
+
+  /** A page was named three times: the header bar repeated it, a red
+   *  `.portal-eyebrow` above the heading gave it a second name, and the H1 a
+   *  third -- "ჩემი სამუშაო რიგი" over "კონტენტის მართვა" on one screen. The
+   *  H1 is the name now (owner decision კ8). */
+  it('names a page once, in its heading', () => {
+    const eyebrow = scan(/portal-eyebrow/g, () => true);
+    const css = readFileSync(resolve(APP_ROOT, '../styles.css'), 'utf8');
+    expect([...eyebrow, ...(css.includes('portal-eyebrow') ? ['styles.css  portal-eyebrow'] : [])]).toEqual([]);
+  });
+
+  /** Tabs came in three looks: a black pill that became a white blob in dark
+   *  mode, a red pill and a red underline -- so the same control read as three
+   *  different things one click apart. Every tab is `.portal-tab`, and every
+   *  strip of them is `.portal-tabs` (owner decision კ5). */
+  it('draws every tab the same way', () => {
+    const tabs = scan(/<[a-z]+\b[^>]*\brole="tab"[^>]*>/g, (m) => !/class="[^"]*\bportal-tab\b/.test(m[0]));
+    const strips = scan(/<[a-z]+\b[^>]*\brole="tablist"[^>]*>/g, (m) => !/class="[^"]*\bportal-tabs\b/.test(m[0]));
+    expect([...tabs, ...strips]).toEqual([]);
+  });
 });

@@ -1,6 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { DatePipe } from '@angular/common';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { NewsService } from '../../../core/services/news.service';
 import { NewsSummary } from '../../../core/models/news';
@@ -8,6 +7,7 @@ import { NewsEditDrawer } from '../news-edit-drawer/news-edit-drawer';
 import { ToastService } from '../../../core/notifications/toast.service';
 import { ConfirmService } from '../../../core/notifications/confirm.service';
 import { createTableSort } from '../../../shared/table-sort';
+import { KaDatePipe } from '../../../shared/ka-date.pipe';
 
 /**
  * Port of #admin-news-table-container (base-layout.html:1853-1870) +
@@ -17,7 +17,7 @@ import { createTableSort } from '../../../shared/table-sort';
 @Component({
   selector: 'app-news-admin-table',
   standalone: true,
-  imports: [TranslatePipe, DatePipe, NewsEditDrawer],
+  imports: [TranslatePipe, KaDatePipe, NewsEditDrawer],
   templateUrl: './news-admin-table.html'
 })
 export class NewsAdminTable {

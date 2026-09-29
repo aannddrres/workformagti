@@ -7,7 +7,7 @@
         </span>
         <div class="min-w-0 flex-1">
           <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <strong class="text-xs uppercase tracking-wide">საერთო ინფორმაცია · {{ priorityLabel(announcement.priority) }}</strong>
+            <strong class="text-xs">საერთო ინფორმაცია · {{ priorityLabel(announcement.priority) }}</strong>
             <span class="text-xs opacity-70">მოქმედებს {{ dateTime(announcement.ends_at) }}-მდე</span>
           </div>
           <p class="mt-1 whitespace-pre-wrap break-words text-sm font-semibold leading-6">{{ announcement.message }}</p>

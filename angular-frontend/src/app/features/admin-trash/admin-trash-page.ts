@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { ContentTrashItem, TrashItemType } from '../../core/models/content-trash';
@@ -6,11 +5,12 @@ import { UserProfileService } from '../../core/auth/user-profile.service';
 import { ContentTrashService } from '../../core/services/content-trash.service';
 import { createTableSort } from '../../shared/table-sort';
 import { ConfirmService } from '../../core/notifications/confirm.service';
+import { KaDatePipe } from '../../shared/ka-date.pipe';
 
 @Component({
   selector: 'app-admin-trash-page',
   standalone: true,
-  imports: [DatePipe],
+  imports: [KaDatePipe],
   templateUrl: './admin-trash-page.html'
 })
 export class AdminTrashPage {

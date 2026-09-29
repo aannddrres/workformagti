@@ -1,32 +1,60 @@
 const pad2 = (part: number): string => String(part).padStart(2, '0');
 
-/**
- * Deterministic Georgian date, `DD.MM.YYYY`.
- *
- * This delegated to `toLocaleDateString('ka-GE', ...)` until 2026-09-08, which
- * is not safe: Chromium ships no `ka` CLDR data in several builds --
- * `Intl.DateTimeFormat.supportedLocalesOf(['ka-GE', 'ka'])` returns `[]` while
- * `de-DE` / `ru-RU` / `az-AZ` resolve -- so the call silently fell back to the
- * default locale and rendered the US month-first `08/19/2026` instead of
- * `19.08.2026`. On this portal that number is a mandatory-reading deadline, so
- * the ambiguity is not cosmetic. `formatKaDateTime` below already avoided Intl
- * for exactly this reason; the two now agree.
- */
-export function formatKaDate(iso: string): string {
-  const value = new Date(iso);
-  if (Number.isNaN(value.getTime())) return '—';
-  return `${pad2(value.getDate())}.${pad2(value.getMonth() + 1)}.${value.getFullYear()}`;
-}
-
 const KA_SHORT_MONTHS = ['იან.', 'თებ.', 'მარ.', 'აპრ.', 'მაი.', 'ივნ.', 'ივლ.', 'აგვ.', 'სექ.', 'ოქტ.', 'ნოე.', 'დეკ.'];
 
 /**
- * Deterministic Georgian date/time. Chromium builds without full Georgian
- * ICU data can silently fall back to English month names (`Aug`), so this
- * must not rely on locale availability in the workstation image.
+ * Every date the portal shows goes through this file, in one of four shapes
+ * (owner decision კ4, 2026-09-29):
+ *
+ *   formatKaDate            29 სექ. 2026
+ *   formatKaDateTime        29 სექ. 2026, 17:45
+ *   formatKaDateTimeSeconds 29 სექ. 2026, 17:45:08   -- the audit trail only
+ *   formatKaDayMonth        29 სექ.                  -- chart axes
+ *
+ * Before that the same day was `29.09.2026`, `2026-09-29` and
+ * `29 სექ. 2026, 17:45:08` depending on the screen, and seconds appeared on a
+ * reminder or a login time where nobody reads them.
+ *
+ * None of this delegates to `toLocaleDateString('ka-GE', ...)`, as the first
+ * version did until 2026-09-08. Chromium ships no `ka` CLDR data in several
+ * builds -- `Intl.DateTimeFormat.supportedLocalesOf(['ka-GE', 'ka'])` returns
+ * `[]` while `de-DE` resolves -- so the call silently fell back to the default
+ * locale and rendered the US month-first `08/19/2026`. On this portal that
+ * number is a mandatory-reading deadline, so the ambiguity is not cosmetic.
  */
-export function formatKaDateTime(iso: string): string {
-  const value = new Date(iso);
-  if (Number.isNaN(value.getTime())) return '—';
-  return `${pad2(value.getDate())} ${KA_SHORT_MONTHS[value.getMonth()]} ${value.getFullYear()}, ${pad2(value.getHours())}:${pad2(value.getMinutes())}:${pad2(value.getSeconds())}`;
+export function formatKaDate(value: string): string {
+  const date = parse(value);
+  if (!date) return '—';
+  return `${date.getDate()} ${KA_SHORT_MONTHS[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+export function formatKaDateTime(value: string): string {
+  const date = parse(value);
+  if (!date) return '—';
+  return `${formatKaDate(value)}, ${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+}
+
+/** Seconds matter only where events are ordered against each other. */
+export function formatKaDateTimeSeconds(value: string): string {
+  const date = parse(value);
+  if (!date) return '—';
+  return `${formatKaDateTime(value)}:${pad2(date.getSeconds())}`;
+}
+
+export function formatKaDayMonth(value: string): string {
+  const date = parse(value);
+  if (!date) return '—';
+  return `${date.getDate()} ${KA_SHORT_MONTHS[date.getMonth()]}`;
+}
+
+/**
+ * A bare `2026-09-29` -- a due date, a chart bucket -- is a calendar day, but
+ * `new Date('2026-09-29')` reads it as UTC midnight, which is the previous
+ * evening anywhere west of Greenwich. It is built from its parts instead.
+ */
+function parse(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  const date = day ? new Date(Number(day[1]), Number(day[2]) - 1, Number(day[3])) : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 }

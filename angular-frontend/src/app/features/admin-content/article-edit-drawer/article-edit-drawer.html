@@ -195,7 +195,7 @@
               </summary>
               <div class="mt-4 space-y-4 border-t border-slate-200 dark:border-slate-700 pt-4">
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-8">
-                  <span class="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest min-w-[80px]">{{ 'content.articles.department' | translate }}:</span>
+                  <span class="text-xs font-bold text-slate-600 dark:text-slate-400 min-w-[80px]">{{ 'content.articles.department' | translate }}:</span>
                   @for (d of departmentOrder; track d.key) {
                     <label class="flex items-center gap-2 cursor-pointer select-none">
                       <input type="checkbox" [checked]="deptChecked()[d.key]" (change)="toggleDepartment(d.key, $any($event.target).checked)" class="h-4 w-4 accent-brand" />

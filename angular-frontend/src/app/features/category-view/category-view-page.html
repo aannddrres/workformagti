@@ -45,7 +45,7 @@
   @if (childCategories().length > 0) {
     <section class="mb-8" [attr.aria-label]="'articles.category_view.subcategories' | translate">
       <h3
-        class="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-slate-600 dark:text-slate-400"
+        class="mb-3 text-xs font-bold text-slate-600 dark:text-slate-400"
       >
         {{ 'articles.category_view.subcategories' | translate }}
       </h3>
@@ -93,7 +93,7 @@
     </div>
   } @else if (rows().length === 0) {
     <p
-      class="rounded-lg border border-dashed border-slate-200 bg-white/40 p-8 text-center text-xs font-normal tracking-wide text-slate-600 dark:text-slate-400 dark:border-slate-700 dark:bg-slate-800/40"
+      class="rounded-lg border border-dashed border-slate-200 bg-white/40 p-8 text-center text-xs font-normal text-slate-600 dark:text-slate-400 dark:border-slate-700 dark:bg-slate-800/40"
     >
       {{ 'articles.category_view.empty_state' | translate }}
     </p>

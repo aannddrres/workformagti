@@ -1,7 +1,6 @@
 <div class="portal-page">
   <header class="portal-page-header">
     <div>
-      <p class="portal-eyebrow">ორგანიზაცია</p>
       <h1 class="portal-title">ლიდერების დანიშვნა</h1>
       <p class="portal-subtitle">PRIMARY და ACTING ლიდერები ჯგუფის ან დეპარტამენტის scope-ზე.</p>
     </div>
@@ -72,7 +71,7 @@
     } @else {
       <div class="overflow-x-auto">
         <table class="data-table">
-          <thead class="bg-slate-50 text-xs uppercase tracking-wider text-slate-600 dark:text-slate-400 dark:bg-slate-900">
+          <thead class="bg-slate-50 text-xs text-slate-600 dark:text-slate-400 dark:bg-slate-900">
             <tr><th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('leader')"><button type="button" class="sortable-header" (click)="sort.toggle('leader')">ლიდერი<i class="fa-solid" [class]="sort.icon('leader')" aria-hidden="true"></i></button></th><th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('scope')"><button type="button" class="sortable-header" (click)="sort.toggle('scope')">Scope<i class="fa-solid" [class]="sort.icon('scope')" aria-hidden="true"></i></button></th><th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('type')"><button type="button" class="sortable-header" (click)="sort.toggle('type')">ტიპი<i class="fa-solid" [class]="sort.icon('type')" aria-hidden="true"></i></button></th><th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('source')"><button type="button" class="sortable-header" (click)="sort.toggle('source')">წყარო<i class="fa-solid" [class]="sort.icon('source')" aria-hidden="true"></i></button></th><th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('status')"><button type="button" class="sortable-header" (click)="sort.toggle('status')">სტატუსი<i class="fa-solid" [class]="sort.icon('status')" aria-hidden="true"></i></button></th><th class="px-5 py-3"></th></tr>
           </thead>
           <tbody class="divide-y divide-slate-100 dark:divide-slate-800">

@@ -21,7 +21,7 @@
           <app-logo />
         </div>
         @if (sidebarCollapsed()) {
-          <span class="hidden h-9 w-9 items-center justify-center rounded-md bg-brand dark:bg-brand-700 text-xs font-bold tracking-wide text-white lg:flex">M</span>
+          <span class="hidden h-9 w-9 items-center justify-center rounded-md bg-brand dark:bg-brand-700 text-xs font-bold text-white lg:flex">M</span>
         }
         <button
           type="button"
@@ -38,7 +38,7 @@
           @if (sectionVisible(section)) {
             <section>
               <p
-                class="mb-2 px-3 text-xs font-bold uppercase tracking-[0.16em] text-slate-600 dark:text-slate-400"
+                class="mb-2 px-3 text-xs font-bold text-slate-600 dark:text-slate-400"
                 [class.lg:hidden]="sidebarCollapsed()"
               >{{ section.label | translate }}</p>
               <div class="space-y-1">
@@ -88,11 +88,6 @@
           class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 lg:hidden"
           [attr.aria-label]="'nav.sidebar.menu_open' | translate"
         ><i class="fa-solid fa-bars" aria-hidden="true"></i></button>
-
-        <div class="hidden min-w-0 shrink-0 xl:block">
-          <p class="truncate text-sm font-bold text-slate-800 dark:text-slate-100">{{ pageTitle() }}</p>
-          <p class="text-xs text-slate-600 dark:text-slate-400">ცოდნა და შესაბამისობა</p>
-        </div>
 
         <div class="mx-auto min-w-0 flex-1 lg:max-w-[760px]">
           <app-global-search />

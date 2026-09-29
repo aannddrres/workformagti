@@ -21,7 +21,7 @@
     <div class="space-y-8">
       @for (group of groups(); track group.type) {
         <div>
-          <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300">{{ groupLabel(group.type) }}</h3>
+          <h3 class="mb-3 text-base font-bold text-slate-800 dark:text-slate-100">{{ groupLabel(group.type) }}</h3>
           <div class="flex flex-col gap-2">
             @for (favorite of group.items; track favorite.id) {
               <article
@@ -29,7 +29,7 @@
               >
                 <button type="button" (click)="open(favorite)" class="absolute inset-0 z-0 rounded-lg focus-visible:outline-none" [attr.aria-label]="favorite.item_title"></button>
                 <div class="pointer-events-none relative z-[1] flex min-w-0 flex-1 items-center gap-3">
-                  <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-red-50 text-brand-accent dark:bg-red-950/30">
+                  <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                     <i class="fa-solid" [class]="iconFor(favorite.item_type)" aria-hidden="true"></i>
                   </div>
                   <span class="truncate font-normal text-slate-800 dark:text-slate-100">{{ favorite.item_title }}</span>

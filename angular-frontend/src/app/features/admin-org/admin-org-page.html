@@ -1,7 +1,6 @@
 <div class="portal-page">
   <header class="portal-page-header">
     <div>
-      <p class="portal-eyebrow">ორგანიზაცია</p>
       <h1 class="portal-title">ორგანიზაციული სტრუქტურა</h1>
       <p class="portal-subtitle">დეპარტამენტები, ჯგუფები და აქტიური წევრების რაოდენობა.</p>
     </div>
@@ -42,7 +41,7 @@
       @for (department of org.departments; track department.id) {
         <section class="surface-card overflow-hidden">
           <header class="border-b border-slate-200 px-5 py-4 dark:border-slate-700">
-            <p class="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">{{ department.stable_key }}</p>
+            <p class="text-xs font-bold text-slate-600 dark:text-slate-400">{{ department.stable_key }}</p>
             <h2 class="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">{{ department.name }}</h2>
           </header>
           <ul class="divide-y divide-slate-100 dark:divide-slate-800">

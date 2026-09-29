@@ -1,9 +1,9 @@
 import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ArticlesService } from '../../../core/services/articles.service';
 import { ArticleDiff, ArticleVersionItem } from '../../../core/models/article-history';
 import { PortalDialog } from '../../../shared/portal-dialog/portal-dialog';
+import { KaDatePipe } from '../../../shared/ka-date.pipe';
 
 /**
  * Reader-facing "ვერსიების ისტორია" overlay -- port of app-core.js's
@@ -19,7 +19,7 @@ import { PortalDialog } from '../../../shared/portal-dialog/portal-dialog';
 @Component({
   selector: 'app-article-version-history-overlay',
   standalone: true,
-  imports: [TranslatePipe, DatePipe, PortalDialog],
+  imports: [TranslatePipe, KaDatePipe, PortalDialog],
   templateUrl: './article-version-history-overlay.html'
 })
 export class ArticleVersionHistoryOverlay {

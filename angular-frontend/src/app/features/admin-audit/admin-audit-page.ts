@@ -15,7 +15,7 @@ import {
   parseUserAgent,
   withCategoryToken
 } from '../../shared/audit-format';
-import { formatKaDateTime } from '../../shared/ka-date';
+import { formatKaDateTimeSeconds } from '../../shared/ka-date';
 import { auditDatePreset } from './audit-date-presets';
 
 const PAGE_SIZE = 50;
@@ -102,7 +102,7 @@ export class AdminAuditPage {
   protected readonly itemTypeLabel = formatAuditItemType;
   protected readonly itemNameLabel = (type: string | null | undefined, name: string | null | undefined) =>
     formatAuditItemName(type, name, key => this.translate.instant(key));
-  protected readonly formatTimestamp = formatKaDateTime;
+  protected readonly formatTimestamp = formatKaDateTimeSeconds;
 
   load(): void {
     this.loading.set(true);

@@ -1,11 +1,11 @@
 import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ArticlesService } from '../../../core/services/articles.service';
 import { ArticleDiff, ArticleHistorySummaryItem } from '../../../core/models/article-history';
 import { PortalDialog } from '../../../shared/portal-dialog/portal-dialog';
 import { ConfirmService } from '../../../core/notifications/confirm.service';
 import { ToastService } from '../../../core/notifications/toast.service';
+import { KaDatePipe } from '../../../shared/ka-date.pipe';
 
 /**
  * Port of the admin-only "ისტორია" action (frontend_api.js:615) +
@@ -25,7 +25,7 @@ import { ToastService } from '../../../core/notifications/toast.service';
 @Component({
   selector: 'app-article-history-modal',
   standalone: true,
-  imports: [TranslatePipe, DatePipe, PortalDialog],
+  imports: [TranslatePipe, KaDatePipe, PortalDialog],
   templateUrl: './article-history-modal.html'
 })
 export class ArticleHistoryModal {

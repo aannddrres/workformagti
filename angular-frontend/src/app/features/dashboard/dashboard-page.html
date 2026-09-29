@@ -25,8 +25,8 @@
   } @else if (needsAttention()) {
     <section class="mb-6" [attr.aria-label]="'dashboard.priority.aria' | translate">
       <div class="mb-3 flex items-center gap-2">
-        <i class="fa-solid fa-triangle-exclamation text-brand-accent" aria-hidden="true"></i>
-        <h2 class="text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300">
+        <i class="fa-solid fa-triangle-exclamation text-red-700 dark:text-red-400" aria-hidden="true"></i>
+        <h2 class="text-base font-bold text-slate-800 dark:text-slate-100">
           {{ 'dashboard.priority.heading' | translate }}
         </h2>
       </div>
@@ -54,7 +54,7 @@
     <div
       class="mb-6 overflow-hidden rounded-lg bg-gradient-to-br from-brand to-brand-700 px-6 py-8 text-white"
     >
-      <h2 class="text-2xl font-bold tracking-tight">
+      <h2 class="text-2xl font-bold">
         {{ 'dashboard.banner_heading' | translate }}
       </h2>
       <p class="mt-1 text-sm text-white/80">{{ 'dashboard.banner_subtitle' | translate }}</p>

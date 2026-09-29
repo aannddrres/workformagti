@@ -1,8 +1,8 @@
 import { DecimalPipe } from '@angular/common';
 import { Component, HostListener, OnDestroy, inject, signal } from '@angular/core';
-import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import { AuthService } from '../core/auth/auth.service';
 import { ThemeService } from '../core/theme/theme.service';
 import { Logo } from '../shared/logo/logo';
@@ -44,12 +44,10 @@ function pathOf(url: string): string {
 export class AppShell implements OnDestroy {
   protected readonly profiles = inject(UserProfileService);
   protected readonly auth = inject(AuthService);
-  protected readonly translate = inject(TranslateService);
   protected readonly theme = inject(ThemeService);
   protected readonly fontScale = inject(FontScaleService);
   protected readonly idleSession = inject(IdleSessionService);
   private readonly router = inject(Router);
-  private readonly route = inject(ActivatedRoute);
   private readonly loginPage = inject(LoginPage);
   private readonly mobileViewport = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
     ? window.matchMedia('(max-width: 1023px)')
@@ -61,7 +59,6 @@ export class AppShell implements OnDestroy {
   protected readonly sidebarCollapsed = signal(localStorage.getItem('magti_sidebar_collapsed') === 'true');
   protected readonly fontMenuOpen = signal(false);
   protected readonly accountMenuOpen = signal(false);
-  protected readonly pageTitle = signal('');
   /** The path part of the current URL; decides which menu entry is marked. */
   protected readonly currentPath = signal(pathOf(this.router.url));
   protected readonly activeLinkClass =
@@ -108,7 +105,6 @@ export class AppShell implements OnDestroy {
       this.currentPath.set(pathOf(event.urlAfterRedirects));
       this.mobileMenuOpen.set(false);
       this.closeMenus();
-      this.updatePageTitle();
     });
 
     // Warm both display profile and effective access on first paint. Without
@@ -117,7 +113,6 @@ export class AppShell implements OnDestroy {
     this.profiles.ensureLoaded().subscribe();
     this.profiles.ensureAccessLoaded().subscribe();
     this.idleSession.start();
-    this.updatePageTitle();
   }
 
   ngOnDestroy(): void {
@@ -219,24 +214,5 @@ export class AppShell implements OnDestroy {
 
   logout(): void {
     this.auth.logout().subscribe(() => this.loginPage.open());
-  }
-
-  private updatePageTitle(): void {
-    let active = this.route;
-    let child = active.firstChild;
-    while (child) {
-      active = child;
-      child = active.firstChild;
-    }
-    const titleKey = active.snapshot?.data?.['title'] as string | undefined;
-    if (!titleKey) {
-      this.translate.get('nav.sidebar.home').subscribe((title) => this.pageTitle.set(title));
-      return;
-    }
-
-    // `instant()` returns the raw key when the async locale file has not
-    // arrived yet (most visible on a hard refresh of a deep article link).
-    // `get()` waits for the active translation and completes after one value.
-    this.translate.get(titleKey).subscribe((title) => this.pageTitle.set(title));
   }
 }

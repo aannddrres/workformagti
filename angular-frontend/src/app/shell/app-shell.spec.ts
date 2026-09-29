@@ -1,7 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { ActivatedRoute, provideRouter } from '@angular/router';
+import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
-import { TranslateService } from '@ngx-translate/core';
 import { AppShell } from './app-shell';
 import { AuthService } from '../core/auth/auth.service';
 import { EffectiveAccess } from '../core/models/user';
@@ -24,10 +23,8 @@ describe('AppShell effective-access navigation', () => {
         provideRouter([]),
         { provide: AuthService, useValue: { currentUser: () => ({ role, email: 'x@magti.ge' }) } },
         { provide: UserProfileService, useValue: profiles },
-        { provide: TranslateService, useValue: { get: () => of('') } },
         { provide: ThemeService, useValue: {} },
-        { provide: FontScaleService, useValue: {} },
-        { provide: ActivatedRoute, useValue: { firstChild: null, snapshot: { data: {} } } }
+        { provide: FontScaleService, useValue: {} }
       ]
     });
     return TestBed.runInInjectionContext(() => new AppShell());

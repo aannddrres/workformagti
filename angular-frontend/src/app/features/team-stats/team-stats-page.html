@@ -42,12 +42,12 @@
     </div>
   } @else if (errorMessage()) {
     <div class="rounded-lg border border-slate-100 bg-white p-8 text-center text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-400">
-      <i class="fa-solid fa-triangle-exclamation mr-1.5 text-brand-accent" aria-hidden="true"></i>{{ errorMessage() }}
+      <i class="fa-solid fa-triangle-exclamation mr-1.5 text-red-700 dark:text-red-400" aria-hidden="true"></i>{{ errorMessage() }}
     </div>
   } @else if (dashboard(); as data) {
     <div class="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
       <div class="rounded-lg border border-slate-100 bg-white p-5 shadow-e1 dark:border-slate-800 dark:bg-slate-900/60">
-        <p class="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">{{ 'manager.page.ribbon_compliance' | translate }}</p>
+        <p class="text-xs font-semibold text-slate-600 dark:text-slate-400">{{ 'manager.page.ribbon_compliance' | translate }}</p>
         <p class="mt-3 text-2xl font-semibold tabular-nums text-slate-800 dark:text-slate-100">{{ data.insights.global_compliance }}%</p>
         <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">{{ 'manager.page.ribbon_compliance_hint' | translate: { count: data.insights.total_members } }}</p>
       </div>
@@ -58,15 +58,15 @@
         role="button"
         class="cursor-pointer rounded-lg border border-slate-100 bg-white p-5 shadow-e1 transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900/60 dark:hover:bg-slate-800/80"
       >
-        <p class="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">{{ 'manager.page.ribbon_critical' | translate }}</p>
+        <p class="text-xs font-semibold text-slate-600 dark:text-slate-400">{{ 'manager.page.ribbon_critical' | translate }}</p>
         <p
           class="mt-3 text-2xl font-semibold tabular-nums"
-          [class]="data.insights.critical_operators > 0 ? 'text-brand-accent dark:text-red-400' : 'text-slate-800 dark:text-slate-100'"
+          [class]="data.insights.critical_operators > 0 ? 'text-red-700 dark:text-red-400' : 'text-slate-800 dark:text-slate-100'"
         >{{ data.insights.critical_operators }}</p>
         <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">{{ 'manager.page.ribbon_critical_hint' | translate }}</p>
       </div>
       <div class="rounded-lg border border-slate-100 bg-white p-5 shadow-e1 dark:border-slate-800 dark:bg-slate-900/60">
-        <p class="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">{{ 'manager.page.ribbon_output' | translate }}</p>
+        <p class="text-xs font-semibold text-slate-600 dark:text-slate-400">{{ 'manager.page.ribbon_output' | translate }}</p>
         <p class="mt-3 text-2xl font-semibold tabular-nums text-slate-800 dark:text-slate-100">{{ data.insights.total_output_volume }}</p>
         <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">{{ 'manager.page.ribbon_output_hint' | translate }}</p>
       </div>
@@ -88,16 +88,16 @@
           <div class="flex flex-col rounded-lg border border-slate-100 bg-white p-5 shadow-e1 dark:border-slate-800 dark:bg-slate-900/60">
             <div class="mb-1 flex items-start justify-between gap-2">
               <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100">{{ dept.name }}</h3>
-              <span class="shrink-0 text-2xl font-semibold tabular-nums" [class]="tierText(dept.compliance, true)">{{ dept.compliance }}%</span>
+              <span class="inline-flex shrink-0 items-center gap-1.5 text-2xl font-semibold tabular-nums" [class]="tierText(dept.compliance)">@if (tierIcon(dept.compliance); as icon) { <i class="fa-solid text-base" [class]="icon" aria-hidden="true"></i> }{{ dept.compliance }}%</span>
             </div>
             <p class="mb-3 text-xs text-slate-600 dark:text-slate-400">
               {{ 'manager.page.dept_meta' | translate: { groups: dept.group_count, members: dept.member_count } }}
               @if (dept.critical_count > 0) {
-                · <span class="font-semibold text-brand-accent dark:text-red-400">{{ 'manager.page.critical_count' | translate: { count: dept.critical_count } }}</span>
+                · <span class="font-semibold text-red-700 dark:text-red-400">{{ 'manager.page.critical_count' | translate: { count: dept.critical_count } }}</span>
               }
             </p>
             <div class="mb-4 h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-              <div class="h-full rounded-full transition-[width] duration-slow" [class]="tierBar(dept.compliance, true)" [style.width.%]="dept.compliance"></div>
+              <div class="h-full rounded-full transition-[width] duration-slow" [class]="tierBar(dept.compliance)" [style.width.%]="dept.compliance"></div>
             </div>
             <div class="divide-y divide-slate-50 dark:divide-slate-800/70">
               @for (group of sortedGroups(dept); track group.name) {
@@ -113,11 +113,11 @@
                       {{ group.name }}
                       <span class="ml-1.5 text-xs font-normal text-slate-600 dark:text-slate-400">· {{ group.member_count }}</span>
                       @if (group.critical_count > 0) {
-                        <span class="ml-2 inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-brand-accent dark:bg-red-950/40 dark:text-red-400">{{ 'manager.page.critical_badge' | translate: { count: group.critical_count } }}</span>
+                        <span class="ml-2 inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-400">{{ 'manager.page.critical_badge' | translate: { count: group.critical_count } }}</span>
                       }
                     </span>
                     <span class="inline-flex shrink-0 items-center gap-1.5">
-                      <span class="font-semibold tabular-nums" [class]="pctColorClass(group.compliance)">{{ group.compliance }}%</span>
+                      <span class="inline-flex items-center gap-1 font-semibold tabular-nums" [class]="tierText(group.compliance, group.member_count > 0)">@if (tierIcon(group.compliance, group.member_count > 0); as icon) { <i class="fa-solid text-xs" [class]="icon" aria-hidden="true"></i> }{{ group.compliance }}%</span>
                       <i class="fa-solid fa-chevron-right text-xs text-slate-600 dark:text-slate-400" aria-hidden="true"></i>
                     </span>
                   </div>
@@ -242,7 +242,7 @@
         } @else {
           <table class="w-full text-left">
             <thead>
-              <tr class="border-b border-slate-100 text-xs font-semibold uppercase text-slate-600 dark:border-slate-700 dark:text-slate-400">
+              <tr class="border-b border-slate-100 text-xs font-semibold text-slate-600 dark:border-slate-700 dark:text-slate-400">
                 <th class="pb-2 pr-3">{{ 'manager.page.col_name' | translate }}</th>
                 <th class="pb-2 pr-3">{{ 'manager.page.col_department' | translate }}</th>
                 <th class="pb-2 text-right">{{ 'manager.page.col_overdue' | translate }}</th>
@@ -294,7 +294,7 @@
         } @else {
           <table class="w-full text-left">
             <thead>
-              <tr class="border-b border-slate-100 text-xs font-semibold uppercase text-slate-600 dark:border-slate-700 dark:text-slate-400">
+              <tr class="border-b border-slate-100 text-xs font-semibold text-slate-600 dark:border-slate-700 dark:text-slate-400">
                 <th class="pb-2 pr-3">{{ 'manager.page.col_name' | translate }}</th>
                 <th class="pb-2 text-right">{{ 'manager.page.col_completion' | translate }}</th>
                 <th class="pb-2 text-right">შეხსენება</th>
@@ -307,9 +307,9 @@
                   <td class="py-2.5 pr-3">
                     <div class="flex items-center justify-end gap-2">
                       <div class="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                        <div class="h-full rounded-full" [class]="memberBarClass(u.completion_percentage)" [style.width.%]="u.completion_percentage < 100 ? u.completion_percentage : 100"></div>
+                        <div class="h-full rounded-full" [class]="tierBar(u.completion_percentage)" [style.width.%]="u.completion_percentage < 100 ? u.completion_percentage : 100"></div>
                       </div>
-                      <span class="text-sm font-semibold tabular-nums" [class]="pctColorClass(u.completion_percentage)">{{ u.completion_percentage }}%</span>
+                      <span class="inline-flex items-center gap-1 text-sm font-semibold tabular-nums" [class]="tierText(u.completion_percentage)">@if (tierIcon(u.completion_percentage); as icon) { <i class="fa-solid text-xs" [class]="icon" aria-hidden="true"></i> }{{ u.completion_percentage }}%</span>
                     </div>
                   </td>
                   <td class="py-2.5 text-right">

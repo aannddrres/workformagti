@@ -1,5 +1,4 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ArticlesService } from '../../core/services/articles.service';
 import { CategoriesService } from '../../core/services/categories.service';
@@ -21,6 +20,7 @@ import { ConfirmRequest, ConfirmService } from '../../core/notifications/confirm
 import { RequiredReadingService } from '../../core/services/required-reading.service';
 import { lossLines, mandatoryLoss } from '../../shared/mandatory-reach';
 import { createTableSort } from '../../shared/table-sort';
+import { KaDatePipe } from '../../shared/ka-date.pipe';
 
 type ContentType = 'all' | 'article' | 'news' | 'video';
 type QueueRow = {
@@ -58,7 +58,7 @@ const STATUS_BADGE: Record<string, string> = {
 @Component({
   selector: 'app-admin-content-page',
   standalone: true,
-  imports: [TranslatePipe, DatePipe, ArticleEditDrawer, ArticleHistoryModal, NewsEditDrawer, VideoEditDrawer],
+  imports: [TranslatePipe, KaDatePipe, ArticleEditDrawer, ArticleHistoryModal, NewsEditDrawer, VideoEditDrawer],
   templateUrl: './admin-content-page.html'
 })
 export class AdminContentPage {
@@ -298,12 +298,6 @@ export class AdminContentPage {
     this.activeTab.set(tab);
     this.currentPage.set(1);
     this.updateUrl();
-  }
-
-  protected tabClass(tab: ContentType): string {
-    return this.activeTab() === tab
-      ? 'border-b-2 border-brand-accent px-4 pb-3 text-sm font-semibold text-brand-accent'
-      : 'border-b-2 border-transparent px-4 pb-3 text-sm font-normal text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100';
   }
 
   protected pageButtonClass(page: number): string {
