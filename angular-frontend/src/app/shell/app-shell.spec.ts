@@ -110,4 +110,23 @@ describe('AppShell effective-access navigation', () => {
     });
     expect(visible(employee, '/admin/broadcasts')).toBe(false);
   });
+
+  // routerLinkActive marked every prefix, so the leaders page lit the
+  // structure entry as well as its own.
+  it('marks only the deepest menu entry the current page sits under', () => {
+    const admin = shellFor('admin', { role: 'admin', permissions: [], bypass: true, can_publish_announcement: true });
+    const active = (url: string, path: string): boolean => {
+      (admin as any).currentPath.set(url);
+      return (admin as any).isActive(link(admin, path));
+    };
+
+    expect(active('/admin/org/assignments', '/admin/org/assignments')).toBe(true);
+    expect(active('/admin/org/assignments', '/admin/org')).toBe(false);
+    expect(active('/admin/org', '/admin/org')).toBe(true);
+    expect(active('/admin/org/backfill', '/admin/org')).toBe(true);
+    expect(active('/news/12', '/news')).toBe(true);
+    expect(active('/news', '/')).toBe(false);
+    expect(active('/', '/')).toBe(true);
+    expect(active('/newsletter', '/news')).toBe(false);
+  });
 });

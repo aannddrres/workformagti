@@ -3,6 +3,7 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { CategoriesService } from '../../core/services/categories.service';
 import { Category, CategoryRequest } from '../../core/models/category';
 import { ConfirmService } from '../../core/notifications/confirm.service';
+import { categoryIconClass } from '../../shared/category-visuals';
 
 const PASTEL_COLOR_OPTIONS = [
   { value: 'general', labelKey: 'categories.color_general' },
@@ -83,7 +84,12 @@ export class AdminCategoriesPage {
     this.topLevelCategories().filter((c) => c.id !== this.editingId())
   );
 
-  protected readonly iconPreviewClass = computed(() => 'fa-solid ' + (this.icon().trim() || 'fa-layer-group'));
+  // The preview draws the icon operators will actually get, fallback included.
+  // An empty field used to preview a layer icon while the tile showed the
+  // name-based fallback instead.
+  protected readonly iconPreviewClass = computed(
+    () => 'fa-solid ' + categoryIconClass({ name: this.name(), icon: this.icon() })
+  );
 
   constructor() {
     this.load();

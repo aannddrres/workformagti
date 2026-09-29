@@ -90,9 +90,9 @@ test('article drawer: what the form is set to is what gets saved', async ({ page
   // previewFrameClass() puts the mobile frame at a literal w-[360px]
   // (article-edit-drawer.ts:239-242), so the assertion is the measured
   // width, not the class string.
-  await drawer.getByRole('button', { name: 'Mobile' }).click();
+  await drawer.getByRole('button', { name: 'მობილური' }).click();
   await expect.poll(async () => (await frame.boundingBox())?.width).toBe(360);
-  await drawer.getByRole('button', { name: 'Desktop' }).click();
+  await drawer.getByRole('button', { name: 'კომპიუტერი' }).click();
   await expect.poll(async () => (await frame.boundingBox())?.width ?? 0).toBeGreaterThan(360);
 
   // --- notify operators, then save --------------------------------------

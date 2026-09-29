@@ -46,8 +46,8 @@
                   @if (canSee(link)) {
                     <a
                       [routerLink]="link.path"
-                      routerLinkActive="bg-brand/[0.08] text-brand-accent before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-r before:bg-brand dark:bg-brand/15 dark:text-red-300"
-                      [routerLinkActiveOptions]="{ exact: link.path === '/' }"
+                      [class]="isActive(link) ? activeLinkClass : ''"
+                      [attr.aria-current]="isActive(link) ? 'page' : null"
                       [title]="sidebarCollapsed() ? (link.label | translate) : ''"
                       class="relative flex min-h-10 items-center gap-3 rounded-md px-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                     >

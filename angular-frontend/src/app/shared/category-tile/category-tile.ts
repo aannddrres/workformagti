@@ -2,7 +2,7 @@ import { Component, computed, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Category } from '../../core/models/category';
-import { getCategoryIcon } from '../category-visuals';
+import { categoryIconClass } from '../category-visuals';
 
 /**
  * Reused for both the dashboard's category grid and the KB page's bento
@@ -23,7 +23,7 @@ export class CategoryTile {
   readonly articleCount = input(0);
   readonly hasRecent = input(false);
 
-  protected readonly icon = computed(() => this.category().icon || getCategoryIcon(this.category().name, ''));
+  protected readonly icon = computed(() => categoryIconClass(this.category()));
   /** Historical rows may predate mandatory slugs; the category page already accepts an ID route. */
   protected readonly routeKey = computed(() => this.category().slug?.trim() || String(this.category().id));
 }

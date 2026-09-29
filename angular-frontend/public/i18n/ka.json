@@ -282,7 +282,7 @@
       "dept_all": "ყველა დეპარტამენტი",
       "dept_general": "საერთო",
       "dept_tech": "ტექნიკური",
-      "dept_info": "საინფო",
+      "dept_info": "საინფორმაციო",
       "dept_office": "ოფისი",
       "sort_newest": "უახლესი ჯერ",
       "sort_oldest": "უძველესი ჯერ",
@@ -561,7 +561,7 @@
     },
     "status": {
       "published": "გამოქვეყნებული",
-      "draft": "დრაფტი",
+      "draft": "მონახაზი",
       "scheduled": "დაგეგმილი",
       "archived": "არქივი"
     },
@@ -604,6 +604,8 @@
       "department_required": "აირჩიეთ მინიმუმ ერთი დეპარტამენტი",
       "notify_operators": "ოპერატორების შეტყობინება",
       "preview": "წინასწარი ნახვა",
+      "preview_desktop": "კომპიუტერი",
+      "preview_mobile": "მობილური",
       "preview_title_placeholder": "სათაური",
       "confirm_delete": "სტატია 30-დღიან აღდგენად სანაგვეში გადავიდეს?",
       "confirm_archive_one": "ნამდვილად გსურთ ამ სტატიის დაარქივება? ის აღარ გამოჩნდება ოპერატორებისთვის.",
@@ -702,6 +704,11 @@
       "prev_label": "წინა გვერდი",
       "next_label": "შემდეგი გვერდი",
       "last_label": "ბოლო გვერდი"
+    },
+    "queue": {
+      "load_failed": "კონტენტი ვერ ჩაიტვირთა.",
+      "partial_load_failed": "კონტენტის ნაწილი ვერ ჩაიტვირთა — სია შეიძლება არასრული იყოს.",
+      "retry": "თავიდან ცდა"
     }
   },
   "categories": {

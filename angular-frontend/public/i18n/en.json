@@ -604,6 +604,8 @@
       "department_required": "Select at least one department",
       "notify_operators": "Notify operators",
       "preview": "Preview",
+      "preview_desktop": "Desktop",
+      "preview_mobile": "Mobile",
       "preview_title_placeholder": "Title",
       "confirm_delete": "Move this article to the recoverable 30-day trash?",
       "confirm_archive_one": "Archive this article? It will no longer appear in the operator knowledge base.",
@@ -702,6 +704,11 @@
       "prev_label": "Previous page",
       "next_label": "Next page",
       "last_label": "Last page"
+    },
+    "queue": {
+      "load_failed": "Content could not be loaded.",
+      "partial_load_failed": "Part of the content could not be loaded — the list may be incomplete.",
+      "retry": "Try again"
     }
   },
   "categories": {

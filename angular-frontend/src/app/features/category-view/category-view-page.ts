@@ -8,7 +8,7 @@ import { Category } from '../../core/models/category';
 import { ArticleSummary } from '../../core/models/article';
 import { ArticleCard, ArticleCardViewModel } from '../../shared/article-card/article-card';
 import { CategoryTile } from '../../shared/category-tile/category-tile';
-import { getCategoryIcon } from '../../shared/category-visuals';
+import { categoryIconClass } from '../../shared/category-visuals';
 import {
   buildRecursiveCategoryCounts,
   categoryPath,
@@ -58,7 +58,7 @@ export class CategoryViewPage {
 
   protected readonly icon = computed(() => {
     const cat = this.category();
-    return cat?.icon || getCategoryIcon(cat?.name, '');
+    return categoryIconClass(cat);
   });
 
   constructor() {

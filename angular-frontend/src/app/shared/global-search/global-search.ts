@@ -19,6 +19,7 @@ import { detailRouteFor, iconForContentType } from '../content-type-visuals';
 import { CategoriesService } from '../../core/services/categories.service';
 import { Category } from '../../core/models/category';
 import { categoryPath } from '../category-tree';
+import { formatDepartmentLabel } from '../department-badge';
 import { PortalDialog } from '../portal-dialog/portal-dialog';
 
 /**
@@ -211,6 +212,11 @@ export class GlobalSearch {
   }
 
   protected contextFor(hit: SearchHit): string | null {
+    // A news hit's context is its stored department value, so a company-wide
+    // item printed the identifier "All" under its title.
+    if (hit.itemType === 'news') {
+      return hit.context ? formatDepartmentLabel(hit.context) : null;
+    }
     if (hit.itemType !== 'article') {
       return hit.context;
     }
@@ -219,6 +225,7 @@ export class GlobalSearch {
       .join(' › ');
     const departments = (hit.targetDepartments ?? [])
       .filter((department) => department !== 'All')
+      .map(formatDepartmentLabel)
       .join(', ');
     return [path || hit.context, departments].filter(Boolean).join(' · ') || null;
   }

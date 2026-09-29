@@ -150,6 +150,18 @@ def normalize_department(value: str | None) -> str:
     return DEPARTMENT_MAP[normalized]
 
 
+def normalize_category_icon(value: str | None) -> str | None:
+    """A Font Awesome class, or None so the portal falls back to its own.
+
+    The source stores ``fa_wifi`` for roaming, an underscore where Font
+    Awesome has a hyphen; copied verbatim it drew an empty square on every
+    category tile. The Angular side repairs the same value on display
+    (``categoryIconClass``); this keeps it out of the production database.
+    """
+    icon = (value or "").strip().replace("_", "-")
+    return icon if re.fullmatch(r"fa-[a-z0-9-]+", icon) else None
+
+
 def open_source_database(path: Path) -> sqlite3.Connection:
     resolved = path.resolve()
     uri = resolved.as_uri() + "?mode=ro&immutable=1"

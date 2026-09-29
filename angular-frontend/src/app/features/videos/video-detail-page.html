@@ -38,8 +38,9 @@
         <video class="aspect-video w-full" [src]="v.video_url" controls></video>
       }
     </div>
-    <div class="mt-4 flex items-center justify-between rounded-lg border border-slate-100 bg-white p-4 shadow-e1 dark:border-slate-800 dark:bg-slate-900">
-      <h1 class="text-xl font-bold text-slate-900 dark:text-slate-100">{{ v.title }}</h1>
+    <div class="mt-4 flex items-center justify-between gap-4 rounded-lg border border-slate-100 bg-white p-4 shadow-e1 dark:border-slate-800 dark:bg-slate-900">
+      <!-- Same size as the article and news titles; it was one step smaller. -->
+      <h1 class="text-2xl font-bold leading-snug text-slate-900 dark:text-slate-100">{{ v.title }}</h1>
       <span class="shrink-0 text-sm text-slate-600 dark:text-slate-400">
         <i class="fa-solid fa-eye mr-1"></i>{{ 'videos.page.views_label' | translate: { count: v.views_count } }}
       </span>

@@ -84,6 +84,12 @@ export class AdminContentPage {
   protected readonly newsLoading = signal(true);
   protected readonly videosLoading = signal(true);
   protected readonly queueLoading = computed(() => this.loading() || this.newsLoading() || this.videosLoading());
+  // A failed request used to end in the empty-list message ("nothing matches
+  // your filters"), so an outage looked like an empty CMS.
+  protected readonly articlesFailed = signal(false);
+  protected readonly newsFailed = signal(false);
+  protected readonly videosFailed = signal(false);
+  protected readonly queueFailed = computed(() => this.articlesFailed() || this.newsFailed() || this.videosFailed());
 
   protected readonly searchQuery = signal('');
   protected readonly categoryFilter = signal<number | null>(null);
@@ -242,17 +248,24 @@ export class AdminContentPage {
   private loadNews(): void {
     this.newsLoading.set(true);
     this.newsService.listAdmin().subscribe({
-      next: (items) => { this.news.set(items); this.newsLoading.set(false); },
-      error: () => { this.newsLoading.set(false); this.toast.error('სიახლეების რიგი ვერ ჩაიტვირთა'); }
+      next: (items) => { this.news.set(items); this.newsFailed.set(false); this.newsLoading.set(false); },
+      error: () => { this.newsFailed.set(true); this.newsLoading.set(false); this.toast.error('სიახლეების რიგი ვერ ჩაიტვირთა'); }
     });
   }
 
   private loadVideos(): void {
     this.videosLoading.set(true);
     this.videosService.list().subscribe({
-      next: (items) => { this.videos.set(items); this.videosLoading.set(false); },
-      error: () => { this.videosLoading.set(false); this.toast.error('ვიდეოების რიგი ვერ ჩაიტვირთა'); }
+      next: (items) => { this.videos.set(items); this.videosFailed.set(false); this.videosLoading.set(false); },
+      error: () => { this.videosFailed.set(true); this.videosLoading.set(false); this.toast.error('ვიდეოების რიგი ვერ ჩაიტვირთა'); }
     });
+  }
+
+  /** Reloads only the sources that failed. */
+  protected retryQueue(): void {
+    if (this.articlesFailed()) this.loadArticles();
+    if (this.newsFailed()) this.loadNews();
+    if (this.videosFailed()) this.loadVideos();
   }
 
   protected loadCategories(): void {
@@ -270,10 +283,14 @@ export class AdminContentPage {
     this.articlesService.listAdmin().subscribe({
       next: (data) => {
         this.articles.set(data);
+        this.articlesFailed.set(false);
         this.loading.set(false);
         this.selection.set(new Set());
       },
-      error: () => this.loading.set(false)
+      error: () => {
+        this.articlesFailed.set(true);
+        this.loading.set(false);
+      }
     });
   }
 

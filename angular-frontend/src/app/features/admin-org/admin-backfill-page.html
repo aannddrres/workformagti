@@ -2,7 +2,7 @@
   <header class="portal-page-header">
     <div>
       <p class="portal-eyebrow">Cutover evidence</p>
-      <h1 class="portal-title">Backfill და policy shadow-e1</h1>
+      <h1 class="portal-title">Backfill და policy shadow</h1>
       <p class="portal-subtitle">რეკონსილიაციის ანგარიში და policy decision-ების რეალურად გავლის მტკიცებულება.</p>
     </div>
     <div class="flex gap-2"><a routerLink="/admin/org" class="secondary-button">სტრუქტურა</a><a routerLink="/admin/org/assignments" class="secondary-button">დანიშვნები</a></div>
@@ -14,7 +14,7 @@
   </section>
 
   @if (error(); as message) {
-    <p class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ message }}</p>
+    <p class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">{{ message }}</p>
   }
   @if (loading()) {
     <div class="p-8 text-center text-sm text-slate-600 dark:text-slate-400">იტვირთება…</div>
@@ -50,7 +50,7 @@
     }
 
     <section class="surface-card p-5">
-      <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100">Policy shadow-e1</h2>
+      <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100">Policy shadow</h2>
       <div class="mt-4 grid gap-3 lg:grid-cols-2">
         @for (decision of decisions(); track decision[0]) {
           <article class="rounded-lg border border-slate-200 p-4 dark:border-slate-700">

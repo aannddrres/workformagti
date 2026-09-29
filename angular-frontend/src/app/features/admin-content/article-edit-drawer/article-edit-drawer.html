@@ -91,8 +91,8 @@
                   @if (attachmentUrl(); as url) {
                     <div class="flex items-center gap-2 rounded-md bg-slate-50 dark:bg-slate-800 px-3 py-2 text-sm">
                       <i class="fa-solid fa-paperclip text-slate-600 dark:text-slate-400"></i>
-                      <a [href]="url" target="_blank" class="truncate max-w-[200px] text-blue-600 hover:underline">{{ attachmentFilename() }}</a>
-                      <button type="button" (click)="removeAttachment()" [attr.aria-label]="'shared.remove_attachment_label' | translate" class="ml-1 text-red-700 hover:text-red-700"><i class="fa-solid fa-xmark"></i></button>
+                      <a [href]="url" target="_blank" class="truncate max-w-[200px] text-blue-600 hover:underline dark:text-blue-400">{{ attachmentFilename() }}</a>
+                      <button type="button" (click)="removeAttachment()" [attr.aria-label]="'shared.remove_attachment_label' | translate" class="ml-1 text-red-700 hover:text-red-700 dark:text-red-300"><i class="fa-solid fa-xmark"></i></button>
                     </div>
                   }
                 </div>
@@ -204,7 +204,7 @@
                   }
                 </div>
                 @if (departmentError()) {
-                  <p role="alert" class="text-xs text-red-700">{{ 'content.articles.department_required' | translate }}</p>
+                  <p role="alert" class="text-xs text-red-700 dark:text-red-300">{{ 'content.articles.department_required' | translate }}</p>
                 }
               </div>
             </details>
@@ -242,13 +242,13 @@
               [class.bg-white]="previewDevice() === 'desktop'" [class.dark:bg-slate-700]="previewDevice() === 'desktop'" [class.shadow-e1]="previewDevice() === 'desktop'"
               [class.text-slate-800]="previewDevice() === 'desktop'" [class.dark:text-slate-100]="previewDevice() === 'desktop'"
               [class.text-slate-600]="previewDevice() !== 'desktop'" [class.dark:text-slate-400]="previewDevice() !== 'desktop'">
-              Desktop
+              {{ 'content.articles.preview_desktop' | translate }}
             </button>
             <button type="button" (click)="previewDevice.set('mobile')" class="px-3 py-1 text-xs font-semibold rounded-md transition"
               [class.bg-white]="previewDevice() === 'mobile'" [class.dark:bg-slate-700]="previewDevice() === 'mobile'" [class.shadow-e1]="previewDevice() === 'mobile'"
               [class.text-slate-800]="previewDevice() === 'mobile'" [class.dark:text-slate-100]="previewDevice() === 'mobile'"
               [class.text-slate-600]="previewDevice() !== 'mobile'" [class.dark:text-slate-400]="previewDevice() !== 'mobile'">
-              Mobile
+              {{ 'content.articles.preview_mobile' | translate }}
             </button>
           </div>
         </div>

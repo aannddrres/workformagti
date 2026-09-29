@@ -37,7 +37,7 @@
       </div>
     </div>
     <div class="mt-4 flex flex-wrap gap-2" role="tablist" aria-label="კონტენტის ტიპი">
-      <button type="button" role="tab" [attr.aria-selected]="activeTab() === 'all'" (click)="switchTab('all')" [class]="tabClass('all')">ყველა <span class="ml-1 text-xs opacity-70">{{ articles().length + news().length + videos().length }}</span></button>
+      <button type="button" role="tab" [attr.aria-selected]="activeTab() === 'all'" (click)="switchTab('all')" [class]="tabClass('all')">ყველა @if (!queueLoading() && !queueFailed()) { <span class="ml-1 text-xs opacity-70">{{ articles().length + news().length + videos().length }}</span> }</button>
       <button type="button" role="tab" [attr.aria-selected]="activeTab() === 'article'" (click)="switchTab('article')" [class]="tabClass('article')">სტატიები</button>
       <button type="button" role="tab" [attr.aria-selected]="activeTab() === 'news'" (click)="switchTab('news')" [class]="tabClass('news')">სიახლეები</button>
       <button type="button" role="tab" [attr.aria-selected]="activeTab() === 'video'" (click)="switchTab('video')" [class]="tabClass('video')">ვიდეოები</button>
@@ -96,12 +96,27 @@
     </div>
   }
 
+  @if (queueFailed() && !queueLoading() && pageRows().length > 0) {
+    <div role="alert" class="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+      <span>{{ 'content.queue.partial_load_failed' | translate }}</span>
+      <button type="button" (click)="retryQueue()" class="secondary-button px-3 py-1.5 text-sm">{{ 'content.queue.retry' | translate }}</button>
+    </div>
+  }
+
   <div class="min-h-56 overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-e1 dark:border-slate-800 dark:bg-slate-900">
     <table class="w-full min-w-[760px] text-left text-sm">
       <thead class="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400"><tr><th class="w-10 px-3 py-3"><input type="checkbox" [checked]="allSelectableSelected()" [disabled]="selectableRows().length === 0" (change)="toggleSelectAllOnPage($any($event.target).checked)" class="h-4 w-4 accent-brand disabled:opacity-50" aria-label="გვერდის ყველა სტატიის მონიშვნა" /></th><th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('title')"><button type="button" class="sortable-header" (click)="sort.toggle('title')">კონტენტი<i class="fa-solid" [class]="sort.icon('title')" aria-hidden="true"></i></button></th><th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('type')"><button type="button" class="sortable-header" (click)="sort.toggle('type')">ტიპი<i class="fa-solid" [class]="sort.icon('type')" aria-hidden="true"></i></button></th><th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('status')"><button type="button" class="sortable-header" (click)="sort.toggle('status')">სტატუსი<i class="fa-solid" [class]="sort.icon('status')" aria-hidden="true"></i></button></th><th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('context')"><button type="button" class="sortable-header" (click)="sort.toggle('context')">კატეგორია / აუდიტორია<i class="fa-solid" [class]="sort.icon('context')" aria-hidden="true"></i></button></th><th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('createdAt')"><button type="button" class="sortable-header" (click)="sort.toggle('createdAt')">თარიღი<i class="fa-solid" [class]="sort.icon('createdAt')" aria-hidden="true"></i></button></th><th class="px-5 py-3 text-right">მოქმედებები</th></tr></thead>
       <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
         @if (queueLoading()) {
           @for (item of [1, 2, 3]; track item) { <tr aria-hidden="true" class="animate-pulse"><td colspan="7" class="px-5 py-4"><div class="h-4 w-2/3 rounded-sm bg-slate-200 dark:bg-slate-700"></div></td></tr> }
+        } @else if (pageRows().length === 0 && queueFailed()) {
+          <tr><td colspan="7" class="px-5 py-10">
+            <div role="alert" class="flex flex-col items-center gap-3 text-center text-sm text-red-700 dark:text-red-300">
+              <i class="fa-solid fa-triangle-exclamation text-2xl" aria-hidden="true"></i>
+              <p class="font-semibold">{{ 'content.queue.load_failed' | translate }}</p>
+              <button type="button" (click)="retryQueue()" class="secondary-button">{{ 'content.queue.retry' | translate }}</button>
+            </div>
+          </td></tr>
         } @else if (pageRows().length === 0) {
           <tr><td colspan="7" class="px-5 py-12 text-center"><i class="fa-regular fa-folder-open text-2xl text-slate-600 dark:text-slate-400" aria-hidden="true"></i><p class="mt-2 font-semibold text-slate-600 dark:text-slate-300">შესაბამისი კონტენტი ვერ მოიძებნა</p><p class="mt-1 text-xs text-slate-600 dark:text-slate-400">შეცვალეთ ტიპი, სტატუსი ან საძიებო სიტყვა.</p></td></tr>
         } @else {
@@ -126,7 +141,7 @@
                         <button type="button" (click)="openHistory($any(row.original))" class="queue-action"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>ისტორია</button>
                         <button type="button" (click)="openEditRow(row)" class="queue-action"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>რედაქტირება</button>
                         <button type="button" (click)="toggleArchiveRow(row)" class="queue-action"><i [class]="rowArchived(row) ? 'fa-solid fa-box-open' : 'fa-solid fa-box-archive'" aria-hidden="true"></i>{{ rowArchived(row) ? 'არქივიდან ამოღება' : 'დაარქივება' }}</button>
-                        <button type="button" (click)="removeRow(row)" [disabled]="!rowArchived(row)" class="queue-action text-red-700 disabled:opacity-50"><i class="fa-solid fa-trash-can" aria-hidden="true"></i>სანაგვეში გადატანა</button>
+                        <button type="button" (click)="removeRow(row)" [disabled]="!rowArchived(row)" class="queue-action text-red-700 disabled:opacity-50 dark:text-red-400"><i class="fa-solid fa-trash-can" aria-hidden="true"></i>სანაგვეში გადატანა</button>
                       </div>
                     }
                   </div>
@@ -134,7 +149,7 @@
                   <div class="inline-flex gap-1">
                     <button type="button" (click)="openEditRow(row)" class="icon-button" aria-label="რედაქტირება"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button>
                     <button type="button" (click)="toggleArchiveRow(row)" class="icon-button" [attr.aria-label]="rowArchived(row) ? 'არქივიდან ამოღება' : 'დაარქივება'"><i [class]="rowArchived(row) ? 'fa-solid fa-box-open' : 'fa-solid fa-box-archive'" aria-hidden="true"></i></button>
-                    <button type="button" (click)="removeRow(row)" [disabled]="!rowArchived(row)" class="icon-button text-red-700 disabled:opacity-50" aria-label="სანაგვეში გადატანა"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
+                    <button type="button" (click)="removeRow(row)" [disabled]="!rowArchived(row)" class="icon-button text-red-700 disabled:opacity-50 dark:text-red-400" aria-label="სანაგვეში გადატანა"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
                   </div>
                 }
               </td>
