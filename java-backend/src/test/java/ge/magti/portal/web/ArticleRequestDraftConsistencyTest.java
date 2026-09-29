@@ -147,6 +147,6 @@ class ArticleRequestDraftConsistencyTest {
         return new ArticleRequest(
                 "სათაური", "<p>ტექსტი</p>", 1L, null, List.of("All"),
                 status, null, publishedAt, null, null, null, null, null,
-                isDraft, null, null);
+                isDraft, null);
     }
 }

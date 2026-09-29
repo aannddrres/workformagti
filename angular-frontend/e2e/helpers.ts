@@ -130,8 +130,7 @@ function articleBody(opts: CreateArticleOptions) {
     visible_to_tech_info: true,
     visible_to_service_center: false,
     is_draft: false,
-    quiz_enabled: opts.quizEnabled ?? false,
-    notify_operators: false
+    quiz_enabled: opts.quizEnabled ?? false
   };
 }
 

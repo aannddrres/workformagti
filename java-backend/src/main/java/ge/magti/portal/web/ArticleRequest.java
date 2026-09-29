@@ -53,8 +53,10 @@ public record ArticleRequest(
         @JsonProperty("visible_to_tech_info") Boolean visibleToTechInfo,
         @JsonProperty("visible_to_service_center") Boolean visibleToServiceCenter,
         @JsonProperty("is_draft") Boolean isDraft,
-        @JsonProperty("quiz_enabled") Boolean quizEnabled,
-        @JsonProperty("notify_operators") Boolean notifyOperators
+        // "notify_operators" was a field here until 2026-09-29. It fed the old
+        // stack's real-time broadcast, which was never ported, so nothing read
+        // it; a client that still sends it is ignored, not refused.
+        @JsonProperty("quiz_enabled") Boolean quizEnabled
 ) {
     public String statusOrDefault() {
         return (status == null || status.isBlank()) ? "draft" : status;
@@ -124,10 +126,6 @@ public record ArticleRequest(
 
     public boolean quizEnabledOrDefault() {
         return quizEnabled != null && quizEnabled;
-    }
-
-    public boolean notifyOperatorsOrDefault() {
-        return notifyOperators != null && notifyOperators;
     }
 
     /** routers/articles.py:234 / :347 -- "All" wins outright, else the first pick stands in. */
