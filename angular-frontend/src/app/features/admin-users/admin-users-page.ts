@@ -1,6 +1,7 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { RowMenu } from '../../shared/row-menu/row-menu';
 import { AdminUsersService } from '../../core/services/admin-users.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { AdminUser, GroupLeader } from '../../core/models/admin-user';
@@ -35,7 +36,7 @@ import { createTableSort } from '../../shared/table-sort';
 @Component({
   selector: 'app-admin-users-page',
   standalone: true,
-  imports: [TranslatePipe, UserEditModal],
+  imports: [TranslatePipe, UserEditModal, RowMenu],
   templateUrl: './admin-users-page.html'
 })
 export class AdminUsersPage {
@@ -152,7 +153,7 @@ export class AdminUsersPage {
     });
   }
 
-  private loadUsers(): void {
+  protected loadUsers(): void {
     this.loading.set(true);
     this.error.set(false);
     this.usersService.list(this.selectedManagerId()).subscribe({
@@ -321,9 +322,22 @@ export class AdminUsersPage {
    *
    * loadUsers() also runs on the error path, so the row snaps back to the
    * server's truth instead of showing the state the admin intended.
+   *
+   * Deactivating one account asks first, as the bulk sweep does: it takes
+   * the person out of the portal on their next request, mid-shift if one
+   * menu item was mistaken for another. Reactivating does not ask.
    */
-  toggleStatus(user: AdminUser): void {
+  async toggleStatus(user: AdminUser): Promise<void> {
     const next = !user.is_active;
+    if (!next && !(await this.confirmService.ask({
+      title: this.translate.instant('users.admin_page.deactivate_confirm_title'),
+      message: this.translate.instant('users.admin_page.deactivate_confirm'),
+      details: [`${user.name} (${user.email})`],
+      confirmLabel: this.translate.instant('users.admin_page.deactivate_confirm_label'),
+      tone: 'danger'
+    }))) {
+      return;
+    }
     this.usersService.updateStatus(user.id, next).subscribe({
       next: () => this.loadUsers(),
       error: (err: HttpErrorResponse) => {

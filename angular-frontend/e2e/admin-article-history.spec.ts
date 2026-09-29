@@ -43,11 +43,11 @@ test('article history: expand, diff, and restore an older version', async ({ pag
 
   const row = page.locator('tr', { hasText: revisedTitle });
   await expect(row).toHaveCount(1);
-  await row.getByRole('button').first().click();       // ellipsis
+  await row.getByRole('button', { name: 'სტატიის მოქმედებები' }).click();
   await row.getByRole('button', { name: 'ისტორია' }).click();
 
   const modal = page.locator('app-article-history-modal');
-  await expect(modal.getByText('ცვლილებების ისტორია')).toBeVisible();
+  await expect(modal.getByRole('heading', { name: 'ვერსიების ისტორია' })).toBeVisible();
 
   // Two rows exist by now, and NOT for the reason it first looks like: a
   // history row records the state AFTER each save, not before it
@@ -73,7 +73,7 @@ test('article history: expand, diff, and restore an older version', async ({ pag
 
   await back.click();
   await expect(back).toHaveCount(0);
-  await expect(modal.getByText('ცვლილებების ისტორია')).toBeVisible();
+  await expect(modal.getByRole('heading', { name: 'ვერსიების ისტორია' })).toBeVisible();
 
   // --- restore -----------------------------------------------------------
   await modal

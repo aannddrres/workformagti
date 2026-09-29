@@ -1,8 +1,8 @@
-import { DecimalPipe } from '@angular/common';
-import { Component, HostListener, OnDestroy, inject, signal } from '@angular/core';
-import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { DecimalPipe, NgClass } from '@angular/common';
+import { Component, HostListener, OnDestroy, computed, inject, signal } from '@angular/core';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import { AuthService } from '../core/auth/auth.service';
 import { ThemeService } from '../core/theme/theme.service';
 import { Logo } from '../shared/logo/logo';
@@ -26,10 +26,27 @@ interface NavLink {
 }
 
 interface NavSection {
+  key: 'work' | 'team' | 'content' | 'people' | 'control';
   label: string;
   links: NavLink[];
   /** Section itself only renders if the user can see at least one link in it. */
 }
+
+/**
+ * Whose work page comes first (owner decision კ12). The landing guard already
+ * sent these three roles past the home page, so "მთავარი" in their menu led
+ * to a screen they never saw; it is gone for them, and their own section
+ * leads instead. Everyone else keeps the default order.
+ */
+const LEADING_SECTION: Record<string, NavSection['key']> = {
+  manager: 'team',
+  content_admin: 'content',
+  admin: 'control'
+};
+const WORKSPACE_ROLES = Object.keys(LEADING_SECTION);
+
+/** At this text size a 280px menu can no longer hold its labels on one line. */
+const LARGE_TEXT_SCALE = 1.5;
 
 function pathOf(url: string): string {
   return url.split(/[?#]/)[0] || '/';
@@ -38,18 +55,16 @@ function pathOf(url: string): string {
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [DecimalPipe, GlobalSearch, Logo, RouterOutlet, RouterLink, RouterLinkActive, TranslatePipe, PortalDialog],
+  imports: [DecimalPipe, NgClass, GlobalSearch, Logo, RouterOutlet, RouterLink, RouterLinkActive, TranslatePipe, PortalDialog],
   templateUrl: './app-shell.html'
 })
 export class AppShell implements OnDestroy {
   protected readonly profiles = inject(UserProfileService);
   protected readonly auth = inject(AuthService);
-  protected readonly translate = inject(TranslateService);
   protected readonly theme = inject(ThemeService);
   protected readonly fontScale = inject(FontScaleService);
   protected readonly idleSession = inject(IdleSessionService);
   private readonly router = inject(Router);
-  private readonly route = inject(ActivatedRoute);
   private readonly loginPage = inject(LoginPage);
   private readonly mobileViewport = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
     ? window.matchMedia('(max-width: 1023px)')
@@ -58,20 +73,38 @@ export class AppShell implements OnDestroy {
 
   protected readonly mobileMenuOpen = signal(false);
   protected readonly isMobile = signal(this.mobileViewport?.matches ?? false);
-  protected readonly sidebarCollapsed = signal(localStorage.getItem('magti_sidebar_collapsed') === 'true');
+  /**
+   * The menu is 280px whatever the text size (owner decision კ16); it was
+   * 18rem, so at 200% it took 576px of a 1920px screen. 280 rather than the
+   * ~264 first proposed: "აუდიტი და უსაფრთხოება" needs 192px of label, and at
+   * 264 it broke onto a second line. From 150% up it folds
+   * to icons by itself, and its button opens it again for as long as the
+   * text stays that large. Below 150% the person's own choice applies, as
+   * before.
+   */
+  private readonly collapsedByChoice = signal(localStorage.getItem('magti_sidebar_collapsed') === 'true');
+  private readonly openedAtLargeText = signal(false);
+  protected readonly largeText = computed(() => this.fontScale.scale() >= LARGE_TEXT_SCALE);
+  protected readonly sidebarCollapsed = computed(() =>
+    this.largeText() ? !this.openedAtLargeText() : this.collapsedByChoice()
+  );
   protected readonly fontMenuOpen = signal(false);
   protected readonly accountMenuOpen = signal(false);
-  protected readonly pageTitle = signal('');
   /** The path part of the current URL; decides which menu entry is marked. */
   protected readonly currentPath = signal(pathOf(this.router.url));
   protected readonly activeLinkClass =
     'bg-brand/[0.08] text-brand-accent before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-r before:bg-brand dark:bg-brand/15 dark:text-red-300';
 
+  /**
+   * Three administration groups instead of one list of ten (owner decision
+   * კ11): what is published, who can use the portal, and what is watched.
+   */
   protected readonly sections: NavSection[] = [
     {
+      key: 'work',
       label: 'nav.sidebar.section_work',
       links: [
-        { label: 'nav.sidebar.home', path: '/', icon: 'fa-house' },
+        { label: 'nav.sidebar.home', path: '/', icon: 'fa-house', denyRoles: WORKSPACE_ROLES },
         { label: 'nav.sidebar.section_kb', path: '/info', icon: 'fa-book-open' },
         { label: 'nav.sidebar.mandatory_reading', path: '/reading', icon: 'fa-clipboard-check', denyRoles: ['admin', 'content_admin', 'manager'] },
         { label: 'nav.sidebar.news', path: '/news', icon: 'fa-newspaper' },
@@ -80,27 +113,47 @@ export class AppShell implements OnDestroy {
       ]
     },
     {
+      key: 'team',
       label: 'nav.sidebar.section_team',
       links: [
         { label: 'nav.sidebar.team_stats', path: '/manager', icon: 'fa-users', allowRoles: ['admin', 'manager'] }
       ]
     },
     {
-      label: 'nav.sidebar.section_admin',
+      key: 'content',
+      label: 'nav.sidebar.section_content',
       links: [
-        { label: 'nav.sidebar.admin_stats', path: '/admin/overview', icon: 'fa-chart-line', requiresPermission: 'stats.view' },
-        { label: 'nav.sidebar.admin_trash', path: '/admin/trash', icon: 'fa-trash-can-arrow-up', requiresPermission: 'content.manage' },
+        { label: 'nav.sidebar.admin_content', path: '/admin/content', icon: 'fa-file-lines', requiresPermission: 'content.manage' },
         { label: 'nav.sidebar.admin_categories', path: '/admin/categories', icon: 'fa-folder-tree', requiresPermission: 'content.manage' },
         { label: 'nav.sidebar.admin_broadcasts', path: '/admin/broadcasts', icon: 'fa-bullhorn', requiresAnnouncementPublisher: true },
+        { label: 'nav.sidebar.admin_trash', path: '/admin/trash', icon: 'fa-trash-can-arrow-up', requiresPermission: 'content.manage' }
+      ]
+    },
+    {
+      key: 'people',
+      label: 'nav.sidebar.section_people',
+      links: [
         { label: 'nav.sidebar.admin_users', path: '/admin/access', icon: 'fa-user-shield', allowRoles: ['admin'] },
         { label: 'nav.sidebar.admin_org', path: '/admin/org', icon: 'fa-sitemap', allowRoles: ['admin'] },
-        { label: 'nav.sidebar.admin_assignments', path: '/admin/org/assignments', icon: 'fa-user-tie', allowRoles: ['admin'] },
-        { label: 'nav.sidebar.admin_exports', path: '/admin/exports', icon: 'fa-file-export', allowRoles: ['admin'] },
+        { label: 'nav.sidebar.admin_assignments', path: '/admin/org/assignments', icon: 'fa-user-tie', allowRoles: ['admin'] }
+      ]
+    },
+    {
+      key: 'control',
+      label: 'nav.sidebar.section_control',
+      links: [
+        { label: 'nav.sidebar.admin_stats', path: '/admin/overview', icon: 'fa-chart-line', requiresPermission: 'stats.view' },
         { label: 'nav.sidebar.admin_logs', path: '/admin/audit', icon: 'fa-shield-halved', allowRoles: ['admin'] },
-        { label: 'nav.sidebar.admin_content', path: '/admin/content', icon: 'fa-file-lines', requiresPermission: 'content.manage' }
+        { label: 'nav.sidebar.admin_exports', path: '/admin/exports', icon: 'fa-file-export', allowRoles: ['admin'] }
       ]
     }
   ];
+
+  protected readonly orderedSections = computed(() => {
+    const leading = LEADING_SECTION[this.auth.currentUser()?.role ?? ''];
+    const first = this.sections.filter((section) => section.key === leading);
+    return [...first, ...this.sections.filter((section) => section.key !== leading)];
+  });
 
   constructor() {
     this.mobileViewport?.addEventListener('change', this.onViewportChange);
@@ -108,7 +161,6 @@ export class AppShell implements OnDestroy {
       this.currentPath.set(pathOf(event.urlAfterRedirects));
       this.mobileMenuOpen.set(false);
       this.closeMenus();
-      this.updatePageTitle();
     });
 
     // Warm both display profile and effective access on first paint. Without
@@ -117,7 +169,6 @@ export class AppShell implements OnDestroy {
     this.profiles.ensureLoaded().subscribe();
     this.profiles.ensureAccessLoaded().subscribe();
     this.idleSession.start();
-    this.updatePageTitle();
   }
 
   ngOnDestroy(): void {
@@ -176,7 +227,11 @@ export class AppShell implements OnDestroy {
   }
 
   toggleSidebar(): void {
-    this.sidebarCollapsed.update((collapsed) => {
+    if (this.largeText()) {
+      this.openedAtLargeText.update((opened) => !opened);
+      return;
+    }
+    this.collapsedByChoice.update((collapsed) => {
       localStorage.setItem('magti_sidebar_collapsed', String(!collapsed));
       return !collapsed;
     });
@@ -219,24 +274,5 @@ export class AppShell implements OnDestroy {
 
   logout(): void {
     this.auth.logout().subscribe(() => this.loginPage.open());
-  }
-
-  private updatePageTitle(): void {
-    let active = this.route;
-    let child = active.firstChild;
-    while (child) {
-      active = child;
-      child = active.firstChild;
-    }
-    const titleKey = active.snapshot?.data?.['title'] as string | undefined;
-    if (!titleKey) {
-      this.translate.get('nav.sidebar.home').subscribe((title) => this.pageTitle.set(title));
-      return;
-    }
-
-    // `instant()` returns the raw key when the async locale file has not
-    // arrived yet (most visible on a hard refresh of a deep article link).
-    // `get()` waits for the active translation and completes after one value.
-    this.translate.get(titleKey).subscribe((title) => this.pageTitle.set(title));
   }
 }

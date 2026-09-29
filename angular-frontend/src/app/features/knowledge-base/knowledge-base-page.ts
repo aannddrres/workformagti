@@ -1,14 +1,14 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { Subject, catchError, debounceTime, map, of, switchMap } from 'rxjs';
+import { Subject, catchError, debounceTime, forkJoin, map, of, switchMap } from 'rxjs';
 import { CategoriesService } from '../../core/services/categories.service';
 import { ArticlesService } from '../../core/services/articles.service';
 import { Category } from '../../core/models/category';
 import { Article, ArticleSummary } from '../../core/models/article';
-import { ArticleCard, ArticleCardViewModel } from '../../shared/article-card/article-card';
-import { CategoryTile } from '../../shared/category-tile/category-tile';
-import { isRecentlyPublished } from '../../shared/category-visuals';
+import { ArticleList, ArticleListItem } from '../../shared/article-list/article-list';
+import { CategoryStrip } from '../../shared/category-strip/category-strip';
+import { categoryIconClass } from '../../shared/category-visuals';
 import {
   buildRecursiveCategoryCounts,
   categoryPath,
@@ -19,7 +19,7 @@ import { isReaderVisibleArticle } from '../../shared/article-visibility';
 @Component({
   selector: 'app-knowledge-base-page',
   standalone: true,
-  imports: [ArticleCard, CategoryTile, TranslatePipe],
+  imports: [ArticleList, CategoryStrip, TranslatePipe],
   templateUrl: './knowledge-base-page.html',
 })
 export class KnowledgeBasePage {
@@ -35,20 +35,22 @@ export class KnowledgeBasePage {
       (category) =>
         category.parent_id == null &&
         category.is_active &&
-        (this.categoryCounts().get(category.id) ?? 0) > 0,
+        (!this.articlesLoaded() || (this.categoryCounts().get(category.id) ?? 0) > 0),
     ),
   );
   protected readonly activeCategories = computed(() =>
     this.categories().filter((category) => category.is_active),
   );
 
-  private readonly resultCards = signal<ArticleCardViewModel[]>([]);
+  private readonly resultCards = signal<ArticleListItem[]>([]);
   protected readonly pageSize = 40;
   protected readonly visibleLimit = signal(this.pageSize);
   protected readonly cards = computed(() => this.resultCards().slice(0, this.visibleLimit()));
   protected readonly canLoadMore = computed(() => this.cards().length < this.resultCards().length);
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
+  /** Whether the article list behind the counts and the default view arrived. */
+  protected readonly articlesLoaded = signal(false);
 
   /** Broader (but still bounded, unlike the original's 1000-article client
    *  cache) dataset used only to compute the bento grid's per-category
@@ -82,46 +84,69 @@ export class KnowledgeBasePage {
     this.searchQuery.set(initialQuery);
     this.selectedCategoryId.set(initialCategory);
 
-    this.categoriesService.list().subscribe({
-      next: (categories) => {
+    this.load();
+  }
+
+  /**
+   * Categories and articles load side by side, and a failure of one no longer
+   * takes the other with it: the article list failing used to empty the
+   * category row as well (UI audit bug 14), because the row only shows
+   * categories that have articles.
+   */
+  private load(): void {
+    this.loading.set(true);
+    this.errorMessage.set(null);
+    forkJoin({
+      categories: this.categoriesService.list().pipe(catchError(() => of(null))),
+      articles: this.articlesService.list({ limit: 1000 }).pipe(catchError(() => of(null))),
+    }).subscribe(({ categories, articles }) => {
+      if (categories) {
         this.categories.set(categories);
-        this.articlesService.list({ limit: 1000 }).subscribe({
-          next: (articles) => {
-            this.countingSet.set(articles.filter(isReaderVisibleArticle));
-            // The current filters, not the ones the page opened with: anything
-            // typed while this list was loading is already in them, and
-            // re-running the opening query here silently replaced it.
-            this.search$.next({ q: this.searchQuery(), categoryId: this.selectedCategoryId() });
-          },
-          error: () => {
-            this.loading.set(false);
-            this.errorMessage.set(this.translate.instant('articles.kb_page.search_error'));
-          },
-        });
-      },
-      error: () => {
+      }
+      if (!articles) {
         this.loading.set(false);
         this.errorMessage.set(this.translate.instant('articles.kb_page.search_error'));
-      },
+        return;
+      }
+      this.countingSet.set(articles.filter(isReaderVisibleArticle));
+      this.articlesLoaded.set(true);
+      // The current filters, not the ones the page opened with: anything
+      // typed while this list was loading is already in them, and
+      // re-running the opening query here silently replaced it.
+      this.search$.next({ q: this.searchQuery(), categoryId: this.selectedCategoryId() });
     });
+  }
+
+  protected retry(): void {
+    if (!this.articlesLoaded()) {
+      this.load();
+      return;
+    }
+    this.loading.set(true);
+    this.errorMessage.set(null);
+    this.search$.next({ q: this.searchQuery(), categoryId: this.selectedCategoryId() });
   }
 
   private uncategorizedLabel(): string {
     return this.translate.instant('articles.card.uncategorized');
   }
 
-  private fromSummary(a: ArticleSummary): ArticleCardViewModel {
+  private iconFor(categoryId: number | null): string {
+    return categoryIconClass(this.categories().find((c) => c.id === categoryId));
+  }
+
+  private fromSummary(a: ArticleSummary): ArticleListItem {
     return {
       id: a.id,
       title: a.title,
       categoryName: a.category_name || this.uncategorizedLabel(),
+      categoryIcon: this.iconFor(a.category_id),
       createdAt: a.created_at,
       publishedAt: a.published_at,
-      readTime: a.read_time,
     };
   }
 
-  private fromFullArticle(a: Article, query: string): ArticleCardViewModel {
+  private fromFullArticle(a: Article, query: string): ArticleListItem {
     const categoryName =
       this.categories().find((c) => c.id === a.category_id)?.name || this.uncategorizedLabel();
     const normalizedQuery = query.trim().toLocaleLowerCase('ka');
@@ -129,15 +154,14 @@ export class KnowledgeBasePage {
       id: a.id,
       title: a.title,
       categoryName,
+      categoryIcon: this.iconFor(a.category_id),
       createdAt: a.created_at,
       publishedAt: a.published_at,
-      readTime: a.read_time,
       categoryContext:
         categoryPath(this.categories(), a.category_id)
           .map((category) => category.name)
           .join(' › ') || categoryName,
       excerpt: this.buildExcerpt(a.content, query),
-      targetDepartments: a.target_departments,
       matchKind:
         normalizedQuery && a.title.toLocaleLowerCase('ka').includes(normalizedQuery)
           ? 'title'
@@ -195,7 +219,7 @@ export class KnowledgeBasePage {
       map((cards) => ({ cards, error: null as string | null })),
       catchError(() =>
         of({
-          cards: [] as ArticleCardViewModel[],
+          cards: [] as ArticleListItem[],
           error: this.translate.instant('articles.kb_page.search_error') as string,
         }),
       ),
@@ -235,13 +259,4 @@ export class KnowledgeBasePage {
     this.router.navigate(['/article', id], { queryParams: { returnUrl: this.router.url } });
   }
 
-  hasRecentInCategory(category: Category): boolean {
-    const ids = descendantCategoryIds(this.categories(), category.id);
-    return this.countingSet().some(
-      (article) =>
-        article.category_id != null &&
-        ids.has(article.category_id) &&
-        isRecentlyPublished({ publishedAt: article.published_at, createdAt: article.created_at }),
-    );
-  }
 }

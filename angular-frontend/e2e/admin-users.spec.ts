@@ -27,10 +27,9 @@ test.describe('admin users', () => {
     await seedTokenIntoPage(page, token);
     await page.goto('/admin/access');
 
-    await expect(page.getByRole('heading', { name: 'მომხმარებლები და წვდომა' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'მომხმარებლები', level: 1 })).toBeVisible();
     await expect(page.getByRole('button', { name: 'ახალი მომხმარებელი' })).toHaveCount(0);
     await expect(page.locator('input[type="password"]')).toHaveCount(0);
-    await expect(page.getByText('ავტომატურად სინქრონდება კომპანიის AD-დან')).toBeVisible();
 
     const create = await request.post('/api/users', {
       headers,

@@ -22,6 +22,7 @@
     <div role="alert" class="error-state">
       <i class="fa-solid fa-triangle-exclamation text-2xl" aria-hidden="true"></i>
       <p>{{ errorMessage() }}</p>
+      <button type="button" class="secondary-button" (click)="load()">{{ 'shared.retry' | translate }}</button>
     </div>
   } @else if (filtered().length === 0) {
     <div class="empty-state">
@@ -44,7 +45,7 @@
             } @else {
               <i class="fa-solid fa-film absolute text-2xl text-white/20" aria-hidden="true"></i>
             }
-            <div class="absolute left-4 top-4 z-10 text-xs font-bold tracking-widest text-white/80">MAGTI</div>
+            <div class="absolute left-4 top-4 z-10 text-xs font-bold text-white/80">MAGTI</div>
             <app-favorite-star itemType="video" [itemId]="video.id" variant="dark" class="absolute right-4 top-4 z-10" />
             <div class="relative z-10 flex h-14 w-14 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm transition-transform group-hover:scale-110 group-hover:bg-white/30">
               <i class="fa-solid fa-play ml-1 text-xl"></i>

@@ -3,6 +3,7 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { AuditService } from '../../core/services/audit.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { PortalDialog } from '../../shared/portal-dialog/portal-dialog';
+import { DateField } from '../../shared/date-field/date-field';
 import { AuditChainHealth, AuditLogEntry, AuditVerifyResult } from '../../core/models/audit';
 import {
   categoryBadge,
@@ -15,7 +16,7 @@ import {
   parseUserAgent,
   withCategoryToken
 } from '../../shared/audit-format';
-import { formatKaDateTime } from '../../shared/ka-date';
+import { formatKaDateTimeSeconds } from '../../shared/ka-date';
 import { auditDatePreset } from './audit-date-presets';
 
 const PAGE_SIZE = 50;
@@ -30,11 +31,9 @@ const PAGE_SIZE = 50;
  * this is a pure Angular build, same shape as TeamStatsPage/AdminStatsPage.
  *
  * Deliberate deviations from the Python original:
- * - Two native `<input type="date">` fields instead of a single flatpickr
- *   range-picker -- avoids pulling in a new JS dependency for one field,
- *   consistent with this port's "no wrapper library unless the feature
- *   genuinely needs it" convention (chart.js was justified by real charting
- *   needs; a date range is two native inputs).
+ * - Two date fields instead of a single flatpickr range-picker. They were
+ *   native `<input type="date">` until owner decision კ6 replaced every one
+ *   with shared/date-field, which still needs no third-party library.
  * - Technical action/item codes are preserved in the data and tooltip, but
  *   rendered as stable Georgian labels. Audit is a frequent operational
  *   screen and raw implementation codes are not useful primary copy.
@@ -48,7 +47,7 @@ const PAGE_SIZE = 50;
 @Component({
   selector: 'app-admin-audit-page',
   standalone: true,
-  imports: [TranslatePipe, PortalDialog],
+  imports: [TranslatePipe, PortalDialog, DateField],
   templateUrl: './admin-audit-page.html'
 })
 export class AdminAuditPage {
@@ -102,7 +101,7 @@ export class AdminAuditPage {
   protected readonly itemTypeLabel = formatAuditItemType;
   protected readonly itemNameLabel = (type: string | null | undefined, name: string | null | undefined) =>
     formatAuditItemName(type, name, key => this.translate.instant(key));
-  protected readonly formatTimestamp = formatKaDateTime;
+  protected readonly formatTimestamp = formatKaDateTimeSeconds;
 
   load(): void {
     this.loading.set(true);
@@ -191,13 +190,13 @@ export class AdminAuditPage {
     this.reload();
   }
 
-  onStartDateChange(event: Event): void {
-    this.startDate.set((event.target as HTMLInputElement).value || null);
+  onStartDateChange(value: string): void {
+    this.startDate.set(value || null);
     this.reload();
   }
 
-  onEndDateChange(event: Event): void {
-    this.endDate.set((event.target as HTMLInputElement).value || null);
+  onEndDateChange(value: string): void {
+    this.endDate.set(value || null);
     this.reload();
   }
 
@@ -252,7 +251,7 @@ export class AdminAuditPage {
   }
 
   protected detailsView(log: AuditLogEntry) {
-    return parseAuditDetails(log.details);
+    return parseAuditDetails(log.details, (key) => this.translate.instant(key));
   }
 
   protected userAgentView(log: AuditLogEntry) {

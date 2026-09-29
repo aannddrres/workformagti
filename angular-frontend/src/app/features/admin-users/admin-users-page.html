@@ -8,9 +8,6 @@
         <p class="text-sm text-slate-600 dark:text-slate-400">როლი, დეპარტამენტი, სტატუსი და ინდივიდუალური უფლებები ერთ ცხრილში.</p>
       </div>
     }
-    <p class="max-w-md text-right text-xs leading-5 text-slate-600 dark:text-slate-400">
-      მომხმარებლები და მათი ორგანიზაციული მონაცემები ავტომატურად სინქრონდება კომპანიის AD-დან.
-    </p>
   </div>
 
   <div class="mb-4 grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900 md:grid-cols-2 xl:grid-cols-[minmax(260px,1fr)_220px_180px_180px_240px]">
@@ -76,7 +73,11 @@
         </tbody>
       </table>
     } @else if (error()) {
-      <div class="px-5 py-10 text-center text-sm text-red-700 dark:text-red-400">{{ 'users.load_error' | translate }}</div>
+      <div role="alert" class="error-state m-4">
+        <i class="fa-solid fa-triangle-exclamation text-2xl" aria-hidden="true"></i>
+        <p>{{ 'users.load_error' | translate }}</p>
+        <button type="button" class="secondary-button" (click)="loadUsers()">{{ 'shared.retry' | translate }}</button>
+      </div>
     } @else if (!filteredUsers().length) {
       <div class="px-5 py-10 text-center text-sm text-slate-600 dark:text-slate-400">{{ 'users.no_data' | translate }}</div>
     } @else {
@@ -99,7 +100,7 @@
             <th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('status')"><button type="button" class="sortable-header" (click)="sort.toggle('status')">სტატუსი<i class="fa-solid" [class]="sort.icon('status')" aria-hidden="true"></i></button></th>
             <th class="px-5 py-3 text-center">ვადაგადაცილებული</th>
             <th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('lastActive')"><button type="button" class="sortable-header" (click)="sort.toggle('lastActive')">ბოლო შესვლა<i class="fa-solid" [class]="sort.icon('lastActive')" aria-hidden="true"></i></button></th>
-            <th class="px-5 py-3 text-center">{{ 'users.col_action' | translate }}</th>
+            <th class="px-5 py-3 text-right">{{ 'users.col_action' | translate }}</th>
           </tr>
         </thead>
         <tbody>
@@ -141,22 +142,19 @@
                 }
               </td>
               <td class="px-5 py-3 text-xs text-slate-600 dark:text-slate-400">{{ lastActiveLabel(user.last_active) }}</td>
-              <td class="px-5 py-3 text-center">
-                <div class="flex items-center justify-center gap-1">
-                  @if (isSelf(user)) {
-                    <span class="text-xs text-slate-600 dark:text-slate-400">{{ 'users.you' | translate }}</span>
-                  } @else {
-                    <button
-                      type="button"
-                      (click)="openEditModal(user)"
-                      [attr.aria-label]="'users.edit' | translate"
-                      class="quiet-button h-9 min-h-9 w-9 px-0"
-                    ><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button>
-                    <button type="button" (click)="toggleStatus(user)" [attr.aria-label]="user.is_active ? 'მომხმარებლის გათიშვა' : 'მომხმარებლის გააქტიურება'" class="quiet-button h-9 min-h-9 w-9 px-0">
-                      <i class="fa-solid" [class.fa-user-slash]="user.is_active" [class.fa-user-check]="!user.is_active" aria-hidden="true"></i>
-                    </button>
-                  }
-                </div>
+              <td class="px-5 py-3">
+                @if (isSelf(user)) {
+                  <span class="block text-right text-xs text-slate-600 dark:text-slate-400">{{ 'users.you' | translate }}</span>
+                } @else {
+                  <div class="row-actions">
+                    <button type="button" (click)="openEditModal(user)" class="row-action"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>{{ 'users.edit' | translate }}</button>
+                    <app-row-menu [label]="'users.row_actions' | translate">
+                      <button type="button" (click)="toggleStatus(user)" class="row-menu-item" [class.text-red-700]="user.is_active" [class.dark:text-red-400]="user.is_active">
+                        <i class="fa-solid" [class.fa-user-slash]="user.is_active" [class.fa-user-check]="!user.is_active" aria-hidden="true"></i>{{ user.is_active ? 'მომხმარებლის გათიშვა' : 'მომხმარებლის გააქტიურება' }}
+                      </button>
+                    </app-row-menu>
+                  </div>
+                }
               </td>
             </tr>
           }

@@ -51,6 +51,7 @@ import { PortalDialog } from '../portal-dialog/portal-dialog';
   imports: [TranslatePipe, PortalDialog],
   templateUrl: './global-search.html',
   host: {
+    class: 'block w-full',
     '(document:keydown)': 'onDocumentKeydown($event)',
   },
 })

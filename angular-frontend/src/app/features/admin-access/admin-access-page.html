@@ -1,38 +1,33 @@
 <div class="portal-page">
   <header class="portal-page-header">
     <div>
-      <p class="portal-eyebrow">წვდომის ადმინისტრირება</p>
-      <h1 class="portal-title">მომხმარებლები და წვდომა</h1>
-      <p class="portal-subtitle">ერთი ძირითადი როლი, დამატებითი უფლებები და მონაცემთა ხილვადობის არეალი — კოდში ჩარევის გარეშე.</p>
-    </div>
-    <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-      <i class="fa-solid fa-shield-halved mr-2" aria-hidden="true"></i>
-      ოთხი ფიქსირებული როლი · ინდივიდუალური უფლებები
+      <h1 class="portal-title">მომხმარებლები</h1>
+      <p class="portal-subtitle">თითოეულის როლი, დამატებითი უფლებები და ის, ვის მონაცემებს ხედავს.</p>
     </div>
   </header>
 
-  <div class="mb-6 flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-white p-1.5 dark:border-slate-700 dark:bg-slate-900" role="tablist" aria-label="წვდომის მართვის განყოფილებები">
+  <div class="portal-tabs mb-6" role="tablist" aria-label="წვდომის მართვის განყოფილებები">
     <button
       type="button"
       role="tab"
       (click)="selectTab('users')"
       [attr.aria-selected]="activeTab() === 'users'"
-      [class]="activeTab() === 'users' ? 'rounded-md bg-slate-900 px-4 py-2.5 text-sm font-bold text-white shadow-e1 dark:bg-white dark:text-slate-900' : 'rounded-md px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white'"
-    ><i class="fa-solid fa-users mr-2" aria-hidden="true"></i>მომხმარებლები</button>
+      class="portal-tab"
+    ><i class="fa-solid fa-users" aria-hidden="true"></i>მომხმარებლები</button>
     <button
       type="button"
       role="tab"
       (click)="selectTab('roles')"
       [attr.aria-selected]="activeTab() === 'roles'"
-      [class]="activeTab() === 'roles' ? 'rounded-md bg-slate-900 px-4 py-2.5 text-sm font-bold text-white shadow-e1 dark:bg-white dark:text-slate-900' : 'rounded-md px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white'"
-    ><i class="fa-solid fa-key mr-2" aria-hidden="true"></i>როლები და უფლებები</button>
+      class="portal-tab"
+    ><i class="fa-solid fa-key" aria-hidden="true"></i>როლები და უფლებები</button>
     <button
       type="button"
       role="tab"
       (click)="selectTab('history')"
       [attr.aria-selected]="activeTab() === 'history'"
-      [class]="activeTab() === 'history' ? 'rounded-md bg-slate-900 px-4 py-2.5 text-sm font-bold text-white shadow-e1 dark:bg-white dark:text-slate-900' : 'rounded-md px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white'"
-    ><i class="fa-solid fa-clock-rotate-left mr-2" aria-hidden="true"></i>ცვლილებების ისტორია</button>
+      class="portal-tab"
+    ><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>ცვლილებების ისტორია</button>
   </div>
 
   @if (activeTab() === 'users') {

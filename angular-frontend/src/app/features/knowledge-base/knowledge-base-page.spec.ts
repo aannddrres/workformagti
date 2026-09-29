@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
-import { Subject, of } from 'rxjs';
+import { Subject, of, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { KnowledgeBasePage } from './knowledge-base-page';
 import { ArticlesService } from '../../core/services/articles.service';
@@ -43,5 +43,39 @@ describe('KnowledgeBasePage search', () => {
     expect(search).toHaveBeenCalledWith('E2E რჩეული');
     const cards = (page as unknown as { cards: () => Array<{ title: string }> }).cards();
     expect(cards.map((card) => card.title)).toEqual(['E2E რჩეული']);
+  });
+
+  /** UI audit bug 14: the category row only shows categories that have
+   *  articles, so when the article list failed the categories went too. */
+  it('keeps the categories when the articles fail, and loads them again on retry', () => {
+    const roaming = { id: 5, name: 'როუმინგი', parent_id: null, is_active: true, icon: 'fa-plane', sort_order: 0 };
+    let fail = true;
+    const list = vi.fn(() => (fail ? throwError(() => new Error('down')) : of([{ ...wanted, category_id: 5 }])));
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: CategoriesService, useValue: { list: () => of([roaming]) } },
+        { provide: ArticlesService, useValue: { list, search: vi.fn(() => of([])) } },
+        { provide: TranslateService, useValue: { instant: (key: string) => key } },
+        { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap({}) } } },
+        { provide: Router, useValue: { navigate: vi.fn() } }
+      ]
+    });
+    const page = TestBed.runInInjectionContext(() => new KnowledgeBasePage()) as unknown as {
+      topLevelCategories: () => Array<{ id: number }>;
+      errorMessage: () => string | null;
+      cards: () => Array<{ title: string }>;
+      retry: () => void;
+    };
+
+    expect(page.errorMessage()).toBe('articles.kb_page.search_error');
+    expect(page.topLevelCategories().map((category) => category.id)).toEqual([5]);
+
+    fail = false;
+    page.retry();
+    vi.advanceTimersByTime(300);
+
+    expect(list).toHaveBeenCalledTimes(2);
+    expect(page.errorMessage()).toBeNull();
+    expect(page.cards().map((card) => card.title)).toEqual(['E2E რჩეული']);
   });
 });

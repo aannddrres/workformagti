@@ -234,7 +234,7 @@ test.describe('admin dashboard and videos', () => {
     await expect(page).toHaveURL(new RegExp(`/videos/${wantedId}$`));
     await expect(page.getByRole('heading', { name: wanted })).toBeVisible();
 
-    await page.getByRole('button', { name: 'უკან დაბრუნება' }).click();
+    await page.getByRole('button', { name: 'უკან', exact: true }).click();
     await expect(page).toHaveURL(/\/videos$/);
   });
 

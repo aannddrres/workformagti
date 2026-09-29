@@ -1,14 +1,10 @@
 <div class="portal-page">
   <header class="portal-page-header">
     <div>
-      <p class="portal-eyebrow">ორგანიზაცია</p>
       <h1 class="portal-title">ლიდერების დანიშვნა</h1>
-      <p class="portal-subtitle">PRIMARY და ACTING ლიდერები ჯგუფის ან დეპარტამენტის scope-ზე.</p>
+      <p class="portal-subtitle">ჯგუფის ან დეპარტამენტის ძირითადი ლიდერი და მოვალეობის შემსრულებელი.</p>
     </div>
-    <div class="flex flex-wrap gap-2">
-      <a routerLink="/admin/org" class="secondary-button">სტრუქტურა</a>
-      <a routerLink="/admin/org/backfill" class="secondary-button">Backfill კონტროლი</a>
-    </div>
+    <a routerLink="/admin/org" class="secondary-button"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> სტრუქტურა</a>
   </header>
 
   <section class="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-200">
@@ -28,7 +24,7 @@
         </select>
       </label>
       <label class="text-sm font-semibold text-slate-700 dark:text-slate-300">
-        Scope
+        დონე
         <select data-assignment-scope-type formControlName="scopeType" (change)="changeScopeType($event)" class="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900">
           <option value="GROUP">ჯგუფი</option>
           <option value="DEPARTMENT">დეპარტამენტი</option>
@@ -46,8 +42,8 @@
       <label class="text-sm font-semibold text-slate-700 dark:text-slate-300">
         ტიპი
         <select data-assignment-type formControlName="assignmentType" class="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900">
-          <option value="PRIMARY">PRIMARY</option>
-          <option value="ACTING">ACTING</option>
+          <option value="PRIMARY">{{ typeLabel('PRIMARY') }}</option>
+          <option value="ACTING">{{ typeLabel('ACTING') }}</option>
         </select>
       </label>
       <div class="lg:col-span-4">
@@ -72,16 +68,16 @@
     } @else {
       <div class="overflow-x-auto">
         <table class="data-table">
-          <thead class="bg-slate-50 text-xs uppercase tracking-wider text-slate-600 dark:text-slate-400 dark:bg-slate-900">
-            <tr><th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('leader')"><button type="button" class="sortable-header" (click)="sort.toggle('leader')">ლიდერი<i class="fa-solid" [class]="sort.icon('leader')" aria-hidden="true"></i></button></th><th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('scope')"><button type="button" class="sortable-header" (click)="sort.toggle('scope')">Scope<i class="fa-solid" [class]="sort.icon('scope')" aria-hidden="true"></i></button></th><th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('type')"><button type="button" class="sortable-header" (click)="sort.toggle('type')">ტიპი<i class="fa-solid" [class]="sort.icon('type')" aria-hidden="true"></i></button></th><th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('source')"><button type="button" class="sortable-header" (click)="sort.toggle('source')">წყარო<i class="fa-solid" [class]="sort.icon('source')" aria-hidden="true"></i></button></th><th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('status')"><button type="button" class="sortable-header" (click)="sort.toggle('status')">სტატუსი<i class="fa-solid" [class]="sort.icon('status')" aria-hidden="true"></i></button></th><th class="px-5 py-3"></th></tr>
+          <thead class="bg-slate-50 text-xs text-slate-600 dark:text-slate-400 dark:bg-slate-900">
+            <tr><th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('leader')"><button type="button" class="sortable-header" (click)="sort.toggle('leader')">ლიდერი<i class="fa-solid" [class]="sort.icon('leader')" aria-hidden="true"></i></button></th><th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('scope')"><button type="button" class="sortable-header" (click)="sort.toggle('scope')">ჯგუფი / დეპარტამენტი<i class="fa-solid" [class]="sort.icon('scope')" aria-hidden="true"></i></button></th><th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('type')"><button type="button" class="sortable-header" (click)="sort.toggle('type')">ტიპი<i class="fa-solid" [class]="sort.icon('type')" aria-hidden="true"></i></button></th><th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('source')"><button type="button" class="sortable-header" (click)="sort.toggle('source')">წყარო<i class="fa-solid" [class]="sort.icon('source')" aria-hidden="true"></i></button></th><th class="px-5 py-3" [attr.aria-sort]="sort.ariaSort('status')"><button type="button" class="sortable-header" (click)="sort.toggle('status')">სტატუსი<i class="fa-solid" [class]="sort.icon('status')" aria-hidden="true"></i></button></th><th class="px-5 py-3"></th></tr>
           </thead>
           <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
             @for (assignment of sortedAssignments(); track assignment.id) {
               <tr [class.opacity-60]="!assignment.is_active">
                 <td class="px-5 py-3"><strong>{{ assignment.user_name }}</strong><span class="block text-xs text-slate-600 dark:text-slate-400">{{ assignment.user_email }}</span></td>
                 <td class="px-5 py-3">{{ assignment.department_name || assignment.team_name }}</td>
-                <td class="px-5 py-3 font-mono text-xs">{{ assignment.assignment_type }}</td>
-                <td class="px-5 py-3 text-xs text-slate-600 dark:text-slate-400">{{ assignment.source }}</td>
+                <td class="px-5 py-3">{{ typeLabel(assignment.assignment_type) }}</td>
+                <td class="px-5 py-3 text-xs text-slate-600 dark:text-slate-400" [attr.title]="assignment.source">{{ sourceLabel(assignment.source) }}</td>
                 <td class="px-5 py-3">{{ assignment.is_active ? 'აქტიური' : 'დასრულებული' }}</td>
                 <td class="px-5 py-3 text-right">
                   @if (assignment.is_active) {

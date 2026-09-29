@@ -16,7 +16,7 @@ test('manager dashboard is scoped, interactive and export-fail-closed without a 
 
   await seedTokenIntoPage(page, token);
   await page.goto('/manager');
-  await expect(page.getByRole('heading', { name: 'გუნდის სტატისტიკა' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'გუნდის მდგომარეობა' })).toBeVisible();
 
   const sortByCompliance = page.getByRole('button', { name: 'დალაგება: შესრულების მიხედვით' });
   await sortByCompliance.click();

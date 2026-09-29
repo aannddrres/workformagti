@@ -67,11 +67,12 @@ test.describe('admin content: news and videos', () => {
     await drawer.locator('select').selectOption('საინფორმაციო');
 
     // Mandatory reveals the due date, exactly as on the article drawer.
-    const dueDate = drawer.locator('input[type="date"]');
+    const dueDate = drawer.locator('#news-due-date');
     await expect(dueDate).toHaveCount(0);
     await drawer.locator('input[type="checkbox"]').first().check();
     await expect(dueDate).toBeVisible();
-    await dueDate.fill('2030-03-10');
+    await dueDate.fill('10.03.2030');
+    await dueDate.press('Enter');
 
     await drawer.getByRole('button', { name: 'შენახვა' }).click();
     await expect(drawer).toHaveCount(0);
@@ -106,7 +107,7 @@ test.describe('admin content: news and videos', () => {
 
     // --- edit -------------------------------------------------------------
     const editedTitle = `${title} რედაქტირებული`;
-    await row.getByRole('button').first().click();          // pencil
+    await row.getByRole('button', { name: 'რედაქტირება' }).click();
     const editDrawer = page.locator('app-news-edit-drawer');
     await expect(editDrawer.getByText('სიახლის რედაქტირება')).toBeVisible();
     // The drawer must arrive already holding the item, not empty.
@@ -121,7 +122,10 @@ test.describe('admin content: news and videos', () => {
 
     // --- delete -----------------------------------------------------------
     const editedRow = page.locator('tr', { hasText: editedTitle });
+    const rowMenu = editedRow.getByRole('button', { name: 'სიახლის მოქმედებები' });
+    await rowMenu.click();
     await editedRow.getByRole('button', { name: 'დაარქივება' }).click();
+    await rowMenu.click();
     await expect(editedRow.getByRole('button', { name: 'სანაგვეში გადატანა' })).toBeEnabled();
     await editedRow.getByRole('button', { name: 'სანაგვეში გადატანა' }).click();
     await acceptConfirmation(page);
@@ -173,7 +177,7 @@ test.describe('admin content: news and videos', () => {
 
     // --- edit -------------------------------------------------------------
     const editedTitle = `${title} რედაქტირებული`;
-    await row.getByRole('button').first().click();
+    await row.getByRole('button', { name: 'რედაქტირება' }).click();
     const editDrawer = page.locator('app-video-edit-drawer');
     await expect(editDrawer.getByText('ვიდეოს რედაქტირება')).toBeVisible();
     await expect(editDrawer.locator('input[type="text"]').first()).toHaveValue(title);
@@ -185,7 +189,10 @@ test.describe('admin content: news and videos', () => {
 
     // --- delete -----------------------------------------------------------
     const editedRow = page.locator('tr', { hasText: editedTitle });
+    const rowMenu = editedRow.getByRole('button', { name: 'ვიდეოს მოქმედებები' });
+    await rowMenu.click();
     await editedRow.getByRole('button', { name: 'დაარქივება' }).click();
+    await rowMenu.click();
     await expect(editedRow.getByRole('button', { name: 'სანაგვეში გადატანა' })).toBeEnabled();
     await editedRow.getByRole('button', { name: 'სანაგვეში გადატანა' }).click();
     await acceptConfirmation(page);

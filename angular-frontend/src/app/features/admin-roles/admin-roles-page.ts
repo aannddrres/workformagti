@@ -177,7 +177,10 @@ export class AdminRolesPage {
       this.reassignError.set(this.translate.instant('roles.no_selection'));
       return;
     }
-    if (!(await this.confirmService.ask(this.translate.instant('roles.confirm_message')))) {
+    if (!(await this.confirmService.ask({
+      message: this.translate.instant('roles.confirm_message'),
+      confirmLabel: this.translate.instant('roles.confirm_label')
+    }))) {
       return;
     }
     this.reassigning.set(true);

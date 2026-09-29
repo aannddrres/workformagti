@@ -9,9 +9,10 @@ import { CriticalOperator, DepartmentDashboard, DepartmentGroupStats, Department
 import { ExportJobResponse } from '../../core/models/export';
 import { ReminderService } from '../../core/services/reminder.service';
 import { PortalDialog } from '../../shared/portal-dialog/portal-dialog';
+import { CategoryStrip } from '../../shared/category-strip/category-strip';
+import { completionBarClass, completionIcon, completionTextClass, completionTier } from '../../shared/completion-tier';
 
 type SortMode = 'name' | 'compliance';
-type Tier = { bar: string; text: string };
 type ExportKind = 'xlsx' | 'pdf' | 'team_stats_pdf';
 
 /**
@@ -28,23 +29,17 @@ type ExportKind = 'xlsx' | 'pdf' | 'team_stats_pdf';
  *   pure visual flourish; values render immediately, bar width still
  *   transitions via a plain CSS transition on the width change.
  *
- * Preserved faithfully, including a genuine original quirk: there are THREE
- * independent percentage-coloring schemes, not one --
- * 1. `tierBar`/`tierText` (dept + group bars, and the big dept-card %):
- *    emerald >=80, red <30, else amber -- from dept-dashboard.js's tier().
- * 2. `pctColorClass` (the small % next to each group name, and every row in
- *    the group-users modal): green >=100, yellow >50, else red -- from
- *    applyPctColors()/pctColorClass(), explicitly commented there as an
- *    "alarm-fatigue fix" (a stricter bar can show emerald while the nearby
- *    number is still yellow, deliberately less alarming at a glance).
- * 3. The group-users modal's own inline progress-bar fill uses yet a third
- *    threshold pair (emerald >=100, amber >50, red else) -- kept exactly as
- *    the original, see `memberBarClass`.
+ * The port preserved a quirk of the original: THREE independent
+ * percentage-colouring schemes -- bars at 80/30, the number beside them at
+ * 100/50 (an "alarm-fatigue fix" in applyPctColors()), and the member list's
+ * bars at a third pair. Since 2026-09-29 all three are the one scale in
+ * shared/completion-tier.ts (owner decision კ13): a green bar beside a
+ * yellow "85%" read as a contradiction, not as calm.
  */
 @Component({
   selector: 'app-team-stats-page',
   standalone: true,
-  imports: [TranslatePipe, PortalDialog],
+  imports: [TranslatePipe, PortalDialog, CategoryStrip],
   templateUrl: './team-stats-page.html'
 })
 export class TeamStatsPage {
@@ -130,37 +125,16 @@ export class TeamStatsPage {
     return [...dept.groups].sort((a, b) => (Number(b.compliance) || 0) - (Number(a.compliance) || 0));
   }
 
-  tierBar(pct: number, hasReq: boolean): string {
-    return this.tier(pct, hasReq).bar;
+  tierBar(pct: number, hasReq = true): string {
+    return completionBarClass(completionTier(pct, hasReq));
   }
 
-  tierText(pct: number, hasReq: boolean): string {
-    return this.tier(pct, hasReq).text;
+  tierText(pct: number, hasReq = true): string {
+    return completionTextClass(completionTier(pct, hasReq));
   }
 
-  private tier(pct: number, hasReq: boolean): Tier {
-    if (!hasReq) {
-      return { bar: 'bg-slate-300 dark:bg-slate-600', text: 'text-slate-600 dark:text-slate-400' };
-    }
-    if (pct >= 80) {
-      return { bar: 'bg-emerald-500', text: 'text-emerald-700 dark:text-emerald-400' };
-    }
-    if (pct < 30) {
-      return { bar: 'bg-brand', text: 'text-brand-accent dark:text-red-400' };
-    }
-    return { bar: 'bg-amber-400', text: 'text-amber-700 dark:text-amber-400' };
-  }
-
-  pctColorClass(pct: number): string {
-    if (pct >= 100) return 'text-green-700 dark:text-green-400';
-    if (pct > 50) return 'text-yellow-700 dark:text-yellow-400';
-    return 'text-red-700 dark:text-red-400';
-  }
-
-  memberBarClass(pct: number): string {
-    if (pct >= 100) return 'bg-emerald-500';
-    if (pct > 50) return 'bg-amber-400';
-    return 'bg-brand';
+  tierIcon(pct: number, hasReq = true): string | null {
+    return completionIcon(completionTier(pct, hasReq));
   }
 
   openCriticalModal(): void {

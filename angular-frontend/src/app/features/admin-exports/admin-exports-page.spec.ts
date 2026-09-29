@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { Subject, of } from 'rxjs';
 import { vi } from 'vitest';
+import { provideTranslateService } from '@ngx-translate/core';
 import { AdminExportService } from '../../core/services/admin-export.service';
 import { ExportService } from '../../core/services/export.service';
 import { ExportStatus } from '../../core/models/export';
@@ -14,6 +15,7 @@ describe('AdminExportsPage', () => {
     await TestBed.configureTestingModule({
       imports: [AdminExportsPage],
       providers: [
+        provideTranslateService({ lang: 'ka', fallbackLang: 'ka' }),
         { provide: AdminExportService, useValue: { submit } },
         { provide: ExportService, useValue: { pollUntilDone: () => statuses.asObservable(), download } }
       ]
@@ -21,7 +23,8 @@ describe('AdminExportsPage', () => {
 
     const fixture = TestBed.createComponent(AdminExportsPage);
     fixture.detectChanges();
-    const button: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    // The first export card's button; the date fields above have buttons of their own.
+    const button: HTMLButtonElement = fixture.nativeElement.querySelector('article button');
     button.click();
     statuses.next({ job_id: 'job-1', status: 'processing' });
     fixture.detectChanges();

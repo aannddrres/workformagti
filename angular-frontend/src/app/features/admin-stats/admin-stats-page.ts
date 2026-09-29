@@ -5,14 +5,14 @@ import Chart from 'chart.js/auto';
 import { AuthService } from '../../core/auth/auth.service';
 import { StatsService } from '../../core/services/stats.service';
 import { ActivityPoint, ComplianceStats, CriticalOperatorsResponse, KpiCounts, PopularSearch, TopArticle, UserProgressItem } from '../../core/models/stats';
-import { brandRgb } from '../../core/brand';
 import { CategoriesService } from '../../core/services/categories.service';
 import { ArticlesService } from '../../core/services/articles.service';
 import { AuditService } from '../../core/services/audit.service';
 import { Category } from '../../core/models/category';
 import { ArticleSummary } from '../../core/models/article';
 import { AuditChainHealth, AuditLogEntry } from '../../core/models/audit';
-import { formatKaDateTime } from '../../shared/ka-date';
+import { formatKaDateTime, formatKaDayMonth } from '../../shared/ka-date';
+import { completionIcon, completionTextClass, completionTier } from '../../shared/completion-tier';
 import { formatAuditAction } from '../../shared/audit-format';
 import { categoryIconClass } from '../../shared/category-visuals';
 import { formatDepartmentLabel } from '../../shared/department-badge';
@@ -27,10 +27,14 @@ type ProgressSort = 'perf_desc' | 'perf_asc' | 'name';
  * (plus the doughnut's grey track), spelled out so a flip can return to them;
  * dark is the page's slate-400 text on the slate-900 card, and a slate-700
  * track where #E5E7EB would be a white ring.
+ *
+ * The data itself is slate ink, not brand red (owner decision კ1): red is
+ * what the portal uses to say "act here", and a trend line is not a button.
+ * The doughnut's read share stays the green of every "done" status.
  */
 const CHART_INK = {
-  light: { text: '#666', grid: 'rgba(0, 0, 0, 0.1)', track: '#E5E7EB' },
-  dark: { text: '#94A3B8', grid: 'rgba(148, 163, 184, 0.15)', track: '#334155' }
+  light: { text: '#666', grid: 'rgba(0, 0, 0, 0.1)', track: '#E5E7EB', series: '#334155', seriesFill: 'rgba(51, 65, 85, 0.1)' },
+  dark: { text: '#94A3B8', grid: 'rgba(148, 163, 184, 0.15)', track: '#334155', series: '#CBD5E1', seriesFill: 'rgba(203, 213, 225, 0.12)' }
 } as const;
 type ChartInk = (typeof CHART_INK)[keyof typeof CHART_INK];
 
@@ -311,14 +315,15 @@ export class AdminStatsPage {
   }
 
   pctColorClass(percentageLabel: string): string {
-    const pct = parsePercentage(percentageLabel);
-    if (pct >= 100) return 'text-green-700 dark:text-green-400';
-    if (pct > 50) return 'text-yellow-700 dark:text-yellow-400';
-    return 'text-red-700 dark:text-red-400';
+    return completionTextClass(completionTier(percentageLabel));
+  }
+
+  pctIcon(percentageLabel: string): string | null {
+    return completionIcon(completionTier(percentageLabel));
   }
 
   categoryIcon(category: Category): string {
-    return categoryIconClass(category, category.name);
+    return categoryIconClass(category);
   }
 
   categoryRoute(category: Category): string {
@@ -340,12 +345,12 @@ export class AdminStatsPage {
     this.activityChart = new Chart(canvas, {
       type: 'line',
       data: {
-        labels: points.map((p) => p.date),
+        labels: points.map((p) => formatKaDayMonth(p.date)),
         datasets: [{
           label: this.translate.instant('stats.admin_page.activity_heading'),
           data: points.map((p) => p.count),
-          borderColor: brandRgb(),
-          backgroundColor: brandRgb(0.12),
+          borderColor: ink.series,
+          backgroundColor: ink.seriesFill,
           tension: 0.3,
           fill: true,
           pointRadius: 2
@@ -399,7 +404,7 @@ export class AdminStatsPage {
         labels: articles.map((a) => a.title),
         datasets: [{
           data: articles.map((a) => a.read_count),
-          backgroundColor: brandRgb(),
+          backgroundColor: ink.series,
           borderRadius: 4
         }]
       },

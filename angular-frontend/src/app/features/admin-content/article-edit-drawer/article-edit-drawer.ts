@@ -12,6 +12,7 @@ import { RichTextEditor } from '../../../shared/rich-text-editor/rich-text-edito
 import { QuizBuilder } from '../../../shared/quiz-builder/quiz-builder';
 import { ToastService } from '../../../core/notifications/toast.service';
 import { PortalDialog } from '../../../shared/portal-dialog/portal-dialog';
+import { DateField } from '../../../shared/date-field/date-field';
 import { ConfirmService } from '../../../core/notifications/confirm.service';
 import { articleReach, lossLines, mandatoryLoss } from '../../../shared/mandatory-reach';
 
@@ -40,7 +41,7 @@ const DEPARTMENT_ORDER: { key: 'info' | 'tech' | 'office'; name: string }[] = [
 @Component({
   selector: 'app-article-edit-drawer',
   standalone: true,
-  imports: [TranslatePipe, RichTextEditor, QuizBuilder, PortalDialog],
+  imports: [TranslatePipe, RichTextEditor, QuizBuilder, PortalDialog, DateField],
   templateUrl: './article-edit-drawer.html'
 })
 export class ArticleEditDrawer {
@@ -70,7 +71,8 @@ export class ArticleEditDrawer {
   protected readonly tags = signal('');
   protected readonly attachmentUrl = signal<string | null>(null);
   protected readonly attachmentFilename = signal<string | null>(null);
-  protected readonly status = signal('published');
+  /** A new article starts as a draft (კ20): publishing is a choice, not a default. Editing loads the article's own. */
+  protected readonly status = signal('draft');
   protected readonly scheduledAt = signal('');
   protected readonly deptChecked = signal<Record<'info' | 'tech' | 'office', boolean>>({
     info: false,
@@ -154,7 +156,7 @@ export class ArticleEditDrawer {
     this.tags.set('');
     this.attachmentUrl.set(null);
     this.attachmentFilename.set(null);
-    this.status.set('published');
+    this.status.set('draft');
     this.scheduledAt.set('');
     this.deptChecked.set({ info: false, tech: false, office: false });
     this.visibleTechInfo.set(true);
@@ -336,7 +338,7 @@ export class ArticleEditDrawer {
   }
 
   protected async close(): Promise<void> {
-    if (this.dirty() && !(await this.confirmService.ask('შეუნახავი ცვლილებები დაიკარგება. გსურთ დახურვა?'))) {
+    if (this.dirty() && !(await this.confirmService.ask({ message: 'შეუნახავი ცვლილებები დაიკარგება. გსურთ დახურვა?', confirmLabel: 'დახურვა შენახვის გარეშე', tone: 'danger' }))) {
       return;
     }
     this.closed.emit();

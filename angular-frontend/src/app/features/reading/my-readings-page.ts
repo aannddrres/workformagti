@@ -9,6 +9,40 @@ import { FavoriteStar } from '../../shared/favorite-star/favorite-star';
 
 type FilterMode = 'all' | 'unread' | 'read';
 
+function isOverdueReading(item: MyReading): boolean {
+  return item.status !== 'read' && (item.status === 'overdue' || item.is_overdue);
+}
+
+function rank(item: MyReading): number {
+  if (isOverdueReading(item)) return 0;
+  return item.status === 'read' ? 2 : 1;
+}
+
+function time(value: string | null | undefined): number | null {
+  const parsed = value ? new Date(value).getTime() : NaN;
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+/**
+ * Overdue first, then what is still to read by the nearest deadline, then
+ * what has been read, newest first (owner decision კ15). The list came in the
+ * server's order, so an overdue obligation could sit under three items the
+ * operator had already finished.
+ */
+export function orderReadings(readings: MyReading[]): MyReading[] {
+  return [...readings].sort((a, b) => {
+    const byRank = rank(a) - rank(b);
+    if (byRank !== 0) return byRank;
+    if (rank(a) === 2) {
+      return (time(b.read_at) ?? 0) - (time(a.read_at) ?? 0);
+    }
+    const dueA = time(a.reading.due_date);
+    const dueB = time(b.reading.due_date);
+    if (dueA === null || dueB === null) return dueA === null ? (dueB === null ? 0 : 1) : -1;
+    return dueA - dueB;
+  });
+}
+
 /**
  * Port of page-reading (base-layout.html:865-896) + filterReadings/
  * renderFilteredReadings/openReadingItem/markAsRead (app-core.js:1253-1409,
@@ -47,7 +81,7 @@ export class MyReadingsPage {
 
   protected readonly filteredReadings = computed(() => {
     const filter = this.filter();
-    return this.readings().filter((item) => {
+    return orderReadings(this.readings()).filter((item) => {
       if (filter === 'all') return true;
       if (filter === 'read') return item.status === 'read';
       return item.status !== 'read';
@@ -58,7 +92,7 @@ export class MyReadingsPage {
     this.load();
   }
 
-  private load(): void {
+  protected load(): void {
     this.loading.set(true);
     this.errorMessage.set(null);
     this.complianceService.myReadings().subscribe({
@@ -85,12 +119,17 @@ export class MyReadingsPage {
     return item.item_title || this.translate.instant('readings.page.item_fallback_title', { id: item.reading.item_id });
   }
 
-  dateLabel(item: MyReading): string {
-    return item.reading.due_date ? formatKaDate(item.reading.due_date) : '—';
+  /** A read item says when it was read; its deadline no longer matters. */
+  dateLine(item: MyReading): string {
+    if (item.status === 'read' && item.read_at) {
+      return this.translate.instant('readings.page.read_label', { date: formatKaDate(item.read_at) });
+    }
+    const due = item.reading.due_date ? formatKaDate(item.reading.due_date) : '—';
+    return this.translate.instant('readings.page.due_label', { date: due });
   }
 
   isOverdue(item: MyReading): boolean {
-    return item.status !== 'read' && (item.status === 'overdue' || item.is_overdue);
+    return isOverdueReading(item);
   }
 
   /**

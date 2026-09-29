@@ -4,7 +4,13 @@ export interface ConfirmRequest {
   /** Already-translated question. Callers own translation, as with ToastService. */
   message: string;
   title?: string;
-  confirmLabel?: string;
+  /**
+   * The action, as a verb -- "დაარქივება", "საბოლოო წაშლა" -- never "დიახ".
+   * Required since UI audit bug 22: a bare "Yes" under a question makes the
+   * reader go back and re-read the question to learn what they are agreeing
+   * to, and on a destructive one that is where the mistake happens.
+   */
+  confirmLabel: string;
   /** `danger` paints the confirm button as destructive. Use it for deletes. */
   tone?: 'default' | 'danger';
   /** Already-translated lines listed under the message -- who or what the answer affects. */
@@ -34,16 +40,13 @@ export class ConfirmService {
   private readonly _pending = signal<PendingConfirm | null>(null);
   readonly pending = this._pending.asReadonly();
 
-  ask(request: ConfirmRequest | string): Promise<boolean> {
-    const normalised: ConfirmRequest =
-      typeof request === 'string' ? { message: request } : request;
-
+  ask(request: ConfirmRequest): Promise<boolean> {
     // A second question while one is open would strand the first promise, and
     // a caller awaiting an answer that never comes is worse than a "no".
     this.respond(false);
 
     return new Promise<boolean>((resolve) => {
-      this._pending.set({ ...normalised, resolve });
+      this._pending.set({ ...request, resolve });
     });
   }
 

@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
+import { provideTranslateService } from '@ngx-translate/core';
 import { BroadcastService } from '../../core/services/broadcast.service';
 import { AdminBroadcastsPage } from './admin-broadcasts-page';
 
@@ -10,7 +11,7 @@ describe('AdminBroadcastsPage', () => {
       publisher_name: 'ლიდერი', ended_by_name: null, status: 'active', can_end_early: true, lock_version: 0
     }));
     TestBed.configureTestingModule({
-      providers: [{
+      providers: [provideTranslateService({ lang: 'ka', fallbackLang: 'ka' }), {
         provide: BroadcastService,
         useValue: { history: () => of({ items: [], page: 0, size: 50, total_items: 0, total_pages: 0 }), publish, endEarly: vi.fn() }
       }]
@@ -23,11 +24,13 @@ describe('AdminBroadcastsPage', () => {
     const message = root.querySelector<HTMLTextAreaElement>('[data-broadcast-message]')!;
     message.value = 'საერთო განცხადება';
     message.dispatchEvent(new Event('input'));
-    const endsAt = root.querySelector<HTMLInputElement>('[data-broadcast-ends-at]')!;
+    const endsAt = root.querySelector<HTMLInputElement>('[data-broadcast-ends-at] input')!;
     const future = new Date(Date.now() + 60 * 60_000);
     const local = new Date(future.getTime() - future.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
-    endsAt.value = local;
+    const [day, time] = local.split('T');
+    endsAt.value = `${day.split('-').reverse().join('.')} ${time}`;
     endsAt.dispatchEvent(new Event('input'));
+    endsAt.dispatchEvent(new Event('blur'));
     root.querySelector<HTMLFormElement>('form')!.dispatchEvent(new Event('submit'));
     await fixture.whenStable();
     fixture.detectChanges();

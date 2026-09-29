@@ -42,6 +42,12 @@ export class FavoritesPage {
   });
 
   constructor() {
+    this.load();
+  }
+
+  protected load(): void {
+    this.loading.set(true);
+    this.errorMessage.set(null);
     this.favoritesService.refresh().subscribe({
       next: () => this.loading.set(false),
       error: () => {

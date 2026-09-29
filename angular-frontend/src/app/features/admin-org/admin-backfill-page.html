@@ -1,16 +1,15 @@
 <div class="portal-page">
   <header class="portal-page-header">
     <div>
-      <p class="portal-eyebrow">Cutover evidence</p>
-      <h1 class="portal-title">Backfill და policy shadow</h1>
-      <p class="portal-subtitle">რეკონსილიაციის ანგარიში და policy decision-ების რეალურად გავლის მტკიცებულება.</p>
+      <h1 class="portal-title">სტრუქტურის შევსების ანგარიში</h1>
+      <p class="portal-subtitle">რამდენი ჯგუფი, წევრობა და ლიდერი გადმოდის ძველი ჩანაწერებიდან ახალ სტრუქტურაში და სად არის საჭირო ხელით გადაწყვეტა.</p>
     </div>
-    <div class="flex gap-2"><a routerLink="/admin/org" class="secondary-button">სტრუქტურა</a><a routerLink="/admin/org/assignments" class="secondary-button">დანიშვნები</a></div>
+    <a routerLink="/admin/org" class="secondary-button"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> სტრუქტურა</a>
   </header>
 
   <section class="mb-6 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-    <strong class="block">Seeder ≠ backfill · ეს ეკრანი V37-ს ან Phase 4/5 cutover-ს არ რთავს.</strong>
-    `blocks_cutover: false` მხოლოდ ერთი წინაპირობაა. production-ის მსგავს გარემოზე backfill ოპერაციული თანხმობის გარეშე არ გაუშვათ.
+    <strong class="block">ეს ტექნიკური ეკრანია.</strong>
+    შევსება ახალ წვდომის წესებზე გადასვლას თავისთავად არ რთავს. რეალურ გარემოში გაუშვით მხოლოდ IT-სთან შეთანხმებით.
   </section>
 
   @if (error(); as message) {
@@ -23,13 +22,14 @@
       <section class="surface-card mb-6 p-5">
         <div class="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p class="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Backfill report</p>
+            <p class="text-xs font-bold text-slate-600 dark:text-slate-400">ანგარიში</p>
             <h2 class="mt-1 text-xl font-bold" [class.text-danger]="current.blocks_cutover">
-              {{ current.blocks_cutover ? 'Cutover დაბლოკილია' : 'ანგარიშში blocker არ ჩანს' }}
+              {{ current.blocks_cutover ? 'გადასვლა ჯერ დაბლოკილია' : 'დამბლოკავი პრობლემა არ ჩანს' }}
             </h2>
           </div>
-          <button data-backfill-apply type="button" class="primary-button" [disabled]="applying()" (click)="apply()">
-            {{ applying() ? 'მიმდინარეობს…' : 'Idempotent apply' }}
+          <button data-backfill-apply type="button" class="primary-button" [disabled]="applying()" (click)="apply()"
+                  title="განმეორებით გაშვება უსაფრთხოა: უკვე შევსებულს მეორედ აღარ დაამატებს.">
+            {{ applying() ? 'მიმდინარეობს…' : 'შევსების გაშვება' }}
           </button>
         </div>
         <div class="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -50,7 +50,8 @@
     }
 
     <section class="surface-card p-5">
-      <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100">Policy shadow</h2>
+      <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100">წესების პარალელური შემოწმება</h2>
+      <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">რამდენჯერ დაემთხვა ძველი და ახალი წვდომის წესების პასუხი ერთსა და იმავე მოთხოვნაზე.</p>
       <div class="mt-4 grid gap-3 lg:grid-cols-2">
         @for (decision of decisions(); track decision[0]) {
           <article class="rounded-lg border border-slate-200 p-4 dark:border-slate-700">
@@ -65,7 +66,7 @@
             </p>
           </article>
         } @empty {
-          <p class="text-sm text-slate-600 dark:text-slate-400">decision point-ები ჯერ არ დაფიქსირებულა.</p>
+          <p class="text-sm text-slate-600 dark:text-slate-400">შემოწმებები ჯერ არ დაფიქსირებულა.</p>
         }
       </div>
     </section>

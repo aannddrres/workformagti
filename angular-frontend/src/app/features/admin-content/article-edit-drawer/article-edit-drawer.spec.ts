@@ -8,6 +8,7 @@ import { provideTranslateHttpLoader } from '@ngx-translate/http-loader';
 import { ArticleEditDrawer } from './article-edit-drawer';
 import { ArticlesService } from '../../../core/services/articles.service';
 import { ConfirmService } from '../../../core/notifications/confirm.service';
+import { RequiredReadingService } from '../../../core/services/required-reading.service';
 
 /**
  * Covers submit()'s guard order (article-edit-drawer.ts:251-265): department
@@ -65,6 +66,8 @@ describe('ArticleEditDrawer due-date validation', () => {
       .mockReturnValue(of({ id: 1, title: 'x' } as any));
     component.richTextEditor = () => ({ getHtml: () => '<p>x</p>' });
 
+    // A new article starts as a draft (კ20), and a draft cannot be mandatory (PO-40).
+    component.status.set('published');
     component.deptChecked.set({ info: true, tech: false, office: false });
     component.isMandatory.set(true);
     component.dueDate.set('2030-01-01');
@@ -162,6 +165,7 @@ describe('ArticleEditDrawer mandatory reach', () => {
       departments: [{ department: 'საინფორმაციო', in_force: 2, pending: 0, read: 0 }],
       addressees: []
     });
+    component.status.set('published');
     component.isMandatory.set(true);
     component.dueDate.set('2031-01-01');
 
@@ -169,5 +173,63 @@ describe('ArticleEditDrawer mandatory reach', () => {
 
     expect(ask).not.toHaveBeenCalled();
     expect(createSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * კ20: a new article starts as a draft, so publishing is a choice the editor
+ * makes. An article opened for editing keeps the status it has. Only status
+ * changes here; is_draft is the personal-autosave flag and stays false.
+ */
+describe('ArticleEditDrawer starting status', () => {
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [ArticleEditDrawer],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideTranslateService({ lang: 'ka', fallbackLang: 'ka' }),
+        provideTranslateHttpLoader({ prefix: '/i18n/', suffix: '.json' })
+      ]
+    }).compileComponents();
+  });
+
+  function drawer(articleId: number | null) {
+    const fixture = TestBed.createComponent(ArticleEditDrawer);
+    fixture.componentRef.setInput('articleId', articleId);
+    const component = fixture.componentInstance as any;
+    component.richTextEditor = () => ({ getHtml: () => '<p>x</p>', setHtml: () => {}, clear: () => {} });
+    return component;
+  }
+
+  it('starts a new article as a draft, and saves it as one', async () => {
+    const component = drawer(null);
+    expect(component.status()).toBe('draft');
+
+    component.status.set('published');
+    component.resetForCreate();
+    expect(component.status()).toBe('draft');
+
+    const createSpy = vi.spyOn(TestBed.inject(ArticlesService), 'createCommand')
+      .mockReturnValue(of({ id: 1, title: 'x' } as any));
+    component.deptChecked.set({ info: true, tech: false, office: false });
+    await component.submit({ preventDefault: () => {} } as Event);
+
+    expect(createSpy.mock.calls[0][0].article).toMatchObject({ status: 'draft', is_draft: false });
+  });
+
+  it('keeps the status of an article opened for editing', () => {
+    vi.spyOn(TestBed.inject(RequiredReadingService), 'byItem').mockReturnValue(of(null));
+    vi.spyOn(TestBed.inject(ArticlesService), 'get').mockReturnValue(of({
+      id: 5, title: 'x', content: '<p>x</p>', category_id: 1, tags: null,
+      target_departments: ['საინფორმაციო'], status: 'published', published_at: null,
+      attachment_url: null, audience_profile: 'all', visible_to_tech_info: true,
+      visible_to_service_center: false, quiz_enabled: false
+    } as any));
+    const component = drawer(5);
+
+    component.loadForEdit(5);
+
+    expect(component.status()).toBe('published');
   });
 });

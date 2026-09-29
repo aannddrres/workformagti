@@ -9,6 +9,7 @@ import { Category } from '../../../core/models/category';
 import { DEPARTMENTS } from '../../../shared/user-roles';
 import { ToastService } from '../../../core/notifications/toast.service';
 import { PortalDialog } from '../../../shared/portal-dialog/portal-dialog';
+import { DateField } from '../../../shared/date-field/date-field';
 import { ConfirmService } from '../../../core/notifications/confirm.service';
 
 /**
@@ -24,7 +25,7 @@ import { ConfirmService } from '../../../core/notifications/confirm.service';
 @Component({
   selector: 'app-video-edit-drawer',
   standalone: true,
-  imports: [TranslatePipe, PortalDialog],
+  imports: [TranslatePipe, PortalDialog, DateField],
   templateUrl: './video-edit-drawer.html'
 })
 export class VideoEditDrawer {
@@ -158,7 +159,7 @@ export class VideoEditDrawer {
   }
 
   protected async close(): Promise<void> {
-    if (this.dirty() && !(await this.confirmService.ask('შეუნახავი ცვლილებები დაიკარგება. გსურთ დახურვა?'))) {
+    if (this.dirty() && !(await this.confirmService.ask({ message: 'შეუნახავი ცვლილებები დაიკარგება. გსურთ დახურვა?', confirmLabel: 'დახურვა შენახვის გარეშე', tone: 'danger' }))) {
       return;
     }
     this.closed.emit();

@@ -45,11 +45,11 @@
       </div>
 
       @if (feedback() === 'wrong') {
-        <p class="mt-4 text-sm font-semibold text-brand-accent">
+        <p class="mt-4 text-sm font-semibold text-red-700 dark:text-red-400">
           {{ 'readings.quiz.wrong_feedback' | translate: { count: wrongQuestionIds().size } }}
         </p>
       } @else if (feedback() === 'error') {
-        <p class="mt-4 text-sm font-semibold text-brand-accent">{{ 'readings.quiz.submit_failed' | translate }}</p>
+        <p class="mt-4 text-sm font-semibold text-red-700 dark:text-red-400">{{ 'readings.quiz.submit_failed' | translate }}</p>
       }
 
       <button

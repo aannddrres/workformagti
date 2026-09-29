@@ -22,7 +22,7 @@
       isRead()
         ? 'border-emerald-200 bg-emerald-50/60 dark:border-emerald-900/50 dark:bg-emerald-950/20'
         : isOverdue()
-          ? 'border-brand-accent/30 bg-brand/[0.06] dark:border-brand-accent/40 dark:bg-brand/10'
+          ? 'border-red-200 bg-red-50/60 dark:border-red-900/50 dark:bg-red-950/20'
           : 'border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900'
     "
   >
@@ -46,7 +46,7 @@
           <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">
             {{ 'readings.confirm.heading' | translate }}
           </p>
-          <p class="mt-0.5 text-xs" [class]="isOverdue() ? 'font-semibold text-brand-accent' : 'text-slate-600 dark:text-slate-400'">
+          <p class="mt-0.5 text-xs" [class]="isOverdue() ? 'font-semibold text-red-700 dark:text-red-400' : 'text-slate-600 dark:text-slate-400'">
             @if (isOverdue()) {
               {{ 'readings.confirm.overdue' | translate }}
             } @else if (item.reading.due_date) {

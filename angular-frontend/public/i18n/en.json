@@ -15,18 +15,20 @@
       "section_personal": "Personal Space",
       "favorites": "Favourites",
       "personal_cabinet": "Personal Cabinet",
-      "section_admin": "Administration",
-      "admin_stats": "Overall statistics",
-      "admin_users": "Users and access",
+      "admin_stats": "System overview",
+      "admin_users": "Users",
       "admin_roles": "Role Management",
-      "admin_content": "Content workspace",
+      "admin_content": "Content management",
       "admin_logs": "Audit and security",
       "admin_categories": "Categories",
       "section_work": "Work",
       "section_team": "Team",
+      "section_content": "Content",
+      "section_people": "People and access",
+      "section_control": "Control",
       "admin_trash": "Trash",
       "admin_broadcasts": "Announcements",
-      "admin_org": "Organisational structure",
+      "admin_org": "Structure",
       "admin_assignments": "Leader assignments",
       "admin_exports": "Data export",
       "menu_open": "Open menu",
@@ -36,7 +38,7 @@
       "primary_navigation": "Main navigation",
       "font_size": "Font size",
       "account_menu": "Account menu",
-      "admin_backfill": "Backfill control"
+      "admin_backfill": "Structure backfill report"
     },
     "topbar": {
       "user_menu_label": "User menu",
@@ -62,7 +64,7 @@
     }
   },
   "users": {
-    "heading": "User Management (RBAC)",
+    "heading": "Users",
     "all_groups": "All groups",
     "group_leaders_load_error": "Could not load groups — retry",
     "new_user": "New user",
@@ -82,6 +84,7 @@
     "status_active": "Active",
     "status_inactive": "Disabled",
     "edit": "Edit",
+    "row_actions": "User actions",
     "create_heading": "Create new user",
     "field_name": "Full name",
     "field_email": "Email",
@@ -114,13 +117,12 @@
     "perm_reports_export": "Export reports",
     "perm_stats_view": "View company-wide statistics",
     "perm_inherited": "(from role)",
-    "perm_role_grants": "The selected role grants this permission by default",
-    "perm_role_denies": "The selected role does not grant this permission by default",
+    "perm_inherit_note": "\"Inherited from role\" means the permission is on when the chosen role grants it.",
     "perm_effective_on": "Active",
     "perm_effective_off": "Inactive",
     "perm_state_inherit": "Inherit from role",
-    "perm_state_allow": "Explicitly allow (ALLOW)",
-    "perm_state_deny": "Explicitly deny (DENY)",
+    "perm_state_allow": "Allow directly",
+    "perm_state_deny": "Deny directly",
     "perm_admin_bypass_note": "A system administrator holds every permission by definition — the controls below cannot restrict them. Change the role to restrict access.",
     "admin_page": {
       "status_error": "Could not change status",
@@ -138,6 +140,9 @@
       "bulk_confirm_title": "Deactivate accounts",
       "bulk_confirm": "Deactivate {{count}} account(s)? They will no longer be able to sign in. Their history and records stay, and they can be reactivated at any time.",
       "bulk_confirm_label": "Deactivate",
+      "deactivate_confirm_title": "Deactivate account",
+      "deactivate_confirm": "Deactivate this account? They will no longer be able to sign in. Their history and records stay, and they can be reactivated at any time.",
+      "deactivate_confirm_label": "Deactivate",
       "bulk_done": "{{count}} account(s) deactivated",
       "bulk_none_changed": "No account was deactivated — the selected ones were already off",
       "bulk_error": "The bulk deactivation could not be completed"
@@ -153,7 +158,6 @@
     },
     "palette": {
       "open": "Search",
-      "placeholder": "Search…",
       "shortcut": "Ctrl K",
       "dialog_label": "Global search",
       "input_placeholder": "Search articles, news or videos…",
@@ -184,6 +188,12 @@
       "read_time": "{{minutes}} min read",
       "uncategorized": "General"
     },
+    "list": {
+      "col_title": "Title",
+      "col_category": "Category",
+      "col_date": "Date",
+      "col_favorite": "Favourite"
+    },
     "category_tile": {
       "article_count": "{{count}} items",
       "recent_indicator": "New material added in the last 4 days"
@@ -193,7 +203,6 @@
       "subtitle": "Find instructions, product descriptions, and technical guides.",
       "search_placeholder": "Search by topic ...",
       "all_categories_option": "All categories",
-      "new_badge_tip": "Articles updated in the last 4 days are marked New.",
       "no_results": "No results found.",
       "search_error": "An error occurred while searching.",
       "show_more": "Show more"
@@ -225,11 +234,11 @@
     },
     "version_history": {
       "button": "Version history",
-      "heading": "Change history",
+      "heading": "Version history",
       "close": "Close",
       "loading": "Loading...",
       "load_failed": "Failed to load version history",
-      "empty": "No change history yet.",
+      "empty": "No versions yet.",
       "badge_current": "V{{version}} (current)",
       "badge_original": "V{{version}} (original)",
       "editor_label": "Editor",
@@ -245,12 +254,11 @@
     }
   },
   "dashboard": {
-    "banner_heading": "Welcome to the Magti Portal",
-    "banner_subtitle": "Knowledge base, mandatory reading, and news, all in one place.",
     "progress": {
       "all_clear": "All required material has been reviewed",
       "pending_label": "{{count}} remaining",
-      "load_error": "Could not load your progress"
+      "load_error": "Could not load your progress",
+      "retry": "Try again"
     },
     "mandatory_reading": {
       "heading": "Must read",
@@ -280,7 +288,7 @@
       "heading": "News",
       "search_placeholder": "Search by title or content ...",
       "dept_all": "All departments",
-      "dept_general": "General",
+      "dept_general": "Everyone",
       "dept_tech": "Technical",
       "dept_info": "Informational",
       "dept_office": "Office",
@@ -328,13 +336,26 @@
     "remove_attachment_label": "Remove attachment",
     "confirm": {
       "title": "Confirm",
-      "confirm": "Yes",
       "cancel": "Cancel"
+    },
+    "date_field": {
+      "placeholder": "dd.mm.yyyy",
+      "placeholder_time": "dd.mm.yyyy hh:mm",
+      "open": "Open calendar",
+      "dialog_label": "Choose a date",
+      "previous_month": "Previous month",
+      "next_month": "Next month",
+      "time": "Time",
+      "hour": "Hour",
+      "minute": "Minute",
+      "today": "Today",
+      "clear": "Clear",
+      "done": "Done"
     }
   },
   "favorites": {
     "page": {
-      "heading": "My favorites",
+      "heading": "Favourites",
       "empty": "No favorites found.",
       "load_error": "Could not load favorites.",
       "group_article": "Articles",
@@ -353,6 +374,7 @@
       "empty": "No items found.",
       "load_error": "Could not load the reading list.",
       "due_label": "Due: {{date}}",
+      "read_label": "Read: {{date}}",
       "item_fallback_title": "Item #{{id}}",
       "status_read": "Read",
       "status_overdue": "Overdue",
@@ -390,7 +412,7 @@
   },
   "manager": {
     "page": {
-      "heading": "Team statistics",
+      "heading": "Team status",
       "subtitle": "Reading completion across departments and groups",
       "sort_by_compliance": "Sort: by performance",
       "sort_by_name": "Sort: by name",
@@ -482,7 +504,7 @@
     "preset_today": "Today",
     "preset_7d": "7 days",
     "preset_30d": "30 days",
-    "search_placeholder": "Search… actor:admin category:SECURITY",
+    "search_placeholder": "Search: name, action or object",
     "start_date_label": "Start date",
     "end_date_label": "End date",
     "category_all": "All categories",
@@ -523,8 +545,17 @@
     "detail_object": "Object",
     "detail_ip": "IP address",
     "detail_device": "Device",
-    "detail_changes_heading": "Change details",
+    "detail_changes_heading": "Details",
     "detail_no_details": "No details available",
+    "detail_field": "Field",
+    "detail_before": "Before",
+    "detail_after": "After",
+    "detail_value": "Value",
+    "detail_outcome": "Outcome",
+    "detail_reason": "Reason",
+    "detail_no_changes": "No recorded field changed",
+    "detail_unchanged": "Unchanged fields ({{count}})",
+    "detail_technical": "Technical detail",
     "detail_integrity_heading": "Integrity chain",
     "detail_verify_button": "Verify chain",
     "detail_verifying": "Verifying…",
@@ -546,14 +577,15 @@
     "move": "Move",
     "no_members": "No users in this role.",
     "no_selection": "No users selected",
-    "confirm_message": "This will change the selected users' role. Continue?"
+    "confirm_message": "This will change the selected users' role. Continue?",
+    "confirm_label": "Change role"
   },
   "content": {
     "heading": "Content Management",
     "cancel": "Cancel",
     "save": "Save",
     "saving": "Saving...",
-    "all_departments": "All departments",
+    "all_departments": "Everyone",
     "tabs": {
       "articles": "Articles",
       "news": "News",
@@ -577,7 +609,7 @@
       "col_date": "Date added",
       "col_action": "Action",
       "none_found": "No articles found",
-      "action_history": "History",
+      "action_history": "Version history",
       "action_edit": "Edit",
       "action_archive": "Archive",
       "action_unarchive": "Unarchive",
@@ -680,7 +712,7 @@
       "delete_error": "Could not move the video to trash"
     },
     "history": {
-      "heading": "Revision history",
+      "heading": "Version history",
       "close": "Close",
       "back": "Back",
       "loading": "Loading...",
@@ -712,7 +744,8 @@
     }
   },
   "categories": {
-    "heading": "Category Management",
+    "heading": "Categories",
+    "strip_label": "Knowledge categories",
     "refresh": "Refresh",
     "new": "New Category",
     "field_name": "Name",
@@ -735,6 +768,7 @@
     "orphan_parent": "#{{id}} (no longer exists)",
     "edit": "Edit",
     "delete": "Delete",
+    "row_actions": "Category actions",
     "confirm_delete": "Delete this category? The action is blocked while any content uses it.",
     "save_failed": "Could not save",
     "color_general": "Default (Slate)",

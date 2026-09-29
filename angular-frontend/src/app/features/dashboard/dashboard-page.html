@@ -1,7 +1,6 @@
 <div class="portal-page">
-  <!-- The operator home has no visible page title -- the header carries it, and
-       the greeting below only appears when there is nothing to read. A document
-       still needs exactly one h1, so this is it. -->
+  <!-- The operator home has no visible page title. A document still needs
+       exactly one h1, so this is it. -->
   <h1 class="sr-only">{{ 'nav.sidebar.home' | translate }}</h1>
   <app-broadcast-banner />
   <!--
@@ -13,20 +12,29 @@
     an operator with an overdue obligation, the single most urgent thing on
     the page sat roughly two scrolls below a decoration that never changes.
 
-    Now the obligation leads when there is one, and the banner is what fills
-    the space when there is nothing to do — the decoration is the reward, not
-    the greeting.
+    Now the obligation leads when there is one. When there is nothing to do
+    a quiet green line says so and the categories move up; the red greeting
+    that used to fill that space is gone (owner decision კ14), because red on
+    this portal means "act here" and a welcome is not an action.
   -->
 
   @if (awaitingProgress()) {
     <!-- Holds the leading slot until we know whether anything is outstanding,
-         so the page cannot render the banner and then swap it for the alarm. -->
+         so the page cannot render the all-clear and then swap it for the alarm. -->
     <div class="mb-6 h-[132px] animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800"></div>
+  } @else if (progressError()) {
+    <!-- The progress request failing is not the same as having nothing to do,
+         so it is not answered with the all-clear. -->
+    <div role="alert" class="error-state mb-6">
+      <i class="fa-solid fa-triangle-exclamation text-2xl" aria-hidden="true"></i>
+      <p>{{ 'dashboard.progress.load_error' | translate }}</p>
+      <button type="button" class="secondary-button" (click)="loadProgress()">{{ 'dashboard.progress.retry' | translate }}</button>
+    </div>
   } @else if (needsAttention()) {
     <section class="mb-6" [attr.aria-label]="'dashboard.priority.aria' | translate">
       <div class="mb-3 flex items-center gap-2">
-        <i class="fa-solid fa-triangle-exclamation text-brand-accent" aria-hidden="true"></i>
-        <h2 class="text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300">
+        <i class="fa-solid fa-triangle-exclamation text-red-700 dark:text-red-400" aria-hidden="true"></i>
+        <h2 class="text-base font-bold text-slate-800 dark:text-slate-100">
           {{ 'dashboard.priority.heading' | translate }}
         </h2>
       </div>
@@ -51,19 +59,10 @@
       </div>
     </section>
   } @else {
-    <div
-      class="mb-6 overflow-hidden rounded-lg bg-gradient-to-br from-brand to-brand-700 px-6 py-8 text-white"
-    >
-      <h2 class="text-2xl font-bold tracking-tight">
-        {{ 'dashboard.banner_heading' | translate }}
-      </h2>
-      <p class="mt-1 text-sm text-white/80">{{ 'dashboard.banner_subtitle' | translate }}</p>
-    </div>
-
     <!-- Still say the obligations are clear; silence reads as "not loaded". -->
     @if (!isManagement() && progress() !== null && progress()!.total_mandatory > 0) {
       <div
-        class="mb-6 inline-flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/20"
+        class="mb-6 flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50/60 px-4 py-3 dark:border-emerald-900/50 dark:bg-emerald-950/20"
       >
         <i class="fa-solid fa-circle-check text-xl text-emerald-700 dark:text-emerald-400" aria-hidden="true"></i>
         <p class="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
@@ -71,11 +70,6 @@
         </p>
       </div>
     }
-  }
-
-  <!-- The progress request failing is not the same as having nothing to do. -->
-  @if (progressError()) {
-    <p class="mb-6 text-sm text-red-700 dark:text-red-300">{{ 'dashboard.progress.load_error' | translate }}</p>
   }
 
   <div class="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5">

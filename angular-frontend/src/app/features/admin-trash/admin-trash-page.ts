@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { ContentTrashItem, TrashItemType } from '../../core/models/content-trash';
@@ -6,11 +5,12 @@ import { UserProfileService } from '../../core/auth/user-profile.service';
 import { ContentTrashService } from '../../core/services/content-trash.service';
 import { createTableSort } from '../../shared/table-sort';
 import { ConfirmService } from '../../core/notifications/confirm.service';
+import { KaDatePipe } from '../../shared/ka-date.pipe';
 
 @Component({
   selector: 'app-admin-trash-page',
   standalone: true,
-  imports: [DatePipe],
+  imports: [KaDatePipe],
   templateUrl: './admin-trash-page.html'
 })
 export class AdminTrashPage {
@@ -51,13 +51,13 @@ export class AdminTrashPage {
   }
 
   protected async restore(item: ContentTrashItem): Promise<void> {
-    if (!(await this.confirmService.ask(`აღვადგინოთ „${item.title}“? მასალა არქივში დაბრუნდება.`))) return;
+    if (!(await this.confirmService.ask({ message: `აღვადგინოთ „${item.title}“? მასალა არქივში დაბრუნდება.`, confirmLabel: 'აღდგენა' }))) return;
     this.run(item, this.trashService.restore(item.item_type, item.item_id));
   }
 
   protected async purge(item: ContentTrashItem): Promise<void> {
     if (!this.canPurge(item)) return;
-    if (!(await this.confirmService.ask({ message: `საბოლოოდ წავშალოთ „${item.title}“? კონტენტის payload ვეღარ აღდგება.`, tone: 'danger' }))) return;
+    if (!(await this.confirmService.ask({ message: `საბოლოოდ წავშალოთ „${item.title}“? მასალის ტექსტი ვეღარ აღდგება.`, confirmLabel: 'საბოლოო წაშლა', tone: 'danger' }))) return;
     this.run(item, this.trashService.purge(item.item_type, item.item_id));
   }
 

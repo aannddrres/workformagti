@@ -72,9 +72,8 @@ export class DashboardPage {
   protected readonly progressError = signal(false);
 
   /**
-   * Drives which half of the page leads: the operator's outstanding
-   * obligations, or the decorative banner. Management roles have no readings
-   * by design, so they always get the banner.
+   * Drives what leads the page: the operator's outstanding obligations, or a
+   * one-line all-clear. Management roles have no readings by design.
    */
   protected readonly needsAttention = computed(
     () => !this.isManagement() && (this.progress()?.pending ?? 0) > 0,
@@ -83,8 +82,8 @@ export class DashboardPage {
   /**
    * True while an operator's progress is still unknown.
    *
-   * Without this the page would render the banner first and then swap it for
-   * the alarm block a moment later, every single load — the layout jumping
+   * Without this the page would render the all-clear first and then swap it
+   * for the alarm block a moment later, every single load — the layout jumping
    * under the reader exactly where the most urgent content goes. Holding the
    * slot until the answer arrives costs one skeleton and avoids the flip.
    */
@@ -99,11 +98,17 @@ export class DashboardPage {
       .subscribe((articles) => this.countingSet.set(articles.filter(isReaderVisibleArticle)));
 
     if (!this.isManagement()) {
-      this.complianceService.myProgress().subscribe({
-        next: (p) => this.progress.set(p),
-        error: () => this.progressError.set(true),
-      });
+      this.loadProgress();
     }
+  }
+
+  loadProgress(): void {
+    this.progressError.set(false);
+    this.progress.set(null);
+    this.complianceService.myProgress().subscribe({
+      next: (p) => this.progress.set(p),
+      error: () => this.progressError.set(true),
+    });
   }
 
   hasRecentInCategory(category: Category): boolean {

@@ -1,16 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { formatKaDate, formatKaDateTime } from './ka-date';
+import { formatKaDate, formatKaDateTime, formatKaDateTimeSeconds, formatKaDayMonth } from './ka-date';
 
 describe('formatKaDate', () => {
-  it('is day-first and does not depend on Georgian ICU data', () => {
+  it('names the month in Georgian and does not depend on Georgian ICU data', () => {
     // Chromium builds without `ka` CLDR data resolve 'ka-GE' to en-US, which
-    // renders this same day as the month-first '08/19/2026'. The 19 is what
-    // makes the two readings distinguishable, so keep this date.
-    expect(formatKaDate(new Date(2026, 7, 19).toISOString())).toBe('19.08.2026');
+    // renders this same day as the month-first '08/19/2026' or as 'Aug'.
+    expect(formatKaDate(new Date(2026, 7, 19).toISOString())).toBe('19 აგვ. 2026');
   });
 
-  it('zero-pads a single-digit day and month', () => {
-    expect(formatKaDate(new Date(2026, 0, 4).toISOString())).toBe('04.01.2026');
+  it('does not pad a single-digit day', () => {
+    expect(formatKaDate(new Date(2026, 0, 4).toISOString())).toBe('4 იან. 2026');
+  });
+
+  it('reads a bare calendar day as that day, not as UTC midnight', () => {
+    expect(formatKaDate('2026-09-01')).toBe('1 სექ. 2026');
   });
 
   it('renders an invalid value safely', () => {
@@ -19,13 +22,29 @@ describe('formatKaDate', () => {
 });
 
 describe('formatKaDateTime', () => {
-  it('uses a deterministic Georgian month label', () => {
+  it('shows hours and minutes, not seconds', () => {
     const localAugust = new Date(2026, 7, 21, 9, 5, 7).toISOString();
 
-    expect(formatKaDateTime(localAugust)).toBe('21 აგვ. 2026, 09:05:07');
+    expect(formatKaDateTime(localAugust)).toBe('21 აგვ. 2026, 09:05');
   });
 
   it('renders an invalid value safely', () => {
     expect(formatKaDateTime('not-a-date')).toBe('—');
+  });
+});
+
+describe('formatKaDateTimeSeconds', () => {
+  it('keeps the seconds the audit trail orders by', () => {
+    expect(formatKaDateTimeSeconds(new Date(2026, 8, 29, 17, 45, 8).toISOString())).toBe('29 სექ. 2026, 17:45:08');
+  });
+});
+
+describe('formatKaDayMonth', () => {
+  it('labels a chart bucket without the year', () => {
+    expect(formatKaDayMonth('2026-09-23')).toBe('23 სექ.');
+  });
+
+  it('renders an invalid value safely', () => {
+    expect(formatKaDayMonth('')).toBe('—');
   });
 });

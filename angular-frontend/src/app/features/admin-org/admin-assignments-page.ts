@@ -5,6 +5,7 @@ import { forkJoin } from 'rxjs';
 import { AdminUser } from '../../core/models/admin-user';
 import {
   LeadershipAssignment,
+  LeadershipAssignmentSource,
   LeadershipAssignmentType,
   LeadershipScope,
   OrgStructure
@@ -36,6 +37,14 @@ export class AdminAssignmentsPage {
     status: (a) => (a.is_active ? 0 : 1)
   });
   protected readonly sortedAssignments = computed(() => this.sort.sort(this.assignments()));
+
+  protected typeLabel(type: LeadershipAssignmentType): string {
+    return type === 'ACTING' ? 'მოვალეობის შემსრულებელი' : 'ძირითადი';
+  }
+
+  protected sourceLabel(source: LeadershipAssignmentSource): string {
+    return { MANUAL: 'ხელით', BACKFILL: 'საწყისი შევსება', AD_SYNC: 'კომპანიის AD' }[source] ?? source;
+  }
   protected readonly users = signal<AdminUser[]>([]);
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
@@ -124,7 +133,7 @@ export class AdminAssignmentsPage {
   }
 
   protected async deactivate(assignment: LeadershipAssignment): Promise<void> {
-    if (!assignment.is_active || !(await this.confirmService.ask('ნამდვილად გსურთ ამ დანიშვნის გაუქმება? ისტორია შენარჩუნდება.'))) {
+    if (!assignment.is_active || !(await this.confirmService.ask({ message: 'ნამდვილად გსურთ ამ დანიშვნის გაუქმება? ისტორია შენარჩუნდება.', confirmLabel: 'დანიშვნის გაუქმება', tone: 'danger' }))) {
       return;
     }
     this.error.set(null);

@@ -34,7 +34,7 @@ export class AdminBackfillPage {
         this.loading.set(false);
       },
       error: (error) => {
-        this.error.set(error?.error?.detail ?? 'Cutover-ის მტკიცებულებების ჩატვირთვა ვერ მოხერხდა.');
+        this.error.set(error?.error?.detail ?? 'ანგარიშის ჩატვირთვა ვერ მოხერხდა.');
         this.loading.set(false);
       }
     });
@@ -49,7 +49,7 @@ export class AdminBackfillPage {
         this.applying.set(false);
       },
       error: (error) => {
-        this.error.set(error?.error?.detail ?? 'Backfill-ის გაშვება ვერ მოხერხდა.');
+        this.error.set(error?.error?.detail ?? 'შევსების გაშვება ვერ მოხერხდა.');
         this.applying.set(false);
       }
     });

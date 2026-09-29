@@ -1,25 +1,31 @@
 <div class="portal-page-narrow">
   <h1 class="portal-title mb-6">{{ 'readings.page.heading' | translate }}</h1>
 
-  <div class="mb-6 flex gap-6 border-b border-slate-200 dark:border-slate-800">
+  <div class="portal-tabs mb-6" role="tablist" [attr.aria-label]="'readings.page.heading' | translate">
     <button
+      type="button"
+      role="tab"
       (click)="setFilter('all')"
-      class="border-b-2 px-1 pb-3 text-sm font-normal transition-colors"
-      [class]="filter() === 'all' ? 'border-brand-accent font-semibold text-brand-accent' : 'border-transparent text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'"
+      [attr.aria-selected]="filter() === 'all'"
+      class="portal-tab"
     >
       {{ 'readings.page.filter_all' | translate }}
     </button>
     <button
+      type="button"
+      role="tab"
       (click)="setFilter('unread')"
-      class="border-b-2 px-1 pb-3 text-sm font-normal transition-colors"
-      [class]="filter() === 'unread' ? 'border-brand-accent font-semibold text-brand-accent' : 'border-transparent text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'"
+      [attr.aria-selected]="filter() === 'unread'"
+      class="portal-tab"
     >
       {{ 'readings.page.filter_unread' | translate }}
     </button>
     <button
+      type="button"
+      role="tab"
       (click)="setFilter('read')"
-      class="border-b-2 px-1 pb-3 text-sm font-normal transition-colors"
-      [class]="filter() === 'read' ? 'border-brand-accent font-semibold text-brand-accent' : 'border-transparent text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'"
+      [attr.aria-selected]="filter() === 'read'"
+      class="portal-tab"
     >
       {{ 'readings.page.filter_read' | translate }}
     </button>
@@ -35,6 +41,7 @@
     <div role="alert" class="error-state">
       <i class="fa-solid fa-triangle-exclamation text-2xl" aria-hidden="true"></i>
       <p>{{ errorMessage() }}</p>
+      <button type="button" class="secondary-button" (click)="load()">{{ 'shared.retry' | translate }}</button>
     </div>
   } @else if (filteredReadings().length === 0) {
     <div class="empty-state">
@@ -49,21 +56,21 @@
           class="group flex items-center justify-between gap-4 rounded-lg border border-slate-100 bg-white p-4 shadow-e1 transition hover:border-slate-200 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800/60"
         >
           <div class="flex min-w-0 flex-1 items-center gap-4">
-            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-red-50 text-brand-accent dark:bg-red-950/30">
+            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
               <i class="fa-solid" [class]="iconFor(item)" aria-hidden="true"></i>
             </div>
             <div class="min-w-0">
               <h4 class="truncate font-bold text-slate-800 dark:text-slate-100" [title]="titleFor(item)">{{ titleFor(item) }}</h4>
-              <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">{{ 'readings.page.due_label' | translate: { date: dateLabel(item) } }}</p>
+              <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">{{ dateLine(item) }}</p>
             </div>
           </div>
           <div class="flex shrink-0 items-center gap-3">
             @if (item.status === 'read') {
-              <span class="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700 dark:bg-green-950/40 dark:text-green-400">{{ 'readings.page.status_read' | translate }}</span>
+              <span class="status-pill status-done">{{ 'readings.page.status_read' | translate }}</span>
             } @else if (isOverdue(item)) {
-              <span class="rounded-full bg-brand px-3 py-1 text-xs font-bold text-white">{{ 'readings.page.status_overdue' | translate }}</span>
+              <span class="status-pill status-overdue"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>{{ 'readings.page.status_overdue' | translate }}</span>
             } @else {
-              <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{{ 'readings.page.status_unread' | translate }}</span>
+              <span class="status-pill status-pending">{{ 'readings.page.status_unread' | translate }}</span>
             }
 
             <!-- The acknowledgement above stays valid: it records that this

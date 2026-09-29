@@ -15,18 +15,20 @@
       "section_personal": "პირადი სივრცე",
       "favorites": "რჩეულები",
       "personal_cabinet": "პირადი კაბინეტი",
-      "section_admin": "ადმინისტრირება",
-      "admin_stats": "საერთო სტატისტიკა",
-      "admin_users": "მომხმარებლები და წვდომა",
+      "admin_stats": "სისტემის მიმოხილვა",
+      "admin_users": "მომხმარებლები",
       "admin_roles": "როლების მართვა",
-      "admin_content": "კონტენტის სამუშაო სივრცე",
+      "admin_content": "კონტენტის მართვა",
       "admin_logs": "აუდიტი და უსაფრთხოება",
       "admin_categories": "კატეგორიები",
       "section_work": "სამუშაო",
       "section_team": "გუნდი",
+      "section_content": "კონტენტი",
+      "section_people": "ხალხი და წვდომა",
+      "section_control": "კონტროლი",
       "admin_trash": "სანაგვე",
       "admin_broadcasts": "განცხადებები",
-      "admin_org": "ორგანიზაციული სტრუქტურა",
+      "admin_org": "სტრუქტურა",
       "admin_assignments": "ლიდერების დანიშვნა",
       "admin_exports": "მონაცემების ექსპორტი",
       "menu_open": "მენიუს გახსნა",
@@ -36,7 +38,7 @@
       "primary_navigation": "მთავარი ნავიგაცია",
       "font_size": "შრიფტის ზომა",
       "account_menu": "ანგარიშის მენიუ",
-      "admin_backfill": "Backfill კონტროლი"
+      "admin_backfill": "სტრუქტურის შევსების ანგარიში"
     },
     "topbar": {
       "user_menu_label": "მომხმარებლის მენიუ",
@@ -62,7 +64,7 @@
     }
   },
   "users": {
-    "heading": "მომხმარებლების მართვა",
+    "heading": "მომხმარებლები",
     "all_groups": "ყველა ჯგუფი",
     "group_leaders_load_error": "ჯგუფების სია ვერ ჩაიტვირთა — თავიდან ცდა",
     "new_user": "ახალი მომხმარებელი",
@@ -82,6 +84,7 @@
     "status_active": "აქტიური",
     "status_inactive": "გათიშული",
     "edit": "რედაქტირება",
+    "row_actions": "მომხმარებლის მოქმედებები",
     "create_heading": "ახალი მომხმარებლის შექმნა",
     "field_name": "სრული სახელი",
     "field_email": "ელ. ფოსტა",
@@ -114,13 +117,12 @@
     "perm_reports_export": "რეპორტების ექსპორტი",
     "perm_stats_view": "კომპანიის საერთო სტატისტიკა",
     "perm_inherited": "(როლიდან)",
-    "perm_role_grants": "არჩეული როლი ამ უფლებას ავტომატურად ანიჭებს",
-    "perm_role_denies": "არჩეული როლი ამ უფლებას ავტომატურად არ ანიჭებს",
+    "perm_inherit_note": "„როლიდან მემკვიდრეობით“ ნიშნავს: უფლება ჩართულია, თუ მას არჩეული როლი იძლევა.",
     "perm_effective_on": "აქტიურია",
     "perm_effective_off": "გამორთულია",
     "perm_state_inherit": "როლიდან მემკვიდრეობით",
-    "perm_state_allow": "პირდაპირ დაშვება (ALLOW)",
-    "perm_state_deny": "პირდაპირ აკრძალვა (DENY)",
+    "perm_state_allow": "პირდაპირ დაშვება",
+    "perm_state_deny": "პირდაპირ აკრძალვა",
     "perm_admin_bypass_note": "სისტემურ ადმინისტრატორს ყველა უფლება აქვს განსაზღვრებით — ქვემოთ მოცემული კონტროლები მას ვერ შეზღუდავს. შესაზღუდად საჭიროა როლის შეცვლა.",
     "admin_page": {
       "status_error": "სტატუსის შეცვლა ვერ მოხერხდა",
@@ -138,6 +140,9 @@
       "bulk_confirm_title": "ანგარიშების გათიშვა",
       "bulk_confirm": "გაითიშოს {{count}} ანგარიში? მათ პორტალში შესვლა აღარ შეეძლებათ. ისტორია და მონაცემები რჩება, გააქტიურება კი ნებისმიერ დროს შესაძლებელია.",
       "bulk_confirm_label": "გათიშვა",
+      "deactivate_confirm_title": "ანგარიშის გათიშვა",
+      "deactivate_confirm": "გაითიშოს ეს ანგარიში? პორტალში შესვლა აღარ შეეძლება. ისტორია და მონაცემები რჩება, გააქტიურება კი ნებისმიერ დროს შესაძლებელია.",
+      "deactivate_confirm_label": "გათიშვა",
       "bulk_done": "გაითიშა {{count}} ანგარიში",
       "bulk_none_changed": "არცერთი ანგარიში არ გათიშულა — მონიშნულები უკვე გათიშული იყო",
       "bulk_error": "ჯგუფური გათიშვა ვერ მოხერხდა"
@@ -153,7 +158,6 @@
     },
     "palette": {
       "open": "ძებნა",
-      "placeholder": "ძებნა…",
       "shortcut": "Ctrl K",
       "dialog_label": "გლობალური ძებნა",
       "input_placeholder": "მოძებნე სტატია, სიახლე ან ვიდეო…",
@@ -184,6 +188,12 @@
       "read_time": "{{minutes}} წთ. საკითხავი",
       "uncategorized": "ზოგადი"
     },
+    "list": {
+      "col_title": "სათაური",
+      "col_category": "კატეგორია",
+      "col_date": "თარიღი",
+      "col_favorite": "რჩეულებში"
+    },
     "category_tile": {
       "article_count": "{{count}} მასალა",
       "recent_indicator": "ბოლო 4 დღეში დამატებულია ახალი მასალა"
@@ -193,7 +203,6 @@
       "subtitle": "მოძებნეთ ინსტრუქციები, პროდუქტების აღწერები და ტექნიკური გზამკვლევები.",
       "search_placeholder": "ძიება თემით ...",
       "all_categories_option": "ყველა კატეგორია",
-      "new_badge_tip": "ბოლო 4 დღის განმავლობაში განახლებულ სტატიებს აქვს ახალი აღნიშვნა.",
       "no_results": "შედეგი ვერ მოიძებნა.",
       "search_error": "ძიებისას დაფიქსირდა შეცდომა.",
       "show_more": "მეტის ჩვენება"
@@ -211,7 +220,7 @@
       "subcategories": "ქვეკატეგორიები"
     },
     "detail_page": {
-      "back_button": "უკან დაბრუნება",
+      "back_button": "უკან",
       "breadcrumb_label": "სტატიის მდებარეობა",
       "content_label": "სტატიის შინაარსი",
       "attachment_download": "ფაილის ჩამოტვირთვა",
@@ -225,11 +234,11 @@
     },
     "version_history": {
       "button": "ვერსიების ისტორია",
-      "heading": "ცვლილებების ისტორია",
+      "heading": "ვერსიების ისტორია",
       "close": "დახურვა",
       "loading": "იტვირთება...",
       "load_failed": "ვერსიების ისტორიის ჩატვირთვა ვერ მოხერხდა",
-      "empty": "ცვლილებების ისტორია ჯერ არ არსებობს.",
+      "empty": "ვერსიების ისტორია ჯერ ცარიელია.",
       "badge_current": "V{{version}} (მიმდინარე)",
       "badge_original": "V{{version}} (ორიგინალი)",
       "editor_label": "რედაქტორი",
@@ -245,12 +254,11 @@
     }
   },
   "dashboard": {
-    "banner_heading": "მოგესალმებით მაგთის პორტალზე",
-    "banner_subtitle": "ცოდნის ბაზა, სავალდებულო მასალები და სიახლეები ერთ სივრცეში.",
     "progress": {
       "all_clear": "ყველა მასალა გაცნობილია",
       "pending_label": "{{count}} დარჩენილია",
-      "load_error": "პროგრესის ჩატვირთვა ვერ მოხერხდა"
+      "load_error": "პროგრესის ჩატვირთვა ვერ მოხერხდა",
+      "retry": "თავიდან ცდა"
     },
     "mandatory_reading": {
       "heading": "აუცილებლად გასაცნობი",
@@ -280,7 +288,7 @@
       "heading": "სიახლეები",
       "search_placeholder": "ძიება სათაურით ან შინაარსით ...",
       "dept_all": "ყველა დეპარტამენტი",
-      "dept_general": "საერთო",
+      "dept_general": "ყველასთვის",
       "dept_tech": "ტექნიკური",
       "dept_info": "საინფორმაციო",
       "dept_office": "ოფისი",
@@ -328,13 +336,26 @@
     "remove_attachment_label": "დანართის მოხსნა",
     "confirm": {
       "title": "დადასტურება",
-      "confirm": "დიახ",
       "cancel": "გაუქმება"
+    },
+    "date_field": {
+      "placeholder": "დდ.თთ.წწწწ",
+      "placeholder_time": "დდ.თთ.წწწწ სს:წწ",
+      "open": "კალენდრის გახსნა",
+      "dialog_label": "თარიღის არჩევა",
+      "previous_month": "წინა თვე",
+      "next_month": "შემდეგი თვე",
+      "time": "დრო",
+      "hour": "საათი",
+      "minute": "წუთი",
+      "today": "დღეს",
+      "clear": "გასუფთავება",
+      "done": "მზადაა"
     }
   },
   "favorites": {
     "page": {
-      "heading": "ჩემი რჩეულები",
+      "heading": "რჩეულები",
       "empty": "რჩეულები არ მოიძებნა.",
       "load_error": "რჩეულების ჩატვირთვა ვერ მოხერხდა.",
       "group_article": "სტატიები",
@@ -353,6 +374,7 @@
       "empty": "სია ცარიელია.",
       "load_error": "მასალების ჩატვირთვა ვერ მოხერხდა.",
       "due_label": "ვადა: {{date}}",
+      "read_label": "წაკითხულია: {{date}}",
       "item_fallback_title": "მასალა #{{id}}",
       "status_read": "წაკითხულია",
       "status_overdue": "ვადაგადაცილებული",
@@ -390,7 +412,7 @@
   },
   "manager": {
     "page": {
-      "heading": "გუნდის სტატისტიკა",
+      "heading": "გუნდის მდგომარეობა",
       "subtitle": "დეპარტამენტებისა და ჯგუფების წაკითხვის შესრულება",
       "sort_by_compliance": "დალაგება: შესრულების მიხედვით",
       "sort_by_name": "დალაგება: სახელის მიხედვით",
@@ -482,7 +504,7 @@
     "preset_today": "დღეს",
     "preset_7d": "7 დღე",
     "preset_30d": "30 დღე",
-    "search_placeholder": "ძებნა… actor:admin category:SECURITY",
+    "search_placeholder": "ძებნა: სახელი, მოქმედება ან ობიექტი",
     "start_date_label": "დაწყების თარიღი",
     "end_date_label": "დასრულების თარიღი",
     "category_all": "ყველა კატეგორია",
@@ -523,8 +545,17 @@
     "detail_object": "ობიექტი",
     "detail_ip": "IP მისამართი",
     "detail_device": "მოწყობილობა",
-    "detail_changes_heading": "ცვლილებების დეტალები",
+    "detail_changes_heading": "დეტალები",
     "detail_no_details": "დეტალები არ არის",
+    "detail_field": "ველი",
+    "detail_before": "ადრე",
+    "detail_after": "შემდეგ",
+    "detail_value": "მნიშვნელობა",
+    "detail_outcome": "შედეგი",
+    "detail_reason": "მიზეზი",
+    "detail_no_changes": "ჩაწერილ ველებში ცვლილება არ არის",
+    "detail_unchanged": "უცვლელი ველები ({{count}})",
+    "detail_technical": "ტექნიკური დეტალი",
     "detail_integrity_heading": "მთლიანობის ჯაჭვი",
     "detail_verify_button": "ჯაჭვის შემოწმება",
     "detail_verifying": "მოწმდება…",
@@ -546,14 +577,15 @@
     "move": "გადაყვანა",
     "no_members": "ამ როლში მომხმარებლები არ არიან.",
     "no_selection": "ვერცერთი მომხმარებელი არ არის მონიშნული",
-    "confirm_message": "მომხმარებლის როლი შეიცვლება. გავაგრძელო?"
+    "confirm_message": "მომხმარებლის როლი შეიცვლება. გავაგრძელო?",
+    "confirm_label": "როლის შეცვლა"
   },
   "content": {
     "heading": "კონტენტის მართვა",
     "cancel": "გაუქმება",
     "save": "შენახვა",
     "saving": "ინახება...",
-    "all_departments": "ყველა დეპარტამენტი",
+    "all_departments": "ყველასთვის",
     "tabs": {
       "articles": "სტატიები",
       "news": "სიახლეები",
@@ -577,7 +609,7 @@
       "col_date": "დამატების თარიღი",
       "col_action": "ქმედება",
       "none_found": "სტატიები არ მოიძებნა",
-      "action_history": "ისტორია",
+      "action_history": "ვერსიების ისტორია",
       "action_edit": "რედაქტირება",
       "action_archive": "დაარქივება",
       "action_unarchive": "ამოღება არქივიდან",
@@ -680,7 +712,7 @@
       "delete_error": "ვიდეო სანაგვეში ვერ გადავიდა"
     },
     "history": {
-      "heading": "ცვლილებების ისტორია",
+      "heading": "ვერსიების ისტორია",
       "close": "დახურვა",
       "back": "უკან",
       "loading": "იტვირთება...",
@@ -712,7 +744,8 @@
     }
   },
   "categories": {
-    "heading": "კატეგორიების მართვა",
+    "heading": "კატეგორიები",
+    "strip_label": "ცოდნის კატეგორიები",
     "refresh": "განახლება",
     "new": "ახალი კატეგორია",
     "field_name": "სახელი",
@@ -733,8 +766,9 @@
     "subcategory": "ქვე-კატეგორია",
     "orphan": "ობოლი",
     "orphan_parent": "#{{id}} (აღარ არსებობს)",
-    "edit": "რედაქტ.",
+    "edit": "რედაქტირება",
     "delete": "წაშლა",
+    "row_actions": "კატეგორიის მოქმედებები",
     "confirm_delete": "წავშალო ეს კატეგორია? თუ მასალა იყენებს, მოქმედება დაიბლოკება.",
     "save_failed": "ვერ შენახულდა",
     "color_general": "ნაგულისხმევი (Slate)",

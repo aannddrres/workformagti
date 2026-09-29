@@ -66,24 +66,24 @@ test.describe('reading and version history', () => {
     const readRow = page.getByRole('link', { name: readTitle });
 
     // --- all ---------------------------------------------------------------
-    await page.getByRole('button', { name: 'ყველა', exact: true }).click();
+    await page.getByRole('tab', { name: 'ყველა', exact: true }).click();
     await expect(unreadRow).toHaveCount(1);
     await expect(readRow).toHaveCount(1);
 
     // --- unread ------------------------------------------------------------
-    // exact: true throughout. "წასაკითხი" is both a filter button and the
+    // exact: true throughout. "წასაკითხი" is both a filter tab and the
     // status badge on a row, and the read filter's label "წაკითხული" contains
     // neither -- but the badge text "წაკითხულია" does contain it.
-    await page.getByRole('button', { name: 'წასაკითხი', exact: true }).click();
+    await page.getByRole('tab', { name: 'წასაკითხი', exact: true }).click();
     await expect(unreadRow).toHaveCount(1);
     await expect(readRow).toHaveCount(0);
 
     // --- read --------------------------------------------------------------
-    await page.getByRole('button', { name: 'წაკითხული', exact: true }).click();
+    await page.getByRole('tab', { name: 'წაკითხული', exact: true }).click();
     await expect(readRow).toHaveCount(1);
     await expect(unreadRow).toHaveCount(0);
 
-    await page.getByRole('button', { name: 'ყველა', exact: true }).click();
+    await page.getByRole('tab', { name: 'ყველა', exact: true }).click();
     await expect(unreadRow).toHaveCount(1);
 
     // --- the star on a row only stars it -----------------------------------
@@ -186,7 +186,7 @@ test.describe('reading and version history', () => {
       page.getByRole('button', { name: 'ვერსიების ისტორია' }).click()
     ]);
     expect(listed.status(), 'opening the overlay must fetch the version list').toBe(200);
-    await expect(overlay.getByText('ცვლილებების ისტორია')).toBeVisible();
+    await expect(overlay.getByRole('heading', { name: 'ვერსიების ისტორია' })).toBeVisible();
 
     // --- pick a version ----------------------------------------------------
     // The SECOND row, not the first, and by the row's own class rather than
@@ -231,7 +231,7 @@ test.describe('reading and version history', () => {
     await overlay.getByRole('button', { name: 'დახურვა' }).click();
     await expect(overlay).toHaveCount(0);
 
-    await page.getByRole('button', { name: 'უკან დაბრუნება' }).click();
+    await page.getByRole('button', { name: 'უკან', exact: true }).click();
     await expect(page).not.toHaveURL(new RegExp(`/article/${articleId}$`));
   });
 });
