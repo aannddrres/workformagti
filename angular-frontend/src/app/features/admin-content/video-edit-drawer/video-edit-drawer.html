@@ -106,13 +106,13 @@
           }
         </div>
         @if (dueDateError()) {
-          <p class="text-xs text-red-700">{{ 'content.articles.mandatory_due_date_required' | translate }}</p>
+          <p class="text-xs text-red-700 dark:text-red-300">{{ 'content.articles.mandatory_due_date_required' | translate }}</p>
         }
       </div>
 
       <div class="flex justify-end gap-3 pt-2 items-center">
         @if (saveError()) {
-          <span class="text-xs text-red-700 mr-auto">{{ saveError() }}</span>
+          <span class="text-xs text-red-700 mr-auto dark:text-red-300">{{ saveError() }}</span>
         }
         <button type="button" (click)="close()" class="rounded-lg border border-slate-300 bg-white px-6 py-2.5 text-sm font-normal text-slate-600 shadow-e1 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
           {{ 'content.cancel' | translate }}

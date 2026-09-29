@@ -407,7 +407,7 @@
   }
 
   .article-reader li::marker {
-    color: rgb(var(--brand-600));
+    color: rgb(var(--brand-accent));
     font-weight: 700;
   }
 
@@ -457,11 +457,15 @@
     color: rgb(248 250 252);
   }
 
+  /* Links, markers and the portal-link arrow are text on the page, so they take
+   * --brand-accent: the same red as --brand-600 in light, but lightened in
+   * dark. --brand-600 stays the dark filled-button red in both themes, and on
+   * the dark reader it measured 3.0:1 -- below the 4.5:1 body text needs. */
   .article-reader a {
-    color: rgb(var(--brand-600));
+    color: rgb(var(--brand-accent));
     font-weight: 650;
     text-decoration: underline;
-    text-decoration-color: rgb(var(--brand-600) / 0.35);
+    text-decoration-color: rgb(var(--brand-accent) / 0.35);
     text-decoration-thickness: 0.08em;
     text-underline-offset: 0.18em;
   }
@@ -471,10 +475,15 @@
     text-decoration-color: currentColor;
   }
 
+  /* --brand-700 is the dark theme's lighter button hover, too dim as text. */
+  .dark .article-reader a:hover {
+    color: rgb(var(--brand-accent));
+  }
+
   .article-reader a.article-reader__portal-link::after {
     display: inline-block;
     margin-inline-start: 0.28em;
-    color: rgb(var(--brand-600) / 0.75);
+    color: rgb(var(--brand-accent) / 0.75);
     font-size: 0.82em;
     font-weight: 800;
     text-decoration: none;
@@ -586,6 +595,147 @@
   .dark .article-reader hr {
     border-top-color: rgb(51 65 85);
   }
+}
+
+/* ---------------------------------------------------------------------------
+ * The rich-text editor (Quill 2, snow theme). Quill's stylesheet is listed
+ * after this one in angular.json, so each rule below carries one selector
+ * more than the rule it replaces rather than relying on source order.
+ *
+ * Georgian labels: the theme writes its toolbar and link-tooltip text in CSS
+ * ("Normal", "Heading 1", "Visit URL:", "Edit", "Remove", "Save"), where no
+ * translation file can reach it.
+ *
+ * Dark theme: the theme paints icons #444 and borders #ccc, so on the dark
+ * editor the toolbar sank into the background.
+ * ------------------------------------------------------------------------- */
+html .ql-snow .ql-picker.ql-header {
+  width: 8.5rem;
+}
+
+html .ql-snow .ql-picker.ql-header .ql-picker-label::before,
+html .ql-snow .ql-picker.ql-header .ql-picker-item::before {
+  content: 'ჩვეულებრივი';
+}
+
+html .ql-snow .ql-picker.ql-header .ql-picker-label[data-value='1']::before,
+html .ql-snow .ql-picker.ql-header .ql-picker-item[data-value='1']::before {
+  content: 'სათაური 1';
+}
+
+html .ql-snow .ql-picker.ql-header .ql-picker-label[data-value='2']::before,
+html .ql-snow .ql-picker.ql-header .ql-picker-item[data-value='2']::before {
+  content: 'სათაური 2';
+}
+
+html .ql-snow .ql-picker.ql-header .ql-picker-label[data-value='3']::before,
+html .ql-snow .ql-picker.ql-header .ql-picker-item[data-value='3']::before {
+  content: 'სათაური 3';
+}
+
+html .ql-snow .ql-tooltip::before {
+  content: 'ბმული:';
+}
+
+html .ql-snow .ql-tooltip[data-mode='link']::before {
+  content: 'ბმულის მისამართი:';
+}
+
+html .ql-snow .ql-tooltip a.ql-action::after {
+  content: 'რედაქტირება';
+}
+
+html .ql-snow .ql-tooltip.ql-editing a.ql-action::after {
+  content: 'შენახვა';
+}
+
+html .ql-snow .ql-tooltip a.ql-remove::before {
+  content: 'წაშლა';
+}
+
+.dark .ql-toolbar.ql-snow,
+.dark .ql-container.ql-snow {
+  border-color: rgb(51 65 85);
+}
+
+.dark .ql-snow .ql-stroke,
+.dark .ql-snow .ql-stroke-miter {
+  stroke: rgb(203 213 225);
+}
+
+.dark .ql-snow .ql-fill,
+.dark .ql-snow .ql-stroke.ql-fill {
+  fill: rgb(203 213 225);
+}
+
+.dark .ql-snow .ql-picker {
+  color: rgb(203 213 225);
+}
+
+.dark .ql-snow .ql-picker-options {
+  background-color: rgb(15 23 42);
+}
+
+.dark .ql-toolbar.ql-snow .ql-picker.ql-expanded .ql-picker-label,
+.dark .ql-toolbar.ql-snow .ql-picker.ql-expanded .ql-picker-options {
+  border-color: rgb(71 85 105);
+}
+
+.dark .ql-snow .ql-tooltip {
+  border-color: rgb(71 85 105);
+  background-color: rgb(30 41 59);
+  box-shadow: none;
+  color: rgb(226 232 240);
+}
+
+.dark .ql-snow .ql-tooltip input[type='text'] {
+  border-color: rgb(71 85 105);
+  background-color: rgb(15 23 42);
+  color: rgb(241 245 249);
+}
+
+.dark .ql-editor.ql-blank::before {
+  color: rgb(148 163 184);
+}
+
+/* Hover, pressed and selected controls, and links, were Quill's own blue
+ * (#06c): the only blue in the portal, and about 3:1 on the dark editor. They
+ * take the portal accent instead, which is also what the reader shows a link
+ * in once the article is published. */
+html .ql-snow a {
+  color: rgb(var(--brand-accent));
+}
+
+html .ql-snow.ql-toolbar button:hover,
+html .ql-snow.ql-toolbar button:focus,
+html .ql-snow.ql-toolbar button.ql-active,
+html .ql-snow.ql-toolbar .ql-picker-label:hover,
+html .ql-snow.ql-toolbar .ql-picker-label.ql-active,
+html .ql-snow.ql-toolbar .ql-picker-item:hover,
+html .ql-snow.ql-toolbar .ql-picker-item.ql-selected {
+  color: rgb(var(--brand-accent));
+}
+
+html .ql-snow.ql-toolbar button:hover .ql-fill,
+html .ql-snow.ql-toolbar button:focus .ql-fill,
+html .ql-snow.ql-toolbar button.ql-active .ql-fill,
+html .ql-snow.ql-toolbar .ql-picker-label:hover .ql-fill,
+html .ql-snow.ql-toolbar .ql-picker-label.ql-active .ql-fill,
+html .ql-snow.ql-toolbar button:hover .ql-stroke.ql-fill,
+html .ql-snow.ql-toolbar button:focus .ql-stroke.ql-fill,
+html .ql-snow.ql-toolbar button.ql-active .ql-stroke.ql-fill {
+  fill: rgb(var(--brand-accent));
+}
+
+html .ql-snow.ql-toolbar button:hover .ql-stroke,
+html .ql-snow.ql-toolbar button:focus .ql-stroke,
+html .ql-snow.ql-toolbar button.ql-active .ql-stroke,
+html .ql-snow.ql-toolbar .ql-picker-label:hover .ql-stroke,
+html .ql-snow.ql-toolbar .ql-picker-label.ql-active .ql-stroke,
+html .ql-snow.ql-toolbar button:hover .ql-stroke-miter,
+html .ql-snow.ql-toolbar button:focus .ql-stroke-miter,
+html .ql-snow.ql-toolbar button.ql-active .ql-stroke-miter {
+  stroke: rgb(var(--brand-accent));
 }
 
 @media (prefers-reduced-motion: reduce) {

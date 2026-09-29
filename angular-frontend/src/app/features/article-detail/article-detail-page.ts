@@ -13,6 +13,7 @@ import { ReadingConfirm } from '../reading/reading-confirm/reading-confirm';
 import { FavoriteStar } from '../../shared/favorite-star/favorite-star';
 import { categoryPath } from '../../shared/category-tree';
 import { isReaderVisibleArticle } from '../../shared/article-visibility';
+import { formatDepartmentLabel } from '../../shared/department-badge';
 
 @Component({
   selector: 'app-article-detail-page',
@@ -81,7 +82,9 @@ export class ArticleDetailPage {
     if (!a) {
       return '';
     }
-    const dept = a.target_departments.join(', ');
+    // The stored values are identifiers ('All', legacy English labels), not
+    // what a reader should see; the meta line printed "All" verbatim.
+    const dept = a.target_departments.map(formatDepartmentLabel).join(', ');
     const version = this.translate.instant('articles.detail_page.version_label', {
       version: a.version || 1,
     });

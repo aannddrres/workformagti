@@ -13,7 +13,8 @@ import { Category } from '../../core/models/category';
 import { ArticleSummary } from '../../core/models/article';
 import { AuditChainHealth, AuditLogEntry } from '../../core/models/audit';
 import { formatKaDateTime } from '../../shared/ka-date';
-import { getCategoryIcon } from '../../shared/category-visuals';
+import { formatAuditAction } from '../../shared/audit-format';
+import { categoryIconClass } from '../../shared/category-visuals';
 import { formatDepartmentLabel } from '../../shared/department-badge';
 import { UserProfileService } from '../../core/auth/user-profile.service';
 import { ThemeService } from '../../core/theme/theme.service';
@@ -317,7 +318,7 @@ export class AdminStatsPage {
   }
 
   categoryIcon(category: Category): string {
-    return category.icon || getCategoryIcon(category.name, category.name);
+    return categoryIconClass(category, category.name);
   }
 
   categoryRoute(category: Category): string {
@@ -328,18 +329,10 @@ export class AdminStatsPage {
     return formatKaDateTime(value);
   }
 
+  // The audit page's own labels. This screen used to carry a nine-entry copy,
+  // and anything outside it came out as the lowercased code -- "file access".
   actionLabel(action: string): string {
-    return ({
-      LOGIN: 'სისტემაში შესვლა',
-      LOGOUT: 'სისტემიდან გასვლა',
-      VIEW_AUDIT_LOG: 'აუდიტის ნახვა',
-      BROADCAST: 'Broadcast-ის გაგზავნა',
-      CREATE_USER: 'მომხმარებლის შექმნა',
-      UPDATE_USER: 'მომხმარებლის განახლება',
-      UPDATE_PERMISSIONS: 'უფლებების განახლება',
-      CREATE_ARTICLE: 'სტატიის შექმნა',
-      UPDATE_ARTICLE: 'სტატიის განახლება'
-    } as Record<string, string>)[action] ?? action.replaceAll('_', ' ').toLocaleLowerCase('ka');
+    return formatAuditAction(action, (key) => this.translate.instant(key));
   }
 
   private renderActivityChart(canvas: HTMLCanvasElement, points: ActivityPoint[], ink: ChartInk): void {

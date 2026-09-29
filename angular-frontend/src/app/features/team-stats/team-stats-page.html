@@ -202,10 +202,10 @@
       </p>
     }
     @if (csvError()) {
-      <p class="mt-3 text-sm text-red-700">{{ csvError() }}</p>
+      <p class="mt-3 text-sm text-red-700 dark:text-red-300">{{ csvError() }}</p>
     }
     @if (asyncExportError()) {
-      <p class="mt-3 text-sm text-red-700">{{ asyncExportError() }}</p>
+      <p class="mt-3 text-sm text-red-700 dark:text-red-300">{{ asyncExportError() }}</p>
     }
   </div>
   }
@@ -221,18 +221,22 @@
         portalDialogLabelledBy="critical-operators-heading"
         (portalDialogClose)="closeCriticalModal()"
         (click)="$event.stopPropagation()"
-        class="animate-panel-in w-full max-w-md rounded-lg bg-white p-6 shadow-e3 dark:bg-slate-900"
+        class="animate-panel-in flex max-h-[calc(100vh-2rem)] w-full max-w-md flex-col rounded-lg bg-white p-6 shadow-e3 dark:bg-slate-900"
       >
-        <div class="mb-4 flex items-center justify-between">
+        <!-- The list scrolls, the heading and close button do not: a group of
+             39 made this dialog 2512px tall on a 1080px screen, with its top
+             and bottom out of reach and nothing to scroll. -->
+        <div class="mb-4 flex shrink-0 items-center justify-between">
           <h3 id="critical-operators-heading" class="text-lg font-bold text-slate-800 dark:text-slate-100">{{ 'manager.page.critical_modal_title' | translate }}</h3>
           <button (click)="closeCriticalModal()" [attr.aria-label]="'readings.page.dismiss' | translate" class="text-slate-600 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
             <i class="fa-solid fa-xmark" aria-hidden="true"></i>
           </button>
         </div>
+        <div class="min-h-0 overflow-y-auto">
         @if (criticalLoading()) {
           <p class="text-sm text-slate-600 dark:text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-1.5" aria-hidden="true"></i>{{ 'manager.page.loading' | translate }}</p>
         } @else if (criticalError()) {
-          <p class="text-sm text-red-700">{{ 'manager.page.load_error' | translate }}</p>
+          <p class="text-sm text-red-700 dark:text-red-300">{{ 'manager.page.load_error' | translate }}</p>
         } @else if (criticalOperators().length === 0) {
           <p class="text-sm text-slate-600 dark:text-slate-400">{{ 'manager.page.critical_empty' | translate }}</p>
         } @else {
@@ -256,6 +260,7 @@
           </table>
           <p class="mt-3 text-right text-xs text-slate-600 dark:text-slate-400">{{ 'manager.page.total_label' | translate: { count: criticalTotal() } }}</p>
         }
+        </div>
       </div>
     </div>
   }
@@ -271,18 +276,19 @@
         portalDialogLabelledBy="group-members-heading"
         (portalDialogClose)="closeGroupModal()"
         (click)="$event.stopPropagation()"
-        class="animate-panel-in w-full max-w-md rounded-lg bg-white p-6 shadow-e3 dark:bg-slate-900"
+        class="animate-panel-in flex max-h-[calc(100vh-2rem)] w-full max-w-md flex-col rounded-lg bg-white p-6 shadow-e3 dark:bg-slate-900"
       >
-        <div class="mb-4 flex items-center justify-between">
+        <div class="mb-4 flex shrink-0 items-center justify-between">
           <h3 id="group-members-heading" class="text-lg font-bold text-slate-800 dark:text-slate-100">{{ groupModalTitle() }}</h3>
           <button (click)="closeGroupModal()" [attr.aria-label]="'readings.page.dismiss' | translate" class="text-slate-600 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
             <i class="fa-solid fa-xmark" aria-hidden="true"></i>
           </button>
         </div>
+        <div class="min-h-0 overflow-y-auto">
         @if (groupLoading()) {
           <p class="text-sm text-slate-600 dark:text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-1.5" aria-hidden="true"></i>{{ 'manager.page.loading' | translate }}</p>
         } @else if (groupError()) {
-          <p class="text-sm text-red-700">{{ 'manager.page.load_error' | translate }}</p>
+          <p class="text-sm text-red-700 dark:text-red-300">{{ 'manager.page.load_error' | translate }}</p>
         } @else if (groupUsers().length === 0) {
           <p class="text-sm text-slate-600 dark:text-slate-400">{{ 'manager.page.group_empty' | translate }}</p>
         } @else {
@@ -320,6 +326,7 @@
             </tbody>
           </table>
         }
+        </div>
       </div>
     </div>
   }

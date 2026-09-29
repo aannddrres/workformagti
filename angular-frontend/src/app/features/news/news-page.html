@@ -1,8 +1,10 @@
-<div class="portal-page">
+<div class="portal-page-narrow">
   <h1 class="portal-title mb-6">{{ 'news.page.heading' | translate }}</h1>
 
   <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-    <div class="relative w-full md:w-[40%]">
+    <!-- A 900px reading column cannot hold the search and all three filters on
+         one line, so the search takes its own row and the filters sit under it. -->
+    <div class="relative w-full">
       <i class="fa-solid fa-magnifying-glass pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 dark:text-slate-400"></i>
       <input
         type="search"
@@ -41,10 +43,10 @@
         (click)="toggleFavoritesOnly()"
         [attr.aria-pressed]="favoritesOnly()"
         class="flex items-center gap-2 rounded-lg border px-4 py-3 text-sm font-normal shadow-e1 transition-colors focus:outline-none"
-        [class]="favoritesOnly() ? 'border-yellow-300 bg-yellow-50 text-yellow-700 dark:border-yellow-700 dark:bg-yellow-950/30' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400'"
+        [class]="favoritesOnly() ? 'border-yellow-300 bg-yellow-50 text-yellow-700 dark:border-yellow-700 dark:bg-yellow-950/30 dark:text-yellow-400' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400'"
       >
         @if (favoritesOnly()) {
-          <i class="fa-solid fa-star text-yellow-700"></i>
+          <i class="fa-solid fa-star text-yellow-700 dark:text-yellow-400"></i>
         } @else {
           <i class="fa-regular fa-star text-slate-600 dark:text-slate-400"></i>
         }

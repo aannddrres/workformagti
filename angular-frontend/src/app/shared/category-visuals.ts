@@ -32,6 +32,22 @@ export function getCategoryIcon(categoryName: string | null | undefined, titleTe
   return 'fa-folder-tree';
 }
 
+/**
+ * The icon a category is drawn with, wherever it is drawn. Its stored `icon`
+ * is free text an administrator typed, and the legacy database the
+ * production import copies from stores `fa_wifi` for roaming -- an
+ * underscore where Font Awesome has a hyphen. Used verbatim that matched no
+ * rule, so the tile, the category page and the overview all showed an empty
+ * square, and nothing fell back because the value was not empty.
+ */
+export function categoryIconClass(
+  category: { name?: string | null; icon?: string | null } | null | undefined,
+  fallbackTitle = ''
+): string {
+  const stored = (category?.icon ?? '').trim().replace(/_/g, '-');
+  return /^fa-[a-z0-9-]+$/.test(stored) ? stored : getCategoryIcon(category?.name, fallbackTitle);
+}
+
 export interface CategoryCardStyles {
   /**
    * The one place a category hue survives: a pale chip behind the card's

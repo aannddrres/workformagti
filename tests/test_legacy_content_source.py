@@ -25,6 +25,7 @@ from legacy_content import (  # noqa: E402
     assert_expected_inventory,
     build_source_inventory,
     local_upload_filename,
+    normalize_category_icon,
     normalize_department,
     normalize_search_entity_type,
     open_source_database,
@@ -49,6 +50,16 @@ def test_department_mapping_preserves_approved_labels() -> None:
 
     with pytest.raises(SourceSafetyError, match="Unknown department"):
         normalize_department("Support")
+
+
+def test_category_icon_is_repaired_or_left_to_the_portal_fallback() -> None:
+    # The source's roaming row stores `fa_wifi`; verbatim it drew an empty tile.
+    assert normalize_category_icon("fa_wifi") == "fa-wifi"
+    assert normalize_category_icon(" fa-gift ") == "fa-gift"
+    assert normalize_category_icon(None) is None
+    assert normalize_category_icon("") is None
+    assert normalize_category_icon("wifi") is None
+    assert normalize_category_icon("fa-solid fa-gift") is None
 
 
 def test_local_upload_filename_rejects_external_data_and_traversal() -> None:

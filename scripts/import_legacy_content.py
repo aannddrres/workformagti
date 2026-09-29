@@ -78,6 +78,7 @@ from legacy_content import (  # noqa: E402
     SOURCE_ARTICLE_MIN_ID,
     SanitizationStats,
     detect_image_type,
+    normalize_category_icon,
     normalize_department,
     open_source_database,
     normalize_search_entity_type,
@@ -356,7 +357,7 @@ def _import_categories(
             "VALUES (:name,NULL,:slug,:icon,:pastel_color_class,1) RETURNING id INTO :generated_id",
             name=str(row["name"]),
             slug=row["slug"],
-            icon=row["icon"],
+            icon=normalize_category_icon(row["icon"]),
             pastel_color_class=row["pastel_color_class"],
         )
         mapping[source_id] = target_id

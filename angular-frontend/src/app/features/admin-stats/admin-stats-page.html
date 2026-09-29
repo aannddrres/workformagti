@@ -198,14 +198,14 @@
         <div class="h-40 animate-pulse rounded-md bg-slate-100 dark:bg-slate-800"></div>
       } @else if (failedSearches().length === 0) {
         <div class="py-8 text-center">
-          <i class="fa-solid fa-circle-check text-2xl text-emerald-700" aria-hidden="true"></i>
+          <i class="fa-solid fa-circle-check text-2xl text-emerald-700 dark:text-emerald-400" aria-hidden="true"></i>
           <p class="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">უშედეგო ძიება არ დაფიქსირებულა.</p>
         </div>
       } @else {
         <div class="space-y-2">
           @for (row of failedSearches().slice(0, 6); track row.search_term) {
             <div class="flex items-center gap-3 rounded-md border border-amber-100 bg-amber-50/50 px-3 py-2.5 dark:border-amber-900/40 dark:bg-amber-950/20">
-              <i class="fa-solid fa-magnifying-glass-minus text-xs text-amber-700" aria-hidden="true"></i>
+              <i class="fa-solid fa-magnifying-glass-minus text-xs text-amber-700 dark:text-amber-400" aria-hidden="true"></i>
               <span class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-800 dark:text-slate-200">{{ row.search_term }}</span>
               <span class="text-xs font-bold tabular-nums text-amber-700 dark:text-amber-300">{{ row.count }}</span>
             </div>
@@ -281,7 +281,7 @@
       @if (progressLoading()) {
         <div class="m-5 h-40 animate-pulse rounded-md bg-slate-100 dark:bg-slate-800"></div>
       } @else if (progressError()) {
-        <p class="p-8 text-center text-sm text-red-700">მონაცემები ვერ ჩაიტვირთა.</p>
+        <p class="p-8 text-center text-sm text-red-700 dark:text-red-300">მონაცემები ვერ ჩაიტვირთა.</p>
       } @else {
         <div class="max-h-[430px] overflow-auto">
           <table class="w-full min-w-[720px] text-left text-sm">

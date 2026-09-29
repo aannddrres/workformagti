@@ -65,7 +65,7 @@
       <div
         class="mb-6 inline-flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/20"
       >
-        <i class="fa-solid fa-circle-check text-xl text-emerald-700" aria-hidden="true"></i>
+        <i class="fa-solid fa-circle-check text-xl text-emerald-700 dark:text-emerald-400" aria-hidden="true"></i>
         <p class="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
           {{ 'dashboard.progress.all_clear' | translate }}
         </p>
@@ -75,7 +75,7 @@
 
   <!-- The progress request failing is not the same as having nothing to do. -->
   @if (progressError()) {
-    <p class="mb-6 text-sm text-red-700">{{ 'dashboard.progress.load_error' | translate }}</p>
+    <p class="mb-6 text-sm text-red-700 dark:text-red-300">{{ 'dashboard.progress.load_error' | translate }}</p>
   }
 
   <div class="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5">

@@ -31,6 +31,10 @@ interface NavSection {
   /** Section itself only renders if the user can see at least one link in it. */
 }
 
+function pathOf(url: string): string {
+  return url.split(/[?#]/)[0] || '/';
+}
+
 @Component({
   selector: 'app-shell',
   standalone: true,
@@ -58,6 +62,10 @@ export class AppShell implements OnDestroy {
   protected readonly fontMenuOpen = signal(false);
   protected readonly accountMenuOpen = signal(false);
   protected readonly pageTitle = signal('');
+  /** The path part of the current URL; decides which menu entry is marked. */
+  protected readonly currentPath = signal(pathOf(this.router.url));
+  protected readonly activeLinkClass =
+    'bg-brand/[0.08] text-brand-accent before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-r before:bg-brand dark:bg-brand/15 dark:text-red-300';
 
   protected readonly sections: NavSection[] = [
     {
@@ -96,7 +104,8 @@ export class AppShell implements OnDestroy {
 
   constructor() {
     this.mobileViewport?.addEventListener('change', this.onViewportChange);
-    this.router.events.pipe(filter((e) => e instanceof NavigationEnd)).subscribe(() => {
+    this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd)).subscribe((event) => {
+      this.currentPath.set(pathOf(event.urlAfterRedirects));
       this.mobileMenuOpen.set(false);
       this.closeMenus();
       this.updatePageTitle();
@@ -122,6 +131,24 @@ export class AppShell implements OnDestroy {
 
   closeMobileMenu(): void {
     this.mobileMenuOpen.set(false);
+  }
+
+  /**
+   * The deepest visible menu entry the current page sits under.
+   * `routerLinkActive` marked every entry whose path was a prefix, so the
+   * leaders page (/admin/org/assignments) lit "ორგანიზაციული სტრუქტურა" as
+   * well as its own entry.
+   */
+  isActive(link: NavLink): boolean {
+    const path = this.currentPath();
+    const under = (candidate: string): boolean =>
+      candidate === '/' ? path === '/' : path === candidate || path.startsWith(candidate + '/');
+    if (!under(link.path)) {
+      return false;
+    }
+    return !this.sections.some((section) =>
+      section.links.some((other) => other.path.length > link.path.length && under(other.path) && this.canSee(other))
+    );
   }
 
   canSee(link: NavLink): boolean {
