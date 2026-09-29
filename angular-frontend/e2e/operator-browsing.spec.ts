@@ -292,7 +292,7 @@ test.describe('operator browsing', () => {
       data: { item_type: 'article', item_id: articleId }
     });
     expect(starred.ok()).toBeTruthy();
-    const star = page.locator('app-article-card', { hasText: title }).locator('app-favorite-star button');
+    const star = page.locator('app-article-list tr', { hasText: title }).locator('app-favorite-star button');
 
     await signInAsPersona(page, first);
     await page.getByRole('link', { name: 'ცოდნის ბაზა' }).first().click();
@@ -352,7 +352,7 @@ test.describe('operator browsing', () => {
 
     await seedTokenIntoPage(page, token);
     await page.goto('/favorites');
-    await expect(page.getByRole('heading', { name: 'ჩემი რჩეულები' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'რჩეულები', exact: true })).toBeVisible();
 
     const row = page.locator('article', { hasText: title });
     await expect(row).toHaveCount(1);

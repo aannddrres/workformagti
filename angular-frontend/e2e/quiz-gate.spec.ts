@@ -67,5 +67,5 @@ test('mandatory reading with a quiz: gate blocks mark-read, passing unlocks it',
 
   // ...and the obligation reads as cleared back on the list.
   await page.goto('/reading');
-  await expect(page.getByRole('link', { name: title }).getByText('წაკითხულია')).toBeVisible();
+  await expect(page.getByRole('link', { name: title }).getByText('წაკითხულია', { exact: true })).toBeVisible();
 });

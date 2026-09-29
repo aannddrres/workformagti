@@ -81,7 +81,7 @@ test.describe('shared components', () => {
     await expect(failing.getByRole('option', { name: new RegExp(title) })).toBeVisible();
   });
 
-  test('favourite star: toggles, persists, and does not open the card', async ({ page, request }) => {
+  test('favourite star: toggles, persists, and does not open the row', async ({ page, request }) => {
     test.setTimeout(120_000);
     const id = runId();
     const token = await apiLogin(request, 'admin@magti.ge');
@@ -98,14 +98,16 @@ test.describe('shared components', () => {
     await page.goto('/info');
 
     // Narrowed by the page's own search first: every other spec in this run
-    // also creates articles, and the card grid is not ordered around this
-    // test. Without it a green result would only mean the article happened
-    // to land on the first screen.
+    // also creates articles, and the list is not ordered around this test.
+    // Without it a green result would only mean the article happened to land
+    // on the first screen.
     await page.getByPlaceholder('ძიება თემით ...').fill(title);
 
-    const card = page.locator('app-article-card', { hasText: title });
-    await expect(card).toHaveCount(1);
-    const star = card.locator('app-favorite-star button');
+    // A row of the knowledge base list since stage 4 of the 2026-09-29
+    // design audit replaced the card grid.
+    const row = page.locator('app-article-list tr', { hasText: title });
+    await expect(row).toHaveCount(1);
+    const star = row.locator('app-favorite-star button');
     await expect(star).toHaveAttribute('aria-pressed', 'false');
 
     const [added] = await Promise.all([
@@ -116,7 +118,7 @@ test.describe('shared components', () => {
     expect(added.status(), 'the favourite write must finish before the UI changes').toBe(200);
     await expect(star).toHaveAttribute('aria-pressed', 'true');
 
-    // The star sits ON the card, and the card navigates. Its stopPropagation
+    // The star sits ON the row, and the row navigates. Its stopPropagation
     // is the only thing keeping a favourite from also being a navigation --
     // so staying put is part of the assertion, not an afterthought.
     await expect(page).toHaveURL(/\/info(?:\?.*)?$/);
@@ -144,8 +146,8 @@ test.describe('shared components', () => {
       'un-starring left the favourite behind'
     ).toBe(false);
 
-    // --- the card itself ----------------------------------------------------
-    await card.getByRole('button', { name: title }).click();
+    // --- the row itself -----------------------------------------------------
+    await row.getByRole('button', { name: title }).click();
     await expect(page).toHaveURL(new RegExp(`/article/${articleId}(?:\\?.*)?$`));
   });
 
