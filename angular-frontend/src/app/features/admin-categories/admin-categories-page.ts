@@ -88,7 +88,7 @@ export class AdminCategoriesPage {
   // An empty field used to preview a layer icon while the tile showed the
   // name-based fallback instead.
   protected readonly iconPreviewClass = computed(
-    () => 'fa-solid ' + categoryIconClass({ name: this.name(), icon: this.icon() })
+    () => 'fa-solid ' + categoryIconClass({ icon: this.icon() })
   );
 
   constructor() {

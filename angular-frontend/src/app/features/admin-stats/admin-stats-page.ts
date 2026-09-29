@@ -323,7 +323,7 @@ export class AdminStatsPage {
   }
 
   categoryIcon(category: Category): string {
-    return categoryIconClass(category, category.name);
+    return categoryIconClass(category);
   }
 
   categoryRoute(category: Category): string {

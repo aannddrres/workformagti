@@ -185,6 +185,12 @@
       "read_time": "{{minutes}} min read",
       "uncategorized": "General"
     },
+    "list": {
+      "col_title": "Title",
+      "col_category": "Category",
+      "col_date": "Date",
+      "col_favorite": "Favourite"
+    },
     "category_tile": {
       "article_count": "{{count}} items",
       "recent_indicator": "New material added in the last 4 days"
@@ -194,7 +200,6 @@
       "subtitle": "Find instructions, product descriptions, and technical guides.",
       "search_placeholder": "Search by topic ...",
       "all_categories_option": "All categories",
-      "new_badge_tip": "Articles updated in the last 4 days are marked New.",
       "no_results": "No results found.",
       "search_error": "An error occurred while searching.",
       "show_more": "Show more"
@@ -246,12 +251,11 @@
     }
   },
   "dashboard": {
-    "banner_heading": "Welcome to the Magti Portal",
-    "banner_subtitle": "Knowledge base, mandatory reading, and news, all in one place.",
     "progress": {
       "all_clear": "All required material has been reviewed",
       "pending_label": "{{count}} remaining",
-      "load_error": "Could not load your progress"
+      "load_error": "Could not load your progress",
+      "retry": "Try again"
     },
     "mandatory_reading": {
       "heading": "Must read",
@@ -354,6 +358,7 @@
       "empty": "No items found.",
       "load_error": "Could not load the reading list.",
       "due_label": "Due: {{date}}",
+      "read_label": "Read: {{date}}",
       "item_fallback_title": "Item #{{id}}",
       "status_read": "Read",
       "status_overdue": "Overdue",

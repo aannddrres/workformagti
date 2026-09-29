@@ -6,9 +6,9 @@ import { CategoriesService } from '../../core/services/categories.service';
 import { ArticlesService } from '../../core/services/articles.service';
 import { Category } from '../../core/models/category';
 import { Article, ArticleSummary } from '../../core/models/article';
-import { ArticleCard, ArticleCardViewModel } from '../../shared/article-card/article-card';
-import { CategoryTile } from '../../shared/category-tile/category-tile';
-import { isRecentlyPublished } from '../../shared/category-visuals';
+import { ArticleList, ArticleListItem } from '../../shared/article-list/article-list';
+import { CategoryStrip } from '../../shared/category-strip/category-strip';
+import { categoryIconClass } from '../../shared/category-visuals';
 import {
   buildRecursiveCategoryCounts,
   categoryPath,
@@ -19,7 +19,7 @@ import { isReaderVisibleArticle } from '../../shared/article-visibility';
 @Component({
   selector: 'app-knowledge-base-page',
   standalone: true,
-  imports: [ArticleCard, CategoryTile, TranslatePipe],
+  imports: [ArticleList, CategoryStrip, TranslatePipe],
   templateUrl: './knowledge-base-page.html',
 })
 export class KnowledgeBasePage {
@@ -42,7 +42,7 @@ export class KnowledgeBasePage {
     this.categories().filter((category) => category.is_active),
   );
 
-  private readonly resultCards = signal<ArticleCardViewModel[]>([]);
+  private readonly resultCards = signal<ArticleListItem[]>([]);
   protected readonly pageSize = 40;
   protected readonly visibleLimit = signal(this.pageSize);
   protected readonly cards = computed(() => this.resultCards().slice(0, this.visibleLimit()));
@@ -110,18 +110,22 @@ export class KnowledgeBasePage {
     return this.translate.instant('articles.card.uncategorized');
   }
 
-  private fromSummary(a: ArticleSummary): ArticleCardViewModel {
+  private iconFor(categoryId: number | null): string {
+    return categoryIconClass(this.categories().find((c) => c.id === categoryId));
+  }
+
+  private fromSummary(a: ArticleSummary): ArticleListItem {
     return {
       id: a.id,
       title: a.title,
       categoryName: a.category_name || this.uncategorizedLabel(),
+      categoryIcon: this.iconFor(a.category_id),
       createdAt: a.created_at,
       publishedAt: a.published_at,
-      readTime: a.read_time,
     };
   }
 
-  private fromFullArticle(a: Article, query: string): ArticleCardViewModel {
+  private fromFullArticle(a: Article, query: string): ArticleListItem {
     const categoryName =
       this.categories().find((c) => c.id === a.category_id)?.name || this.uncategorizedLabel();
     const normalizedQuery = query.trim().toLocaleLowerCase('ka');
@@ -129,15 +133,14 @@ export class KnowledgeBasePage {
       id: a.id,
       title: a.title,
       categoryName,
+      categoryIcon: this.iconFor(a.category_id),
       createdAt: a.created_at,
       publishedAt: a.published_at,
-      readTime: a.read_time,
       categoryContext:
         categoryPath(this.categories(), a.category_id)
           .map((category) => category.name)
           .join(' › ') || categoryName,
       excerpt: this.buildExcerpt(a.content, query),
-      targetDepartments: a.target_departments,
       matchKind:
         normalizedQuery && a.title.toLocaleLowerCase('ka').includes(normalizedQuery)
           ? 'title'
@@ -195,7 +198,7 @@ export class KnowledgeBasePage {
       map((cards) => ({ cards, error: null as string | null })),
       catchError(() =>
         of({
-          cards: [] as ArticleCardViewModel[],
+          cards: [] as ArticleListItem[],
           error: this.translate.instant('articles.kb_page.search_error') as string,
         }),
       ),
@@ -235,13 +238,4 @@ export class KnowledgeBasePage {
     this.router.navigate(['/article', id], { queryParams: { returnUrl: this.router.url } });
   }
 
-  hasRecentInCategory(category: Category): boolean {
-    const ids = descendantCategoryIds(this.categories(), category.id);
-    return this.countingSet().some(
-      (article) =>
-        article.category_id != null &&
-        ids.has(article.category_id) &&
-        isRecentlyPublished({ publishedAt: article.published_at, createdAt: article.created_at }),
-    );
-  }
 }

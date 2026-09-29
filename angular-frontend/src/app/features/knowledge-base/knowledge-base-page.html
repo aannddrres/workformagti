@@ -10,17 +10,7 @@
     </p>
   </div>
 
-  <div class="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
-    @for (category of topLevelCategories(); track category.id) {
-      <app-category-tile
-        [category]="category"
-        [articleCount]="categoryCounts().get(category.id) ?? 0"
-        [hasRecent]="hasRecentInCategory(category)"
-      />
-    }
-  </div>
-
-  <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+  <div class="mb-4 flex flex-wrap items-center justify-between gap-4">
     <div class="relative w-full md:w-[60%]">
       <i
         class="fa-solid fa-magnifying-glass pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 dark:text-slate-400"
@@ -55,19 +45,15 @@
     </div>
   </div>
 
-  <div
-    class="mb-6 flex items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50/50 p-3.5 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-900/30 dark:text-slate-400"
-  >
-    <i class="fa-solid fa-circle-info text-slate-600 dark:text-slate-400" aria-hidden="true"></i>
-    <span>{{ 'articles.kb_page.new_badge_tip' | translate }}</span>
-  </div>
+  <!-- Search first, then the categories as one row, then the articles as a
+       list (owner decision კ10). The tile grid used to fill the first screen,
+       so the search an operator came for sat below it. -->
+  <app-category-strip [categories]="topLevelCategories()" [counts]="categoryCounts()" />
 
   @if (loading()) {
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+    <div class="table-shell divide-y divide-slate-100 dark:divide-slate-800">
       @for (i of [1, 2, 3, 4, 5, 6, 7, 8]; track i) {
-        <div
-          class="h-[160px] animate-pulse rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
-        ></div>
+        <div class="flex h-12 items-center px-5"><div class="h-3 w-2/5 animate-pulse rounded-sm bg-slate-200 dark:bg-slate-700"></div></div>
       }
     </div>
   } @else if (errorMessage()) {
@@ -81,13 +67,9 @@
       <p>{{ 'articles.kb_page.no_results' | translate }}</p>
     </div>
   } @else {
-    <div class="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-      @for (card of cards(); track card.id) {
-        <app-article-card [article]="card" (opened)="openArticle($event)" />
-      }
-    </div>
+    <app-article-list [items]="cards()" (opened)="openArticle($event)" />
     @if (canLoadMore()) {
-      <div class="mb-10 flex justify-center">
+      <div class="my-6 flex justify-center">
         <button
           type="button"
           (click)="showMore()"

@@ -6,8 +6,8 @@ import { CategoriesService } from '../../core/services/categories.service';
 import { ArticlesService } from '../../core/services/articles.service';
 import { Category } from '../../core/models/category';
 import { ArticleSummary } from '../../core/models/article';
-import { ArticleCard, ArticleCardViewModel } from '../../shared/article-card/article-card';
-import { CategoryTile } from '../../shared/category-tile/category-tile';
+import { ArticleList, ArticleListItem } from '../../shared/article-list/article-list';
+import { CategoryStrip } from '../../shared/category-strip/category-strip';
 import { categoryIconClass } from '../../shared/category-visuals';
 import {
   buildRecursiveCategoryCounts,
@@ -19,7 +19,7 @@ import { isReaderVisibleArticle } from '../../shared/article-visibility';
 @Component({
   selector: 'app-category-view-page',
   standalone: true,
-  imports: [ArticleCard, CategoryTile, TranslatePipe, RouterLink],
+  imports: [ArticleList, CategoryStrip, TranslatePipe, RouterLink],
   templateUrl: './category-view-page.html',
 })
 export class CategoryViewPage {
@@ -33,7 +33,7 @@ export class CategoryViewPage {
   private readonly allArticles = signal<ArticleSummary[]>([]);
   protected readonly category = signal<Category | null>(null);
   protected readonly categories = signal<Category[]>([]);
-  protected readonly rows = signal<ArticleCardViewModel[]>([]);
+  protected readonly rows = signal<ArticleListItem[]>([]);
   protected readonly loading = signal(true);
   protected readonly loadError = signal(false);
   protected readonly pageSize = 40;
@@ -116,9 +116,9 @@ export class CategoryViewPage {
           id: article.id,
           title: article.title,
           categoryName: article.category_name || found.name,
+          categoryIcon: categoryIconClass(this.categories().find((c) => c.id === article.category_id) ?? found),
           createdAt: article.created_at,
           publishedAt: article.published_at,
-          readTime: article.read_time,
         }))
         .sort((a, b) => a.title.localeCompare(b.title, 'ka')),
     );

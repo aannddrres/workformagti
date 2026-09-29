@@ -1,4 +1,4 @@
-import { categoryIconClass, getCategoryIcon } from './category-visuals';
+import { DEFAULT_CATEGORY_ICON, categoryIconClass } from './category-visuals';
 
 /**
  * The roaming category arrives from the legacy database with the icon
@@ -8,18 +8,18 @@ import { categoryIconClass, getCategoryIcon } from './category-visuals';
  */
 describe('categoryIconClass', () => {
   it('repairs an underscore where Font Awesome has a hyphen', () => {
-    expect(categoryIconClass({ name: 'როუმინგი', icon: 'fa_wifi' })).toBe('fa-wifi');
+    expect(categoryIconClass({ icon: 'fa_wifi' })).toBe('fa-wifi');
   });
 
   it('keeps a valid stored icon as it is', () => {
-    expect(categoryIconClass({ name: 'ლოიალობა და აქციები', icon: 'fa-gift' })).toBe('fa-gift');
+    expect(categoryIconClass({ icon: 'fa-gift' })).toBe('fa-gift');
   });
 
-  it('falls back to the name-based icon when the stored one is missing or not a class', () => {
-    const fallback = getCategoryIcon('როუმინგი', '');
-    expect(categoryIconClass({ name: 'როუმინგი', icon: null })).toBe(fallback);
-    expect(categoryIconClass({ name: 'როუმინგი', icon: '  ' })).toBe(fallback);
-    expect(categoryIconClass({ name: 'როუმინგი', icon: 'wifi' })).toBe(fallback);
-    expect(categoryIconClass(null)).toBe(getCategoryIcon(undefined, ''));
+  // Owner decision კ7: no icon is guessed from the name or a title any more.
+  it('falls back to a plain folder when the stored icon is missing or not a class', () => {
+    expect(categoryIconClass({ icon: null })).toBe(DEFAULT_CATEGORY_ICON);
+    expect(categoryIconClass({ icon: '  ' })).toBe(DEFAULT_CATEGORY_ICON);
+    expect(categoryIconClass({ icon: 'wifi' })).toBe(DEFAULT_CATEGORY_ICON);
+    expect(categoryIconClass(null)).toBe(DEFAULT_CATEGORY_ICON);
   });
 });

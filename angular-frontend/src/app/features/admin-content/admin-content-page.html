@@ -16,7 +16,7 @@
       <button type="button" (click)="createMenuOpen.update(open => !open)" class="primary-button rounded-l-none border-l border-white/30 px-3" aria-label="კონტენტის ტიპის არჩევა" [attr.aria-expanded]="createMenuOpen()"><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>
       @if (createMenuOpen()) {
         <div class="absolute right-0 top-full z-chrome mt-2 w-52 rounded-lg border border-slate-200 bg-white p-1.5 shadow-e3 dark:border-slate-700 dark:bg-slate-900">
-          <button type="button" (click)="openCreateArticle()" class="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800"><i class="fa-solid fa-file-lines w-4 text-slate-600 dark:text-slate-400" aria-hidden="true"></i>+ სტატია</button>
+          <button type="button" (click)="openCreateArticle()" class="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800"><i class="fa-solid fa-book-open w-4 text-slate-600 dark:text-slate-400" aria-hidden="true"></i>+ სტატია</button>
           <button type="button" (click)="openCreateNews()" class="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800"><i class="fa-solid fa-newspaper w-4 text-slate-600 dark:text-slate-400" aria-hidden="true"></i>+ სიახლე</button>
           <button type="button" (click)="openCreateVideo()" class="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800"><i class="fa-solid fa-circle-play w-4 text-slate-600 dark:text-slate-400" aria-hidden="true"></i>+ ვიდეო</button>
         </div>

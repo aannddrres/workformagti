@@ -22,7 +22,7 @@
       } @else {
         @for (item of sortedItems(); track item.id) {
           <tr class="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60" [class.opacity-60]="item.is_archived">
-            <td class="px-5 py-3"><span class="inline-flex items-center gap-2"><i class="fa-solid fa-bullhorn text-slate-600 dark:text-slate-400"></i>{{ item.title }} @if (item.is_archived) { <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs">არქივი</span> }</span></td>
+            <td class="px-5 py-3"><span class="inline-flex items-center gap-2"><i class="fa-solid fa-newspaper text-slate-600 dark:text-slate-400"></i>{{ item.title }} @if (item.is_archived) { <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs">არქივი</span> }</span></td>
             <td class="px-5 py-3 text-slate-600 dark:text-slate-400">{{ departmentLabel(item.target_department) }}</td>
             <td class="px-5 py-3 text-slate-600 dark:text-slate-400">{{ item.created_at | kaDate }}</td>
             <td class="px-5 py-3">

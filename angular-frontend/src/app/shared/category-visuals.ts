@@ -1,77 +1,21 @@
 /**
- * Port of app-renderers.js's getCategoryIcon (lines 399-426) and
- * getCategoryCardStyles (lines 428-438) -- keyword-matching fallbacks used
- * when a category has no explicit `icon` field. Ported verbatim (same
- * keyword order/precedence) rather than redesigned, since these encode
- * real content-domain knowledge that isn't derivable from the code alone.
- */
-export function getCategoryIcon(categoryName: string | null | undefined, titleText: string | null | undefined): string {
-  const name = (categoryName || '').toLowerCase();
-  const title = (titleText || '').toLowerCase();
-
-  if (name.includes('როუმინგ') || title.includes('როუმინგ') || title.includes('roaming')) return 'fa-plane-up';
-  if (name.includes('ინტერნეტ') || title.includes('ინტერნეტ') || title.includes('ბოჭკოვ') || title.includes('fiber') || title.includes('isp')) return 'fa-tower-cell';
-  if (title.includes('wifi') || title.includes('ვაი') || title.includes('wi-fi')) return 'fa-wifi';
-  if (name.includes('iptv') || name.includes('ტელევიზ') || title.includes('iptv') || title.includes('ტელევიზ') || title.includes('არხებ') || title.includes('set-top')) return 'fa-tv';
-  if (title.includes('სიჩქარ') || title.includes('ტესტ') || title.includes('speed') || title.includes('speedtest')) return 'fa-gauge-high';
-  if (name.includes('მობილურ') || title.includes('მობილურ') || title.includes('სიმ ბარათ') || title.includes('sim') || title.includes('ტელეფონ')) return 'fa-mobile-screen-button';
-  if (title.includes('პორტირებ') || title.includes('პორტ') || title.includes('mnp')) return 'fa-arrow-right-arrow-left';
-  if (name.includes('ბილინგ') || title.includes('ბილინგ') || title.includes('გადახდ') || title.includes('დავალიან') || title.includes('ფინანს') || title.includes('ინვოის')) return 'fa-file-invoice-dollar';
-  if (name.includes('ლოიალობ') || title.includes('ლოიალობ') || title.includes('ქულებ') || title.includes('აქცია') || title.includes('საჩუქ') || title.includes('შეთავაზ') || title.includes('bonus')) return 'fa-gift';
-  if (title.includes('უსაფრთხ') || title.includes('პოლიტიკ') || title.includes('დაცვა') || title.includes('vpn') || title.includes('2fa') || title.includes('პაროლ')) return 'fa-shield-halved';
-  if (name.includes('ტექნიკურ') || title.includes('ტექნიკურ') || title.includes('ინსტრუქცი') || title.includes('კონფიგ') || title.includes('პარამეტრ') || title.includes('router')) return 'fa-screwdriver-wrench';
-  if (title.includes('კომპიუტერ') || title.includes('pc') || title.includes('ლეპტოპ')) return 'fa-laptop-code';
-  if (title.includes('ხმა') || title.includes('აუდიო') || title.includes('voip')) return 'fa-volume-high';
-  if (title.includes('მართვა') || title.includes('cabinet') || title.includes('self-service') || title.includes('პროფილ')) return 'fa-sliders';
-  if (title.includes('დომენ') || title.includes('რეგისტრაც') || title.includes('hosting') || title.includes('სერვერ')) return 'fa-server';
-  if (title.includes('email') || title.includes('მეილ') || title.includes('ფოსტა')) return 'fa-envelope-open-text';
-  if (name.includes('ციფრულ') || title.includes('ციფრულ') || title.includes('digital') || title.includes('app') || title.includes('apk')) return 'fa-mobile-button';
-  if (name.includes('სერვის') || title.includes('მოწვევა') || title.includes('ოსტატ') || title.includes('technician')) return 'fa-helmet-safety';
-  if (title.includes('ახალ') || title.includes('news') || title.includes('განახლებ')) return 'fa-bullhorn';
-
-  return 'fa-folder-tree';
-}
-
-/**
  * The icon a category is drawn with, wherever it is drawn. Its stored `icon`
  * is free text an administrator typed, and the legacy database the
  * production import copies from stores `fa_wifi` for roaming -- an
  * underscore where Font Awesome has a hyphen. Used verbatim that matched no
  * rule, so the tile, the category page and the overview all showed an empty
  * square, and nothing fell back because the value was not empty.
+ *
+ * Without a usable stored icon it is a plain folder. It used to be guessed
+ * from keywords in the category name and in each article's title, so one
+ * category wore a different icon on every card (owner decision კ7): the
+ * icon is the one the administrator chose, or none in particular.
  */
-export function categoryIconClass(
-  category: { name?: string | null; icon?: string | null } | null | undefined,
-  fallbackTitle = ''
-): string {
+export const DEFAULT_CATEGORY_ICON = 'fa-folder';
+
+export function categoryIconClass(category: { icon?: string | null } | null | undefined): string {
   const stored = (category?.icon ?? '').trim().replace(/_/g, '-');
-  return /^fa-[a-z0-9-]+$/.test(stored) ? stored : getCategoryIcon(category?.name, fallbackTitle);
-}
-
-export interface CategoryCardStyles {
-  /**
-   * The one place a category hue survives: a pale chip behind the card's
-   * icon. Cards, borders and hover titles are neutral now.
-   *
-   * Seven hues used to run at once -- a coloured 4px left border, a coloured
-   * icon tile, a coloured hover title and a coloured hover border, per card --
-   * which on a compliance portal read as decoration rather than as a system.
-   * None of them had a `dark:` variant, and the fallback painted
-   * `group-hover:text-black`, i.e. invisible, in dark mode.
-   */
-  chip: string;
-}
-
-export function getCategoryCardStyles(categoryName: string | null | undefined): CategoryCardStyles {
-  const name = (categoryName || '').toLowerCase();
-  if (name.includes('როუმინგ')) return { chip: 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300' };
-  if (name.includes('ინტერნეტ') || name.includes('isp')) return { chip: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300' };
-  if (name.includes('iptv') || name.includes('ტელევიზ')) return { chip: 'bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300' };
-  if (name.includes('ტექნიკურ') || name.includes('მხარდაჭერ')) return { chip: 'bg-orange-50 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300' };
-  if (name.includes('ბილინგ') || name.includes('გადახდ')) return { chip: 'bg-teal-50 text-teal-700 dark:bg-teal-950/50 dark:text-teal-300' };
-  if (name.includes('ლოიალობ') || name.includes('ქულებ')) return { chip: 'bg-pink-50 text-pink-700 dark:bg-pink-950/50 dark:text-pink-300' };
-  if (name.includes('მობილურ') || name.includes('სიმ')) return { chip: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-950/50 dark:text-cyan-300' };
-  return { chip: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' };
+  return /^fa-[a-z0-9-]+$/.test(stored) ? stored : DEFAULT_CATEGORY_ICON;
 }
 
 /** Standardized "new" badge window -- the original app used two different
