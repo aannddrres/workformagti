@@ -1,5 +1,5 @@
 @if (announcements().length > 0) {
-  <section class="mb-6 space-y-2" aria-label="საერთო ინფორმაცია" aria-live="polite">
+  <section class="mb-6 space-y-2" aria-label="განცხადებები" aria-live="polite">
     @for (announcement of announcements(); track announcement.id) {
       <article class="flex items-start gap-3 rounded-lg border px-4 py-3" [class]="cardClass(announcement.priority)">
         <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/60 dark:bg-black/10">
@@ -7,7 +7,7 @@
         </span>
         <div class="min-w-0 flex-1">
           <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <strong class="text-xs">საერთო ინფორმაცია · {{ priorityLabel(announcement.priority) }}</strong>
+            <strong class="text-xs">განცხადება · {{ priorityLabel(announcement.priority) }}</strong>
             <span class="text-xs opacity-70">მოქმედებს {{ dateTime(announcement.ends_at) }}-მდე</span>
           </div>
           <p class="mt-1 whitespace-pre-wrap break-words text-sm font-semibold leading-6">{{ announcement.message }}</p>
@@ -16,5 +16,5 @@
     }
   </section>
 } @else if (loadFailed()) {
-  <p class="sr-only" role="status">საერთო ინფორმაციის ჩატვირთვა ვერ მოხერხდა.</p>
+  <p class="sr-only" role="status">განცხადებების ჩატვირთვა ვერ მოხერხდა.</p>
 }

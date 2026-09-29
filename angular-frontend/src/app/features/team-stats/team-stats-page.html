@@ -29,6 +29,8 @@
   </div>
   <p class="mb-6 text-sm text-slate-600 dark:text-slate-400">{{ 'manager.page.subtitle' | translate }}</p>
 
+  <app-category-strip />
+
   @if (loading()) {
     <div class="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
       @for (i of [1, 2, 3]; track i) {

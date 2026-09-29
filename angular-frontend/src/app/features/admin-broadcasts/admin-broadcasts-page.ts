@@ -87,7 +87,7 @@ export class AdminBroadcastsPage {
         this.totalItems.update((count) => count + 1);
         this.form.controls.message.reset('');
         this.saving.set(false);
-        this.success.set('საერთო ინფორმაცია გამოქვეყნდა.');
+        this.success.set('განცხადება გამოქვეყნდა.');
       },
       error: (error) => {
         this.error.set(error?.error?.detail ?? 'განცხადების გამოქვეყნება ვერ მოხერხდა.');

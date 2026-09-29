@@ -15,18 +15,20 @@
       "section_personal": "Personal Space",
       "favorites": "Favourites",
       "personal_cabinet": "Personal Cabinet",
-      "section_admin": "Administration",
-      "admin_stats": "Overall statistics",
-      "admin_users": "Users and access",
+      "admin_stats": "System overview",
+      "admin_users": "Users",
       "admin_roles": "Role Management",
-      "admin_content": "Content workspace",
+      "admin_content": "Content management",
       "admin_logs": "Audit and security",
       "admin_categories": "Categories",
       "section_work": "Work",
       "section_team": "Team",
+      "section_content": "Content",
+      "section_people": "People and access",
+      "section_control": "Control",
       "admin_trash": "Trash",
       "admin_broadcasts": "Announcements",
-      "admin_org": "Organisational structure",
+      "admin_org": "Structure",
       "admin_assignments": "Leader assignments",
       "admin_exports": "Data export",
       "menu_open": "Open menu",
@@ -62,7 +64,7 @@
     }
   },
   "users": {
-    "heading": "User Management (RBAC)",
+    "heading": "Users",
     "all_groups": "All groups",
     "group_leaders_load_error": "Could not load groups — retry",
     "new_user": "New user",
@@ -153,7 +155,6 @@
     },
     "palette": {
       "open": "Search",
-      "placeholder": "Search…",
       "shortcut": "Ctrl K",
       "dialog_label": "Global search",
       "input_placeholder": "Search articles, news or videos…",
@@ -225,11 +226,11 @@
     },
     "version_history": {
       "button": "Version history",
-      "heading": "Change history",
+      "heading": "Version history",
       "close": "Close",
       "loading": "Loading...",
       "load_failed": "Failed to load version history",
-      "empty": "No change history yet.",
+      "empty": "No versions yet.",
       "badge_current": "V{{version}} (current)",
       "badge_original": "V{{version}} (original)",
       "editor_label": "Editor",
@@ -280,7 +281,7 @@
       "heading": "News",
       "search_placeholder": "Search by title or content ...",
       "dept_all": "All departments",
-      "dept_general": "General",
+      "dept_general": "Everyone",
       "dept_tech": "Technical",
       "dept_info": "Informational",
       "dept_office": "Office",
@@ -334,7 +335,7 @@
   },
   "favorites": {
     "page": {
-      "heading": "My favorites",
+      "heading": "Favourites",
       "empty": "No favorites found.",
       "load_error": "Could not load favorites.",
       "group_article": "Articles",
@@ -390,7 +391,7 @@
   },
   "manager": {
     "page": {
-      "heading": "Team statistics",
+      "heading": "Team status",
       "subtitle": "Reading completion across departments and groups",
       "sort_by_compliance": "Sort: by performance",
       "sort_by_name": "Sort: by name",
@@ -553,7 +554,7 @@
     "cancel": "Cancel",
     "save": "Save",
     "saving": "Saving...",
-    "all_departments": "All departments",
+    "all_departments": "Everyone",
     "tabs": {
       "articles": "Articles",
       "news": "News",
@@ -577,7 +578,7 @@
       "col_date": "Date added",
       "col_action": "Action",
       "none_found": "No articles found",
-      "action_history": "History",
+      "action_history": "Version history",
       "action_edit": "Edit",
       "action_archive": "Archive",
       "action_unarchive": "Unarchive",
@@ -680,7 +681,7 @@
       "delete_error": "Could not move the video to trash"
     },
     "history": {
-      "heading": "Revision history",
+      "heading": "Version history",
       "close": "Close",
       "back": "Back",
       "loading": "Loading...",
@@ -712,7 +713,8 @@
     }
   },
   "categories": {
-    "heading": "Category Management",
+    "heading": "Categories",
+    "strip_label": "Knowledge categories",
     "refresh": "Refresh",
     "new": "New Category",
     "field_name": "Name",

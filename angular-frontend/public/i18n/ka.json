@@ -15,18 +15,20 @@
       "section_personal": "პირადი სივრცე",
       "favorites": "რჩეულები",
       "personal_cabinet": "პირადი კაბინეტი",
-      "section_admin": "ადმინისტრირება",
-      "admin_stats": "საერთო სტატისტიკა",
-      "admin_users": "მომხმარებლები და წვდომა",
+      "admin_stats": "სისტემის მიმოხილვა",
+      "admin_users": "მომხმარებლები",
       "admin_roles": "როლების მართვა",
-      "admin_content": "კონტენტის სამუშაო სივრცე",
+      "admin_content": "კონტენტის მართვა",
       "admin_logs": "აუდიტი და უსაფრთხოება",
       "admin_categories": "კატეგორიები",
       "section_work": "სამუშაო",
       "section_team": "გუნდი",
+      "section_content": "კონტენტი",
+      "section_people": "ხალხი და წვდომა",
+      "section_control": "კონტროლი",
       "admin_trash": "სანაგვე",
       "admin_broadcasts": "განცხადებები",
-      "admin_org": "ორგანიზაციული სტრუქტურა",
+      "admin_org": "სტრუქტურა",
       "admin_assignments": "ლიდერების დანიშვნა",
       "admin_exports": "მონაცემების ექსპორტი",
       "menu_open": "მენიუს გახსნა",
@@ -62,7 +64,7 @@
     }
   },
   "users": {
-    "heading": "მომხმარებლების მართვა",
+    "heading": "მომხმარებლები",
     "all_groups": "ყველა ჯგუფი",
     "group_leaders_load_error": "ჯგუფების სია ვერ ჩაიტვირთა — თავიდან ცდა",
     "new_user": "ახალი მომხმარებელი",
@@ -153,7 +155,6 @@
     },
     "palette": {
       "open": "ძებნა",
-      "placeholder": "ძებნა…",
       "shortcut": "Ctrl K",
       "dialog_label": "გლობალური ძებნა",
       "input_placeholder": "მოძებნე სტატია, სიახლე ან ვიდეო…",
@@ -211,7 +212,7 @@
       "subcategories": "ქვეკატეგორიები"
     },
     "detail_page": {
-      "back_button": "უკან დაბრუნება",
+      "back_button": "უკან",
       "breadcrumb_label": "სტატიის მდებარეობა",
       "content_label": "სტატიის შინაარსი",
       "attachment_download": "ფაილის ჩამოტვირთვა",
@@ -225,11 +226,11 @@
     },
     "version_history": {
       "button": "ვერსიების ისტორია",
-      "heading": "ცვლილებების ისტორია",
+      "heading": "ვერსიების ისტორია",
       "close": "დახურვა",
       "loading": "იტვირთება...",
       "load_failed": "ვერსიების ისტორიის ჩატვირთვა ვერ მოხერხდა",
-      "empty": "ცვლილებების ისტორია ჯერ არ არსებობს.",
+      "empty": "ვერსიების ისტორია ჯერ ცარიელია.",
       "badge_current": "V{{version}} (მიმდინარე)",
       "badge_original": "V{{version}} (ორიგინალი)",
       "editor_label": "რედაქტორი",
@@ -280,7 +281,7 @@
       "heading": "სიახლეები",
       "search_placeholder": "ძიება სათაურით ან შინაარსით ...",
       "dept_all": "ყველა დეპარტამენტი",
-      "dept_general": "საერთო",
+      "dept_general": "ყველასთვის",
       "dept_tech": "ტექნიკური",
       "dept_info": "საინფორმაციო",
       "dept_office": "ოფისი",
@@ -334,7 +335,7 @@
   },
   "favorites": {
     "page": {
-      "heading": "ჩემი რჩეულები",
+      "heading": "რჩეულები",
       "empty": "რჩეულები არ მოიძებნა.",
       "load_error": "რჩეულების ჩატვირთვა ვერ მოხერხდა.",
       "group_article": "სტატიები",
@@ -390,7 +391,7 @@
   },
   "manager": {
     "page": {
-      "heading": "გუნდის სტატისტიკა",
+      "heading": "გუნდის მდგომარეობა",
       "subtitle": "დეპარტამენტებისა და ჯგუფების წაკითხვის შესრულება",
       "sort_by_compliance": "დალაგება: შესრულების მიხედვით",
       "sort_by_name": "დალაგება: სახელის მიხედვით",
@@ -553,7 +554,7 @@
     "cancel": "გაუქმება",
     "save": "შენახვა",
     "saving": "ინახება...",
-    "all_departments": "ყველა დეპარტამენტი",
+    "all_departments": "ყველასთვის",
     "tabs": {
       "articles": "სტატიები",
       "news": "სიახლეები",
@@ -577,7 +578,7 @@
       "col_date": "დამატების თარიღი",
       "col_action": "ქმედება",
       "none_found": "სტატიები არ მოიძებნა",
-      "action_history": "ისტორია",
+      "action_history": "ვერსიების ისტორია",
       "action_edit": "რედაქტირება",
       "action_archive": "დაარქივება",
       "action_unarchive": "ამოღება არქივიდან",
@@ -680,7 +681,7 @@
       "delete_error": "ვიდეო სანაგვეში ვერ გადავიდა"
     },
     "history": {
-      "heading": "ცვლილებების ისტორია",
+      "heading": "ვერსიების ისტორია",
       "close": "დახურვა",
       "back": "უკან",
       "loading": "იტვირთება...",
@@ -712,7 +713,8 @@
     }
   },
   "categories": {
-    "heading": "კატეგორიების მართვა",
+    "heading": "კატეგორიები",
+    "strip_label": "ცოდნის კატეგორიები",
     "refresh": "განახლება",
     "new": "ახალი კატეგორია",
     "field_name": "სახელი",

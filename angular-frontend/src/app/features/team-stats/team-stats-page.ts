@@ -9,6 +9,7 @@ import { CriticalOperator, DepartmentDashboard, DepartmentGroupStats, Department
 import { ExportJobResponse } from '../../core/models/export';
 import { ReminderService } from '../../core/services/reminder.service';
 import { PortalDialog } from '../../shared/portal-dialog/portal-dialog';
+import { CategoryStrip } from '../../shared/category-strip/category-strip';
 import { completionBarClass, completionIcon, completionTextClass, completionTier } from '../../shared/completion-tier';
 
 type SortMode = 'name' | 'compliance';
@@ -38,7 +39,7 @@ type ExportKind = 'xlsx' | 'pdf' | 'team_stats_pdf';
 @Component({
   selector: 'app-team-stats-page',
   standalone: true,
-  imports: [TranslatePipe, PortalDialog],
+  imports: [TranslatePipe, PortalDialog, CategoryStrip],
   templateUrl: './team-stats-page.html'
 })
 export class TeamStatsPage {

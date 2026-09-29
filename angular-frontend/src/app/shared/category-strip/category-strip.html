@@ -1,0 +1,17 @@
+@if (topLevel().length > 0) {
+  <nav class="mb-6" [attr.aria-label]="'categories.strip_label' | translate">
+    <ul class="flex flex-wrap gap-2">
+      @for (category of topLevel(); track category.id) {
+        <li>
+          <a
+            [routerLink]="route(category)"
+            class="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-e1 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+          >
+            <i class="fa-solid text-slate-600 dark:text-slate-400" [class]="icon(category)" aria-hidden="true"></i>
+            {{ category.name }}
+          </a>
+        </li>
+      }
+    </ul>
+  </nav>
+}

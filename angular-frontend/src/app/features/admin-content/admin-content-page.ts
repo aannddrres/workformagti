@@ -21,6 +21,7 @@ import { RequiredReadingService } from '../../core/services/required-reading.ser
 import { lossLines, mandatoryLoss } from '../../shared/mandatory-reach';
 import { createTableSort } from '../../shared/table-sort';
 import { KaDatePipe } from '../../shared/ka-date.pipe';
+import { CategoryStrip } from '../../shared/category-strip/category-strip';
 
 type ContentType = 'all' | 'article' | 'news' | 'video';
 type QueueRow = {
@@ -58,7 +59,7 @@ const STATUS_BADGE: Record<string, string> = {
 @Component({
   selector: 'app-admin-content-page',
   standalone: true,
-  imports: [TranslatePipe, KaDatePipe, ArticleEditDrawer, ArticleHistoryModal, NewsEditDrawer, VideoEditDrawer],
+  imports: [TranslatePipe, KaDatePipe, CategoryStrip, ArticleEditDrawer, ArticleHistoryModal, NewsEditDrawer, VideoEditDrawer],
   templateUrl: './admin-content-page.html'
 })
 export class AdminContentPage {
@@ -138,7 +139,7 @@ export class AdminContentPage {
     const newsRows: QueueRow[] = this.news().map((item) => ({
       key: `news-${item.id}`, id: item.id, type: 'news', title: item.title,
       status: item.is_archived ? 'archived' : item.is_draft ? 'draft' : 'published',
-      createdAt: item.created_at, context: item.target_department === 'All' ? 'ყველა დეპარტამენტი' : item.target_department,
+      createdAt: item.created_at, context: item.target_department === 'All' ? 'ყველასთვის' : item.target_department,
       original: item
     }));
     const videoRows: QueueRow[] = this.videos().map((item) => ({

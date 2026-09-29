@@ -64,8 +64,8 @@
       <section class="surface-card overflow-hidden">
         <div class="grid grid-cols-1 gap-3 border-b border-slate-100 p-5 dark:border-slate-800 sm:grid-cols-3">
           <div class="surface-card-muted p-4"><p class="text-xs font-bold text-slate-600 dark:text-slate-400">სულ</p><p class="mt-2 text-2xl font-bold">{{ progress()?.total_mandatory ?? 0 }}</p></div>
-          <div class="surface-card-muted p-4"><p class="text-xs font-bold text-slate-600 dark:text-slate-400">დასრულებული</p><p class="mt-2 text-2xl font-bold text-emerald-700 dark:text-emerald-400">{{ progress()?.read_completed ?? 0 }}</p></div>
-          <div class="surface-card-muted p-4"><p class="text-xs font-bold text-slate-600 dark:text-slate-400">მიმდინარე / დაგვიანებული</p><p class="mt-2 text-2xl font-bold text-amber-700 dark:text-amber-400">{{ progress()?.pending ?? 0 }} / {{ overdueReadings().length }}</p></div>
+          <div class="surface-card-muted p-4"><p class="text-xs font-bold text-slate-600 dark:text-slate-400">წაკითხული</p><p class="mt-2 text-2xl font-bold text-emerald-700 dark:text-emerald-400">{{ progress()?.read_completed ?? 0 }}</p></div>
+          <div class="surface-card-muted p-4"><p class="text-xs font-bold text-slate-600 dark:text-slate-400">წასაკითხი / ვადაგადაცილებული</p><p class="mt-2 text-2xl font-bold text-amber-700 dark:text-amber-400">{{ progress()?.pending ?? 0 }} / {{ overdueReadings().length }}</p></div>
         </div>
         @if (loadingEvidence()) {
           <div class="m-5 h-40 animate-pulse rounded-md bg-slate-100 dark:bg-slate-800"></div>
@@ -76,8 +76,8 @@
             @for (item of readings(); track item.reading.id) {
               <div class="flex flex-wrap items-center gap-4 px-5 py-4">
                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md" [class]="item.is_overdue ? 'status-overdue' : item.status === 'read' ? 'status-done' : 'status-pending'"><i class="fa-solid" [class.fa-clock]="item.is_overdue" [class.fa-check]="!item.is_overdue && item.status === 'read'" [class.fa-book-open]="!item.is_overdue && item.status !== 'read'" aria-hidden="true"></i></span>
-                <div class="min-w-0 flex-1"><p class="truncate text-sm font-bold text-slate-800 dark:text-slate-200">{{ item.item_title || 'მასალა #' + item.reading.item_id }}</p><p class="mt-1 text-xs text-slate-600 dark:text-slate-400">{{ item.status === 'read' ? 'დასრულდა: ' + dateTime(item.read_at) : 'ვადა: ' + dateTime(item.reading.due_date) }}</p></div>
-                <span class="status-pill" [class]="item.is_overdue ? 'status-overdue' : item.status === 'read' ? 'status-done' : 'status-pending'">{{ item.is_overdue ? 'ვადაგადაცილებული' : item.status === 'read' ? 'დასრულებული' : 'მიმდინარე' }}</span>
+                <div class="min-w-0 flex-1"><p class="truncate text-sm font-bold text-slate-800 dark:text-slate-200">{{ item.item_title || 'მასალა #' + item.reading.item_id }}</p><p class="mt-1 text-xs text-slate-600 dark:text-slate-400">{{ item.status === 'read' ? 'წაკითხულია: ' + dateTime(item.read_at) : 'ვადა: ' + dateTime(item.reading.due_date) }}</p></div>
+                <span class="status-pill" [class]="item.is_overdue ? 'status-overdue' : item.status === 'read' ? 'status-done' : 'status-pending'">{{ item.is_overdue ? 'ვადაგადაცილებული' : item.status === 'read' ? 'წაკითხულია' : 'წასაკითხი' }}</span>
               </div>
             }
           </div>

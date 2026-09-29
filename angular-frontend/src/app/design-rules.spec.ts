@@ -284,4 +284,13 @@ describe('design rules', () => {
     const strips = scan(/<[a-z]+\b[^>]*\brole="tablist"[^>]*>/g, (m) => !/class="[^"]*\bportal-tabs\b/.test(m[0]));
     expect([...tabs, ...strips]).toEqual([]);
   });
+
+  /** Angular reads `[class.lg:w-[5.25rem]]` as the class `lg:w-[5` -- the name
+   *  ends at the first dot -- so the collapsed menu hid its labels but kept
+   *  its full width, and nothing failed. A class with a dot in it goes through
+   *  `[ngClass]` or a plain `class` instead. */
+  it('never binds a class whose name has a dot in it', () => {
+    const offenders = scan(/\[class\.[^\]=\s]*\.[^=\s]*\]\s*=/g, () => true);
+    expect(offenders).toEqual([]);
+  });
 });

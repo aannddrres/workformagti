@@ -10,19 +10,21 @@
 
   <div class="flex min-h-screen">
     <aside
-      class="fixed inset-y-0 left-0 z-panel flex w-[18rem] shrink-0 -translate-x-full flex-col border-r border-slate-200 bg-white transition-[width,transform] duration-base dark:border-slate-800 dark:bg-slate-950 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0"
+      class="fixed inset-y-0 left-0 z-panel flex w-[280px] shrink-0 -translate-x-full flex-col border-r border-slate-200 bg-white transition-[width,transform] duration-base dark:border-slate-800 dark:bg-slate-950 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0"
       [class.translate-x-0]="mobileMenuOpen()"
-      [class.lg:w-[5.25rem]]="sidebarCollapsed()"
+      [ngClass]="{ 'lg:w-[5.25rem]': sidebarCollapsed() }"
       [attr.aria-hidden]="isMobile() && !mobileMenuOpen() ? 'true' : null"
       [attr.inert]="isMobile() && !mobileMenuOpen() ? '' : null"
     >
-      <div class="flex min-h-[4.5rem] items-center justify-between border-b border-slate-100 px-5 py-2 dark:border-slate-800">
+      <!-- Collapsed, the rail keeps only the button that opens it: a brand
+           square beside it did not fit the rail and was cut in half. -->
+      <div
+        class="flex min-h-[4.5rem] items-center justify-between border-b border-slate-100 px-5 py-2 dark:border-slate-800"
+        [ngClass]="{ 'lg:justify-center lg:px-2': sidebarCollapsed() }"
+      >
         <div [class.lg:hidden]="sidebarCollapsed()">
           <app-logo />
         </div>
-        @if (sidebarCollapsed()) {
-          <span class="hidden h-9 w-9 items-center justify-center rounded-md bg-brand dark:bg-brand-700 text-xs font-bold text-white lg:flex">M</span>
-        }
         <button
           type="button"
           (click)="toggleSidebar()"
@@ -33,8 +35,8 @@
         </button>
       </div>
 
-      <nav class="flex-1 space-y-6 overflow-y-auto px-3 py-5" [attr.aria-label]="'nav.sidebar.primary_navigation' | translate">
-        @for (section of sections; track section.label) {
+      <nav class="flex-1 space-y-6 overflow-y-auto px-2 py-5" [attr.aria-label]="'nav.sidebar.primary_navigation' | translate">
+        @for (section of orderedSections(); track section.key) {
           @if (sectionVisible(section)) {
             <section>
               <p
@@ -89,7 +91,7 @@
           [attr.aria-label]="'nav.sidebar.menu_open' | translate"
         ><i class="fa-solid fa-bars" aria-hidden="true"></i></button>
 
-        <div class="mx-auto min-w-0 flex-1 lg:max-w-[760px]">
+        <div class="mx-auto min-w-0 flex-1 lg:min-w-[600px] lg:max-w-[760px]">
           <app-global-search />
         </div>
 

@@ -22,7 +22,7 @@ describe('getDepartmentBadge', () => {
   });
 
   it('keeps the labels the screen already shows', () => {
-    expect(getDepartmentBadge('All').label).toBe('საერთო');
+    expect(getDepartmentBadge('All').label).toBe('ყველასთვის');
     expect(getDepartmentBadge('საინფორმაციო').label).toBe('საინფორმაციო');
     expect(getDepartmentBadge('Support').label).toBe('ტექნიკური მხარდაჭერა');
     expect(getDepartmentBadge(null).label).toBe('არ არის მითითებული');

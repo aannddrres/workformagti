@@ -9,7 +9,7 @@ import { ThemeService } from '../core/theme/theme.service';
 import { FontScaleService } from '../core/accessibility/font-scale.service';
 
 describe('AppShell effective-access navigation', () => {
-  function shellFor(role: string, access: EffectiveAccess): AppShell {
+  function shellFor(role: string, access: EffectiveAccess, scale = 1): AppShell {
     TestBed.resetTestingModule();
     const profiles = {
       profile: () => null,
@@ -24,7 +24,7 @@ describe('AppShell effective-access navigation', () => {
         { provide: AuthService, useValue: { currentUser: () => ({ role, email: 'x@magti.ge' }) } },
         { provide: UserProfileService, useValue: profiles },
         { provide: ThemeService, useValue: {} },
-        { provide: FontScaleService, useValue: {} }
+        { provide: FontScaleService, useValue: { scale: () => scale } }
       ]
     });
     return TestBed.runInInjectionContext(() => new AppShell());
@@ -125,5 +125,36 @@ describe('AppShell effective-access navigation', () => {
     expect(active('/news', '/')).toBe(false);
     expect(active('/', '/')).toBe(true);
     expect(active('/newsletter', '/news')).toBe(false);
+  });
+
+  // The landing guard sends these roles past the home page, so a "მთავარი"
+  // entry led them to a screen they never saw (owner decision კ12).
+  it('leads each workspace role with its own section and drops home for it', () => {
+    const firstSection = (shell: AppShell): string => (shell as any).orderedSections()[0].key;
+    const manager = shellFor('manager', { role: 'manager', permissions: [], bypass: false, can_publish_announcement: true });
+    const content = shellFor('content_admin', {
+      role: 'content_admin', permissions: ['content.manage'], bypass: false, can_publish_announcement: false
+    });
+    const admin = shellFor('admin', { role: 'admin', permissions: [], bypass: true, can_publish_announcement: true });
+    const operator = shellFor('operator', { role: 'operator', permissions: [], bypass: false, can_publish_announcement: false });
+
+    expect(firstSection(manager)).toBe('team');
+    expect(firstSection(content)).toBe('content');
+    expect(firstSection(admin)).toBe('control');
+    expect(firstSection(operator)).toBe('work');
+    expect(visible(manager, '/')).toBe(false);
+    expect(visible(content, '/')).toBe(false);
+    expect(visible(admin, '/')).toBe(false);
+    expect(visible(operator, '/')).toBe(true);
+  });
+
+  it('folds the menu to icons from 150% text, and lets the button open it', () => {
+    const access: EffectiveAccess = { role: 'operator', permissions: [], bypass: false, can_publish_announcement: false };
+    expect((shellFor('operator', access, 1.3) as any).sidebarCollapsed()).toBe(false);
+
+    const large = shellFor('operator', access, 1.5) as any;
+    expect(large.sidebarCollapsed()).toBe(true);
+    large.toggleSidebar();
+    expect(large.sidebarCollapsed()).toBe(false);
   });
 });

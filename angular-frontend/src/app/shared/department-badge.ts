@@ -4,7 +4,7 @@ export interface DepartmentBadge {
 }
 
 const DEPARTMENT_LABELS: Record<string, string> = {
-  All: 'საერთო',
+  All: 'ყველასთვის',
   Support: 'ტექნიკური მხარდაჭერა',
   Informational: 'საინფორმაციო',
   Administration: 'ადმინისტრაცია',
@@ -31,7 +31,7 @@ export function formatDepartmentLabel(department: string | null | undefined): st
  * real department value in the app today is the Georgian one used by the
  * filter dropdown itself (base-layout.html:1084-1089: 'All' / 'ტექნიკური' /
  * 'საინფო' / 'ოფისი') -- so in practice the badge almost always falls
- * through to the generic gray "საერთო" default. Rebuilt against the
+ * through to the generic gray "all" default. Rebuilt against the
  * taxonomy that's actually stored, so the badge really distinguishes
  * departments instead of silently always showing the same fallback.
  */
@@ -48,7 +48,7 @@ export function getDepartmentBadge(department: string | null | undefined): Depar
     case 'ოფისი':
       return { label: 'ოფისი', colorClass: 'bg-amber-50 text-amber-700 border border-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60' };
     case 'All':
-      return { label: 'საერთო', colorClass: 'bg-purple-50 text-purple-600 border border-purple-100 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/60' };
+      return { label: 'ყველასთვის', colorClass: 'bg-purple-50 text-purple-600 border border-purple-100 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/60' };
     default:
       return { label: formatDepartmentLabel(department), colorClass: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' };
   }
