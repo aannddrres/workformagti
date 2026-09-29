@@ -685,6 +685,9 @@ jobs:
              --output frontend-image-trivy.json
 
       # Always upload, even if a scan above failed: the inventory is the point.
+      # Kept 90 days for main, whose inventory is what ships; 7 for branches and
+      # pull requests. The account's Actions storage is counted over the month,
+      # and every run keeping its copy for 90 days used September's up early.
       - name: Upload SBOMs
         if: always()
         uses: actions/upload-artifact@v4
@@ -696,5 +699,5 @@ jobs:
             backend-image-trivy.json
             frontend-image-trivy.json
             image-digests.txt
-          retention-days: 90
+          retention-days: ${{ github.ref == 'refs/heads/main' && 90 || 7 }}
           if-no-files-found: error
