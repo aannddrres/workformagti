@@ -54,6 +54,11 @@ DEPARTMENT_MAP = {
     "All": "All",
 }
 
+# The old portal's own working marks -- its migration flag and desk triage --
+# on 114, 48 and 11 of the 122 articles. They tell an operator nothing, and
+# copied over they would be the three most common tags in the portal (კ18).
+INTERNAL_TAGS = frozenset({"მიგრირებული", "Support", "საინფორმაციო (Desk)"})
+
 _IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif"}
 _LOCAL_UPLOAD_RE = re.compile(r"(?:^|/)uploads/([^?#]+)", re.IGNORECASE)
 _SAFE_TAGS = {
@@ -160,6 +165,17 @@ def normalize_category_icon(value: str | None) -> str | None:
     """
     icon = (value or "").strip().replace("_", "-")
     return icon if re.fullmatch(r"fa-[a-z0-9-]+", icon) else None
+
+
+def clean_article_tags(value: str | None) -> str | None:
+    """The source's comma-joined tags without ``INTERNAL_TAGS``, or None.
+
+    The rest keep their spelling and order. None, not "", when nothing is
+    left: ten source articles carry internal tags only.
+    """
+    kept = [tag.strip() for tag in (value or "").split(",")]
+    kept = [tag for tag in kept if tag and tag not in INTERNAL_TAGS]
+    return ",".join(kept) or None
 
 
 def open_source_database(path: Path) -> sqlite3.Connection:

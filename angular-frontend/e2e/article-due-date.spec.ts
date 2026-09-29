@@ -45,6 +45,10 @@ test('admin content: mandatory article with no due date is blocked from saving',
   await department.check();
   await expect(department).toBeChecked();
 
+  // A new article starts as a draft (კ20), and a draft cannot be made
+  // mandatory (PO-40) -- the box stays disabled until it is published.
+  await drawer.locator('#article-status').selectOption('published');
+
   const mandatoryCheckbox = drawer.locator('input[type="checkbox"]').first();
   await mandatoryCheckbox.click();
   await expect(mandatoryCheckbox).toBeChecked();

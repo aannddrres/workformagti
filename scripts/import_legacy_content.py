@@ -77,6 +77,7 @@ from legacy_content import (  # noqa: E402
     SOURCE_ARTICLE_MAX_ID,
     SOURCE_ARTICLE_MIN_ID,
     SanitizationStats,
+    clean_article_tags,
     detect_image_type,
     normalize_category_icon,
     normalize_department,
@@ -491,7 +492,8 @@ def _import_articles(
         attachment = row["attachment_url"]
         if attachment and Path(str(attachment)).name not in valid_assets:
             attachment = None
-        texts[source_id] = (str(row["title"]), sanitized, row["tags"])
+        tags = clean_article_tags(row["tags"])
+        texts[source_id] = (str(row["title"]), sanitized, tags)
 
         if not apply:
             if source_id in existing:
@@ -505,7 +507,7 @@ def _import_articles(
             title=str(row["title"]),
             content=sanitized,
             category_id=category_ids.get(int(row["category_id"])) if row["category_id"] is not None else None,
-            tags=row["tags"],
+            tags=tags,
             target_department=legacy_target,
             audience_profile=str(row["audience_profile"] or "all"),
             created_at=_as_timestamp(row["created_at"], now),
