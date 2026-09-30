@@ -11,7 +11,7 @@
   </div>
 
   <div class="flex-1 overflow-y-auto p-6">
-    <form (submit)="submit($event)" (input)="markDirty()" (change)="markDirty()" class="mx-auto max-w-4xl space-y-5">
+    <form novalidate (submit)="submit($event)" (input)="markDirty()" (change)="markDirty()" class="mx-auto max-w-4xl space-y-5">
       <div>
         <label for="news-title" class="mb-1.5 block text-sm font-normal text-slate-700 dark:text-slate-300">{{ 'content.news.field_title' | translate }}</label>
         <input
@@ -20,8 +20,12 @@
           required
           [value]="title()"
           (input)="title.set($any($event.target).value)"
+          [attr.aria-invalid]="titleMissing() || null"
           class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
         />
+        @if (titleMissing()) {
+          <p role="alert" class="mt-1.5 text-xs text-red-700 dark:text-red-300">{{ 'shared.form.title_required' | translate }}</p>
+        }
       </div>
 
       <div>
@@ -32,8 +36,12 @@
           rows="4"
           [value]="content()"
           (input)="content.set($any($event.target).value)"
+          [attr.aria-invalid]="contentMissing() || null"
           class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
         ></textarea>
+        @if (contentMissing()) {
+          <p role="alert" class="mt-1.5 text-xs text-red-700 dark:text-red-300">{{ 'shared.form.content_required' | translate }}</p>
+        }
       </div>
 
       <div class="grid grid-cols-1 gap-5 md:grid-cols-2">

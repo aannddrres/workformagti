@@ -112,6 +112,17 @@ export class ArticleEditDrawer {
   protected readonly departmentError = signal(false);
   protected readonly dueDateError = signal(false);
   /**
+   * Set by the first save. The form is novalidate -- the browser's own bubble
+   * spoke English ("Please select an item in the list.") -- so from then on an
+   * empty required field is named under itself, in Georgian, until filled.
+   * Category matters twice: payload falls back to the first category, so with
+   * none loaded a save would otherwise have gone out pointing at id 1.
+   */
+  protected readonly showRequired = signal(false);
+  protected readonly titleMissing = computed(() => this.showRequired() && !this.title().trim());
+  protected readonly categoryMissing = computed(() =>
+    this.showRequired() && (this.categoryIdValue() ?? this.categories()[0]?.id) == null);
+  /**
    * FE-04: an empty category dropdown used to be indistinguishable from a
    * failed load. Category is a required field, so silently offering none
    * blocks the save with no explanation of why.
@@ -171,6 +182,7 @@ export class ArticleEditDrawer {
     this.saveError.set(null);
     this.departmentError.set(false);
     this.dueDateError.set(false);
+    this.showRequired.set(false);
     queueMicrotask(() => {
       this.richTextEditor()?.clear();
       this.quizBuilder()?.setQuestions([]);
@@ -186,6 +198,7 @@ export class ArticleEditDrawer {
     this.dueBeforePublication.set(false);
     this.departmentError.set(false);
     this.dueDateError.set(false);
+    this.showRequired.set(false);
     this.articlesService.get(id).subscribe({
       next: (article) => {
         this.title.set(article.title);
@@ -343,6 +356,11 @@ export class ArticleEditDrawer {
 
   protected async submit(event: Event): Promise<void> {
     event.preventDefault();
+    this.showRequired.set(true);
+    if (this.titleMissing() || this.categoryMissing()) {
+      document.getElementById(this.titleMissing() ? 'article-title' : 'article-category')?.focus();
+      return;
+    }
     const departments = this.departmentOrder.filter((d) => this.deptChecked()[d.key]).map((d) => d.name);
     if (departments.length === 0) {
       this.departmentError.set(true);

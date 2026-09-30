@@ -14,7 +14,7 @@
     <div class="flex flex-col lg:flex-row lg:items-stretch">
       <!-- Left: form -->
       <div class="flex-1 border-r border-slate-200 dark:border-slate-800">
-        <form (submit)="submit($event)" (input)="markDirty()" (change)="markDirty()" class="flex flex-col">
+        <form novalidate (submit)="submit($event)" (input)="markDirty()" (change)="markDirty()" class="flex flex-col">
           <div class="px-6 pt-5 pb-0">
             <label for="article-title" class="mb-1.5 block text-sm font-normal text-slate-700 dark:text-slate-300">{{ 'content.articles.field_title' | translate }}</label>
             <input
@@ -23,8 +23,12 @@
               required
               [value]="title()"
               (input)="title.set($any($event.target).value)"
+              [attr.aria-invalid]="titleMissing() || null"
               class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
             />
+            @if (titleMissing()) {
+              <p role="alert" class="mt-1.5 text-xs text-red-700 dark:text-red-300">{{ 'shared.form.title_required' | translate }}</p>
+            }
           </div>
 
           <div class="px-6 pt-4">
@@ -43,12 +47,16 @@
                   id="article-category"
                   required
                   (change)="categoryIdValue.set(+$any($event.target).value)"
+                  [attr.aria-invalid]="categoryMissing() || null"
                   class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                 >
                   @for (c of categories(); track c.id) {
                     <option [value]="c.id" [attr.selected]="c.id === categoryIdValue() ? '' : null">{{ c.name }}</option>
                   }
                 </select>
+                @if (categoryMissing()) {
+                  <p role="alert" class="mt-1.5 text-xs text-red-700 dark:text-red-300">{{ 'shared.form.category_required' | translate }}</p>
+                }
                 @if (categoriesFailed()) {
                   <!-- Category is required. An empty dropdown with no
                        explanation looks like "there are no categories", and

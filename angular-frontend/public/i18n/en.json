@@ -321,6 +321,13 @@
     }
   },
   "shared": {
+    "form": {
+      "title_required": "Enter a title",
+      "category_required": "Choose a category",
+      "content_required": "Enter the text",
+      "video_url_required": "Enter the video link or upload a file",
+      "name_required": "Enter a name"
+    },
     "favorite_star": {
       "aria_label": "Add to favorites"
     },

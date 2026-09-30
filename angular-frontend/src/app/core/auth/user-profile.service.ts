@@ -1,5 +1,5 @@
-import { Injectable, effect, inject, signal } from '@angular/core';
-import { Observable, of, shareReplay, tap, catchError } from 'rxjs';
+import { DestroyRef, Injectable, effect, inject, signal } from '@angular/core';
+import { Observable, of, shareReplay, tap, catchError, finalize } from 'rxjs';
 import { UsersService } from '../services/users.service';
 import { CurrentUserProfile, EffectiveAccess } from '../models/user';
 import { AuthService } from './auth.service';
@@ -12,7 +12,15 @@ import { AuthService } from './auth.service';
  * GET /api/me/effective-access, and both guards and navigation read this
  * service's one cache so they cannot disagree. GET /api/users/me remains the
  * display/profile source and does not make UI access decisions.
+ *
+ * The server re-reads a person's rights on every request, but this cache was
+ * read once per sign-in: an administrator's change reached the menu only on a
+ * reload (checked 2026-09-30 with two browsers). refreshAccess() closes that
+ * gap -- on a 403 (accessRefreshInterceptor) and when the person comes back to
+ * the tab.
  */
+export const REFRESH_ON_RETURN_MS = 30_000;
+
 @Injectable({ providedIn: 'root' })
 export class UserProfileService {
   private readonly usersService = inject(UsersService);
@@ -27,6 +35,10 @@ export class UserProfileService {
   private request?: Observable<CurrentUserProfile | null>;
   private accessRequest?: Observable<EffectiveAccess | null>;
 
+  /** For refreshAccess()'s throttle and single flight. */
+  private lastRefresh = 0;
+  private refreshing = false;
+
   constructor() {
     // Signing out must not leave the next user looking at the previous one's
     // permissions. Keyed on the auth signal rather than a call from
@@ -35,6 +47,42 @@ export class UserProfileService {
       if (this.auth.currentUser() === null) {
         this.clear();
       }
+    });
+
+    if (typeof document !== 'undefined') {
+      const onReturn = () => {
+        if (document.visibilityState === 'visible') {
+          this.refreshAccess(REFRESH_ON_RETURN_MS);
+        }
+      };
+      document.addEventListener('visibilitychange', onReturn);
+      window.addEventListener('focus', onReturn);
+      inject(DestroyRef).onDestroy(() => {
+        document.removeEventListener('visibilitychange', onReturn);
+        window.removeEventListener('focus', onReturn);
+      });
+    }
+  }
+
+  /**
+   * Re-reads effective access and replaces the cache, at most once per
+   * minIntervalMs. Nothing happens before the first load (the guards do that)
+   * or after sign-out. A failed re-read keeps what is cached: the server still
+   * decides every request, so a stale menu is untidy, never a way in.
+   */
+  refreshAccess(minIntervalMs = 0): void {
+    if (this._access() === null || this.refreshing || this.auth.currentUser() === null) {
+      return;
+    }
+    const now = Date.now();
+    if (now - this.lastRefresh < minIntervalMs) {
+      return;
+    }
+    this.lastRefresh = now;
+    this.refreshing = true;
+    this.usersService.effectiveAccess().pipe(finalize(() => (this.refreshing = false))).subscribe({
+      next: (access) => this._access.set(access),
+      error: () => undefined
     });
   }
 

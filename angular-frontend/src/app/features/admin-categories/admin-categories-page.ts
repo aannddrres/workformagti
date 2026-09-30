@@ -55,6 +55,9 @@ export class AdminCategoriesPage {
   protected readonly formOpen = signal(false);
   protected readonly editingId = signal<number | null>(null);
   protected readonly name = signal('');
+  /** Set by the first save; the form is novalidate, so an empty name is said in Georgian under the field. */
+  protected readonly showRequired = signal(false);
+  protected readonly nameMissing = computed(() => this.showRequired() && !this.name().trim());
   protected readonly slug = signal('');
   protected readonly icon = signal('');
   protected readonly parentId = signal<number | null>(null);
@@ -147,6 +150,7 @@ export class AdminCategoriesPage {
     this.parentId.set(null);
     this.pastelColor.set('general');
     this.saveError.set(null);
+    this.showRequired.set(false);
     this.formOpen.set(true);
   }
 
@@ -158,6 +162,7 @@ export class AdminCategoriesPage {
     this.parentId.set(category.parent_id);
     this.pastelColor.set(category.pastel_color_class ?? 'general');
     this.saveError.set(null);
+    this.showRequired.set(false);
     this.formOpen.set(true);
   }
 
@@ -188,6 +193,11 @@ export class AdminCategoriesPage {
 
   submit(event: Event): void {
     event.preventDefault();
+    this.showRequired.set(true);
+    if (this.nameMissing()) {
+      document.getElementById('category-name')?.focus();
+      return;
+    }
     const payload: CategoryRequest = {
       name: this.name().trim(),
       parent_id: this.parentId(),

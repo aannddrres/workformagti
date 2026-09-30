@@ -26,6 +26,9 @@ describe('NewsEditDrawer due-date validation', () => {
     const fixture = TestBed.createComponent(NewsEditDrawer);
     fixture.componentRef.setInput('newsId', null);
     const component = fixture.componentInstance as any;
+    // The required fields, filled: the form is novalidate and says so itself now.
+    component.title.set('სათაური');
+    component.content.set('ტექსტი');
 
     const newsService = TestBed.inject(NewsService);
     const createSpy = vi.spyOn(newsService, 'createCommand');
@@ -45,6 +48,9 @@ describe('NewsEditDrawer due-date validation', () => {
     const fixture = TestBed.createComponent(NewsEditDrawer);
     fixture.componentRef.setInput('newsId', null);
     const component = fixture.componentInstance as any;
+    // The required fields, filled: the form is novalidate and says so itself now.
+    component.title.set('სათაური');
+    component.content.set('ტექსტი');
 
     const newsService = TestBed.inject(NewsService);
     const createSpy = vi.spyOn(newsService, 'createCommand').mockReturnValue(of({ id: 1, title: 'x' } as any));
@@ -62,6 +68,9 @@ describe('NewsEditDrawer due-date validation', () => {
     const fixture = TestBed.createComponent(NewsEditDrawer);
     fixture.componentRef.setInput('newsId', null);
     const component = fixture.componentInstance as any;
+    // The required fields, filled: the form is novalidate and says so itself now.
+    component.title.set('სათაური');
+    component.content.set('ტექსტი');
 
     const newsService = TestBed.inject(NewsService);
     const createSpy = vi.spyOn(newsService, 'createCommand').mockReturnValue(of({ id: 1, title: 'x' } as any));

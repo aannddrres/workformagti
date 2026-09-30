@@ -38,6 +38,9 @@ describe('ArticleEditDrawer due-date validation', () => {
     const fixture = TestBed.createComponent(ArticleEditDrawer);
     fixture.componentRef.setInput('articleId', null);
     const component = fixture.componentInstance as any;
+    // The required fields, filled: the form is novalidate and says so itself now.
+    component.title.set('სათაური');
+    component.categories.set([{ id: 1, name: 'კატეგორია' }]);
 
     const articlesService = TestBed.inject(ArticlesService);
     const createSpy = vi.spyOn(articlesService, 'createCommand');
@@ -59,6 +62,9 @@ describe('ArticleEditDrawer due-date validation', () => {
     const fixture = TestBed.createComponent(ArticleEditDrawer);
     fixture.componentRef.setInput('articleId', null);
     const component = fixture.componentInstance as any;
+    // The required fields, filled: the form is novalidate and says so itself now.
+    component.title.set('სათაური');
+    component.categories.set([{ id: 1, name: 'კატეგორია' }]);
 
     const articlesService = TestBed.inject(ArticlesService);
     const createSpy = vi
@@ -101,6 +107,9 @@ describe('ArticleEditDrawer mandatory reach', () => {
     const fixture = TestBed.createComponent(ArticleEditDrawer);
     fixture.componentRef.setInput('articleId', null);
     const component = fixture.componentInstance as any;
+    // The required fields, filled: the form is novalidate and says so itself now.
+    component.title.set('სათაური');
+    component.categories.set([{ id: 1, name: 'კატეგორია' }]);
     component.richTextEditor = () => ({ getHtml: () => '<p>x</p>' });
     return component;
   }
@@ -198,6 +207,9 @@ describe('ArticleEditDrawer starting status', () => {
     const fixture = TestBed.createComponent(ArticleEditDrawer);
     fixture.componentRef.setInput('articleId', articleId);
     const component = fixture.componentInstance as any;
+    // The required fields, filled: the form is novalidate and says so itself now.
+    component.title.set('სათაური');
+    component.categories.set([{ id: 1, name: 'კატეგორია' }]);
     component.richTextEditor = () => ({ getHtml: () => '<p>x</p>', setHtml: () => {}, clear: () => {} });
     return component;
   }
@@ -209,6 +221,7 @@ describe('ArticleEditDrawer starting status', () => {
     component.status.set('published');
     component.resetForCreate();
     expect(component.status()).toBe('draft');
+    component.title.set('სათაური'); // the reset cleared it, as it does for a real new article
 
     const createSpy = vi.spyOn(TestBed.inject(ArticlesService), 'createCommand')
       .mockReturnValue(of({ id: 1, title: 'x' } as any));
@@ -231,5 +244,51 @@ describe('ArticleEditDrawer starting status', () => {
     component.loadForEdit(5);
 
     expect(component.status()).toBe('published');
+  });
+});
+
+/**
+ * The browser's own "required" bubble spoke English ("Please select an item in
+ * the list."). The form is novalidate now: it names what is missing, in
+ * Georgian, under the field, and saves nothing until it is filled.
+ */
+describe('ArticleEditDrawer required fields', () => {
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [ArticleEditDrawer],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideTranslateService({ lang: 'ka', fallbackLang: 'ka' }),
+        provideTranslateHttpLoader({ prefix: '/i18n/', suffix: '.json' })
+      ]
+    }).compileComponents();
+  });
+
+  it('says nothing before the first save', () => {
+    const fixture = TestBed.createComponent(ArticleEditDrawer);
+    fixture.componentRef.setInput('articleId', null);
+    const component = fixture.componentInstance as any;
+    expect(component.titleMissing()).toBe(false);
+    expect(component.categoryMissing()).toBe(false);
+  });
+
+  it('names an empty title and a missing category instead of saving, and lets go once filled', async () => {
+    const fixture = TestBed.createComponent(ArticleEditDrawer);
+    fixture.componentRef.setInput('articleId', null);
+    const component = fixture.componentInstance as any;
+    const createSpy = vi.spyOn(TestBed.inject(ArticlesService), 'createCommand');
+    component.deptChecked.set({ info: true, tech: false, office: false });
+
+    await component.submit({ preventDefault: () => {} } as Event);
+
+    expect(component.titleMissing()).toBe(true);
+    expect(component.categoryMissing()).toBe(true);
+    expect(createSpy).not.toHaveBeenCalled();
+
+    component.title.set('სათაური');
+    component.categories.set([{ id: 1, name: 'კატეგორია' }]);
+    expect(component.titleMissing()).toBe(false);
+    expect(component.categoryMissing()).toBe(false);
   });
 });

@@ -1,4 +1,4 @@
-import { Component, effect, inject, input, output, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { VideosService } from '../../../core/services/videos.service';
 import { CategoriesService } from '../../../core/services/categories.service';
@@ -58,6 +58,11 @@ export class VideoEditDrawer {
   protected readonly dirty = signal(false);
   protected readonly saveError = signal<string | null>(null);
   protected readonly dueDateError = signal(false);
+  /** Set by the first save; the form is novalidate, so empty required fields are named in Georgian (see the article drawer). */
+  protected readonly showRequired = signal(false);
+  protected readonly titleMissing = computed(() => this.showRequired() && !this.title().trim());
+  protected readonly urlMissing = computed(() => this.showRequired() && !this.videoUrl().trim());
+  protected readonly categoryMissing = computed(() => this.showRequired() && !this.category());
   /** FE-04: an empty dropdown must not be indistinguishable from a failed load. */
   protected readonly categoriesFailed = signal(false);
 
@@ -99,11 +104,13 @@ export class VideoEditDrawer {
     this.dueDate.set('');
     this.saveError.set(null);
     this.dueDateError.set(false);
+    this.showRequired.set(false);
   }
 
   private loadForEdit(id: number): void {
     this.saveError.set(null);
     this.dueDateError.set(false);
+    this.showRequired.set(false);
     this.videosService.list().subscribe({
       next: (videos) => {
         const video = videos.find((v) => v.id === id);
@@ -171,6 +178,13 @@ export class VideoEditDrawer {
 
   protected submit(event: Event): void {
     event.preventDefault();
+    this.showRequired.set(true);
+    const firstMissing = this.titleMissing() ? 'video-title' : this.urlMissing() ? 'video-url'
+      : this.categoryMissing() ? 'video-category' : null;
+    if (firstMissing) {
+      document.getElementById(firstMissing)?.focus();
+      return;
+    }
     if (this.isMandatory() && !this.dueDate()) {
       this.dueDateError.set(true);
       return;

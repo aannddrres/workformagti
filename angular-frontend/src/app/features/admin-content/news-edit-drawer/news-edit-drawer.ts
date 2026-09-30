@@ -1,4 +1,4 @@
-import { Component, effect, inject, input, output, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { NewsService } from '../../../core/services/news.service';
 import { UploadService } from '../../../core/services/upload.service';
@@ -56,6 +56,10 @@ export class NewsEditDrawer {
   protected readonly dirty = signal(false);
   protected readonly saveError = signal<string | null>(null);
   protected readonly dueDateError = signal(false);
+  /** Set by the first save; the form is novalidate, so empty required fields are named in Georgian (see the article drawer). */
+  protected readonly showRequired = signal(false);
+  protected readonly titleMissing = computed(() => this.showRequired() && !this.title().trim());
+  protected readonly contentMissing = computed(() => this.showRequired() && !this.content().trim());
 
   constructor() {
     effect(() => {
@@ -85,11 +89,13 @@ export class NewsEditDrawer {
     this.dueDate.set('');
     this.saveError.set(null);
     this.dueDateError.set(false);
+    this.showRequired.set(false);
   }
 
   private loadForEdit(id: number): void {
     this.saveError.set(null);
     this.dueDateError.set(false);
+    this.showRequired.set(false);
     this.newsService.get(id).subscribe({
       next: (news: News) => {
         this.title.set(news.title);
@@ -159,6 +165,11 @@ export class NewsEditDrawer {
 
   protected submit(event: Event): void {
     event.preventDefault();
+    this.showRequired.set(true);
+    if (this.titleMissing() || this.contentMissing()) {
+      document.getElementById(this.titleMissing() ? 'news-title' : 'news-content')?.focus();
+      return;
+    }
     if (this.isMandatory() && !this.dueDate()) {
       this.dueDateError.set(true);
       return;

@@ -321,6 +321,13 @@
     }
   },
   "shared": {
+    "form": {
+      "title_required": "შეიყვანეთ სათაური",
+      "category_required": "აირჩიეთ კატეგორია",
+      "content_required": "შეიყვანეთ ტექსტი",
+      "video_url_required": "შეიყვანეთ ვიდეოს ბმული ან ატვირთეთ ფაილი",
+      "name_required": "შეიყვანეთ სახელი"
+    },
     "favorite_star": {
       "aria_label": "რჩეულებში დამატება"
     },

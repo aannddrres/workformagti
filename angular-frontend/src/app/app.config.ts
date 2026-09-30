@@ -7,6 +7,7 @@ import { provideTranslateHttpLoader } from '@ngx-translate/http-loader';
 import { routes } from './app.routes';
 import { apiBaseUrlInterceptor } from './core/http/api-base-url.interceptor';
 import { unauthorizedInterceptor } from './core/http/unauthorized.interceptor';
+import { accessRefreshInterceptor } from './core/http/access-refresh.interceptor';
 import { PortalXsrfTokenExtractor } from './core/http/portal-xsrf-token-extractor';
 
 // Georgian is the primary and only reviewed language today (see docs/i18n-catalog/).
@@ -16,7 +17,7 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes, withInMemoryScrolling({ scrollPositionRestoration: 'top', anchorScrolling: 'enabled' })),
-    provideHttpClient(withInterceptors([apiBaseUrlInterceptor, unauthorizedInterceptor])),
+    provideHttpClient(withInterceptors([apiBaseUrlInterceptor, unauthorizedInterceptor, accessRefreshInterceptor])),
     // The CSRF cookie is __Host-XSRF-TOKEN in production, XSRF-TOKEN on plain HTTP.
     { provide: HttpXsrfTokenExtractor, useClass: PortalXsrfTokenExtractor },
     provideTranslateService({ lang: 'ka', fallbackLang: 'ka' }),

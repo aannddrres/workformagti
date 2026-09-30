@@ -26,6 +26,10 @@ describe('VideoEditDrawer due-date validation', () => {
     const fixture = TestBed.createComponent(VideoEditDrawer);
     fixture.componentRef.setInput('videoId', null);
     const component = fixture.componentInstance as any;
+    // The required fields, filled: the form is novalidate and says so itself now.
+    component.title.set('სათაური');
+    component.videoUrl.set('https://example.com/v.mp4');
+    component.category.set('კატეგორია');
 
     const videosService = TestBed.inject(VideosService);
     const createSpy = vi.spyOn(videosService, 'createCommand');
@@ -45,6 +49,10 @@ describe('VideoEditDrawer due-date validation', () => {
     const fixture = TestBed.createComponent(VideoEditDrawer);
     fixture.componentRef.setInput('videoId', null);
     const component = fixture.componentInstance as any;
+    // The required fields, filled: the form is novalidate and says so itself now.
+    component.title.set('სათაური');
+    component.videoUrl.set('https://example.com/v.mp4');
+    component.category.set('კატეგორია');
 
     const videosService = TestBed.inject(VideosService);
     const createSpy = vi.spyOn(videosService, 'createCommand').mockReturnValue(of({ id: 1, title: 'x' } as any));
@@ -62,6 +70,10 @@ describe('VideoEditDrawer due-date validation', () => {
     const fixture = TestBed.createComponent(VideoEditDrawer);
     fixture.componentRef.setInput('videoId', null);
     const component = fixture.componentInstance as any;
+    // The required fields, filled: the form is novalidate and says so itself now.
+    component.title.set('სათაური');
+    component.videoUrl.set('https://example.com/v.mp4');
+    component.category.set('კატეგორია');
 
     const videosService = TestBed.inject(VideosService);
     const createSpy = vi.spyOn(videosService, 'createCommand').mockReturnValue(of({ id: 1, title: 'x' } as any));
