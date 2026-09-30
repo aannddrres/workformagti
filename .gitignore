@@ -64,3 +64,7 @@ scripts/presentation/generated_identities.csv
 # Generated knowledge-graph output (graphify skill): 18 MB of AST caches and
 # a rebuilt graph.json/graph.html. Regenerated from the source tree on demand.
 graphify-out/
+
+# The Angular CLI's cache when ng runs from the repository root instead of
+# angular-frontend/ (which ignores its own).
+/.angular/

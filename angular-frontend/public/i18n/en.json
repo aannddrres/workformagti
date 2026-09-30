@@ -58,9 +58,7 @@
       "submit_button": "Sign In",
       "submit_button_loading": "Signing in...",
       "error_generic": "Sign-in failed",
-      "email_placeholder": "name.surname@magticom.ge",
-      "error_missing": "Enter your email and password",
-      "corporate_note": "Your password is checked by the company system. The portal does not store it."
+      "error_missing": "Enter your email and password"
     }
   },
   "users": {

@@ -1000,7 +1000,11 @@ public class ArticleController {
             int remaining = 4 - results.size();
             List<ArticleReferenceItem> fillMatches = candidates.stream()
                     .filter(a -> !existingIds.contains(a.id()))
-                    .sorted(Comparator.comparing(ArticleReferenceItem::createdAt).reversed())
+                    // Newest first, undated last. created_at is nullable (V4) and
+                    // only the create endpoint fills it; one row written any other
+                    // way made this sort throw, and every reader's list a 500.
+                    .sorted(Comparator.comparing(ArticleReferenceItem::createdAt,
+                            Comparator.nullsLast(Comparator.reverseOrder())))
                     .limit(remaining)
                     .toList();
             for (ArticleReferenceItem a : fillMatches) {
