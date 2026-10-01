@@ -79,7 +79,7 @@ public class ItemTitleResolver {
         Map<ItemKey, String> titles = new HashMap<>();
         if (!articleIds.isEmpty()) {
             // An administrator's audience is not consulted, so it is not loaded.
-            Map<Long, List<String>> audiences = viewer.getRole().isContentAdmin() ? Map.of()
+            Map<Long, List<String>> audiences = viewer.seesAllContent() ? Map.of()
                     : articleTargetQueryService.targetDepartmentsByArticleWithinLimit(articleIds);
             for (Article a : articleRepository.findAllById(articleIds)) {
                 if (ArticleVisibility.isVisible(a, audiences.getOrDefault(a.getId(), List.of()), viewer)) {

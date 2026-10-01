@@ -14,6 +14,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Asserts that every endpoint actually calls something that can refuse the
@@ -93,6 +94,31 @@ class EndpointGuardCoverageTest {
      * here on the day it is written.
      */
     private static final String GUARD_PREFIX = "require";
+
+    /**
+     * A guard is one of this codebase's own methods. By name alone,
+     * {@code Objects.requireNonNull} was a "require*" guard and
+     * {@code String.matches} was {@code DepartmentMatcher.matches}: a handler
+     * calling either would have passed with no gate at all (audit
+     * 2026-10-01). The package, not the class, so a rename still passes.
+     */
+    private static final String PROJECT_PACKAGE = "ge/magti/portal/";
+
+    static boolean isGuardCall(Invocation invocation) {
+        return invocation.owner().startsWith(PROJECT_PACKAGE)
+                && (invocation.name().startsWith(GUARD_PREFIX) || GUARD_METHODS.contains(invocation.name()));
+    }
+
+    @Test
+    void aJdkMethodThatSharesAGuardsNameIsNotAGuard() {
+        assertFalse(isGuardCall(new Invocation("java/util/Objects", "requireNonNull",
+                "(Ljava/lang/Object;)Ljava/lang/Object;")));
+        assertFalse(isGuardCall(new Invocation("java/lang/String", "matches", "(Ljava/lang/String;)Z")));
+        assertTrue(isGuardCall(new Invocation("ge/magti/portal/web/Guards", "requireAuthenticated",
+                "(Lge/magti/portal/domain/User;)Lorg/springframework/http/ResponseEntity;")));
+        assertTrue(isGuardCall(new Invocation("ge/magti/portal/util/DepartmentMatcher", "matches",
+                "(Ljava/lang/String;Ljava/util/List;)Z")));
+    }
 
     /**
      * A repository finder that takes the caller's own id is the whole
@@ -228,9 +254,7 @@ class EndpointGuardCoverageTest {
             return false;
         }
         for (Invocation invocation : ControllerBytecode.closureOf(controller, handler, bodies).invocations()) {
-            if (invocation.name().startsWith(GUARD_PREFIX)
-                    || GUARD_METHODS.contains(invocation.name())
-                    || isOwnerScopedLookup(invocation.name())) {
+            if (isGuardCall(invocation) || isOwnerScopedLookup(invocation.name())) {
                 return true;
             }
             Class<?> delegate = CONTROLLERS_BY_INTERNAL_NAME.get(invocation.owner());

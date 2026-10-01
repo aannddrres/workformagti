@@ -1,5 +1,6 @@
 import { Component, effect, inject, input, output, signal } from '@angular/core';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { RequiredMessage } from '../../../shared/required-message';
 import { VideosService } from '../../../core/services/videos.service';
 import { CategoriesService } from '../../../core/services/categories.service';
 import { UploadService } from '../../../core/services/upload.service';
@@ -9,6 +10,7 @@ import { Category } from '../../../core/models/category';
 import { DEPARTMENTS } from '../../../shared/user-roles';
 import { ToastService } from '../../../core/notifications/toast.service';
 import { PortalDialog } from '../../../shared/portal-dialog/portal-dialog';
+import { tbilisiEndOfDay } from '../../../shared/ka-date';
 import { DateField } from '../../../shared/date-field/date-field';
 import { ConfirmService } from '../../../core/notifications/confirm.service';
 
@@ -25,7 +27,7 @@ import { ConfirmService } from '../../../core/notifications/confirm.service';
 @Component({
   selector: 'app-video-edit-drawer',
   standalone: true,
-  imports: [TranslatePipe, PortalDialog, DateField],
+  imports: [TranslatePipe, PortalDialog, DateField, RequiredMessage],
   templateUrl: './video-edit-drawer.html'
 })
 export class VideoEditDrawer {
@@ -187,7 +189,7 @@ export class VideoEditDrawer {
 
     this.saving.set(true);
     this.saveError.set(null);
-    const dueIso = this.isMandatory() && this.dueDate() ? new Date(this.dueDate()).toISOString() : null;
+    const dueIso = this.isMandatory() && this.dueDate() ? tbilisiEndOfDay(this.dueDate()) : null;
     const command = {
       video: payload,
       mandatory: this.isMandatory(),

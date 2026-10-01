@@ -46,6 +46,13 @@ is genuinely new. Without that the second run would produce 122 duplicate
 articles with no way to tell them apart -- titles are not unique and the old
 ids are not carried over.
 
+An article changed in the portal since it was imported -- edited,
+retargeted, re-categorised, published, archived, trashed -- is left exactly
+as it is and listed under ``kept_as_edited_in_portal``. The portal owns it
+from its first edit. Where an untouched article's text does change, it gets
+a new version and a history row, so nobody's earlier read receipt or quiz
+pass counts for text they never saw.
+
 USAGE
 -----
 
@@ -68,7 +75,7 @@ import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
@@ -103,6 +110,8 @@ QUIZ_SOURCE_IDS = (129, 131)
 SOURCE_TYPE_ARTICLE = "article"
 SOURCE_TYPE_CATEGORY = "category"
 SOURCE_TYPE_FILE = "stored_file"
+
+TBILISI = timezone(timedelta(hours=4))
 
 
 class ImportError_(RuntimeError):
@@ -218,6 +227,35 @@ def _existing_map(cursor, source_type: str) -> dict[int, int]:
         source_type=source_type,
     )
     return {int(source_id): int(target_id) for source_id, target_id in cursor.fetchall()}
+
+
+class _PortalState(NamedTuple):
+    changed_since_import: bool
+    title: str
+    content: str
+
+
+def _portal_state(cursor, article_id: int) -> _PortalState | None:
+    """The article as the portal holds it now, or None if it is gone.
+
+    Every portal edit -- save, retarget, re-categorise, status, archive,
+    verify, restore -- stamps updated_at, and an import writes the legacy
+    updated_at, which is older than the imported_at it records. So a later
+    updated_at means someone changed it here. Trashed counts as changed.
+    """
+    cursor.execute(
+        "SELECT CASE WHEN a.trashed_at IS NOT NULL OR a.updated_at > i.imported_at THEN 1 ELSE 0 END, "
+        "a.title, a.content FROM articles a "
+        "JOIN legacy_content_imports i ON i.target_id = a.id AND i.source_type = :source_type "
+        "WHERE a.id = :article_id",
+        source_type=SOURCE_TYPE_ARTICLE,
+        article_id=article_id,
+    )
+    row = cursor.fetchone()
+    if row is None:
+        return None
+    content = row[2].read() if hasattr(row[2], "read") else row[2]
+    return _PortalState(bool(row[0]), str(row[1]), str(content or ""))
 
 
 def _record(cursor, source_type: str, source_id: int, target_id: int, batch: str, now: datetime) -> None:
@@ -475,6 +513,7 @@ def _import_articles(
     texts: dict[int, tuple[str, str, str | None]] = {}
     created = 0
     updated = 0
+    kept: list[int] = []
 
     for row in articles:
         source_id = int(row["id"])
@@ -497,6 +536,14 @@ def _import_articles(
 
         if not apply:
             if source_id in existing:
+                # The same rule --apply uses below, so the dry run's report is
+                # what --apply will actually do. An adopted row is bound in
+                # this very run and has no mapping to compare against yet.
+                if source_id not in (adopted or {}):
+                    portal = _portal_state(cursor, existing[source_id])
+                    if portal is None or portal.changed_since_import:
+                        kept.append(existing[source_id])
+                        continue
                 updated += 1
             else:
                 created += 1
@@ -539,6 +586,15 @@ def _import_articles(
 
         if source_id in existing:
             article_id = existing[source_id]
+            portal = _portal_state(cursor, article_id)
+            if portal is None or (portal.changed_since_import and source_id not in (adopted or {})):
+                # Changed in the portal since it was imported -- retargeted,
+                # re-categorised, edited, published, archived or trashed -- or
+                # gone. The portal owns it now. Rewriting it here used to put
+                # the legacy department and text back, under the same version
+                # number, with nothing in the audit trail (audit 2026-10-01).
+                kept.append(article_id)
+                continue
             cursor.execute(
                 "UPDATE articles SET title=:title, content=:content, category_id=:category_id, tags=:tags, "
                 "target_department=:target_department, audience_profile=:audience_profile, updated_at=:updated_at, "
@@ -551,13 +607,28 @@ def _import_articles(
                     key: value
                     for key, value in fields.items()
                     # Status, is_draft, published_at, version and created_at are
-                    # NOT overwritten on a re-run. An administrator who has
-                    # published or retargeted an imported article since the last
-                    # run must not have that undone by re-importing the text.
+                    # NOT overwritten on a re-run. Only an article nobody has
+                    # touched since the import reaches this UPDATE at all; the
+                    # rest were kept above.
                     if key
                     not in ("status", "is_draft", "published_at", "version", "created_at")
                 },
             )
+            if portal.title != fields["title"] or portal.content != fields["content"]:
+                # New text is a new version. Read receipts and quiz passes key
+                # on the number, so text that changed under an unchanged number
+                # would count as read by people who never saw it.
+                cursor.execute(
+                    "UPDATE articles SET version = version + 1 WHERE id = :article_id", article_id=article_id
+                )
+                cursor.execute(
+                    "INSERT INTO article_history (article_id,title,content,updated_at,updated_by,version_id) "
+                    "SELECT id, title, content, :updated_at, :updated_by, version FROM articles "
+                    "WHERE id = :article_id",
+                    article_id=article_id,
+                    updated_at=now,
+                    updated_by=author_id,
+                )
             updated += 1
         else:
             article_id = _insert_id(
@@ -632,6 +703,7 @@ def _import_articles(
         "found": len(articles),
         "created": created,
         "updated": updated,
+        "kept": kept,
         "history_rows": history_rows,
         "max_text_loss": max((s.text_loss_ratio for s in stats.values()), default=0.0),
     }
@@ -689,7 +761,10 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         raise ImportError_(f"uploads directory not found: {uploads}")
 
     batch = f"{BATCH_PREFIX}-{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:8]}"
-    now = datetime.now()
+    # Tbilisi wall-clock, the convention every timestamp column holds
+    # (TbilisiTime on the server). Plain datetime.now() is the machine's own
+    # zone, four hours behind on a UTC host.
+    now = datetime.now(TBILISI).replace(tzinfo=None)
     source = open_source_database(source_db)
 
     articles = source_articles(source)
@@ -742,6 +817,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "found": result["found"],
             "created": result["created"],
             "updated": result["updated"],
+            # Imported before and changed in the portal since: left alone.
+            "kept_as_edited_in_portal": result["kept"],
         },
         "article_history_rows": result["history_rows"],
         "search_rows": indexed,

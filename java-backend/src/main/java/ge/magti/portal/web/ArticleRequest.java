@@ -42,8 +42,7 @@ public record ArticleRequest(
         // The trailing "?" lets an empty string through as well as null, so
         // statusOrDefault() keeps owning the blank-to-"draft" rule; only a
         // present-but-unknown value is rejected.
-        @Pattern(regexp = "(draft|published|scheduled|archived)?",
-                message = "სტატუსი უნდა იყოს draft, published, scheduled ან archived")
+        @Pattern(regexp = STATUS_PATTERN, message = STATUS_MESSAGE)
         String status,
         @JsonProperty("youtube_id") String youtubeId,
         @JsonProperty("published_at") OffsetDateTime publishedAt,
@@ -56,8 +55,16 @@ public record ArticleRequest(
         // "notify_operators" was a field here until 2026-09-29. It fed the old
         // stack's real-time broadcast, which was never ported, so nothing read
         // it; a client that still sends it is ignored, not refused.
-        @JsonProperty("quiz_enabled") Boolean quizEnabled
+        @JsonProperty("quiz_enabled") Boolean quizEnabled,
+        // The lock_version the editor loaded (ArticleResponse). Optional: a
+        // caller that does not send it -- a seeder, the importer -- is not
+        // checked. The Angular editor always sends it.
+        @JsonProperty("lock_version") Integer lockVersion
 ) {
+    /** Shared with PATCH .../autosave, which reads a raw map and so cannot use the annotation. */
+    public static final String STATUS_PATTERN = "(draft|published|scheduled|archived)?";
+    public static final String STATUS_MESSAGE = "სტატუსი უნდა იყოს draft, published, scheduled ან archived";
+
     public String statusOrDefault() {
         return (status == null || status.isBlank()) ? "draft" : status;
     }

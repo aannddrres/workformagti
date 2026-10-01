@@ -119,6 +119,9 @@ import java.util.stream.Collectors;
 public class ArticleController {
 
     private static final String NOT_FOUND_DETAIL = "სტატია ვერ მოიძებნა";
+    static final String STALE_ARTICLE_EDIT_DETAIL =
+            "ეს სტატია თქვენ მიერ გახსნის შემდეგ სხვამ შეცვალა. დახურეთ ფორმა, გახსენით თავიდან "
+                    + "და შეიტანეთ თქვენი ცვლილება ახალ ვერსიაში.";
 
     private final ArticleRepository articleRepository;
     private final ArticleTargetDepartmentRepository targetDepartmentRepository;
@@ -322,6 +325,9 @@ public class ArticleController {
         if (ArticleVisibility.isPrivateDraftOfAnother(article, user)) {
             return notFound();
         }
+        if (request.lockVersion() != null && request.lockVersion() != article.getLockVersion()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("detail", STALE_ARTICLE_EDIT_DETAIL));
+        }
         List<String> previousTargets = resolveTargetDepartments(id);
         Map<String, Object> before = MutationAuditService.articleSnapshot(article, previousTargets);
 
@@ -436,6 +442,14 @@ public class ArticleController {
         Article article = found.get();
         if (ArticleVisibility.isPrivateDraftOfAnother(article, user)) {
             return notFound();
+        }
+        if (body.containsKey("status") && !(body.get("status") == null
+                || body.get("status") instanceof String status && status.matches(ArticleRequest.STATUS_PATTERN))) {
+            // PUT has refused an unknown status since the "pubished" typo; this
+            // path read the raw map and stored anything -- "pubished" hid the
+            // article from every reader, "trashed" put it in no list and no
+            // trash either (audit 2026-10-01).
+            return ResponseEntity.badRequest().body(Map.of("detail", ArticleRequest.STATUS_MESSAGE));
         }
         List<String> previousTargetDepartments = resolveTargetDepartments(id);
         Map<String, Object> before = MutationAuditService.articleSnapshot(article, previousTargetDepartments);
@@ -953,7 +967,7 @@ public class ArticleController {
         Set<Long> candidateIds = published.stream().map(ArticleReferenceItem::id).collect(Collectors.toSet());
         Map<Long, List<String>> deptsByArticle =
                 articleTargetQueryService.targetDepartmentsByArticleWithinLimit(candidateIds);
-        boolean isAdmin = user.getRole().isContentAdmin();
+        boolean isAdmin = user.seesAllContent();
         // Deliberately exact-match + "All" only, NOT DepartmentMatcher's
         // prefix-aware rule -- routers/articles.py:1596-1601 narrows this
         // one candidate filter differently than get_articles' own list
@@ -1654,17 +1668,6 @@ public class ArticleController {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", NOT_FOUND_DETAIL));
     }
 
-    private static ResponseEntity<Map<String, String>> requireContentAdmin(User user) {
-        ResponseEntity<Map<String, String>> authFailure = Guards.requireAuthenticated(user);
-        if (authFailure != null) {
-            return authFailure;
-        }
-        if (!user.getRole().isContentAdmin()) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("detail", "Not enough permissions to perform this action"));
-        }
-        return null;
-    }
 
     private ResponseEntity<Map<String, String>> requireReadEvidenceAccess(User user) {
         ResponseEntity<Map<String, String>> authFailure = Guards.requireAuthenticated(user);

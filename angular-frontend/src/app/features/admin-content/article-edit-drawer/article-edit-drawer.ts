@@ -1,5 +1,6 @@
 import { Component, computed, effect, inject, input, output, signal, viewChild } from '@angular/core';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { RequiredMessage } from '../../../shared/required-message';
 import { ArticlesService } from '../../../core/services/articles.service';
 import { CategoriesService } from '../../../core/services/categories.service';
 import { QuizAdminService } from '../../../core/services/quiz-admin.service';
@@ -13,6 +14,7 @@ import { QuizBuilder } from '../../../shared/quiz-builder/quiz-builder';
 import { ToastService } from '../../../core/notifications/toast.service';
 import { PortalDialog } from '../../../shared/portal-dialog/portal-dialog';
 import { DateField } from '../../../shared/date-field/date-field';
+import { tbilisiEndOfDay } from '../../../shared/ka-date';
 import { ConfirmService } from '../../../core/notifications/confirm.service';
 import { articleReach, lossLines, mandatoryLoss } from '../../../shared/mandatory-reach';
 
@@ -41,7 +43,7 @@ const DEPARTMENT_ORDER: { key: 'info' | 'tech' | 'office'; name: string }[] = [
 @Component({
   selector: 'app-article-edit-drawer',
   standalone: true,
-  imports: [TranslatePipe, RichTextEditor, QuizBuilder, PortalDialog, DateField],
+  imports: [TranslatePipe, RichTextEditor, QuizBuilder, PortalDialog, DateField, RequiredMessage],
   templateUrl: './article-edit-drawer.html'
 })
 export class ArticleEditDrawer {
@@ -106,6 +108,8 @@ export class ArticleEditDrawer {
   protected readonly dropzoneActive = signal(false);
   protected readonly saving = signal(false);
   protected readonly dirty = signal(false);
+  /** The lock_version this form was loaded at, sent back so a newer edit is not overwritten. */
+  private readonly loadedLockVersion = signal<number | null>(null);
   protected readonly saveError = signal<string | null>(null);
   /** The departments a refused assignment would have missed, under the error (PO-40). */
   protected readonly saveErrorDetails = signal<string[]>([]);
@@ -150,6 +154,7 @@ export class ArticleEditDrawer {
 
   private resetForCreate(): void {
     this.dirty.set(false);
+    this.loadedLockVersion.set(null);
     this.title.set('');
     this.categoryIdValue.set(null);
     this.tags.set('');
@@ -188,6 +193,7 @@ export class ArticleEditDrawer {
     this.dueDateError.set(false);
     this.articlesService.get(id).subscribe({
       next: (article) => {
+        this.loadedLockVersion.set(article.lock_version);
         this.title.set(article.title);
         this.categoryIdValue.set(article.category_id);
         this.tags.set(article.tags ?? '');
@@ -359,7 +365,7 @@ export class ArticleEditDrawer {
     // PO-40: made mandatory in advance, it comes into force at publication;
     // a deadline before then would be born overdue. The server refuses it too.
     const dueBeforePublication = this.isMandatory() && this.mandatoryReach() === 'later'
-      && new Date(this.dueDate()) <= new Date(this.scheduledAt());
+      && new Date(tbilisiEndOfDay(this.dueDate())) <= new Date(this.scheduledAt());
     this.dueBeforePublication.set(dueBeforePublication);
     if (dueBeforePublication) {
       return;
@@ -386,7 +392,8 @@ export class ArticleEditDrawer {
       visible_to_tech_info: this.visibleTechInfo(),
       visible_to_service_center: this.visibleServiceCenter(),
       is_draft: false,
-      quiz_enabled: this.quizEnabled()
+      quiz_enabled: this.quizEnabled(),
+      lock_version: this.loadedLockVersion()
     };
 
     this.saving.set(true);
@@ -396,7 +403,7 @@ export class ArticleEditDrawer {
     const command: ArticleCommandRequest = {
       article: payload,
       mandatory: this.isMandatory(),
-      due_date: this.isMandatory() && this.dueDate() ? new Date(this.dueDate()).toISOString() : null,
+      due_date: this.isMandatory() && this.dueDate() ? tbilisiEndOfDay(this.dueDate()) : null,
       target_department: departments[0],
       quiz: this.quizEnabled() ? { questions } : null
     };

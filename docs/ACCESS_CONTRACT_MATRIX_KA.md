@@ -107,7 +107,7 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | `GET /api/articles/{id}/history` | `ArticleController.getArticleHistory` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | 2026-09-25: არსებული სტატიისთვის დამატებით `ArticleVisibility`; სხვისი პირადი draft 404-ია კონტენტის ადმინისტრატორისთვისაც. არარსებული article ID ძველი კონტრაქტით ცარიელ სიას აბრუნებს. 2026-09-29: სანაგვეში გადატანილი სხვისი პირადი მონახაზიც 404-ია — `findById` სანაგვეში არსებულ ჩანაწერს ვერ ხედავს, ამიტომ შემოწმება SQL-შია (`PrivateContentBoundaryIntegrationTest#privateTrashIsVisibleAndRestorableOnlyByItsAuthor`). |
 | `GET /api/articles/{id}/history-summary` | `ArticleController.getArticleHistorySummary` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | 2026-09-25: იგივე `ArticleVisibility` შემოწმება; სხვისი პირადი draft 404-ია. CLOB-free metadata list. 2026-09-29: სანაგვეში გადატანილი სხვისი პირადი მონახაზიც 404-ია — `findById` სანაგვეში არსებულ ჩანაწერს ვერ ხედავს, ამიტომ შემოწმება SQL-შია (`PrivateContentBoundaryIntegrationTest#privateTrashIsVisibleAndRestorableOnlyByItsAuthor`). |
 | `GET /api/articles/{id}/history/{historyId}` | `ArticleController.getArticleHistoryItem` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | 2026-09-25: იგივე `ArticleVisibility` შემოწმება; სხვისი პირადი draft 404-ია. `{historyId}` owning article-ზეა scoped. 2026-09-29: სანაგვეში გადატანილი სხვისი პირადი მონახაზიც 404-ია — `findById` სანაგვეში არსებულ ჩანაწერს ვერ ხედავს, ამიტომ შემოწმება SQL-შია (`PrivateContentBoundaryIntegrationTest#privateTrashIsVisibleAndRestorableOnlyByItsAuthor`). |
-| `GET /api/articles/{id}/history/{historyId}/diff` | `ArticleController.getArticleDiff` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით; base და explicit compare history IDs ორივე owning article-ზეა scoped. |
+| `GET /api/articles/{id}/history/{historyId}/diff` | `ArticleController.getArticleDiff` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით; base და explicit compare history IDs ორივე owning article-ზეა scoped. შედარება ამოღებულ ტექსტსაც აჩვენებს — იხ. D-9. |
 | `POST /api/articles/{id}/history/{historyId}/restore` | `ArticleController.restoreArticleVersion` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | 2026-09-25: დამატებით `ArticleVisibility`; სხვისი პირადი draft 404-ია და article/history/audit უცვლელია. Foreign-parent history ID-ც 404-ია. |
 | `GET /api/articles/{id}/note` | `ArticleController.getUserNote` | `requireAuthenticated`, `requireVisibleArticle` | AUTH | `SELF` | no | საკუთარი ჩანაწერი ხილულ კონტენტზე; იგივე article-ზე სხვა მომხმარებლის note არ ჩანს და absent value literal JSON `null`-ია. |
 | `PUT /api/articles/{id}/note` | `ArticleController.putUserNote` | `requireAuthenticated`, `requireVisibleArticle` | AUTH | `SELF` | no | ჩანაწერი `(user_id, article_id)` ownership key-ზე ინახება; ორი caller-ის notes ერთმანეთს არ overwrite-ავს. |
@@ -117,7 +117,7 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | `GET /api/articles/{id}/related` | `ArticleController.getRelatedArticles` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. 2026-09-26 (PO-34/D2): სხვა ავტორის პირადი `is_draft` სიაში არ ჩანს, მათ შორის ძველი published+`is_draft` ჩანაწერი (`PrivateDraftIsolationIntegrationTest`). |
 | `POST /api/articles/{id}/unarchive` | `ArticleController.unarchiveArticle` | `requireArticlesArchivePermission` | articles.archive | `ORG-CONTENT` | no | უკვე permission-ზეა. 2026-09-26 (PO-34/D2): სხვა ავტორის პირადი `is_draft` 404-ია ნებისმიერი როლისა და უფლებისთვის, სტატია უცვლელი რჩება (`PrivateDraftIsolationIntegrationTest`). |
 | `POST /api/articles/{id}/verify` | `ArticleController.verifyArticle` | `requireContentManage` | content.manage | `ORG-CONTENT` | no | Phase 6 permission-gate. წესი #9: კომპანიის მასშტაბით გამოქვეყნება + სხვისი სტატია + კატეგორიები = ერთი capability. 2026-09-26 (PO-34/D2): სხვა ავტორის პირადი `is_draft` 404-ია ნებისმიერი როლისა და უფლებისთვის, სტატია უცვლელი რჩება (`PrivateDraftIsolationIntegrationTest`). |
-| `GET /api/articles/{id}/versions` | `ArticleController.getArticleVersions` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. |
+| `GET /api/articles/{id}/versions` | `ArticleController.getArticleVersions` | `requireAuthenticated` | AUTH | `CONTENT` | no | ხილვადობა target-department-ით (`ArticleQueryService`/`DepartmentMatcher`), არა role-ით. ისტორია ოპერატორსაც უჩანს — იხ. D-9. |
 | `POST /api/articles/{id}/view` | `ArticleController.trackArticleView` | `requireAuthenticated` | AUTH | `SELF` | no | საკუთარი ჩანაწერი ხილულ კონტენტზე. |
 | `GET /api/articles/{id}/views` | `ArticleController.getArticleViews` | `requireSystemAdmin` | SYSTEM_ADMIN-only log | `ORG` | **yes** | სტატიის უბრალო გახსნა ოფიციალური წაკითხვა არ არის და leadership evidence-ში არ ჩანს. export ცალკე SYSTEM_ADMIN-only log surface-ზე კეთდება. 2026-09-26 (PO-34/D2): სხვა ავტორის პირად `is_draft`-ზე gate-ის შემდეგ 404-ია (`PrivateDraftIsolationIntegrationTest`). |
 | `GET /api/me/recently-viewed` | `ArticleController.getMyRecentlyViewed` | `requireAuthenticated` | AUTH | `SELF` | no | მხოლოდ მომძახებლის view rows dedupe-დება; სხვა caller-ის recently-viewed ჩანაწერი არ ჩანს. 2026-09-26 (PO-34/D2): სხვა ავტორის პირადი `is_draft` სიაში არ ჩანს, მათ შორის ძველი published+`is_draft` ჩანაწერი (`PrivateDraftIsolationIntegrationTest`). |
@@ -565,6 +565,21 @@ tests. `QUESTIONS_FOR_IT.md` §9-ში ღია რჩება მხოლ�
 მართვას. ცალკე `content.create` / `content.publish` / `content.edit_any` /
 `categories.manage` permission-ები და UI ჩამრთველები არ ემატება.
 
+**2026-10-01 დამატება — წაკითხვაც `content.manage`-ს მიჰყვება.** აქამდე
+„ყველა დეპარტამენტის და ყველა სტატუსის მასალის დანახვა“ **როლით** წყდებოდა
+(`Role.isContentAdmin`), რედაქტირება კი **უფლებით**. აუდიტში ცდით დადასტურდა
+შედეგი: მენეჯერს, რომელსაც ადმინმა `content.manage` და `articles.edit` მისცა,
+სხვისი გამოუქვეყნებელი სტატიის გახსნაზე 404 უბრუნდებოდა, მისი გადაწერა კი
+ხერხდებოდა (200). **გადაწყვეტილება (მფლობელი):** ვინც კონტენტს მართავს, ხედავს
+იმას, რასაც კონტენტის ადმინისტრატორი. `JwtAuthenticationFilter` ყოველ მოთხოვნაზე
+ითვლის ეფექტურ `content.manage`-ს (`User#seesAllContent`); `ArticleVisibility`,
+`NewsVisibility`, `VideoVisibility`, სიებისა და ძებნის query-ები და ზარი მას
+კითხულობენ. საპირისპირო მიმართულებაც მოქმედებს: კონტენტის ადმინისტრატორი, ვისაც
+`content.manage` DENY-ით მოეხსნა, კითხულობს ისე, როგორც თავისი დეპარტამენტის
+სხვა თანამშრომელი. სხვისი პირადი `is_draft` არავის ეხსნება (PO-34, D2).
+`QuizGateChecker`-ის გამონაკლისი როლზე რჩება — ის წაკითხვის ნებართვა არ არის.
+ტესტი: `ContentReachDelegationTest`.
+
 ### D-6. csv-ის ინგლისური სათაურები — ✅ გადაწყვეტილია (2026-08-22)
 
 **გადაწყვეტილება:** პროექტი მხოლოდ ქართულ ენაზეა. CSV/Excel export-ის ყველა
@@ -602,6 +617,18 @@ SYSTEM_ADMIN ამ ორ უფლებას ერთმანეთის�
 იმავე readiness batch-შია მიბმული.
 
 ---
+
+### D-9. ვერსიების ისტორია ოპერატორისთვის — ✅ გადაწყვეტილია (2026-10-01)
+
+**ფაქტი:** `GET /api/articles/{id}/versions` და `…/history/{historyId}/diff`
+`requireAuthenticated`-ია, ცალკეული ვერსიის სრული ტექსტი
+(`…/history/{historyId}`) კი `requireContentManage`. ამიტომ ოპერატორი, რომელიც
+სტატიას ხედავს, შედარებაში ხედავს იმ ტექსტსაც, რომელიც მოგვიანებით ამოიღეს —
+მათ შორის არასწორს ან მგრძნობიარეს (აუდიტი 2026-10-01, ცდით დადასტურდა).
+
+**გადაწყვეტილება (მფლობელი):** რჩება ასე — ვერსიების ისტორია მკითხველის
+ფუნქციაა. შედეგი, რომელიც რედაქტორმა უნდა იცოდეს: სტატიის რედაქტირება ძველ
+ტექსტს ისტორიიდან **არ შლის**.
 
 ## production-მდე გარე gate-ები
 

@@ -75,3 +75,21 @@ function parse(value: string | null | undefined): Date | null {
   const date = day ? new Date(Number(day[1]), Number(day[2]) - 1, Number(day[3])) : new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
 }
+
+/**
+ * A mandatory-reading deadline picked as a calendar day, as the instant it
+ * ends: the last second of that day in Tbilisi.
+ *
+ * The drawers used to send `new Date('2026-10-05').toISOString()` -- the trap
+ * `parse` above avoids, on the way out. That is UTC midnight, stored as
+ * 04:00 on the 5th, and the server calls a reading overdue once its deadline
+ * has passed: everyone was overdue from four in the morning of the day they
+ * had been given, and a deadline of "today" was overdue within hours.
+ *
+ * The offset is written out rather than taken from the browser, so the
+ * deadline is the same whichever machine sets it. Georgia keeps +04:00 all
+ * year (TbilisiTime on the server).
+ */
+export function tbilisiEndOfDay(day: string): string {
+  return `${day}T23:59:59+04:00`;
+}

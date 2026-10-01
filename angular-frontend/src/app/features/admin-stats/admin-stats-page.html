@@ -96,7 +96,7 @@
           </span>
           <span class="min-w-0 flex-1">
             <span class="block truncate text-sm font-bold text-slate-900 dark:text-slate-100">{{ category.name }}</span>
-            <span class="mt-1 block text-xs text-slate-600 dark:text-slate-400">{{ categoryCounts().get(category.name) ?? 0 }} მასალა</span>
+            <span class="mt-1 block text-xs text-slate-600 dark:text-slate-400">{{ categoryCountLabel(category) }}</span>
           </span>
           <i class="fa-solid fa-chevron-right text-xs text-slate-600 dark:text-slate-400 group-hover:text-brand-accent" aria-hidden="true"></i>
         </a>

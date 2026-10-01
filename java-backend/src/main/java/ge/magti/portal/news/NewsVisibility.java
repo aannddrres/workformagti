@@ -13,7 +13,7 @@ public final class NewsVisibility {
     }
 
     public static boolean isVisible(News news, User user) {
-        if (user.getRole().isContentAdmin()) {
+        if (user.seesAllContent()) {
             return !isPrivateDraftOfAnother(news, user);
         }
         return !news.isDraft() && !news.isArchived() && news.getTargetDepartment() != null

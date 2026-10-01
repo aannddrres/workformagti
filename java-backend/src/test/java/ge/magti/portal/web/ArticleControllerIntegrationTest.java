@@ -588,6 +588,25 @@ class ArticleControllerIntegrationTest {
 
     // ── autosave ──────────────────────────────────────────────────────
 
+    /** PUT refused a "pubished" typo; autosave stored it, and "trashed" too (audit 2026-10-01). */
+    @Test
+    void autosaveRefusesAStatusThatPutWouldRefuse() throws Exception {
+        User admin = createUser("autosave-status@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-autosave-status");
+        Article article = createArticle("სტატუსის ცდა", cat.getId(), "draft", true, List.of("All"), null);
+        article.setAuthorId(admin.getId());
+        articleRepository.saveAndFlush(article);
+
+        for (String status : List.of("pubished", "trashed")) {
+            mockMvc.perform(authed(patch("/api/articles/" + article.getId() + "/autosave"), tokenFor(admin))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"status\":\"" + status + "\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.detail").value(ArticleRequest.STATUS_MESSAGE));
+        }
+        assertEquals("draft", articleRepository.findById(article.getId()).orElseThrow().getStatus());
+    }
+
     @Test
     void autosaveOnlyTouchesFieldsActuallySent() throws Exception {
         User admin = createUser("aa12@magti.ge", Role.CONTENT_ADMIN, "All");
@@ -2350,6 +2369,42 @@ class ArticleControllerIntegrationTest {
 
         // A's edit is intact -- the point of refusing B is that nobody's
         // work disappears silently.
+        entityManager.clear();
+        assertEquals("A-ს ვერსია", articleRepository.findById(articleId).orElseThrow().getContent());
+    }
+
+    /**
+     * The same two editors, minutes apart rather than in the same instant.
+     * {@code @Version} alone let the second save win silently (audit
+     * 2026-10-01): the editor now sends back the lock_version it loaded.
+     */
+    @Test
+    void aSaveOverSomebodyElsesNewerEditIsRefusedWithAConflict() throws Exception {
+        User admin = createUser("lost-update@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-lost-update");
+        long articleId = createArticleViaApi(tokenFor(admin), "ორი ფორმა", "საწყისი ტექსტი", cat.getId());
+        entityManager.flush();
+        entityManager.clear();
+        int loaded = articleRepository.findById(articleId).orElseThrow().getLockVersion();
+        String body = "{\"title\":\"ორი ფორმა\",\"content\":\"%s\",\"category_id\":" + cat.getId()
+                + ",\"target_departments\":[\"All\"],\"status\":\"published\",\"is_draft\":false,"
+                + "\"lock_version\":" + loaded + "}";
+
+        String saved = mockMvc.perform(authed(put("/api/articles/" + articleId), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON).content(body.formatted("A-ს ვერსია")))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        entityManager.flush();
+        entityManager.clear();
+        // What the editor is handed back must be the row's lock as stored, or
+        // the same editor's next save would be refused as somebody else's.
+        assertEquals(articleRepository.findById(articleId).orElseThrow().getLockVersion(),
+                new com.fasterxml.jackson.databind.ObjectMapper().readTree(saved).get("lock_version").asInt());
+
+        mockMvc.perform(authed(put("/api/articles/" + articleId), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON).content(body.formatted("B-ს ვერსია")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(ArticleController.STALE_ARTICLE_EDIT_DETAIL));
         entityManager.clear();
         assertEquals("A-ს ვერსია", articleRepository.findById(articleId).orElseThrow().getContent());
     }

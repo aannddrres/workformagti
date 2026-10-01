@@ -349,6 +349,10 @@
       "today": "Today",
       "clear": "Clear",
       "done": "Done"
+    },
+    "validation": {
+      "required": "Please fill in this field.",
+      "select_required": "Please choose a value from the list."
     }
   },
   "favorites": {

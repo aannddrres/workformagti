@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatKaDate, formatKaDateTime, formatKaDateTimeSeconds, formatKaDayMonth } from './ka-date';
+import { formatKaDate, formatKaDateTime, formatKaDateTimeSeconds, formatKaDayMonth, tbilisiEndOfDay } from './ka-date';
 
 describe('formatKaDate', () => {
   it('names the month in Georgian and does not depend on Georgian ICU data', () => {
@@ -46,5 +46,12 @@ describe('formatKaDayMonth', () => {
 
   it('renders an invalid value safely', () => {
     expect(formatKaDayMonth('')).toBe('—');
+  });
+});
+
+describe('tbilisiEndOfDay', () => {
+  it('ends the picked day in Tbilisi rather than starting it in UTC', () => {
+    expect(tbilisiEndOfDay('2026-10-05')).toBe('2026-10-05T23:59:59+04:00');
+    expect(new Date(tbilisiEndOfDay('2026-10-05')).toISOString()).toBe('2026-10-05T19:59:59.000Z');
   });
 });

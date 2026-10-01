@@ -87,7 +87,7 @@ public class VideoController {
             return denial;
         }
 
-        List<VideoInstruction> videos = user.getRole().isContentAdmin()
+        List<VideoInstruction> videos = user.seesAllContent()
                 ? CompleteResultGuard.enforce(
                         videoRepository.findAll(CompleteResultGuard.sentinelPage()).getContent())
                 : CompleteResultGuard.enforce(

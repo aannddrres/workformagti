@@ -33,7 +33,10 @@ public record ArticleResponse(
         @JsonProperty("created_at") OffsetDateTime createdAt,
         @JsonProperty("updated_at") OffsetDateTime updatedAt,
         int version,
-        @JsonProperty("read_time") int readTime
+        @JsonProperty("read_time") int readTime,
+        // What the editor sends back as ArticleRequest.lock_version, so a
+        // save over someone else's newer one is refused, not silently lost.
+        @JsonProperty("lock_version") int lockVersion
 ) {
     /** models.py's Article.read_time property (models.py:173-186). */
     public static int computeReadTime(String content) {
@@ -54,6 +57,6 @@ public record ArticleResponse(
                 article.getLastVerifiedAt(), article.getAudienceProfile(),
                 article.isVisibleToTechInfo(), article.isVisibleToServiceCenter(), article.isDraft(),
                 article.isQuizEnabled(), article.getCreatedAt(), article.getUpdatedAt(), article.getVersion(),
-                computeReadTime(article.getContent()));
+                computeReadTime(article.getContent()), article.getLockVersion());
     }
 }

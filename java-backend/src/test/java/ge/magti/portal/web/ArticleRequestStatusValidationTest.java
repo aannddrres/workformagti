@@ -38,7 +38,7 @@ class ArticleRequestStatusValidationTest {
     private ArticleRequest withStatus(String status) {
         return new ArticleRequest(
                 "სათაური", "<p>ტექსტი</p>", 1L, null, List.of("All"),
-                status, null, null, null, null, null, null, null, null, null);
+                status, null, null, null, null, null, null, null, null, null, null);
     }
 
     private boolean statusRejected(String status) {

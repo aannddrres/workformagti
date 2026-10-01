@@ -79,6 +79,15 @@ public class Article {
     @Transient
     private List<String> targetDepartments = new ArrayList<>();
 
+    /**
+     * Legacy, together with {@code visible_to_tech_info} and
+     * {@code visible_to_service_center}: stored, returned and carried through
+     * edits, but no rule reads any of the three and no screen shows them.
+     * Who may read an article is target_departments alone (ArticleVisibility);
+     * the old roles these flags served never existed here
+     * (ArticleQueryService's javadoc). Do not build on them without a
+     * decision to bring them back (audit 2026-10-01).
+     */
     @Column(name = "audience_profile", length = 20)
     private String audienceProfile = "all";
 
@@ -107,12 +116,18 @@ public class Article {
      * displays on purpose would make every version bump look like a
      * conflict.
      *
-     * <p>Managed entirely by Hibernate; nothing in application code should
-     * read or set it. Its job is to make the second of two simultaneous
+     * <p>Managed entirely by Hibernate; nothing in application code sets it.
+     * Its job is to make the second of two simultaneous
      * saves fail cleanly at the UPDATE, instead of both computing the same
      * {@code version + 1} and colliding on
      * {@code ux_article_history_article_version} afterwards -- which
      * surfaced as an opaque 500 with the edit lost.
+     *
+     * <p>It is read for one more thing: {@code PUT /api/articles/{id}}
+     * compares it with the copy the editor loaded. {@code @Version} alone
+     * catches two saves in the same instant only -- two people with the
+     * editor open for minutes both saved, and the second silently won
+     * (audit 2026-10-01).
      */
     @Version
     @Column(name = "lock_version", nullable = false)
@@ -229,6 +244,10 @@ public class Article {
 
     public void setUpdatedAt(OffsetDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public int getLockVersion() {
+        return lockVersion;
     }
 
     public int getVersion() {

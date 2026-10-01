@@ -99,9 +99,13 @@ data:
 
   # ---- Rollout switches ----------------------------------------------
   #
-  # All three default to the safe/legacy behaviour. See
-  # docs/ROLLOUT_ROLLBACK_KA.md before changing any of them; they are
-  # independent on purpose, so one can be rolled back without moving another.
+  # See docs/ROLLOUT_ROLLBACK_KA.md before changing any of them.
+  #
+  # The first two are READ BY NOTHING in the application: "true" and "false"
+  # behave identically, and neither is a rollback lever. The behaviour they
+  # were meant to switch is already on, unconditionally (RolloutSwitchWiringTest
+  # checks on every build that nothing reads them). Only
+  # ROLLOUT_FILE_ENTITLEMENT, below, changes anything.
   ROLLOUT_LEADERSHIP_SCOPE: "false"
   ROLLOUT_COMPLIANCE_ELIGIBILITY: "false"
 

@@ -12,7 +12,6 @@ import ge.magti.portal.domain.UserPermissionOverride;
 import ge.magti.portal.org.OrgDirectoryQueryService;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.repository.UserPermissionOverrideRepository;
-import ge.magti.portal.security.PasswordPolicy;
 import ge.magti.portal.security.PermissionChecker;
 import ge.magti.portal.user.UserDirectoryQueryService;
 import ge.magti.portal.util.TbilisiTime;
@@ -725,11 +724,6 @@ public class UserController {
             result.computeIfAbsent(override.getUserId(), ignored -> new ArrayList<>()).add(override);
         }
         return result;
-    }
-
-    private static ResponseEntity<Map<String, String>> passwordPolicyError(List<String> errors) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(Map.of("detail", "პაროლი ვერ აკმაყოფილებს მოთხოვნებს: " + String.join(", ", errors)));
     }
 
     /**

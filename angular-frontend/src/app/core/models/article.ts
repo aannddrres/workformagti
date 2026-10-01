@@ -47,6 +47,8 @@ export interface ArticleRequest {
   visible_to_service_center: boolean;
   is_draft: boolean;
   quiz_enabled: boolean;
+  /** The lock_version the editor loaded; null when creating. */
+  lock_version?: number | null;
 }
 
 export interface ArticleCommandRequest {
@@ -102,4 +104,6 @@ export interface Article {
   updated_at: string;
   version: number;
   read_time: number;
+  /** Sent back as ArticleRequest.lock_version; a save over a newer edit is refused (409). */
+  lock_version: number;
 }

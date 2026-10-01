@@ -1,5 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { RequiredMessage } from '../../shared/required-message';
 import { CategoriesService } from '../../core/services/categories.service';
 import { Category, CategoryRequest } from '../../core/models/category';
 import { ConfirmService } from '../../core/notifications/confirm.service';
@@ -37,7 +38,7 @@ const PASTEL_COLOR_OPTIONS = [
 @Component({
   selector: 'app-admin-categories-page',
   standalone: true,
-  imports: [TranslatePipe, RowMenu],
+  imports: [TranslatePipe, RowMenu, RequiredMessage],
   templateUrl: './admin-categories-page.html'
 })
 export class AdminCategoriesPage {

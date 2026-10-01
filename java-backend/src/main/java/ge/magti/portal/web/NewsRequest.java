@@ -47,7 +47,12 @@ public record NewsRequest(
         @JsonProperty("visible_to_tech_info") Boolean visibleToTechInfo,
         @JsonProperty("visible_to_service_center") Boolean visibleToServiceCenter,
         @JsonProperty("expires_at") OffsetDateTime expiresAt,
-        @JsonProperty("is_draft") Boolean isDraft
+        @JsonProperty("is_draft") Boolean isDraft,
+        // The version the editor loaded. Optional: callers that do not send
+        // it are not checked; the Angular editor always sends it, so a save
+        // over someone else's newer one is refused rather than silently lost
+        // (audit 2026-10-01).
+        @JsonProperty("version") Integer expectedVersion
 ) {
     public String targetDepartmentOrDefault() {
         return (targetDepartment == null || targetDepartment.isBlank()) ? "All" : targetDepartment;

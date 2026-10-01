@@ -1,5 +1,6 @@
 import { Component, effect, inject, input, output, signal } from '@angular/core';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { RequiredMessage } from '../../../shared/required-message';
 import { NewsService } from '../../../core/services/news.service';
 import { UploadService } from '../../../core/services/upload.service';
 import { RequiredReadingService } from '../../../core/services/required-reading.service';
@@ -8,6 +9,7 @@ import { DEPARTMENTS } from '../../../shared/user-roles';
 import { ToastService } from '../../../core/notifications/toast.service';
 import { PortalDialog } from '../../../shared/portal-dialog/portal-dialog';
 import { DateField } from '../../../shared/date-field/date-field';
+import { tbilisiEndOfDay } from '../../../shared/ka-date';
 import { ConfirmService } from '../../../core/notifications/confirm.service';
 
 /**
@@ -22,7 +24,7 @@ import { ConfirmService } from '../../../core/notifications/confirm.service';
 @Component({
   selector: 'app-news-edit-drawer',
   standalone: true,
-  imports: [TranslatePipe, PortalDialog, DateField],
+  imports: [TranslatePipe, PortalDialog, DateField, RequiredMessage],
   templateUrl: './news-edit-drawer.html'
 })
 export class NewsEditDrawer {
@@ -54,6 +56,8 @@ export class NewsEditDrawer {
   protected readonly uploading = signal(false);
   protected readonly saving = signal(false);
   protected readonly dirty = signal(false);
+  /** The version this form was loaded at, sent back so a newer edit is not overwritten. */
+  private readonly loadedVersion = signal<number | null>(null);
   protected readonly saveError = signal<string | null>(null);
   protected readonly dueDateError = signal(false);
 
@@ -74,6 +78,7 @@ export class NewsEditDrawer {
 
   private resetForCreate(): void {
     this.dirty.set(false);
+    this.loadedVersion.set(null);
     this.title.set('');
     this.content.set('');
     this.targetDepartment.set('All');
@@ -92,6 +97,7 @@ export class NewsEditDrawer {
     this.dueDateError.set(false);
     this.newsService.get(id).subscribe({
       next: (news: News) => {
+        this.loadedVersion.set(news.version);
         this.title.set(news.title);
         this.content.set(news.content);
         this.targetDepartment.set(news.target_department);
@@ -171,12 +177,13 @@ export class NewsEditDrawer {
       target_department: this.targetDepartment(),
       attachment_url: this.attachmentUrl(),
       visible_to_tech_info: this.visibleTechInfo(),
-      visible_to_service_center: this.visibleServiceCenter()
+      visible_to_service_center: this.visibleServiceCenter(),
+      version: this.loadedVersion()
     };
 
     this.saving.set(true);
     this.saveError.set(null);
-    const dueIso = this.isMandatory() && this.dueDate() ? new Date(this.dueDate()).toISOString() : null;
+    const dueIso = this.isMandatory() && this.dueDate() ? tbilisiEndOfDay(this.dueDate()) : null;
     const command = {
       news: payload,
       mandatory: this.isMandatory(),

@@ -114,7 +114,7 @@ public class SearchQueryService {
     /** Mirrors global_search (routers/search.py:38-122), minus the SearchLog write (the controller's job). */
     public List<Article> searchArticles(String q, Long categoryId, User user) {
         List<String> words = splitWords(q);
-        boolean isAdmin = user.getRole().isContentAdmin();
+        boolean isAdmin = user.seesAllContent();
 
         List<Article> candidates;
         Map<Long, Integer> scores = Map.of();
@@ -174,7 +174,7 @@ public class SearchQueryService {
         if (words.isEmpty()) {
             return new GlobalSearchResult(List.of(), List.of(), List.of());
         }
-        boolean isAdmin = user.getRole().isContentAdmin();
+        boolean isAdmin = user.seesAllContent();
 
         List<Article> articles = searchArticles(q, null, user).stream().limit(8).toList();
         List<News> news = searchNews(words, user);

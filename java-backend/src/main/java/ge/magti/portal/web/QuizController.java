@@ -313,7 +313,7 @@ public class QuizController {
 
     /** Keep quiz endpoints opaque whenever article detail would be opaque. */
     private ResponseEntity<Map<String, String>> assertArticleVisible(Article article, User user) {
-        List<String> targetDepartments = user.getRole().isContentAdmin() ? List.of()
+        List<String> targetDepartments = user.seesAllContent() ? List.of()
                 : articleTargetQueryService.targetDepartmentsForArticleWithinLimit(article.getId());
         return ArticleVisibility.isVisible(article, targetDepartments, user)
                 ? null : articleNotFoundMap();

@@ -68,6 +68,9 @@ import java.util.Optional;
 public class NewsController {
 
     private static final String NOT_FOUND_DETAIL = "სიახლე ვერ მოიძებნა";
+    static final String STALE_NEWS_EDIT_DETAIL =
+            "ეს სიახლე თქვენ მიერ გახსნის შემდეგ სხვამ შეცვალა. დახურეთ ფორმა, გახსენით თავიდან "
+                    + "და შეიტანეთ თქვენი ცვლილება ახალ ვერსიაში.";
 
     private final NewsRepository newsRepository;
     private final NewsHistoryRepository newsHistoryRepository;
@@ -182,6 +185,9 @@ public class NewsController {
         News news = found.get();
         if (NewsVisibility.isPrivateDraftOfAnother(news, user)) {
             return notFound();
+        }
+        if (request.expectedVersion() != null && request.expectedVersion() != news.getVersion()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("detail", STALE_NEWS_EDIT_DETAIL));
         }
         Map<String, Object> before = MutationAuditService.newsSnapshot(news);
 

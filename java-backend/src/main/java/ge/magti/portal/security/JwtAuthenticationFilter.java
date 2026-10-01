@@ -1,6 +1,7 @@
 package ge.magti.portal.security;
 
 import ge.magti.portal.config.PortalProperties;
+import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.repository.UserRepository;
 import io.jsonwebtoken.Claims;
@@ -53,23 +54,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final UserRepository userRepository;
     private final PortalSessionService sessionService;
+    private final PermissionChecker permissionChecker;
 
     /** PortalProperties.Cookie#sessionCookieName: __Host-access_token wherever cookies are Secure. */
     private final String sessionCookieName;
 
     @Autowired
     public JwtAuthenticationFilter(JwtService jwtService, UserRepository userRepository,
-            PortalSessionService sessionService, PortalProperties properties) {
+            PortalSessionService sessionService, PortalProperties properties,
+            PermissionChecker permissionChecker) {
         this.jwtService = jwtService;
         this.userRepository = userRepository;
         this.sessionService = sessionService;
+        this.permissionChecker = permissionChecker;
         this.sessionCookieName = properties.getSecurity().getCookie().sessionCookieName();
     }
 
     /** Keeps the DB-free filter tests focused on JWT validation. Browser
      * session enforcement is covered by the integration/session tests. */
     JwtAuthenticationFilter(JwtService jwtService, UserRepository userRepository) {
-        this(jwtService, userRepository, null, new PortalProperties());
+        this(jwtService, userRepository, null, new PortalProperties(), null);
     }
 
     @Override
@@ -122,6 +126,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private void authenticate(User user) {
+        if (permissionChecker != null) {
+            // Once per request, beside the role and deactivation re-read above,
+            // so a grant or a DENY of content.manage changes what this person
+            // can read on their very next request (User#seesAllContent).
+            user.setSeesAllContent(permissionChecker.hasPermission(user, Permission.CONTENT_MANAGE));
+        }
         List<GrantedAuthority> authorities = Stream.concat(
                         Stream.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name())),
                         user.getPermissions().stream().map(SimpleGrantedAuthority::new))
