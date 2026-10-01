@@ -62,7 +62,7 @@ final class AccessDenialLoggingFilter extends OncePerRequestFilter {
                     // (simulation, 2026-10-01). Reads stay in the log only.
                     try {
                         String target = request.getMethod() + " " + request.getRequestURI();
-                        audit.recordResult(user, "ACCESS_DENIED", "request", null, target,
+                        audit.recordResult(user, "ACCESS_DENIED", "request", 0L, target,
                                 "DENIED", "403", null, Map.of("method", request.getMethod(),
                                         "path", request.getRequestURI()), null, null);
                     } catch (RuntimeException e) {

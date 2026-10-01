@@ -11,6 +11,14 @@ import java.util.List;
 public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
 
     /**
+     * Audit rows other than the given action -- for tests that assert a refused
+     * request recorded no change, now that refusals are themselves recorded
+     * as ACCESS_DENIED (simulation, 2026-10-01).
+     */
+    long countByActionNot(String action);
+
+
+    /**
      * Mirrors get_activity_trend's day-bucket branch (routers/stats.py:818-894),
      * Oracle-native replacement for Python's Postgres/SQLite date_trunc/strftime
      * dialect branching -- now that this is Oracle-only, one TO_CHAR(TRUNC(...))

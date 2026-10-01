@@ -1,8 +1,17 @@
 <div class="portal-page">
+  <!-- PO-05: the broadcast belongs on every role's home page. This role lands here, not on the
+       operator dashboard, and never saw it (simulation, 2026-10-01). -->
+  <app-broadcast-banner />
   @if (actionError()) {
     <div role="alert" class="mb-4 flex items-start justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
       <span>{{ actionError() }}</span>
       <button type="button" (click)="dismissActionError()" aria-label="შეტყობინების დახურვა" class="shrink-0"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+    </div>
+  }
+
+  @if (!canEditArticles()) {
+    <div role="status" class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+      {{ 'content.articles.no_edit_permission' | translate }}
     </div>
   }
 
@@ -59,7 +68,7 @@
           <i class="fa-solid fa-eye" aria-hidden="true"></i> გამოქვეყნება
         </button>
         <button type="button" (click)="bulkStatus('draft')" [disabled]="bulkBusy()" class="secondary-button px-3 py-1.5 text-sm disabled:opacity-50">
-          <i class="fa-solid fa-pen" aria-hidden="true"></i> მონახაზიდ
+          <i class="fa-solid fa-pen" aria-hidden="true"></i> მონახაზად
         </button>
         <button type="button" (click)="bulkStatus('archived')" [disabled]="bulkBusy()" class="secondary-button px-3 py-1.5 text-sm disabled:opacity-50">
           <i class="fa-solid fa-box-archive" aria-hidden="true"></i> არქივში

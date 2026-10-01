@@ -106,7 +106,7 @@ class UploadControllerIntegrationTest {
     void operatorCannotUpload() throws Exception {
         User operator = createUser("up1@magti.ge", Role.OPERATOR);
         long filesBefore = storedFileRepository.count();
-        long auditsBefore = auditLogRepository.count();
+        long auditsBefore = auditLogRepository.countByActionNot("ACCESS_DENIED");
         MockMultipartFile file = new MockMultipartFile(
                 "file", "note.txt", "text/plain", "hello".getBytes(StandardCharsets.UTF_8));
 
@@ -114,7 +114,7 @@ class UploadControllerIntegrationTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.detail").value("წვდომა უარყოფილია: არასაკმარისი უფლებები"));
         assertEquals(filesBefore, storedFileRepository.count());
-        assertEquals(auditsBefore, auditLogRepository.count());
+        assertEquals(auditsBefore, auditLogRepository.countByActionNot("ACCESS_DENIED"));
     }
 
     @Test

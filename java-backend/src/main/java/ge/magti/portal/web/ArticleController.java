@@ -119,6 +119,19 @@ import java.util.stream.Collectors;
 public class ArticleController {
 
     private static final String NOT_FOUND_DETAIL = "სტატია ვერ მოიძებნა";
+
+    /** Optional so the DB-free test constructions need no change; Spring always sets it. */
+    private ge.magti.portal.org.DepartmentTargets departmentTargets;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setDepartmentTargets(ge.magti.portal.org.DepartmentTargets departmentTargets) {
+        this.departmentTargets = departmentTargets;
+    }
+
+    /** A 422 naming any audience department that reaches nobody (simulation, 2026-10-01). */
+    private ResponseEntity<Map<String, String>> unknownDepartments(java.util.Collection<String> targets) {
+        return departmentTargets == null ? null : departmentTargets.refusal(targets);
+    }
     static final String STALE_ARTICLE_EDIT_DETAIL =
             "ეს სტატია თქვენ მიერ გახსნის შემდეგ სხვამ შეცვალა. დახურეთ ფორმა, გახსენით თავიდან "
                     + "და შეიტანეთ თქვენი ცვლილება ახალ ვერსიაში.";
@@ -268,6 +281,10 @@ public class ArticleController {
         if (denial != null) {
             return denial;
         }
+        ResponseEntity<Map<String, String>> unknownTargets = unknownDepartments(request.targetDepartments());
+        if (unknownTargets != null) {
+            return unknownTargets;
+        }
         Article article = new Article();
         applySharedFields(article, request);
         // Never client-supplied (routers/articles.py:231): the author is
@@ -324,6 +341,10 @@ public class ArticleController {
         Article article = found.get();
         if (ArticleVisibility.isPrivateDraftOfAnother(article, user)) {
             return notFound();
+        }
+        ResponseEntity<Map<String, String>> unknownTargets = unknownDepartments(request.targetDepartments());
+        if (unknownTargets != null) {
+            return unknownTargets;
         }
         if (request.lockVersion() != null && request.lockVersion() != article.getLockVersion()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("detail", STALE_ARTICLE_EDIT_DETAIL));
@@ -717,6 +738,12 @@ public class ArticleController {
         if (request.changesNothing()) {
             return ResponseEntity.badRequest()
                     .body(Map.of("detail", "მიუთითეთ კატეგორია ან დეპარტამენტები"));
+        }
+        if (request.targetDepartments() != null) {
+            ResponseEntity<Map<String, String>> unknownTargets = unknownDepartments(request.targetDepartments());
+            if (unknownTargets != null) {
+                return unknownTargets;
+            }
         }
         if (request.targetDepartments() != null && request.targetDepartments().isEmpty()) {
             // An empty list would leave the articles addressed to nobody, which
@@ -1200,6 +1227,12 @@ public class ArticleController {
         if (denial != null) {
             return denial;
         }
+        // A restore rewrites the text; a DENY on articles.edit has to reach it
+        // too, or it left this way open (simulation, 2026-10-01).
+        ResponseEntity<Map<String, String>> editDenial = requireArticlesEditPermission(user);
+        if (editDenial != null) {
+            return editDenial;
+        }
 
         Optional<Article> found = articleRepository.findById(id);
         if (found.isEmpty()) {
@@ -1530,8 +1563,13 @@ public class ArticleController {
 
         List<ArticleViewLog> rows = articleViewLogRepository.findTop30ByOperatorIdOrderByViewedAtDesc(user.getId());
         Set<Long> articleIds = rows.stream().map(ArticleViewLog::getArticleId).filter(Objects::nonNull).collect(Collectors.toSet());
+        // The whole reading rule, not only the private-draft half: a title the
+        // reader may no longer open -- retargeted away, archived, unpublished
+        // -- stayed listed here, live and renamed (simulation, 2026-10-01).
+        Map<Long, List<String>> audiences = articleIds.isEmpty() ? Map.of()
+                : articleTargetQueryService.targetDepartmentsByArticleWithinLimit(articleIds);
         Map<Long, String> titlesByArticleId = articleRepository.findAllById(articleIds).stream()
-                .filter(a -> !ArticleVisibility.isPrivateDraftOfAnother(a, user))
+                .filter(a -> ArticleVisibility.isVisible(a, audiences.getOrDefault(a.getId(), List.of()), user))
                 .collect(Collectors.toMap(Article::getId, Article::getTitle));
 
         Set<Long> seenIds = new LinkedHashSet<>();
@@ -1697,7 +1735,7 @@ public class ArticleController {
         }
         if (user.getRole() != Role.SYSTEM_ADMIN) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("detail", "Not enough permissions to perform this action"));
+                    .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
         }
         return null;
     }

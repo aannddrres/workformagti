@@ -279,7 +279,7 @@ class PrivateContentBoundaryIntegrationTest {
         for (Map.Entry<String, Map<String, Object>> command : Map.of(
                 "bulk-archive", Map.<String, Object>of("ids", List.of(id), "archive", true),
                 "bulk-status", Map.<String, Object>of("ids", List.of(id), "status", "published"),
-                "bulk-retarget", Map.<String, Object>of("ids", List.of(id), "target_departments", List.of("Other"))).entrySet()) {
+                "bulk-retarget", Map.<String, Object>of("ids", List.of(id), "target_departments", List.of("ტექნიკური"))).entrySet()) {
             mvc.perform(as(post("/api/articles/" + command.getKey()), other)
                             .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(command.getValue())))
                     .andExpect(status().isOk()).andExpect(jsonPath("$.updated").value(0))

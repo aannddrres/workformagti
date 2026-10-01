@@ -1,4 +1,5 @@
 import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { BroadcastBanner } from '../../shared/broadcast-banner/broadcast-banner';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -39,7 +40,7 @@ type ExportKind = 'xlsx' | 'pdf' | 'team_stats_pdf';
 @Component({
   selector: 'app-team-stats-page',
   standalone: true,
-  imports: [TranslatePipe, PortalDialog, CategoryStrip],
+  imports: [TranslatePipe, PortalDialog, CategoryStrip, BroadcastBanner],
   templateUrl: './team-stats-page.html'
 })
 export class TeamStatsPage {

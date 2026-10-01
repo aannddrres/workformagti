@@ -526,7 +526,7 @@ public class StatsController {
                 if (requestedTeamId.isEmpty()
                         || !scopeResolver.resolveGroupLeadership(user).includesTeam(requestedTeamId.get())) {
                     return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                            .body(Map.of("detail", "Not enough permissions to perform this action"));
+                            .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
                 }
                 // Free-text department strings are transitional data, not an
                 // authorization identity. Keep only members bound to the
@@ -540,7 +540,7 @@ public class StatsController {
                 String ownBucket = DepartmentBuckets.match(ownGroup.prefix());
                 if (!Objects.equals(department, ownBucket) || !Objects.equals(groupName, ownGroup.groupLabel())) {
                     return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                            .body(Map.of("detail", "Not enough permissions to perform this action"));
+                            .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
                 }
             }
         }
@@ -711,7 +711,7 @@ public class StatsController {
         }
         if (user.getRole() != Role.SYSTEM_ADMIN) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("detail", "Not enough permissions to perform this action"));
+                    .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
         }
         return null;
     }
@@ -723,7 +723,7 @@ public class StatsController {
         }
         if (user.getRole() != Role.MANAGER && user.getRole() != Role.SYSTEM_ADMIN) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("detail", "Not enough permissions to perform this action"));
+                    .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
         }
         return null;
     }

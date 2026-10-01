@@ -88,6 +88,19 @@ public class ComplianceController {
     private final MutationAuditService mutationAuditService;
     private final RequiredReadingMutationService requiredReadingMutationService;
     private final ReadingAcknowledgementService readingAcknowledgementService;
+
+    /** Optional so the DB-free test constructions need no change; Spring always sets it. */
+    private ge.magti.portal.org.DepartmentTargets departmentTargets;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setDepartmentTargets(ge.magti.portal.org.DepartmentTargets departmentTargets) {
+        this.departmentTargets = departmentTargets;
+    }
+
+    /** A 422 naming any audience department that reaches nobody (simulation, 2026-10-01). */
+    private ResponseEntity<Map<String, String>> unknownDepartments(java.util.Collection<String> targets) {
+        return departmentTargets == null ? null : departmentTargets.refusal(targets);
+    }
     private final MandatoryReach mandatoryReach;
     private final ScopeResolver scopeResolver;
 
@@ -288,6 +301,10 @@ public class ComplianceController {
             // draft into every assignee's reading list and reminders (PO-34).
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", ITEM_NOT_FOUND));
         }
+        ResponseEntity<Map<String, String>> unknownTargets = unknownDepartments(List.of(request.targetDepartmentOrDefault()));
+        if (unknownTargets != null) {
+            return unknownTargets;
+        }
         // PO-40: nobody is assigned what they could not open. Refused whole,
         // with the people it would have missed named, rather than quietly
         // narrowed: the editor chose this department and should know.
@@ -429,6 +446,13 @@ public class ComplianceController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", READING_NOT_FOUND));
         }
         RequiredReading reading = found.get();
+        if (!request.targetDepartmentOrDefault().equals(reading.getTargetDepartment())) {
+            ResponseEntity<Map<String, String>> unknownTargets =
+                    unknownDepartments(List.of(request.targetDepartmentOrDefault()));
+            if (unknownTargets != null) {
+                return unknownTargets;
+            }
+        }
         Map<String, Object> before = MutationAuditService.requiredReadingSnapshot(reading);
 
         // BL-04: read_statuses is keyed on required_reading_id (V22:11), not

@@ -68,6 +68,19 @@ import java.util.Optional;
 public class NewsController {
 
     private static final String NOT_FOUND_DETAIL = "სიახლე ვერ მოიძებნა";
+
+    /** Optional so the DB-free test constructions need no change; Spring always sets it. */
+    private ge.magti.portal.org.DepartmentTargets departmentTargets;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setDepartmentTargets(ge.magti.portal.org.DepartmentTargets departmentTargets) {
+        this.departmentTargets = departmentTargets;
+    }
+
+    /** A 422 naming any audience department that reaches nobody (simulation, 2026-10-01). */
+    private ResponseEntity<Map<String, String>> unknownDepartments(java.util.Collection<String> targets) {
+        return departmentTargets == null ? null : departmentTargets.refusal(targets);
+    }
     static final String STALE_NEWS_EDIT_DETAIL =
             "ეს სიახლე თქვენ მიერ გახსნის შემდეგ სხვამ შეცვალა. დახურეთ ფორმა, გახსენით თავიდან "
                     + "და შეიტანეთ თქვენი ცვლილება ახალ ვერსიაში.";
@@ -152,6 +165,10 @@ public class NewsController {
         if (denial != null) {
             return denial;
         }
+        ResponseEntity<Map<String, String>> unknownTargets = unknownDepartments(List.of(request.targetDepartmentOrDefault()));
+        if (unknownTargets != null) {
+            return unknownTargets;
+        }
         News news = new News();
         applySharedFields(news, request);
         news.setExpiresAt(request.expiresAt());
@@ -185,6 +202,13 @@ public class NewsController {
         News news = found.get();
         if (NewsVisibility.isPrivateDraftOfAnother(news, user)) {
             return notFound();
+        }
+        if (!request.targetDepartmentOrDefault().equals(news.getTargetDepartment())) {
+            ResponseEntity<Map<String, String>> unknownTargets =
+                    unknownDepartments(List.of(request.targetDepartmentOrDefault()));
+            if (unknownTargets != null) {
+                return unknownTargets;
+            }
         }
         if (request.expectedVersion() != null && request.expectedVersion() != news.getVersion()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("detail", STALE_NEWS_EDIT_DETAIL));

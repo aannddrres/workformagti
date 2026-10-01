@@ -17,6 +17,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
@@ -106,7 +107,33 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({MethodArgumentNotValidException.class, HttpMessageNotReadableException.class})
     public ResponseEntity<Map<String, String>> handleInvalidRequestBody(Exception exception) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
-                "detail", "მოთხოვნის მონაცემები არასწორია"));
+                "detail", ownGeorgianMessage(exception)));
+    }
+
+    /**
+     * The message a field's own constraint was written with, when it is
+     * Georgian -- "სტატუსი უნდა იყოს draft, published, scheduled ან archived"
+     * tells an editor what to fix. Every one of them used to collapse into the
+     * generic text below (simulation, 2026-10-01). Spring's own defaults are
+     * English ("must not be blank") and stay generic.
+     */
+    private static String ownGeorgianMessage(Exception exception) {
+        if (exception instanceof MethodArgumentNotValidException invalid) {
+            for (var error : invalid.getBindingResult().getAllErrors()) {
+                String message = error.getDefaultMessage();
+                if (message != null && message.codePoints().anyMatch(c -> c >= 0x10D0 && c <= 0x10FF)) {
+                    return message;
+                }
+            }
+        }
+        return "მოთხოვნის მონაცემები არასწორია";
+    }
+
+    /** A required query parameter left out is the caller's mistake: 400, not "unexpected error" (simulation, 2026-10-01). */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<Map<String, String>> handleMissingParameter(MissingServletRequestParameterException exception) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                "detail", "აკლია აუცილებელი პარამეტრი: " + exception.getParameterName()));
     }
 
     /**

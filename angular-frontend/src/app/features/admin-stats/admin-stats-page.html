@@ -1,4 +1,7 @@
 <div class="portal-page">
+  <!-- PO-05: the broadcast belongs on every role's home page. This role lands here, not on the
+       operator dashboard, and never saw it (simulation, 2026-10-01). -->
+  <app-broadcast-banner />
   <header class="portal-page-header">
     <div>
       @if (isSystemAdmin()) {
@@ -293,7 +296,7 @@
                   <td class="px-5 py-3 text-slate-600 dark:text-slate-400">{{ departmentLabel(item.department) }}</td>
                   <td class="px-5 py-3 text-right tabular-nums">{{ item.read_count }}</td>
                   <td class="px-5 py-3 text-right tabular-nums">{{ item.required_count }}</td>
-                  <td class="px-5 py-3 text-right font-bold tabular-nums" [class]="pctColorClass(item.percentage)">@if (pctIcon(item.percentage); as icon) { <i class="fa-solid mr-1 text-xs" [class]="icon" aria-hidden="true"></i> }{{ item.percentage }}</td>
+                  <td class="px-5 py-3 text-right font-bold tabular-nums" [class]="pctColorClass(item.percentage, item.required_count)">@if (pctIcon(item.percentage, item.required_count); as icon) { <i class="fa-solid mr-1 text-xs" [class]="icon" aria-hidden="true"></i> }{{ item.percentage }}</td>
                 </tr>
               }
             </tbody>

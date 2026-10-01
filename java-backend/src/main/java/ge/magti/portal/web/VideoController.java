@@ -56,6 +56,19 @@ public class VideoController {
     private static final String NOT_FOUND_DETAIL = "ვიდეო ვერ მოიძებნა";
 
     private final VideoInstructionRepository videoRepository;
+
+    /** Optional so the DB-free test constructions need no change; Spring always sets it. */
+    private ge.magti.portal.org.DepartmentTargets departmentTargets;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setDepartmentTargets(ge.magti.portal.org.DepartmentTargets departmentTargets) {
+        this.departmentTargets = departmentTargets;
+    }
+
+    /** A 422 naming any audience department that reaches nobody (simulation, 2026-10-01). */
+    private ResponseEntity<Map<String, String>> unknownDepartments(java.util.Collection<String> targets) {
+        return departmentTargets == null ? null : departmentTargets.refusal(targets);
+    }
     private final PermissionChecker permissionChecker;
     private final TagSyncService tagSyncService;
     private final SearchReindexService searchReindexService;
@@ -127,6 +140,10 @@ public class VideoController {
             return denial;
         }
 
+        ResponseEntity<Map<String, String>> unknownTargets = unknownDepartments(List.of(request.targetDepartmentOrDefault()));
+        if (unknownTargets != null) {
+            return unknownTargets;
+        }
         VideoInstruction video = new VideoInstruction();
         applyRequest(video, request);
         video.setCreatedAt(TbilisiTime.now());
@@ -158,6 +175,13 @@ public class VideoController {
             return notFound();
         }
         VideoInstruction video = found.get();
+        if (!request.targetDepartmentOrDefault().equals(video.getTargetDepartment())) {
+            ResponseEntity<Map<String, String>> unknownTargets =
+                    unknownDepartments(List.of(request.targetDepartmentOrDefault()));
+            if (unknownTargets != null) {
+                return unknownTargets;
+            }
+        }
         Map<String, Object> before = MutationAuditService.videoSnapshot(video);
         applyRequest(video, request);
         VideoInstruction saved = videoRepository.saveAndFlush(video);

@@ -1,4 +1,5 @@
 import { Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
+import { BroadcastBanner } from '../../shared/broadcast-banner/broadcast-banner';
 import { TranslateService } from '@ngx-translate/core';
 import { RouterLink } from '@angular/router';
 import Chart from 'chart.js/auto';
@@ -69,7 +70,7 @@ function parsePercentage(label: string): number {
 @Component({
   selector: 'app-admin-stats-page',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, BroadcastBanner],
   templateUrl: './admin-stats-page.html'
 })
 export class AdminStatsPage {
@@ -327,12 +328,14 @@ export class AdminStatsPage {
     this.progressIncompleteOnly.set(!this.progressIncompleteOnly());
   }
 
-  pctColorClass(percentageLabel: string): string {
-    return completionTextClass(completionTier(percentageLabel));
+  // Someone with nothing assigned is not "0%, critical"; they are grey, as on
+  // the team page (simulation, 2026-10-01).
+  pctColorClass(percentageLabel: string, requiredCount = 1): string {
+    return completionTextClass(completionTier(percentageLabel, requiredCount > 0));
   }
 
-  pctIcon(percentageLabel: string): string | null {
-    return completionIcon(completionTier(percentageLabel));
+  pctIcon(percentageLabel: string, requiredCount = 1): string | null {
+    return completionIcon(completionTier(percentageLabel, requiredCount > 0));
   }
 
   categoryIcon(category: Category): string {

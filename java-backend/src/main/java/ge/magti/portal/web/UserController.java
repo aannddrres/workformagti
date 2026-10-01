@@ -145,8 +145,11 @@ public class UserController {
         if (denial != null) {
             return denial;
         }
+        if (request.name() != null && !request.name().equals(user.getName())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "detail", "სახელი იმართება კომპანიის კატალოგიდან და პორტალიდან არ იცვლება."));
+        }
         Map<String, Object> before = MutationAuditService.userSnapshot(user);
-        user.setName(request.name());
         if (request.position() != null) {
             user.setPosition(request.position());
         }
@@ -754,7 +757,7 @@ public class UserController {
         }
         if (user.getRole() != Role.SYSTEM_ADMIN) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("detail", "Not enough permissions to perform this action"));
+                    .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
         }
         return null;
     }

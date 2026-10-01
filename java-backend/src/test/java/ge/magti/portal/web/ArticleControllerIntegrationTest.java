@@ -399,7 +399,7 @@ class ArticleControllerIntegrationTest {
         User operator = createUser("aa7@magti.ge", Role.OPERATOR, "All");
         Category cat = createCategory("კატ-6");
         long articlesBefore = articleRepository.count();
-        long auditsBefore = auditLogRepository.count();
+        long auditsBefore = auditLogRepository.countByActionNot("ACCESS_DENIED");
 
         mockMvc.perform(authed(post("/api/articles"), tokenFor(operator))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -408,7 +408,7 @@ class ArticleControllerIntegrationTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.detail").value("წვდომა უარყოფილია: არასაკმარისი უფლებები"));
         assertEquals(articlesBefore, articleRepository.count());
-        assertEquals(auditsBefore, auditLogRepository.count());
+        assertEquals(auditsBefore, auditLogRepository.countByActionNot("ACCESS_DENIED"));
     }
 
     @Test
@@ -421,7 +421,7 @@ class ArticleControllerIntegrationTest {
         Category cat = createCategory("კატ-6ბ");
         Article existing = createArticle("არსებული სტატია", cat.getId(), "draft", true, List.of("All"), null);
         long articlesBefore = articleRepository.count();
-        long auditsBefore = auditLogRepository.count();
+        long auditsBefore = auditLogRepository.countByActionNot("ACCESS_DENIED");
 
         // Same content_admin, articles.edit revoked (default set minus edit).
         deny(admin, Permission.ARTICLES_EDIT);
@@ -450,7 +450,7 @@ class ArticleControllerIntegrationTest {
         assertEquals("არსებული სტატია", unchanged.getTitle());
         assertEquals("draft", unchanged.getStatus());
         assertEquals(articlesBefore, articleRepository.count());
-        assertEquals(auditsBefore, auditLogRepository.count());
+        assertEquals(auditsBefore, auditLogRepository.countByActionNot("ACCESS_DENIED"));
 
         // Publishing is deliberately part of articles.edit, not a second
         // independently revocable switch.
@@ -1057,7 +1057,7 @@ class ArticleControllerIntegrationTest {
         Category category = createCategory("bulk-invalid-" + System.nanoTime());
         Article article = createArticle("უარყოფილი მოთხოვნა", category.getId(), "published", false,
                 List.of("All"), null);
-        long auditBefore = auditLogRepository.count();
+        long auditBefore = auditLogRepository.countByActionNot("ACCESS_DENIED");
 
         mockMvc.perform(authed(post("/api/articles/bulk-archive"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -1065,7 +1065,7 @@ class ArticleControllerIntegrationTest {
                 .andExpect(status().isBadRequest());
 
         assertEquals("published", articleRepository.findById(article.getId()).orElseThrow().getStatus());
-        assertEquals(auditBefore, auditLogRepository.count());
+        assertEquals(auditBefore, auditLogRepository.countByActionNot("ACCESS_DENIED"));
     }
 
     private Team createTeam(String name) {
@@ -1202,7 +1202,7 @@ class ArticleControllerIntegrationTest {
         Article article = createArticle("სტატია შენიშვნისთვის", category.getId(),
                 "published", false, List.of("All"), null);
         long notesBefore = userNoteRepository.count();
-        long auditsBefore = auditLogRepository.count();
+        long auditsBefore = auditLogRepository.countByActionNot("ACCESS_DENIED");
         long missingId = 999999999L;
 
         mockMvc.perform(authed(get("/api/articles/" + missingId + "/note"), tokenFor(operator)))
@@ -1223,7 +1223,7 @@ class ArticleControllerIntegrationTest {
                 .andExpect(status().isNotFound());
 
         assertEquals(notesBefore, userNoteRepository.count());
-        assertEquals(auditsBefore, auditLogRepository.count());
+        assertEquals(auditsBefore, auditLogRepository.countByActionNot("ACCESS_DENIED"));
     }
 
     // ── verify ────────────────────────────────────────────────────────
@@ -1626,7 +1626,7 @@ class ArticleControllerIntegrationTest {
         Category cat = createCategory("კატ-31");
         long articleId = createArticleViaApi(tokenFor(admin), "სათაური", "შინაარსი", cat.getId());
         long v1HistoryId = historyIdForVersion(articleId, 1);
-        long auditsBefore = auditLogRepository.count();
+        long auditsBefore = auditLogRepository.countByActionNot("ACCESS_DENIED");
 
         mockMvc.perform(authed(get("/api/articles/" + articleId + "/history"), tokenFor(operator)))
                 .andExpect(status().isForbidden());
@@ -1641,7 +1641,7 @@ class ArticleControllerIntegrationTest {
         Article unchanged = articleRepository.findById(articleId).orElseThrow();
         assertEquals("სათაური", unchanged.getTitle());
         assertEquals(1, unchanged.getVersion());
-        assertEquals(auditsBefore, auditLogRepository.count());
+        assertEquals(auditsBefore, auditLogRepository.countByActionNot("ACCESS_DENIED"));
     }
 
     @Test
@@ -2461,7 +2461,7 @@ class ArticleControllerIntegrationTest {
         Category category = createCategory("კატ-invalid-status");
         long articlesBefore = articleRepository.count();
         long historyBefore = articleHistoryRepository.count();
-        long auditsBefore = auditLogRepository.count();
+        long auditsBefore = auditLogRepository.countByActionNot("ACCESS_DENIED");
 
         mockMvc.perform(authed(post("/api/articles"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -2471,7 +2471,7 @@ class ArticleControllerIntegrationTest {
 
         assertEquals(articlesBefore, articleRepository.count());
         assertEquals(historyBefore, articleHistoryRepository.count());
-        assertEquals(auditsBefore, auditLogRepository.count());
+        assertEquals(auditsBefore, auditLogRepository.countByActionNot("ACCESS_DENIED"));
     }
 
     @Test
@@ -2486,7 +2486,7 @@ class ArticleControllerIntegrationTest {
         articleRepository.saveAndFlush(article);
         entityManager.clear();
         long historiesBefore = articleHistoryRepository.count();
-        long auditsBefore = auditLogRepository.count();
+        long auditsBefore = auditLogRepository.countByActionNot("ACCESS_DENIED");
 
         mockMvc.perform(authed(get("/api/articles/" + articleId + "/history"), tokenFor(otherAdmin)))
                 .andExpect(status().isNotFound());
@@ -2507,7 +2507,7 @@ class ArticleControllerIntegrationTest {
         assertEquals("პირადი ისტორია", unchanged.getTitle());
         assertEquals(1, unchanged.getVersion());
         assertEquals(historiesBefore, articleHistoryRepository.count());
-        assertEquals(auditsBefore, auditLogRepository.count());
+        assertEquals(auditsBefore, auditLogRepository.countByActionNot("ACCESS_DENIED"));
 
         mockMvc.perform(authed(get("/api/articles/" + articleId + "/history"), tokenFor(author)))
                 .andExpect(status().isOk())

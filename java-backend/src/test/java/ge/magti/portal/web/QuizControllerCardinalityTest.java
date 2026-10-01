@@ -42,6 +42,7 @@ class QuizControllerCardinalityTest {
         User actor = new User();
         actor.setRole(Role.CONTENT_ADMIN);
         when(permissions.hasPermission(actor, Permission.CONTENT_MANAGE)).thenReturn(true);
+        when(permissions.hasPermission(actor, Permission.ARTICLES_EDIT)).thenReturn(true);
         Article visibleArticle = new Article();
         visibleArticle.setDraft(false);
         when(articles.findById(42L)).thenReturn(Optional.of(visibleArticle));

@@ -109,6 +109,10 @@ public class CategoryController {
         if (duplicate != null) {
             return duplicate;
         }
+        ResponseEntity<Map<String, String>> badParent = invalidParent(null, request.parentId());
+        if (badParent != null) {
+            return badParent;
+        }
 
         Category category = new Category();
         applyRequest(category, request);
@@ -139,12 +143,39 @@ public class CategoryController {
         if (duplicate != null) {
             return duplicate;
         }
+        ResponseEntity<Map<String, String>> badParent = invalidParent(id, request.parentId());
+        if (badParent != null) {
+            return badParent;
+        }
         applyRequest(category, request);
         Category saved = categoryRepository.saveAndFlush(category);
         contentMutationAuditService.recordSuccess(
                 user, "UPDATE", "category", saved.getId(), saved.getName(), before,
                 MutationAuditService.categorySnapshot(saved));
         return ResponseEntity.ok(CategoryResponse.from(saved));
+    }
+
+    /**
+     * A parent that does not exist was a 500; a parent that is the category
+     * itself or one of its descendants made a loop, and both vanished from
+     * the categories screen with no way back from the UI (simulation,
+     * 2026-10-01).
+     */
+    private ResponseEntity<Map<String, String>> invalidParent(Long id, Long parentId) {
+        Long cursor = parentId;
+        for (int depth = 0; cursor != null && depth < 100; depth++) {
+            if (cursor.equals(id)) {
+                return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(Map.of("detail",
+                        "კატეგორია არ შეიძლება იყოს საკუთარი თავის ან საკუთარი ქვეკატეგორიის ქვეკატეგორია"));
+            }
+            Optional<Category> parent = categoryRepository.findById(cursor);
+            if (parent.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                        .body(Map.of("detail", "მშობელი კატეგორია ვერ მოიძებნა"));
+            }
+            cursor = parent.get().getParentId();
+        }
+        return null;
     }
 
     @DeleteMapping("/api/categories/{id}")

@@ -117,7 +117,7 @@ class VideoControllerIntegrationTest {
         VideoInstruction existing = createVideo("დაცული ვიდეო", "All", false);
         String token = tokenFor(operator);
         long videosBefore = videoRepository.count();
-        long auditBefore = auditLogRepository.count();
+        long auditBefore = auditLogRepository.countByActionNot("ACCESS_DENIED");
         String body = "{\"title\":\"არ უნდა შეიცვალოს\",\"video_url\":"
                 + "\"https://www.youtube.com/embed/dQw4w9WgXcQ\"}";
 
@@ -138,7 +138,7 @@ class VideoControllerIntegrationTest {
         assertEquals(videosBefore, videoRepository.count());
         assertEquals("დაცული ვიდეო", reloaded.getTitle());
         assertFalse(reloaded.isArchived());
-        assertEquals(auditBefore, auditLogRepository.count());
+        assertEquals(auditBefore, auditLogRepository.countByActionNot("ACCESS_DENIED"));
     }
 
     @Test
@@ -147,7 +147,7 @@ class VideoControllerIntegrationTest {
         VideoInstruction existing = createVideo("არსებული ვიდეო", "All", false);
         String token = tokenFor(admin);
         long videosBefore = videoRepository.count();
-        long auditBefore = auditLogRepository.count();
+        long auditBefore = auditLogRepository.countByActionNot("ACCESS_DENIED");
         String body = "{\"title\":\"ახალი\",\"video_url\":"
                 + "\"https://www.youtube.com/embed/dQw4w9WgXcQ\"}";
 
@@ -167,7 +167,7 @@ class VideoControllerIntegrationTest {
 
         assertEquals(videosBefore, videoRepository.count());
         assertEquals("არსებული ვიდეო", videoRepository.findById(existing.getId()).orElseThrow().getTitle());
-        assertEquals(auditBefore, auditLogRepository.count());
+        assertEquals(auditBefore, auditLogRepository.countByActionNot("ACCESS_DENIED"));
     }
 
     @Test

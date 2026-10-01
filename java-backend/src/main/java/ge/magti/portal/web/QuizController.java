@@ -105,6 +105,12 @@ public class QuizController {
         if (denial != null) {
             return denial;
         }
+        // The quiz is part of the article; a DENY on articles.edit left it
+        // editable (simulation, 2026-10-01).
+        ResponseEntity<Map<String, String>> editDenial = requireArticlesEditPermission(user);
+        if (editDenial != null) {
+            return editDenial;
+        }
         Optional<Article> found = articleRepository.findById(id);
         if (found.isEmpty() || assertArticleVisible(found.get(), user) != null) {
             return articleNotFound();
@@ -196,6 +202,14 @@ public class QuizController {
             }
         }
         return true;
+    }
+
+    private ResponseEntity<Map<String, String>> requireArticlesEditPermission(User user) {
+        if (!permissionChecker.hasPermission(user, ge.magti.portal.domain.Permission.ARTICLES_EDIT)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
+        }
+        return null;
     }
 
     private Map<String, Object> quizSnapshot(Long articleId) {

@@ -133,6 +133,8 @@ class FileEntitlementEnforcedIntegrationTest extends FileEntitlementScenarioSupp
         List<String> departments = new ArrayList<>();
         for (int i = 0; i < 100; i++) {
             departments.add("early-target-" + marker + "-" + i);
+            // Somebody works there: an audience reaching nobody is refused since 2026-10-01.
+            createUser("early-target-" + marker + "-" + i + "@magti.ge", Role.OPERATOR, "early-target-" + marker + "-" + i);
         }
         departments.add(lateDepartment);
         Long id = createArticle(adminToken, marker, departments, file, false);

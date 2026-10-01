@@ -178,7 +178,8 @@
   "shell": {
     "placeholder": {
       "message": "This page hasn't been built yet — coming in Phase 3c."
-    }
+    },
+    "portal_title": "Magti Portal"
   },
   "articles": {
     "card": {
@@ -317,7 +318,8 @@
     },
     "detail_page": {
       "not_found": "Video not found",
-      "load_error": "The video could not be loaded"
+      "load_error": "The video could not be loaded",
+      "unplayable": "The video cannot be played: the link is invalid or the file is unavailable. Please contact a content administrator."
     }
   },
   "shared": {
@@ -671,7 +673,11 @@
       "categories_load_error": "Could not load categories.",
       "quiz_load_error": "Could not load the quiz questions — the empty list below does not mean there are none.",
       "quiz_save_error": "The article was saved, but its quiz questions were not.",
-      "actions_menu_label": "Actions menu"
+      "actions_menu_label": "Actions menu",
+      "bulk_pause_confirm": "{{count}} items will no longer be available to readers. If any is mandatory, the obligation is paused for everyone until it is published again. Continue?",
+      "bulk_pause_action": "Yes, continue",
+      "row_archive_confirm": "This item will be archived and hidden from readers. If it is mandatory, the obligation is paused for everyone until it is unarchived. Continue?",
+      "no_edit_permission": "This account has no permission to edit articles (articles.edit): creating, changing and restoring articles will be refused. News and videos are still available."
     },
     "quiz": {
       "add_question": "Add question",

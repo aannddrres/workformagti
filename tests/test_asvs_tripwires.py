@@ -258,6 +258,10 @@ def test_download_names_are_generated():
     assert {line.split(":", 1)[0] for line in dispositions} <= {
         "java-backend/src/main/java/ge/magti/portal/web/AuditLogController.java",
         "java-backend/src/main/java/ge/magti/portal/web/ExportController.java",
+        # 2026-10-01: uploads name themselves instead of Spring's "f.txt". The
+        # name is the server-minted UUID the file is stored under (UploadController),
+        # served only after FileStorageService finds a stored file by it.
+        "java-backend/src/main/java/ge/magti/portal/web/UploadedFileController.java",
     }
     # The one variable name comes from the worker: prefix, job id, type.
     worker = (JAVA_MAIN / "ge/magti/portal/export/ExportJobWorker.java").read_text(encoding="utf-8")

@@ -200,7 +200,7 @@ class ComplianceControllerIntegrationTest {
         User admin = createUser("comp-invalid-" + System.nanoTime() + "@magti.ge", Role.CONTENT_ADMIN, "All");
         Article article = createArticle("ვალდებულების გარეშე", false);
         long readingsBefore = requiredReadingRepository.count();
-        long auditBefore = auditLogRepository.count();
+        long auditBefore = auditLogRepository.countByActionNot("ACCESS_DENIED");
 
         mockMvc.perform(authed(post("/api/compliance/required-readings"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -209,7 +209,7 @@ class ComplianceControllerIntegrationTest {
                 .andExpect(status().isBadRequest());
 
         assertEquals(readingsBefore, requiredReadingRepository.count());
-        assertEquals(auditBefore, auditLogRepository.count());
+        assertEquals(auditBefore, auditLogRepository.countByActionNot("ACCESS_DENIED"));
     }
 
     @Test
@@ -684,7 +684,7 @@ class ComplianceControllerIntegrationTest {
         deny.setUpdatedBy(admin.getId());
         permissionOverrideRepository.saveAndFlush(deny);
         long readingsBefore = requiredReadingRepository.count();
-        long auditsBefore = auditLogRepository.count();
+        long auditsBefore = auditLogRepository.countByActionNot("ACCESS_DENIED");
         entityManager.flush();
         entityManager.clear();
         var dueBefore = requiredReadingRepository.findById(existing.getId()).orElseThrow().getDueDate();
@@ -707,7 +707,7 @@ class ComplianceControllerIntegrationTest {
         entityManager.clear();
         assertEquals(readingsBefore, requiredReadingRepository.count());
         assertEquals(dueBefore, requiredReadingRepository.findById(existing.getId()).orElseThrow().getDueDate());
-        assertEquals(auditsBefore, auditLogRepository.count());
+        assertEquals(auditsBefore, auditLogRepository.countByActionNot("ACCESS_DENIED"));
     }
 
     /**

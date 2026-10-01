@@ -265,9 +265,15 @@ class MandatoryReachIntegrationTest {
         User admin = admin();
         long before = kpiMandatory(admin);
         User editor = user(Role.CONTENT_ADMIN, "All");
+        // Departments somebody works in: an audience that reaches nobody is
+        // refused since 2026-10-01 (DepartmentTargets).
+        String first = department();
+        String second = department();
+        user(Role.OPERATOR, first);
+        user(Role.OPERATOR, second);
         long articleId = objectMapper.readTree(mockMvc.perform(authed(post("/api/articles/command"), editor)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsBytes(command(category(), List.of(department(), department())))))
+                        .content(objectMapper.writeValueAsBytes(command(category(), List.of(first, second)))))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsByteArray()).get("id").asLong();
 

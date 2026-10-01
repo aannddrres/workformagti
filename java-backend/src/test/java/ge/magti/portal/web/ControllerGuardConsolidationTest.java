@@ -118,7 +118,9 @@ class ControllerGuardConsolidationTest {
         Set<String> distinct = new LinkedHashSet<>();
         messagesByController.values().forEach(distinct::addAll);
         assertEquals(
-                Set.of("Not enough permissions to perform this action",
+                // 2026-10-01: the English sentence became the standard Georgian
+                // refusal (owner chose to remove English from the UI).
+                Set.of("წვდომა უარყოფილია: არასაკმარისი უფლებები",
                         "ეს ფუნქცია ხელმისაწვდომია მხოლოდ სისტემური ადმინისტრატორისთვის",
                         "წვდომა უარყოფილია: მხოლოდ სისტემური ადმინისტრატორისთვის",
                         "წვდომა უარყოფილია: საჭიროა სისტემური ადმინისტრატორი"),
