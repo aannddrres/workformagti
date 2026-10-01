@@ -55,8 +55,10 @@ public class ComplianceProgressQueryService {
 
         Map<String, Integer> requiredCountsByTarget = new LinkedHashMap<>();
         Map<ReadCountKey, Integer> readCountsByUserTarget = new LinkedHashMap<>();
+        Map<Long, Integer> overdueByUser = new LinkedHashMap<>();
         Set<ScopeTarget> expected = new LinkedHashSet<>(scopes);
         for (AggregateRow row : rows) {
+            overdueByUser.merge(row.userId(), row.overdueCount(), Integer::sum);
             ScopeTarget actual = new ScopeTarget(row.userId(), row.targetDepartment());
             if (!expected.remove(actual)) {
                 throw new ComplianceAggregateShapeException();
@@ -77,7 +79,8 @@ public class ComplianceProgressQueryService {
         Map<Long, ReadingProgress> result = new LinkedHashMap<>();
         for (User user : users) {
             if (result.put(user.getId(), ComplianceCalculator.computeProgress(
-                    user, allRequired, requiredCountsByTarget, readCountsByUserTarget)) != null) {
+                            user, allRequired, requiredCountsByTarget, readCountsByUserTarget)
+                    .withOverdue(overdueByUser.getOrDefault(user.getId(), 0))) != null) {
                 throw new ComplianceAggregateShapeException();
             }
         }

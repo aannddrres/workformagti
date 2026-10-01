@@ -2,6 +2,7 @@ package ge.magti.portal.compliance;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import ge.magti.portal.util.TbilisiTime;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -46,7 +47,9 @@ public class ComplianceAggregateRepository {
             SELECT st.user_id,
                    st.target_department,
                    COUNT(rr.id) AS required_count,
-                   COUNT(rs.id) AS read_count
+                   COUNT(rs.id) AS read_count,
+                   COUNT(CASE WHEN rr.id IS NOT NULL AND rs.id IS NULL AND rr.due_date < ? THEN 1 END)
+                       AS overdue_count
             FROM scope_targets st
             LEFT JOIN required_readings rr
                    ON rr.target_department = st.target_department
@@ -81,12 +84,15 @@ public class ComplianceAggregateRepository {
                 statement -> {
                     statement.setClob(1, new StringReader(json));
                     statement.setClob(2, new StringReader(inForceJson));
+                    // due_date holds Tbilisi wall-clock (TbilisiTimestampConverter).
+                    statement.setTimestamp(3, java.sql.Timestamp.valueOf(TbilisiTime.now().toLocalDateTime()));
                 },
                 (resultSet, rowNumber) -> new AggregateRow(
                         resultSet.getLong("user_id"),
                         resultSet.getString("target_department"),
                         Math.toIntExact(resultSet.getLong("required_count")),
-                        Math.toIntExact(resultSet.getLong("read_count"))));
+                        Math.toIntExact(resultSet.getLong("read_count")),
+                        Math.toIntExact(resultSet.getLong("overdue_count"))));
     }
 
     private String serialize(List<?> values) {
@@ -100,6 +106,9 @@ public class ComplianceAggregateRepository {
     public record ScopeTarget(long userId, String targetDepartment) {
     }
 
-    public record AggregateRow(long userId, String targetDepartment, int requiredCount, int readCount) {
+    public record AggregateRow(long userId, String targetDepartment, int requiredCount, int readCount, int overdueCount) {
+        public AggregateRow(long userId, String targetDepartment, int requiredCount, int readCount) {
+            this(userId, targetDepartment, requiredCount, readCount, 0);
+        }
     }
 }

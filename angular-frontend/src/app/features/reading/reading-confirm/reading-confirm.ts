@@ -3,6 +3,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { ComplianceService } from '../../../core/services/compliance.service';
 import { MyReading } from '../../../core/models/compliance';
 import { QuizTakerModal } from '../quiz-taker-modal/quiz-taker-modal';
+import { KaDatePipe } from '../../../shared/ka-date.pipe';
 
 /**
  * The "I have read this" confirmation, placed at the END of the item the
@@ -32,7 +33,7 @@ import { QuizTakerModal } from '../quiz-taker-modal/quiz-taker-modal';
 @Component({
   selector: 'app-reading-confirm',
   standalone: true,
-  imports: [TranslatePipe, QuizTakerModal],
+  imports: [TranslatePipe, QuizTakerModal, KaDatePipe],
   templateUrl: './reading-confirm.html'
 })
 export class ReadingConfirm {
@@ -55,7 +56,14 @@ export class ReadingConfirm {
    */
   protected readonly lookupFailed = signal(false);
 
-  protected readonly isRead = computed(() => this.reading()?.status === 'read');
+  /**
+   * Confirmed, and nothing has changed since. A confirmed item whose text
+   * changed afterwards is owed again: the page said "confirmed" with no way
+   * to acknowledge the new text, and the server already records a receipt
+   * for the new version when asked again (simulation, 2026-10-01).
+   */
+  protected readonly isRead = computed(() => this.reading()?.status === 'read' && !this.reading()?.changed_since_read);
+  protected readonly isChanged = computed(() => this.reading()?.status === 'read' && this.reading()?.changed_since_read === true);
   protected readonly isOverdue = computed(() => this.reading()?.is_overdue === true);
 
   constructor() {
@@ -92,7 +100,7 @@ export class ReadingConfirm {
     this.complianceService.markRead(current.reading.id).subscribe((result) => {
       this.marking.set(false);
       if (result.ok) {
-        this.reading.set({ ...current, status: 'read', read_at: result.status.read_at, is_overdue: false });
+        this.reading.set({ ...current, status: 'read', read_at: result.status.read_at, is_overdue: false, changed_since_read: false });
       } else if (result.quizRequired) {
         this.quizOpen.set(true);
       } else {

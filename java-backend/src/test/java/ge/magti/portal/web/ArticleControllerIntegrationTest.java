@@ -2409,6 +2409,33 @@ class ArticleControllerIntegrationTest {
         assertEquals("A-ს ვერსია", articleRepository.findById(articleId).orElseThrow().getContent());
     }
 
+    /** A typo fix used to re-stamp a published article "published now" (simulation, 2026-10-01). */
+    @Test
+    void savingAPublishedArticleKeepsItsPublicationDate() throws Exception {
+        User admin = createUser("keeps-published-at@magti.ge", Role.CONTENT_ADMIN, "All");
+        Category cat = createCategory("კატ-published-at");
+        long articleId = createArticleViaApi(tokenFor(admin), "გამოქვეყნების თარიღი", "ტექსტი", cat.getId());
+        Article stored = articleRepository.findById(articleId).orElseThrow();
+        OffsetDateTime published = TbilisiTime.now().minusDays(30);
+        stored.setStatus("published");
+        stored.setDraft(false);
+        stored.setPublishedAt(published);
+        articleRepository.saveAndFlush(stored);
+        entityManager.clear();
+
+        mockMvc.perform(authed(put("/api/articles/" + articleId), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"გამოქვეყნების თარიღი (შესწორებული)\",\"content\":\"ტექსტი\","
+                                + "\"category_id\":" + cat.getId() + ",\"target_departments\":[\"All\"],"
+                                + "\"status\":\"published\",\"published_at\":null,\"is_draft\":false}"))
+                .andExpect(status().isOk());
+        entityManager.clear();
+
+        assertEquals(published.toInstant().truncatedTo(java.time.temporal.ChronoUnit.SECONDS),
+                articleRepository.findById(articleId).orElseThrow().getPublishedAt().toInstant()
+                        .truncatedTo(java.time.temporal.ChronoUnit.SECONDS));
+    }
+
     /** The business version must keep behaving exactly as before -- the lock is a separate column for that reason. */
     @Test
     void theOptimisticLockDoesNotDisturbTheBusinessVersionSequence() throws Exception {

@@ -7,6 +7,7 @@ import ge.magti.portal.RequiresOracle;
 import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
+import ge.magti.portal.repository.AuditLogRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.JwtService;
 import org.junit.jupiter.api.Test;
@@ -22,7 +23,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -40,6 +43,36 @@ class AccessDenialLoggingIntegrationTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private UserRepository userRepository;
     @Autowired private JwtService jwtService;
+    @Autowired private AuditLogRepository auditLogRepository;
+
+    /**
+     * Simulation, 2026-10-01: refused changes left no audit row, and audited
+     * actions other than sign-in carried no address or browser.
+     */
+    @Test
+    void aRefusedChangeIsAuditedWithWhereItCameFrom() throws Exception {
+        User user = new User();
+        user.setEmail("access-denial-writer@magti.ge");
+        user.setName("Access Denial Writer");
+        user.setRole(Role.OPERATOR);
+        user.setDepartment("ტექნიკური");
+        user.setActive(true);
+        User operator = userRepository.saveAndFlush(user);
+
+        mockMvc.perform(post("/api/categories")
+                        .header("Authorization", "Bearer " + jwtService.createAccessTokenFor(operator))
+                        .header("User-Agent", "SimulationBrowser/1.0")
+                        .contentType("application/json")
+                        .content("{\"name\":\"არ უნდა შეიქმნას\"}"))
+                .andExpect(status().isForbidden());
+
+        var row = auditLogRepository.findAll().stream()
+                .filter(a -> "ACCESS_DENIED".equals(a.getAction()) && operator.getId().equals(a.getAdminId()))
+                .findFirst().orElseThrow();
+        assertEquals("POST /api/categories", row.getItemNameSnapshot());
+        assertEquals("127.0.0.1", row.getIpAddress());
+        assertEquals("SimulationBrowser/1.0", row.getUserAgent());
+    }
 
     @Test
     void aRefusedRequestIsLoggedWithWhoAndWhat() throws Exception {

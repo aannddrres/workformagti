@@ -130,6 +130,14 @@ public class QuizController {
             }
         }
 
+        if (sameQuiz(loadQuestionsWithAnswers(id), questions)) {
+            // The editor sends the quiz with every save of the article. Replacing
+            // an identical quiz gave every question and answer new ids, so anyone
+            // with the quiz open failed it with 0 points -- after a tag edit
+            // (simulation, 2026-10-01). Unchanged now means untouched.
+            return ResponseEntity.ok(buildAdminQuizView(id));
+        }
+
         Map<String, Object> before = quizSnapshot(id);
 
         // Full replace: delete existing questions (cascades to answers at
@@ -163,6 +171,31 @@ public class QuizController {
                 before, quizSnapshot(id));
 
         return ResponseEntity.ok(buildAdminQuizView(id));
+    }
+
+    /** Same questions, same answers, same correct answer, in the same order. */
+    static boolean sameQuiz(List<QuizQuestion> stored, List<QuizQuestionAdminDto> submitted) {
+        if (stored.size() != submitted.size()) {
+            return false;
+        }
+        for (int qi = 0; qi < stored.size(); qi++) {
+            QuizQuestion question = stored.get(qi);
+            QuizQuestionAdminDto incoming = submitted.get(qi);
+            List<QuizAnswer> answers = question.getAnswers().stream()
+                    .sorted(java.util.Comparator.comparingInt(QuizAnswer::getPosition)).toList();
+            if (!java.util.Objects.equals(question.getQuestionText(), incoming.questionText())
+                    || answers.size() != incoming.answers().size()) {
+                return false;
+            }
+            for (int ai = 0; ai < answers.size(); ai++) {
+                QuizAnswerAdminDto answer = incoming.answers().get(ai);
+                if (!java.util.Objects.equals(answers.get(ai).getAnswerText(), answer.answerText())
+                        || answers.get(ai).isCorrect() != answer.isCorrect()) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     private Map<String, Object> quizSnapshot(Long articleId) {

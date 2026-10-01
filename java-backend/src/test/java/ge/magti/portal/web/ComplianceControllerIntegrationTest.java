@@ -355,6 +355,58 @@ class ComplianceControllerIntegrationTest {
                 .andExpect(jsonPath("$.percentage").value(0));
     }
 
+    /**
+     * Simulation, 2026-10-01: after a mandatory article's text changed, the
+     * reader saw "changed" with no way to confirm the new version. Confirming
+     * again now records the new version's receipt and clears the flag; the
+     * first version's receipt stays as evidence.
+     */
+    @Test
+    void confirmingAgainAfterAnEditAcknowledgesTheNewVersion() throws Exception {
+        User operator = createUser("comp-reack@magti.ge", Role.OPERATOR, "ოფისი");
+        Article article = createArticle("შეცვლილი სტატია", false);
+        RequiredReading reading = createReading("article", article.getId(), "ოფისი", TbilisiTime.now().plusDays(5));
+        mockMvc.perform(authed(post("/api/compliance/mark-read/" + reading.getId()), tokenFor(operator)))
+                .andExpect(status().isOk());
+
+        Article edited = articleRepository.findById(article.getId()).orElseThrow();
+        edited.setVersion(2);
+        edited.setContent("ახალი ტექსტი");
+        edited.setUpdatedAt(TbilisiTime.now());
+        articleRepository.saveAndFlush(edited);
+
+        mockMvc.perform(authed(get("/api/compliance/my-readings"), tokenFor(operator)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.reading.id == " + reading.getId() + ")].changed_since_read").value(true));
+
+        mockMvc.perform(authed(post("/api/compliance/mark-read/" + reading.getId()), tokenFor(operator)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(authed(get("/api/compliance/my-readings"), tokenFor(operator)))
+                .andExpect(jsonPath("$[?(@.reading.id == " + reading.getId() + ")].changed_since_read").value(false));
+        assertTrue(articleReadReceiptRepository.findByArticleIdSnapshotAndArticleVersionAndOperatorId(
+                article.getId(), 1, operator.getId()).isPresent(), "the first version's receipt is kept");
+        assertTrue(articleReadReceiptRepository.findByArticleIdSnapshotAndArticleVersionAndOperatorId(
+                article.getId(), 2, operator.getId()).isPresent(), "the new version is acknowledged");
+    }
+
+    /** Only the text counts: an updated_at moved by a retarget or "verified" is not a change to re-read. */
+    @Test
+    void anArticleTouchedWithoutANewVersionIsNotChangedSinceRead() throws Exception {
+        User operator = createUser("comp-touched@magti.ge", Role.OPERATOR, "ოფისი");
+        Article article = createArticle("შეხებული სტატია", false);
+        RequiredReading reading = createReading("article", article.getId(), "ოფისი", TbilisiTime.now().plusDays(5));
+        mockMvc.perform(authed(post("/api/compliance/mark-read/" + reading.getId()), tokenFor(operator)))
+                .andExpect(status().isOk());
+
+        Article touched = articleRepository.findById(article.getId()).orElseThrow();
+        touched.setUpdatedAt(TbilisiTime.now().plusMinutes(1));
+        articleRepository.saveAndFlush(touched);
+
+        mockMvc.perform(authed(get("/api/compliance/my-readings"), tokenFor(operator)))
+                .andExpect(jsonPath("$[?(@.reading.id == " + reading.getId() + ")].changed_since_read").value(false));
+    }
+
     @Test
     void markReadCreatesReadStatusAndReceiptBridge() throws Exception {
         User operator = createUser("comp-op5@magti.ge", Role.OPERATOR, "ოფისი");

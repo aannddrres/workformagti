@@ -402,6 +402,8 @@
     "confirm": {
       "heading": "Confirm you have read this",
       "action": "I have read it",
+      "changed_heading": "This item has changed — read the new version",
+      "changed_action": "I have read the new version",
       "due": "Due: {{date}}",
       "no_due": "No due date",
       "overdue": "Overdue",

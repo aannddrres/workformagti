@@ -125,6 +125,11 @@ export class AdminStatsPage {
    * without children, so the numbers went quietly wrong past 200 (audit
    * 2026-10-01).
    */
+  /** People with something past its deadline -- not everyone on the attention list (simulation, 2026-10-01). */
+  protected readonly overdueOperatorCount = computed(() =>
+    (this.critical()?.operators ?? []).filter((operator) => operator.overdue_count > 0).length
+  );
+
   protected readonly categoryCounts = computed(() =>
     buildRecursiveCategoryCounts(this.categories(), this.articles())
   );

@@ -8,6 +8,8 @@ import ge.magti.portal.storage.FileStorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.CacheControl;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -104,6 +106,13 @@ public class UploadedFileController {
         return ResponseEntity.ok()
                 .contentType(servedType(content.contentType(), content.content()))
                 .header("X-Content-Type-Options", "nosniff")
+                // Without a name of our own, Spring's download protection
+                // supplied "inline;filename=f.txt": every PDF opened titled
+                // f.txt and every Word file saved as f.txt (simulation,
+                // 2026-10-01). The stored name keeps the real extension; the
+                // name it was uploaded under was never recorded.
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.inline().filename(filename).build().toString())
                 .header("Content-Security-Policy", "default-src 'none'; sandbox")
                 .cacheControl(CacheControl.noStore())
                 .body(content.content());

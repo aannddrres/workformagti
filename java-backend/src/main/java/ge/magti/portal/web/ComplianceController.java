@@ -156,6 +156,10 @@ public class ComplianceController {
                 .stream()
                 .collect(java.util.stream.Collectors.toMap(ReadStatus::getRequiredReadingId, s -> s, (a, b) -> a));
 
+        Map<Long, Integer> currentArticleVersions = articleRepository.findAllById(readings.stream()
+                        .filter(r -> "article".equals(r.getItemType())).map(RequiredReading::getItemId).toList())
+                .stream().collect(java.util.stream.Collectors.toMap(Article::getId, Article::getVersion));
+
         OffsetDateTime now = TbilisiTime.now();
         List<MyReadingResponse> results = new java.util.ArrayList<>();
         for (RequiredReading r : readings) {
@@ -174,10 +178,23 @@ public class ComplianceController {
             // The acknowledgement stays valid -- it records a real event on a
             // real date -- but the list now says the text has moved on, so
             // "read" no longer quietly means "read the current version".
-            boolean changedSinceRead = readAt != null
-                    && detail != null
-                    && detail.updatedAt() != null
-                    && detail.updatedAt().isAfter(readAt);
+            boolean changedSinceRead;
+            if ("article".equals(r.getItemType())) {
+                // An article has versions, and a receipt per version read. Its
+                // updated_at also moves on a retarget, a status change or a
+                // "verified" stamp, which flagged unchanged text as changed --
+                // and once confirming again was possible, asked people to
+                // re-read text nobody had touched (simulation, 2026-10-01).
+                Integer version = currentArticleVersions.get(r.getItemId());
+                changedSinceRead = readAt != null && version != null
+                        && articleReadReceiptRepository.findByArticleIdSnapshotAndArticleVersionAndOperatorId(
+                                r.getItemId(), version, user.getId()).isEmpty();
+            } else {
+                changedSinceRead = readAt != null
+                        && detail != null
+                        && detail.updatedAt() != null
+                        && detail.updatedAt().isAfter(readAt);
+            }
             results.add(new MyReadingResponse(
                     RequiredReadingResponse.from(r), currentStatus, readAt, isOverdue,
                     itemTitle, itemContent, changedSinceRead));
@@ -245,8 +262,15 @@ public class ComplianceController {
             }
         }
 
+        OffsetDateTime itemUpdatedAt = null;
+        if (readingArticle == null) {
+            ItemDetail detail = itemTitleResolver.resolveDetailsBulk(
+                    List.of(new ItemKey(reading.getItemType(), reading.getItemId())))
+                    .get(new ItemKey(reading.getItemType(), reading.getItemId()));
+            itemUpdatedAt = detail == null ? null : detail.updatedAt();
+        }
         ReadStatus savedStat = readingAcknowledgementService.acknowledgeRequiredReading(
-                reading, readingArticle, user);
+                reading, readingArticle, user, itemUpdatedAt);
         return ResponseEntity.ok(ReadStatusResponse.from(savedStat));
     }
 

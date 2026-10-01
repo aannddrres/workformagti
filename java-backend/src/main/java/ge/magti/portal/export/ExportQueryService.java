@@ -1,6 +1,7 @@
 package ge.magti.portal.export;
 
 import ge.magti.portal.compliance.ComplianceQueryService;
+import ge.magti.portal.compliance.MandatoryReach;
 import ge.magti.portal.domain.ReadStatus;
 import ge.magti.portal.domain.RequiredReading;
 import ge.magti.portal.domain.Role;
@@ -11,14 +12,22 @@ import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.ManagerScope;
 import ge.magti.portal.security.ScopeResolver;
 import ge.magti.portal.stats.ComplianceRecord;
+import ge.magti.portal.query.CompleteResultGuard;
 import ge.magti.portal.user.UserDirectoryQueryService;
+import ge.magti.portal.util.DepartmentMatcher;
+import ge.magti.portal.util.TbilisiTime;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
@@ -63,10 +72,26 @@ public class ExportQueryService {
     /** Production complete-result boundary; nullable only in the DB-free compatibility constructor. */
     private final UserDirectoryQueryService userDirectoryQueryService;
 
+    /**
+     * Which readings are in force (PO-40), for the unread and overdue rows.
+     * Null only in the DB-free compatibility constructors, which then export
+     * confirmations alone, as before.
+     */
+    private final MandatoryReach mandatoryReach;
+
     public ExportQueryService(
             ComplianceQueryService complianceQueryService, ReadStatusRepository readStatusRepository,
             UserRepository userRepository, RequiredReadingRepository requiredReadingRepository) {
-        this(complianceQueryService, readStatusRepository, userRepository, requiredReadingRepository, null, null);
+        this(complianceQueryService, readStatusRepository, userRepository, requiredReadingRepository, null, null, null);
+    }
+
+    public ExportQueryService(
+            ComplianceQueryService complianceQueryService, ReadStatusRepository readStatusRepository,
+            UserRepository userRepository, RequiredReadingRepository requiredReadingRepository,
+            ScopeResolver scopeResolver,
+            UserDirectoryQueryService userDirectoryQueryService) {
+        this(complianceQueryService, readStatusRepository, userRepository, requiredReadingRepository,
+                scopeResolver, userDirectoryQueryService, null);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -74,7 +99,9 @@ public class ExportQueryService {
             ComplianceQueryService complianceQueryService, ReadStatusRepository readStatusRepository,
             UserRepository userRepository, RequiredReadingRepository requiredReadingRepository,
             ScopeResolver scopeResolver,
-            UserDirectoryQueryService userDirectoryQueryService) {
+            UserDirectoryQueryService userDirectoryQueryService,
+            MandatoryReach mandatoryReach) {
+        this.mandatoryReach = mandatoryReach;
         this.complianceQueryService = complianceQueryService;
         this.readStatusRepository = readStatusRepository;
         this.userRepository = userRepository;
@@ -202,6 +229,57 @@ public class ExportQueryService {
                     status.getUserId(), user.getName(), user.getDepartment(),
                     reading.getItemType(), reading.getItemId(), status.getStatus(),
                     status.getReadAt(), reading.getDueDate()));
+        }
+        if (mandatoryReach != null) {
+            rows.addAll(outstandingRows(usersById.values(), statuses));
+            ExportSizeGuard.checkSize(rows.size());
+        }
+        rows.sort(Comparator.comparing(ReadingExportRow::userName, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(ReadingExportRow::dueDate, Comparator.nullsLast(Comparator.naturalOrder())));
+        return rows;
+    }
+
+    /**
+     * What each person still owes: every reading in force for their
+     * department (the same addressing and PO-40 rule as
+     * {@code GET /api/compliance/my-readings}) with no confirmation, as
+     * "unread", or "overdue" once its deadline has passed.
+     *
+     * <p>The export used to be built from confirmations alone, so it listed
+     * who HAD read and left out exactly the people a leader exports it to
+     * find -- while PO-13 promises a status column of read / unread / late
+     * (simulation, 2026-10-01).
+     */
+    private List<ReadingExportRow> outstandingRows(java.util.Collection<User> users, List<ReadStatus> confirmed) {
+        Set<String> targets = new LinkedHashSet<>();
+        for (User user : users) {
+            targets.addAll(DepartmentMatcher.visibilityTargets(user.getDepartment()));
+        }
+        if (targets.isEmpty()) {
+            return List.of();
+        }
+        List<RequiredReading> addressed = CompleteResultGuard.enforce(requiredReadingRepository
+                .findByTargetDepartmentIn(new ArrayList<>(targets), CompleteResultGuard.sentinelPage()));
+        Set<Long> inForce = mandatoryReach.inForceIds(addressed);
+        Set<String> done = new HashSet<>();
+        for (ReadStatus status : confirmed) {
+            done.add(status.getUserId() + ":" + status.getRequiredReadingId());
+        }
+        OffsetDateTime now = TbilisiTime.now();
+        List<ReadingExportRow> rows = new ArrayList<>();
+        for (User user : users) {
+            List<String> own = DepartmentMatcher.visibilityTargets(user.getDepartment());
+            for (RequiredReading reading : addressed) {
+                if (!inForce.contains(reading.getId()) || !own.contains(reading.getTargetDepartment())
+                        || done.contains(user.getId() + ":" + reading.getId())) {
+                    continue;
+                }
+                boolean late = reading.getDueDate() != null && reading.getDueDate().isBefore(now);
+                rows.add(new ReadingExportRow(
+                        user.getId(), user.getName(), user.getDepartment(),
+                        reading.getItemType(), reading.getItemId(), late ? "overdue" : "unread",
+                        null, reading.getDueDate()));
+            }
         }
         return rows;
     }

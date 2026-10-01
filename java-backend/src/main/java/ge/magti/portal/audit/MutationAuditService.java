@@ -16,8 +16,13 @@ import ge.magti.portal.domain.User;
 import ge.magti.portal.domain.UserPermissionOverride;
 import ge.magti.portal.domain.VideoInstruction;
 import ge.magti.portal.repository.AuditLogRepository;
+import ge.magti.portal.security.ClientIpResolver;
 import ge.magti.portal.util.TbilisiTime;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -39,8 +44,17 @@ public class MutationAuditService {
     private final AuditLogRepository auditLogRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    /** Null only in DB-free tests built without it; rows then carry no address, as before. */
+    private final ClientIpResolver clientIpResolver;
+
     public MutationAuditService(AuditLogRepository auditLogRepository) {
+        this(auditLogRepository, null);
+    }
+
+    @Autowired
+    public MutationAuditService(AuditLogRepository auditLogRepository, ClientIpResolver clientIpResolver) {
         this.auditLogRepository = auditLogRepository;
+        this.clientIpResolver = clientIpResolver;
     }
 
     public void recordSuccess(
@@ -124,8 +138,20 @@ public class MutationAuditService {
         audit.setItemId(itemId);
         audit.setItemNameSnapshot(itemName);
         audit.setTimestamp(TbilisiTime.now());
-        audit.setIpAddress(ipAddress);
-        audit.setUserAgent(userAgent);
+        if (ipAddress == null && userAgent == null && actorId != null) {
+            // Only sign-in passed these, so every other row -- permission
+            // changes, deactivations, exports, edits, file access -- said
+            // nothing about where it came from, though the export page and
+            // PO-14 promise it (simulation, 2026-10-01). A person's action
+            // carries its request's address; a system job has none.
+            HttpServletRequest request = currentRequest();
+            if (request != null) {
+                ipAddress = clientIpResolver == null ? null : clientIpResolver.resolve(request);
+                userAgent = request.getHeader("User-Agent");
+            }
+        }
+        audit.setIpAddress(truncate(ipAddress, 45));
+        audit.setUserAgent(truncate(userAgent, 500));
         audit.setDetails(writeDetails(result, reason, before, after));
         auditLogRepository.saveAndFlush(audit);
     }
@@ -298,5 +324,15 @@ public class MutationAuditService {
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Mutation audit details could not be serialized", e);
         }
+    }
+
+    private static HttpServletRequest currentRequest() {
+        return RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes
+                ? attributes.getRequest() : null;
+    }
+
+    /** The columns are 45 and 500 characters; an over-long header must not fail the audited action. */
+    private static String truncate(String value, int max) {
+        return value == null || value.length() <= max ? value : value.substring(0, max);
     }
 }

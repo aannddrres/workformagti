@@ -339,11 +339,19 @@ public class ArticleController {
         // routers/articles.py:342-343 pops both before the update loop so
         // an edit can never silently overwrite the original author or the
         // last-verified timestamp.
+        OffsetDateTime previousPublishedAt = article.getPublishedAt();
         applySharedFields(article, request);
         replaceTargetDepartments(id, request.targetDepartments());
 
         if ("published".equals(article.getStatus()) && article.getPublishedAt() == null) {
-            article.setPublishedAt(TbilisiTime.now());
+            // The editor sends no date unless it schedules one, so every save of
+            // a published article used to re-stamp it "published now" -- a typo
+            // fix moved a year-old article to the top as new (simulation,
+            // 2026-10-01). A date already reached stays; one still ahead was a
+            // schedule, and publishing now is now.
+            OffsetDateTime now = TbilisiTime.now();
+            article.setPublishedAt(previousPublishedAt != null && !previousPublishedAt.isAfter(now)
+                    ? previousPublishedAt : now);
         }
         article.setVersion(article.getVersion() + 1);
         article.setUpdatedAt(TbilisiTime.now());

@@ -98,6 +98,8 @@ class ExportControllerIntegrationTest {
     @Autowired
     private ExportJobCleanupScheduler exportJobCleanupScheduler;
     @Autowired
+    private ge.magti.portal.repository.ArticleTargetDepartmentRepository articleTargetDepartmentRepository;
+    @Autowired
     private JwtService jwtService;
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -246,6 +248,40 @@ class ExportControllerIntegrationTest {
         assertTrue(csv.contains("წაკითხულია"), "known reading status must be Georgian in the exported data");
         assertTrue(csv.contains("'=cmd|'/c calc'!A1"), "operator's formula-leading name must be sanitized");
         assertFalse(csv.contains(manager.getId() + ","), "manager (management role) must be excluded from the eligible export");
+    }
+
+    /**
+     * PO-13: status is read / unread / late. The export was built from
+     * confirmations alone, so it listed who had read and left out the people
+     * a leader exports it to find (simulation, 2026-10-01).
+     */
+    @Test
+    void readingsExportListsWhatIsStillOwedAsUnreadOrOverdue() throws Exception {
+        User admin = createUser("exp-admin-owed@magti.ge", Role.SYSTEM_ADMIN, "All");
+        String department = "დავალიანების განყოფილება " + System.nanoTime();
+        createUser("exp-op-owed@magti.ge", Role.OPERATOR, department);
+        Article article = createArticle("სავალდებულო " + System.nanoTime());
+        article.setStatus("published");
+        article.setDraft(false);
+        article.setPublishedAt(TbilisiTime.now().minusDays(2));
+        article.setTargetDepartment(department);
+        articleRepository.saveAndFlush(article);
+        ge.magti.portal.domain.ArticleTargetDepartment audience = new ge.magti.portal.domain.ArticleTargetDepartment();
+        audience.setArticleId(article.getId());
+        audience.setDepartment(department);
+        articleTargetDepartmentRepository.saveAndFlush(audience);
+        long articleId = article.getId();
+        createReading(articleId, department);
+        RequiredReading late = createReading(articleId, department);
+        late.setDueDate(TbilisiTime.now().minusDays(1));
+        requiredReadingRepository.saveAndFlush(late);
+
+        String csv = mockMvc.perform(authed(get("/api/export/readings"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(csv.contains("წაუკითხავია"), "an unconfirmed reading in force must be exported as unread");
+        assertTrue(csv.contains("ვადაგადაცილებულია"), "one past its deadline must be exported as overdue");
     }
 
     /**

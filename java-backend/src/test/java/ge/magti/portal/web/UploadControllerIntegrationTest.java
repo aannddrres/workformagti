@@ -260,7 +260,10 @@ class UploadControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Type", "image/png"))
                 .andExpect(header().string("X-Content-Type-Options", "nosniff"))
-                .andExpect(header().string("Content-Security-Policy", "default-src 'none'; sandbox"));
+                .andExpect(header().string("Content-Security-Policy", "default-src 'none'; sandbox"))
+                // Not Spring's "f.txt" fallback: the file keeps its own name and extension.
+                .andExpect(header().string("Content-Disposition",
+                        "inline; filename=\"" + json.get("filename").asText() + "\""));
     }
 
     /** ASVS V4.1.1 through the real upload and download: a .txt goes out naming its encoding. */

@@ -1,5 +1,6 @@
 package ge.magti.portal.security;
 
+import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.config.PortalProperties;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpMethod;
@@ -38,10 +39,13 @@ public class SecurityConfig {
 
 	private final JwtAuthenticationFilter jwtAuthenticationFilter;
 	private final PortalProperties portalProperties;
+	private final MutationAuditService mutationAuditService;
 
-	public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, PortalProperties portalProperties) {
+	public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, PortalProperties portalProperties,
+			MutationAuditService mutationAuditService) {
 		this.jwtAuthenticationFilter = jwtAuthenticationFilter;
 		this.portalProperties = portalProperties;
+		this.mutationAuditService = mutationAuditService;
 	}
 
 	/**
@@ -148,7 +152,7 @@ public class SecurityConfig {
 				.headers(headers -> headers.contentSecurityPolicy(csp -> csp.policyDirectives("frame-ancestors 'none'")))
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-				.addFilterBefore(new AccessDenialLoggingFilter(), CsrfFilter.class)
+				.addFilterBefore(new AccessDenialLoggingFilter(mutationAuditService), CsrfFilter.class)
 				.exceptionHandling(exceptions -> exceptions
 						.authenticationEntryPoint((request, response, exception) -> {
 							response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
