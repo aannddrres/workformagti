@@ -1448,7 +1448,7 @@ public class ArticleController {
         }
 
         // Compliance bridge (routers/articles.py:1207-1233): prefix-aware,
-        // unlike EligibleOperatorsService's exact-match rule -- this one
+        // like EligibleOperatorsService since 2026-10-01 -- this one
         // reuses the same [dept, deptPrefix, "All"] pattern get_articles'
         // own list query uses. Only fills gaps: an already-"read"
         // ReadStatus keeps its original read_at.

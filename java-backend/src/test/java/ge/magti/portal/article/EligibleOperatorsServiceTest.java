@@ -10,7 +10,6 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -29,18 +28,18 @@ class EligibleOperatorsServiceTest {
 
         assertEquals(List.of(operator), result);
         verify(directory).listActiveUsersWithinLimit();
-        verify(directory, never()).listActiveUsersInDepartmentsWithinLimit(List.of("All"));
     }
 
     @Test
-    void exactDepartmentAudienceUsesTheBoundedFilteredSnapshot() {
-        List<String> departments = List.of("ტექნიკური — ჯგუფი 01");
-        User operator = user(1L, Role.OPERATOR);
-        when(directory.listActiveUsersInDepartmentsWithinLimit(departments)).thenReturn(List.of(operator));
+    void aDepartmentAudienceReachesItsGroupsAsTheArticleItselfDoes() {
+        User inDepartment = user(1L, Role.OPERATOR, "ტექნიკური");
+        User inGroup = user(2L, Role.OPERATOR, "ტექნიკური — ჯგუფი 03");
+        User elsewhere = user(3L, Role.OPERATOR, "საინფორმაციო — ჯგუფი 01");
+        User manager = user(4L, Role.MANAGER, "ტექნიკური");
+        when(directory.listActiveUsersWithinLimit()).thenReturn(List.of(inDepartment, inGroup, elsewhere, manager));
 
-        assertEquals(List.of(operator), service.forArticle(publishedArticle(), departments));
-        verify(directory).listActiveUsersInDepartmentsWithinLimit(departments);
-        verify(directory, never()).listActiveUsersWithinLimit();
+        assertEquals(List.of(inDepartment, inGroup), service.forArticle(publishedArticle(), List.of("ტექნიკური")));
+        assertEquals(List.of(inGroup), service.forArticle(publishedArticle(), List.of("ტექნიკური — ჯგუფი 03")));
     }
 
     private static Article publishedArticle() {
@@ -51,9 +50,14 @@ class EligibleOperatorsServiceTest {
     }
 
     private static User user(long id, Role role) {
+        return user(id, role, "All");
+    }
+
+    private static User user(long id, Role role, String department) {
         User user = new User();
         user.setId(id);
         user.setRole(role);
+        user.setDepartment(department);
         user.setActive(true);
         return user;
     }

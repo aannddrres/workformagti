@@ -7,7 +7,7 @@ import { isReaderVisibleArticle } from '../../shared/article-visibility';
 /**
  * The one client for GET /api/search/global.
  *
- * This endpoint, its trigram index, its 60s TTL cache and its single-flight
+ * This endpoint, its trigram index and its single-flight
  * guard were all built on the backend (SearchController:86-120,
  * SearchQueryService, TrigramIndexer) and had no caller in the Angular app at
  * all — no service, no component, no route. For a call-centre portal that is

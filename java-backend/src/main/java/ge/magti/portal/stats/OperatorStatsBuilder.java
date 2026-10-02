@@ -37,8 +37,7 @@ public final class OperatorStatsBuilder {
         List<CriticalOperator> operators = new ArrayList<>();
         for (ComplianceRecord record : records) {
             ReadingProgress progress = record.progress();
-            if (progress.requiredCount() > 0
-                    && (progress.percentage() < ComplianceCalculator.CRITICAL_THRESHOLD || progress.overdueCount() > 0)) {
+            if (progress.critical()) {
                 String[] parts = DisplayName.splitFirstLast(record.user().getName());
                 operators.add(new CriticalOperator(
                         record.user().getId(),

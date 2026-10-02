@@ -35,8 +35,8 @@ public interface RequiredReadingRepository extends JpaRepository<RequiredReading
     /**
      * Mirrors create_article_read_receipt's compliance-bridge lookup
      * (routers/articles.py:1210-1216) -- prefix-aware (caller passes [dept,
-     * deptPrefix, "All"]), unlike EligibleOperatorsService's exact-match
-     * rule. V6 has no item/target uniqueness constraint, so the caller uses
+     * deptPrefix, "All"]), the rule EligibleOperatorsService also follows
+     * since 2026-10-01. V6 has no item/target uniqueness constraint, so the caller uses
      * a 1,001-row sentinel page and fails loudly rather than hydrating an
      * unbounded relation or silently skipping matching readings.
      */

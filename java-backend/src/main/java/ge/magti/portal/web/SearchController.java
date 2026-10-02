@@ -86,7 +86,7 @@ public class SearchController {
         return ResponseEntity.ok(response);
     }
 
-    /** Port of global_search_all (routers/search.py:204-256), incl. the 60s TTL cache + single-flight. */
+    /** Port of global_search_all (routers/search.py:204-256), with its single-flight; no result is kept (GlobalSearchCache). */
     @GetMapping("/api/search/global")
     public ResponseEntity<?> searchGlobal(@RequestParam String q, @AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);

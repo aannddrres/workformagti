@@ -65,19 +65,6 @@ public class UserDirectoryQueryService {
                 .getResultList();
     }
 
-    /** Bounded active snapshot for exact-match department target lists. */
-    @Transactional(readOnly = true)
-    public List<User> listActiveUsersInDepartmentsWithinLimit(List<String> departments) {
-        List<User> users = entityManager.createQuery(
-                        "SELECT u FROM User u WHERE u.active = true "
-                                + "AND u.department IN :departments ORDER BY u.id",
-                        User.class)
-                .setParameter("departments", departments)
-                .setMaxResults(MAX_ACTIVE_USERS + 1)
-                .getResultList();
-        return requireWithinActiveUserLimit(users);
-    }
-
     /** Complete directory snapshot, including inactive users, for access-diff evidence. */
     @Transactional(readOnly = true)
     public List<User> listUsersWithinLimit() {

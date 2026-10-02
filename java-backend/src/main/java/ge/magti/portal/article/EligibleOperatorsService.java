@@ -4,6 +4,7 @@ import ge.magti.portal.compliance.ComplianceCalculator;
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.user.UserDirectoryQueryService;
+import ge.magti.portal.util.DepartmentMatcher;
 import ge.magti.portal.util.TbilisiTime;
 import org.springframework.stereotype.Service;
 
@@ -11,17 +12,18 @@ import java.util.List;
 
 /**
  * Port of _get_eligible_operators (routers/articles.py:971-1003) -- who
- * the read-receipts admin view and the compliance eligibility calculation
- * treat as "supposed to read this article."
+ * the article's read-receipts view treats as "supposed to read this
+ * article."
  *
- * <p>Deliberately exact-match department filtering, NOT {@link
- * ge.magti.portal.util.DepartmentMatcher}'s prefix-aware rule -- Python's
- * own {@code User.department.in_(target_depts)} (routers/articles.py:993)
- * is a plain IN-list against the raw target department strings, same
- * narrower rule as {@code get_related_articles} uses, and genuinely
- * different from {@code get_articles}'/{@code _assert_article_visible}'s
- * prefix-aware one. Not unified -- carried forward as two different rules
- * in two different places, matching the source.
+ * <p>Prefix-aware since 2026-10-01: the same {@link DepartmentMatcher} rule
+ * that lets a person open the article. It was ported as an exact match
+ * (Python's {@code User.department.in_(target_depts)}, routers/articles.py:993),
+ * deliberately, as a second rule beside the reading one. The two disagreed
+ * where it matters: an article for "ტექნიკური" reached, and was owed by,
+ * everyone in "ტექნიკური — ჯგუფი 03", while its receipts listed only the
+ * people stored as the bare department -- the group's confirmations were
+ * counted on every other screen and missing from this one
+ * (RoleFlowIntegrationTest).
  *
  * <p>Not ported: the {@code tech_info}/{@code service_center} role
  * exclusion branches (routers/articles.py:997-1000) -- unreachable dead
@@ -50,12 +52,9 @@ public class EligibleOperatorsService {
             return List.of();
         }
 
-        List<User> candidates = targetDepartments.contains("All")
-                ? userDirectoryQueryService.listActiveUsersWithinLimit()
-                : userDirectoryQueryService.listActiveUsersInDepartmentsWithinLimit(targetDepartments);
-
-        return candidates.stream()
+        return userDirectoryQueryService.listActiveUsersWithinLimit().stream()
                 .filter(u -> !ComplianceCalculator.MANAGEMENT_ROLES.contains(u.getRole()))
+                .filter(u -> DepartmentMatcher.matches(u.getDepartment(), targetDepartments))
                 .toList();
     }
 }

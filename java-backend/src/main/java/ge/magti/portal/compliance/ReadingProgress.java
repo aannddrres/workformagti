@@ -20,4 +20,15 @@ public record ReadingProgress(int requiredCount, int readCount, int percentage, 
     public ReadingProgress withOverdue(int overdue) {
         return new ReadingProgress(requiredCount, readCount, percentage, overdue);
     }
+
+    /**
+     * "Critical": owes something, and is below
+     * {@link ComplianceCalculator#CRITICAL_THRESHOLD} or has anything past its
+     * deadline. One rule for the leader's list and the dashboard tile that
+     * opens it -- they were two, and the tile said 0 over a list of one
+     * (RoleFlowIntegrationTest, 2026-10-01).
+     */
+    public boolean critical() {
+        return requiredCount > 0 && (percentage < ComplianceCalculator.CRITICAL_THRESHOLD || overdueCount > 0);
+    }
 }

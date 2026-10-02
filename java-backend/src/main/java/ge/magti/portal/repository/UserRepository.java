@@ -97,9 +97,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
             + "WHERE u.active = true AND u.teamId IN :teamIds GROUP BY u.teamId")
     List<Object[]> countActiveGroupedByTeamIds(@Param("teamIds") Collection<Long> teamIds);
 
-    /** Mirrors _get_eligible_operators' non-"All" branch (routers/articles.py:992-993), exact match only -- no prefix expansion. */
-    List<User> findByActiveTrueAndDepartmentIn(List<String> departments);
-
     /** Mirrors get_kpi_counts' active-user count subquery (routers/stats.py:952-953). */
     long countByActiveTrue();
 
