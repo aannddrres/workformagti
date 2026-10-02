@@ -90,6 +90,9 @@ def test_no_json_built_by_hand():
 # new review.
 REVIEWED_DYNAMIC_SQL = {
     "java-backend/src/main/java/ge/magti/portal/article/ArticleViewQueryService.java",
+    # 2026-10-02 (PO-51): the whole-ledger check splices canonicalCall()'s
+    # column list under a code-chosen alias; the batch bounds are binds.
+    "java-backend/src/main/java/ge/magti/portal/audit/AuditChainService.java",
     "java-backend/src/main/java/ge/magti/portal/audit/AuditLogQueryService.java",
     "java-backend/src/main/java/ge/magti/portal/content/ContentLifecycleService.java",
     "java-backend/src/main/java/ge/magti/portal/export/AdminExportQueryService.java",
@@ -353,9 +356,13 @@ def test_no_third_party_scripts_or_trackers():
 
 
 def test_browser_storage_holds_only_display_preferences():
+    # Display preferences, plus one owner decision (PO-50, 2026-10-02): the
+    # article editor's unsaved title and text, keyed by the signed-in
+    # address and dropped after a week. No token, no personal data.
     stored = hits(frontend_sources(".ts"), r"localStorage\.setItem\(")
     assert {line.split(":", 1)[0] for line in stored} == {
         "angular-frontend/src/app/core/accessibility/font-scale.service.ts",
+        "angular-frontend/src/app/features/admin-content/article-edit-drawer/article-draft-store.ts",
         "angular-frontend/src/app/core/theme/theme.service.ts",
         "angular-frontend/src/app/shell/app-shell.ts",
     }

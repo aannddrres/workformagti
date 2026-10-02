@@ -1,4 +1,6 @@
-import { Component, computed, effect, inject, input, output, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, input, output, signal, viewChild } from '@angular/core';
+import { AuthService } from '../../../core/auth/auth.service';
+import { ArticleDraft, clearDraft, draftKey, readDraft, writeDraft } from './article-draft-store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { RequiredMessage } from '../../../shared/required-message';
 import { ArticlesService } from '../../../core/services/articles.service';
@@ -14,7 +16,7 @@ import { QuizBuilder } from '../../../shared/quiz-builder/quiz-builder';
 import { ToastService } from '../../../core/notifications/toast.service';
 import { PortalDialog } from '../../../shared/portal-dialog/portal-dialog';
 import { DateField } from '../../../shared/date-field/date-field';
-import { tbilisiEndOfDay, tbilisiToday } from '../../../shared/ka-date';
+import { formatKaDateTime, tbilisiEndOfDay, tbilisiToday } from '../../../shared/ka-date';
 import { ConfirmService } from '../../../core/notifications/confirm.service';
 import { articleReach, lossLines, mandatoryLoss } from '../../../shared/mandatory-reach';
 
@@ -57,6 +59,7 @@ export class ArticleEditDrawer {
   private readonly requiredReadingService = inject(RequiredReadingService);
   private readonly uploadService = inject(UploadService);
   private readonly translate = inject(TranslateService);
+  private readonly auth = inject(AuthService);
 
   readonly articleId = input.required<number | null>();
   readonly closed = output<void>();
@@ -110,6 +113,9 @@ export class ArticleEditDrawer {
   protected readonly dropzoneActive = signal(false);
   protected readonly saving = signal(false);
   protected readonly dirty = signal(false);
+  /** Text this browser kept from an earlier, unsaved session in this drawer (article-draft-store.ts). */
+  protected readonly pendingDraft = signal<ArticleDraft | null>(null);
+  private draftTimer: ReturnType<typeof setTimeout> | null = null;
   /** The lock_version this form was loaded at, sent back so a newer edit is not overwritten. */
   private readonly loadedLockVersion = signal<number | null>(null);
   protected readonly saveError = signal<string | null>(null);
@@ -128,6 +134,7 @@ export class ArticleEditDrawer {
 
   constructor() {
     this.loadCategories();
+    inject(DestroyRef).onDestroy(() => this.flushDraft());
 
     effect(() => {
       const id = this.articleId();
@@ -182,6 +189,7 @@ export class ArticleEditDrawer {
       this.richTextEditor()?.clear();
       this.quizBuilder()?.setQuestions([]);
       this.previewHtml.set('');
+      this.offerKeptDraft('', '');
     });
   }
 
@@ -217,6 +225,7 @@ export class ArticleEditDrawer {
           this.richTextEditor()?.setHtml(article.content);
           this.previewHtml.set(article.content);
           this.dirty.set(false);
+          this.offerKeptDraft(article.title, article.content);
         });
 
         // If this lookup fails silently the checkbox renders UNCHECKED, which
@@ -272,10 +281,66 @@ export class ArticleEditDrawer {
   protected onEditorContentChange(html: string): void {
     this.previewHtml.set(html);
     this.dirty.set(true);
+    this.scheduleDraft();
   }
 
   protected markDirty(): void {
     this.dirty.set(true);
+    this.scheduleDraft();
+  }
+
+  protected restoreDraft(): void {
+    const draft = this.pendingDraft();
+    if (!draft) return;
+    this.title.set(draft.title);
+    this.richTextEditor().setHtml(draft.content);
+    this.previewHtml.set(draft.content);
+    this.pendingDraft.set(null);
+    this.dirty.set(true);
+  }
+
+  protected discardDraft(): void {
+    this.pendingDraft.set(null);
+    this.forgetDraft();
+  }
+
+  protected draftTime(draft: ArticleDraft): string {
+    return formatKaDateTime(new Date(draft.savedAt).toISOString());
+  }
+
+  private draftStorageKey(): string | null {
+    const email = this.auth.currentUser()?.email;
+    return email ? draftKey(email, this.articleId()) : null;
+  }
+
+  private offerKeptDraft(loadedTitle: string, loadedContent: string): void {
+    const key = this.draftStorageKey();
+    const draft = key ? readDraft(key) : null;
+    const differs = draft != null && (draft.content !== loadedContent || draft.title !== loadedTitle)
+      && (draft.content.replace(/<[^>]*>/g, '').trim() !== '' || draft.title.trim() !== '');
+    this.pendingDraft.set(differs ? draft : null);
+  }
+
+  /** A second after the last keystroke, not on every one. */
+  private scheduleDraft(): void {
+    if (this.draftTimer) clearTimeout(this.draftTimer);
+    this.draftTimer = setTimeout(() => this.flushDraft(), 1000);
+  }
+
+  private flushDraft(): void {
+    if (this.draftTimer) clearTimeout(this.draftTimer);
+    this.draftTimer = null;
+    // Not while an earlier draft is still on offer: writing now would replace it before it was answered.
+    const key = this.draftStorageKey();
+    if (!key || !this.dirty() || this.pendingDraft()) return;
+    writeDraft(key, { title: this.title(), content: this.previewHtml(), savedAt: Date.now() });
+  }
+
+  private forgetDraft(): void {
+    if (this.draftTimer) clearTimeout(this.draftTimer);
+    this.draftTimer = null;
+    const key = this.draftStorageKey();
+    if (key) clearDraft(key);
   }
 
   protected toggleDepartment(key: 'info' | 'tech' | 'office', checked: boolean): void {
@@ -346,6 +411,11 @@ export class ArticleEditDrawer {
     if (this.dirty() && !(await this.confirmService.ask({ message: 'შეუნახავი ცვლილებები დაიკარგება. გსურთ დახურვა?', confirmLabel: 'დახურვა შენახვის გარეშე', tone: 'danger' }))) {
       return;
     }
+    // Closed on purpose, so the kept copy goes too -- unless it was never answered.
+    if (!this.pendingDraft()) {
+      this.forgetDraft();
+    }
+    this.dirty.set(false);
     this.closed.emit();
   }
 
@@ -460,6 +530,8 @@ export class ArticleEditDrawer {
 
   private finishSave(): void {
     this.saving.set(false);
+    this.forgetDraft();
+    this.dirty.set(false);
     this.saved.emit();
   }
 }

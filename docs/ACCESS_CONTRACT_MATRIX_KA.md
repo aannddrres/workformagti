@@ -2,7 +2,7 @@
 
 **სტატუსი:** Phase 1 — decision/contract lock **დასრულებულია**; D-1…D-8 დახურულია
 **ბოლო განახლება:** 2026-09-27 (PO-40: ახალი `…/by-item/{itemType}/{itemId}/addressees`, POST/PUT-ის 409 უარი; არსებული gate-ები უცვლელია)
-**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 151 endpoint
+**წყარო:** `java-backend/src/main/java` — ყველა `@*Mapping`, 152 endpoint
 **გეგმა:** `docs/ORG_ACCESS_ARCHITECTURE_PLAN_KA.md` (ფაზები, §9.1 სავალდებულო მტკიცებულებები)
 
 ეს ფაილი არის ორგანიზაციული წვდომის **კონტრაქტი**: თითოეული backend endpoint-ისთვის
@@ -72,8 +72,8 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 
 ## ციფრებში
 
-- **151** endpoint;
-- **45** ატარებს თანამშრომლის საიდენტიფიკაციო მონაცემს (`PII = **yes**`; კიდევ 1 — `content-dependent`);
+- **152** endpoint;
+- **46** ატარებს თანამშრომლის საიდენტიფიკაციო მონაცემს (`PII = **yes**`; კიდევ 1 — `content-dependent`);
 - **11** უკვე leadership-scoped (`scope` სვეტი `GROUP`-ით იწყება, ე.ი. leadership assignment-ით შემოსაზღვრულია);
 - **0** ღია გადაწყვეტილება (D-1…D-8 დახურულია).
 
@@ -128,6 +128,7 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 |---|---|---|---|---|---|---|
 | `GET /api/audit-logs` | `AuditLogController.list` | `requireSystemAdmin` | SYSTEM_ADMIN role | `ORG` | **yes** | Raw audit/log მონაცემი მხოლოდ სისტემურ ადმინს აქვს; მენეჯერს რჩება scoped compliance UI. |
 | `GET /api/audit-logs/chain-health` | `AuditLogController.chainHealth` | `requireSystemAdmin` | SYSTEM_ADMIN role | `ORG` | **yes** | Integrity tooling მხოლოდ სისტემური ადმინისთვისაა. |
+| `GET /api/audit-logs/chain-health/full` | `AuditLogController.fullChainCheck` | `requireSystemAdmin` | SYSTEM_ADMIN role | `ORG` | **yes** | 2026-10-02 (მფლობელი): მთლიანი ჟურნალის შემოწმება 100 000-იანი ნაწილებით (`after_id` → `next_after_id`); ჩანაწერის შინაარსს არ აბრუნებს, მხოლოდ რაოდენობებს და ≤10 ID-ს. |
 | `GET /api/audit-logs/export` | `AuditLogController.export` | `requireSystemAdmin` | SYSTEM_ADMIN role | `ORG` | **yes** | სრული log-export მხოლოდ სისტემური ადმინისთვისაა. |
 | `GET /api/audit-logs/{id}/verify` | `AuditLogController.verify` | `requireSystemAdmin` | SYSTEM_ADMIN role | `ORG` | **yes** | ჩანაწერის integrity verification მხოლოდ სისტემური ადმინისთვისაა. |
 
@@ -175,9 +176,9 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 | `POST /api/admin/exports/read-evidence` | `AdminExportController.readEvidence` | `requireSystemAdmin` | SYSTEM_ADMIN | `ORG` | **yes** | article receipt + required-reading status ერთ explicit allowlist-ში. |
 | `POST /api/admin/exports/search-history` | `AdminExportController.searchHistory` | `requireSystemAdmin` | SYSTEM_ADMIN | `ORG` | **yes** | საძიებო ტექსტი, შედეგის ფაქტი/რაოდენობა და მომხმარებლის snapshot/current identity. |
 | `GET /api/export/download/{jobId}` | `ExportController.downloadExport` | `requireReportsExport` | reports.export + leadership | `SELF` (`SYSTEM_ADMIN`: legacy owner bypass) | **yes** | D-3: classified `ADMIN_*` export მოითხოვს მოქმედ `SYSTEM_ADMIN` როლს და იმავე owner-ს; როლის დაკარგვის შემდეგ ჩამოტვირთვა 410-ია. სხვა job-ზე unknown owner fail-closed, legacy SYSTEM_ADMIN bypass რჩება. |
-| `GET /api/export/readings` | `ExportController.exportReadingsCsv` | `requireReportsExport` | reports.export + leadership | `GROUP/DEPT` | **yes** | PO-13 target allowlist გადაწყვეტილია; DPO validation და implementation pending — იხ. export allowlist. |
-| `GET /api/export/readings.pdf` | `ExportController.exportReadingsPdf` | `requireReportsExport` | reports.export + leadership | `GROUP/DEPT` | **yes** | PO-13 target allowlist გადაწყვეტილია; DPO validation და implementation pending — იხ. export allowlist. |
-| `GET /api/export/readings.xlsx` | `ExportController.exportReadingsXlsx` | `requireReportsExport` | reports.export + leadership | `GROUP/DEPT` | **yes** | PO-13 target allowlist გადაწყვეტილია; DPO validation და implementation pending — იხ. export allowlist. |
+| `GET /api/export/readings` | `ExportController.exportReadingsCsv` | `requireReportsExport` | reports.export + leadership | `GROUP/DEPT` | **yes** | PO-13 allowlist განხორციელებულია (2026-10-02, PO-49) + არჩევითი `from`/`through` პერიოდი ვადით; DPO validation ღიაა — იხ. export allowlist. |
+| `GET /api/export/readings.pdf` | `ExportController.exportReadingsPdf` | `requireReportsExport` | reports.export + leadership | `GROUP/DEPT` | **yes** | PO-13 allowlist განხორციელებულია (2026-10-02, PO-49) + არჩევითი `from`/`through` პერიოდი ვადით; DPO validation ღიაა — იხ. export allowlist. |
+| `GET /api/export/readings.xlsx` | `ExportController.exportReadingsXlsx` | `requireReportsExport` | reports.export + leadership | `GROUP/DEPT` | **yes** | PO-13 allowlist განხორციელებულია (2026-10-02, PO-49) + არჩევითი `from`/`through` პერიოდი ვადით; DPO validation ღიაა — იხ. export allowlist. |
 | `GET /api/export/status/{jobId}` | `ExportController.getExportStatus` | `requireReportsExport` | reports.export + leadership | `SELF` (`SYSTEM_ADMIN`: legacy owner bypass) | **yes** | classified `ADMIN_*` job მოითხოვს მოქმედ `SYSTEM_ADMIN` როლს და იმავე owner-ს; როლის დაკარგვის შემდეგ სტატუსი 404-ია. სხვა job-ზე D-3 owner/legacy SYSTEM_ADMIN წესი მოქმედებს. |
 | `GET /api/export/team-stats.pdf` | `ExportController.exportTeamStatsPdf` | `requireReportsExport` | reports.export + leadership | `GROUP/DEPT` | **yes** | სვეტები allowlist-ით (§ export allowlist). raw log ველი აკრძალულია. |
 
@@ -351,22 +352,20 @@ Phase 3-ის shadow mode-ს და Phase 4-ის cutover-ს სჭირდ
 ## Export-ის სვეტების allowlist
 
 გეგმის §8 ითხოვს server-side whitelist-ს, §9.1 — snapshot ტესტს. ქვემოთ არის
-**დღეს რეალურად გენერირებული** სვეტები (`ExportController.java:129,160,184,201`).
-ეს სია ხდება კონტრაქტი: ახალი სვეტი მდუმარედ ვერ გაჩნდება.
+**დღეს რეალურად გენერირებული** სვეტები (`ExportController.READING_HEADERS`,
+`ExportColumnAllowlistTest`). ეს სია ხდება კონტრაქტი: ახალი სვეტი მდუმარედ ვერ გაჩნდება.
 
 | endpoint | სვეტები |
 |---|---|
-| `GET /api/export/readings` (csv) | `User ID` · `User Name` · `Item Type` · `Item ID` · `Status` · `Read At` |
-| `GET /api/export/readings.xlsx` | `თანამშრომელი` · `დეპარტამენტი` · `მასალის ტიპი` · `მასალის ID` · `სტატუსი` · `წაკითხვის თარიღი` · `ვადა` |
-| `GET /api/export/readings.pdf` | `თანამშრომელი` · `დეპარტამენტი` · `ტიპი` · `ID` · `სტატუსი` · `წაკითხვა` · `ვადა` |
+| `GET /api/export/readings` (csv) | `თანამშრომელი` · `დეპარტამენტი` · `ჯგუფი` · `მასალის სათაური` · `მასალის ტიპი` · `სტატუსი` · `წაკითხვის დრო` · `ვადა` |
+| `GET /api/export/readings.xlsx` | იგივე რვა სვეტი |
+| `GET /api/export/readings.pdf` | იგივე რვა სვეტი |
 | `GET /api/export/team-stats.pdf` | `დეპარტამენტი` · `სულ მიკუთვნებული` · `წაკითხული` · `%` |
 
-**სამიზნე readings allowlist — PO-13 გადაწყვეტილია, DPO validation და
-implementation pending:** სამივე ფორმატს ექნება ერთი და იგივე ქართული სვეტები:
-`თანამშრომელი` · `დეპარტამენტი` · `ჯგუფი` · `მასალის სათაური` · `მასალის ტიპი` ·
-`სტატუსი` · `წაკითხვის დრო` · `ვადა`. `email`, employee/user ID და material/item
-ID სამიზნე export-იდან ამოსაღებია. მიმდინარე factual ცხრილი ზემოთ უცვლელად რჩება,
-სანამ კოდი და snapshot tests არ შეიცვლება.
+**PO-13 განხორციელებულია 2026-10-02 (PO-49).** სამივე ფორმატს ერთი და იგივე
+ქართული სვეტები აქვს. `email`, employee/user ID და material/item ID ამოღებულია.
+სტატუსში დაემატა „დაგვიანებით წაკითხულია“. readings export-ები იღებს არჩევით
+`from`/`through` პერიოდს ვადის მიხედვით. DPO validation (G-2) ისევ ღიაა.
 
 **ხელმძღვანელის export-ში აკრძალული კატეგორიები (წესი #14).** readings/team
 export-ში არ დაიშვება ველი, რომელიც წარმოიშობა: `audit_logs` ·

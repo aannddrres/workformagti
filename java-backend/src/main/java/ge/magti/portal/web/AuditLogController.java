@@ -198,6 +198,17 @@ public class AuditLogController {
         return ResponseEntity.ok(auditChainService.chainHealth(n));
     }
 
+    /** The whole ledger, a batch at a time; the screen loops on next_after_id (owner, 2026-10-02). */
+    @GetMapping("/api/audit-logs/chain-health/full")
+    public ResponseEntity<?> fullChainCheck(
+            @RequestParam(name = "after_id", defaultValue = "0") long afterId, @AuthenticationPrincipal User user) {
+        ResponseEntity<Map<String, String>> denial = requireSystemAdmin(user);
+        if (denial != null) {
+            return denial;
+        }
+        return ResponseEntity.ok(auditChainService.fullCheckBatch(afterId));
+    }
+
     /**
      * Best-effort meta-audit write ("someone looked at / exported the audit
      * trail, with which filters") -- mirrors _log_audit_trail_access

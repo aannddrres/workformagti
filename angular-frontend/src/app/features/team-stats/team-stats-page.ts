@@ -12,6 +12,8 @@ import { ReminderService } from '../../core/services/reminder.service';
 import { PortalDialog } from '../../shared/portal-dialog/portal-dialog';
 import { CategoryStrip } from '../../shared/category-strip/category-strip';
 import { completionBarClass, completionIcon, completionTextClass, completionTier } from '../../shared/completion-tier';
+import { DateField } from '../../shared/date-field/date-field';
+import { tbilisiToday } from '../../shared/ka-date';
 
 type SortMode = 'name' | 'compliance';
 type ExportKind = 'xlsx' | 'pdf' | 'team_stats_pdf';
@@ -40,7 +42,7 @@ type ExportKind = 'xlsx' | 'pdf' | 'team_stats_pdf';
 @Component({
   selector: 'app-team-stats-page',
   standalone: true,
-  imports: [TranslatePipe, PortalDialog, CategoryStrip, BroadcastBanner],
+  imports: [TranslatePipe, PortalDialog, CategoryStrip, BroadcastBanner, DateField],
   templateUrl: './team-stats-page.html'
 })
 export class TeamStatsPage {
@@ -57,6 +59,13 @@ export class TeamStatsPage {
   protected readonly leadershipGroups = signal<LeadershipOption[]>([]);
   protected readonly selectedTeamId = signal<number | null>(null);
   protected readonly canExportPrimary = signal(false);
+  /**
+   * The readings exports' period, by deadline. Starts at the last 90 days and
+   * everything due after, so what is still owed is in the file and the
+   * history that made the export too large to build is not.
+   */
+  protected readonly exportFrom = signal(tbilisiToday(Date.now() - 90 * 24 * 60 * 60 * 1000));
+  protected readonly exportThrough = signal('');
 
   protected readonly criticalModalOpen = signal(false);
   protected readonly criticalLoading = signal(false);
@@ -209,7 +218,7 @@ export class TeamStatsPage {
   exportCsv(): void {
     this.exportingCsv.set(true);
     this.csvError.set(null);
-    this.exportService.exportReadingsCsv().subscribe({
+    this.exportService.exportReadingsCsv(this.exportFrom(), this.exportThrough()).subscribe({
       next: (blob) => {
         this.exportingCsv.set(false);
         this.downloadBlob(blob, 'readings_export.csv');
@@ -222,11 +231,13 @@ export class TeamStatsPage {
   }
 
   exportXlsx(): void {
-    this.runAsyncExport('xlsx', () => this.exportService.submitReadingsXlsx(), 'readings_export.xlsx');
+    this.runAsyncExport('xlsx', () => this.exportService.submitReadingsXlsx(this.exportFrom(), this.exportThrough()),
+      'readings_export.xlsx');
   }
 
   exportPdf(): void {
-    this.runAsyncExport('pdf', () => this.exportService.submitReadingsPdf(), 'readings_export.pdf');
+    this.runAsyncExport('pdf', () => this.exportService.submitReadingsPdf(this.exportFrom(), this.exportThrough()),
+      'readings_export.pdf');
   }
 
   exportTeamStatsPdf(): void {

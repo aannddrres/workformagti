@@ -1,5 +1,6 @@
 package ge.magti.portal.audit;
 
+import ge.magti.portal.web.AuditChainFullCheckResponse;
 import ge.magti.portal.web.AuditChainHealthResponse;
 import ge.magti.portal.web.AuditVerifyResponse;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -198,6 +199,80 @@ public class AuditChainService {
         String status = (validTip && hashMismatches == 0 && linkBreaks == 0) ? "ok" : "tampered";
         return new AuditChainHealthResponse(
                 status, checked, n, hashMismatches, linkBreaks, badIds, unchainedTotal, !validTip);
+    }
+
+    /** Rows per batch of the whole-ledger check: about six seconds on the development Oracle. */
+    public static final int FULL_CHECK_BATCH = 100_000;
+
+    /**
+     * One batch of the whole-ledger check, rows with id above {@code afterId}.
+     *
+     * <p>{@link #chainHealth} looks back at most 500 rows from the tip, and
+     * the audit screen asks for 100 -- at the call centre's volume a few
+     * hours. A row edited last week verified wrong only when someone opened
+     * that row; the screen said the chain was whole (tamper check,
+     * 2026-10-02). The owner asked for a check of everything. It runs in
+     * batches because a year is millions of rows and one request would
+     * outlive any proxy's timeout; the caller loops on {@code next_after_id}.
+     *
+     * <p>Every row's hash is recomputed, and its link is held to the same
+     * rule as {@link #linked}: the predecessor it names exists once and it is
+     * that predecessor's only successor. A second genesis, or a tip that is
+     * not the chain's end, is reported with every batch.
+     */
+    public AuditChainFullCheckResponse fullCheckBatch(long afterId) {
+        Long lastId = jdbcTemplate.queryForObject(
+                "SELECT MAX(id) FROM (SELECT id FROM audit_logs WHERE id > ? AND row_hash IS NOT NULL "
+                        + "ORDER BY id FETCH FIRST ? ROWS ONLY)", Long.class, afterId, FULL_CHECK_BATCH);
+        long total = count(jdbcTemplate.queryForMap(
+                "SELECT COUNT(*) AS n FROM audit_logs WHERE row_hash IS NOT NULL"), "n");
+        AuditChainHealthResponse ends = chainHealth(1);
+        long genesisRows = count(jdbcTemplate.queryForMap("SELECT " + GENESIS_ROWS + " AS n FROM dual"), "n");
+        boolean structureBroken = ends.tailStateMismatch() || genesisRows > 1;
+        if (lastId == null) {
+            return new AuditChainFullCheckResponse(structureBroken ? "tampered" : "ok", 0, total, 0, 0,
+                    List.of(), structureBroken, null);
+        }
+
+        int checked = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM audit_logs WHERE id > ? AND id <= ? AND row_hash IS NOT NULL",
+                Integer.class, afterId, lastId);
+        List<Map<String, Object>> hashBad = jdbcTemplate.queryForList(
+                "SELECT a.id, COUNT(*) OVER () AS n FROM audit_logs a "
+                        + "WHERE a.id > ? AND a.id <= ? AND a.row_hash IS NOT NULL "
+                        + "AND a.row_hash <> LOWER(RAWTOHEX(STANDARD_HASH(" + canonicalCall("a") + ", 'SHA256'))) "
+                        + "ORDER BY a.id FETCH FIRST 10 ROWS ONLY", afterId, lastId);
+        List<Map<String, Object>> linkBad = jdbcTemplate.queryForList(
+                "SELECT a.id, COUNT(*) OVER () AS n FROM audit_logs a "
+                        + "WHERE a.id > ? AND a.id <= ? AND a.row_hash IS NOT NULL AND a.prev_hash IS NOT NULL "
+                        + "AND ((SELECT COUNT(*) FROM audit_logs p WHERE p.row_hash = a.prev_hash) <> 1 "
+                        + "OR (SELECT COUNT(*) FROM audit_logs s WHERE s.prev_hash = a.prev_hash) <> 1) "
+                        + "ORDER BY a.id FETCH FIRST 10 ROWS ONLY", afterId, lastId);
+        int hashMismatches = hashBad.isEmpty() ? 0 : (int) count(hashBad.get(0), "n");
+        int linkBreaks = linkBad.isEmpty() ? 0 : (int) count(linkBad.get(0), "n");
+
+        java.util.TreeSet<Long> bad = new java.util.TreeSet<>();
+        hashBad.forEach(row -> bad.add(count(row, "id")));
+        linkBad.forEach(row -> bad.add(count(row, "id")));
+        List<Long> badIds = bad.stream().limit(10).toList();
+
+        Long more = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM audit_logs WHERE id > ? AND row_hash IS NOT NULL AND ROWNUM = 1",
+                Long.class, lastId);
+        boolean tampered = structureBroken || hashMismatches > 0 || linkBreaks > 0;
+        return new AuditChainFullCheckResponse(tampered ? "tampered" : "ok", checked, total,
+                hashMismatches, linkBreaks, badIds, structureBroken, more != null && more > 0 ? lastId : null);
+    }
+
+    /**
+     * The chain's current end, for {@link AuditChainAnchor} to write where the
+     * database cannot reach it. Empty while nothing is chained.
+     */
+    public Optional<Map<String, Object>> tip() {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT a.id, a.row_hash, (SELECT COUNT(*) FROM audit_logs WHERE row_hash IS NOT NULL) AS chained "
+                        + "FROM audit_chain_state s JOIN audit_logs a ON a.row_hash = s.tip_hash WHERE s.id = 1");
+        return rows.isEmpty() ? Optional.empty() : Optional.of(rows.get(0));
     }
 
     private static long count(Map<String, Object> row, String column) {

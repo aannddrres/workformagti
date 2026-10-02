@@ -54,6 +54,14 @@ import static org.mockito.Mockito.when;
  */
 class ExportColumnAllowlistTest {
 
+    /**
+     * PO-13's columns, identical in all three formats (owner, 2026-08-22;
+     * implemented 2026-10-02). No employee or material ID.
+     */
+    private static final List<String> PO_13 = List.of(
+            "თანამშრომელი", "დეპარტამენტი", "ჯგუფი", "მასალის სათაური", "მასალის ტიპი",
+            "სტატუსი", "წაკითხვის დრო", "ვადა");
+
     /** Substrings that may never appear in an export column or in its source row (§8). */
     private static final List<String> FORBIDDEN = List.of(
             "audit", "viewlog", "view_log", "searchlog", "search_log", "session",
@@ -70,7 +78,7 @@ class ExportColumnAllowlistTest {
             new PermissionChecker());
 
     ExportColumnAllowlistTest() {
-        when(exportQueryService.eligibleReadingRows(any())).thenReturn(List.of());
+        when(exportQueryService.eligibleReadingRows(any(), any(), any())).thenReturn(List.of());
         when(exportQueryService.departmentComplianceTotals(any())).thenReturn(new TreeMap<>());
         when(exportJobRepository.startLease(anyString(), anyString())).thenReturn(1);
     }
@@ -99,29 +107,21 @@ class ExportColumnAllowlistTest {
 
     @Test
     void theCsvReadingsExportHasExactlyTheAllowedColumns() {
-        assertEquals(
-                List.of("თანამშრომლის ID", "თანამშრომელი", "მასალის ტიპი", "მასალის ID",
-                        "სტატუსი", "წაკითხვის თარიღი"),
-                csvHeaderOf(controller.exportReadingsCsv(exporter())));
+        assertEquals(PO_13, csvHeaderOf(controller.exportReadingsCsv(exporter(), null, null)));
     }
 
     @Test
     void theXlsxReadingsExportHasExactlyTheAllowedColumns() {
-        controller.exportReadingsXlsx(exporter());
+        controller.exportReadingsXlsx(exporter(), null, null);
 
-        assertEquals(
-                List.of("თანამშრომელი", "დეპარტამენტი", "მასალის ტიპი", "მასალის ID",
-                        "სტატუსი", "წაკითხვის თარიღი", "ვადა"),
-                capturedHeaders());
+        assertEquals(PO_13, capturedHeaders());
     }
 
     @Test
     void thePdfReadingsExportHasExactlyTheAllowedColumns() {
-        controller.exportReadingsPdf(exporter());
+        controller.exportReadingsPdf(exporter(), null, null);
 
-        assertEquals(
-                List.of("თანამშრომელი", "დეპარტამენტი", "ტიპი", "ID", "სტატუსი", "წაკითხვა", "ვადა"),
-                capturedHeaders());
+        assertEquals(PO_13, capturedHeaders());
     }
 
     @Test
@@ -147,7 +147,8 @@ class ExportColumnAllowlistTest {
                 .toList();
 
         assertEquals(
-                List.of("userId", "userName", "department", "itemType", "itemId", "status", "readAt", "dueDate"),
+                List.of("userId", "userName", "department", "group", "itemType", "itemId", "itemTitle", "status",
+                        "readAt", "dueDate"),
                 fields,
                 "ReadingExportRow feeds every readings export. Adding a field here widens all three files at "
                         + "once -- update docs/ACCESS_CONTRACT_MATRIX_KA.md's allowlist in the same commit, and "
@@ -156,11 +157,11 @@ class ExportColumnAllowlistTest {
 
     @Test
     void noExportColumnOrSourceFieldComesFromAForbiddenCategory() {
-        controller.exportReadingsXlsx(exporter());
+        controller.exportReadingsXlsx(exporter(), null, null);
 
         Function<String, String> normalise = s -> s.toLowerCase(Locale.ROOT).replace(" ", "");
         List<String> everything = new java.util.ArrayList<>(capturedHeaders().stream().map(normalise).toList());
-        everything.addAll(csvHeaderOf(controller.exportReadingsCsv(exporter())).stream().map(normalise).toList());
+        everything.addAll(csvHeaderOf(controller.exportReadingsCsv(exporter(), null, null)).stream().map(normalise).toList());
         everything.addAll(Arrays.stream(ReadingExportRow.class.getRecordComponents())
                 .map(RecordComponent::getName).map(normalise).toList());
 

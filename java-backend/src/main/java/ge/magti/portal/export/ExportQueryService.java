@@ -2,12 +2,17 @@ package ge.magti.portal.export;
 
 import ge.magti.portal.compliance.ComplianceQueryService;
 import ge.magti.portal.compliance.MandatoryReach;
+import ge.magti.portal.content.ItemDetail;
+import ge.magti.portal.content.ItemKey;
+import ge.magti.portal.content.ItemTitleResolver;
+import ge.magti.portal.domain.Team;
 import ge.magti.portal.domain.ReadStatus;
 import ge.magti.portal.domain.RequiredReading;
 import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.repository.ReadStatusRepository;
 import ge.magti.portal.repository.RequiredReadingRepository;
+import ge.magti.portal.repository.TeamRepository;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.security.ManagerScope;
 import ge.magti.portal.security.ScopeResolver;
@@ -20,6 +25,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -79,6 +85,14 @@ public class ExportQueryService {
      */
     private final MandatoryReach mandatoryReach;
 
+    /**
+     * The material's title and the person's group, two of PO-13's columns.
+     * Null only in the DB-free compatibility constructors, which then fall
+     * back to the title kept on the reading and an empty group.
+     */
+    private final ItemTitleResolver itemTitleResolver;
+    private final TeamRepository teamRepository;
+
     public ExportQueryService(
             ComplianceQueryService complianceQueryService, ReadStatusRepository readStatusRepository,
             UserRepository userRepository, RequiredReadingRepository requiredReadingRepository) {
@@ -94,13 +108,27 @@ public class ExportQueryService {
                 scopeResolver, userDirectoryQueryService, null);
     }
 
-    @org.springframework.beans.factory.annotation.Autowired
     public ExportQueryService(
             ComplianceQueryService complianceQueryService, ReadStatusRepository readStatusRepository,
             UserRepository userRepository, RequiredReadingRepository requiredReadingRepository,
             ScopeResolver scopeResolver,
             UserDirectoryQueryService userDirectoryQueryService,
             MandatoryReach mandatoryReach) {
+        this(complianceQueryService, readStatusRepository, userRepository, requiredReadingRepository,
+                scopeResolver, userDirectoryQueryService, mandatoryReach, null, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ExportQueryService(
+            ComplianceQueryService complianceQueryService, ReadStatusRepository readStatusRepository,
+            UserRepository userRepository, RequiredReadingRepository requiredReadingRepository,
+            ScopeResolver scopeResolver,
+            UserDirectoryQueryService userDirectoryQueryService,
+            MandatoryReach mandatoryReach,
+            ItemTitleResolver itemTitleResolver,
+            TeamRepository teamRepository) {
+        this.itemTitleResolver = itemTitleResolver;
+        this.teamRepository = teamRepository;
         this.mandatoryReach = mandatoryReach;
         this.complianceQueryService = complianceQueryService;
         this.readStatusRepository = readStatusRepository;
@@ -200,6 +228,23 @@ public class ExportQueryService {
      * before any background job is enqueued.
      */
     public List<ReadingExportRow> eligibleReadingRows(User caller) {
+        return eligibleReadingRows(caller, null, null);
+    }
+
+    /**
+     * The same rows, limited to readings whose deadline falls between
+     * {@code from} and {@code through} (whole Tbilisi days, either end open
+     * when null).
+     *
+     * <p>Without a period the file grows with the portal's whole history --
+     * people times every mandatory item ever assigned -- and at 600
+     * operators it passes {@link ExportSizeGuard#MAX_ROWS} after about 34
+     * items, after which no leader could export anything at all and the
+     * refusal asked them to narrow a filter that did not exist (big-export
+     * check, 2026-10-02: 22,752 rows). The owner chose a period over a
+     * higher ceiling.
+     */
+    public List<ReadingExportRow> eligibleReadingRows(User caller, LocalDate from, LocalDate through) {
         List<Long> eligibleUserIds = scopedCompliance(caller).stream()
                 .map(record -> record.user().getId())
                 .toList();
@@ -207,9 +252,13 @@ public class ExportQueryService {
             return List.of();
         }
 
-        List<ReadStatus> statuses = readStatusRepository.findByUserIdIn(
-                eligibleUserIds,
-                PageRequest.of(0, ExportSizeGuard.MAX_ROWS + 1, Sort.by("id")));
+        PageRequest firstPastTheCap = PageRequest.of(0, ExportSizeGuard.MAX_ROWS + 1, Sort.by("id"));
+        boolean bounded = from != null || through != null;
+        OffsetDateTime dueFrom = startOfDay(from == null ? EARLIEST : from);
+        OffsetDateTime dueBefore = startOfDay((through == null ? LATEST : through).plusDays(1));
+        List<ReadStatus> statuses = bounded
+                ? readStatusRepository.findByUserIdInAndDueDateWithin(eligibleUserIds, dueFrom, dueBefore, firstPastTheCap)
+                : readStatusRepository.findByUserIdIn(eligibleUserIds, firstPastTheCap);
         ExportSizeGuard.checkSize(statuses.size());
 
         Map<Long, User> usersById = userRepository.findAllById(eligibleUserIds).stream()
@@ -218,25 +267,77 @@ public class ExportQueryService {
         Map<Long, RequiredReading> readingsById = requiredReadingRepository.findAllById(readingIds).stream()
                 .collect(Collectors.toMap(RequiredReading::getId, r -> r));
 
-        List<ReadingExportRow> rows = new ArrayList<>();
+        List<Confirmed> confirmed = new ArrayList<>();
         for (ReadStatus status : statuses) {
             User user = usersById.get(status.getUserId());
             RequiredReading reading = readingsById.get(status.getRequiredReadingId());
-            if (user == null || reading == null) {
-                continue;
+            if (user != null && reading != null) {
+                confirmed.add(new Confirmed(user, reading, status));
             }
-            rows.add(new ReadingExportRow(
-                    status.getUserId(), user.getName(), user.getDepartment(),
-                    reading.getItemType(), reading.getItemId(), status.getStatus(),
-                    status.getReadAt(), reading.getDueDate()));
         }
-        if (mandatoryReach != null) {
-            rows.addAll(outstandingRows(usersById.values(), statuses));
-            ExportSizeGuard.checkSize(rows.size());
+        List<Outstanding> outstanding = mandatoryReach == null ? List.of()
+                : outstandingRows(usersById.values(), statuses, dueFrom, dueBefore);
+        ExportSizeGuard.checkSize(confirmed.size() + outstanding.size());
+
+        Set<RequiredReading> readings = new HashSet<>();
+        confirmed.forEach(c -> readings.add(c.reading()));
+        outstanding.forEach(o -> readings.add(o.reading()));
+        Map<ItemKey, ItemDetail> details = itemTitleResolver == null ? Map.of()
+                : itemTitleResolver.resolveDetailsBulk(readings.stream()
+                        .map(r -> new ItemKey(r.getItemType(), r.getItemId())).distinct().toList());
+        Map<Long, String> groups = teamNames(usersById.values());
+
+        List<ReadingExportRow> rows = new ArrayList<>();
+        for (Confirmed c : confirmed) {
+            OffsetDateTime readAt = c.status().getReadAt();
+            OffsetDateTime due = c.reading().getDueDate();
+            // PO-13's third status. A confirmation is never refused for
+            // coming late; the file says that it did.
+            String status = "read".equals(c.status().getStatus()) && readAt != null && due != null && readAt.isAfter(due)
+                    ? "late" : c.status().getStatus();
+            rows.add(row(c.user(), c.reading(), status, readAt, details, groups));
+        }
+        for (Outstanding o : outstanding) {
+            rows.add(row(o.user(), o.reading(), o.status(), null, details, groups));
         }
         rows.sort(Comparator.comparing(ReadingExportRow::userName, Comparator.nullsLast(Comparator.naturalOrder()))
                 .thenComparing(ReadingExportRow::dueDate, Comparator.nullsLast(Comparator.naturalOrder())));
         return rows;
+    }
+
+    /** No deadline is earlier or later than these; they stand in for an open end. */
+    private static final LocalDate EARLIEST = LocalDate.of(2000, 1, 1);
+    private static final LocalDate LATEST = LocalDate.of(2100, 12, 31);
+
+    private static OffsetDateTime startOfDay(LocalDate day) {
+        return day.atStartOfDay().atOffset(TbilisiTime.OFFSET);
+    }
+
+    private record Confirmed(User user, RequiredReading reading, ReadStatus status) {
+    }
+
+    private record Outstanding(User user, RequiredReading reading, String status) {
+    }
+
+    private static ReadingExportRow row(
+            User user, RequiredReading reading, String status, OffsetDateTime readAt,
+            Map<ItemKey, ItemDetail> details, Map<Long, String> groups) {
+        ItemDetail detail = details.get(new ItemKey(reading.getItemType(), reading.getItemId()));
+        // A purged item keeps the title its reading was given (PO-27's evidence).
+        String title = detail != null ? detail.title() : reading.getItemTitleSnapshot();
+        return new ReadingExportRow(
+                user.getId(), user.getName(), user.getDepartment(),
+                user.getTeamId() == null ? null : groups.get(user.getTeamId()),
+                reading.getItemType(), reading.getItemId(), title, status, readAt, reading.getDueDate());
+    }
+
+    private Map<Long, String> teamNames(java.util.Collection<User> users) {
+        Set<Long> teamIds = users.stream().map(User::getTeamId).filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (teamRepository == null || teamIds.isEmpty()) {
+            return Map.of();
+        }
+        return teamRepository.findAllById(teamIds).stream().collect(Collectors.toMap(Team::getId, Team::getName));
     }
 
     /**
@@ -250,7 +351,9 @@ public class ExportQueryService {
      * find -- while PO-13 promises a status column of read / unread / late
      * (simulation, 2026-10-01).
      */
-    private List<ReadingExportRow> outstandingRows(java.util.Collection<User> users, List<ReadStatus> confirmed) {
+    private List<Outstanding> outstandingRows(
+            java.util.Collection<User> users, List<ReadStatus> confirmed,
+            OffsetDateTime dueFrom, OffsetDateTime dueBefore) {
         Set<String> targets = new LinkedHashSet<>();
         for (User user : users) {
             targets.addAll(DepartmentMatcher.visibilityTargets(user.getDepartment()));
@@ -266,22 +369,27 @@ public class ExportQueryService {
             done.add(status.getUserId() + ":" + status.getRequiredReadingId());
         }
         OffsetDateTime now = TbilisiTime.now();
-        List<ReadingExportRow> rows = new ArrayList<>();
+        List<Outstanding> rows = new ArrayList<>();
         for (User user : users) {
             List<String> own = DepartmentMatcher.visibilityTargets(user.getDepartment());
             for (RequiredReading reading : addressed) {
                 if (!inForce.contains(reading.getId()) || !own.contains(reading.getTargetDepartment())
-                        || done.contains(user.getId() + ":" + reading.getId())) {
+                        || done.contains(user.getId() + ":" + reading.getId())
+                        || !within(reading.getDueDate(), dueFrom, dueBefore)) {
                     continue;
                 }
                 boolean late = reading.getDueDate() != null && reading.getDueDate().isBefore(now);
-                rows.add(new ReadingExportRow(
-                        user.getId(), user.getName(), user.getDepartment(),
-                        reading.getItemType(), reading.getItemId(), late ? "overdue" : "unread",
-                        null, reading.getDueDate()));
+                rows.add(new Outstanding(user, reading, late ? "overdue" : "unread"));
+                if (rows.size() > ExportSizeGuard.MAX_ROWS) {
+                    return rows; // the caller refuses it; no need to build the rest
+                }
             }
         }
         return rows;
+    }
+
+    private static boolean within(OffsetDateTime due, OffsetDateTime from, OffsetDateTime before) {
+        return due != null && !due.isBefore(from) && due.isBefore(before);
     }
 
     /**

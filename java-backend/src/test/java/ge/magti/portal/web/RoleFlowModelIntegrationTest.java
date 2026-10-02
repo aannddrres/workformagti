@@ -146,6 +146,8 @@ class RoleFlowModelIntegrationTest {
         final Map<Long, Map<Long, Set<Integer>>> confirmed = new HashMap<>();
         /** operator id -> reading ids they confirmed. */
         final Map<Long, Set<Long>> readingsRead = new HashMap<>();
+        /** operator id -> reading id -> when they last confirmed it: after the deadline, the export says late (PO-49). */
+        final Map<Long, Map<Long, OffsetDateTime>> readAt = new HashMap<>();
         final Map<Long, Set<Long>> viewed = new HashMap<>();
         final List<String> log = new ArrayList<>();
 
@@ -356,6 +358,7 @@ class RoleFlowModelIntegrationTest {
                 expect(expected, code, "confirming");
                 if (code == 200) {
                     w.readingsRead.computeIfAbsent(operator.getId(), k -> new LinkedHashSet<>()).add(r.id);
+                    w.readAt.computeIfAbsent(operator.getId(), k -> new HashMap<>()).put(r.id, TbilisiTime.now());
                     w.confirmed.computeIfAbsent(operator.getId(), k -> new HashMap<>())
                             .computeIfAbsent(a.id, k -> new TreeSet<>()).add(a.version);
                 }
@@ -440,8 +443,10 @@ class RoleFlowModelIntegrationTest {
                 for (ReadingModel r : a.readings) {
                     boolean isRead = readHere.contains(r.id);
                     String key = op.getId() + ":" + a.id;
+                    OffsetDateTime confirmedAt = w.readAt.getOrDefault(op.getId(), Map.of()).get(r.id);
+                    String exportedRead = confirmedAt != null && confirmedAt.isAfter(r.due) ? "late" : "read";
                     if (isRead) {
-                        exportModel.computeIfAbsent(key, k -> new TreeSet<>()).add("read");
+                        exportModel.computeIfAbsent(key, k -> new TreeSet<>()).add(exportedRead);
                     }
                     if (!owes(op, a, r)) {
                         continue;
@@ -457,7 +462,7 @@ class RoleFlowModelIntegrationTest {
                     boolean changed = isRead && !w.confirmed.getOrDefault(op.getId(), Map.of())
                             .getOrDefault(a.id, Set.of()).contains(a.version);
                     same(changed, entry.get("changed_since_read").asBoolean(), who + ": 'text changed' on #" + a.id);
-                    exportModel.computeIfAbsent(key, k -> new TreeSet<>()).add(status);
+                    exportModel.computeIfAbsent(key, k -> new TreeSet<>()).add(isRead ? exportedRead : status);
                     if (isRead) {
                         read++;
                     } else {

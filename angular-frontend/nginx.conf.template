@@ -37,6 +37,21 @@ server {
     # applies to where it is on.
     charset_types text/html text/css application/javascript application/json;
 
+    # ---- Compression ---------------------------------------------------
+    #
+    # Nothing was compressed: nginx's `gzip` defaults to off, and this file
+    # never turned it on. Over a 0.4 Mbit line the sign-in
+    # screen took 19 s, 9 s compressed; 1.6 Mbit 5.2 s against 2.7 s (QA
+    # round 4, 2026-10-02; owner chose to switch it on). Switched on only in
+    # the locations that serve the portal's own files, never in /api/ or
+    # /uploads/: responses that carry a token next to text a caller chose
+    # are what BREACH reads through compression, and Spring's JSON is small
+    # beside the bundles anyway. text/html is always compressed once on.
+    gzip_types text/css application/javascript application/json image/svg+xml;
+    gzip_min_length 1024;
+    gzip_comp_level 5;
+    gzip_vary on;
+
     # ---- Caching -------------------------------------------------------
     #
     # Nothing here sent Cache-Control at all, so browsers fell back to
@@ -60,6 +75,7 @@ server {
     location ~* "^/(?:chunk|main|polyfills|styles|scripts)-[A-Za-z0-9_-]{8,}\.(?:js|css)$" {
         expires 1y;
         charset utf-8;
+        gzip on;
         add_header X-Content-Type-Options "nosniff" always;
     }
 
@@ -77,6 +93,7 @@ server {
     location ~* "^/(?:i18n|fonts)/|^/(?:favicon\.ico|magticom-logo(?:-white)?\.png)$" {
         expires -1;
         charset utf-8;
+        gzip on;
         add_header X-Content-Type-Options "nosniff" always;
     }
 
@@ -94,6 +111,7 @@ server {
     location / {
         try_files $uri $uri/ /index.html;
         charset utf-8;
+        gzip on;
 
         # index.html names every hashed bundle, so caching it caches the whole
         # release.

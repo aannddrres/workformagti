@@ -86,6 +86,8 @@ class RoleFlowIntegrationTest {
     @Autowired
     private RequiredReadingRepository requiredReadingRepository;
     @Autowired
+    private ge.magti.portal.repository.ReadStatusRepository readStatusRepository;
+    @Autowired
     private ExportQueryService exportQueryService;
     @Autowired
     private AdminExportQueryService adminExportQueryService;
@@ -254,6 +256,13 @@ class RoleFlowIntegrationTest {
 
         reading.setDueDate(TbilisiTime.now().minusMinutes(5));
         requiredReadingRepository.saveAndFlush(reading);
+        // The deadline is moved rather than waited for, so the confirmation
+        // goes back with it: techOne read in time. Left at "a second ago",
+        // after the moved deadline, the export rightly calls it late (PO-49).
+        readStatusRepository.findByUserIdAndRequiredReadingId(org.techOne.getId(), reading.getId()).ifPresent(status -> {
+            status.setReadAt(TbilisiTime.now().minusMinutes(10));
+            readStatusRepository.saveAndFlush(status);
+        });
 
         JsonNode late = myReading(org.techTwo, reading.getId());
         assertEquals("overdue", late.get("status").asText());

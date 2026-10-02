@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, interval, switchMap, takeWhile, throwError, timer } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { ExportJobResponse, ExportStatus } from '../models/export';
@@ -28,16 +28,21 @@ export class ExportService {
    */
   static readonly POLL_TIMEOUT_MS = 55 * 60 * 1000;
 
-  exportReadingsCsv(): Observable<Blob> {
-    return this.http.get('/api/export/readings', { responseType: 'blob' });
+  /**
+   * The readings exports take a period by deadline (QA round 4, 2026-10-02):
+   * without one the file grew with the whole history until it passed the
+   * server's 20,000-row cap and could no longer be exported at all.
+   */
+  exportReadingsCsv(from?: string, through?: string): Observable<Blob> {
+    return this.http.get('/api/export/readings', { responseType: 'blob', params: period(from, through) });
   }
 
-  submitReadingsXlsx(): Observable<ExportJobResponse> {
-    return this.http.get<ExportJobResponse>('/api/export/readings.xlsx');
+  submitReadingsXlsx(from?: string, through?: string): Observable<ExportJobResponse> {
+    return this.http.get<ExportJobResponse>('/api/export/readings.xlsx', { params: period(from, through) });
   }
 
-  submitReadingsPdf(): Observable<ExportJobResponse> {
-    return this.http.get<ExportJobResponse>('/api/export/readings.pdf');
+  submitReadingsPdf(from?: string, through?: string): Observable<ExportJobResponse> {
+    return this.http.get<ExportJobResponse>('/api/export/readings.pdf', { params: period(from, through) });
   }
 
   submitTeamStatsPdf(): Observable<ExportJobResponse> {
@@ -78,4 +83,11 @@ export class ExportService {
       takeUntil(timer(ExportService.POLL_TIMEOUT_MS).pipe(switchMap(() => throwError(() => new ExportPollTimeoutError()))))
     );
   }
+}
+
+function period(from?: string, through?: string): HttpParams {
+  let params = new HttpParams();
+  if (from) params = params.set('from', from);
+  if (through) params = params.set('through', through);
+  return params;
 }

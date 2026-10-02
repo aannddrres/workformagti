@@ -83,7 +83,7 @@ public class AdminExportController {
         return submit(AdminExportFamily.CHANGE_EVENTS, from, through, user, requireSystemAdmin(user));
     }
 
-    private static boolean outOfRange(LocalDate date) {
+    static boolean outOfRange(LocalDate date) {
         return date != null && (date.getYear() < 2000 || date.getYear() > 2100);
     }
 

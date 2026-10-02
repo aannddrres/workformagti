@@ -32,6 +32,8 @@ public final class PdfExportBuilder {
 
     private static final float MARGIN = 24f;
     private static final float FONT_SIZE = 9f;
+    /** The smallest a wide table's text is set in to fit; below it, cells are cut instead. */
+    private static final float MIN_FONT_SIZE = 7f;
     private static final float TITLE_FONT_SIZE = 14f;
     private static final float ROW_HEIGHT = 16f;
     private static final float CELL_PADDING = 4f;
@@ -54,13 +56,15 @@ public final class PdfExportBuilder {
             float pageWidth = PDRectangle.A4.getHeight();
             float pageHeight = PDRectangle.A4.getWidth();
             float contentWidth = pageWidth - 2 * MARGIN;
-            float[] colWidths = computeColumnWidths(font, headers, rows, contentWidth);
+            Layout layout = computeLayout(font, headers, rows, contentWidth);
+            float[] colWidths = layout.widths();
+            float size = layout.fontSize();
 
             Page page = newPage(document, pageWidth, pageHeight);
             float y = pageHeight - MARGIN;
             y = drawTitle(page.stream, font, title, MARGIN, y);
             y -= 12f;
-            y = drawHeaderRow(page.stream, font, headers, colWidths, MARGIN, y);
+            y = drawHeaderRow(page.stream, font, size, headers, colWidths, MARGIN, y);
 
             int rowIndex = 0;
             for (List<Object> row : rows) {
@@ -68,10 +72,10 @@ public final class PdfExportBuilder {
                     page.stream.close();
                     page = newPage(document, pageWidth, pageHeight);
                     y = pageHeight - MARGIN;
-                    y = drawHeaderRow(page.stream, font, headers, colWidths, MARGIN, y);
+                    y = drawHeaderRow(page.stream, font, size, headers, colWidths, MARGIN, y);
                 }
                 Color bg = (rowIndex % 2 == 0) ? Color.WHITE : ALT_ROW_BG;
-                y = drawDataRow(page.stream, font, row, colWidths, MARGIN, y, bg);
+                y = drawDataRow(page.stream, font, size, row, colWidths, MARGIN, y, bg);
                 rowIndex++;
             }
             page.stream.close();
@@ -104,20 +108,20 @@ public final class PdfExportBuilder {
     }
 
     private static float drawHeaderRow(
-            PDPageContentStream cs, PDFont font, List<String> headers, float[] colWidths, float x, float y) throws IOException {
+            PDPageContentStream cs, PDFont font, float size, List<String> headers, float[] colWidths, float x, float y) throws IOException {
         List<Object> cells = headers.stream().map(h -> (Object) h).toList();
-        drawRow(cs, font, cells, colWidths, x, y, HEADER_BG, HEADER_TEXT, true);
+        drawRow(cs, font, size, cells, colWidths, x, y, HEADER_BG, HEADER_TEXT, true);
         return y - ROW_HEIGHT;
     }
 
     private static float drawDataRow(
-            PDPageContentStream cs, PDFont font, List<Object> cells, float[] colWidths, float x, float y, Color bg) throws IOException {
-        drawRow(cs, font, cells, colWidths, x, y, bg, BODY_TEXT, false);
+            PDPageContentStream cs, PDFont font, float size, List<Object> cells, float[] colWidths, float x, float y, Color bg) throws IOException {
+        drawRow(cs, font, size, cells, colWidths, x, y, bg, BODY_TEXT, false);
         return y - ROW_HEIGHT;
     }
 
     private static void drawRow(
-            PDPageContentStream cs, PDFont font, List<Object> cells, float[] colWidths,
+            PDPageContentStream cs, PDFont font, float size, List<Object> cells, float[] colWidths,
             float x, float y, Color background, Color textColor, boolean centered) throws IOException {
         float rowTop = y;
         float rowWidth = 0f;
@@ -146,12 +150,12 @@ public final class PdfExportBuilder {
         cs.stroke();
 
         float cellX = x;
-        float textBaselineY = rowTop - ROW_HEIGHT + (ROW_HEIGHT - FONT_SIZE) / 2f + 2f;
+        float textBaselineY = rowTop - ROW_HEIGHT + (ROW_HEIGHT - size) / 2f + 2f;
         for (int col = 0; col < colWidths.length; col++) {
             String raw = col < cells.size() && cells.get(col) != null ? String.valueOf(cells.get(col)) : "";
             float available = colWidths[col] - 2 * CELL_PADDING;
-            String text = truncateToWidth(font, raw, available);
-            float textWidth = stringWidth(font, text);
+            String text = truncateToWidth(font, size, raw, available);
+            float textWidth = stringWidth(font, size, text);
             float textX;
             if (centered) {
                 textX = cellX + Math.max(CELL_PADDING, (colWidths[col] - textWidth) / 2f);
@@ -159,7 +163,7 @@ public final class PdfExportBuilder {
                 textX = cellX + CELL_PADDING;
             }
             cs.beginText();
-            cs.setFont(font, FONT_SIZE);
+            cs.setFont(font, size);
             cs.setNonStrokingColor(textColor);
             cs.newLineAtOffset(textX, textBaselineY);
             cs.showText(text);
@@ -168,39 +172,94 @@ public final class PdfExportBuilder {
         }
     }
 
-    private static float[] computeColumnWidths(PDFont font, List<String> headers, List<List<Object>> rows, float contentWidth) throws IOException {
+    private record Layout(float[] widths, float fontSize) {
+    }
+
+    /**
+     * Each column gets the width its longest cell needs, as measured in the
+     * font. When the page is too narrow the type shrinks first, down to
+     * {@link #MIN_FONT_SIZE}; if that is still not enough, the columns that
+     * need least keep their full width and only the widest share what is left.
+     *
+     * <p>Widths used to be split in proportion to character counts at a fixed
+     * 9 pt. Once the readings export carried eight columns, one of them a
+     * title (PO-13, 2026-10-02), that cut every column short together:
+     * names, departments and the status lost their ends to make room for the
+     * title. Now the title is the one that ends in "...".
+     */
+    private static Layout computeLayout(PDFont font, List<String> headers, List<List<Object>> rows, float contentWidth) throws IOException {
         int n = headers.size();
-        float[] weights = new float[n];
+        float size = FONT_SIZE;
+        float[] text = new float[n];
         for (int i = 0; i < n; i++) {
-            weights[i] = Math.max(MIN_COLUMN_WIDTH_CHARS, headers.get(i).length());
+            text[i] = Math.max(MIN_COLUMN_WIDTH_CHARS * stringWidth(font, size, "0"), stringWidth(font, size, headers.get(i)));
         }
         for (List<Object> row : rows) {
             for (int i = 0; i < n && i < row.size(); i++) {
                 Object v = row.get(i);
-                int len = v == null ? 0 : String.valueOf(v).length();
-                weights[i] = Math.max(weights[i], len);
+                if (v != null) {
+                    text[i] = Math.max(text[i], stringWidth(font, size, String.valueOf(v)));
+                }
             }
         }
-        float totalWeight = 0f;
-        for (float w : weights) {
-            totalWeight += w;
+        float textTotal = 0f;
+        for (float w : text) {
+            textTotal += w;
+        }
+        // Shrink the type before cutting anything: 7 pt still reads on paper.
+        float room = contentWidth - n * 2 * CELL_PADDING;
+        if (textTotal > room) {
+            size = Math.max(MIN_FONT_SIZE, FONT_SIZE * room / textTotal);
+        }
+        float[] natural = new float[n];
+        float total = 0f;
+        for (int i = 0; i < n; i++) {
+            // One point spare: a cell exactly as wide as its text is measured
+            // again at draw time and rounding can make it "not fit" ("ჯგუ...").
+            natural[i] = text[i] * size / FONT_SIZE + 2 * CELL_PADDING + 1f;
+            total += natural[i];
         }
         float[] widths = new float[n];
-        for (int i = 0; i < n; i++) {
-            widths[i] = contentWidth * (weights[i] / totalWeight);
+        if (total <= contentWidth) {
+            for (int i = 0; i < n; i++) {
+                widths[i] = natural[i] * contentWidth / total;
+            }
+            return new Layout(widths, size);
         }
-        return widths;
+        boolean[] fixed = new boolean[n];
+        float remaining = contentWidth;
+        int open = n;
+        boolean changed = true;
+        while (changed && open > 0) {
+            changed = false;
+            float share = remaining / open;
+            for (int i = 0; i < n; i++) {
+                if (!fixed[i] && natural[i] <= share) {
+                    widths[i] = natural[i];
+                    fixed[i] = true;
+                    remaining -= natural[i];
+                    open--;
+                    changed = true;
+                }
+            }
+        }
+        for (int i = 0; i < n; i++) {
+            if (!fixed[i]) {
+                widths[i] = remaining / open;
+            }
+        }
+        return new Layout(widths, size);
     }
 
-    private static float stringWidth(PDFont font, String text) throws IOException {
-        return font.getStringWidth(text) / 1000f * FONT_SIZE;
+    private static float stringWidth(PDFont font, float size, String text) throws IOException {
+        return font.getStringWidth(text) / 1000f * size;
     }
 
-    private static String truncateToWidth(PDFont font, String text, float maxWidth) throws IOException {
+    private static String truncateToWidth(PDFont font, float size, String text, float maxWidth) throws IOException {
         if (maxWidth <= 0 || text.isEmpty()) {
             return "";
         }
-        if (stringWidth(font, text) <= maxWidth) {
+        if (stringWidth(font, size, text) <= maxWidth) {
             return text;
         }
         // ASCII "..." rather than the U+2026 ellipsis glyph: Sylfaen (this
@@ -208,11 +267,24 @@ public final class PdfExportBuilder {
         // Unicode punctuation the way DejaVuSans does, and a missing glyph
         // throws IllegalArgumentException from PDFBox's showText.
         String ellipsis = "...";
-        float ellipsisWidth = stringWidth(font, ellipsis);
-        StringBuilder sb = new StringBuilder(text);
-        while (sb.length() > 0 && stringWidth(font, sb.toString()) + ellipsisWidth > maxWidth) {
-            sb.deleteCharAt(sb.length() - 1);
+        float ellipsisWidth = stringWidth(font, size, ellipsis);
+        // The longest prefix that fits, found by halving. Dropping one
+        // character at a time and measuring again made each long title cost
+        // hundreds of measurements, and a 5,400-row readings PDF took 91 s
+        // once titles became a column (2026-10-02).
+        int fits = 0;
+        int tooLong = text.length();
+        while (tooLong - fits > 1) {
+            int mid = (fits + tooLong) >>> 1;
+            if (stringWidth(font, size, text.substring(0, mid)) + ellipsisWidth <= maxWidth) {
+                fits = mid;
+            } else {
+                tooLong = mid;
+            }
         }
-        return sb.isEmpty() ? "" : sb + ellipsis;
+        if (fits > 0 && Character.isHighSurrogate(text.charAt(fits - 1))) {
+            fits--;
+        }
+        return fits == 0 ? "" : text.substring(0, fits) + ellipsis;
     }
 }

@@ -56,7 +56,7 @@ class ExportControllerScopeGateTest {
             new PermissionChecker());
 
     ExportControllerScopeGateTest() {
-        when(exportQueryService.eligibleReadingRows(any())).thenReturn(List.of());
+        when(exportQueryService.eligibleReadingRows(any(), any(), any())).thenReturn(List.of());
         when(exportQueryService.departmentComplianceTotals(any())).thenReturn(new TreeMap<>());
     }
 
@@ -78,10 +78,10 @@ class ExportControllerScopeGateTest {
         for (Role role : List.of(Role.CONTENT_ADMIN, Role.OPERATOR)) {
             User holder = holderOf(role);
 
-            assertEquals(HttpStatus.FORBIDDEN, controller.exportReadingsCsv(holder).getStatusCode(),
+            assertEquals(HttpStatus.FORBIDDEN, controller.exportReadingsCsv(holder, null, null).getStatusCode(),
                     role + " holds reports.export but leads nobody");
-            assertEquals(HttpStatus.FORBIDDEN, controller.exportReadingsXlsx(holder).getStatusCode());
-            assertEquals(HttpStatus.FORBIDDEN, controller.exportReadingsPdf(holder).getStatusCode());
+            assertEquals(HttpStatus.FORBIDDEN, controller.exportReadingsXlsx(holder, null, null).getStatusCode());
+            assertEquals(HttpStatus.FORBIDDEN, controller.exportReadingsPdf(holder, null, null).getStatusCode());
             assertEquals(HttpStatus.FORBIDDEN, controller.exportTeamStatsPdf(holder).getStatusCode());
         }
     }
@@ -103,9 +103,9 @@ class ExportControllerScopeGateTest {
     @Test
     void aRefusedExportWritesNoAuditRow() {
         User caller = holderOf(Role.CONTENT_ADMIN);
-        controller.exportReadingsCsv(caller);
-        controller.exportReadingsXlsx(caller);
-        controller.exportReadingsPdf(caller);
+        controller.exportReadingsCsv(caller, null, null);
+        controller.exportReadingsXlsx(caller, null, null);
+        controller.exportReadingsPdf(caller, null, null);
         controller.exportTeamStatsPdf(caller);
 
         verify(auditLogRepository, never()).saveAndFlush(any());
@@ -115,7 +115,7 @@ class ExportControllerScopeGateTest {
     @Test
     void managerAndSystemAdminKeepTheirExports() {
         for (Role role : List.of(Role.MANAGER, Role.SYSTEM_ADMIN)) {
-            assertEquals(HttpStatus.OK, controller.exportReadingsCsv(holderOf(role)).getStatusCode(),
+            assertEquals(HttpStatus.OK, controller.exportReadingsCsv(holderOf(role), null, null).getStatusCode(),
                     role + " must keep the export it already had");
         }
     }

@@ -462,7 +462,11 @@
       "export_failed": "Export preparation stopped. Please try again.",
       "export_error": "Export failed.",
       "export_expired": "This export has expired — please generate it again.",
-      "export_timeout": "The export is taking too long. Please try again."
+      "export_timeout": "The export is taking too long. Please try again.",
+      "export_period": "Period (by deadline)",
+      "export_period_hint": "The file holds materials whose deadline falls in this range. An empty field means no limit. The period does not apply to the team statistics PDF.",
+      "export_from": "From",
+      "export_through": "Through"
     }
   },
   "stats": {
@@ -578,7 +582,12 @@
     "verify_tampered": "Integrity violation detected!",
     "verify_unchained": "Pre-migration record — verification unavailable",
     "verify_error": "Verification failed",
-    "manager_scope_note": "Your department only"
+    "manager_scope_note": "Your department only",
+    "full_check": "Check the whole ledger",
+    "full_check_running": "Checking… {{checked}} / {{total}}",
+    "full_check_ok": "The whole ledger is intact: all {{count}} entries checked.",
+    "full_check_tampered": "Tampering found in the whole ledger ({{checked}} entries): {{mismatches}} altered, {{breaks}} broken links.",
+    "full_check_error": "The whole-ledger check did not finish. Try again."
   },
   "roles": {
     "heading": "Role Management",
@@ -686,7 +695,10 @@
       "bulk_pause_confirm": "{{count}} items will no longer be available to readers. If any is mandatory, the obligation is paused for everyone until it is published again. Continue?",
       "bulk_pause_action": "Yes, continue",
       "row_archive_confirm": "This item will be archived and hidden from readers. If it is mandatory, the obligation is paused for everyone until it is unarchived. Continue?",
-      "no_edit_permission": "This account has no permission to edit articles (articles.edit): creating, changing and restoring articles will be refused. News and videos are still available."
+      "no_edit_permission": "This account has no permission to edit articles (articles.edit): creating, changing and restoring articles will be refused. News and videos are still available.",
+      "draft_found": "Unsaved text was kept on this computer ({{time}}). Restore it?",
+      "draft_restore": "Restore",
+      "draft_discard": "Discard"
     },
     "quiz": {
       "add_question": "Add question",
