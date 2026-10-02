@@ -125,6 +125,8 @@ test.describe('admin content: news and videos', () => {
     const rowMenu = editedRow.getByRole('button', { name: 'სიახლის მოქმედებები' });
     await rowMenu.click();
     await editedRow.getByRole('button', { name: 'დაარქივება' }).click();
+    // Archiving asks first since 2026-10-01 (simulation: one stray click took it off every screen).
+    await acceptConfirmation(page);
     await rowMenu.click();
     await expect(editedRow.getByRole('button', { name: 'სანაგვეში გადატანა' })).toBeEnabled();
     await editedRow.getByRole('button', { name: 'სანაგვეში გადატანა' }).click();
@@ -192,6 +194,8 @@ test.describe('admin content: news and videos', () => {
     const rowMenu = editedRow.getByRole('button', { name: 'ვიდეოს მოქმედებები' });
     await rowMenu.click();
     await editedRow.getByRole('button', { name: 'დაარქივება' }).click();
+    // Archiving asks first since 2026-10-01 (simulation: one stray click took it off every screen).
+    await acceptConfirmation(page);
     await rowMenu.click();
     await expect(editedRow.getByRole('button', { name: 'სანაგვეში გადატანა' })).toBeEnabled();
     await editedRow.getByRole('button', { name: 'სანაგვეში გადატანა' }).click();

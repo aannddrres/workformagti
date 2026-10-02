@@ -796,10 +796,14 @@ public class ArticleController {
      * PO-40: a mandatory article binds everyone its audience covers, so a
      * department a bulk re-aim adds gets its own reading, with the due date
      * and priority the article's obligation already has -- through the one
-     * create path, with its checks, reminders and audit. One the article
-     * cannot reach now (archived, unpublished) is refused there and skipped
-     * here; the editor's next mandatory save adds it. A department the re-aim
-     * drops keeps its reading and its confirmations, out of force.
+     * create path, with its checks, reminders and audit. One that path refuses
+     * because nobody can open the article now (archived, unpublished, or
+     * scheduled past that due date) is kept out of force instead, and comes
+     * into force with the article (owner, 2026-10-02). It used to be skipped
+     * "until the editor's next mandatory save", which a restore never is:
+     * RoleFlowModelIntegrationTest found the new department owing nothing
+     * after the article came back. A department the re-aim drops keeps its
+     * reading and its confirmations, out of force.
      */
     private void extendMandatoryToAudience(Long articleId, List<String> audience, User user) {
         List<RequiredReading> existing = requiredReadingRepository.findByItemTypeAndItemId("article", articleId);
@@ -810,8 +814,11 @@ public class ArticleController {
         Set<String> targeted = existing.stream().map(RequiredReading::getTargetDepartment).collect(Collectors.toSet());
         for (String target : MandatoryReach.readingTargets(audience)) {
             if (!targeted.contains(target)) {
-                complianceController.createRequiredReading(new RequiredReadingRequest(
-                        "article", articleId, target, model.getDueDate(), model.getPriority()), user);
+                RequiredReadingRequest request = new RequiredReadingRequest(
+                        "article", articleId, target, model.getDueDate(), model.getPriority());
+                if (!complianceController.createRequiredReading(request, user).getStatusCode().is2xxSuccessful()) {
+                    complianceController.addReadingOutOfForce(request, user);
+                }
             }
         }
     }

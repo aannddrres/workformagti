@@ -166,7 +166,7 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
-    void disabledAccountGetsImmediate403AndChainNeverRuns() throws Exception {
+    void disabledAccountGetsImmediate401AndChainNeverRuns() throws Exception {
         String token = jwtService.createAccessToken(Map.of("sub", "disabled@magti.ge"));
         User disabledUser = activeUser("disabled@magti.ge", Role.OPERATOR);
         disabledUser.setActive(false);
@@ -174,12 +174,16 @@ class JwtAuthenticationFilterTest {
 
         HttpServletRequest request = mock(HttpServletRequest.class);
         HttpServletResponse response = mock(HttpServletResponse.class);
+        java.io.StringWriter body = new java.io.StringWriter();
+        when(response.getWriter()).thenReturn(new java.io.PrintWriter(body));
         FilterChain chain = mock(FilterChain.class);
         when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
 
         filter.doFilter(request, response, chain);
 
-        verify(response).sendError(eq(HttpServletResponse.SC_FORBIDDEN), any());
+        // 401 sends the browser to the login screen; the code lets it say why (2026-10-02).
+        verify(response).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        org.junit.jupiter.api.Assertions.assertTrue(body.toString().contains("\"code\":\"account_disabled\""), body.toString());
         verify(chain, never()).doFilter(any(), any());
         assertNull(SecurityContextHolder.getContext().getAuthentication());
     }

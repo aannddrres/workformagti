@@ -51,6 +51,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     public static final String SESSION_REQUEST_ATTRIBUTE = "portal.session_id";
 
+    static final String ACCOUNT_DISABLED_DETAIL = "თქვენი ანგარიში გათიშულია. მიმართეთ ადმინისტრატორს.";
+    private static final com.fasterxml.jackson.databind.ObjectMapper JSON =
+            new com.fasterxml.jackson.databind.ObjectMapper();
+
     private final JwtService jwtService;
     private final UserRepository userRepository;
     private final PortalSessionService sessionService;
@@ -109,11 +113,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 continue;
             }
             if (!user.get().isActive()) {
-                // Mirrors get_current_user raising 403 immediately for a
-                // deactivated account, even though the token itself is
-                // validly signed -- a still-valid token must not survive
-                // a deactivation.
-                response.sendError(HttpServletResponse.SC_FORBIDDEN, "User account is disabled");
+                // A still-valid token must not survive a deactivation. 401,
+                // not the 403 Python's get_current_user raised: the session is
+                // over, and 401 is what sends the browser to the login screen
+                // -- on 403 the person sat in a shell of empty lists with no
+                // explanation (blind tests, owner decision 2026-10-02). The
+                // code lets that screen say why.
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setCharacterEncoding("UTF-8");
+                response.setContentType("application/json");
+                response.getWriter().write(JSON.writeValueAsString(
+                        java.util.Map.of("detail", ACCOUNT_DISABLED_DETAIL, "code", "account_disabled")));
                 return;
             }
             authenticate(user.get());

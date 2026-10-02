@@ -58,7 +58,9 @@
       "submit_button": "Sign In",
       "submit_button_loading": "Signing in...",
       "error_generic": "Sign-in failed",
-      "error_missing": "Enter your email and password"
+      "error_missing": "Enter your email and password",
+      "reason_session_expired": "Your session ended after a long time without activity. Please sign in again.",
+      "reason_account_disabled": "Your account has been disabled. If this is a mistake, contact an administrator."
     }
   },
   "users": {

@@ -93,4 +93,17 @@ class DepartmentMatcherTest {
         // an empty target would spuriously match an empty prefix here.
         assertFalse(DepartmentMatcher.matches("— ჯგუფი 01", List.of("")));
     }
+
+    /** Mutation testing, 2026-10-02: the plain-dash split had only been reached by strings the keyword rule took first. */
+    @Test
+    void aHyphenWithoutTheGroupKeywordStillSplitsDepartmentFromGroup() {
+        assertEquals(new DepartmentGroup("ტექნიკური", "ღამის ცვლა"), DepartmentMatcher.splitGroup("ტექნიკური - ღამის ცვლა"));
+        assertTrue(DepartmentMatcher.matches("ტექნიკური - ღამის ცვლა", List.of("ტექნიკური")));
+    }
+
+    /** A bare "ჯგუფი 03" names a group of no department: it is its own prefix, never the empty one. */
+    @Test
+    void aGroupNameAloneIsItsOwnDepartment() {
+        assertEquals(new DepartmentGroup("ჯგუფი 03", "ჯგუფი 03"), DepartmentMatcher.splitGroup("ჯგუფი 03"));
+    }
 }

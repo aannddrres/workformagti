@@ -75,4 +75,41 @@ class DepartmentStatsBuilderTest {
 
         assertEquals(38, dashboard.insights().globalCompliance());
     }
+
+    /** Mutation testing, 2026-10-02: the input above is already sorted, so dropping either sort went unnoticed. */
+    @Test
+    void groupsAreOrderedByNameAndMembersByCompletionWhateverTheInputOrder() {
+        List<ComplianceRecord> records = List.of(
+                record(1L, "ტექნიკური — ჯგუფი 02", 10, 1, 10),
+                record(2L, "ტექნიკური — ჯგუფი 01", 10, 5, 50),
+                record(3L, "ტექნიკური — ჯგუფი 01", 10, 9, 90));
+
+        DepartmentStats technical = DepartmentStatsBuilder.build(records, OffsetDateTime.now()).departments().stream()
+                .filter(d -> d.name().equals("ტექნიკური")).findFirst().orElseThrow();
+
+        assertEquals(List.of("ჯგუფი 01", "ჯგუფი 02"), technical.groups().stream().map(DepartmentGroupStats::name).toList());
+        assertEquals(List.of(3L, 2L), technical.groups().get(0).members().stream().map(DepartmentMember::userId).toList());
+    }
+
+    /** Someone who owes nothing is left out of a group's average, not counted as 0 % (mutation testing, 2026-10-02). */
+    @Test
+    void aMemberWhoOwesNothingDoesNotPullTheGroupAverageDown() {
+        List<ComplianceRecord> records = List.of(
+                record(1L, "ოფისი — ჯგუფი 01", 0, 0, 0),
+                record(2L, "ოფისი — ჯგუფი 01", 4, 4, 100));
+
+        DepartmentGroupStats group = DepartmentStatsBuilder.build(records, OffsetDateTime.now()).departments().stream()
+                .filter(d -> d.name().equals("ოფისი")).findFirst().orElseThrow().groups().getFirst();
+
+        assertEquals(100, group.compliance());
+    }
+
+    /** The tile counts what the list it opens shows: below 30 % or anything overdue (RoleFlowIntegrationTest). */
+    @Test
+    void someoneWithAnOverdueItemIsCriticalOnTheDashboardEvenAboveThirtyPercent() {
+        List<ComplianceRecord> records = List.of(new ComplianceRecord(
+                record(1L, "ოფისი — ჯგუფი 01", 2, 1, 50).user(), new ReadingProgress(2, 1, 50, 1)));
+
+        assertEquals(1, DepartmentStatsBuilder.build(records, OffsetDateTime.now()).insights().criticalOperators());
+    }
 }

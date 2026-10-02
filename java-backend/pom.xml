@@ -282,4 +282,111 @@
 		</plugins>
 	</build>
 
+	<profiles>
+		<!-- How strong are the tests on the rules that decide who sees what?
+			 PIT changes those classes' bytecode in memory, one small change at
+			 a time (a > becomes >=, a condition is dropped), and reports every
+			 change no DB-free test noticed. Nothing on disk is edited.
+			 Run: ./mvnw -Pmutation test-compile org.pitest:pitest-maven:mutationCoverage
+			 Report: target/pit-reports/index.html. Added 2026-10-02. -->
+		<profile>
+			<id>mutation</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.pitest</groupId>
+						<artifactId>pitest-maven</artifactId>
+						<version>1.30.0</version>
+						<dependencies>
+							<dependency>
+								<groupId>org.pitest</groupId>
+								<artifactId>pitest-junit5-plugin</artifactId>
+								<version>1.2.3</version>
+							</dependency>
+						</dependencies>
+						<configuration>
+							<targetClasses>
+								<param>ge.magti.portal.article.ArticleVisibility</param>
+								<param>ge.magti.portal.news.NewsVisibility</param>
+								<param>ge.magti.portal.video.VideoVisibility</param>
+								<param>ge.magti.portal.util.DepartmentMatcher</param>
+								<param>ge.magti.portal.security.ManagerScope</param>
+								<param>ge.magti.portal.compliance.ComplianceCalculator</param>
+								<param>ge.magti.portal.compliance.ReadingProgress</param>
+								<param>ge.magti.portal.compliance.MandatoryReach</param>
+								<param>ge.magti.portal.stats.OperatorStatsBuilder</param>
+								<param>ge.magti.portal.stats.DepartmentStatsBuilder</param>
+								<param>ge.magti.portal.quiz.QuizGateChecker</param>
+								<param>ge.magti.portal.config.PortalProperties</param>
+								<param>ge.magti.portal.security.ClientIpResolver</param>
+							</targetClasses>
+							<targetTests>
+								<param>ge.magti.portal.*</param>
+							</targetTests>
+							<excludedGroups>
+								<param>oracle</param>
+							</excludedGroups>
+							<threads>4</threads>
+							<timestampedReports>false</timestampedReports>
+							<outputFormats>
+								<param>HTML</param>
+								<param>XML</param>
+							</outputFormats>
+							<jvmArgs>
+								<value>-Duser.timezone=UTC</value>
+							</jvmArgs>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<!-- The same, for the two rules only the Oracle-backed tests reach:
+			 MandatoryReach (does a reading bind anyone now, PO-40) and the quiz
+			 gate. Slow (each change reruns Spring tests) and needs the
+			 ORACLE_DB_* variables of the Oracle suite. Added 2026-10-02. -->
+		<profile>
+			<id>mutation-oracle</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.pitest</groupId>
+						<artifactId>pitest-maven</artifactId>
+						<version>1.30.0</version>
+						<dependencies>
+							<dependency>
+								<groupId>org.pitest</groupId>
+								<artifactId>pitest-junit5-plugin</artifactId>
+								<version>1.2.3</version>
+							</dependency>
+						</dependencies>
+						<configuration>
+							<targetClasses>
+								<param>ge.magti.portal.compliance.MandatoryReach</param>
+								<param>ge.magti.portal.quiz.QuizGateChecker</param>
+							</targetClasses>
+							<targetTests>
+								<param>ge.magti.portal.web.MandatoryReachIntegrationTest</param>
+								<param>ge.magti.portal.web.RoleFlowIntegrationTest</param>
+								<param>ge.magti.portal.web.QuizControllerIntegrationTest</param>
+								<param>ge.magti.portal.web.ComplianceControllerIntegrationTest</param>
+								<param>ge.magti.portal.compliance.*</param>
+							</targetTests>
+							<threads>1</threads>
+							<timeoutConstant>60000</timeoutConstant>
+							<timestampedReports>false</timestampedReports>
+							<reportsDirectory>${project.build.directory}/pit-reports-oracle</reportsDirectory>
+							<outputFormats>
+								<param>HTML</param>
+								<param>XML</param>
+							</outputFormats>
+							<jvmArgs>
+								<value>-Duser.timezone=UTC</value>
+							</jvmArgs>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+
 </project>

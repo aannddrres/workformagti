@@ -314,6 +314,24 @@ public class ComplianceController {
         if (refusal != null) {
             return refusal;
         }
+        return ResponseEntity.ok(RequiredReadingResponse.from(saveReading(request, user)));
+    }
+
+    /**
+     * A reading for a department a mandatory article's audience gained while
+     * nobody could open it -- archived, unpublished, or scheduled past its due
+     * date. Not refused like an editor's own assignment: the editor chose the
+     * department and the obligation already exists for the others. It is
+     * kept out of force and comes into force with the article, its assignment
+     * going out from the reminder sweep then (PO-40 §2 and §4, owner,
+     * 2026-10-02). Before, it was dropped without a word, and restoring the
+     * article left the new department owing nothing.
+     */
+    public RequiredReading addReadingOutOfForce(RequiredReadingRequest request, User user) {
+        return saveReading(request, user);
+    }
+
+    private RequiredReading saveReading(RequiredReadingRequest request, User user) {
         RequiredReading reading = new RequiredReading();
         reading.setItemType(request.itemType());
         reading.setItemId(request.itemId());
@@ -326,17 +344,14 @@ public class ComplianceController {
 
         // PO-16 makes assignment delivery part of the durable contract. The
         // reading and its fixed reminders therefore commit atomically -- now,
-        // or, for an article scheduled for later, when the reminder sweep sees
-        // it come into force at publication (PO-40).
-        if (assessment.reach().inForce()) {
-            reminderService.deliverAssignment(saved, user);
-        }
+        // or, for one not yet in force, when the reminder sweep sees it come
+        // into force (PO-40). deliverAssignment is a no-op until then.
+        reminderService.deliverAssignment(saved, user);
         mutationAuditService.recordSuccess(
                 user, "CREATE_REQUIRED_READING", "required_reading", saved.getId(),
                 saved.getItemTitleSnapshot(), null,
                 MutationAuditService.requiredReadingSnapshot(saved));
-
-        return ResponseEntity.ok(RequiredReadingResponse.from(saved));
+        return saved;
     }
 
     /** Port of get_required_reading_for_item (routers/compliance.py:319-335) -- Optional response, literal JSON null when absent. */

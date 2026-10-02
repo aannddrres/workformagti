@@ -46,8 +46,13 @@ export const unauthorizedInterceptor: HttpInterceptorFn = (req, next) => {
         auth.clearSession();
         const returnUrl = router.url;
         // Guard against redirect loops if a 401 arrives while already leaving.
+        // An account switched off mid-session says so (JwtAuthenticationFilter,
+        // owner 2026-10-02): it used to answer 403, which nothing here handled,
+        // and the person sat in a shell of empty lists.
         if (!returnUrl.startsWith('/login')) {
-          loginPage.open({ returnUrl });
+          loginPage.open(error.error?.code === 'account_disabled'
+            ? { returnUrl, reason: 'account-disabled' }
+            : { returnUrl });
         }
       }
       return throwError(() => error);

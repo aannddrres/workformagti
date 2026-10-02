@@ -90,3 +90,31 @@ test('a published mandatory article: the operator confirms it and the admin coun
   const after = await progressRow(admin, techName);
   expect(after).toEqual({ read: before.read + 1, total: before.total });
 });
+
+/**
+ * Owner decision 2026-10-02 (PO-24 addendum): someone switched off while the
+ * portal is open lands on the login screen and is told why. The server used to
+ * answer 403, which nothing in the app handled -- the page stayed up with empty
+ * lists. A JIT account, so no shared persona is ever switched off.
+ */
+test('a person switched off mid-session is sent to the login screen and told why', async ({ browser, request }) => {
+  const email = `test_operator_switched_off_${runId()}@magti.ge`;
+  const operatorToken = await apiLogin(request, email);
+  const adminToken = await apiLogin(request, 'admin@magti.ge');
+  const me = await (await request.get('/api/users/me', { headers: { Authorization: `Bearer ${operatorToken}` } })).json();
+
+  const page = await pageAs(browser, operatorToken);
+  await page.goto('/reading');
+  await expect(page).toHaveURL(/\/reading$/);
+
+  const off = await request.put(`/api/users/${me.id}/status`, {
+    headers: { Authorization: `Bearer ${adminToken}` },
+    data: { is_active: false }
+  });
+  expect(off.ok(), `deactivation failed: ${off.status()} ${await off.text()}`).toBeTruthy();
+
+  // The next thing the page asks the server for ends the session.
+  await page.goto('/news');
+  await expect(page).toHaveURL(/\/login\?.*reason=account-disabled/);
+  await expect(page.getByText('თქვენი ანგარიში გათიშულია')).toBeVisible();
+});

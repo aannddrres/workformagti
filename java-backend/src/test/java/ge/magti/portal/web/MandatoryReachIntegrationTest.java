@@ -153,6 +153,68 @@ class MandatoryReachIntegrationTest {
         assertTrue(myReadingIds(operator).contains(readingId));
     }
 
+    /**
+     * Mutation testing (2026-10-02): the department filter on a reading's
+     * addressees could be removed without one test failing -- every employee
+     * would have been reminded of another department's material.
+     */
+    @Test
+    void anAssignmentRemindsTheDepartmentItAddressesAndNobodyElse() throws Exception {
+        String department = department();
+        String other = department();
+        User inside = user(Role.OPERATOR, department);
+        User inGroup = user(Role.OPERATOR, department + " — ჯგუფი 01");
+        user(Role.OPERATOR, other);
+        Article article = article(department, other);
+
+        long readingId = idOf(assign(admin(), article.getId(), department, TbilisiTime.now().plusDays(3))
+                .andExpect(status().isOk()));
+
+        java.util.Set<Long> reminded = CompleteResultGuard.enforce(reminderRepository
+                        .findByRequiredReadingIdAndTypeOrderByIdAsc(readingId, ReminderType.ASSIGNMENT,
+                                CompleteResultGuard.sentinelPage())).stream()
+                .map(ge.magti.portal.domain.Reminder::getRecipientUserId)
+                .collect(java.util.stream.Collectors.toSet());
+        assertEquals(java.util.Set.of(inside.getId(), inGroup.getId()), reminded);
+    }
+
+    /**
+     * PO-40 §4 (owner, 2026-10-02): a department added to an archived
+     * mandatory article gets its reading at once, out of force, and owes the
+     * article when it returns -- it used to get nothing, and a restore never
+     * added it (RoleFlowModelIntegrationTest).
+     */
+    @Test
+    void aDepartmentAddedWhileTheArticleIsArchivedOwesItWhenItReturns() throws Exception {
+        String first = department();
+        String added = department();
+        user(Role.OPERATOR, first);
+        User newcomer = user(Role.OPERATOR, added);
+        Article article = article(first);
+        User admin = admin();
+        assign(admin, article.getId(), first, TbilisiTime.now().plusDays(3)).andExpect(status().isOk());
+        article.setStatus("archived");
+        articleRepository.saveAndFlush(article);
+
+        mockMvc.perform(authed(post("/api/articles/bulk-retarget"), admin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(Map.of(
+                                "ids", List.of(article.getId()), "target_departments", List.of(first, added)))))
+                .andExpect(status().isOk());
+
+        RequiredReading kept = requiredReadingRepository.findByItemTypeAndItemId("article", article.getId()).stream()
+                .filter(r -> added.equals(r.getTargetDepartment())).findFirst().orElseThrow();
+        assertNull(kept.getAssignmentDeliveredAt(), "nothing goes out while nobody can open it");
+        assertFalse(myReadingIds(newcomer).contains(kept.getId()));
+
+        article.setStatus("published");
+        articleRepository.saveAndFlush(article);
+        reminderSweepService.runOnce();
+
+        assertTrue(myReadingIds(newcomer).contains(kept.getId()), "owed once the article is back");
+        assertEquals(1, assignmentsFor(kept.getId()), "and told so by the sweep");
+    }
+
     @Test
     void archivingSuspendsTheObligationAndPublishingAgainResumesIt() throws Exception {
         String department = department();
