@@ -64,6 +64,48 @@ class GlobalExceptionHandlerTest {
                 "internal detail must not reach the client");
     }
 
+    /** Attack and crash tests, 2026-10-02: what Oracle refuses, said as what it means. */
+    @Test
+    void aValueLongerThanItsColumnIs422NotAnUnexpectedError() {
+        ResponseEntity<Map<String, String>> response = handler.handleDatabaseRefusal(
+                new org.springframework.dao.DataIntegrityViolationException("could not execute statement",
+                        new java.sql.SQLException("ORA-12899: value too large for column \"MAGTI\".\"TAGS\".\"NAME\" (actual: 150, maximum: 100)")),
+                request());
+
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, response.getStatusCode());
+        assertNull(response.getBody().get("correlation_id"));
+    }
+
+    /**
+     * A rollback on a connection the database has already closed: Hibernate
+     * reports "Connection is closed" and carries the ORA-03113 that explains
+     * it as a suppressed exception. Read as a 500 it looked like a fault;
+     * it is the database being away, and the browser should wait.
+     */
+    @Test
+    void aDeadConnectionFoundOnlyInASuppressedExceptionIs503() {
+        java.sql.SQLException closed = new java.sql.SQLException("Connection is closed");
+        closed.addSuppressed(new java.sql.SQLRecoverableException("ORA-03113: database connection closed by peer"));
+        ResponseEntity<Map<String, String>> response = handler.handleDatabaseRefusal(
+                new org.springframework.orm.jpa.JpaSystemException(
+                        new RuntimeException("Unable to rollback against JDBC Connection", closed)),
+                request());
+
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, response.getStatusCode());
+        assertEquals("service_unavailable", response.getBody().get("code"));
+        assertEquals("5", response.getHeaders().getFirst(HttpHeaders.RETRY_AFTER));
+    }
+
+    @Test
+    void anyOtherDatabaseFailureIsStillTheUnexpectedErrorWithACorrelationId() {
+        ResponseEntity<Map<String, String>> response = handler.handleDatabaseRefusal(
+                new org.springframework.dao.DataIntegrityViolationException("ORA-02292: integrity constraint violated"),
+                request());
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        assertNotNull(response.getBody().get("correlation_id"));
+    }
+
     @Test
     void correlationIdsAreDistinctPerRequest() {
         Set<String> ids = new HashSet<>();

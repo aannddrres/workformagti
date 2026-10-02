@@ -73,6 +73,7 @@
       />
 
       <select
+        [attr.aria-label]="'audit.category_filter_label' | translate"
         (change)="onCategoryChange($event)"
         class="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-normal text-slate-600 shadow-e1 focus:border-red-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
       >

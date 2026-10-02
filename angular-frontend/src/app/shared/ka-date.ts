@@ -93,3 +93,12 @@ function parse(value: string | null | undefined): Date | null {
 export function tbilisiEndOfDay(day: string): string {
   return `${day}T23:59:59+04:00`;
 }
+
+/**
+ * Today's calendar day in Tbilisi, as the deadline pickers' earliest choice:
+ * the server refuses a deadline in the past (owner, 2026-10-02). The same
+ * fixed +04:00 as above, so a machine set to another zone agrees with it.
+ */
+export function tbilisiToday(now = Date.now()): string {
+  return new Date(now + 4 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}

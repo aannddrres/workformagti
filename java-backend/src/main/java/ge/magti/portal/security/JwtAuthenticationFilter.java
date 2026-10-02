@@ -52,6 +52,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     public static final String SESSION_REQUEST_ATTRIBUTE = "portal.session_id";
 
     static final String ACCOUNT_DISABLED_DETAIL = "თქვენი ანგარიში გათიშულია. მიმართეთ ადმინისტრატორს.";
+    static final String UNAVAILABLE_DETAIL = "პორტალი დროებით მიუწვდომელია. სცადეთ რამდენიმე წამში.";
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(JwtAuthenticationFilter.class);
     private static final com.fasterxml.jackson.databind.ObjectMapper JSON =
             new com.fasterxml.jackson.databind.ObjectMapper();
 
@@ -84,6 +86,33 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(
             HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
+        boolean answered;
+        try {
+            answered = authenticateFromTokens(request, response);
+        } catch (org.springframework.dao.DataAccessException | org.springframework.transaction.TransactionException e) {
+            // The database is unreachable for a moment (failover, restart,
+            // a cut connection). Escaping from here, the exception went to
+            // Spring's /error page, which is unauthenticated and so answered
+            // 401 -- and on 401 the browser drops the session: one database
+            // blip signed out every operator at once (crash test,
+            // 2026-10-02). 503 says "try again" and keeps them signed in.
+            log.warn("Authentication skipped, database unavailable: {}", e.getMostSpecificCause().getMessage());
+            SecurityContextHolder.clearContext();
+            response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+            response.setHeader("Retry-After", "5");
+            response.setCharacterEncoding("UTF-8");
+            response.setContentType("application/json");
+            response.getWriter().write(JSON.writeValueAsString(
+                    java.util.Map.of("detail", UNAVAILABLE_DETAIL, "code", "service_unavailable")));
+            return;
+        }
+        if (!answered) {
+            filterChain.doFilter(request, response);
+        }
+    }
+
+    /** True when it answered the request itself (a deactivated account), so the chain must not run. */
+    private boolean authenticateFromTokens(HttpServletRequest request, HttpServletResponse response) throws IOException {
         for (String token : candidateTokens(request)) {
             Optional<Claims> claims = jwtService.parseAndValidate(token);
             if (claims.isEmpty() || claims.get().getSubject() == null) {
@@ -124,7 +153,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 response.setContentType("application/json");
                 response.getWriter().write(JSON.writeValueAsString(
                         java.util.Map.of("detail", ACCOUNT_DISABLED_DETAIL, "code", "account_disabled")));
-                return;
+                return true;
             }
             authenticate(user.get());
             if (sessionId != null) {
@@ -132,7 +161,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
             break;
         }
-        filterChain.doFilter(request, response);
+        return false;
     }
 
     private void authenticate(User user) {

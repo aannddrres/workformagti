@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatKaDate, formatKaDateTime, formatKaDateTimeSeconds, formatKaDayMonth, tbilisiEndOfDay } from './ka-date';
+import { formatKaDate, formatKaDateTime, formatKaDateTimeSeconds, formatKaDayMonth, tbilisiEndOfDay, tbilisiToday } from './ka-date';
 
 describe('formatKaDate', () => {
   it('names the month in Georgian and does not depend on Georgian ICU data', () => {
@@ -53,5 +53,13 @@ describe('tbilisiEndOfDay', () => {
   it('ends the picked day in Tbilisi rather than starting it in UTC', () => {
     expect(tbilisiEndOfDay('2026-10-05')).toBe('2026-10-05T23:59:59+04:00');
     expect(new Date(tbilisiEndOfDay('2026-10-05')).toISOString()).toBe('2026-10-05T19:59:59.000Z');
+  });
+});
+
+describe('tbilisiToday', () => {
+  it('turns over at midnight in Tbilisi, not in UTC or on the machine', () => {
+    // 20:30 UTC on 4 Oct is 00:30 on 5 Oct in Tbilisi.
+    expect(tbilisiToday(Date.UTC(2026, 9, 4, 20, 30))).toBe('2026-10-05');
+    expect(tbilisiToday(Date.UTC(2026, 9, 4, 19, 59))).toBe('2026-10-04');
   });
 });

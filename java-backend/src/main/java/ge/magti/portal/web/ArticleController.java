@@ -480,6 +480,10 @@ public class ArticleController {
             // trash either (audit 2026-10-01).
             return ResponseEntity.badRequest().body(Map.of("detail", ArticleRequest.STATUS_MESSAGE));
         }
+        if (body.get("content") instanceof String content && content.length() > ArticleRequest.MAX_CONTENT_CHARS) {
+            // The cap ArticleRequest puts on create and update; this map path had none.
+            return ResponseEntity.badRequest().body(Map.of("detail", ArticleRequest.CONTENT_TOO_LONG));
+        }
         List<String> previousTargetDepartments = resolveTargetDepartments(id);
         Map<String, Object> before = MutationAuditService.articleSnapshot(article, previousTargetDepartments);
 

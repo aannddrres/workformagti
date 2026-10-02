@@ -14,7 +14,7 @@ import { QuizBuilder } from '../../../shared/quiz-builder/quiz-builder';
 import { ToastService } from '../../../core/notifications/toast.service';
 import { PortalDialog } from '../../../shared/portal-dialog/portal-dialog';
 import { DateField } from '../../../shared/date-field/date-field';
-import { tbilisiEndOfDay } from '../../../shared/ka-date';
+import { tbilisiEndOfDay, tbilisiToday } from '../../../shared/ka-date';
 import { ConfirmService } from '../../../core/notifications/confirm.service';
 import { articleReach, lossLines, mandatoryLoss } from '../../../shared/mandatory-reach';
 
@@ -85,6 +85,8 @@ export class ArticleEditDrawer {
   protected readonly visibleServiceCenter = signal(false);
   protected readonly isMandatory = signal(false);
   protected readonly dueDate = signal('');
+  /** The earliest deadline the picker offers; the server refuses an earlier one. */
+  protected readonly today = tbilisiToday();
   /** The article was mandatory when opened: its obligation may be paused, not only created. */
   protected readonly wasMandatory = signal(false);
   /** Who the obligation binds now (PO-40), for the warning before a change takes it away; null if unknown. */

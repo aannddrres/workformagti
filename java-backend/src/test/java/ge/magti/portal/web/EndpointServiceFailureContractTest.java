@@ -275,7 +275,7 @@ class EndpointServiceFailureContractTest {
     void personalSearchAndQuizScoreQueryFailuresAreSanitized() throws Exception {
         User caller = user(22L, Role.OPERATOR, "All");
         SearchLogRepository logs = mock(SearchLogRepository.class);
-        when(logs.findByUserIdOrderByTimestampDesc(eq(22L), any()))
+        when(logs.findByUserIdOrderByTimestampDescIdDesc(eq(22L), any()))
                 .thenThrow(new IllegalStateException("private-search-marker"));
         SearchController search = new SearchController(mock(SearchQueryService.class),
                 mock(GlobalSearchCache.class), logs, mock(ArticleTargetQueryService.class),

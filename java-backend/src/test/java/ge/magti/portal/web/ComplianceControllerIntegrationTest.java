@@ -212,6 +212,48 @@ class ComplianceControllerIntegrationTest {
         assertEquals(auditBefore, auditLogRepository.countByActionNot("ACCESS_DENIED"));
     }
 
+    /**
+     * Owner, 2026-10-02: a deadline is never set in the past. One was taken
+     * as sent and every addressee was overdue the moment it was saved. A
+     * deadline already passed may stay as it is through an unrelated edit.
+     */
+    @Test
+    void aDeadlineInThePastIsRefusedWhenSetOrMovedButKeptWhenUnchanged() throws Exception {
+        User admin = createUser("comp-past-" + System.nanoTime() + "@magti.ge", Role.CONTENT_ADMIN, "All");
+        Article article = createArticle("წარსული ვადა", false);
+        String yesterday = TbilisiTime.now().minusDays(1).toString();
+        long readingsBefore = requiredReadingRepository.count();
+
+        mockMvc.perform(authed(post("/api/compliance/required-readings"), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requiredReadingJson("article", article.getId(), "All", yesterday)))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.startsWith("ვადა წარსულშია")));
+        assertEquals(readingsBefore, requiredReadingRepository.count());
+
+        // One that has run out since it was set: the editor re-sends it as it is.
+        OffsetDateTime expired = TbilisiTime.now().minusDays(3).withNano(0);
+        RequiredReading reading = createReading("article", article.getId(), "All", expired);
+        mockMvc.perform(authed(put("/api/compliance/required-readings/" + reading.getId()), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requiredReadingJson("article", article.getId(), "All", expired.toString())))
+                .andExpect(status().isOk());
+
+        // Moved -- to another day that has also gone -- is a new choice, and refused.
+        mockMvc.perform(authed(put("/api/compliance/required-readings/" + reading.getId()), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requiredReadingJson("article", article.getId(), "All", yesterday)))
+                .andExpect(status().isUnprocessableEntity());
+        assertTrue(requiredReadingRepository.findById(reading.getId()).orElseThrow().getDueDate().isEqual(expired));
+
+        // Today, to its last second, is not the past.
+        String endOfToday = TbilisiTime.now().toLocalDate() + "T23:59:59+04:00";
+        mockMvc.perform(authed(put("/api/compliance/required-readings/" + reading.getId()), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requiredReadingJson("article", article.getId(), "All", endOfToday)))
+                .andExpect(status().isOk());
+    }
+
     @Test
     void adminRequiredReadingCrudLifecycleAndByItem() throws Exception {
         User admin = createUser("comp-admin1@magti.ge", Role.CONTENT_ADMIN, "All");

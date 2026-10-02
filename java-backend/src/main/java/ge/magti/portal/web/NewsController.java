@@ -331,6 +331,10 @@ public class NewsController {
         if (NewsVisibility.isPrivateDraftOfAnother(news, user)) {
             return notFound();
         }
+        if (body.get("content") instanceof String content && content.length() > ArticleRequest.MAX_CONTENT_CHARS) {
+            // The cap NewsRequest puts on create and update; this map path had none.
+            return ResponseEntity.badRequest().body(Map.of("detail", ArticleRequest.CONTENT_TOO_LONG));
+        }
         Map<String, Object> before = MutationAuditService.newsSnapshot(news);
 
         // routers/news.py:229-230 -- self-heals a null author_id (e.g. a

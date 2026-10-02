@@ -126,8 +126,14 @@ export class RichTextEditor implements AfterViewInit, OnDestroy {
     };
     for (const [className, label] of Object.entries(controlLabels)) {
       toolbar?.querySelectorAll<HTMLElement>(`.${className}`).forEach((control) => {
+        // Quill's dropdown is a <span class="ql-picker ql-header"> with no
+        // role, so a name on it is prohibited ARIA and its button -- the
+        // .ql-picker-label inside -- was left nameless (axe, 2026-10-02).
+        const target = control.classList.contains('ql-picker')
+          ? control.querySelector<HTMLElement>('.ql-picker-label')
+          : control;
         const value = control.getAttribute('value');
-        control.setAttribute('aria-label', value ? `${label}: ${value}` : label);
+        target?.setAttribute('aria-label', value ? `${label}: ${value}` : label);
       });
     }
     const tooltip = (quill.container as HTMLElement).querySelector<HTMLElement>('.ql-tooltip');

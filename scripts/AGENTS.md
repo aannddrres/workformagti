@@ -11,7 +11,7 @@ What follows is only what those headers do not say.
 
 | | |
 |---|---|
-| Git Bash only | `run-local.sh`, `verify-like-ci.sh`, `seed-demo-content.sh`, `load/fetch_tokens.sh` |
+| Git Bash only | `run-local.sh`, `verify-like-ci.sh`, `seed-demo-content.sh`, `load/fetch_tokens.sh`, `visual-diff.sh` |
 | Native PowerShell | `link-skills.ps1` |
 
 `seed-demo-content.sh` is POSIX `sh`, not bash, because it also runs inside

@@ -47,7 +47,7 @@
       </div>
     </div>
     <div class="portal-tabs mt-4" role="tablist" aria-label="კონტენტის ტიპი">
-      <button type="button" role="tab" [attr.aria-selected]="activeTab() === 'all'" (click)="switchTab('all')" class="portal-tab">ყველა @if (!queueLoading() && !queueFailed()) { <span class="text-xs font-normal opacity-70">{{ articles().length + news().length + videos().length }}</span> }</button>
+      <button type="button" role="tab" [attr.aria-selected]="activeTab() === 'all'" (click)="switchTab('all')" class="portal-tab">ყველა @if (!queueLoading() && !queueFailed()) { <span class="text-xs font-normal">{{ articles().length + news().length + videos().length }}</span> }</button>
       <button type="button" role="tab" [attr.aria-selected]="activeTab() === 'article'" (click)="switchTab('article')" class="portal-tab">სტატიები</button>
       <button type="button" role="tab" [attr.aria-selected]="activeTab() === 'news'" (click)="switchTab('news')" class="portal-tab">სიახლეები</button>
       <button type="button" role="tab" [attr.aria-selected]="activeTab() === 'video'" (click)="switchTab('video')" class="portal-tab">ვიდეოები</button>

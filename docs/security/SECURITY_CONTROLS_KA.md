@@ -301,7 +301,7 @@ HIGH/CRITICAL ვადას არღვევს.
 |---|---|---|---|---|---|
 | nginx | ყოველი მოთხოვნა: `request_id`, მეთოდი, გზა, სტატუსი, `request_time`, `upstream_time`. query string და header-ები არ იწერება | `log_format audit_timing`, key=value | stdout → კლასტერის ლოგები → SIEM | IT/SOC | SIEM-ის პოლიტიკით (IT №10) |
 | Spring (აპლიკაცია) | შეცდომა correlation id-ით; `SIGN_IN_FAILED`, `SIGN_IN_THROTTLED` (მისამართი — hash-ით), `ACCESS_DENIED` (user, მეთოდი, გზა); გაშვების/უსაფრთხოების guard-ები | ერთ ხაზზე: დრო ±offset-ით, დონე, `requestId`, thread, logger, შეტყობინება. ახალი ხაზის სიმბოლოები ჩანაცვლებულია (log injection) | stdout → SIEM | IT/SOC | IT №10 |
-| აუდიტის ჟურნალი | ყოველი ჩაწერა, ფაილზე წვდომა და უარი, ექსპორტი, აუდიტის ნახვა, შესვლა | `audit_logs`, SHA-256 ჯაჭვი | Oracle | მხოლოდ `SYSTEM_ADMIN` (UI და ექსპორტი) | 1 წელი, შემდეგ IT-ის არქივი (PO-10) |
+| აუდიტის ჟურნალი | ყოველი ჩაწერა, ფაილზე წვდომა და უარი, ექსპორტი, აუდიტის ნახვა, შესვლა (2026-10-02, PO-48: სტატიაში ჩასმული სურათის წარმატებული ნახვა აღარ იწერება — დოკუმენტის ჩამოტვირთვა და ყოველი უარი კვლავ იწერება) | `audit_logs`, SHA-256 ჯაჭვი | Oracle | მხოლოდ `SYSTEM_ADMIN` (UI და ექსპორტი) | 1 წელი, შემდეგ IT-ის არქივი (PO-10) |
 | მეტრიკა | მოთხოვნების რაოდენობა და ხანგრძლივობა (Micrometer) | Prometheus | `/actuator/prometheus` | IT (scrape) | Prometheus-ის პოლიტიკით |
 
 **რა არასოდეს იწერება ლოგში:** პაროლი, token, cookie, `Authorization`

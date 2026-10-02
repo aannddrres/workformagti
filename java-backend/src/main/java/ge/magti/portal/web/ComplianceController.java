@@ -314,6 +314,9 @@ public class ComplianceController {
         if (refusal != null) {
             return refusal;
         }
+        if (isPast(request.dueDate())) {
+            return pastDeadline();
+        }
         return ResponseEntity.ok(RequiredReadingResponse.from(saveReading(request, user)));
     }
 
@@ -503,6 +506,13 @@ public class ComplianceController {
         if (refusal != null) {
             return refusal;
         }
+        // Only a deadline being moved: an editor fixing a typo in material
+        // whose deadline has already passed re-sends that deadline unchanged.
+        boolean deadlineMoved = request.dueDate() != null
+                && (reading.getDueDate() == null || !request.dueDate().isEqual(reading.getDueDate()));
+        if (deadlineMoved && isPast(request.dueDate())) {
+            return pastDeadline();
+        }
 
         reading.setTargetDepartment(request.targetDepartmentOrDefault());
         reading.setDueDate(normalizeDueDate(request.dueDate()));
@@ -554,6 +564,24 @@ public class ComplianceController {
      * same treatment will apply to any other (e.g. Articles' scheduled
      * published_at, not retrofitted here).
      */
+    /**
+     * Owner, 2026-10-02: a deadline is never set in the past. One was taken
+     * as sent -- yesterday, a year ago, the year 1 -- and every addressee was
+     * overdue the moment it was saved, with the manager's numbers to match
+     * (date tests). An audience extension keeps the obligation's existing
+     * deadline (ArticleController#extendMandatoryToAudience), which this
+     * does not touch.
+     */
+    private static boolean isPast(OffsetDateTime dueDate) {
+        return dueDate != null && dueDate.isBefore(TbilisiTime.now());
+    }
+
+    private static ResponseEntity<Map<String, String>> pastDeadline() {
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(Map.of(
+                "detail", "ვადა წარსულშია. აირჩიეთ დღევანდელი ან მომავალი თარიღი -- "
+                        + "წარსული ვადით ყველა ადრესატი მაშინვე ვადაგადაცილებული გახდებოდა."));
+    }
+
     private static OffsetDateTime normalizeDueDate(OffsetDateTime dueDate) {
         return dueDate == null ? null : dueDate.withOffsetSameInstant(TbilisiTime.OFFSET);
     }

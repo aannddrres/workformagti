@@ -103,6 +103,85 @@ public class GlobalExceptionHandler {
                         + "გთხოვთ, გადატვირთოთ გვერდი და ცვლილება თავიდან შეიტანოთ."));
     }
 
+    /**
+     * What Oracle refuses, said as what it means (attack and crash tests,
+     * 2026-10-02). Every one of these was "unexpected error":
+     *
+     * <ul>
+     *   <li>a value longer than its column (ORA-12899, or ORA-01461 past
+     *       4000 bytes) -- a tag name, a phone number, a quiz answer: 422;
+     *   <li>content the sanitiser emptied -- only a script or an iframe,
+     *       stored as NULL into a NOT NULL column (ORA-01400): 422;
+     *   <li>no database at all -- a failover, a cut connection: 503, so the
+     *       browser waits instead of reporting a fault.
+     * </ul>
+     *
+     * The request records carry their own limits with field-by-field
+     * messages; this is the net under the paths they do not cover (the
+     * autosave maps, tag names, quiz text). Anything else is still the
+     * unexpected error below, with its correlation id.
+     */
+    @ExceptionHandler({org.springframework.dao.DataAccessException.class,
+            org.springframework.transaction.TransactionException.class})
+    public ResponseEntity<Map<String, String>> handleDatabaseRefusal(Exception exception, HttpServletRequest request) {
+        String oracle = oracleMessages(exception);
+        if (oracle.contains("ORA-12899") || oracle.contains("ORA-01461")) {
+            logger.info("Value too long for its column on {} {}", request.getMethod(), request.getRequestURI());
+            return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(Map.of(
+                    "detail", "ერთ-ერთი ველი დასაშვებ სიგრძეს აჭარბებს. შეამოკლეთ და სცადეთ ხელახლა."));
+        }
+        if (oracle.contains("ORA-01400") && oracle.contains(".\"CONTENT\")")) {
+            return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(Map.of(
+                    "detail", "ტექსტი ცარიელია. თუ მასში მხოლოდ სკრიპტი, iframe ან მსგავსი ელემენტი იყო, "
+                            + "პორტალმა ის უსაფრთხოების მიზნით წაშალა."));
+        }
+        if (exception instanceof org.springframework.dao.DataAccessResourceFailureException
+                || exception instanceof org.springframework.transaction.CannotCreateTransactionException
+                || hasCause(exception, java.sql.SQLRecoverableException.class)
+                || hasCause(exception, java.sql.SQLTransientConnectionException.class)
+                || oracle.contains("ORA-03113") || oracle.contains("ORA-03114")
+                || oracle.contains("Connection is closed")) {
+            logger.warn("Database unavailable on {} {}: {}", request.getMethod(), request.getRequestURI(),
+                    exception.getMessage());
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .header(HttpHeaders.RETRY_AFTER, "5")
+                    .body(Map.of("detail", "პორტალი დროებით მიუწვდომელია. სცადეთ რამდენიმე წამში.",
+                            "code", "service_unavailable"));
+        }
+        return handleUnexpected(exception, request);
+    }
+
+    /**
+     * The exception, its causes and what each one suppressed. When a rollback
+     * fails on a dead connection, Hibernate reports "Connection is closed"
+     * and the ORA-03113 that explains it travels as a suppressed exception,
+     * not as a cause (second crash test, 2026-10-02).
+     */
+    private static List<Throwable> chain(Throwable exception) {
+        List<Throwable> all = new java.util.ArrayList<>();
+        java.util.Deque<Throwable> pending = new java.util.ArrayDeque<>(List.of(exception));
+        while (!pending.isEmpty() && all.size() < 50) {
+            Throwable t = pending.pop();
+            if (all.stream().anyMatch(seen -> seen == t)) continue;
+            all.add(t);
+            if (t.getCause() != null) pending.push(t.getCause());
+            for (Throwable suppressed : t.getSuppressed()) pending.push(suppressed);
+        }
+        return all;
+    }
+
+    private static String oracleMessages(Throwable exception) {
+        StringBuilder all = new StringBuilder();
+        for (Throwable t : chain(exception)) {
+            all.append(t.getMessage()).append('\n');
+        }
+        return all.toString();
+    }
+
+    private static boolean hasCause(Throwable exception, Class<? extends Throwable> type) {
+        return chain(exception).stream().anyMatch(type::isInstance);
+    }
+
     /** Malformed or Bean-Validation-rejected request bodies are client errors. */
     @ExceptionHandler({MethodArgumentNotValidException.class, HttpMessageNotReadableException.class})
     public ResponseEntity<Map<String, String>> handleInvalidRequestBody(Exception exception) {

@@ -75,10 +75,9 @@ test.describe('operator browsing', () => {
     await page.goto('/news');
     await expect(page.getByRole('heading', { name: 'სიახლეები' })).toBeVisible();
 
-    // Narrowed by the star each row carries, not by role alone: a bare role
-    // match would start counting other clickable rows the day anything puts
-    // one on this page.
-    const rows = page.locator('div[role="button"]:has(app-favorite-star)');
+    // Narrowed by the star each row carries: a bare element match would start
+    // counting other cards the day anything puts one on this page.
+    const rows = page.locator('article:has(app-favorite-star)');
     const techRow = rows.filter({ hasText: techTitle });
     const infoRow = rows.filter({ hasText: infoTitle });
 
@@ -102,9 +101,7 @@ test.describe('operator browsing', () => {
     await expect(infoRow).toHaveCount(1);
 
     // --- department --------------------------------------------------------
-    // Two selects on this page and no labels, so they are told apart by their
-    // options rather than by position.
-    const deptSelect = page.locator('select').filter({ hasText: 'ყველა დეპარტამენტი' });
+    const deptSelect = page.getByLabel('დეპარტამენტის ფილტრი');
     await deptSelect.selectOption('ტექნიკური');
     await expect(techRow).toHaveCount(1);
     await expect(infoRow).toHaveCount(0);
@@ -120,9 +117,9 @@ test.describe('operator browsing', () => {
     // Asserted as an ORDER, not as "the control accepted a value": alphabetical
     // has one correct answer and newest-first has another, so the two titles
     // swapping places is the only thing that proves the sort ran.
-    const sortSelect = page.locator('select').filter({ hasText: 'ანბანით (ა-ჰ)' });
+    const sortSelect = page.getByLabel('დალაგება');
     const titlesOf = async () =>
-      (await page.locator('div[role="button"] h4').allInnerTexts()).filter((t) =>
+      (await page.locator('article h4').allInnerTexts()).filter((t) =>
         t.includes(id)
       );
 

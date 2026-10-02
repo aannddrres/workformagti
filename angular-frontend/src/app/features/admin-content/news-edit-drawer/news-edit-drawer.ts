@@ -9,7 +9,7 @@ import { DEPARTMENTS } from '../../../shared/user-roles';
 import { ToastService } from '../../../core/notifications/toast.service';
 import { PortalDialog } from '../../../shared/portal-dialog/portal-dialog';
 import { DateField } from '../../../shared/date-field/date-field';
-import { tbilisiEndOfDay } from '../../../shared/ka-date';
+import { tbilisiEndOfDay, tbilisiToday } from '../../../shared/ka-date';
 import { ConfirmService } from '../../../core/notifications/confirm.service';
 
 /**
@@ -52,6 +52,8 @@ export class NewsEditDrawer {
   protected readonly visibleServiceCenter = signal(false);
   protected readonly isMandatory = signal(false);
   protected readonly dueDate = signal('');
+  /** The earliest deadline the picker offers; the server refuses an earlier one. */
+  protected readonly today = tbilisiToday();
 
   protected readonly uploading = signal(false);
   protected readonly saving = signal(false);

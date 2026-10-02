@@ -138,6 +138,7 @@
                       class="w-44"
                       inputId="article-due-date"
                       [value]="dueDate()"
+                      [min]="today"
                       (valueChange)="dueDate.set($event)"
                       [invalid]="dueDateError()"
                       [describedBy]="dueDateError() ? 'due-date-error' : null"

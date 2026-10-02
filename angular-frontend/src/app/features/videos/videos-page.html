@@ -32,12 +32,12 @@
   } @else {
     <div class="mb-10 grid grid-cols-1 gap-6 md:grid-cols-3">
       @for (video of filtered(); track video.id) {
-        <div
+        <!-- A mouse target only; the title is the control (see news-page:
+             a role="button" around the star's button was a control inside a
+             control, axe nested-interactive). -->
+        <article
           (click)="open(video.id)"
-          (keydown.enter)="open(video.id)"
-          tabindex="0"
-          role="button"
-          class="video-card group cursor-pointer overflow-hidden rounded-lg border border-slate-100 bg-white shadow-e1 transition hover:border-slate-200 hover:shadow-e2 focus:outline-none focus:ring-2 focus:ring-brand-accent dark:border-slate-800 dark:bg-slate-900"
+          class="video-card group cursor-pointer overflow-hidden rounded-lg border border-slate-100 bg-white shadow-e1 transition hover:border-slate-200 hover:shadow-e2 focus-within:ring-2 focus-within:ring-brand-accent dark:border-slate-800 dark:bg-slate-900"
         >
           <div class="relative flex aspect-video w-full items-center justify-center bg-[#1a1a2e]">
             @if (thumbnailFor(video); as thumb) {
@@ -56,9 +56,15 @@
             </div>
           </div>
           <div class="p-4">
-            <h4 class="font-bold text-slate-800 dark:text-slate-100">{{ video.title }}</h4>
+            <h4 class="font-bold text-slate-800 dark:text-slate-100">
+              <button
+                type="button"
+                (click)="$event.stopPropagation(); open(video.id)"
+                class="rounded-sm text-left focus-visible:outline-none"
+              >{{ video.title }}</button>
+            </h4>
           </div>
-        </div>
+        </article>
       }
     </div>
   }

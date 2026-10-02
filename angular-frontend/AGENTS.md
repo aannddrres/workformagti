@@ -71,6 +71,15 @@ next change to that screen breaks one file rather than six.
 
 ## Checking it in a browser
 
+Two checks look at every screen for you, in both themes, against a running
+stack. `e2e/accessibility.spec.ts` runs axe-core's WCAG 2.1 AA rules on every
+screen and the three content drawers, and is part of the normal E2E suite: a
+new unlabelled control or a low-contrast text fails it. `scripts/visual-diff.sh
+[ref]` photographs every screen in your build and in the build at `ref`
+(default `HEAD`), both against the same backend, and fails on any pixel that
+differs -- run it after a change that was not meant to alter what anything
+looks like. Neither keeps baseline images in git.
+
 For anything visible, look at the running app rather than reading the source.
 Two recurring false alarms: a fix that "did not take" is usually the dev
 server not having pushed a fresh bundle to the tab (confirm with

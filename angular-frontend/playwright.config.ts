@@ -16,7 +16,9 @@ const reportDirectory = process.env.PLAYWRIGHT_REPORT_DIR ?? 'playwright-report'
  */
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: ['nginx-upload.spec.ts', 'nginx-headers.spec.ts'], // shipping-image gate (verify-nginx-smoke.sh), never ng serve
+  // nginx-*: the shipping-image gate (verify-nginx-smoke.sh), never ng serve.
+  // visual-compare: two builds side by side, run by scripts/visual-diff.sh.
+  testIgnore: ['nginx-upload.spec.ts', 'nginx-headers.spec.ts', 'visual-compare.spec.ts'],
   // Logs the shared personas in once for the whole run. Without it every
   // spec that needs admin@magti.ge spends one of that account's ten logins
   // per minute (LoginRateLimiter.java:70) and the suite starts failing on

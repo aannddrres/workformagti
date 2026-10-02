@@ -143,12 +143,30 @@ class UploadControllerIntegrationTest {
         mockMvc.perform(get(url))
                 .andExpect(status().isUnauthorized());
 
-        byte[] served = mockMvc.perform(get(url).header("Authorization", "Bearer " + tokenFor(admin)))
+        var first = mockMvc.perform(get(url).header("Authorization", "Bearer " + tokenFor(admin)))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Type", "image/png"))
-                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(header().string("Cache-Control", "no-cache, private"))
+                .andReturn().getResponse();
+        assertArrayEquals(PNG_BYTES, first.getContentAsByteArray());
+
+        // Owner, 2026-10-02: the browser keeps the picture but asks every
+        // time. The second view is still authorised; only the bytes are not
+        // sent again. A picture is not audited (PO-48) -- see the PDF below.
+        String etag = first.getHeader("ETag");
+        assertTrue(etag != null && etag.startsWith("\""), "an ETag to revalidate with: " + etag);
+        long accessesBefore = auditLogRepository.findAll().stream().filter(a -> "FILE_ACCESS".equals(a.getAction())).count();
+        byte[] revalidated = mockMvc.perform(get(url).header("Authorization", "Bearer " + tokenFor(admin))
+                        .header("If-None-Match", etag))
+                .andExpect(status().isNotModified())
+                .andExpect(header().string("ETag", etag))
                 .andReturn().getResponse().getContentAsByteArray();
-        assertArrayEquals(PNG_BYTES, served);
+        assertEquals(0, revalidated.length);
+        assertEquals(accessesBefore,
+                auditLogRepository.findAll().stream().filter(a -> "FILE_ACCESS".equals(a.getAction())).count(),
+                "a picture shown inside an article is not an audit row of its own (PO-48)");
+        mockMvc.perform(get(url).header("If-None-Match", etag))
+                .andExpect(status().isUnauthorized());
         assertTrue(storedFileRepository.findById(filename).isPresent(), "the upload must be a stored_files row");
 
         var uploadAudit = auditLogRepository.findAll().stream()
@@ -159,12 +177,23 @@ class UploadControllerIntegrationTest {
         assertEquals("image/png", uploadDetails.at("/after/content_type").asText());
         assertEquals(PNG_BYTES.length, uploadDetails.at("/after/byte_size").asInt());
 
+        assertTrue(auditLogRepository.findAll().stream()
+                        .noneMatch(a -> admin.getId().equals(a.getAdminId()) && "FILE_ACCESS".equals(a.getAction())),
+                "viewing a picture writes no FILE_ACCESS row (PO-48)");
+
+        // A document is fetched on purpose, and that is still on the record.
+        MockMultipartFile pdf = new MockMultipartFile(
+                "file", "guide.pdf", "application/pdf", "%PDF-1.4\n%%EOF".getBytes(StandardCharsets.US_ASCII));
+        String pdfName = objectMapper.readTree(mockMvc.perform(authed(multipart("/api/upload").file(pdf), tokenFor(admin)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).get("filename").asText();
+        mockMvc.perform(get("/uploads/" + pdfName).header("Authorization", "Bearer " + tokenFor(admin)))
+                .andExpect(status().isOk());
         var accessAudit = auditLogRepository.findAll().stream()
                 .filter(a -> admin.getId().equals(a.getAdminId()) && "FILE_ACCESS".equals(a.getAction()))
                 .findFirst().orElseThrow();
         var accessDetails = objectMapper.readTree(accessAudit.getDetails());
         assertEquals("SUCCESS", accessDetails.get("result").asText());
-        assertEquals(filename, accessDetails.at("/after/stored_filename").asText());
+        assertEquals(pdfName, accessDetails.at("/after/stored_filename").asText());
     }
 
     @Test

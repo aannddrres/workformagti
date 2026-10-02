@@ -3,6 +3,7 @@ package ge.magti.portal.web;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.time.OffsetDateTime;
 
@@ -40,10 +41,11 @@ import java.time.OffsetDateTime;
  * from the create path.
  */
 public record NewsRequest(
-        @NotBlank String title,
-        @NotNull String content,
-        @JsonProperty("target_department") String targetDepartment,
-        @JsonProperty("attachment_url") String attachmentUrl,
+        // Column limits; see ArticleRequest (attack tests, 2026-10-02).
+        @NotBlank @Size(max = 500, message = "სათაური 500 სიმბოლოზე გრძელი ვერ იქნება") String title,
+        @NotNull @Size(max = ArticleRequest.MAX_CONTENT_CHARS, message = ArticleRequest.CONTENT_TOO_LONG) String content,
+        @Size(max = 200, message = "დეპარტამენტი 200 სიმბოლოზე გრძელი ვერ იქნება") @JsonProperty("target_department") String targetDepartment,
+        @Size(max = 1000, message = "მიმაგრებული ფაილის ბმული 1000 სიმბოლოზე გრძელი ვერ იქნება") @JsonProperty("attachment_url") String attachmentUrl,
         @JsonProperty("visible_to_tech_info") Boolean visibleToTechInfo,
         @JsonProperty("visible_to_service_center") Boolean visibleToServiceCenter,
         @JsonProperty("expires_at") OffsetDateTime expiresAt,

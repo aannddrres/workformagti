@@ -138,7 +138,7 @@ public class SearchController {
             return denial;
         }
 
-        List<SearchLog> logs = searchLogRepository.findByUserIdOrderByTimestampDesc(
+        List<SearchLog> logs = searchLogRepository.findByUserIdOrderByTimestampDescIdDesc(
                 user.getId(), PageRequest.of(0, 50));
         List<Map<String, Object>> response = logs.stream()
                 .map(log -> {

@@ -267,11 +267,11 @@
           <p class="text-xs text-slate-600 dark:text-slate-400">სწრაფი მონიტორინგი; სრული სამუშაო პროცესი გაცნობის ადმინისტრირების გვერდზე გადავა.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-          <select (change)="onProgressDeptChange($event)" class="field-control">
+          <select (change)="onProgressDeptChange($event)" class="field-control" aria-label="დეპარტამენტის ფილტრი">
             <option value="">ყველა დეპარტამენტი</option>
             @for (dept of progressDepartments(); track dept) { <option [value]="dept">{{ departmentLabel(dept) }}</option> }
           </select>
-          <select (change)="onProgressSortChange($event)" class="field-control">
+          <select (change)="onProgressSortChange($event)" class="field-control" aria-label="დალაგება">
             <option value="perf_desc">შესრულება: მაღალი → დაბალი</option>
             <option value="perf_asc">შესრულება: დაბალი → მაღალი</option>
             <option value="name">სახელის მიხედვით</option>
@@ -284,7 +284,8 @@
       } @else if (progressError()) {
         <p class="p-8 text-center text-sm text-red-700 dark:text-red-300">მონაცემები ვერ ჩაიტვირთა.</p>
       } @else {
-        <div class="max-h-[430px] overflow-auto">
+        <!-- Focusable so the keyboard can scroll it: nothing inside takes focus. -->
+        <div class="max-h-[430px] overflow-auto" tabindex="0" role="region" aria-label="გაცნობის პროგრესის ცხრილი">
           <table class="w-full min-w-[720px] text-left text-sm">
             <thead class="sticky top-0 bg-slate-50 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
               <tr><th class="px-5 py-3">მომხმარებელი</th><th class="px-5 py-3">დეპარტამენტი</th><th class="px-5 py-3 text-right">წაკითხული</th><th class="px-5 py-3 text-right">სულ</th><th class="px-5 py-3 text-right">პროგრესი</th></tr>
