@@ -18,7 +18,11 @@ REVIEWED = json.loads((ROOT / "skills-reviewed.json").read_text(encoding="utf-8"
 
 
 def files_of(name):
-    return sorted(p for p in (SKILLS / name).rglob("*") if p.is_file())
+    # Sorted by the relative path string, not by Path: WindowsPath compares
+    # case-insensitively, so "references/" sorted before "SKILL.md" on Windows
+    # and after it on Linux, and the same files hashed differently in CI.
+    base = SKILLS / name
+    return [p for _, p in sorted((p.relative_to(base).as_posix(), p) for p in base.rglob("*") if p.is_file())]
 
 
 def digest(name):
