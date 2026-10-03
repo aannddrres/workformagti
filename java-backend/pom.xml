@@ -45,9 +45,13 @@
 			 Both carry CVE-2026-68497 (HIGH: CPU denial of service through
 			 unbounded numeric parsing), fixed in 2.21.6 and 3.1.6 and found by
 			 the same SBOM scan on 2026-09-29. Drop these once the Boot parent
-			 manages those versions or later. -->
-		<jackson-2-bom.version>2.21.6</jackson-2-bom.version>
-		<jackson-bom.version>3.1.6</jackson-bom.version>
+			 manages those versions or later.
+			 Raised to 2.21.7 and 3.1.7 on 2026-10-03: the scan of PR #38 found
+			 four more HIGH advisories in both lines, all fixed there —
+			 CVE-2026-89407 and CVE-2026-89425 (jackson-core), CVE-2026-91776
+			 and CVE-2026-91777 (jackson-databind). -->
+		<jackson-2-bom.version>2.21.7</jackson-2-bom.version>
+		<jackson-bom.version>3.1.7</jackson-bom.version>
 		<!-- Tests run in the zone the backend runs in. The image sets none, so
 			 it is UTC, and so is CI. A workstation in Tbilisi otherwise hides
 			 every bug that only a JVM not at +04:00 shows: V50's export lease

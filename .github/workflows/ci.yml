@@ -159,8 +159,11 @@ jobs:
       - name: Vulnerable shipped dependencies
         run: npm audit --omit=dev --audit-level=moderate
 
+      # The same audit, through a short dated list of advisories the owner
+      # accepted (2026-10-03: braces, unpatched, build-time only). Anything
+      # not on the list, or past its date, fails as plain npm audit did.
       - name: Advisories in build tooling
-        run: npm audit --audit-level=moderate
+        run: node scripts/audit-build-tooling.mjs
 
       # Before the build, because it needs no build and a missing key is
       # cheaper to report on its own than buried under bundle output.
