@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Findings SpotBugs/FindSecBugs reported on its first run (2026-10-03) that
+  were read at the source and judged harmless. Each entry says why. Apart
+  from the first two, every entry names one class and, where the tool gives
+  one, one method, so the same pattern anywhere else still fails
+  `spotbugs:check`. First run: 427 findings, none a defect.
+-->
+<FindBugsFilter>
+  <!-- Constructor injection stores the injected collaborator, and records
+       hand back the lists they were built with: how every Spring service and
+       DTO here is written, not a leaked internal array. 249 findings. -->
+  <Match>
+    <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+  </Match>
+
+  <!-- Raised on every handler taking @AuthenticationPrincipal User: the
+       signed-in caller, which the rule mistakes for request input. 149
+       findings. The real case (a @RequestBody that is a JPA entity) is
+       checked precisely by web/RequestBodyNotEntityTest. -->
+  <Match>
+    <Bug pattern="ENTITY_MASS_ASSIGNMENT"/>
+    <Package name="ge.magti.portal.web"/>
+  </Match>
+
+  <!-- SQL assembled by concatenation, but only from constants: an
+       ItemType enum's table name, fixed WHERE fragments, the
+       canonicalCall() hash expression. Every value a caller sends is a
+       `?` bind parameter. -->
+  <Match>
+    <Bug pattern="SQL_INJECTION_SPRING_JDBC,SQL_INJECTION_JDBC"/>
+    <Or>
+      <Class name="ge.magti.portal.audit.AuditChainService"/>
+      <Class name="ge.magti.portal.audit.AuditLogQueryService"/>
+      <Class name="ge.magti.portal.content.ContentLifecycleService"/>
+      <Class name="ge.magti.portal.export.AdminExportQueryService"/>
+    </Or>
+  </Match>
+
+  <!-- The audit chain's row hashes are public digests, not secrets; a
+       timing difference in comparing them reveals nothing. -->
+  <Match>
+    <Bug pattern="UNSAFE_HASH_EQUALS"/>
+    <Class name="ge.magti.portal.audit.AuditChainService"/>
+  </Match>
+
+  <!-- The filter writes a fixed JSON body (a constant message and code),
+       serialized by Jackson, with Content-Type application/json. -->
+  <Match>
+    <Bug pattern="XSS_SERVLET"/>
+    <Class name="ge.magti.portal.security.JwtAuthenticationFilter"/>
+  </Match>
+
+  <!-- The logged filename has already matched FileStorageService's
+       SAFE_FILENAME ([A-Za-z0-9._-]) and named a stored file, so it cannot
+       carry a line break into the log. -->
+  <Match>
+    <Bug pattern="CRLF_INJECTION_LOGS"/>
+    <Or>
+      <Class name="ge.magti.portal.storage.FileReferenceIndex"/>
+      <Class name="ge.magti.portal.web.UploadedFileController"/>
+    </Or>
+  </Match>
+
+  <!-- COUNT(*) never returns NULL, so unboxing queryForObject is safe. -->
+  <Match>
+    <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+    <Or>
+      <And>
+        <Class name="ge.magti.portal.audit.AuditChainService"/>
+        <Method name="fullCheckBatch"/>
+      </And>
+      <And>
+        <Class name="ge.magti.portal.audit.AuditLogQueryService"/>
+        <Method name="list"/>
+      </And>
+    </Or>
+  </Match>
+
+  <!-- A legacy export path read successfully is a file, so getFileName()
+       is not null; MultipartFile.getContentType() is read twice but the
+       second read is the same immutable value already null-checked. -->
+  <Match>
+    <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+    <Or>
+      <And>
+        <Class name="ge.magti.portal.web.ExportController"/>
+        <Method name="downloadExport"/>
+      </And>
+      <And>
+        <Class name="ge.magti.portal.web.UploadController"/>
+        <Method name="uploadFile"/>
+      </And>
+    </Or>
+  </Match>
+
+  <!-- Throwing from the constructor is the point: a bad JWT_ALGORITHM or a
+       short key must stop the application starting. Spring builds the bean;
+       there is no subclass for a finalizer attack to come through. -->
+  <Match>
+    <Bug pattern="CT_CONSTRUCTOR_THROW"/>
+    <Class name="ge.magti.portal.security.JwtService"/>
+  </Match>
+
+  <!-- JdbcTemplate closes the PreparedStatement its creator returns,
+       including on the exception edge the rule is worried about. -->
+  <Match>
+    <Bug pattern="OBL_UNSATISFIED_OBLIGATION_EXCEPTION_EDGE"/>
+    <Class name="ge.magti.portal.audit.AuditLogQueryService"/>
+  </Match>
+
+  <!-- "\n" inside a SQL text block passed to String.formatted, not output
+       for a console; %n would be wrong there. -->
+  <Match>
+    <Bug pattern="VA_FORMAT_STRING_USES_NEWLINE"/>
+    <Class name="ge.magti.portal.audit.AuditChainService"/>
+    <Method name="chainHealth"/>
+  </Match>
+
+  <!-- At most two concatenations per image tag; a StringBuilder would not
+       be measurable. -->
+  <Match>
+    <Bug pattern="SBSC_USE_STRINGBUFFER_CONCATENATION"/>
+    <Class name="ge.magti.portal.diff.HtmlDiffer"/>
+    <Method name="blockText"/>
+  </Match>
+</FindBugsFilter>

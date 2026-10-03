@@ -71,6 +71,8 @@ if [ "$MODE" = "all" ] || [ "$MODE" = "fast" ]; then
 
   step "java-unit (DB-free)"
   (cd java-backend && ./mvnw -B test -DexcludedGroups=oracle)
+  step "java static analysis (SpotBugs + FindSecBugs)"
+  (cd java-backend && ./mvnw -B -DskipTests compile spotbugs:spotbugs spotbugs:check)
 
   step "frontend (i18n guard, lint, production build, unit tests)"
   (cd angular-frontend && npm ci >/dev/null)

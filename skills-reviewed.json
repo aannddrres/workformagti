@@ -1,0 +1,35 @@
+{
+  "about": "The five third-party skills under .agents/skills, as last read by someone. skills-lock.json says where each came from; this file pins what was actually read. tests/test_vendored_skills.py fails when a skill's files change, gain a non-Markdown file, or appear/disappear without this file changing in the same commit. To accept an update: read the diff (git diff -- .agents/skills/<name>), then replace sha256/files here and the reviewed date. OWASP Agentic Skills Top 10 (2026-08-17): AST02 supply chain, AST07 update drift.",
+  "skills": {
+    "angular-developer": {
+      "files": 40,
+      "sha256": "fe37fc90ebddb0353b067604d824f60cfa115f08da930b31bceea0d55425567b",
+      "reviewed": "2026-10-03",
+      "note": "Markdown only. No commands that fetch or run remote code."
+    },
+    "db": {
+      "files": 163,
+      "sha256": "76665bf24838e14bab30cf30e6cf4ecf28c6c29a622a2e33c77c942b517716ee",
+      "reviewed": "2026-10-03",
+      "note": "Markdown only. One local edit since install: 3af21d6 replaced a sample JWT in ords/ords-authentication.md with NOT_A_REAL_ACCESS_TOKEN so the secret scanner stops flagging it. 'Proceed without asking' appears only for read-only steps (EXPLAIN PLAN, schema introspection)."
+    },
+    "debugging-wizard": {
+      "files": 6,
+      "sha256": "c0ecf8814c00649bdc40e1ff48ee229e90c956507f0dd63df9cb5ae614004b29",
+      "reviewed": "2026-10-03",
+      "note": "Markdown only."
+    },
+    "java-architect": {
+      "files": 6,
+      "sha256": "7e9d21f0703517262d4e73813b8fbdbbf5a59239c61b43bc8cdf549fbe31458e",
+      "reviewed": "2026-10-03",
+      "note": "Markdown only. Written for Spring Boot 3.x; this project is on 4.1, so treat its version-specific advice as a starting point."
+    },
+    "test-master": {
+      "files": 11,
+      "sha256": "58a7b641e303b5147f888ac07f905c60abe19331d9f6e7d2bd2c4ce0e15f6466",
+      "reviewed": "2026-10-03",
+      "note": "Markdown only."
+    }
+  }
+}
