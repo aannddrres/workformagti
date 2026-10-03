@@ -315,7 +315,7 @@ jobs:
       - name: Upload surefire reports
         if: failure()
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: surefire-reports-oracle
           path: java-backend/target/surefire-reports/
@@ -592,7 +592,7 @@ jobs:
       - name: Upload Playwright report
         if: failure()
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: |
@@ -693,7 +693,7 @@ jobs:
       # and every run keeping its copy for 90 days used September's up early.
       - name: Upload SBOMs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sbom-cyclonedx
           path: |
