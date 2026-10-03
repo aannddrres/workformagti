@@ -19,6 +19,14 @@ handlers and inline script bodies: `nginx.conf.template` serves
 `script-src 'self'`, so re-enabling `optimization.styles.inlineCritical`
 would break it silently.
 
+Test files run isolated (`"isolate": true` in `angular.json`, since
+2026-10-04). The builder's default is `false`, under which spec files sharing
+a worker share `window`, `localStorage` and every listener left behind. The
+idle-session spec "does not let stray activity extend a session" then failed
+in 2 of 7 CI runs and in none of about twenty local ones. Isolation costs
+about 20 s locally (16 s → 35 s). If that spec fails again, its assertion
+message prints the shared-activity values that say why.
+
 Playwright specs in `e2e/` need a stack already running — the config starts
 nothing. `global-setup.ts` logs the personas in once so the
 ten-logins-per-minute limiter does not trip the suite.

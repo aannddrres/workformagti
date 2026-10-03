@@ -91,9 +91,15 @@ describe('IdleSessionService', () => {
     // a page repainting under the cursor. If those counted as activity, the
     // session of whoever walked away would never end.
     window.dispatchEvent(new Event('pointerdown'));
+    const sharedAfterStray = localStorage.getItem(SHARED_ACTIVITY_KEY);
     vi.advanceTimersByTime(60 * 1000);
 
-    expect(logout).toHaveBeenCalled();
+    // Failed intermittently in CI only (2 of 7 runs, 2026-10-03), never
+    // locally. If it fails again, this says which way: a newer shared
+    // activity than start() wrote means another instance answered the
+    // event; a closed warning with no shared change means something else.
+    expect(logout, `shared after stray=${sharedAfterStray}, shared now=${localStorage.getItem(SHARED_ACTIVITY_KEY)}, `
+      + `warning=${service.warningOpen()}, now=${Date.now()}`).toHaveBeenCalled();
   });
 
   it('lets a deliberate answer to the warning keep the session, which is its purpose', () => {
