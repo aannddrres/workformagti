@@ -124,6 +124,12 @@ jobs:
       - name: Run DB-free tests
         run: mvn -B test -DexcludedGroups=oracle
 
+      # SpotBugs + FindSecBugs over the compiled classes. Fails on any
+      # finding not listed, with its reason, in spotbugs-exclude.xml.
+      # spotbugs:check alone only re-reads the last report, so both goals.
+      - name: Static analysis (SpotBugs + FindSecBugs)
+        run: mvn -B -DskipTests compile spotbugs:spotbugs spotbugs:check
+
   # The Angular app is the other half of what actually ships, and CI never
   # compiled it either (audit PR-01). It could not simply be added: `ng build`
   # and `ng test` refuse to run below Node v22.22.3, and the dev container is

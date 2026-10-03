@@ -29,6 +29,20 @@ is edited. Report in `target/pit-reports/index.html`:
 which only the Oracle tests reach — slow, and it needs the `ORACLE_DB_*`
 variables.
 
+Static analysis (SpotBugs with the FindSecBugs rules, added 2026-10-03)
+reads the compiled classes. CI's `java-unit` job runs it after the tests:
+
+```bash
+./mvnw -B -DskipTests compile spotbugs:spotbugs spotbugs:check
+```
+
+Both goals: `spotbugs:check` alone re-reads the previous report. It fails on
+any finding not in `spotbugs-exclude.xml`. Every entry there was read at the
+source and says why it is harmless. The first run's 427 findings held no
+defect. A new finding is a question to answer at the code, not an entry to
+add. Keep the file's comments free of `--`: SpotBugs drops a filter it cannot
+parse with only a warning, and then fails on everything.
+
 `web/RoleFlowModelIntegrationTest` runs random sequences of editor and
 operator actions and checks every screen against a small model of the
 product decisions after each one. Raise its reach with
@@ -49,6 +63,7 @@ to extend rather than replace.
 |---|---|
 | `security/AccessContractCoverageTest` | An endpoint has no row in `docs/ACCESS_CONTRACT_MATRIX_KA.md`, a row has no endpoint, or a gate changed without the document changing with it |
 | `web/EndpointPrincipalCoverageTest` | A handler does not take `@AuthenticationPrincipal User`. Three endpoints are deliberately public and allowlisted |
+| `web/RequestBodyNotEntityTest` | A handler binds a `@RequestBody` straight onto a JPA entity (mass assignment). It is why `spotbugs-exclude.xml` can drop FindSecBugs' ENTITY_MASS_ASSIGNMENT, which fires on every `@AuthenticationPrincipal User` |
 | `web/EndpointGuardCoverageTest` | A handler's call closure, followed through private helpers via ASM, contains no `require*` guard |
 | `domain/PermissionEnforcementCoverageTest` | A `Permission` catalog entry is consulted by nothing. SEC-06 was three permissions rendered as admin switches that gated nothing |
 | `web/ResponseShapeContractTest` | A response record carrying employee identity gained or renamed a field. SEC-03 was a right gate with the wrong payload shape |
