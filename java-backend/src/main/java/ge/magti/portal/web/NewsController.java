@@ -338,7 +338,7 @@ public class NewsController {
             news.setAuthorId(user.getId());
         }
 
-        // exclude_unset semantics, same reasoning as ArticleController's
+        // exclude_unset semantics, same reasoning as ArticleEditController's
         // autosaveArticle: only fields actually present in this partial
         // payload are touched.
         if (body.containsKey("title")) {

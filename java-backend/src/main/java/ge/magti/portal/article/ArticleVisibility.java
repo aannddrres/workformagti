@@ -39,7 +39,7 @@ public final class ArticleVisibility {
         // not show up as a wrong list -- ArticleQueryService's SQL carries
         // the same rule, so every list was correct -- but as a weaker answer
         // everywhere this class is asked instead of that query. That is ten
-        // endpoints in ArticleController, through assertArticleVisible and
+        // endpoints in the article controllers, through assertArticleVisible and
         // requireVisibleArticle, plus /uploads/{filename} via FileAccessPolicy
         // (DEC-P01, enforcing in production). The one that mattered is
         // GET /api/articles/{id}: another author's private draft, if its
@@ -84,7 +84,7 @@ public final class ArticleVisibility {
      *
      * <p>Extracted so that the three backend places that need this exact
      * question share one answer. It had been written out three times: here,
-     * in {@code ArticleController#isReaderVisible} (which guards autosave),
+     * in {@code ArticleEditController#isReaderVisible} (which guards autosave),
      * and implicitly in {@code ArticleQueryService}'s JPQL. The SQL copy has
      * to stay -- the database cannot call this -- but it sits beside the
      * fixture that pins both, and the other two now do not.

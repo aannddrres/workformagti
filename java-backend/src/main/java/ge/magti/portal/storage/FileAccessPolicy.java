@@ -35,8 +35,8 @@ import java.util.Optional;
  * and losing access to one should not cost you the other.
  *
  * <p>Visibility of the referencing item is delegated, never re-implemented:
- * {@link ArticleVisibility} is the same predicate {@code ArticleController}
- * uses, so a file cannot outlive its article's audience by disagreeing with
+ * {@link ArticleVisibility} is the same predicate the article controllers
+ * use, so a file cannot outlive its article's audience by disagreeing with
  * it about what "visible" means.
  */
 @Service

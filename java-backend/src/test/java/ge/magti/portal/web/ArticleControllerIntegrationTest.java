@@ -2404,7 +2404,7 @@ class ArticleControllerIntegrationTest {
         mockMvc.perform(authed(put("/api/articles/" + articleId), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON).content(body.formatted("B-ს ვერსია")))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.detail").value(ArticleController.STALE_ARTICLE_EDIT_DETAIL));
+                .andExpect(jsonPath("$.detail").value(ArticleEditController.STALE_ARTICLE_EDIT_DETAIL));
         entityManager.clear();
         assertEquals("A-ს ვერსია", articleRepository.findById(articleId).orElseThrow().getContent());
     }

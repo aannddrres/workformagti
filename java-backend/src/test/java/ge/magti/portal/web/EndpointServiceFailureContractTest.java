@@ -18,7 +18,6 @@ import ge.magti.portal.export.ExportQueryService;
 import ge.magti.portal.export.ExportTooLargeException;
 import ge.magti.portal.repository.ArticleRepository;
 import ge.magti.portal.repository.ArticleHistoryRepository;
-import ge.magti.portal.repository.ArticleReadReceiptRepository;
 import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
 import ge.magti.portal.repository.ArticleViewLogRepository;
 import ge.magti.portal.repository.AuditLogRepository;
@@ -33,7 +32,6 @@ import ge.magti.portal.repository.ReminderRepository;
 import ge.magti.portal.repository.RequiredReadingRepository;
 import ge.magti.portal.repository.SearchLogRepository;
 import ge.magti.portal.repository.UserRepository;
-import ge.magti.portal.repository.UserNoteRepository;
 import ge.magti.portal.repository.QuizQuestionRepository;
 import ge.magti.portal.repository.QuizAnswerRepository;
 import ge.magti.portal.repository.QuizAttemptRepository;
@@ -45,8 +43,6 @@ import ge.magti.portal.search.SearchQueryService;
 import ge.magti.portal.search.GlobalSearchCache;
 import ge.magti.portal.article.ArticleQueryService;
 import ge.magti.portal.article.ArticleTargetQueryService;
-import ge.magti.portal.article.ArticleViewQueryService;
-import ge.magti.portal.article.EligibleOperatorsService;
 import ge.magti.portal.news.NewsQueryService;
 import ge.magti.portal.org.OrgDirectoryQueryService;
 import ge.magti.portal.org.OrgBackfillPlan;
@@ -78,6 +74,7 @@ import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.method.support.ModelAndViewContainer;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -219,23 +216,28 @@ class EndpointServiceFailureContractTest {
         when(articles.findById(99L)).thenThrow(new IllegalStateException("private-article-marker"));
         when(views.findTop30ByOperatorIdOrderByViewedAtDesc(20L))
                 .thenThrow(new IllegalStateException("private-article-marker"));
-        ArticleController controller = new ArticleController(articles,
-                mock(ArticleTargetDepartmentRepository.class), mock(ArticleTargetQueryService.class),
-                history, mock(ArticleReadReceiptRepository.class), views,
-                mock(CategoryRepository.class), mock(UserNoteRepository.class),
-                mock(UserRepository.class), mock(RequiredReadingRepository.class),
-                mock(ReadStatusRepository.class), mock(ReadingAcknowledgementService.class),
-                mock(QuizGateChecker.class), new PermissionChecker(), mock(ge.magti.portal.security.ScopeResolver.class),
-                mock(TagSyncService.class), mock(ArticleQueryService.class),
-                mock(ArticleViewQueryService.class), mock(EligibleOperatorsService.class),
-                mock(SearchReindexService.class), mock(ContentLifecycleService.class),
+        // The four routes live in three of the controllers ArticleController
+        // was split into; they share one ArticleEndpointSupport, as in the app.
+        ArticleTargetQueryService targets = mock(ArticleTargetQueryService.class);
+        PermissionChecker permissions = new PermissionChecker();
+        ArticleEndpointSupport support = new ArticleEndpointSupport(
+                mock(ArticleTargetDepartmentRepository.class), targets, permissions);
+        ArticleController reading = new ArticleController(articles, targets, views,
+                mock(CategoryRepository.class), mock(ArticleQueryService.class), support);
+        ArticleHistoryController historyRoutes = new ArticleHistoryController(articles, history,
+                mock(UserRepository.class), permissions, mock(SearchReindexService.class),
                 mock(ArticleHtmlSanitizer.class), mock(MutationAuditService.class),
-                mock(FileReferenceIndex.class), mock(ComplianceController.class));
-        MockMvc adminMvc = mvc(controller, user(19L, Role.SYSTEM_ADMIN, "All"));
-        MockMvc operatorMvc = mvc(controller, user(20L, Role.OPERATOR, "All"));
+                mock(FileReferenceIndex.class), support);
+        ArticleVerificationController verification = new ArticleVerificationController(
+                articles, permissions, mock(MutationAuditService.class), support);
+        User admin = user(19L, Role.SYSTEM_ADMIN, "All");
+        Map<String, MockMvc> adminMvcByRoute = Map.of(
+                "/api/admin/articles/stale", mvc(verification, admin),
+                "/api/articles/99/history-summary", mvc(historyRoutes, admin));
+        MockMvc operatorMvc = mvc(reading, user(20L, Role.OPERATOR, "All"));
 
         for (String route : List.of("/api/admin/articles/stale", "/api/articles/99/history-summary")) {
-            String body = adminMvc.perform(get(route))
+            String body = adminMvcByRoute.get(route).perform(get(route))
                     .andExpect(status().isInternalServerError())
                     .andExpect(jsonPath("$.correlation_id").isNotEmpty())
                     .andReturn().getResponse().getContentAsString();

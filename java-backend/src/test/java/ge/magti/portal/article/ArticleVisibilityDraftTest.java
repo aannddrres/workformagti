@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * <ul>
  *   <li><b>{@code GET /api/articles/{id}}</b>, through
- *       {@code ArticleController#assertArticleVisible}. An article carrying
+ *       {@code ArticleEndpointSupport#assertArticleVisible}. An article carrying
  *       {@code is_draft = true} together with {@code status = 'published'} was
  *       hidden from every list and returned <b>in full</b> by id, to anyone in
  *       its target departments. This is the one that matters, and it was

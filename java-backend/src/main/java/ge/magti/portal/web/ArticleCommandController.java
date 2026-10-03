@@ -23,13 +23,13 @@ import java.util.Optional;
 /** Atomic boundary for the content editor. */
 @RestController
 public class ArticleCommandController {
-    private final ArticleController articles;
+    private final ArticleEditController articles;
     private final ComplianceController compliance;
     private final QuizController quizzes;
     private final RequiredReadingRepository requiredReadings;
 
     public ArticleCommandController(
-            ArticleController articles, ComplianceController compliance, QuizController quizzes,
+            ArticleEditController articles, ComplianceController compliance, QuizController quizzes,
             RequiredReadingRepository requiredReadings) {
         this.articles = articles;
         this.compliance = compliance;

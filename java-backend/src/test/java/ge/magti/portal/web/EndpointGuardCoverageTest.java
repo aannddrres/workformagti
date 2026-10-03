@@ -237,8 +237,8 @@ class EndpointGuardCoverageTest {
      * <p>Delegation to a <b>sibling controller</b> counts, and has to. The
      * three {@code *CommandController}s exist to make "create the article and
      * assign it as required reading" one transaction; each one hands the
-     * article half straight to {@code ArticleController#createArticle}, which
-     * is where {@code requireArticlesEditPermission} lives. Read one class at
+     * article half straight to {@code ArticleEditController#createArticle}, which
+     * calls {@code requireArticlesEditPermission}. Read one class at
      * a time, all six of those handlers look ungoverned, and adding them to
      * NO_GUARD_BY_DESIGN would have been a lie -- they are guarded, one call
      * away, by a method this same test verifies.

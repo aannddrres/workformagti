@@ -569,7 +569,7 @@ public class ComplianceController {
      * as sent -- yesterday, a year ago, the year 1 -- and every addressee was
      * overdue the moment it was saved, with the manager's numbers to match
      * (date tests). An audience extension keeps the obligation's existing
-     * deadline (ArticleController#extendMandatoryToAudience), which this
+     * deadline (ArticleLifecycleController#extendMandatoryToAudience), which this
      * does not touch.
      */
     private static boolean isPast(OffsetDateTime dueDate) {
