@@ -239,11 +239,14 @@ public class ReminderService {
         return reminder;
     }
 
-    private static String contentFor(ReminderType type, String title, OffsetDateTime dueAt) {
+    static String contentFor(ReminderType type, String title, OffsetDateTime dueAt) {
         String due = dueAt.withOffsetSameInstant(TbilisiTime.OFFSET).format(DUE_FORMAT);
         return switch (type) {
             case ASSIGNMENT -> "დაგემატათ სავალდებულო მასალა: „" + title + "“. ვადა: " + due + ".";
-            case DUE_SOON -> "სავალდებულო მასალის „" + title + "“ ვადა 24 საათში იწურება.";
+            // PO-58: the deadline itself, not "in 24 hours" -- the sweep sends
+            // this anywhere inside the last day, so the old text was right
+            // only by accident (QA round 5).
+            case DUE_SOON -> "სავალდებულო მასალის „" + title + "“ ვადა იწურება " + due + "-ზე.";
             case OVERDUE -> "სავალდებულო მასალა „" + title + "“ ვადაგადაცილებულია.";
             case MANUAL -> throw new IllegalArgumentException("Manual reminder has its own fixed template");
         };

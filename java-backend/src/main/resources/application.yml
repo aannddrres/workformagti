@@ -43,6 +43,21 @@ spring:
       # code path responsible before the pool is exhausted. Off by default in
       # Hikari, which means a leak is invisible until it is an outage.
       leak-detection-threshold: ${DB_LEAK_DETECTION_MS:60000}
+  # PO-53 (owner, 2026-10-03). Nothing bounded how long a statement could
+  # wait inside Oracle -- on a row lock, on the audit chain's lock (V28), on
+  # a slow plan -- and each waiting request held one of the 30 connections.
+  # QA round 5 (scripts/qa/check_db_hang.py) held one row for 60 s: the pool
+  # filled and every page in the portal answered 503 for the whole minute.
+  # With these, a stuck statement is cancelled after 30 s and its request
+  # answers "try again" (GlobalExceptionHandler), while the rest of the
+  # portal keeps its connections. The transaction limit covers JPA and every
+  # repository call; the JdbcTemplate one covers queries outside a
+  # transaction. Flyway does not use either, so a long migration is unaffected.
+  transaction:
+    default-timeout: ${DB_TRANSACTION_TIMEOUT:30s}
+  jdbc:
+    template:
+      query-timeout: ${DB_QUERY_TIMEOUT:30s}
   jpa:
     # Schema shape is owned by Flyway (db/migration/*.sql), not Hibernate --
     # validate only checks the entities match what Flyway already created,

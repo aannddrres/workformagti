@@ -48,6 +48,10 @@
         <p class="mt-4 text-sm font-semibold text-red-700 dark:text-red-400">
           {{ 'readings.quiz.wrong_feedback' | translate: { count: wrongQuestionIds().size } }}
         </p>
+      } @else if (feedback() === 'cooldown') {
+        <p role="status" class="mt-4 text-sm font-semibold text-amber-800 dark:text-amber-300">
+          {{ 'readings.quiz.cooldown' | translate: { minutes: cooldownMinutes() } }}
+        </p>
       } @else if (feedback() === 'error') {
         <p class="mt-4 text-sm font-semibold text-red-700 dark:text-red-400">{{ 'readings.quiz.submit_failed' | translate }}</p>
       }

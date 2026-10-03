@@ -10,6 +10,7 @@ import { GlobalSearch } from '../shared/global-search/global-search';
 import { UserProfileService } from '../core/auth/user-profile.service';
 import { FontScaleService } from '../core/accessibility/font-scale.service';
 import { IdleSessionService } from '../core/auth/idle-session.service';
+import { clearDraftsFor } from '../features/admin-content/article-edit-drawer/article-draft-store';
 import { LoginPage } from '../core/auth/login-page';
 import { PortalDialog } from '../shared/portal-dialog/portal-dialog';
 import { nameInitials } from '../shared/name-initials';
@@ -273,6 +274,11 @@ export class AppShell implements OnDestroy {
   }
 
   logout(): void {
+    // Signing out on purpose takes this person's unsaved article drafts with
+    // it; the idle and 8-hour endings do not (IdleSessionService), so PO-50
+    // still rescues the text a timeout would have lost.
+    const email = this.auth.currentUser()?.email;
+    if (email) clearDraftsFor(email);
     this.auth.logout().subscribe(() => this.loginPage.open());
   }
 }

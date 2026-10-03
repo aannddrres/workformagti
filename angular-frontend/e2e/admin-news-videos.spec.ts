@@ -71,7 +71,8 @@ test.describe('admin content: news and videos', () => {
     await expect(dueDate).toHaveCount(0);
     await drawer.locator('input[type="checkbox"]').first().check();
     await expect(dueDate).toBeVisible();
-    await dueDate.fill('10.03.2030');
+    // Next year: PO-58 refuses a deadline more than two years away.
+    await dueDate.fill(`10.03.${new Date().getFullYear() + 1}`);
     await dueDate.press('Enter');
 
     await drawer.getByRole('button', { name: 'შენახვა' }).click();

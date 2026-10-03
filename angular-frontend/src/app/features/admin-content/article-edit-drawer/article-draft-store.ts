@@ -58,3 +58,24 @@ export function clearDraft(key: string): void {
     // Nothing to clear if storage is unavailable.
   }
 }
+
+/**
+ * Every draft this person kept, gone: called when they sign out on purpose
+ * (owner, 2026-10-03, after QA round 5's ASVS review). A session that ends by
+ * itself -- 30 idle minutes, the 8-hour limit -- keeps them, because that is
+ * the case PO-50 exists for; choosing to sign out is choosing to leave the
+ * desk, and on a shared workstation the next person should find nothing.
+ */
+export function clearDraftsFor(email: string): void {
+  try {
+    const prefix = `${PREFIX}${email.trim().toLowerCase()}:`;
+    const doomed: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(prefix)) doomed.push(key);
+    }
+    doomed.forEach((key) => localStorage.removeItem(key));
+  } catch {
+    // No storage, nothing kept.
+  }
+}

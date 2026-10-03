@@ -282,8 +282,25 @@ public class QuizController {
                     .body(Map.of("detail", "ამ სტატიას კვიზის კითხვები არ აქვს"));
         }
 
-        QuizGradeResult grade = QuizGrader.grade(questions, payload.answersOrEmpty());
+        // Locks the submitter first, so the cooldown below cannot be raced.
         int attemptNumber = quizAttemptRepository.nextAttemptNumber(id, article.getVersion(), user.getId());
+        long wait = ge.magti.portal.quiz.QuizCooldown.secondsToWait(
+                quizAttemptRepository.findTop3ByArticleIdAndArticleVersionAndUserIdOrderByCreatedAtDescIdDesc(
+                        id, article.getVersion(), user.getId()),
+                TbilisiTime.now());
+        if (wait > 0) {
+            // PO-55: three failures in a row, then ten minutes. Nothing is
+            // recorded for a refused attempt.
+            long minutes = (wait + 59) / 60;
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .header(org.springframework.http.HttpHeaders.RETRY_AFTER, Long.toString(wait))
+                    .body(Map.of(
+                            "detail", "სამი წარუმატებელი ცდის შემდეგ შემდეგი ცდა შესაძლებელია "
+                                    + minutes + " წუთში. მანამდე თავიდან გადაიკითხეთ სტატია.",
+                            "code", "quiz_cooldown",
+                            "retry_after_seconds", Long.toString(wait)));
+        }
+        QuizGradeResult grade = QuizGrader.grade(questions, payload.answersOrEmpty());
 
         QuizAttempt attempt = new QuizAttempt();
         attempt.setArticleId(id);

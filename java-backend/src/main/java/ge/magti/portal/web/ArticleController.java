@@ -128,6 +128,29 @@ public class ArticleController {
         this.departmentTargets = departmentTargets;
     }
 
+    /**
+     * One transaction per article in a bulk operation (PO-53). Every audited
+     * write takes the audit chain's single lock (V28) until it commits, so a
+     * bulk change of 100 articles in one transaction held every sign-in and
+     * confirmation in the company for its whole length -- 4 s in QA round 5,
+     * and a pool-draining outage for anything longer. REQUIRED, not
+     * REQUIRES_NEW: inside a caller's transaction (the rolled-back model
+     * tests) the work joins it instead of committing around it. Optional for
+     * the same reason as departmentTargets.
+     */
+    private org.springframework.transaction.support.TransactionTemplate perArticle;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setTransactionManager(org.springframework.transaction.PlatformTransactionManager transactionManager) {
+        this.perArticle = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+    }
+
+    private boolean inItsOwnTransaction(java.util.function.Supplier<Boolean> work) {
+        return perArticle == null ? work.get() : Boolean.TRUE.equals(perArticle.execute(status -> work.get()));
+    }
+
+    private static final org.slf4j.Logger bulkLog = org.slf4j.LoggerFactory.getLogger(ArticleController.class);
+
     /** A 422 naming any audience department that reaches nobody (simulation, 2026-10-01). */
     private ResponseEntity<Map<String, String>> unknownDepartments(java.util.Collection<String> targets) {
         return departmentTargets == null ? null : departmentTargets.refusal(targets);
@@ -669,7 +692,9 @@ public class ArticleController {
 
         List<String> targetDepartments = resolveTargetDepartments(id);
         Map<String, Object> before = MutationAuditService.articleSnapshot(article, targetDepartments);
-        article.setStatus("published");
+        // PO-54: back to where it was archived from, not "published" -- an
+        // archived draft or next week's article must not go live here.
+        article.setStatus(article.statusAfterArchive(TbilisiTime.now()));
         article.setUpdatedAt(TbilisiTime.now());
         Article saved = articleRepository.saveAndFlush(article);
         contentMutationAuditService.recordSuccess(
@@ -685,15 +710,16 @@ public class ArticleController {
      * eventually audit differently, and the audit trail is the point.
      */
     @PostMapping("/api/articles/bulk-archive")
-    @Transactional
     public ResponseEntity<?> bulkArchiveArticles(
             @Valid @RequestBody ArticleBulkArchiveRequest request, @AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireArticlesArchivePermission(user);
         if (denial != null) {
             return denial;
         }
+        // "published" stays the wire answer for an unarchive; each article
+        // itself goes back to where it was archived from (PO-54).
         String target = request.archive() ? "archived" : "published";
-        BulkStatusOutcome outcome = applyBulkStatus(request.ids(), target, user);
+        BulkStatusOutcome outcome = applyBulkStatus(request.ids(), request.archive() ? "archived" : RESTORE, user);
         return ResponseEntity.ok(
                 new ArticleBulkArchiveResponse(outcome.updated(), target, outcome.skipped()));
     }
@@ -712,7 +738,6 @@ public class ArticleController {
      * attaches to that question.
      */
     @PostMapping("/api/articles/bulk-status")
-    @Transactional
     public ResponseEntity<?> bulkSetArticleStatus(
             @Valid @RequestBody ArticleBulkStatusRequest request, @AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireArticlesArchivePermission(user);
@@ -732,7 +757,6 @@ public class ArticleController {
      * can make content reach people it was never written for.
      */
     @PostMapping("/api/articles/bulk-retarget")
-    @Transactional
     public ResponseEntity<?> bulkRetargetArticles(
             @Valid @RequestBody ArticleBulkRetargetRequest request, @AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireArticlesEditPermission(user);
@@ -770,27 +794,32 @@ public class ArticleController {
         }
 
         int updated = 0;
-        for (Article article : rows) {
-            List<String> before = resolveTargetDepartments(article.getId());
-            Map<String, Object> snapshot = MutationAuditService.articleSnapshot(article, before);
+        for (Article listed : rows) {
+            boolean done = applyToOne(listed.getId(), skipped, article -> {
+                List<String> before = resolveTargetDepartments(article.getId());
+                Map<String, Object> snapshot = MutationAuditService.articleSnapshot(article, before);
 
-            if (request.categoryId() != null) {
-                article.setCategoryId(request.categoryId());
+                if (request.categoryId() != null) {
+                    article.setCategoryId(request.categoryId());
+                }
+                article.setUpdatedAt(TbilisiTime.now());
+                Article saved = articleRepository.saveAndFlush(article);
+
+                List<String> after = before;
+                if (request.targetDepartments() != null) {
+                    after = request.targetDepartments().stream().distinct().toList();
+                    replaceTargetDepartments(saved.getId(), after);
+                    extendMandatoryToAudience(saved.getId(), after, user);
+                }
+
+                contentMutationAuditService.recordSuccess(
+                        user, "UPDATE", "article", saved.getId(), saved.getTitle(),
+                        snapshot, MutationAuditService.articleSnapshot(saved, after));
+                return true;
+            });
+            if (done) {
+                updated++;
             }
-            article.setUpdatedAt(TbilisiTime.now());
-            Article saved = articleRepository.saveAndFlush(article);
-
-            List<String> after = before;
-            if (request.targetDepartments() != null) {
-                after = request.targetDepartments().stream().distinct().toList();
-                replaceTargetDepartments(saved.getId(), after);
-                extendMandatoryToAudience(saved.getId(), after, user);
-            }
-
-            contentMutationAuditService.recordSuccess(
-                    user, "UPDATE", "article", saved.getId(), saved.getTitle(),
-                    snapshot, MutationAuditService.articleSnapshot(saved, after));
-            updated++;
         }
 
         return ResponseEntity.ok(new ArticleBulkResponse(updated, skipped));
@@ -860,37 +889,69 @@ public class ArticleController {
 
         String action = switch (target) {
             case "archived" -> "ARCHIVE";
-            case "published" -> "UNARCHIVE";
+            case "published", RESTORE -> "UNARCHIVE";
             default -> "UPDATE";
         };
 
         int updated = 0;
-        for (Article article : rows) {
-            if (target.equals(article.getStatus())) {
-                skipped.add(article.getId());
-                continue;
-            }
-            List<String> targetDepartments = resolveTargetDepartments(article.getId());
-            Map<String, Object> before = MutationAuditService.articleSnapshot(article, targetDepartments);
+        for (Article listed : rows) {
+            boolean done = applyToOne(listed.getId(), skipped, article -> {
+                if (RESTORE.equals(target) ? !"archived".equals(article.getStatus())
+                        : target.equals(article.getStatus())) {
+                    return false;
+                }
+                List<String> targetDepartments = resolveTargetDepartments(article.getId());
+                Map<String, Object> before = MutationAuditService.articleSnapshot(article, targetDepartments);
 
-            article.setStatus(target);
-            // is_draft is the personal-autosave flag, and GET /api/articles
-            // hides a row with it set from everyone but its author. Publishing
-            // or archiving an article that still carried it would leave it
-            // invisible to the very people the status change was for.
-            article.setDraft(false);
-            if ("published".equals(target) && article.getPublishedAt() == null) {
-                article.setPublishedAt(TbilisiTime.now());
-            }
-            article.setUpdatedAt(TbilisiTime.now());
-            Article saved = articleRepository.saveAndFlush(article);
+                // PO-54: an unarchive goes back to the archived-from state.
+                String next = RESTORE.equals(target) ? article.statusAfterArchive(TbilisiTime.now()) : target;
+                article.setStatus(next);
+                // is_draft is the personal-autosave flag, and GET /api/articles
+                // hides a row with it set from everyone but its author. Publishing
+                // or archiving an article that still carried it would leave it
+                // invisible to the very people the status change was for.
+                article.setDraft(false);
+                if ("published".equals(next) && article.getPublishedAt() == null) {
+                    article.setPublishedAt(TbilisiTime.now());
+                }
+                article.setUpdatedAt(TbilisiTime.now());
+                Article saved = articleRepository.saveAndFlush(article);
 
-            contentMutationAuditService.recordSuccess(
-                    user, action, "article", saved.getId(), saved.getTitle(), before,
-                    MutationAuditService.articleSnapshot(saved, targetDepartments));
-            updated++;
+                contentMutationAuditService.recordSuccess(
+                        user, action, "article", saved.getId(), saved.getTitle(), before,
+                        MutationAuditService.articleSnapshot(saved, targetDepartments));
+                return true;
+            });
+            if (done) {
+                updated++;
+            }
         }
         return new BulkStatusOutcome(updated, skipped);
+    }
+
+    /** applyBulkStatus's target for "take it out of the archive", whatever it was before (PO-54). */
+    private static final String RESTORE = "restore-from-archive";
+
+    /**
+     * One article of a bulk operation, in its own transaction (PO-53), read
+     * afresh inside it. False -- and the id reported as skipped -- when the
+     * work declines it or fails; a failure no longer undoes the articles
+     * already done (owner, 2026-10-03: a partly finished bulk is acceptable,
+     * holding everyone's audit writes for its whole length is not).
+     */
+    private boolean applyToOne(Long id, List<Long> skipped,
+                               java.util.function.Function<Article, Boolean> work) {
+        boolean done;
+        try {
+            done = inItsOwnTransaction(() -> articleRepository.findById(id).map(work).orElse(false));
+        } catch (RuntimeException e) {
+            bulkLog.warn("Bulk operation skipped article {} after {}", id, e.getClass().getSimpleName());
+            done = false;
+        }
+        if (!done) {
+            skipped.add(id);
+        }
+        return done;
     }
 
     @GetMapping("/api/articles/{id}/note")

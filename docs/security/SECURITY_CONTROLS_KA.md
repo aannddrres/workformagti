@@ -89,6 +89,8 @@ endpoint-ების წვდომას — [`ACCESS_CONTRACT_MATRIX_KA.md`]
 | ექსპორტის ფაილის სიცოცხლე | job | 1 საათი (PO-10) | `export/ExportJobWorker.java` |
 | ექსპორტის worker-ები | მთელი აპლიკაცია | 2–4 thread, რიგი 20 | `config/ExportExecutorConfig.java` |
 | DB კავშირები | ერთი pod | ≤ 30 (`DB_POOL_MAX_SIZE`) | `application.yml` |
+| ბაზაში ლოდინი | ერთი მოთხოვნა | ≤ 30 წამი (`DB_TRANSACTION_TIMEOUT`, `DB_QUERY_TIMEOUT`); აუდიტის რიგი ≤ 5 წამი (V54), PO-53 | `application.yml`, `V54__audit_chain_lock_wait.sql` |
+| ქვიზის ცდები | ერთი ადამიანი, ერთი ქვიზი | 3 წარუმატებლის შემდეგ 10 წუთი, PO-55 | `quiz/QuizCooldown.java` |
 
 შესვლის მთვლელი Oracle-ში ინახება (`login_attempts`, V48). ამიტომ
 replica-ების რაოდენობა ლიმიტს არ ამრავლებს. ბაზა თუ მიუწვდომელია, შესვლა

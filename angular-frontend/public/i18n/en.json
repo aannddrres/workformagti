@@ -60,6 +60,7 @@
       "error_generic": "Sign-in failed",
       "error_missing": "Enter your email and password",
       "reason_session_expired": "Your session ended after a long time without activity. Please sign in again.",
+      "reason_session_ended": "Your session has ended. Please sign in again.",
       "reason_account_disabled": "Your account has been disabled. If this is a mistake, contact an administrator."
     }
   },
@@ -406,6 +407,7 @@
       "close": "Close",
       "load_failed": "Could not load the quiz",
       "submit": "Finish",
+      "cooldown": "After three failed attempts the next one is possible in {{minutes}} minute(s). Re-read the article meanwhile.",
       "submit_failed": "Error checking the quiz",
       "wrong_feedback": "You answered {{count}} question(s) incorrectly -- try again"
     },

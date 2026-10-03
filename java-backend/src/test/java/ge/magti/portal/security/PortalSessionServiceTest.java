@@ -103,4 +103,53 @@ class PortalSessionServiceTest {
         assertTrue(created.getExpiresAt().isEqual(created.getCreatedAt().plusMinutes(480)));
         assertFalse(created.getId().isBlank());
     }
+
+    // -- QA round 5: what PIT showed no test would notice (2026-10-03) ----------
+
+    @Test
+    void aNewSessionRecordsWhoAndFromWhereAndStartsAsSeenNow() {
+        when(repository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        ge.magti.portal.domain.User user = new ge.magti.portal.domain.User();
+        user.setId(USER);
+
+        PortalSession created = service.create(user, "10.0.0.1", "test-agent");
+
+        org.junit.jupiter.api.Assertions.assertEquals(USER, created.getUserId());
+        org.junit.jupiter.api.Assertions.assertEquals("10.0.0.1", created.getClientIp());
+        org.junit.jupiter.api.Assertions.assertEquals("test-agent", created.getUserAgent());
+        assertTrue(created.getLastSeenAt().isEqual(created.getCreatedAt()));
+    }
+
+    @Test
+    void touchingMovesLastSeenToNowSoTheIdleClockRestarts() {
+        OffsetDateTime now = TbilisiTime.now();
+        PortalSession older = stored(now.minusMinutes(2), now.plusHours(1));
+
+        assertTrue(service.validateAndTouch("session-1", USER));
+
+        assertTrue(older.getLastSeenAt().isAfter(now.minusSeconds(5)),
+                "last_seen_at must move to now, or the 30 minutes would keep counting from sign-in");
+    }
+
+    @Test
+    void aMissingOrBlankSessionIdIsRefusedWithoutALookup() {
+        assertFalse(service.validateAndTouch(null, USER));
+        assertFalse(service.validateAndTouch("  ", USER));
+        verify(repository, never()).findById(any());
+    }
+
+    @Test
+    void revokingEndsOnlyYourOwnLiveSession() {
+        OffsetDateTime now = TbilisiTime.now();
+        PortalSession mine = stored(now.minusSeconds(5), now.plusHours(1));
+
+        assertFalse(service.revoke("session-1", USER + 1), "someone else's session is not yours to end");
+        org.junit.jupiter.api.Assertions.assertNull(mine.getRevokedAt());
+
+        assertTrue(service.revoke("session-1", USER));
+        org.junit.jupiter.api.Assertions.assertNotNull(mine.getRevokedAt());
+        verify(repository).saveAndFlush(mine);
+
+        assertFalse(service.revoke("session-1", USER), "an ended session cannot be ended twice");
+    }
 }

@@ -51,6 +51,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     public static final String SESSION_REQUEST_ATTRIBUTE = "portal.session_id";
 
+    /**
+     * Set when the request carried a genuine token whose session is over --
+     * idle limit, 8-hour limit, signed out elsewhere -- and nothing else
+     * authenticated it. SecurityConfig's 401 then says {@code session_expired},
+     * so the sign-in screen can tell the person why they are there (QA round
+     * 5: it said nothing unless the browser's own idle timer had fired).
+     */
+    public static final String SESSION_ENDED_ATTRIBUTE = "portal.session_ended";
+
     static final String ACCOUNT_DISABLED_DETAIL = "თქვენი ანგარიში გათიშულია. მიმართეთ ადმინისტრატორს.";
     static final String UNAVAILABLE_DETAIL = "პორტალი დროებით მიუწვდომელია. სცადეთ რამდენიმე წამში.";
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(JwtAuthenticationFilter.class);
@@ -113,9 +122,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     /** True when it answered the request itself (a deactivated account), so the chain must not run. */
     private boolean authenticateFromTokens(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        boolean sessionEnded = false;
         for (String token : candidateTokens(request)) {
             Optional<Claims> claims = jwtService.parseAndValidate(token);
             if (claims.isEmpty() || claims.get().getSubject() == null) {
+                sessionEnded |= claims.isEmpty() && jwtService.isAuthenticButExpired(token);
                 continue;
             }
             Optional<User> user = userRepository.findByEmail(claims.get().getSubject());
@@ -128,11 +139,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // though its signature and expiry are both still good. Treated
                 // like any other invalid candidate -- fall through to the next
                 // one, and end up unauthenticated if there is none.
+                sessionEnded = true;
                 continue;
             }
             String sessionId = claims.get().get(JwtService.SESSION_ID_CLAIM, String.class);
             if (sessionId != null && sessionService != null
                     && !sessionService.validateAndTouch(sessionId, user.get().getId())) {
+                sessionEnded = true;
                 continue;
             }
             if (sessionId == null && isCookieToken(request, token)) {
@@ -159,7 +172,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (sessionId != null) {
                 request.setAttribute(SESSION_REQUEST_ATTRIBUTE, sessionId);
             }
-            break;
+            return false;
+        }
+        if (sessionEnded) {
+            request.setAttribute(SESSION_ENDED_ATTRIBUTE, Boolean.TRUE);
         }
         return false;
     }

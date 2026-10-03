@@ -16,7 +16,7 @@ import { QuizBuilder } from '../../../shared/quiz-builder/quiz-builder';
 import { ToastService } from '../../../core/notifications/toast.service';
 import { PortalDialog } from '../../../shared/portal-dialog/portal-dialog';
 import { DateField } from '../../../shared/date-field/date-field';
-import { formatKaDateTime, tbilisiEndOfDay, tbilisiToday } from '../../../shared/ka-date';
+import { formatKaDateTime, isoToTbilisiLocal, tbilisiEndOfDay, tbilisiLocalToIso, tbilisiToday } from '../../../shared/ka-date';
 import { ConfirmService } from '../../../core/notifications/confirm.service';
 import { articleReach, lossLines, mandatoryLoss } from '../../../shared/mandatory-reach';
 
@@ -95,7 +95,7 @@ export class ArticleEditDrawer {
   /** Who the obligation binds now (PO-40), for the warning before a change takes it away; null if unknown. */
   private readonly mandatoryAudience = signal<MandatoryAddressees | null>(null);
   /** When readers can open the article as the form stands: now, at its schedule, or not at all. */
-  protected readonly mandatoryReach = computed(() => articleReach(this.status(), this.scheduledAt() || null));
+  protected readonly mandatoryReach = computed(() => articleReach(this.status(), this.scheduledAt() ? tbilisiLocalToIso(this.scheduledAt()) : null));
   /**
    * PO-40: nobody may be bound to what they cannot open, so a draft cannot
    * become mandatory. One already mandatory keeps the box, to be unticked or
@@ -210,7 +210,7 @@ export class ArticleEditDrawer {
         this.attachmentUrl.set(article.attachment_url);
         this.attachmentFilename.set(article.attachment_url ? article.attachment_url.split('/').pop() ?? null : null);
         this.status.set(article.status);
-        this.scheduledAt.set(article.published_at ? toDatetimeLocal(article.published_at) : '');
+        this.scheduledAt.set(article.published_at ? isoToTbilisiLocal(article.published_at) : '');
         this.deptChecked.set({
           info: article.target_departments.includes('საინფორმაციო'),
           tech: article.target_departments.includes('ტექნიკური'),
@@ -437,7 +437,7 @@ export class ArticleEditDrawer {
     // PO-40: made mandatory in advance, it comes into force at publication;
     // a deadline before then would be born overdue. The server refuses it too.
     const dueBeforePublication = this.isMandatory() && this.mandatoryReach() === 'later'
-      && new Date(tbilisiEndOfDay(this.dueDate())) <= new Date(this.scheduledAt());
+      && new Date(tbilisiEndOfDay(this.dueDate())) <= new Date(tbilisiLocalToIso(this.scheduledAt()));
     this.dueBeforePublication.set(dueBeforePublication);
     if (dueBeforePublication) {
       return;
@@ -448,7 +448,9 @@ export class ArticleEditDrawer {
 
     let publishedAt: string | null = null;
     if (this.status() === 'scheduled' && this.scheduledAt()) {
-      publishedAt = new Date(this.scheduledAt()).toISOString();
+      // PO-58: the time typed is Tbilisi time, like every deadline -- not
+      // whatever zone this computer's clock happens to be set to.
+      publishedAt = tbilisiLocalToIso(this.scheduledAt());
     }
 
     const payload: ArticleRequest = {
@@ -534,10 +536,4 @@ export class ArticleEditDrawer {
     this.dirty.set(false);
     this.saved.emit();
   }
-}
-
-function toDatetimeLocal(iso: string): string {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }

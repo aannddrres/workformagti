@@ -135,6 +135,22 @@ public class GlobalExceptionHandler {
                     "detail", "ტექსტი ცარიელია. თუ მასში მხოლოდ სკრიპტი, iframe ან მსგავსი ელემენტი იყო, "
                             + "პორტალმა ის უსაფრთხოების მიზნით წაშალა."));
         }
+        // PO-53: a wait the portal now refuses to make -- the audit chain's
+        // lock not free within 5 s (ORA-30006, V54), a statement cancelled at
+        // the 30 s limit (ORA-01013), a transaction past its time. Busy, not
+        // broken: the same "try again" as an outage, and the log says which.
+        if (oracle.contains("ORA-30006") || oracle.contains("ORA-01013")
+                || exception instanceof org.springframework.dao.QueryTimeoutException
+                || exception instanceof org.springframework.dao.PessimisticLockingFailureException
+                || exception instanceof org.springframework.transaction.TransactionTimedOutException
+                || hasCause(exception, java.sql.SQLTimeoutException.class)) {
+            logger.warn("Database wait limit reached on {} {}: {}", request.getMethod(), request.getRequestURI(),
+                    exception.getClass().getSimpleName());
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .header(HttpHeaders.RETRY_AFTER, "5")
+                    .body(Map.of("detail", "პორტალი ახლა დაკავებულია. სცადეთ რამდენიმე წამში.",
+                            "code", "busy"));
+        }
         if (exception instanceof org.springframework.dao.DataAccessResourceFailureException
                 || exception instanceof org.springframework.transaction.CannotCreateTransactionException
                 || hasCause(exception, java.sql.SQLRecoverableException.class)
@@ -290,6 +306,24 @@ public class GlobalExceptionHandler {
             response.header(HttpHeaders.ACCEPT, MediaType.toString(supported));
         }
         return response.body(Map.of("detail", "მოთხოვნის ფორმატი არ არის მხარდაჭერილი"));
+    }
+
+    /**
+     * A request the server cannot even read is the sender's mistake, not an
+     * unexpected error (PO-45): an upload with no file part or a broken
+     * multipart body, and a query string with an empty name ({@code ?=x}),
+     * which Tomcat refuses while parsing it. The ZAP scan of QA round 5
+     * produced 229 such 500s on /api/upload and 34 on GET endpoints. An
+     * oversized upload keeps its own, more specific 413 below.
+     */
+    @ExceptionHandler({org.springframework.web.multipart.MultipartException.class,
+            org.springframework.web.multipart.support.MissingServletRequestPartException.class,
+            org.apache.tomcat.util.http.InvalidParameterException.class})
+    public ResponseEntity<Map<String, String>> handleUnreadableRequest(Exception exception, HttpServletRequest request) {
+        logger.info("Unreadable request on {} {}: {}", request.getMethod(), request.getRequestURI(),
+                exception.getClass().getSimpleName());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                "detail", "მოთხოვნა არასწორად არის შედგენილი"));
     }
 
     /** Missing API/static routes are ordinary 404s, not unexpected server failures. */

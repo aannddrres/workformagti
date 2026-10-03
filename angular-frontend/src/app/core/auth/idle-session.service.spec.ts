@@ -5,7 +5,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Router } from '@angular/router';
 
-import { IdleSessionService } from './idle-session.service';
+import { IdleSessionService, SHARED_ACTIVITY_KEY } from './idle-session.service';
 import { AuthService } from './auth.service';
 import { LoginPage } from './login-page';
 
@@ -41,6 +41,7 @@ describe('IdleSessionService', () => {
       ]
     }).compileComponents();
 
+    localStorage.removeItem(SHARED_ACTIVITY_KEY);
     vi.useFakeTimers();
     service = TestBed.inject(IdleSessionService);
     http = TestBed.inject(HttpTestingController);
@@ -108,5 +109,46 @@ describe('IdleSessionService', () => {
     expect(service.warningOpen()).toBe(false);
     vi.advanceTimersByTime(60 * 1000);
     expect(logout).not.toHaveBeenCalled();
+  });
+  // QA round 5 (owner, 2026-10-03): one person, two tabs. Working in one of
+  // them must keep the other from signing them out -- the idle tab's sign-out
+  // used to end the session the working tab was using.
+  it('counts work done in another tab of the same browser', () => {
+    service.start();
+    drainHeartbeats();
+
+    vi.advanceTimersByTime(20 * 60 * 1000);
+    // The other tab, busy: it records its latest activity where every tab reads.
+    localStorage.setItem(SHARED_ACTIVITY_KEY, String(Date.now()));
+    vi.advanceTimersByTime(20 * 60 * 1000);
+
+    expect(logout).not.toHaveBeenCalled();
+    expect(service.warningOpen()).toBe(false);
+  });
+
+  it('closes its warning when the person is working in another tab', () => {
+    service.start();
+    drainHeartbeats();
+
+    vi.advanceTimersByTime(IDLE_LIMIT_MS - 60 * 1000);
+    expect(service.warningOpen()).toBe(true);
+
+    localStorage.setItem(SHARED_ACTIVITY_KEY, String(Date.now()));
+    vi.advanceTimersByTime(1000);
+
+    expect(service.warningOpen()).toBe(false);
+    vi.advanceTimersByTime(2 * 60 * 1000);
+    expect(logout).not.toHaveBeenCalled();
+  });
+
+  it('tells the other tabs about its own activity', () => {
+    service.start();
+    drainHeartbeats();
+    vi.advanceTimersByTime(10 * 1000);
+
+    window.dispatchEvent(new Event('keydown'));
+    drainHeartbeats();
+
+    expect(Number(localStorage.getItem(SHARED_ACTIVITY_KEY))).toBe(Date.now());
   });
 });

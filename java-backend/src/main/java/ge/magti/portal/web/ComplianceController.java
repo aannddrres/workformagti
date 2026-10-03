@@ -317,6 +317,9 @@ public class ComplianceController {
         if (isPast(request.dueDate())) {
             return pastDeadline();
         }
+        if (isTooFar(request.dueDate())) {
+            return tooFarDeadline();
+        }
         return ResponseEntity.ok(RequiredReadingResponse.from(saveReading(request, user)));
     }
 
@@ -513,6 +516,9 @@ public class ComplianceController {
         if (deadlineMoved && isPast(request.dueDate())) {
             return pastDeadline();
         }
+        if (deadlineMoved && isTooFar(request.dueDate())) {
+            return tooFarDeadline();
+        }
 
         reading.setTargetDepartment(request.targetDepartmentOrDefault());
         reading.setDueDate(normalizeDueDate(request.dueDate()));
@@ -574,6 +580,22 @@ public class ComplianceController {
      */
     private static boolean isPast(OffsetDateTime dueDate) {
         return dueDate != null && dueDate.isBefore(TbilisiTime.now());
+    }
+
+    /**
+     * PO-58 (owner, 2026-10-03): a deadline is at most two years away. The
+     * year 9999 was accepted (QA round 5) -- a typo such as 20266 made an
+     * obligation that could never fall due, with no sign anything was wrong.
+     */
+    static final int MAX_DEADLINE_YEARS = 2;
+
+    private static boolean isTooFar(OffsetDateTime dueDate) {
+        return dueDate != null && dueDate.isAfter(TbilisiTime.now().plusYears(MAX_DEADLINE_YEARS));
+    }
+
+    private static ResponseEntity<Map<String, String>> tooFarDeadline() {
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(Map.of(
+                "detail", "ვადა ორ წელზე შორს ვერ იქნება. შეამოწმეთ თარიღი -- შესაძლოა წელი არასწორადაა აკრეფილი."));
     }
 
     private static ResponseEntity<Map<String, String>> pastDeadline() {

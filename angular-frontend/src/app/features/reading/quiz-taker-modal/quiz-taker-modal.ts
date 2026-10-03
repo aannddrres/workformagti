@@ -34,6 +34,7 @@ export class QuizTakerModal {
   protected readonly submitting = signal(false);
   protected readonly wrongQuestionIds = signal<Set<number>>(new Set());
   protected readonly feedback = signal<string | null>(null);
+  protected readonly cooldownMinutes = signal(10);
 
   constructor() {
     // Required signal inputs aren't readable synchronously in the
@@ -94,8 +95,16 @@ export class QuizTakerModal {
           this.feedback.set('wrong');
         }
       },
-      error: () => {
+      error: (err: unknown) => {
         this.submitting.set(false);
+        // PO-55: three failures in a row, then a ten-minute wait. The server
+        // says how long; anything else is the generic failure.
+        const failure = err as { status?: number; error?: { code?: string; retry_after_seconds?: string } };
+        if (failure?.status === 429 && failure.error?.code === 'quiz_cooldown') {
+          this.cooldownMinutes.set(Math.max(1, Math.ceil(Number(failure.error.retry_after_seconds ?? 600) / 60)));
+          this.feedback.set('cooldown');
+          return;
+        }
         this.feedback.set('error');
       }
     });

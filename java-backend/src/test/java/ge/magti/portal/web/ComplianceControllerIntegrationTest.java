@@ -66,6 +66,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 class ComplianceControllerIntegrationTest {
 
+    /**
+     * Deadlines a year or so ahead. These were fixed dates in 2030 and 2031,
+     * which PO-58 (2026-10-03: no deadline more than two years away) now
+     * refuses -- and which would have turned into the past on their own.
+     */
+    private static final String NEXT_YEAR = String.valueOf(TbilisiTime.now().getYear() + 1);
+
     @Autowired
     private MockMvc mockMvc;
     @Autowired
@@ -189,7 +196,7 @@ class ComplianceControllerIntegrationTest {
 
         mockMvc.perform(authed(post("/api/compliance/required-readings"), tokenFor(operator))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(requiredReadingJson("article", 1, "All", "2030-01-01T00:00:00+04:00")))
+                        .content(requiredReadingJson("article", 1, "All", NEXT_YEAR + "-01-01T00:00:00+04:00")))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.detail").value("წვდომა უარყოფილია: არასაკმარისი უფლებები"));
         assertEquals(readingsBefore, requiredReadingRepository.count());
@@ -261,7 +268,7 @@ class ComplianceControllerIntegrationTest {
 
         String createBody = mockMvc.perform(authed(post("/api/compliance/required-readings"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(requiredReadingJson("article", article.getId(), "All", "2030-06-01T00:00:00+04:00")))
+                        .content(requiredReadingJson("article", article.getId(), "All", NEXT_YEAR + "-06-01T00:00:00+04:00")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.item_type").value("article"))
                 .andExpect(jsonPath("$.priority").value("high"))
@@ -274,7 +281,7 @@ class ComplianceControllerIntegrationTest {
 
         mockMvc.perform(authed(put("/api/compliance/required-readings/" + readingId), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(requiredReadingJson("article", article.getId(), "ოფისი", "2031-01-01T00:00:00+04:00")))
+                        .content(requiredReadingJson("article", article.getId(), "ოფისი", NEXT_YEAR + "-01-01T00:00:00+04:00")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.target_department").value("ოფისი"));
 
@@ -587,7 +594,7 @@ class ComplianceControllerIntegrationTest {
 
         mockMvc.perform(authed(post("/api/compliance/required-readings"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(requiredReadingJson("article", article.getId(), "All", "2030-09-01T00:00:00+04:00")))
+                        .content(requiredReadingJson("article", article.getId(), "All", NEXT_YEAR + "-09-01T00:00:00+04:00")))
                 .andExpect(status().isOk());
 
         List<Reminder> op1Inbox = reminderRepository
@@ -600,7 +607,7 @@ class ComplianceControllerIntegrationTest {
         assertEquals(1, op1Inbox.size());
         assertEquals(1, op2Inbox.size());
         assertTrue(op1Inbox.get(0).getContentSnapshot().contains("გასაცნობი მასალა"));
-        assertTrue(op1Inbox.get(0).getContentSnapshot().contains("2030-09-01"));
+        assertTrue(op1Inbox.get(0).getContentSnapshot().contains(NEXT_YEAR + "-09-01"));
         assertTrue(adminInbox.isEmpty(), "the admin who created the reading must not notify themselves");
     }
 
@@ -622,7 +629,7 @@ class ComplianceControllerIntegrationTest {
 
         mockMvc.perform(authed(post("/api/compliance/required-readings"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(requiredReadingJson("article", article.getId(), "ოფისი", "2030-09-01T00:00:00+04:00")))
+                        .content(requiredReadingJson("article", article.getId(), "ოფისი", NEXT_YEAR + "-09-01T00:00:00+04:00")))
                 .andExpect(status().isOk());
 
         assertEquals(1, reminderRepository.findByRecipientUserIdOrderByCreatedAtDesc(
@@ -647,7 +654,7 @@ class ComplianceControllerIntegrationTest {
 
         mockMvc.perform(authed(put("/api/compliance/required-readings/999999999"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(requiredReadingJson("article", 1, "All", "2030-01-01T00:00:00+04:00")))
+                        .content(requiredReadingJson("article", 1, "All", NEXT_YEAR + "-01-01T00:00:00+04:00")))
                 .andExpect(status().isNotFound());
 
         mockMvc.perform(authed(delete("/api/compliance/required-readings/999999999"), tokenFor(admin)))
@@ -733,11 +740,11 @@ class ComplianceControllerIntegrationTest {
 
         mockMvc.perform(authed(post("/api/compliance/required-readings"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(requiredReadingJson("article", article.getId(), "All", "2030-01-01T00:00:00+04:00")))
+                        .content(requiredReadingJson("article", article.getId(), "All", NEXT_YEAR + "-01-01T00:00:00+04:00")))
                 .andExpect(status().isForbidden());
         mockMvc.perform(authed(put("/api/compliance/required-readings/" + existing.getId()), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(requiredReadingJson("article", article.getId(), "All", "2030-01-01T00:00:00+04:00")))
+                        .content(requiredReadingJson("article", article.getId(), "All", NEXT_YEAR + "-01-01T00:00:00+04:00")))
                 .andExpect(status().isForbidden());
         mockMvc.perform(authed(delete("/api/compliance/required-readings/" + existing.getId()), tokenFor(admin)))
                 .andExpect(status().isForbidden());
@@ -770,7 +777,7 @@ class ComplianceControllerIntegrationTest {
 
         mockMvc.perform(authed(put("/api/compliance/required-readings/" + reading.getId()), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(requiredReadingJson("article", replacement.getId(), "All", "2031-01-01T00:00:00+04:00")))
+                        .content(requiredReadingJson("article", replacement.getId(), "All", NEXT_YEAR + "-01-01T00:00:00+04:00")))
                 .andExpect(status().isConflict());
 
         RequiredReading reloaded = requiredReadingRepository.findById(reading.getId()).orElseThrow();
@@ -793,7 +800,7 @@ class ComplianceControllerIntegrationTest {
 
         mockMvc.perform(authed(put("/api/compliance/required-readings/" + reading.getId()), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(requiredReadingJson("article", article.getId(), "ოფისი", "2031-05-05T00:00:00+04:00")))
+                        .content(requiredReadingJson("article", article.getId(), "ოფისი", NEXT_YEAR + "-05-05T00:00:00+04:00")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.target_department").value("ოფისი"));
 

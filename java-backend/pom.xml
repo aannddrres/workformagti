@@ -319,6 +319,16 @@
 								<param>ge.magti.portal.quiz.QuizGateChecker</param>
 								<param>ge.magti.portal.config.PortalProperties</param>
 								<param>ge.magti.portal.security.ClientIpResolver</param>
+								<!-- Added 2026-10-03 (QA round 5): who may open a file,
+									 what a spreadsheet cell may start with, whether the
+									 audit chain is intact, when a session ends, the login
+									 throttle, and the shared endpoint guards. -->
+								<param>ge.magti.portal.storage.FileAccessPolicy</param>
+								<param>ge.magti.portal.export.ExportCellSanitizer</param>
+								<param>ge.magti.portal.audit.AuditChainService</param>
+								<param>ge.magti.portal.security.PortalSessionService</param>
+								<param>ge.magti.portal.security.LoginRateLimiter</param>
+								<param>ge.magti.portal.web.Guards</param>
 							</targetClasses>
 							<targetTests>
 								<param>ge.magti.portal.*</param>

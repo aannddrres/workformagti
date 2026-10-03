@@ -102,3 +102,19 @@ export function tbilisiEndOfDay(day: string): string {
 export function tbilisiToday(now = Date.now()): string {
   return new Date(now + 4 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
+
+/**
+ * A publication moment typed as "YYYY-MM-DDTHH:mm", as that moment in
+ * Tbilisi (PO-58, owner 2026-10-03). It used to go through `new Date(...)`,
+ * which reads it in the computer's own zone: on a machine set to UTC,
+ * "09:00" published at 13:00 Tbilisi time, while deadlines (above) were
+ * always Tbilisi's. Seconds are dropped, as the picker offers none.
+ */
+export function tbilisiLocalToIso(local: string): string {
+  return `${local.slice(0, 16)}:00+04:00`;
+}
+
+/** The reverse: an instant, as the "YYYY-MM-DDTHH:mm" a Tbilisi clock shows for it. */
+export function isoToTbilisiLocal(iso: string): string {
+  return new Date(new Date(iso).getTime() + 4 * 60 * 60 * 1000).toISOString().slice(0, 16);
+}

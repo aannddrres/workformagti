@@ -49,6 +49,12 @@ data:
   DB_CONNECTION_TIMEOUT_MS: "10000"
   DB_VALIDATION_TIMEOUT_MS: "5000"
   DB_LEAK_DETECTION_MS: "60000"
+  # PO-53 (2026-10-03): how long one statement or transaction may wait
+  # inside Oracle (a lock, a slow plan) before its request answers "busy,
+  # try again" and frees its connection. Without it one stuck lock filled
+  # all 30 connections and stopped the whole portal. Flyway is not affected.
+  DB_TRANSACTION_TIMEOUT: "30s"
+  DB_QUERY_TIMEOUT: "30s"
 
   # ---- Who may be believed about the caller's IP ----------------------
   #

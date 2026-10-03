@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ComplianceService } from '../../../core/services/compliance.service';
 import { MyReading } from '../../../core/models/compliance';
@@ -36,7 +36,7 @@ import { KaDatePipe } from '../../../shared/ka-date.pipe';
   imports: [TranslatePipe, QuizTakerModal, KaDatePipe],
   templateUrl: './reading-confirm.html'
 })
-export class ReadingConfirm {
+export class ReadingConfirm implements OnInit {
   private readonly complianceService = inject(ComplianceService);
 
   readonly itemType = input.required<string>();
@@ -66,7 +66,14 @@ export class ReadingConfirm {
   protected readonly isChanged = computed(() => this.reading()?.status === 'read' && this.reading()?.changed_since_read === true);
   protected readonly isOverdue = computed(() => this.reading()?.is_overdue === true);
 
-  constructor() {
+  /**
+   * ngOnInit, not the constructor: load() reads the required inputs as soon
+   * as the readings arrive, and a constructor runs before inputs are set. It
+   * worked only because the request is asynchronous; any synchronous answer
+   * (a cache, a test) threw NG0950 -- the trap angular-frontend/AGENTS.md
+   * names, found by QA round 5's first unit test of this component.
+   */
+  ngOnInit(): void {
     this.load();
   }
 

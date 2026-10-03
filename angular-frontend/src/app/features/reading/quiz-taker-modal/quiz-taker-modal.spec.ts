@@ -97,4 +97,24 @@ describe('QuizTakerModal submit', () => {
     expect(component.feedback()).toBe('error');
     expect(component.submitting()).toBe(false);
   });
+  it('shows the wait, not a failure, after three failed attempts (PO-55)', () => {
+    const fixture = TestBed.createComponent(QuizTakerModal);
+    fixture.componentRef.setInput('articleId', 5);
+    const component = fixture.componentInstance as any;
+
+    const quizService = TestBed.inject(QuizService);
+    vi.spyOn(quizService, 'submit').mockReturnValue(throwError(() => ({
+      status: 429,
+      error: { code: 'quiz_cooldown', retry_after_seconds: '540' }
+    })));
+
+    component.quiz.set(QUIZ);
+    component.selectedAnswers.set(new Map([[1, 10], [2, 20]]));
+
+    component.submit();
+
+    expect(component.feedback()).toBe('cooldown');
+    expect(component.cooldownMinutes()).toBe(9);
+    expect(component.submitting()).toBe(false);
+  });
 });

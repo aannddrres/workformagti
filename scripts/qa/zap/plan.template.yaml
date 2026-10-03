@@ -1,0 +1,48 @@
+# ZAP automation plan for the QA backend. scripts/qa/zap/zap_scan.sh fills in
+# the placeholders (@@...@@) and runs it; never point it at anything but a
+# QA instance on 127.0.0.1 -- the active scan sends attack payloads and
+# changes data.
+env:
+  contexts:
+    - name: portal
+      urls:
+        - "@@API@@"
+        - "@@WEB@@"
+      excludePaths:
+        # Would end the scan's own session (logout increments token_version).
+        - ".*/api/auth/logout.*"
+        - ".*/api/auth/sessions.*"
+        - ".*/api/users/me/password.*"
+        - ".*/api/users/.*/reset-password.*"
+  parameters:
+    failOnError: true
+    progressToStdout: true
+jobs:
+  - type: openapi
+    parameters:
+      apiFile: "@@OPENAPI@@"
+      targetUrl: "@@API@@"
+      context: portal
+  - type: spider
+    parameters:
+      context: portal
+      url: "@@WEB@@"
+      maxDuration: 3
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 10
+  - type: activeScan
+    parameters:
+      context: portal
+      maxRuleDurationInMins: 3
+      maxScanDurationInMins: @@ACTIVE_MINUTES@@
+  - type: report
+    parameters:
+      template: traditional-html
+      reportDir: "@@OUT@@"
+      reportFile: zap-report.html
+  - type: report
+    parameters:
+      template: traditional-json
+      reportDir: "@@OUT@@"
+      reportFile: zap-report.json

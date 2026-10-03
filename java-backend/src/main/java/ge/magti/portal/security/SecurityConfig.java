@@ -158,7 +158,12 @@ public class SecurityConfig {
 							response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 							response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 							response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-							response.getWriter().write("{\"detail\":\"Could not validate credentials\"}");
+							// The wording is unchanged; a session that ended (rather than
+							// one that never existed) adds a code the sign-in screen reads.
+							response.getWriter().write(Boolean.TRUE.equals(
+									request.getAttribute(JwtAuthenticationFilter.SESSION_ENDED_ATTRIBUTE))
+									? "{\"detail\":\"Could not validate credentials\",\"code\":\"session_expired\"}"
+									: "{\"detail\":\"Could not validate credentials\"}");
 						}))
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers(HttpMethod.POST, ANONYMOUS_POST).permitAll()

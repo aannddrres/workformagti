@@ -61,7 +61,9 @@ test('article drawer: what the form is set to is what gets saved', async ({ page
   await expect(scheduledAt).toHaveCount(0);
   await statusSelect.selectOption('scheduled');
   await expect(scheduledAt).toBeVisible();
-  await scheduledAt.fill('15.01.2030 09:30');
+  // Next year: a fixed 2030 is now past PO-58's two-year limit for deadlines.
+  const year = new Date().getFullYear() + 1;
+  await scheduledAt.fill(`15.01.${year} 09:30`);
   await scheduledAt.press('Enter');
 
   // --- department, mandatory + due date ---------------------------------
@@ -73,7 +75,7 @@ test('article drawer: what the form is set to is what gets saved', async ({ page
   const mandatory = drawer.locator('input[type="checkbox"]').first();
   await mandatory.check();
   await expect(dueDate).toBeVisible();
-  await dueDate.fill('20.02.2030');
+  await dueDate.fill(`20.02.${year}`);
   await dueDate.press('Enter');
 
   // --- quiz --------------------------------------------------------------
@@ -110,7 +112,7 @@ test('article drawer: what the form is set to is what gets saved', async ({ page
   expect(saved.category_id, 'the category select did not reach the payload').toBe(category.id);
   expect(saved.tags, 'the tags field did not reach the payload').toBe(tags);
   expect(saved.status, 'the status select did not reach the payload').toBe('scheduled');
-  expect(saved.published_at, 'a scheduled article must carry its timestamp').toContain('2030-01-15');
+  expect(saved.published_at, 'a scheduled article must carry its timestamp').toContain(`${year}-01-15T09:30:00+04:00`); // Tbilisi time, whatever the browser's zone (PO-58)
 
   const detail = await request.get(`/api/articles/${saved.id}`, {
     headers: { Authorization: `Bearer ${token}` }
@@ -126,5 +128,5 @@ test('article drawer: what the form is set to is what gets saved', async ({ page
   expect(lookup.ok(), `by-item lookup failed: ${lookup.status()}`).toBeTruthy();
   const reading = await lookup.json();
   expect(reading, 'ticking "mandatory" must create a required reading').not.toBeNull();
-  expect(reading.due_date, 'the due date did not reach the required reading').toContain('2030-02-20');
+  expect(reading.due_date, 'the due date did not reach the required reading').toContain(`${year}-02-20`);
 });

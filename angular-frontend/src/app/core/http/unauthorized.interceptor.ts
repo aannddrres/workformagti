@@ -49,10 +49,16 @@ export const unauthorizedInterceptor: HttpInterceptorFn = (req, next) => {
         // An account switched off mid-session says so (JwtAuthenticationFilter,
         // owner 2026-10-02): it used to answer 403, which nothing here handled,
         // and the person sat in a shell of empty lists.
+        // A session the server ended -- the 8-hour limit, idle on the server,
+        // signed out from another tab or device -- says so too (QA round 5):
+        // it used to land on a sign-in screen with no explanation.
         if (!returnUrl.startsWith('/login')) {
-          loginPage.open(error.error?.code === 'account_disabled'
+          const code = error.error?.code;
+          loginPage.open(code === 'account_disabled'
             ? { returnUrl, reason: 'account-disabled' }
-            : { returnUrl });
+            : code === 'session_expired'
+              ? { returnUrl, reason: 'session-ended' }
+              : { returnUrl });
         }
       }
       return throwError(() => error);

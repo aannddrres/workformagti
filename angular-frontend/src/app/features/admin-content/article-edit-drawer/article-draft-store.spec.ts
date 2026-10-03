@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { DRAFT_MAX_AGE_MS, clearDraft, draftKey, readDraft, writeDraft } from './article-draft-store';
+import { DRAFT_MAX_AGE_MS, clearDraft, clearDraftsFor, draftKey, readDraft, writeDraft } from './article-draft-store';
 
 describe('article draft store', () => {
   afterEach(() => {
@@ -39,5 +39,18 @@ describe('article draft store', () => {
     });
     expect(() => writeDraft('k', { title: '', content: '', savedAt: 0 })).not.toThrow();
     expect(readDraft('k')).toBeNull();
+  });
+  it("on an intentional sign-out removes all of that person's drafts and nobody else's", () => {
+    writeDraft(draftKey('nino@magti.ge', null), { title: 'ა', content: '<p>1</p>', savedAt: Date.now() });
+    writeDraft(draftKey('nino@magti.ge', 42), { title: 'ბ', content: '<p>2</p>', savedAt: Date.now() });
+    writeDraft(draftKey('giorgi@magti.ge', 42), { title: 'გ', content: '<p>3</p>', savedAt: Date.now() });
+    localStorage.setItem('magti_dark_mode', 'true');
+
+    clearDraftsFor('Nino@Magti.ge');
+
+    expect(readDraft(draftKey('nino@magti.ge', null))).toBeNull();
+    expect(readDraft(draftKey('nino@magti.ge', 42))).toBeNull();
+    expect(readDraft(draftKey('giorgi@magti.ge', 42))?.content).toBe('<p>3</p>');
+    expect(localStorage.getItem('magti_dark_mode')).toBe('true');
   });
 });

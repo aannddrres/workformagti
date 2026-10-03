@@ -358,10 +358,13 @@ def test_no_third_party_scripts_or_trackers():
 def test_browser_storage_holds_only_display_preferences():
     # Display preferences, plus one owner decision (PO-50, 2026-10-02): the
     # article editor's unsaved title and text, keyed by the signed-in
-    # address and dropped after a week. No token, no personal data.
+    # address and dropped after a week. And PO-56 (2026-10-03): the moment of
+    # the person's last activity, a bare timestamp, so all their tabs share
+    # one idle clock. No token, no personal data.
     stored = hits(frontend_sources(".ts"), r"localStorage\.setItem\(")
     assert {line.split(":", 1)[0] for line in stored} == {
         "angular-frontend/src/app/core/accessibility/font-scale.service.ts",
+        "angular-frontend/src/app/core/auth/idle-session.service.ts",
         "angular-frontend/src/app/features/admin-content/article-edit-drawer/article-draft-store.ts",
         "angular-frontend/src/app/core/theme/theme.service.ts",
         "angular-frontend/src/app/shell/app-shell.ts",

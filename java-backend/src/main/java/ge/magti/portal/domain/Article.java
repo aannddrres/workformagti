@@ -139,6 +139,15 @@ public class Article {
     @Column(name = "status", length = 30)
     private String status = "draft";
 
+    /**
+     * The status this article had when it was archived; null when it is not
+     * in the archive (V53, PO-54). Kept by {@link #setStatus} itself, so every
+     * path into and out of the archive -- single, bulk, the editor's PUT --
+     * records it the same way.
+     */
+    @Column(name = "status_before_archive", length = 30)
+    private String statusBeforeArchive;
+
     @Column(name = "youtube_id", length = 50)
     private String youtubeId;
 
@@ -271,7 +280,36 @@ public class Article {
     }
 
     public void setStatus(String status) {
+        boolean wasArchived = "archived".equals(this.status);
+        boolean nowArchived = "archived".equals(status);
+        if (nowArchived && !wasArchived) {
+            this.statusBeforeArchive = this.status;
+        } else if (!nowArchived) {
+            this.statusBeforeArchive = null;
+        }
         this.status = status;
+    }
+
+    public String getStatusBeforeArchive() {
+        return statusBeforeArchive;
+    }
+
+    /**
+     * Where unarchive takes this article (PO-54): back to the state it was
+     * archived from. An article archived before V53 has no record of it, so
+     * its publication date decides -- none is a draft, one still to come is
+     * scheduled, one already passed is published. Unarchive used to answer
+     * "published" unconditionally, which put archived drafts and next week's
+     * articles live at once.
+     */
+    public String statusAfterArchive(OffsetDateTime now) {
+        if (statusBeforeArchive != null && !"archived".equals(statusBeforeArchive)) {
+            return statusBeforeArchive;
+        }
+        if (publishedAt == null) {
+            return "draft";
+        }
+        return publishedAt.isAfter(now) ? "scheduled" : "published";
     }
 
     public String getYoutubeId() {

@@ -6,7 +6,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Writes the audit chain's current end to the application log every hour.
+ * Writes the audit chain's current end to the application log every five
+ * minutes (hourly until 2026-10-03; PO-57).
  *
  * <p>A hash chain proves that what is there was not edited. It cannot prove
  * that nothing was cut off the end: delete the newest rows, point
@@ -19,14 +20,20 @@ import org.springframework.stereotype.Component;
  * <p>To use it: take any logged {@code AUDIT_CHAIN_ANCHOR} line and open
  * {@code GET /api/audit-logs/{id}/verify} for its id. The row must still be
  * there and its {@code row_hash} must equal the logged hash. A missing row,
- * or a different hash, means the ledger was cut back after that hour.
+ * or a different hash, means the ledger was cut back after that moment.
+ * scripts/audit/check_anchors.py does the comparison for a whole log.
+ *
+ * <p>The interval is how much of the newest audit trail someone with the
+ * database's rights could still remove without trace: an hour, until QA
+ * round 5 measured it (scripts/qa/check_audit_tamper.py) and the owner chose
+ * five minutes. Twelve short lines an hour per replica is the whole cost.
  * Every replica writes the line; duplicates are harmless.
  */
 @Component
 public class AuditChainAnchor {
 
     private static final Logger log = LoggerFactory.getLogger(AuditChainAnchor.class);
-    private static final long INTERVAL_MS = 60 * 60 * 1000L;
+    private static final long INTERVAL_MS = 5 * 60 * 1000L;
 
     private final AuditChainService chainService;
 

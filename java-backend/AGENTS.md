@@ -69,7 +69,7 @@ specific migrations; there is no Flyway **checksum** test, and no ArchUnit.
 
 ## Migrations
 
-Next is `V53`. `V37` does not exist — the numbering skips it deliberately, so
+Next is `V55`. `V37` does not exist — the numbering skips it deliberately, so
 do not fill the gap.
 
 Three Oracle facts that cost time to rediscover. The container is XE **21c**,
