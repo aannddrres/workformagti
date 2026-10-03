@@ -26,7 +26,8 @@ test('shipping nginx accepts permitted uploads and preserves the 10 MiB business
     const download = await request.get(stored.url, { headers });
     expect(download.status()).toBe(200);
     expect((await download.body()).equals(bytes), `download matches ${size} bytes`).toBe(true);
-    expect(download.headers()['cache-control']).toBe('no-store');
+    // Kept but revalidated on every view since 2026-10-02 (UploadedFileController).
+    expect(download.headers()['cache-control']).toBe('no-cache, private');
     console.log(`upload bytes=${size} status=200 downloaded-bytes-match=true`);
   }
 
