@@ -22,14 +22,13 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Port of db_helpers.py's resolve_item_title -- looks up the display title
+ * Looks up the display title
  * for one polymorphic (item_type, item_id) soft-reference. Shared by any
  * domain that stores such references (Favorites, RequiredReading, audit
- * item-name snapshots) rather than duplicated per call site, same reason
- * Python centralised it in db_helpers.py.
+ * item-name snapshots) rather than duplicated per call site.
  *
- * <p>{@link #resolveDetailsBulk} is the batched variant get_my_readings
- * uses (routers/compliance.py:56-85, "Item 15 (perf)"): one IN(...) query
+ * <p>{@link #resolveDetailsBulk} is the batched variant the reading list
+ * uses: one IN(...) query
  * per item type instead of one query per reading. Platform's
  * notifications-summary will reuse it once that domain is built.
  */
@@ -142,8 +141,8 @@ public class ItemTitleResolver {
      * Batched title+content resolution for get_my_readings: collects ids by
      * type, runs one {@code findAllById} per type, and returns a map keyed by
      * (itemType, itemId). A key is absent when the underlying item no longer
-     * exists -- the caller supplies its own fallback text, exactly as Python
-     * does. Content is "" for article/news and the video URL for a video.
+     * exists -- the caller supplies its own fallback text. Content is "" for
+     * article/news and the video URL for a video.
      */
     public Map<ItemKey, ItemDetail> resolveDetailsBulk(List<ItemKey> keys) {
         Set<Long> articleIds = keys.stream().filter(k -> "article".equals(k.itemType())).map(ItemKey::itemId).collect(Collectors.toSet());

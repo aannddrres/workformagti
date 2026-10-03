@@ -12,11 +12,10 @@ import jakarta.persistence.UniqueConstraint;
 import java.time.OffsetDateTime;
 
 /**
- * Mirrors models.py's ArticleHistory (models.py:458-483) -- one snapshot
- * row per edit.
+ * One snapshot row per article edit.
  *
- * <p>{@link #versionId} is nullable on purpose, matching the Python column
- * exactly: it's the {@code article.version} value the snapshot represents
+ * <p>{@link #versionId} is nullable on purpose: it's the
+ * {@code article.version} value the snapshot represents
  * (the version carried *before* the edit that created this row), and rows
  * created before that column existed have it as null -- the UI falls back
  * to list index for those. Not backfilled or defaulted here.

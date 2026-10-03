@@ -3,7 +3,6 @@ package ge.magti.portal.web;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import ge.magti.portal.domain.Category;
 
-/** Mirrors schemas.py's CategoryResponse field-for-field. */
 public record CategoryResponse(
         Long id,
         String name,

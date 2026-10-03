@@ -19,9 +19,9 @@ public interface ExportJobRepository extends JpaRepository<ExportJob, String> {
 
     /**
      * Backs {@link ge.magti.portal.export.ExportJobCleanupScheduler} -- the
-     * fix for known bug #9 (ExportJob.java's javadoc): Python writes {@code
-     * expires_at} on every job (at creation and again on completion) but
-     * never once reads it back, so finished export files sit on disk
+     * fix for known bug #9 (ExportJob.java's javadoc): the original app wrote
+     * {@code expires_at} on every job (at creation and again on completion)
+     * but never once read it back, so finished export files sat on disk
      * forever. {@code expiresAt} is set from creation, so this also sweeps
      * up a job whose worker crashed mid-build, not just completed/failed ones.
      */

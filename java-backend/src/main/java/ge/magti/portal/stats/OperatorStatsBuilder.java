@@ -12,8 +12,8 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Ports the DB-free half of routers/stats.py's get_critical_operators
- * (:691-744) and get_group_users (:747-815) -- both are three DB queries
+ * The DB-free half of the critical-operators and group-users lists -- both
+ * are three DB queries
  * followed by pure aggregation over already-loaded users/progress; only
  * the aggregation is here.
  */

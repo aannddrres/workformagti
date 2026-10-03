@@ -11,8 +11,7 @@ import java.nio.file.Path;
 import java.util.Optional;
 
 /**
- * Mirrors routers/exports.py's {@code _register_pdf_font}
- * (routers/exports.py:182-203): locates a Unicode/Georgian-capable TTF and
+ * Locates a Unicode/Georgian-capable TTF and
  * embeds it into the document being built.
  *
  * <p>Unlike ReportLab's {@code pdfmetrics.registerFont} (a process-wide

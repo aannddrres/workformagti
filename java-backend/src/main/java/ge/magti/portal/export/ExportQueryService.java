@@ -39,14 +39,13 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 /**
- * DB-query half of the readings exports (routers/exports.py's
- * export_readings/export_readings_xlsx/export_readings_pdf, lines
- * 93-98,144-150,264-270). Batch-fetches User/RequiredReading rather than a
+ * DB-query half of the readings exports (CSV, XLSX and PDF).
+ * Batch-fetches User/RequiredReading rather than a
  * multi-entity JPQL join, using the same N+1-avoidance-via-map idiom used
  * throughout this port.
  *
- * <p><b>User-approved fix, 2026-08-06:</b> Python's CSV export scopes to
- * {@code compute_compliance()}'s eligible user ids (active, non-management)
+ * <p><b>User-approved fix, 2026-08-06:</b> the original CSV export scoped to
+ * the compliance calculation's eligible user ids (active, non-management)
  * but the xlsx/pdf exports never did -- a live gap where the same personal
  * data got less protection depending on file format. This service is the
  * single query path for all 3 formats now, so that gap can't reopen.
@@ -223,9 +222,8 @@ public class ExportQueryService {
      * Every ReadStatus row for an eligible (active, non-management) user
      * within {@code caller}'s permitted scope, flattened with its
      * User/RequiredReading fields. Throws {@link ExportTooLargeException}
-     * past {@link ExportSizeGuard#MAX_ROWS} -- mirrors Python calling
-     * {@code _guard_export_size} synchronously in the request handler,
-     * before any background job is enqueued.
+     * past {@link ExportSizeGuard#MAX_ROWS} -- synchronously, in the request
+     * handler, before any background job is enqueued.
      */
     public List<ReadingExportRow> eligibleReadingRows(User caller) {
         return eligibleReadingRows(caller, null, null);
@@ -393,10 +391,9 @@ public class ExportQueryService {
     }
 
     /**
-     * Mirrors export_team_stats_pdf's department aggregation
-     * (routers/exports.py:305-309): {@code department -> {totalRequired,
-     * totalRead}}, alphabetically sorted (Python's {@code sorted(by_dept
-     * .items())}) so the caller doesn't have to. Scoped to {@code caller}
+     * The team-stats PDF's department aggregation:
+     * {@code department -> {totalRequired, totalRead}}, alphabetically
+     * sorted so the caller doesn't have to. Scoped to {@code caller}
      * per SEC-02, so a manager's team-stats PDF is a one-row table for their
      * own department rather than a company-wide league table.
      */

@@ -11,8 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class DepartmentMatcherTest {
 
     /**
-     * Codepoints verified independently against the live compliance_utils.py
-     * source (see DepartmentMatcher's class Javadoc) -- if this source file
+     * Codepoints verified independently (see DepartmentMatcher's class
+     * Javadoc) -- if this source file
      * were ever read with the wrong encoding, this fails loudly here instead
      * of silently corrupting department matching.
      */
@@ -89,7 +89,7 @@ class DepartmentMatcherTest {
     @Test
     void emptyTargetDoesNotMatchViaEmptyPrefix() {
         // This user department's prefix is "" (the delimiter sits at position
-        // 0) -- without Python's "t and ..." truthiness guard on the target,
+        // 0) -- without the non-empty guard on the target,
         // an empty target would spuriously match an empty prefix here.
         assertFalse(DepartmentMatcher.matches("— ჯგუფი 01", List.of("")));
     }

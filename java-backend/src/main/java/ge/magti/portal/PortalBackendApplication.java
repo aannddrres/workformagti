@@ -10,10 +10,10 @@ import org.springframework.scheduling.annotation.EnableAsync;
 // docs/archive/migration/JAVA_ORACLE_ANGULAR_MIGRATION.md Phase 1). Re-add that starter once
 // entities/repositories are ready to be wired to a real datasource.
 //
-// @EnableAsync backs ExportJobWorker (mirrors FastAPI's BackgroundTasks for
-// xlsx/pdf export builds). Scheduling, added with it for
-// ExportJobCleanupScheduler (the export_jobs.expires_at cleanup Python never
-// implemented -- known bug #9, fixed in this port, 2026-08-06), is switched
+// @EnableAsync backs ExportJobWorker (background xlsx/pdf export builds).
+// Scheduling, added with it for
+// ExportJobCleanupScheduler (the export_jobs.expires_at cleanup -- known
+// bug #9, fixed 2026-08-06), is switched
 // on in config/SchedulingConfig, where the test context can leave it off.
 @EnableAsync
 @SpringBootApplication

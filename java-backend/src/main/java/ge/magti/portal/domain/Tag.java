@@ -11,7 +11,7 @@ import jakarta.persistence.UniqueConstraint;
 import java.time.OffsetDateTime;
 
 /**
- * Mirrors models.py's Tag (models.py:269-277) -- the normalized,
+ * The normalized,
  * on-the-fly-creatable tag vocabulary. The flat comma-separated
  * {@code articles.tags}/{@code video_instructions.tags} text columns
  * remain the source of truth for display; {@link TagMapping} is the

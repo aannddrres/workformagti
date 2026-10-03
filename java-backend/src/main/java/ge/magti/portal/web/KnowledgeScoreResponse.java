@@ -3,7 +3,6 @@ package ge.magti.portal.web;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import ge.magti.portal.quiz.KnowledgeScoreResult;
 
-/** Mirrors schemas.py's KnowledgeScoreResponse. */
 public record KnowledgeScoreResponse(
         @JsonProperty("user_id") Long userId,
         int score,

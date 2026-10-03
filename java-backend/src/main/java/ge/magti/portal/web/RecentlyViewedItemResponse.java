@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.OffsetDateTime;
 
-/** Mirrors schemas.py's RecentlyViewedItem. */
 public record RecentlyViewedItemResponse(
         @JsonProperty("article_id") Long articleId,
         String title,

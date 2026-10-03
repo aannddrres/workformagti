@@ -10,14 +10,10 @@ import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 
 /**
- * Mirrors models.py's RequiredReading (models.py:201-214).
- *
- * <p>{@link #itemType}/{@link #itemId} is a polymorphic reference (an
+ * {@link #itemType}/{@link #itemId} is a polymorphic reference (an
  * article or a news item today) rather than a foreign key to one table --
- * Python resolves the referenced item's title via
- * {@code db_helpers.resolve_item_title(s_bulk)}. That resolution helper is
- * not ported here; it's needed once a repository layer can actually look
- * items up.
+ * the referenced item's title is resolved by
+ * {@link ge.magti.portal.content.ItemTitleResolver}.
  */
 @Entity
 @Table(name = "required_readings")

@@ -5,9 +5,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 /**
  * One row of {@link ComplianceStatsResponse#topArticles()}.
  *
- * <p>Deliberate fix vs. the Python original (routers/stats.py:175-224,
- * schemas.ArticleResponse): Python's top-5-most-read chart has no
- * {@code read_count} field to show, so its frontend (frontend_api.js) fills
+ * <p>Deliberate fix vs. the original app: its top-5-most-read chart had no
+ * {@code read_count} field to show, so its frontend filled
  * in synthetic descending placeholders (95, 80, 65, ...) instead of a real
  * count. The real count was always computed server-side --
  * {@link ge.magti.portal.repository.RequiredReadingRepository#topReadArticleIds}

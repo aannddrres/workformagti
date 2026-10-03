@@ -9,7 +9,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
 /**
- * Mirrors models.py's TagMapping (models.py:280-293) -- polymorphic
+ * A polymorphic
  * many-to-many link between a {@link Tag} and a tagged item ({@code
  * item_type}: "article" | "video"), mirroring the {@link Favorite}/{@link
  * RequiredReading} polymorphic pattern.

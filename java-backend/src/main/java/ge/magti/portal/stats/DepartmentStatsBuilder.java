@@ -13,22 +13,18 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Ports the DB-free half of routers/stats.py's build_department_stats
- * (routers/stats.py:573-665): given already-computed per-user compliance
- * records, groups them into the Department -&gt; Group -&gt; Member tree the
- * executive dashboard renders. The DB query half
- * ({@code compute_compliance(db)}, which produces the
- * {@link ComplianceRecord} list this takes as input) is not ported --
- * needs a repository.
+ * The DB-free half of the department dashboard: given already-computed
+ * per-user compliance records, groups them into the Department -&gt; Group
+ * -&gt; Member tree the executive dashboard renders. The DB query half
+ * ({@code ComplianceQueryService}) produces the {@link ComplianceRecord}
+ * list this takes as input.
  *
  * <p>Users whose department doesn't match any of
- * {@link DepartmentBuckets#WHITELIST} are silently excluded, matching
- * Python exactly (routers/stats.py:595-597) -- not an error, just outside
+ * {@link DepartmentBuckets#WHITELIST} are silently excluded -- not an error, just outside
  * the three tracked service lines.
  *
  * <p>Rounding uses {@link Math#rint(double)}, not {@code Math.round}, for
- * the same round-half-to-even reason as {@link ComplianceCalculator} --
- * Python's plain {@code round()} is used here too (routers/stats.py:569).
+ * the same round-half-to-even reason as {@link ComplianceCalculator}.
  */
 public final class DepartmentStatsBuilder {
 
@@ -111,8 +107,7 @@ public final class DepartmentStatsBuilder {
     }
 
     /**
-     * Mirrors routers/stats.py's _aggregate_members (routers/stats.py:560-570):
-     * the compliance average excludes members with no required readings, so
+     * The compliance average excludes members with no required readings, so
      * an operator with nothing assigned doesn't drag the average toward 0.
      */
     private static Rollup aggregate(List<DepartmentMember> members) {
@@ -140,7 +135,6 @@ public final class DepartmentStatsBuilder {
         return new Rollup(compliance, outputVolume, criticalCount);
     }
 
-    /** Mirrors routers/stats.py's _group_full_department (routers/stats.py:668-672). */
     private static String fullDepartment(String prefix, String groupLabel) {
         if (groupLabel != null && !groupLabel.isEmpty() && !groupLabel.equals(prefix)) {
             return prefix + " " + DepartmentMatcher.CANONICAL_DELIMITER + " " + groupLabel;

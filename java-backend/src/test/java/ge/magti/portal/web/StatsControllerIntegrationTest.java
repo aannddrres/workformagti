@@ -52,7 +52,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Real Oracle, real HTTP, real Spring Security filter chain -- covers all 12
- * routers/stats.py endpoints, reusing {@link ge.magti.portal.compliance.ComplianceQueryService}
+ * stats endpoints, reusing {@link ge.magti.portal.compliance.ComplianceQueryService}
  * and the Stats builders (already unit-tested on their own) so this file
  * focuses on the DB-query wiring and RBAC gates rather than re-proving the
  * pure aggregation logic.
@@ -341,7 +341,7 @@ class StatsControllerIntegrationTest {
 
     @Test
     void complianceStatisticsReturnsWellFormedPercentagesAndArticleList() throws Exception {
-        // compute_compliance() is org-wide (routers/stats.py:161), so this asserts
+        // The compliance calculation is org-wide, so this asserts
         // shape/bounds rather than an exact figure -- real seeded data on this
         // Oracle instance already contributes to the numerator/denominator.
         User admin = createStatsViewer("stats-comp-admin@magti.ge", "All");

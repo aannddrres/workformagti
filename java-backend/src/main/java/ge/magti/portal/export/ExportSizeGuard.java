@@ -1,8 +1,7 @@
 package ge.magti.portal.export;
 
 /**
- * Mirrors routers/exports.py's {@code _guard_export_size}
- * (routers/exports.py:38-49): a pathologically large export must be
+ * A pathologically large export must be
  * rejected outright rather than silently truncated, since a partial
  * compliance report is more dangerous than a clear "narrow your filter"
  * error. Compliance exports are bounded by user count (~600 today) and sit

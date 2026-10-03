@@ -12,16 +12,14 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Mirrors routers/audit_logs.py's verify_audit_log (:324-376) and
- * audit_chain_health (:379-455). Both queries call the SAME
+ * The audit-chain verify and health checks. Both queries call the SAME
  * audit_logs_canonical_string PL/SQL function that V28's trigger uses to
  * write row_hash in the first place, so a recompute can never silently
  * drift from what was actually hashed at insert time.
  *
- * <p>Unlike the Python original, there is no SQLite/dialect fallback here:
- * this Java port only ever targets Oracle, so the chain always exists --
- * the {@code status: "unavailable"} case from schemas.py's
- * AuditChainHealthResponse doesn't apply.
+ * <p>There is no dialect fallback here: this backend only ever targets
+ * Oracle, so the chain always exists -- a {@code status: "unavailable"}
+ * case doesn't apply.
  */
 @Service
 public class AuditChainService {

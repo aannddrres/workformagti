@@ -3,7 +3,6 @@ package ge.magti.portal.web;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import ge.magti.portal.domain.UserNote;
 
-/** Mirrors schemas.py's UserNoteResponse. */
 public record UserNoteResponse(
         Long id,
         @JsonProperty("user_id") Long userId,

@@ -42,11 +42,11 @@ public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, Long> 
     List<QuizAttempt> findTop3ByArticleIdAndArticleVersionAndUserIdOrderByCreatedAtDescIdDesc(
             Long articleId, int articleVersion, Long userId);
 
-    /** Port of _check_quiz_gate's pass-check (routers/articles.py:1022-1027). */
+    /** The quiz gate's pass-check. */
     boolean existsByArticleIdAndArticleVersionAndUserIdAndPassedTrue(Long articleId, int articleVersion, Long userId);
 
     /**
-     * Port of _compute_knowledge_score (routers/articles.py:879-888),
+     * The knowledge score's inputs,
      * reduced to the two scalar values required by the response. Oracle
      * performs the per-(article, version) grouping so retained attempt
      * history never becomes an unbounded Java collection.

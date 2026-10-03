@@ -5,9 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
 /**
- * Mirrors one group entry routers/stats.py's build_department_stats
- * assembles (routers/stats.py:622-637), matching schemas.DeptGroupStats
- * (schemas.py:703-711) field-for-field -- members sorted by descending
+ * One group in the department dashboard -- members sorted by descending
  * percentage.
  */
 public record DepartmentGroupStats(

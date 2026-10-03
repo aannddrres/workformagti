@@ -15,15 +15,13 @@ import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 
 /**
- * Mirrors models.py's AuditLog (models.py:336-376).
+ * The audit_logs table.
  *
  * <p>{@link #prevHash}/{@link #rowHash}/{@link #ipAddress}/{@link #userAgent}
- * are populated by a Postgres-only {@code BEFORE INSERT} trigger
- * (migrate.py's {@code AUDIT_CHAIN_STATEMENTS}) -- never set from
- * application code on the Python side, and not settable here either; a
+ * are populated by a database {@code BEFORE INSERT} trigger (V28) -- never
+ * set from application code, and not settable here either; a
  * plain domain object has nowhere to run that trigger. NULL on this class
- * means "not yet chained by a trigger", exactly as it does in Python, not
- * "tampered".
+ * means "not yet chained by a trigger", not "tampered".
  *
  * <p><b>This is deliberately as far as this step goes.</b> The hash-chain
  * mechanism itself -- the actual security-critical, Oracle-specific
@@ -86,12 +84,9 @@ public class AuditLog {
     private String userAgent;
 
     /**
-     * Mirrors the pure-logic half of models.py's {@code
-     * _auto_classify_audit_log} before_insert hook (models.py:418-429):
-     * fires on every insert automatically, same as the SQLAlchemy
-     * listener, so no call site needs to remember to set it. The
-     * snapshot-column half of that same hook (admin_name_snapshot etc.,
-     * models.py:431-439) needs a live DB lookup a {@code @PrePersist}
+     * Classifies the row on every insert automatically, so no call site
+     * needs to remember to set it. The snapshot columns
+     * (admin_name_snapshot etc.) need a live DB lookup a {@code @PrePersist}
      * callback can't do -- that part is each call site's own job for now.
      */
     @PrePersist

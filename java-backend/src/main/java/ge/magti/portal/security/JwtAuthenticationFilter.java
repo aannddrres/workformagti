@@ -26,10 +26,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * Mirrors security.py's {@code get_current_user} (security.py:258-310):
- * runs on every request, tries each candidate token, and populates
+ * Runs on every request, tries each candidate token, and populates
  * Spring Security's context from the DB row when one validates -- the
- * same "authorization is derived from the database on every request, not
+ * "authorization is derived from the database on every request, not
  * trusted from token claims" design, so a role change or deactivation
  * takes effect on the very next request rather than waiting for the token
  * to expire.
@@ -42,7 +41,7 @@ import java.util.stream.Stream;
  *
  * <p>Deliberately NOT ported here: issuing tokens (login/SSO), JIT
  * provisioning of test accounts, and the {@code TEST_EMAILS} bypass --
- * those are login-endpoint concerns (routers/auth.py), a separate,
+ * those are login-endpoint concerns, a separate,
  * later increment. This filter only ever validates a token that already
  * exists; it never creates a session or a user.
  */
@@ -156,7 +155,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
             if (!user.get().isActive()) {
                 // A still-valid token must not survive a deactivation. 401,
-                // not the 403 Python's get_current_user raised: the session is
+                // not 403: the session is
                 // over, and 401 is what sends the browser to the login screen
                 // -- on 403 the person sat in a shell of empty lists with no
                 // explanation (blind tests, owner decision 2026-10-02). The
@@ -197,10 +196,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     /**
-     * Mirrors security.py's {@code _candidate_tokens}: the Authorization
-     * header is tried first, then the httpOnly session
-     * cookie -- same precedence, same reasoning (an explicit bearer token
-     * wins over a possibly-stale cookie).
+     * The Authorization header is tried first, then the httpOnly session
+     * cookie -- an explicit bearer token wins over a possibly-stale cookie.
      */
     private List<String> candidateTokens(HttpServletRequest request) {
         String header = request.getHeader("Authorization");

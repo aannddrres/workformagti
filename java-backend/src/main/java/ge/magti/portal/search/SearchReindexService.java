@@ -16,8 +16,7 @@ import java.util.Set;
  * searchable text (title/content/tags/category) changes. Called explicitly
  * from the relevant controller write-paths -- not a JPA entity-lifecycle
  * listener, matching this port's established preference for explicit
- * service calls over ORM-level magic (see audit_trail.py's auto-listener,
- * deliberately not replicated the same way elsewhere in this port).
+ * service calls over ORM-level magic.
  *
  * <p>Only wired into endpoints that can actually change title/content/tags/
  * category -- archive/unarchive/note/verify/read-receipt/view
@@ -39,17 +38,17 @@ public class SearchReindexService {
         this.jdbc = jdbc;
     }
 
-    /** Indexes title + content + tags, matching global_search's article word conditions (routers/search.py:71-75). */
+    /** Indexes title + content + tags, the fields the article search matches words against. */
     public void reindexArticle(Article article) {
         reindex(ARTICLE, article.getId(), join(article.getTitle(), article.getContent(), article.getTags()));
     }
 
-    /** Indexes title + content, matching _run_global_search_sync's news word conditions (routers/search.py:139-142). */
+    /** Indexes title + content, the fields the news search matches words against. */
     public void reindexNews(News news) {
         reindex(NEWS, news.getId(), join(news.getTitle(), news.getContent()));
     }
 
-    /** Indexes title + category, matching _run_global_search_sync's video word conditions (routers/search.py:143-146). */
+    /** Indexes title + category, the fields the video search matches words against. */
     public void reindexVideo(VideoInstruction video) {
         reindex(VIDEO, video.getId(), join(video.getTitle(), video.getCategory()));
     }

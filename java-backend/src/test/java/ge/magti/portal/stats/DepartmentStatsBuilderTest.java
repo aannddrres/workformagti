@@ -66,7 +66,7 @@ class DepartmentStatsBuilderTest {
 
     @Test
     void averageRoundsHalfToEvenNotHalfUp() {
-        // (25 + 50) / 2 = 37.5 exactly -- Python's round(37.5) == 38.
+        // (25 + 50) / 2 = 37.5 exactly -- rounds half-to-even to 38.
         List<ComplianceRecord> records = List.of(
                 record(1L, "ოფისი", 4, 1, 25),
                 record(2L, "ოფისი", 4, 2, 50));

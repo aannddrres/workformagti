@@ -11,13 +11,11 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 /**
- * Port of _get_eligible_operators (routers/articles.py:971-1003) -- who
- * the article's read-receipts view treats as "supposed to read this
+ * Who the article's read-receipts view treats as "supposed to read this
  * article."
  *
  * <p>Prefix-aware since 2026-10-01: the same {@link DepartmentMatcher} rule
- * that lets a person open the article. It was ported as an exact match
- * (Python's {@code User.department.in_(target_depts)}, routers/articles.py:993),
+ * that lets a person open the article. It was ported as an exact match,
  * deliberately, as a second rule beside the reading one. The two disagreed
  * where it matters: an article for "ტექნიკური" reached, and was owed by,
  * everyone in "ტექნიკური — ჯგუფი 03", while its receipts listed only the
@@ -26,10 +24,10 @@ import java.util.List;
  * (RoleFlowIntegrationTest).
  *
  * <p>Not ported: the {@code tech_info}/{@code service_center} role
- * exclusion branches (routers/articles.py:997-1000) -- unreachable dead
+ * exclusion branches -- unreachable dead
  * code, same finding as {@link ge.magti.portal.article.ArticleQueryService}'s
- * own javadoc explains for the identical branches in get_articles'
- * "Block 5". {@code Role} has no such values because no user can ever
+ * own javadoc explains for the identical branches in the article list.
+ * {@code Role} has no such values because no user can ever
  * hold them through any validated path.
  */
 @Service

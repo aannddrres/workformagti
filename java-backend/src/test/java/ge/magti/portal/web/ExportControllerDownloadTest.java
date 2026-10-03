@@ -30,7 +30,7 @@ import static org.mockito.Mockito.when;
 /**
  * DB-free proof of the BL-09 fix in {@code downloadExport}.
  *
- * <p>Python -- and this port until now -- collapsed four unrelated situations
+ * <p>The original app -- and this port until now -- collapsed four unrelated situations
  * into one {@code 404 ექსპორტი ჯერ არ არის მზად}: still building, unknown id,
  * already downloaded (the row was deleted by the download itself), and a
  * request that landed on a replica without the file. Only the first is worth

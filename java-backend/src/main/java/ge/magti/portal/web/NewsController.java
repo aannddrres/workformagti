@@ -40,7 +40,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Mirrors routers/news.py -- all 8 endpoints (get item, list, create,
+ * All 8 news endpoints (get item, list, create,
  * update, delete, autosave, history, restore). News is structurally
  * simpler than Articles (single department column, no diff endpoint), so
  * this domain fits in one slice unlike Articles' 5.
@@ -119,7 +119,6 @@ public class NewsController {
         this.fileReferenceIndex = fileReferenceIndex;
     }
 
-    /** Port of get_news_item (routers/news.py:23-44). */
     @GetMapping("/api/news/{id}")
     public ResponseEntity<?> getNewsItem(@PathVariable Long id, @AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
@@ -138,7 +137,6 @@ public class NewsController {
         return ResponseEntity.ok(NewsResponse.from(news));
     }
 
-    /** Port of get_news (routers/news.py:47-102). */
     @GetMapping("/api/news")
     public ResponseEntity<?> getNews(
             @RequestParam(defaultValue = "0") int skip,
@@ -157,7 +155,6 @@ public class NewsController {
         return ResponseEntity.ok(items);
     }
 
-    /** Port of create_news (routers/news.py:105-138). */
     @PostMapping("/api/news")
     @Transactional
     public ResponseEntity<?> createNews(@Valid @RequestBody NewsRequest request, @AuthenticationPrincipal User user) {
@@ -186,7 +183,6 @@ public class NewsController {
         return ResponseEntity.status(HttpStatus.OK).body(NewsResponse.from(saved));
     }
 
-    /** Port of update_news (routers/news.py:141-183). */
     @PutMapping("/api/news/{id}")
     @Transactional
     public ResponseEntity<?> updateNews(
@@ -220,7 +216,7 @@ public class NewsController {
         applySharedFields(news, request);
         // author_id/isDraft/expiresAt deliberately NOT touched here -- see
         // NewsRequest's javadoc: the edit form doesn't manage any of the
-        // three, so a full-replace (Python's literal behaviour) would
+        // three, so a full-replace would
         // silently null the author and un-publish/clear-expiry on every
         // unrelated edit. Preserved from the existing row instead.
         news.setVersion(news.getVersion() + 1);
@@ -236,7 +232,6 @@ public class NewsController {
         return ResponseEntity.ok(NewsResponse.from(saved));
     }
 
-    /** Port of delete_news (routers/news.py:186-213). */
     @DeleteMapping("/api/news/{id}")
     @Transactional
     public ResponseEntity<?> deleteNews(@PathVariable Long id, @AuthenticationPrincipal User user) {
@@ -312,7 +307,6 @@ public class NewsController {
         return ResponseEntity.ok(NewsResponse.from(saved));
     }
 
-    /** Port of autosave_news (routers/news.py:216-238). */
     @PatchMapping("/api/news/{id}/autosave")
     @Transactional
     public ResponseEntity<?> autosaveNews(
@@ -337,7 +331,7 @@ public class NewsController {
         }
         Map<String, Object> before = MutationAuditService.newsSnapshot(news);
 
-        // routers/news.py:229-230 -- self-heals a null author_id (e.g. a
+        // Self-heals a null author_id (e.g. a
         // row affected by the now-fixed update_news bug, or any other path)
         // by attributing it to whoever is autosaving now.
         if (news.getAuthorId() == null) {
@@ -384,7 +378,6 @@ public class NewsController {
         return ResponseEntity.ok(NewsAutosaveResponse.from(saved));
     }
 
-    /** Port of get_news_history (routers/news.py:241-265). */
     @GetMapping("/api/news/{id}/history")
     @Transactional(readOnly = true, isolation = Isolation.SERIALIZABLE)
     public ResponseEntity<?> getNewsHistory(@PathVariable Long id, @AuthenticationPrincipal User user) {
@@ -459,7 +452,6 @@ public class NewsController {
                 row.getUpdatedAt(), authorName));
     }
 
-    /** Port of restore_news_version (routers/news.py:268-302). */
     @PostMapping("/api/news/{id}/history/{historyId}/restore")
     @Transactional
     public ResponseEntity<?> restoreNewsVersion(

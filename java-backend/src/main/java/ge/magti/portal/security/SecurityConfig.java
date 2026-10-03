@@ -173,7 +173,7 @@ public class SecurityConfig {
 		return http.build();
 	}
 
-	/** Mirrors security.py's pwd_context = CryptContext(schemes=["bcrypt"]) -- reads existing hashes unchanged. */
+	/** bcrypt -- reads existing hashes unchanged. */
 	@Bean
 	public PasswordEncoder passwordEncoder() {
 		return new BCryptPasswordEncoder();

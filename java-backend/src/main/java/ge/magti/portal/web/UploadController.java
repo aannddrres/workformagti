@@ -20,20 +20,18 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Mirrors routers/platform.py's {@code POST /api/upload} (routers/platform.py:200-266):
+ * {@code POST /api/upload}:
  * a single generic attachment endpoint reused by the Article/News/Video admin
  * forms (attachments, dropzone, drag-drop, pasted-image embeds).
  *
- * <p>Same checks as Python, in the same order: MIME allowlist first, then
+ * <p>Checks, in order: MIME allowlist first, then
  * the size cap. The stored extension is derived from the content type, never
- * from the client-supplied filename -- config.py's comment on {@code
- * ALLOWED_UPLOAD_TYPES} explains why: a spoofed filename could otherwise
+ * from the client-supplied filename: a spoofed filename could otherwise
  * smuggle .html/.svg/.php for stored XSS or arbitrary execution. Spring's
  * {@code spring.servlet.multipart.max-file-size} (see application.yml)
  * already rejects anything over the cap before this method runs, so the
- * explicit {@link MultipartFile#getSize()} check here is a
- * belt-and-suspenders mirror of Python's manual streaming cap, not the only
- * guard.
+ * explicit {@link MultipartFile#getSize()} check here is
+ * belt-and-suspenders, not the only guard.
  *
  * <p><b>SEC-09.</b> This javadoc used to say the content type was
  * "server-detected". It was not: {@code MultipartFile.getContentType()}
@@ -46,10 +44,10 @@ import java.util.UUID;
  * it cannot verify (plain text has no signature; the legacy OLE2 Word/Excel
  * formats share one), so "cannot tell" is never silently read as "fine".
  *
- * <p><b>Deliberate divergence from Python (audit PR-03):</b> the bytes go to
- * {@link FileStorageService}, not to {@code portal.uploads-dir}. Python wrote
- * to a local directory and mounted it with {@code StaticFiles}; carrying that
- * over faithfully is what made every restart delete every attachment and made
+ * <p><b>Stored in the database (audit PR-03):</b> the bytes go to
+ * {@link FileStorageService}, not to {@code portal.uploads-dir}. Writing
+ * to a local directory, as the original app did, is what made every restart
+ * delete every attachment and made
  * a second replica serve 404s. See that class's javadoc for the options
  * considered.
  */
@@ -61,7 +59,7 @@ public class UploadController {
     /** Also what a body over Spring's 11MB transport limit is told (GlobalExceptionHandler). */
     static final String TOO_LARGE_DETAIL = "ფაილის ზომა აღემატება დასაშვებ 10 MiB-ს";
 
-    /** Mirrors config.py's Settings.ALLOWED_UPLOAD_TYPES exactly. */
+    /** The upload MIME allowlist. */
     private static final Map<String, String> ALLOWED_UPLOAD_TYPES = Map.ofEntries(
             Map.entry("application/pdf", ".pdf"),
             Map.entry("image/png", ".png"),

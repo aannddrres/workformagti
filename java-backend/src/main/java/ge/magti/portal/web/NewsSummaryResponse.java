@@ -6,7 +6,7 @@ import ge.magti.portal.news.NewsListItem;
 
 import java.time.OffsetDateTime;
 
-/** Mirrors schemas.py's NewsSummaryResponse -- the list-view shape (excludes content). */
+/** The list-view shape (excludes content). */
 public record NewsSummaryResponse(
         Long id,
         String title,

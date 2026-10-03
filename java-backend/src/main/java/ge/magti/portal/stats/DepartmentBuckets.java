@@ -3,19 +3,16 @@ package ge.magti.portal.stats;
 import java.util.List;
 
 /**
- * Mirrors routers/stats.py's DEPARTMENT_WHITELIST/_match_department_bucket
- * (routers/stats.py:537-557) -- a third, separate department mechanism
+ * The department whitelist and its bucket match -- a third, separate department mechanism
  * from {@link ge.magti.portal.util.DepartmentMatcher} (eligibility/
  * visibility) and {@link ge.magti.portal.domain.Article}'s dual targeting
  * (finding #19): this one maps any department prefix down to one of
  * exactly 3 broad organizational buckets, purely for dashboard grouping.
  *
- * <p>Python's function has a trailing loop after the three explicit
- * checks ({@code for wl in DEPARTMENT_WHITELIST: if raw.startswith(wl):
- * return wl}) that is provably unreachable: every string it could match
- * already matches one of the three {@code if}s above, since two of those
- * check {@code startswith(wl)} for that exact whitelist entry already.
- * Not ported -- there's no reachable behavior to preserve.
+ * <p>There is no fallback loop over the whitelist after the three explicit
+ * checks: it would be provably unreachable, since every string it could
+ * match already matches one of the three checks, two of which test
+ * {@code startsWith} for that exact whitelist entry already.
  */
 public final class DepartmentBuckets {
 

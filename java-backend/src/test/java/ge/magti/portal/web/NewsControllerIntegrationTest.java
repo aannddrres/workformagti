@@ -313,7 +313,7 @@ class NewsControllerIntegrationTest {
                 .andReturn().getResponse().getContentAsString();
         long id = objectMapper.readTree(createBody).get("id").asLong();
 
-        // The confirmed live bug: Python's schema default (is_draft=true) would
+        // The confirmed live bug: the original default (is_draft=true) would
         // make this invisible to a plain operator forever. Fixed here.
         mockMvc.perform(authed(get("/api/news"), tokenFor(operator)))
                 .andExpect(status().isOk())

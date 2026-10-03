@@ -3,7 +3,7 @@ package ge.magti.portal.web;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import ge.magti.portal.domain.QuizAnswer;
 
-/** Mirrors schemas.py's QuizAnswerAdmin -- includes is_correct. */
+/** Includes is_correct. */
 public record QuizAnswerAdminDto(
         Long id,
         @JsonProperty("answer_text") String answerText,

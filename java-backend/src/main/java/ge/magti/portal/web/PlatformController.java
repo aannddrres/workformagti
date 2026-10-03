@@ -29,13 +29,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Mirrors routers/platform.py's remaining two data endpoints, not covered by
+ * Two data endpoints not covered by
  * any other controller: the normalized tag vocabulary and the combined
  * bell-icon notifications payload. ({@code /api/health} and
- * {@code /api/upload}, platform.py's other two API endpoints, already live
- * in {@link HealthController}/{@link UploadController}; the rest of
- * platform.py is server-rendered HTML page routes with no Angular
- * equivalent.)
+ * {@code /api/upload} live in {@link HealthController}/{@link UploadController}.)
  *
  * <p>Found missing, undocumented, during the 2026-08-11 PM migration-gap
  * audit -- unlike every other deliberate deferral in this codebase, neither
@@ -70,7 +67,6 @@ public class PlatformController {
         this.mandatoryReach = mandatoryReach;
     }
 
-    /** Port of get_tags (routers/platform.py:269-281). */
     @GetMapping("/api/tags")
     public ResponseEntity<?> getTags(@AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
@@ -82,7 +78,6 @@ public class PlatformController {
                 .map(TagResponse::from).toList());
     }
 
-    /** Port of get_notifications_summary (routers/platform.py:125-197). */
     @GetMapping("/api/notifications/summary")
     public ResponseEntity<?> getNotificationsSummary(@AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);

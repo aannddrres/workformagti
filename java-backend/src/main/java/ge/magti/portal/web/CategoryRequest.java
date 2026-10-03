@@ -5,9 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 /**
- * Mirrors schemas.py's CategoryCreate (itself CategoryBase, used as-is) --
- * one shared request shape for both create and update, exactly as Python
- * does.
+ * One shared request shape for both category create and update.
  */
 public record CategoryRequest(
         @NotBlank @Size(max = 200) String name,

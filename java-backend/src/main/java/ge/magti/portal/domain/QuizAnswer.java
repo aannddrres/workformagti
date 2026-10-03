@@ -8,14 +8,12 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 /**
- * Mirrors models.py's QuizAnswer (models.py:556-564).
- *
- * <p><b>{@link #correct} must never reach an operator-facing response.</b>
- * Python enforces this with two separate Pydantic schemas --
- * {@code QuizAnswerAdmin} (includes {@code is_correct}) vs.
- * {@code QuizAnswerPublic} (omits it entirely, schemas.py:322-327) -- rather
- * than a single schema with a hidden field. This entity always carries the
- * flag, same as {@code models.QuizAnswer} always does; whoever writes the
+ * <b>{@link #correct} must never reach an operator-facing response.</b>
+ * That is enforced with two separate response shapes --
+ * {@code QuizAnswerAdminDto} (includes {@code is_correct}) vs.
+ * {@code QuizAnswerPublicDto} (omits it entirely) -- rather
+ * than a single shape with a hidden field. This entity always carries the
+ * flag; whoever writes the
  * operator-facing response DTO later must build a separate public shape
  * that leaves this field out, not just skip serializing it.
  */

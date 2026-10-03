@@ -15,22 +15,16 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Mirrors security.py's {@code authenticate_user} (security.py:177-227)
- * exactly, including its dev-only conveniences -- see
+ * Authenticates a login, including its dev-only conveniences -- see
  * docs/archive/migration/JAVA_ORACLE_ANGULAR_MIGRATION.md and the
  * auth-bypass-intentional-pending-ad memory: the password-less bypass for
  * known test emails is deliberate, not a bug, kept until real Active
  * Directory integration replaces this whole login step.
- *
- * <p>Deliberately NOT the same thing as {@code qa_accounts.py}'s {@code
- * TEST_ACCOUNTS}: those are ordinary seeded users with a real password
- * ("Test1234!") checked the normal bcrypt way -- pure seed data for
- * {@code scripts/seed_portal.py}, unrelated to the bypass mechanism here.
  */
 @Service
 public class AuthenticationService {
 
-    /** Mirrors security.py's {@code _DEV_TEST_EMAILS} (security.py:48-55). */
+    /** The development personas' addresses. */
     private static final Set<String> DEV_TEST_EMAILS = Set.of(
             "admin@magti.ge", "content@magti.ge", "manager@magti.ge",
             "nino@magti.ge", "tech@magti.ge", "info@magti.ge");
@@ -38,7 +32,7 @@ public class AuthenticationService {
     private record JitOverride(Role role, String department, String name) {
     }
 
-    /** Mirrors security.py's {@code _JIT_PROVISION_OVERRIDES} (security.py:158-165). */
+    /** Role, department and name a development persona is created with. */
     private static final Map<String, JitOverride> JIT_PROVISION_OVERRIDES = Map.of(
             "admin@magti.ge", new JitOverride(Role.SYSTEM_ADMIN, "Administration", "სისტემური ადმინი"),
             "content@magti.ge", new JitOverride(Role.CONTENT_ADMIN, "Content Creation", "კონტენტის ადმინისტრატორი"),
@@ -63,8 +57,7 @@ public class AuthenticationService {
     /**
      * Looks up an account by email without authenticating -- used only to
      * decide whether a failed login attempt should get a LOGIN_FAILED
-     * audit row (mirrors routers/auth.py:48-56's separate existence check;
-     * an audit row needs a real user id for its NOT NULL admin_id FK, so a
+     * audit row (an audit row needs a real user id for its NOT NULL admin_id FK, so a
      * login attempt against a genuinely unknown email logs nothing).
      */
     public Optional<User> findExistingAccount(String email) {

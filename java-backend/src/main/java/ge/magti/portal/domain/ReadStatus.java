@@ -11,9 +11,7 @@ import jakarta.persistence.UniqueConstraint;
 import java.time.OffsetDateTime;
 
 /**
- * Mirrors models.py's ReadStatus (models.py:217-237).
- *
- * <p>{@link #operatorDepartmentSnapshot} is a denormalized copy of the
+ * {@link #operatorDepartmentSnapshot} is a denormalized copy of the
  * user's department at the moment this row was marked "read" -- same
  * reasoning as {@link ArticleReadReceipt}'s snapshot fields: a later
  * department/group move must not retroactively rewrite historical

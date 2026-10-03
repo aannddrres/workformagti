@@ -6,7 +6,6 @@ import ge.magti.portal.stats.CriticalOperator;
 import java.time.OffsetDateTime;
 import java.util.List;
 
-/** Mirrors schemas.CriticalOperatorResponse (schemas.py:789-792). */
 public record CriticalOperatorsResponse(
         List<CriticalOperator> operators,
         int total,

@@ -6,9 +6,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
- * Mirrors schemas.py's VideoInstructionCreate/VideoInstructionBase --
- * used for both create and update, exactly as Python does (one shared
- * request schema for both routes).
+ * One shared request shape for both video create and update.
  */
 public record VideoInstructionRequest(
         @NotBlank @Size(max = 500) String title,

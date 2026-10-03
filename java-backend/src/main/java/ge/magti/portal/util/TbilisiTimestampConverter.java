@@ -9,8 +9,8 @@ import java.time.OffsetDateTime;
 /**
  * Maps {@link OffsetDateTime} (always {@link TbilisiTime#OFFSET}, by
  * construction) to a plain Oracle {@code TIMESTAMP(6)} column with no zone
- * stored -- matching database.py's actual storage (naive Tbilisi wall-clock,
- * no offset persisted) exactly. Without this converter, Hibernate 6's
+ * stored (naive Tbilisi wall-clock, no offset persisted). Without this
+ * converter, Hibernate 6's
  * default mapping for {@code OffsetDateTime} is {@code TIMESTAMP WITH TIME
  * ZONE}, which is a different physical column type than what
  * db/migration creates and would fail schema validation at startup.

@@ -6,17 +6,16 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Mirrors the SSE delivery filter in routers/messaging.py's
- * {@code event_generator} (routers/messaging.py:123-132) -- decides whether
+ * The SSE delivery filter -- decides whether
  * one live "new content" event gets pushed to one connected viewer.
  *
  * <p><b>Fixed here, not faithfully reproduced (user decision, 2026-07-30):
- * department matching is now prefix-aware.</b> The Python original compares
+ * department matching is now prefix-aware.</b> The original compared
  * {@code target_department == user_dept} with plain string equality, so an
  * article published to the parent department "გაყიდვები" never notifies a
  * viewer whose own department is the sub-group "გაყიდვები — ჯგუფი 2" --
  * even though that same viewer already sees the article once they load the
- * page, since every *visibility* check in routers/articles.py goes through
+ * page, since every *visibility* check goes through
  * the prefix-aware {@link DepartmentMatcher#matches}. This mismatch
  * (content visible on refresh, but no live pop-up) was presented to the
  * user concretely before changing it; the answer was to fix it in the Java
@@ -32,12 +31,12 @@ public final class SseEventVisibility {
 
     /**
      * @param viewerIsAdmin    true for a content-admin/system-admin viewer --
-     *                         mirrors Python's {@code is_admin}, which bypasses every filter below
+     *                         bypasses every filter below
      * @param targetDepartment the event's department target; {@code null} or "All" means unrestricted
      * @param targetRole       the event's role target; {@code null} or "All" means unrestricted
      * @param targetUserId     optional single-recipient targeting; {@code null} means unrestricted
      * @param viewerDepartment the connected viewer's own department
-     * @param viewerRole       the connected viewer's own role, as the wire-value string (matches Python's raw comparison)
+     * @param viewerRole       the connected viewer's own role, as the wire-value string
      * @param viewerId         the connected viewer's own user id
      */
     public static boolean isVisible(

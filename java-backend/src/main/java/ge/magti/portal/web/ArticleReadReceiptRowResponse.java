@@ -2,7 +2,7 @@ package ge.magti.portal.web;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/** Mirrors schemas.py's ArticleReadReceiptRow. read_at/deadline are pre-formatted strings (TbilisiTime.format), not raw datetimes -- see get_article_read_receipts. */
+/** read_at/deadline are pre-formatted strings (TbilisiTime.format), not raw datetimes. */
 public record ArticleReadReceiptRowResponse(
         @JsonProperty("operator_id") Long operatorId,
         @JsonProperty("operator_name") String operatorName,

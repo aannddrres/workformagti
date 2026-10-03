@@ -7,10 +7,8 @@ import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
- * Mirrors schemas.py's ArticleResponse (ArticleBase + id/created_at/
- * updated_at/version/read_time) field-for-field. Deliberately has no
- * category_name -- unlike {@link ArticleSummaryResponse}, ArticleResponse
- * never defines one in Python either.
+ * The full article shape. Deliberately has no
+ * category_name -- unlike {@link ArticleSummaryResponse}.
  */
 public record ArticleResponse(
         Long id,
@@ -38,7 +36,7 @@ public record ArticleResponse(
         // save over someone else's newer one is refused, not silently lost.
         @JsonProperty("lock_version") int lockVersion
 ) {
-    /** models.py's Article.read_time property (models.py:173-186). */
+    /** The estimated reading time of {@code content}. */
     public static int computeReadTime(String content) {
         if (content == null || content.isBlank()) {
             return 1;

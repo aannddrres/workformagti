@@ -14,14 +14,13 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Matches GET /api/health's response shape (routers/platform.py:284-311),
- * minus the Redis/multi-worker checks -- no broker exists on the Java
+ * GET /api/health, without Redis/multi-worker checks -- no broker exists on the Java
  * side yet, so "redis" stays honestly "not_configured" rather than faking
  * a status for infrastructure that isn't there.
  *
  * <p>The database check is real now (Phase 1b gave this a live Oracle
- * DataSource) -- runs the same bare {@code SELECT 1} dependency/readiness
- * probe as the Python original, not a guess. Process liveness is exposed
+ * DataSource) -- a bare {@code SELECT 1} dependency/readiness
+ * probe, not a guess. Process liveness is exposed
  * separately by Actuator and deliberately does not depend on Oracle.
  *
  * <p><b>PR-09:</b> this endpoint is unauthenticated, and the failure branch

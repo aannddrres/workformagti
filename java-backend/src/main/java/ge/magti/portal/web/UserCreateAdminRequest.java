@@ -5,7 +5,6 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-/** Mirrors schemas.py's UserCreateAdmin (schemas.py:525-536). */
 public record UserCreateAdminRequest(
         // Column limits: past them Oracle refused the insert as a 500 (2026-10-02).
         @Email @NotBlank @Size(max = 255, message = "ელფოსტა 255 სიმბოლოზე გრძელი ვერ იქნება") String email,

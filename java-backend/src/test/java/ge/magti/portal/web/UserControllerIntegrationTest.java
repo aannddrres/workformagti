@@ -53,7 +53,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 
 /**
  * Real Oracle, real HTTP, real Spring Security filter chain -- covers all
- * 13 built routers/users.py endpoints ({@code POST
+ * 13 built user endpoints ({@code POST
  * /api/users/{user_id}/nudge} deferred, see {@link UserController}'s
  * javadoc).
  */

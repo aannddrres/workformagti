@@ -5,7 +5,6 @@ import ge.magti.portal.domain.VideoInstruction;
 
 import java.time.OffsetDateTime;
 
-/** Mirrors schemas.py's VideoInstructionResponse field-for-field. */
 public record VideoInstructionResponse(
         Long id,
         String title,

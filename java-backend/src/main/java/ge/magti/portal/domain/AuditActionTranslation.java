@@ -9,7 +9,6 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
 /**
- * Mirrors models.py's AuditActionTranslation (models.py:658-664) --
  * Georgian display labels for audit action codes (e.g. "LOGIN" -&gt;
  * "შესვლა").
  */

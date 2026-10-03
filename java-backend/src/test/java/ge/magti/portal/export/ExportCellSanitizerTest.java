@@ -14,9 +14,8 @@ class ExportCellSanitizerTest {
 
     @Test
     void prependsQuoteForEachFormulaTriggerCharacter() {
-        // Mirrors routers/exports.py:56's exact 6-character tuple -- checked
-        // together so this test breaks if that set is ever extended without
-        // updating both sides.
+        // The exact 6-character set -- checked together so this test breaks
+        // if that set is ever changed without updating this test.
         String[] triggeringValues = {"=SUM(A1:A9)", "+1", "-1", "@cmd", "\ttabbed", "\rcr"};
         for (String value : triggeringValues) {
             assertEquals("'" + value, ExportCellSanitizer.sanitize(value), "for value: " + value);

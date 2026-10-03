@@ -7,8 +7,7 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 
 /**
- * Mirrors compliance_utils.py's _normalize_dept/_split_dept_group/
- * _dept_matches (compliance_utils.py:38-91) exactly -- the one shared rule
+ * The one shared rule
  * for matching a user's free-text {@code department} string (e.g.
  * "ტექნიკური — ჯგუფი 03") against a target department a
  * piece of content or a required reading was assigned to. Ported now,
@@ -17,8 +16,8 @@ import java.util.regex.Pattern;
  * eligibility, and Stats department rollups all need it.
  *
  * <p>{@code MANAGEMENT_ROLES}/{@code CRITICAL_THRESHOLD}
- * (compliance_utils.py:18-19) and the DB-querying compliance-percentage
- * functions (compliance_utils.py:94-166) are deliberately NOT part of this
+ * and the DB-querying compliance-percentage
+ * functions are deliberately NOT part of this
  * class -- those belong to the Compliance/Stats domain step, not the
  * department-matching rule itself.
  *
@@ -30,8 +29,7 @@ import java.util.regex.Pattern;
  * inferred. {@code pom.xml} now pins that property explicitly anyway, so
  * this stays correct on a future machine or CI runner that isn't JDK 21.
  * {@link #GROUP_KEYWORD}'s codepoints (U+10EF, U+10D2, U+10E3, U+10E4,
- * U+10D8) were extracted from the live compliance_utils.py source and are
- * asserted directly in {@code DepartmentMatcherTest}, not just eyeballed.
+ * U+10D8) are asserted directly in {@code DepartmentMatcherTest}, not just eyeballed.
  */
 public final class DepartmentMatcher {
 
@@ -46,7 +44,7 @@ public final class DepartmentMatcher {
      */
     public static final String WILDCARD_TARGET = "All";
 
-    /** Public: routers/stats.py's _group_full_department reuses this same delimiter to reconstruct a full department string. */
+    /** Public: the department dashboard reuses this same delimiter to reconstruct a full department string. */
     public static final String CANONICAL_DELIMITER = "—"; // em dash "—"
 
     private static final Pattern DASH_PATTERN = Pattern.compile("\\s*[-–—]\\s*");
@@ -66,7 +64,7 @@ public final class DepartmentMatcher {
      * Splits a raw department string into (prefix, group label), handling
      * em dash, en dash, ASCII hyphen, missing spaces, extra whitespace, and
      * the "ჯგუფი" keyword as a fallback delimiter when no dash is present --
-     * in that exact priority order, matching compliance_utils.py:43-80.
+     * in that exact priority order.
      */
     public static DepartmentGroup splitGroup(String rawDepartment) {
         String raw = normalize(rawDepartment);
@@ -141,10 +139,9 @@ public final class DepartmentMatcher {
     /**
      * True if {@code userDepartment} matches any of {@code targets}, with
      * prefix support for sub-groups (a target of "ტექნიკური" matches a user
-     * department of "ტექნიკური — ჯგუფი 03"), matching
-     * compliance_utils.py:83-91 exactly -- including that the exact-match
+     * department of "ტექნიკური — ჯგუფი 03") -- the exact-match
      * check runs unconditionally while the prefix check additionally
-     * requires a non-null, non-empty target (Python's {@code t and ...}).
+     * requires a non-null, non-empty target.
      */
     public static boolean matches(String userDepartment, Collection<String> targets) {
         DepartmentGroup userGroup = splitGroup(userDepartment);

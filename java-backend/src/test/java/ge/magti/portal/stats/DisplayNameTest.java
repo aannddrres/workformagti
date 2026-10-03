@@ -6,9 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Every case here was verified against real Python's
- * {@code (name or "").split(None, 1)} output first (not assumed), since
- * that idiom's edge-case behavior is genuinely easy to get wrong.
+ * Every case here was verified first, not assumed, since this split's
+ * edge-case behavior is genuinely easy to get wrong.
  */
 class DisplayNameTest {
 
@@ -46,8 +45,8 @@ class DisplayNameTest {
 
     @Test
     void singleWordPlusTrailingWhitespaceProducesOnlyAFirstNameNotAnEmptyLastName() {
-        // The one genuinely surprising case: Python's split(None, 1) on
-        // "Nika " returns ['Nika'], not ['Nika', ''].
+        // The one genuinely surprising case: "Nika " splits into ['Nika'],
+        // not ['Nika', ''].
         assertArrayEquals(new String[] {"Nika"}, DisplayName.splitFirstLast("Nika "));
     }
 

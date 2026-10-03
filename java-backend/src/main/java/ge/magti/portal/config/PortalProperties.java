@@ -10,9 +10,7 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Binds the {@code portal.*} keys in application.yml. Mirrors config.py's
- * {@code Settings} class one-for-one so the two configs stay legible
- * side-by-side during the port.
+ * Binds the {@code portal.*} keys in application.yml.
  */
 @Configuration
 @ConfigurationProperties(prefix = "portal")
@@ -27,8 +25,7 @@ public class PortalProperties {
 	 * the password-less dev login enabled, and a deployment manifest that
 	 * merely forgot the variable (or misspelled it, or wrote APP_ENV=prod)
 	 * handed a SYSTEM_ADMIN token to anyone who could reach the URL
-	 * (audit SEC-01, Critical). The Python side already fails safe this way;
-	 * this brings the Java image in line.
+	 * (audit SEC-01, Critical).
 	 */
 	private String appEnv = "production";
 

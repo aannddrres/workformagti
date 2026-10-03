@@ -11,8 +11,7 @@ import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 
 /**
- * Mirrors models.py's UserNote (models.py:603-611) -- a user's private
- * note on an article.
+ * A user's private note on an article.
  */
 @Entity
 @Table(name = "user_notes")

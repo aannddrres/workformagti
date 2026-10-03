@@ -13,10 +13,9 @@ import java.time.OffsetDateTime;
  * An uploaded attachment, stored as bytes in Oracle rather than on the
  * container's filesystem (audit PR-03).
  *
- * <p>There is no Python counterpart: the Python app wrote to {@code
- * settings.UPLOAD_DIR} and mounted it with {@code StaticFiles}, which is
- * exactly the arrangement PR-03 flags. This table is the Java side's
- * replacement for that directory, not a port of a model.
+ * <p>Uploads used to be written to a directory on the container's
+ * filesystem, which is exactly the arrangement PR-03 flags. This table
+ * replaces that directory.
  *
  * <p>The primary key is the generated filename ({@code <uuid>.<ext>}) rather
  * than a surrogate id, because that is what {@code articles.attachment_url}

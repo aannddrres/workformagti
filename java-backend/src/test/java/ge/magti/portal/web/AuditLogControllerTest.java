@@ -25,8 +25,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Fast, DB-free proof of the authorization branching mirrored from
- * security.py's get_current_user/require_permission: the three failure
+ * Fast, DB-free proof of the authorization branching: the three failure
  * modes (no token and non-system-admin role) plus the pass-through case.
  * The slower, real-Oracle wiring proof (does
  * {@code @AuthenticationPrincipal} really resolve through the actual

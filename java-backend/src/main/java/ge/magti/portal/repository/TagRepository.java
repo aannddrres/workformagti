@@ -11,6 +11,5 @@ public interface TagRepository extends JpaRepository<Tag, Long> {
 
     Optional<Tag> findByName(String name);
 
-    /** Mirrors get_tags' order_by(models.Tag.name) (routers/platform.py:281). */
     List<Tag> findAllByOrderByName(Pageable pageable);
 }

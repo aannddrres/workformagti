@@ -35,8 +35,7 @@ class CsvExportBuilderTest {
 
     @Test
     void headerRowItselfIsNeverSanitized() {
-        // Headers are static literals this codebase controls, never sanitized --
-        // mirrors Python's writer.writerow(["User ID", ...]) with no _sanitize_cell call.
+        // Headers are static literals this codebase controls, never sanitized.
         String csv = CsvExportBuilder.build(List.of("=Header"), List.of());
         assertTrue(csv.startsWith("=Header\r\n"));
     }

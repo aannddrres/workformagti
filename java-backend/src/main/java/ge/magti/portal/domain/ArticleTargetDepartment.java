@@ -7,8 +7,7 @@ import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
 
 /**
- * Mirrors models.py's ArticleTargetDepartment (models.py:189-198) -- the
- * junction table letting one {@link Article} target multiple departments
+ * The junction table letting one {@link Article} target multiple departments
  * (or "All"). Coexists with {@code Article.targetDepartment} (the legacy
  * single-value column) during the migration window -- see {@link
  * Article}'s own javadoc on why both are carried over unchanged.

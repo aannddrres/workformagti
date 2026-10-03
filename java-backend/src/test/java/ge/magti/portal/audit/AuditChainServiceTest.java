@@ -32,8 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Proves V28's real Oracle trigger + AuditChainService's recompute-and-
  * compare logic actually detect tampering -- not just that rows insert
- * without error. Exercises the same three scenarios
- * tests/test_audit_trail.py:331-421 checks on Postgres: altering a row
+ * without error. Exercises three scenarios: altering a row
  * post-hoc, deleting a predecessor, and forging a second genesis row.
  *
  * <p>{@code @Transactional} rolls every test back afterward, same

@@ -34,7 +34,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 
 /**
  * Real Oracle, real HTTP, real Spring Security filter chain -- covers
- * routers/platform.py's {@code POST /api/upload} port.
+ * {@code POST /api/upload}.
  *
  * <p>No file cleanup any more: since PR-03 the bytes go into {@code
  * stored_files}, so {@code @Transactional} rolls them back with everything

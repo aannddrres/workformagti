@@ -5,7 +5,7 @@ import ge.magti.portal.domain.ReadStatus;
 
 import java.time.OffsetDateTime;
 
-/** Mirrors schemas.py's ReadStatusResponse -- what POST mark-read returns. */
+/** What POST mark-read returns. */
 public record ReadStatusResponse(
         Long id,
         @JsonProperty("user_id") Long userId,

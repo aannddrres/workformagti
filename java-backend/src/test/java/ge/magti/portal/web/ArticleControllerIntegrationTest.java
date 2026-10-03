@@ -286,7 +286,7 @@ class ArticleControllerIntegrationTest {
         Category cat = createCategory("კატ-1");
         createArticle("გამოქვეყნებული", cat.getId(), "published", false, List.of("All"), null);
         createArticle("არქივირებული", cat.getId(), "archived", false, List.of("All"), null);
-        // routers/articles.py:138-143 -- (is_draft==false OR author_id==me):
+        // (is_draft==false OR author_id==me):
         // even an admin only sees a DRAFT if they authored it themselves.
         Article ownDraft = createArticle("საკუთარი დრაფტი", cat.getId(), "draft", true, List.of("All"), null);
         ownDraft.setAuthorId(admin.getId());

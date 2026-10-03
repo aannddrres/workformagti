@@ -5,7 +5,6 @@ import ge.magti.portal.domain.News;
 
 import java.time.OffsetDateTime;
 
-/** Mirrors schemas.py's NewsResponse. */
 public record NewsResponse(
         Long id,
         String title,

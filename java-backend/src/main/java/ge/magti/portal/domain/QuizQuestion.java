@@ -13,10 +13,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Mirrors models.py's QuizQuestion (models.py:544-553).
- *
- * <p>{@link #answers} is ordered by {@link QuizAnswer#getPosition()} in
- * Python (the relationship's {@code order_by}) -- this class doesn't
+ * {@link #answers} is meant to be ordered by {@link QuizAnswer#getPosition()}
+ * -- this class doesn't
  * enforce that ordering itself; whoever populates the list from storage
  * later is responsible for it, same as the DB query is today.
  */

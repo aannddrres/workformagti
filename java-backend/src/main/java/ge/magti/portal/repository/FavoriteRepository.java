@@ -28,7 +28,7 @@ public interface FavoriteRepository extends JpaRepository<Favorite, Long> {
     void deleteByItemTypeAndItemId(String itemType, Long itemId);
 
     /**
-     * Port of add_favorite's race guard (routers/favorites.py:64-80). No
+     * The add-favorite race guard. No
      * UPDATE case exists here (favoriting twice is a no-op, nothing to
      * overwrite), so this is INSERT-if-missing only, not a full MERGE.
      *

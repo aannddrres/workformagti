@@ -8,12 +8,12 @@ import java.util.Set;
 /**
  * The single, merged permission catalog for the Java port.
  *
- * <p>The Python app carries two disjoint RBAC catalogs that were never meant
+ * <p>The original app carried two disjoint RBAC catalogs that were never meant
  * to coexist (known bug #5, docs/archive/migration/JAVA_ORACLE_ANGULAR_MIGRATION.md): 8
  * dot-named permissions checked against users.permissions (a plain JSON
- * string list, models.py:43, defined security.py:363-370), and a separate
+ * string list), and a separate
  * 13 colon-named permissions seeded into Role/Permission/RolePermission DB
- * tables (scripts/seed_rbac.py:18-32) that no dotted check ever matches --
+ * tables that no dotted check ever matches --
  * including the historical "system:audit" value. Raw system audit is now
  * SYSTEM_ADMIN-only and therefore is not a grantable catalog entry.
  *
@@ -107,7 +107,7 @@ public enum Permission {
      * publishing is included in {@code articles.edit}; raw system audit is a
      * SYSTEM_ADMIN role boundary and neither appears as an independent grant.
      *
-     * <p>Unrelated to known bug #4 (routers/users.py:460-465): a separate
+     * <p>Unrelated to known bug #4: a separate
      * admin-facing "known permissions" whitelist on the manual
      * permission-edit endpoint lists only 7 of the 8 dotted constants,
      * omitting VIDEOS_ARCHIVE -- so today, editing a user's permissions by

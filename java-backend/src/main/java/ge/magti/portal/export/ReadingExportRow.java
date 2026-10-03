@@ -4,8 +4,7 @@ import java.time.OffsetDateTime;
 
 /**
  * One flattened ReadStatus+User+RequiredReading row, the shared shape
- * behind all 3 readings-export formats (routers/exports.py's
- * export_readings/export_readings_xlsx/export_readings_pdf). All three
+ * behind all 3 readings-export formats (CSV, XLSX, PDF). All three
  * write the same eight PO-13 columns; {@code userId} and {@code itemId}
  * identify the row in code and are never written to a file (PO-13 leaves
  * employee and material IDs out).

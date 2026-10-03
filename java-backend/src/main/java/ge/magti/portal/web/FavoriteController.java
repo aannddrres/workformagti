@@ -23,7 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Mirrors routers/favorites.py -- all 3 endpoints (list, add, remove).
+ * All 3 favorite endpoints (list, add, remove).
  * Any authenticated user (any active role) manages only their own
  * bookmarks; there is no admin/content-admin gate anywhere in this
  * domain, unlike every other Content controller so far.
@@ -39,7 +39,6 @@ public class FavoriteController {
         this.itemTitleResolver = itemTitleResolver;
     }
 
-    /** Port of get_favorites (routers/favorites.py:14-42). */
     @GetMapping("/api/favorites")
     public ResponseEntity<?> getFavorites(@AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
@@ -58,9 +57,8 @@ public class FavoriteController {
     }
 
     /**
-     * Port of add_favorite (routers/favorites.py:44-90). Idempotent: an
-     * existing bookmark for the same (user, item) is returned as-is,
-     * matching Python exactly.
+     * Idempotent: an
+     * existing bookmark for the same (user, item) is returned as-is.
      */
     @PostMapping("/api/favorites")
     @Transactional
@@ -77,7 +75,6 @@ public class FavoriteController {
         return ResponseEntity.ok(FavoriteResponse.from(favorite, title));
     }
 
-    /** Port of remove_favorite (routers/favorites.py:92-122). */
     @DeleteMapping("/api/favorites/{id}")
     public ResponseEntity<?> removeFavorite(@PathVariable Long id, @AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);

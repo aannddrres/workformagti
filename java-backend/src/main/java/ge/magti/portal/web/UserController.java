@@ -40,9 +40,9 @@ import java.util.Set;
 import java.time.OffsetDateTime;
 
 /**
- * Mirrors routers/users.py's 14 endpoints, minus one: {@code POST
- * /api/users/{user_id}/nudge} (routers/users.py:365-390) is deliberately
- * not ported. It has no durable side effect at all in Python -- it's a
+ * The user endpoints, minus one: {@code POST
+ * /api/users/{user_id}/nudge} is deliberately
+ * not ported. It had no durable side effect at all -- it was a
  * pure SSE publish with no DB write, unlike everything else deferred so
  * far in this port (which all kept a durable half). Presented to the user
  * concretely: the alternative was faking success with no real delivery, or
@@ -53,11 +53,9 @@ import java.time.OffsetDateTime;
  * Today the frontend's nudge button will get a 404 (a real failure, shown
  * to the manager), not a misleading fake success.
  *
- * <p>Python's file-level comment flags a Starlette route-registration-order
- * trap between {@code PUT /api/users/me} and {@code PUT /api/users/{user_id}}
- * (routers/users.py:5-10). Spring MVC dispatches by most-specific pattern
- * match, not registration order, so that trap doesn't exist here -- the two
- * methods below can be declared in any order.
+ * <p>{@code PUT /api/users/me} and {@code PUT /api/users/{user_id}} can be
+ * declared in any order: Spring MVC dispatches by most-specific pattern
+ * match, not registration order.
  */
 @RestController
 public class UserController {
@@ -109,7 +107,6 @@ public class UserController {
         return properties.getSecurity().getCorporate().rolesManagedByDirectory();
     }
 
-    /** Port of read_users_me (routers/users.py:29-50). */
     @GetMapping("/api/users/me")
     public ResponseEntity<?> getCurrentUser(@AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
@@ -136,7 +133,6 @@ public class UserController {
                 user, permissionChecker.effectivePermissions(user), broadcastAuthorizationService.canPublish(user)));
     }
 
-    /** Port of update_users_me (routers/users.py:53-69). */
     @PutMapping("/api/users/me")
     @Transactional
     public ResponseEntity<?> updateCurrentUser(
@@ -171,7 +167,6 @@ public class UserController {
         return ResponseEntity.ok(UserResponse.from(saved, permissionOverrideRepository.findByUserId(saved.getId())));
     }
 
-    /** Port of change_own_password (routers/users.py:73-97). */
     @PostMapping("/api/users/me/password")
     @Transactional
     public ResponseEntity<?> changeOwnPassword(
@@ -184,7 +179,6 @@ public class UserController {
                 "detail", "პაროლი იმართება კომპანიის Active Directory-ში და პორტალიდან არ იცვლება."));
     }
 
-    /** Port of bulk_reassign_roles (routers/users.py:101-184). */
     @PostMapping("/api/admin/roles/bulk-reassign")
     @Transactional
     public ResponseEntity<?> bulkReassignRoles(
@@ -335,7 +329,6 @@ public class UserController {
                 deactivated, users.size() - deactivated, request.userIds().size()));
     }
 
-    /** Port of update_user_status (routers/users.py:187-232). */
     @PutMapping("/api/users/{userId}/status")
     @Transactional
     public ResponseEntity<?> updateUserStatus(
@@ -379,7 +372,6 @@ public class UserController {
         return ResponseEntity.ok(UserResponse.from(saved, permissionOverrideRepository.findByUserId(userId)));
     }
 
-    /** Port of get_group_leaders (routers/users.py:235-251). */
     @GetMapping("/api/admin/group-leaders")
     public ResponseEntity<?> getGroupLeaders(@AuthenticationPrincipal User admin) {
         ResponseEntity<Map<String, String>> denial = requireSystemAdmin(admin);
@@ -392,7 +384,6 @@ public class UserController {
         return ResponseEntity.ok(leaders);
     }
 
-    /** Port of list_users (routers/users.py:254-296). */
     @GetMapping("/api/users")
     public ResponseEntity<?> listUsers(
             @RequestParam(value = "manager_id", required = false) Long managerId,
@@ -420,7 +411,6 @@ public class UserController {
         return ResponseEntity.ok(responses);
     }
 
-    /** Port of update_user_admin (routers/users.py:299-334). */
     @PutMapping("/api/users/{userId}")
     @Transactional
     public ResponseEntity<?> updateUserAdmin(
@@ -538,7 +528,6 @@ public class UserController {
         return ResponseEntity.ok(UserResponse.from(saved, permissionOverrideRepository.findByUserId(saved.getId())));
     }
 
-    /** Port of get_teams (routers/users.py:337-346). */
     @GetMapping("/api/teams")
     public ResponseEntity<?> getTeams(@AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
@@ -567,7 +556,6 @@ public class UserController {
                 .body(Map.of("detail", "ჯგუფების შექმნა იმართება ორგანიზაციის კატალოგიდან"));
     }
 
-    /** Port of create_user_admin (routers/users.py:394-427). */
     @PostMapping("/api/users")
     @Transactional
     public ResponseEntity<?> createUserAdmin(
@@ -580,7 +568,6 @@ public class UserController {
                 "detail", "მომხმარებლების შექმნა იმართება კომპანიის Active Directory-იდან სინქრონიზაციით."));
     }
 
-    /** Port of admin_reset_password (routers/users.py:431-444). */
     @PostMapping("/api/users/{userId}/reset-password")
     @Transactional
     public ResponseEntity<?> adminResetPassword(

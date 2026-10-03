@@ -5,10 +5,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
 /**
- * Mirrors schemas.py's AuditChainHealthResponse -- response shape for
- * GET /api/audit-logs/chain-health. status is "ok" | "tampered" (the
- * Python "unavailable" case doesn't apply here: this Java port only ever
- * targets Oracle, so the chain always exists).
+ * Response shape for
+ * GET /api/audit-logs/chain-health. status is "ok" | "tampered" (there is
+ * no "unavailable" case: this backend only ever targets Oracle, so the
+ * chain always exists).
  */
 public record AuditChainHealthResponse(
         String status,

@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 
-/** Mirrors schemas.py's QuizAttemptResult. */
 public record QuizAttemptResultResponse(
         boolean passed,
         int score,

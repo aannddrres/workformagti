@@ -6,8 +6,7 @@ import ge.magti.portal.domain.News;
 import java.time.OffsetDateTime;
 
 /**
- * Mirrors schemas.py's NewsAutosaveResponse -- serialized from the
- * just-updated ORM row (routers/news.py:236 returns {@code db_news}), not
+ * The news autosave response -- built from the just-updated row, not
  * the request payload.
  */
 public record NewsAutosaveResponse(

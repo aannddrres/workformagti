@@ -13,10 +13,10 @@ import java.nio.file.Path;
 import java.util.List;
 
 /**
- * Fixes known bug #9 (see {@link ExportJob}'s javadoc): Python writes
- * {@code export_jobs.expires_at} on every job but never once reads it back
- * -- a finished export file sits on disk indefinitely unless someone
- * actually downloads it (which triggers {@code _cleanup_export}). This
+ * Fixes known bug #9 (see {@link ExportJob}'s javadoc): the original app
+ * wrote {@code export_jobs.expires_at} on every job but never once read it
+ * back -- a finished export file sat on disk indefinitely unless someone
+ * actually downloaded it. This
  * periodic sweep is the missing other half: anything past its TTL --
  * completed or failed -- gets its file deleted and its row dropped. A job
  * whose worker crashed mid-build is first marked failed by

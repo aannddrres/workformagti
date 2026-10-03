@@ -10,11 +10,11 @@ import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 
 /**
- * Mirrors models.py's Team (models.py:256-266) -- Team Statistics
+ * Team Statistics
  * foundation, distinct from the free-text {@code users.department} string.
  *
- * <p>Deliberately NOT modeled: the {@code members} back-reference
- * (models.py:266). Same reasoning as {@link User}'s omitted {@code team}/
+ * <p>Deliberately NOT modeled: the {@code members} back-reference.
+ * Same reasoning as {@link User}'s omitted {@code team}/
  * {@code manager} object references -- {@link User#getTeamId()} carries the
  * raw foreign key; adding {@code @OneToMany(mappedBy = "team")} here is
  * repository-layer work for whenever something actually needs to query it,

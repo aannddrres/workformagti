@@ -36,7 +36,7 @@ class TeamStatsBuilderTest {
 
     @Test
     void averagePercentageTruncatesTowardZeroLikePythonsIntNotRound() {
-        // (10 + 25) / 2 = 17.5 -- Python's int(17.5) == 17 (truncates).
+        // (10 + 25) / 2 = 17.5 -- truncates to 17.
         // Round-half-to-even would give 18 (nearest even) -- this must be 17.
         int average = TeamStatsBuilder.averagePercentage(List.of(record(1L, 10, 1, 10), record(2L, 10, 3, 25)));
 

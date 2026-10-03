@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Mirrors models.py's Article (models.py:111-186). {@link ArticleHistory},
+ * The articles table. {@link ArticleHistory},
  * read receipts, and quiz questions are separate tables, deliberately not
  * modeled as part of this class, same reasoning as {@link User} deferring
  * {@link Team} as an object reference.
@@ -27,17 +27,16 @@ import java.util.List;
  * projections to preserve the response value without loading the CLOB.
  *
  * <p><b>Department targeting is two coexisting mechanisms today, on
- * purpose, mid-migration inside the Python app itself</b> (models.py:156-171,
- * 189-198; routers/articles.py:84,150-153,230-238):
+ * purpose</b>:
  * <ul>
  *   <li>{@link #targetDepartments} -- the actual, authoritative list,
  *       backed by the {@code article_target_departments} junction table.
- *       Every real visibility/filter check in routers/articles.py reads
+ *       Every real visibility/filter check reads
  *       this, not the field below.</li>
  *   <li>{@link #targetDepartment} -- the legacy single-value column.
- *       routers/articles.py's own comment calls it out as "kept in sync
- *       for not-yet-migrated readers (e.g. _notify's SSE payload) during
- *       the transition window" -- it is written (best-effort: "All" if the
+ *       It is kept in sync for not-yet-migrated readers (e.g. the SSE
+ *       payload) during the transition window -- it is written
+ *       (best-effort: "All" if the
  *       list contains it, else the first department) but never read for
  *       access control.</li>
  * </ul>
@@ -98,8 +97,8 @@ public class Article {
     private OffsetDateTime updatedAt;
     /**
      * Known bug #2, decided fix (2026-07-29): editing an article's quiz
-     * today does not bump this (routers/articles.py:730-765), even though
-     * the read-receipt quiz-gate checks against it (:1024) -- so a
+     * today does not bump this, even though
+     * the read-receipt quiz-gate checks against it -- so a
      * reader who already passed an old quiz is never asked to retake a
      * changed one. Whoever writes the quiz-update service method on this
      * entity should increment {@code version} there; not fixed here since

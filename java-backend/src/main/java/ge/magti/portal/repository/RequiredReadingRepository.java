@@ -20,7 +20,7 @@ public interface RequiredReadingRepository extends JpaRepository<RequiredReading
     @Query("SELECT rr FROM RequiredReading rr WHERE rr.id = :readingId")
     Optional<RequiredReading> findByIdForUpdate(@Param("readingId") Long readingId);
 
-    /** Mirrors get_article_read_receipts' single-row lookup (routers/articles.py:1042-1045). */
+    /** The article read-receipts view's single-row lookup. */
     Optional<RequiredReading> findFirstByItemTypeAndItemId(String itemType, Long itemId);
 
     /**
@@ -33,8 +33,8 @@ public interface RequiredReadingRepository extends JpaRepository<RequiredReading
     List<RequiredReading> findByItemTypeAndItemId(String itemType, Long itemId);
 
     /**
-     * Mirrors create_article_read_receipt's compliance-bridge lookup
-     * (routers/articles.py:1210-1216) -- prefix-aware (caller passes [dept,
+     * The article read receipt's compliance-bridge lookup
+     * -- prefix-aware (caller passes [dept,
      * deptPrefix, "All"]), the rule EligibleOperatorsService also follows
      * since 2026-10-01. V6 has no item/target uniqueness constraint, so the caller uses
      * a 1,001-row sentinel page and fails loudly rather than hydrating an
@@ -43,7 +43,7 @@ public interface RequiredReadingRepository extends JpaRepository<RequiredReading
     List<RequiredReading> findByItemTypeAndItemIdAndTargetDepartmentIn(
             String itemType, Long itemId, List<String> targetDepartments, Pageable pageable);
 
-    /** get_required_reading_for_item's by-item lookup (routers/compliance.py:331-334). Distinct from findFirstBy... only in name/intent; both return the first row. */
+    /** The by-item required-reading lookup. Distinct from findFirstBy... only in name/intent; both return the first row. */
     Optional<RequiredReading> findFirstByItemTypeAndItemIdOrderByIdAsc(String itemType, Long itemId);
 
     /**
@@ -54,12 +54,12 @@ public interface RequiredReadingRepository extends JpaRepository<RequiredReading
     @Query("SELECT rr.id FROM RequiredReading rr WHERE rr.assignmentDeliveredAt IS NULL ORDER BY rr.id")
     List<Long> findIdsAwaitingAssignmentDelivery(Pageable pageable);
 
-    /** Mirrors get_my_readings' visibility filter (routers/compliance.py:49-51) -- caller passes [dept, deptPrefix, "All"]. */
+    /** The reading list's visibility filter -- caller passes [dept, deptPrefix, "All"]. */
     List<RequiredReading> findByTargetDepartmentIn(List<String> targetDepartments, Pageable pageable);
 
     /**
-     * Mirrors get_compliance_statistics' top-5-most-read-articles query
-     * (routers/stats.py:175-197): required readings of type "article",
+     * The compliance statistics' top-5-most-read-articles query:
+     * required readings of type "article",
      * counting "read" statuses from active, non-management users, for
      * articles that actually have at least one target-department row
      * (Article.target_department_rows.any()) -- articles with none would

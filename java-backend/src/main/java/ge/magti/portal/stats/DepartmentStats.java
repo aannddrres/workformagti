@@ -5,9 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
 /**
- * Mirrors one top-level department entry routers/stats.py's
- * build_department_stats assembles (routers/stats.py:619-651), matching
- * schemas.DepartmentStats (schemas.py:714-723) field-for-field. Always one
+ * One top-level department in the department dashboard. Always one
  * of these per {@link DepartmentBuckets#WHITELIST} entry, even when
  * {@code empty} -- the dashboard renders all three whitelisted
  * departments unconditionally.

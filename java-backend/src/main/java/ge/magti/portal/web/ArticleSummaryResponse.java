@@ -8,7 +8,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
- * Mirrors schemas.py's ArticleSummaryResponse -- the list-view shape
+ * The list-view shape
  * (excludes {@code content}, adds {@code category_name}).
  *
  * <p>The Java list query uses a CLOB-free projection. V45 maintains the real

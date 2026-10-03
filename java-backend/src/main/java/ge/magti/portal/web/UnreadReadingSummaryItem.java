@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.OffsetDateTime;
 
-/** One entry of the notifications-summary unread/overdue reading list (routers/platform.py:165-172). */
+/** One entry of the notifications-summary unread/overdue reading list. */
 public record UnreadReadingSummaryItem(
         Long id,
         @JsonProperty("item_type") String itemType,

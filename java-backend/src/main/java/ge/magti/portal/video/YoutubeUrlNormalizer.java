@@ -5,10 +5,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Mirrors routers/videos.py's normalize_youtube_url (:25-50) exactly --
- * same pattern list, same priority order (first match wins), same
- * fallback for a bare 11-character video ID, same pass-through for
- * anything that matches none of them.
+ * Normalizes a YouTube URL: a fixed pattern list in priority order (first
+ * match wins), a fallback for a bare 11-character video ID, and
+ * pass-through for anything that matches none of them.
  */
 public final class YoutubeUrlNormalizer {
 

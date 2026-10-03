@@ -9,15 +9,13 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Ports the one part of routers/articles.py's
- * {@code submit_article_quiz_attempt} (:825-836) that needs no database:
+ * The one part of quiz submission that needs no database:
  * scoring already-loaded questions against submitted answers. Grading a
- * quiz requires 100% -- there is no partial-credit threshold, matching
- * {@code Article.quiz_enabled}'s doc comment (models.py:147-150) and
- * routers/articles.py:836's {@code passed = score == total} exactly.
+ * quiz requires 100% -- there is no partial-credit threshold
+ * ({@code passed = score == total}).
  *
- * <p>Deliberately NOT ported here (both require storage,
- * routers/articles.py:838-854): computing {@code attemptNumber} from prior
+ * <p>Deliberately NOT done here (both require storage): computing
+ * {@code attemptNumber} from prior
  * attempts, and persisting the resulting
  * {@link ge.magti.portal.domain.QuizAttempt} row. Those are repository-layer
  * work for whenever the DB question is revisited.
@@ -29,11 +27,9 @@ public final class QuizGrader {
 
     /**
      * @param questions        the article's quiz questions, each with its answers loaded
-     * @param submittedAnswers {questionId: chosenAnswerId}, mirroring
-     *                         schemas.QuizAttemptSubmit (schemas.py:345-347) -- a
-     *                         question missing from this map is graded wrong, exactly
-     *                         like Python's {@code dict.get} returning {@code None}
-     *                         (routers/articles.py:829-830), not an error.
+     * @param submittedAnswers {questionId: chosenAnswerId} -- a
+     *                         question missing from this map is graded wrong,
+     *                         not an error.
      */
     public static QuizGradeResult grade(List<QuizQuestion> questions, Map<Long, Long> submittedAnswers) {
         List<Long> wrongQuestionIds = new ArrayList<>();

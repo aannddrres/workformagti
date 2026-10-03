@@ -43,16 +43,14 @@ import java.util.Optional;
 import java.util.SortedMap;
 
 /**
- * Mirrors routers/exports.py's 6 endpoints: the synchronous compliance CSV,
+ * The 6 export endpoints: the synchronous compliance CSV,
  * 3 async xlsx/pdf builds (Excel via Apache POI, PDF via PDFBox -- both
  * Apache-2.0, user-confirmed choice, 2026-08-06), and the job status/
  * download pair.
  *
- * <p><b>Not ported: the "library not installed" 503 checks</b>
- * (routers/exports.py:132-139,253-259,294-297) -- those exist in Python
- * because openpyxl/reportlab are optional runtime pip installs; POI/PDFBox
+ * <p><b>No "library not installed" 503 checks:</b> POI/PDFBox
  * are compile-time Maven dependencies, always present once this module
- * builds, so that whole degradation path has nothing to port. The one PDF
+ * builds, so there is no such degradation path. The one PDF
  * failure mode that can still happen -- no Georgian-capable font found --
  * surfaces as the async job's status flipping to {@code failed}, not a
  * request-time 503 (see {@link ExportJobWorker}).
@@ -62,9 +60,9 @@ import java.util.SortedMap;
  * a gap where xlsx/pdf (unlike the CSV) never filtered out managers/admins/
  * inactive users from an admin-only personal-data export.
  *
- * <p><b>Bug #313 fix:</b> Python gated CSV/XLSX on system_admin-only while
- * PDF used the broader {@code reports.export} permission (routers/exports.py
- * :67,124,249 -- a pre-existing inconsistency, not a Java-port regression).
+ * <p><b>Bug #313 fix:</b> the original app gated CSV/XLSX on system_admin-only while
+ * PDF used the broader {@code reports.export} permission (a pre-existing
+ * inconsistency, not a Java-port regression).
  * Confirmed live (docs/archive/migration/TEST_PLAN_AND_RESULTS.md §2.1, asymmetry #2): a
  * manager with {@code reports.export} was denied CSV/XLSX but allowed the
  * exact same data as PDF. Reconciled onto the permission-based gate for all
@@ -128,7 +126,6 @@ public class ExportController {
         this.scopeResolver = scopeResolver;
     }
 
-    /** Port of export_readings (routers/exports.py:65-117). */
     @GetMapping("/api/export/readings")
     public ResponseEntity<?> exportReadingsCsv(
             @AuthenticationPrincipal User admin,
@@ -158,7 +155,6 @@ public class ExportController {
                 .body(csv.getBytes(StandardCharsets.UTF_8));
     }
 
-    /** Port of export_readings_xlsx (routers/exports.py:122-163). */
     @GetMapping("/api/export/readings.xlsx")
     public ResponseEntity<?> exportReadingsXlsx(
             @AuthenticationPrincipal User admin,
@@ -185,7 +181,6 @@ public class ExportController {
         return ResponseEntity.ok(new ExportJobResponse(jobId));
     }
 
-    /** Port of export_readings_pdf (routers/exports.py:246-284). */
     @GetMapping("/api/export/readings.pdf")
     public ResponseEntity<?> exportReadingsPdf(
             @AuthenticationPrincipal User user,
@@ -212,7 +207,6 @@ public class ExportController {
         return ResponseEntity.ok(new ExportJobResponse(jobId));
     }
 
-    /** Port of export_team_stats_pdf (routers/exports.py:287-317). */
     @GetMapping("/api/export/team-stats.pdf")
     public ResponseEntity<?> exportTeamStatsPdf(@AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireReportsExport(user);
@@ -234,7 +228,6 @@ public class ExportController {
         return ResponseEntity.ok(new ExportJobResponse(jobId));
     }
 
-    /** Port of get_export_status (routers/exports.py:421-429). */
     @GetMapping("/api/export/status/{jobId}")
     public ResponseEntity<?> getExportStatus(@PathVariable("jobId") String jobId, @AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireReportsExport(user);
@@ -252,9 +245,9 @@ public class ExportController {
     }
 
     /**
-     * Port of download_export (routers/exports.py:432-447), with BL-09 fixed.
+     * Export download, with BL-09 fixed.
      *
-     * <p>Python answered <b>every</b> non-success case with the same
+     * <p>It used to answer <b>every</b> non-success case with the same
      * {@code 404 ექსპორტი ჯერ არ არის მზად} -- "not ready yet", a message that
      * tells the user to wait. It was returned when the job was genuinely still
      * building, when the id was unknown, when the file had already been

@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.OffsetDateTime;
 
-/** One entry of the notifications-summary recent-news list (routers/platform.py:181-185). */
+/** One entry of the notifications-summary recent-news list. */
 public record RecentNewsSummaryItem(
         Long id,
         String title,

@@ -3,7 +3,7 @@ package ge.magti.portal.web;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Mirrors schemas.py's AuditLogVerifyResponse -- response shape for
+ * Response shape for
  * GET /api/audit-logs/{id}/verify. status is "ok" | "tampered" | "unchained".
  */
 public record AuditVerifyResponse(

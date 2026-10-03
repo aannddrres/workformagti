@@ -84,7 +84,7 @@ class AuditLogControllerIntegrationTest {
         return new ObjectMapper().readTree(body).get("access_token").asText();
     }
 
-    /** Builds a user with fine-grained permissions, unlike loginAndGetToken's qa_accounts.py defaults. */
+    /** Builds a user with fine-grained permissions, unlike loginAndGetToken's defaults. */
     private User createUser(String email, Role role, String department, Set<Permission> extraPermissions) {
         User user = new User();
         user.setEmail(email);

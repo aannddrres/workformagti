@@ -12,13 +12,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Mirrors schemas.py's UserResponse (schemas.py:38-49). read_count /
- * required_count / progress_percentage are not columns on {@link User} --
- * Python only ever populates them ad hoc in list_users (routers/users.py:
- * 288-294); every other call site serializes a plain User row and gets
- * null for all three (Pydantic's Optional[int] = None default on a
- * never-set dynamic attribute). {@link #from(User)} mirrors that: nulls by
- * default, {@link #from(User, ReadingProgress)} is the list_users-only path.
+ * read_count / required_count / progress_percentage are not columns on
+ * {@link User} -- only the user list populates them; every other call site
+ * serializes a plain User row and gets null for all three.
+ * {@link #from(User)} gives nulls; {@link #from(User, ReadingProgress)} is
+ * the user-list-only path.
  */
 public record UserResponse(
         Long id,

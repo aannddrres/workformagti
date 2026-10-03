@@ -6,8 +6,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Mirrors models.py's classify_audit_category (models.py:409-415) and its
- * three backing sets/map (models.py:381-406), excluding retired feature
+ * Classifies an audit action into its category, from three backing
+ * sets/map, excluding retired feature
  * item types. Pure and DB-free --
  * safe to port now even though the rest of the Audit domain mostly isn't
  * (see the migration doc's §1a).

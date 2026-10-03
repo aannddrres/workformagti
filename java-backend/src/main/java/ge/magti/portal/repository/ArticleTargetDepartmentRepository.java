@@ -15,9 +15,8 @@ public interface ArticleTargetDepartmentRepository
 
     List<ArticleTargetDepartment> findByArticleIdIn(Collection<Long> articleIds, Pageable pageable);
 
-    // Article.targetDepartmentRows is @Transient (models.py's ORM relationship
-    // isn't mirrored as a real JPA association) -- create/update replace the
-    // whole set explicitly: delete then re-insert, same as Python reassigning
-    // db_article.target_department_rows to a fresh list.
+    // Article.targetDepartmentRows is @Transient (not a real JPA
+    // association) -- create/update replace the
+    // whole set explicitly: delete then re-insert.
     void deleteByArticleId(Long articleId);
 }

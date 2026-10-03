@@ -3,9 +3,7 @@ package ge.magti.portal.stats;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Mirrors the per-operator dict routers/stats.py's get_critical_operators
- * builds (routers/stats.py:731-737), matching schemas.CriticalOperatorItem
- * (schemas.py:781-786) field-for-field.
+ * One operator in the critical-operators list.
  */
 public record CriticalOperator(
         @JsonProperty("user_id") Long userId,

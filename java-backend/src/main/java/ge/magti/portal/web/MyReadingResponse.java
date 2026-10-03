@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.OffsetDateTime;
 
-/** Mirrors schemas.py's MyReadingResponse -- one item of an operator's reading-task list. */
+/** One item of an operator's reading-task list. */
 public record MyReadingResponse(
         RequiredReadingResponse reading,
         String status,

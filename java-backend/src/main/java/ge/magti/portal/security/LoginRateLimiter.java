@@ -6,10 +6,8 @@ import java.time.Duration;
 import java.util.Locale;
 
 /**
- * Login throttling. Descended from state.py's slowapi
- * {@code Limiter(key_func=get_remote_address)} applied at
- * routers/auth.py:28 ({@code @limiter.limit("10/minute")}), but no longer a
- * literal port of it -- see below.
+ * Login throttling. It began as a per-IP "10 a minute" limit -- see below
+ * for why it is no longer that.
  *
  * <h2>What was wrong (audit PR-04, SEC-04)</h2>
  *
@@ -52,8 +50,8 @@ import java.util.Locale;
  * taken, because it would mean asking IT to run a service for a table of
  * throwaway counters.
  *
- * <p>(The Python original had the same shape of flaw for a different reason
- * -- migration doc §5 bug #15, its count fragmented across gunicorn's 4
+ * <p>(The original app had the same shape of flaw for a different reason
+ * -- migration doc §5 bug #15, its count fragmented across 4
  * worker processes. This fixes both fragmentations, per-process and
  * per-pod.)
  */

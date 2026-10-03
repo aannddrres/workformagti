@@ -10,16 +10,15 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 /**
- * Mirrors {@code _async_file_worker} (routers/exports.py:347-379): compiles
- * an export file from already-fetched, primitive row data (no DB querying
- * here -- that already happened synchronously in the controller, same as
- * Python guarding export size before enqueueing) and records the outcome
- * on the {@link ExportJob} row. FastAPI's {@code BackgroundTasks} maps to
+ * Compiles an export file from already-fetched, primitive row data (no DB
+ * querying here -- that already happened synchronously in the controller,
+ * which also guards export size before enqueueing) and records the outcome
+ * on the {@link ExportJob} row. Runs on
  * Spring's {@code @Async} -- see {@code PortalBackendApplication}'s {@code
  * @EnableAsync}. Must be called through the Spring proxy (i.e. injected as
  * a bean, not invoked as a same-class method) for {@code @Async} to apply.
  *
- * <p><b>Deliberate divergence from Python (audit PR-03/BL-09):</b> the built
+ * <p><b>Stored in the database (audit PR-03/BL-09):</b> the built
  * file goes into the {@code export_jobs} row itself, not into
  * {@code <uploads-dir>/exports}. It used to be written to the container's own
  * filesystem while the row it belongs to lived in shared Oracle, so a
@@ -34,9 +33,9 @@ public class ExportJobWorker {
 
     private static final Logger log = LoggerFactory.getLogger(ExportJobWorker.class);
 
-    /** Mirrors {@code _EXPORT_JOB_TTL} (routers/exports.py:30) -- also used
+    /** The export-job TTL -- also used
      *  by {@link ge.magti.portal.web.ExportController} when it creates the
-     *  initial "processing" row, same as Python's {@code _enqueue_export}. */
+     *  initial "processing" row. */
     public static final long EXPORT_JOB_TTL_SECONDS = 3600;
 
     private final ExportJobRepository exportJobRepository;

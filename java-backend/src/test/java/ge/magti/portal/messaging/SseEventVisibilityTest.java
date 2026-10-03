@@ -30,7 +30,7 @@ class SseEventVisibilityTest {
 
     @Test
     void subGroupDepartmentNowMatchesParentTarget() {
-        // The fix: routers/messaging.py:129 used exact string equality, so a
+        // The fix: the original used exact string equality, so a
         // sub-group viewer never got the live pop-up despite already seeing
         // the same content via the prefix-aware visibility filter elsewhere.
         assertTrue(SseEventVisibility.isVisible(

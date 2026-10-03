@@ -13,8 +13,7 @@ import java.io.UncheckedIOException;
 import java.util.List;
 
 /**
- * Mirrors {@code _build_table_pdf} (routers/exports.py:206-243): a
- * paginated table PDF with a title, a red/white header row that repeats on
+ * A paginated table PDF with a title, a red/white header row that repeats on
  * every page (ReportLab's {@code repeatRows=1}), a 0.25pt grey grid, and
  * alternating white/light-grey row backgrounds.
  *

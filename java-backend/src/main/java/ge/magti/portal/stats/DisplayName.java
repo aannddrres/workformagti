@@ -1,11 +1,8 @@
 package ge.magti.portal.stats;
 
 /**
- * Ports the {@code name.split(None, 1)} idiom used twice in routers/stats.py
- * (get_critical_operators:730, get_group_users:801) to split a display name
- * into (first, last). Python's {@code split(None, ...)} has non-obvious
- * behavior, verified empirically against real Python output rather than
- * assumed, before writing this:
+ * Splits a display name into (first, last), for the critical-operators and
+ * group-users lists. The rules are deliberate and non-obvious:
  * <ul>
  *   <li>leading whitespace is skipped before finding the first token</li>
  *   <li>the split happens on the *first* whitespace run only</li>
@@ -20,10 +17,8 @@ package ge.magti.portal.stats;
  * </ul>
  *
  * <p>Uses {@link Character#isWhitespace(char)} to decide what counts as a
- * separator. This is not byte-for-byte identical to Python's whitespace
- * definition (e.g. Java's isWhitespace excludes non-breaking space U+00A0,
- * which Python's does treat as whitespace) -- a low-risk gap for operator
- * display names, called out here rather than silently assumed identical.
+ * separator, so a non-breaking space (U+00A0) is not one -- a low-risk gap
+ * for operator display names, called out here rather than silently assumed.
  */
 public final class DisplayName {
 

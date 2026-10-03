@@ -5,7 +5,7 @@ import ge.magti.portal.domain.QuizQuestion;
 
 import java.util.List;
 
-/** Mirrors schemas.py's QuizQuestionAdmin -- each answer includes is_correct. */
+/** Each answer includes is_correct. */
 public record QuizQuestionAdminDto(
         Long id,
         @JsonProperty("question_text") String questionText,

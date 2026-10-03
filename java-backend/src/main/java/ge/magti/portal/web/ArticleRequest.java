@@ -14,13 +14,11 @@ import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
- * Mirrors schemas.py's ArticleCreate/ArticleUpdate -- one shared shape for
- * both, exactly as Python does (ArticleUpdate adds nothing to ArticleCreate).
+ * One shared request shape for article create and update.
  *
- * <p>{@code author_id} is deliberately not a field here: Python's schema has
- * it, but create_article always overwrites it with the authenticated admin's
- * id (routers/articles.py:231) and update_article explicitly pops/ignores it
- * (:342) -- client input is discarded either way, so there is nothing for a
+ * <p>{@code author_id} is deliberately not a field here: create always sets
+ * it to the authenticated editor's id and update ignores it
+ * -- client input is discarded either way, so there is nothing for a
  * request DTO to carry. {@code last_verified_at} is the opposite case --
  * create applies it as sent (not popped), update ignores it -- so it stays
  * here and each handler decides whether to read it.
@@ -144,7 +142,7 @@ public record ArticleRequest(
         return quizEnabled != null && quizEnabled;
     }
 
-    /** routers/articles.py:234 / :347 -- "All" wins outright, else the first pick stands in. */
+    /** "All" wins outright, else the first pick stands in. */
     public String legacyTargetDepartment() {
         return targetDepartments.contains("All") ? "All" : targetDepartments.get(0);
     }

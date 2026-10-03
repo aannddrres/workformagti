@@ -14,21 +14,18 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Port of diffing.py -- structure-aware, XSS-safe HTML diff for Quill
+ * Structure-aware, XSS-safe HTML diff for Quill
  * article revisions. Diffs the TEXT content of block elements only; output
  * markup is rebuilt from escaped text, so tags can never be split and
- * injected HTML can never execute, same guarantee as the Python source.
+ * injected HTML can never execute.
  *
- * <p>Two library swaps, not literal ports: jsoup replaces BeautifulSoup for
- * block-element extraction (jsoup auto-wraps fragments in html/body, so
- * every parse here reads from {@code doc.body()} to approximate
- * BeautifulSoup's non-wrapping fragment parsing). java-diff-utils' Myers
- * algorithm replaces difflib.SequenceMatcher's Ratcliff-Obershelp algorithm
- * for the actual sequence diff -- {@link #computeOpcodes} reconstructs the
- * "equal" gaps java-diff-utils' Patch omits (it only returns actual
- * changes) into the same {op, i1, i2, j1, j2} shape SequenceMatcher.
- * get_opcodes() returns, so the block/word diff loops below stay
- * structurally close to diffing.py's. The migration doc's own acceptance
+ * <p>jsoup does the block-element extraction (it auto-wraps fragments in
+ * html/body, so every parse here reads from {@code doc.body()}).
+ * java-diff-utils' Myers algorithm does the actual sequence diff --
+ * {@link #computeOpcodes} reconstructs the "equal" gaps java-diff-utils'
+ * Patch omits (it only returns actual changes) into the
+ * {op, i1, i2, j1, j2} shape of {@link DiffOpcode}, which the block/word
+ * diff loops below work in. The migration doc's own acceptance
  * criterion for this endpoint is identical ins/del semantics, not
  * identical markup -- a different diff algorithm satisfies that.
  */
@@ -108,7 +105,7 @@ public final class HtmlDiffer {
         return new DiffResult(String.join("\n", rows), added, removed);
     }
 
-    /** Port of _word_diff: inline word-level diff of two block strings into safe HTML. */
+    /** Inline word-level diff of two block strings into safe HTML. */
     static String wordDiff(String oldText, String newText) {
         List<String> o = splitWords(oldText);
         List<String> n = splitWords(newText);
@@ -131,7 +128,7 @@ public final class HtmlDiffer {
         return String.join(" ", parts.stream().filter(p -> !p.isEmpty()).toList());
     }
 
-    /** Port of _blocks: flattens a Quill document into an ordered list of block text strings. */
+    /** Flattens a Quill document into an ordered list of block text strings. */
     static List<String> blocks(String rawHtml) {
         Document doc = Jsoup.parse(rawHtml == null ? "" : rawHtml);
         Element root = doc.body();
@@ -150,7 +147,7 @@ public final class HtmlDiffer {
         return out;
     }
 
-    /** Port of _block_text: text of a block plus structural tokens for links/media. */
+    /** Text of a block plus structural tokens for links/media. */
     static String blockText(Element node) {
         List<String> parts = new ArrayList<>();
         String text = node.text();
@@ -177,7 +174,7 @@ public final class HtmlDiffer {
         return String.join(" ", parts);
     }
 
-    /** Mirrors Python's bare str.split(): whitespace-run splitting, empty input -> empty list (not [""]). */
+    /** Whitespace-run splitting; empty input -> empty list (not [""]). */
     private static List<String> splitWords(String text) {
         if (text == null || text.isBlank()) {
             return List.of();

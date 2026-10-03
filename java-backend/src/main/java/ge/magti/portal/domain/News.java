@@ -13,12 +13,11 @@ import org.hibernate.annotations.SQLRestriction;
 import java.time.OffsetDateTime;
 
 /**
- * Mirrors models.py's News (models.py:58-79). Unlike {@link Article}, News
+ * A news item. Unlike {@link Article}, News
  * has no multi-department junction table -- just the one
  * {@link #targetDepartment} column.
  *
- * <p>{@link #isArchived()} mirrors Python's {@code is_archived}
- * {@code @property} (models.py:77-79) exactly: computed from
+ * <p>{@link #isArchived()} is computed from
  * {@link #expiresAt}, not a stored column. The migration doc's functional
  * matrix flags this as an open schema question for Oracle -- computed
  * field vs. a real column -- not decided here; this class only preserves

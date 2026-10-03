@@ -7,7 +7,6 @@ import jakarta.validation.constraints.Size;
 
 import java.time.OffsetDateTime;
 
-/** Mirrors schemas.py's RequiredReadingBase. */
 public record RequiredReadingRequest(
         @NotBlank @JsonProperty("item_type") String itemType,
         @NotNull @JsonProperty("item_id") Long itemId,

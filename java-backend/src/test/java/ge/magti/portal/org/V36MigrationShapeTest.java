@@ -166,12 +166,12 @@ class V36MigrationShapeTest {
      * The one permission whose absence from {@code users.permissions} means
      * "this column never carried the decision", not "it was denied".
      *
-     * <p>Python spelled it {@code system:audit} with a colon so it would live
-     * in the separate role_permissions catalog (security.py:376-381), so
-     * DEFAULT_PERMISSIONS_BY_ROLE never wrote the dotted string here for any
+     * <p>The original app spelled it {@code system:audit} with a colon so it
+     * would live in the separate role_permissions catalog, so its role
+     * defaults never wrote the dotted string here for any
      * role. Migrating the DENY direction would close /api/audit-logs and
      * can_view_audit_log for every manager and content admin carrying
-     * Python-era defaults -- permanently, since an explicit DENY outranks the
+     * those older defaults -- permanently, since an explicit DENY outranks the
      * role default.
      *
      * <p>Asserted against the SQL rather than a database on purpose: a local

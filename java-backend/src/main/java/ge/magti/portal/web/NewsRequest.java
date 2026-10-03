@@ -8,26 +8,22 @@ import jakarta.validation.constraints.Size;
 import java.time.OffsetDateTime;
 
 /**
- * Mirrors schemas.py's NewsCreate (= NewsBase) -- one shared shape for
- * create and update, exactly as Python does.
+ * One shared request shape for news create and update.
  *
  * <p><b>Two confirmed live bugs, flagged to and fixed per the user's
  * explicit choice, 2026-08-04</b> (see docs/archive/migration/JAVA_ORACLE_ANGULAR_MIGRATION.md's
  * News section for the full writeup):
  * <ul>
- *   <li>{@code author_id} is not a field here at all -- Python's schema has
- *   it, but only create_news actually applies it (always overwritten with
- *   the authenticated admin's id); update_news has no equivalent of
- *   Article's update_article {@code .pop("author_id", None)} guard, so its
- *   full {@code model_dump()} silently nulls author_id on every edit --
- *   confirmed via the real admin form (static/js/app-core.js's
- *   submitNewsForm), which never sends this field either way.</li>
+ *   <li>{@code author_id} is not a field here at all -- create always sets
+ *   it to the authenticated editor's id, and the original update silently
+ *   nulled author_id on every edit, since the admin form never sends this
+ *   field.</li>
  *   <li>{@link #isDraftOrDefaultForCreate()} defaults to {@code false}
- *   (published) when absent, the opposite of Python's schema default of
+ *   (published) when absent, the opposite of the original default of
  *   {@code true}. Confirmed live: the real "add news" admin form never
  *   sends {@code is_draft}, so every news item ever created through the
  *   actual UI has been created as an invisible draft -- the 5 seed-data
- *   items visible in the app were inserted directly by seed.py with
+ *   items visible in the app were inserted directly by a seed script with
  *   {@code is_draft=False}, bypassing this endpoint entirely, which is why
  *   the defect hasn't been noticed before now.</li>
  * </ul>

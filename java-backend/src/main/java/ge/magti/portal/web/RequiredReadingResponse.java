@@ -5,7 +5,6 @@ import ge.magti.portal.domain.RequiredReading;
 
 import java.time.OffsetDateTime;
 
-/** Mirrors schemas.py's RequiredReadingResponse (= RequiredReadingBase + id). */
 public record RequiredReadingResponse(
         Long id,
         @JsonProperty("item_type") String itemType,

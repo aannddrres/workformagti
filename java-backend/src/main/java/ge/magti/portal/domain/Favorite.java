@@ -9,7 +9,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
 /**
- * Mirrors models.py's Favorite (models.py:296-308). {@code itemType}/
+ * A user's favorite. {@code itemType}/
  * {@code itemId} is a polymorphic soft-reference (article/news/video today),
  * not a foreign key -- same pattern as {@link RequiredReading}.
  */

@@ -10,10 +10,9 @@ import java.util.Optional;
 
 public interface TeamRepository extends JpaRepository<Team, Long> {
 
-    /** Mirrors create_team's duplicate-name check (routers/users.py:356). */
+    /** The team-creation duplicate-name check. */
     Optional<Team> findByName(String name);
 
-    /** Mirrors get_teams' ordering (routers/users.py:346). */
     List<Team> findAllByOrderByName(Pageable pageable);
 
     /** Group names repeat between departments since V36 dropped uq_teams_name. */

@@ -10,10 +10,10 @@ import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 
 /**
- * Mirrors models.py's SearchLog (models.py:589-600). {@link #resultsFound}
+ * One logged search. {@link #resultsFound}
  * is the exact count, kept alongside the older {@link #hasResults} boolean
  * rather than replacing it -- existing call sites that only know the
- * boolean keep working unchanged (models.py:597-599).
+ * boolean keep working unchanged.
  */
 @Entity
 @Table(name = "search_logs")

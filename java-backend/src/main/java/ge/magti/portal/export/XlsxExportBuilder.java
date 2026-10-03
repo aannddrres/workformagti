@@ -16,8 +16,7 @@ import java.io.UncheckedIOException;
 import java.util.List;
 
 /**
- * Mirrors {@code _build_table_xlsx} (routers/exports.py:321-344): a single
- * styled sheet -- bold white-on-red header row, autosized columns (capped
+ * A single styled sheet -- bold white-on-red header row, autosized columns (capped
  * at 40 characters wide), data cells run through {@link
  * ExportCellSanitizer}. {@code XSSFWorkbook} (not the streaming {@code
  * SXSSFWorkbook}) is fine here -- {@link ExportSizeGuard} already caps

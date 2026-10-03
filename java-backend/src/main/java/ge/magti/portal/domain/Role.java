@@ -4,13 +4,12 @@ import java.util.Arrays;
 import java.util.Set;
 
 /**
- * Mirrors security.py's ROLE_* string constants (security.py:30-34) and the
- * users.role column (models.py:36).
+ * The values of the users.role column.
  *
  * <p>Trap carried over deliberately: {@link #SYSTEM_ADMIN}'s wire value is
  * the bare string "admin", not "system_admin" -- that's what's actually
- * stored in the column and signed into the JWT "role" claim today
- * (routers/auth.py:67). Renaming the value to match the enum constant name
+ * stored in the column and signed into the JWT "role" claim today.
+ * Renaming the value to match the enum constant name
  * would silently break every existing row and token.
  */
 public enum Role {
@@ -36,8 +35,8 @@ public enum Role {
                 .orElseThrow(() -> new IllegalArgumentException("Unknown role: " + value));
     }
 
-    /** Mirrors security.py's CONTENT_ADMIN_ROLES (security.py:39) -- the
-     *  gate behind get_current_admin_user, reused by every Content-domain
+    /** The content-admin roles -- the
+     *  gate reused by every Content-domain
      *  create/update/delete endpoint (articles/news/categories/videos). */
     public static final Set<Role> CONTENT_ADMIN_ROLES = Set.of(CONTENT_ADMIN, SYSTEM_ADMIN);
 

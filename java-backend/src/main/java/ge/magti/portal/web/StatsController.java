@@ -57,20 +57,18 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Mirrors routers/stats.py -- all 12 statistics/dashboard endpoints. Reuses
- * {@link ComplianceQueryService} (the single compute_compliance
+ * All 12 statistics/dashboard endpoints. Reuses
+ * {@link ComplianceQueryService} (the single compliance
  * implementation, also used by Compliance) plus the DB-free Stats builders
  * (DepartmentStatsBuilder, OperatorStatsBuilder, TeamStatsBuilder) that were
  * built ahead of this controller.
  *
- * <p><b>Deliberately not ported: the best-effort Redis cache</b>
- * ({@code _stats_cache_get}/{@code _stats_cache_set}, routers/stats.py:45-91).
- * It is a pure performance optimisation with a documented always-safe
- * fallback (a cache miss/outage just re-runs the same DB query Python would
- * run anyway) -- porting it would mean building Spring cache/Redis
- * infrastructure this codebase doesn't have yet, for zero behavioural
- * difference. Every endpoint here always does the "cache miss" path, which
- * is the one Python guarantees correctness for regardless of Redis state.
+ * <p><b>No stats cache.</b> The original app had a best-effort Redis cache
+ * -- a pure performance optimisation with an always-safe fallback (a cache
+ * miss just re-runs the same DB query). Adding one would mean building
+ * Spring cache/Redis infrastructure this codebase doesn't have, for zero
+ * behavioural difference. Every endpoint here always does the "cache miss"
+ * path.
  */
 @RestController
 public class StatsController {
@@ -157,7 +155,6 @@ public class StatsController {
         this.userDirectoryQueryService = userDirectoryQueryService;
     }
 
-    /** Port of get_popular_searches (routers/stats.py:94-116). */
     @GetMapping("/api/statistics/popular-searches")
     public ResponseEntity<?> getPopularSearches(@AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireStatsView(user);
@@ -170,7 +167,6 @@ public class StatsController {
         return ResponseEntity.ok(results);
     }
 
-    /** Port of get_failed_searches (routers/stats.py:119-134). */
     @GetMapping("/api/statistics/failed-searches")
     public ResponseEntity<?> getFailedSearches(@AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireStatsView(user);
@@ -183,7 +179,6 @@ public class StatsController {
         return ResponseEntity.ok(results);
     }
 
-    /** Port of get_compliance_statistics (routers/stats.py:137-224). */
     @GetMapping("/api/statistics/compliance")
     public ResponseEntity<?> getComplianceStatistics(@AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireStatsView(user);
@@ -232,7 +227,7 @@ public class StatsController {
         return ResponseEntity.ok(new ComplianceStatsResponse(readPercentage, unreadPercentage, topArticles));
     }
 
-    /** Port of get_user_progress (routers/stats.py:341-391) -- system-admin only, unlike every other endpoint here. */
+    /** System-admin only, unlike every other endpoint here. */
     @GetMapping("/api/statistics/user-progress")
     public ResponseEntity<?> getUserProgress(
             @RequestParam(defaultValue = "0") int skip,
@@ -256,7 +251,6 @@ public class StatsController {
         return ResponseEntity.ok(results);
     }
 
-    /** Port of get_admin_team_stats (routers/stats.py:394-443). */
     @GetMapping("/api/admin/stats/team/{teamId}")
     public ResponseEntity<?> getAdminTeamStats(@PathVariable("teamId") Long teamId, @AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireSystemAdmin(user);
@@ -273,9 +267,7 @@ public class StatsController {
     }
 
     /**
-     * Port of get_team_stats (routers/stats.py:446-524).
-     *
-     * <p><b>SEC-13 fix:</b> the manager branch matched departments by string
+     * <b>SEC-13 fix:</b> the manager branch matched departments by string
      * equality, so a manager stored as the bare parent ("ტექნიკური") whose
      * operators are stored as "ტექნიკური — ჯგუფი 03" got an empty team
      * screen rather than their team. Now uses {@link ManagerScope}, the same
@@ -344,9 +336,7 @@ public class StatsController {
     }
 
     /**
-     * Port of get_department_stats (routers/stats.py:675-688).
-     *
-     * <p>Phase-0 access fix: a manager receives only records allowed by
+     * Phase-0 access fix: a manager receives only records allowed by
      * {@link ManagerScope}. Building the tree from that scoped record set and
      * removing the builder's empty whitelist placeholders means sibling
      * department/group rows are absent from the wire response, not merely
@@ -433,16 +423,14 @@ public class StatsController {
     }
 
     /**
-     * Port of get_critical_operators (routers/stats.py:691-744).
-     *
-     * <p>Deliberate fix vs. the Python original: that endpoint (and
-     * get_group_users below) gated on {@code get_current_admin_user}
-     * (content_admin/system_admin only), while the dashboard they're drilled
+     * Deliberate fix vs. the original app: this endpoint (and
+     * {@code getGroupUsers} below) gated on content_admin/system_admin only,
+     * while the dashboard they're drilled
      * into from -- {@link #getDepartmentStats} -- gates on
-     * {@code get_current_manager_user} (manager/system_admin). A plain
+     * manager/system_admin. A plain
      * manager could see the Executive Department Dashboard but got a 403
      * clicking either of its own interactive drill-downs (critical-operators
-     * ribbon tile, any group row). Confirmed present in Python too, not a
+     * ribbon tile, any group row) -- not a
      * Java-port regression; fixed here since the dashboard's whole audience
      * is managers.
      *
@@ -496,8 +484,7 @@ public class StatsController {
     }
 
     /**
-     * Port of get_group_users (routers/stats.py:747-815). Same manager-access
-     * fix as {@link #getCriticalOperators}.
+     * Same manager-access fix as {@link #getCriticalOperators}.
      *
      * <p><b>Bug #312 fix:</b> {@code department}/{@code groupName} were
      * caller-controlled path params with no check against the requester's
@@ -550,7 +537,6 @@ public class StatsController {
         return ResponseEntity.ok(new GroupUsersResponse(department, groupName, users, users.size()));
     }
 
-    /** Port of get_activity_trend (routers/stats.py:818-894). */
     @GetMapping("/api/statistics/activity")
     public ResponseEntity<?> getActivityTrend(
             @RequestParam(defaultValue = "7") int days,
@@ -607,7 +593,6 @@ public class StatsController {
 
     private static final java.util.Set<String> BREAKDOWN_DIMENSIONS = java.util.Set.of("department", "role", "status");
 
-    /** Port of get_statistics_breakdown (routers/stats.py:897-927). */
     @GetMapping("/api/statistics/breakdown")
     public ResponseEntity<?> getStatisticsBreakdown(
             @RequestParam String dimension, @AuthenticationPrincipal User user) {
@@ -633,7 +618,6 @@ public class StatsController {
         return ResponseEntity.ok(result);
     }
 
-    /** Port of get_kpi_counts (routers/stats.py:930-965). */
     @GetMapping("/api/statistics/kpi")
     public ResponseEntity<?> getKpiCounts(@AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = requireStatsView(user);

@@ -9,18 +9,16 @@ import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 
 /**
- * Mirrors models.py's ExportJob (models.py:675-685, table
- * {@code export_jobs}) -- the registry row a background XLSX/PDF export
+ * The {@code export_jobs} table -- the registry row a background XLSX/PDF export
  * writes its outcome to, read back by {@code GET /api/export/status/{id}}
- * and {@code GET /api/export/download/{id}}. DB-backed on purpose (per the
- * Python docstring) so status/download requests work regardless of which
- * gunicorn worker handles them.
+ * and {@code GET /api/export/download/{id}}. DB-backed on purpose so
+ * status/download requests work regardless of which replica handles them.
  *
- * <p>{@link #expiresAt} is a raw Unix-epoch-seconds value (Python's
- * {@code time.time() + _EXPORT_JOB_TTL}, routers/exports.py:368,376,395) --
+ * <p>{@link #expiresAt} is a raw Unix-epoch-seconds value (now plus the job
+ * TTL) --
  * unlike every other {@code *At} timestamp in this codebase, it is
  * deliberately NOT modeled as {@link java.time.OffsetDateTime}/
- * {@link ge.magti.portal.util.TbilisiTime}, since the Python value itself
+ * {@link ge.magti.portal.util.TbilisiTime}, since the value itself
  * isn't a Tbilisi wall-clock time, it's a raw float epoch. A plain
  * {@code double} is the faithful shape.
  *
@@ -32,8 +30,8 @@ import java.time.OffsetDateTime;
 @Table(name = "export_jobs")
 public class ExportJob {
 
-    // No @GeneratedValue: the ID is an application-assigned UUID4 string
-    // (routers/exports.py), not DB-generated.
+    // No @GeneratedValue: the ID is an application-assigned UUID4 string,
+    // not DB-generated.
     @Id
     @Column(name = "id", length = 36)
     private String id;

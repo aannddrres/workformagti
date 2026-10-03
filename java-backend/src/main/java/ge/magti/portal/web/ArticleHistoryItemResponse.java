@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.OffsetDateTime;
 
-/** Mirrors get_article_history's ad-hoc dict shape (routers/articles.py:556-564) -- no formal Pydantic schema in Python either. */
 public record ArticleHistoryItemResponse(
         Long id,
         String title,

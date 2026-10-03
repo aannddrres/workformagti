@@ -41,8 +41,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  *
  * <p>Names are read as Jackson serialises them -- {@code @JsonProperty} where
  * present, the component name otherwise -- so renaming a key is caught too.
- * That matters because the Angular client and the Python original both key
- * off these exact strings.
+ * That matters because the Angular client keys off these exact strings.
  */
 class ResponseShapeContractTest {
 

@@ -8,10 +8,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 /**
- * Mirrors models.py's WebhookConfig (models.py:666-672). {@link
+ * A webhook's configuration. {@link
  * #triggerActions} is a comma-separated list of action names (e.g.
- * "LOGIN_FAILED,UPDATE_PERMISSIONS"), not a normalized relation -- carried
- * over exactly as the flat string it is in Python.
+ * "LOGIN_FAILED,UPDATE_PERMISSIONS"), not a normalized relation.
  */
 @Entity
 @Table(name = "webhook_configs")

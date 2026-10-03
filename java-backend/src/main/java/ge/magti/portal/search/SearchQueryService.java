@@ -27,11 +27,9 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Read side of the hand-built search index. Faithfully ports the query/
- * scoring logic of {@code global_search} and {@code _run_global_search_sync}
- * (routers/search.py:38-122, 124-201) -- same word-splitting, same AND-across-
- * words / OR-across-fields semantics, same {@code CASE WHEN} score
- * precedence (first matching field wins, not additive) -- but resolves
+ * Read side of the hand-built search index: AND-across-words /
+ * OR-across-fields semantics, with {@code CASE WHEN} score
+ * precedence (first matching field wins, not additive). It resolves
  * candidates via {@link SearchTrigramRepository} first instead of a full
  * table scan with {@code ILIKE}, then re-verifies every candidate with an
  * exact substring check against the real columns (see {@link
@@ -39,15 +37,15 @@ import java.util.stream.Collectors;
  * correctness, not just an optimization).
  *
  * <p><b>One deliberate behavior fix, confirmed with the user before being
- * built:</b> the Python original's {@code _run_global_search_sync} news
+ * built:</b> the original search's news
  * branch has no draft/expiry check at all (only a department filter),
- * unlike {@code get_news_item}/{@link ge.magti.portal.news.NewsQueryService}
+ * unlike the single-news endpoint and {@link ge.magti.portal.news.NewsQueryService}
  * which both correctly hide drafts and expired news from non-admins -- a
  * real confidentiality gap (an operator could find an unpublished draft's
  * title/content through search that they can never otherwise see). Fixed
  * here to match News' own list-visibility rule exactly, not faithfully
  * reproduced. Articles and videos already carry the correct status/
- * archived check in the Python original, so nothing changes there.
+ * archived check, so nothing changes there.
  */
 @Service
 public class SearchQueryService {
@@ -86,8 +84,7 @@ public class SearchQueryService {
      * Splits on whitespace, then strips leading/trailing punctuation from each
      * token, dropping any that empties out.
      *
-     * <p>The strip is the one deliberate divergence from Python's plain
-     * {@code q.split()}: without it a trailing {@code ?} or {@code !} stayed
+     * <p>The strip is deliberate: without it a trailing {@code ?} or {@code !} stayed
      * glued to the word, so {@code "ინტერნეტი?"} looked for the trigram
      * {@code "ტი?"} -- which no indexed article contains -- and returned zero,
      * while {@code "ინტერნეტი"} returned dozens. An operator typing a natural
@@ -111,7 +108,7 @@ public class SearchQueryService {
         return words;
     }
 
-    /** Mirrors global_search (routers/search.py:38-122), minus the SearchLog write (the controller's job). */
+    /** The article search, minus the SearchLog write (the controller's job). */
     public List<Article> searchArticles(String q, Long categoryId, User user) {
         List<String> words = splitWords(q);
         boolean isAdmin = user.seesAllContent();
@@ -168,7 +165,7 @@ public class SearchQueryService {
         return visible.stream().limit(MAX_ARTICLE_RESULTS).toList();
     }
 
-    /** Mirrors _run_global_search_sync (routers/search.py:124-201), minus caching/logging (the controller's job). */
+    /** The global (header) search, minus caching/logging (the controller's job). */
     public GlobalSearchResult searchGlobal(String q, User user) {
         List<String> words = splitWords(q);
         if (words.isEmpty()) {
@@ -309,7 +306,7 @@ public class SearchQueryService {
         return total;
     }
 
-    /** Video has no relevance scoring in the Python original -- just title-OR-category membership. */
+    /** Video has no relevance scoring -- just title-OR-category membership. */
     private static boolean allWordsMatchVideo(VideoInstruction video, List<String> words) {
         for (String word : words) {
             String needle = word.toLowerCase(Locale.ROOT);

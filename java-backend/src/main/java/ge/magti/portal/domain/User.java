@@ -17,27 +17,25 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 /**
- * Mirrors models.py's User (models.py:22-55) -- the users table.
+ * The users table.
  *
  * <p>Deliberately NOT modeled: {@code team}/{@code manager} as object
- * references (models.py:54-55) -- {@link #teamId}/{@link #managerId} carry
+ * references -- {@link #teamId}/{@link #managerId} carry
  * the raw foreign key only. Wiring the actual object graph is repository
  * work, not a data-structure decision.
  *
  * <p>{@link #lastActive}/{@link #lastNewsViewedAt} are {@link
- * OffsetDateTime}, not {@link java.time.Instant}, on purpose: database.py's
- * get_tbilisi_time() (database.py:69-71) takes UTC+4 wall-clock time and
- * then STRIPS the timezone before returning it, so every timestamp in this
- * table today is naive Tbilisi local time with no zone attached, not UTC.
+ * OffsetDateTime}, not {@link java.time.Instant}, on purpose: every
+ * timestamp in this table is naive Tbilisi local time (UTC+4 wall-clock
+ * time with the zone stripped), not UTC.
  * Decided 2026-07-29: keep storing Tbilisi time (not UTC) in the Java port
  * too -- see {@link ge.magti.portal.util.TbilisiTime} and {@link
  * ge.magti.portal.util.TbilisiTimestampConverter}, which maps this back to
- * a plain (zoneless) {@code TIMESTAMP(6)} column so the physical storage
- * matches the Python side exactly; only the Java-side type gets the offset
- * made explicit.
+ * a plain (zoneless) {@code TIMESTAMP(6)} column; only the Java-side type
+ * gets the offset made explicit.
  *
- * <p>{@code last_categories_viewed_at} (models.py:51, JSON, default
- * {@code dict}) is deliberately NOT carried over to the Oracle schema:
+ * <p>{@code last_categories_viewed_at} (a JSON column) is deliberately NOT
+ * carried over to the Oracle schema:
  * grepped repo-wide, no router/template/script anywhere reads or writes it
  * -- confirmed dead, and you chose to drop it rather than reserve space for
  * it (2026-07-30).

@@ -23,7 +23,7 @@ class AuditCategoryClassifierTest {
     @Test
     void securityActionOutranksTheItemTypesOwnCategory() {
         // item_type "user" would normally map to USER, but CREATE_USER/
-        // UPDATE_PERMISSIONS must win as SECURITY -- the Python function
+        // UPDATE_PERMISSIONS must win as SECURITY -- the classifier
         // checks security actions first, unconditionally.
         assertEquals(AuditCategory.SECURITY, AuditCategoryClassifier.classify("user", "CREATE_USER"));
         assertEquals(AuditCategory.SECURITY, AuditCategoryClassifier.classify("user", "UPDATE_PERMISSIONS"));

@@ -5,7 +5,7 @@ import ge.magti.portal.domain.QuizQuestion;
 
 import java.util.List;
 
-/** Mirrors schemas.py's QuizQuestionPublic -- no is_correct anywhere. */
+/** No is_correct anywhere. */
 public record QuizQuestionPublicDto(Long id, @JsonProperty("question_text") String questionText, List<QuizAnswerPublicDto> answers) {
     public static QuizQuestionPublicDto from(QuizQuestion question) {
         List<QuizAnswerPublicDto> answers = question.getAnswers().stream()

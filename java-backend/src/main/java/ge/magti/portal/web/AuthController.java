@@ -41,7 +41,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Mirrors routers/auth.py's login/logout (routers/auth.py:27-86). Only the
+ * Login and logout. Only the
  * password-credential path is ported here -- SSO mock endpoints are
  * deliberately deferred to a later increment. {@code forgot-password} is
  * NOT deferred, it's out for good -- password resets happen through a
@@ -130,9 +130,7 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
                     "detail", "კომპანიის ავტორიზაცია ჩართული არ არის. production-ში ადგილობრივი პაროლით შესვლა გამორთულია."));
         }
-        // Mirrors routers/auth.py:28's @limiter.limit("10/minute") --
-        // checked before any DB work, same as the Python decorator runs
-        // before the handler body. SEC-04/PR-04: the key is the resolved
+        // Rate limit, checked before any DB work. SEC-04/PR-04: the key is the resolved
         // client address, not the socket peer (which was the proxy for
         // every user), and now includes the account being tried.
         String clientIp = clientIpResolver.resolve(httpRequest);
@@ -203,7 +201,7 @@ public class AuthController {
     /**
      * Audit row only when the account exists (admin_id is a NOT NULL FK) --
      * storing unknown attempted emails would both violate the constraint and
-     * hoard enumeration data. Mirrors routers/auth.py:48-56 exactly.
+     * hoard enumeration data.
      */
     private void recordFailure(
             String email, String reason, String channel, String clientIp, HttpServletRequest httpRequest) {
@@ -358,7 +356,7 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("detail", "Logged out"));
     }
 
-    /** Mirrors audit_trail.py's actor_context_middleware bounding user_agent to
+    /** Bounds user_agent to
      *  the audit_logs.user_agent column's 500-char width before it's stored. */
     private static String truncatedUserAgent(HttpServletRequest httpRequest) {
         String userAgent = httpRequest.getHeader("User-Agent");

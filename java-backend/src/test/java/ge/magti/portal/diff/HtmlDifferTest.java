@@ -7,8 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Pure logic, no Oracle needed. Verifies diffHtml's semantics against
- * diffing.py's own documented behavior (block-level equal/insert/delete/
+ * Pure logic, no Oracle needed. Verifies diffHtml's semantics
+ * (block-level equal/insert/delete/
  * replace, word-level inline diff within a replace, link/image structural
  * tokens for asset-change detection, and HTML-escaping safety).
  */
@@ -69,7 +69,7 @@ class HtmlDifferTest {
 
     @Test
     void linkTargetChangeIsDetectedEvenWithIdenticalVisibleText() {
-        // "Asset-change blindness fix" from diffing.py's own docstring.
+        // The "asset-change blindness" fix.
         String oldHtml = "<p><a href=\"https://old.example/doc\">დოკუმენტი</a></p>";
         String newHtml = "<p><a href=\"https://new.example/doc\">დოკუმენტი</a></p>";
         DiffResult result = HtmlDiffer.diffHtml(oldHtml, newHtml);

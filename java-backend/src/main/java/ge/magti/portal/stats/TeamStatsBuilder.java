@@ -7,13 +7,11 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Ports the DB-free half of routers/stats.py's get_admin_team_stats
- * (:394-443) and get_team_stats (:446-524) -- both group by
+ * The DB-free half of the admin and manager team stats -- both group by
  * {@code User.team_id}, a foreign key genuinely distinct from the
  * department-string hierarchy {@link DepartmentStatsBuilder}/
- * {@link OperatorStatsBuilder} use. routers/stats.py:530-531 notes *why*
- * they diverge: "The Team/team_id FK is NOT used [in the department
- * dashboard] because the seed never populates it" -- team_id grouping
+ * {@link OperatorStatsBuilder} use. The department dashboard does not use
+ * team_id because the seed never populated it -- team_id grouping
  * exists in the API but has no seeded data to exercise it today. Ported
  * anyway rather than skipped, since the endpoints are real and the
  * decision to seed team_id or not is a data question, not a code one.
@@ -29,13 +27,10 @@ public final class TeamStatsBuilder {
     }
 
     /**
-     * Mirrors get_admin_team_stats/get_team_stats:421-437,510-521 combined
-     * (both build the same shape; get_admin_team_stats additionally reduces
-     * it to an average). Sorted by percentage descending. Deliberately
-     * sorts by the already-known int percentage rather than Python's own
-     * quirk of formatting to "NN%" and then re-parsing that string back to
-     * an int just to sort by it (routers/stats.py:437,523) -- same final
-     * order, without the pointless round trip.
+     * The admin and manager team stats' member rows (both build the same
+     * shape; the admin one additionally reduces it to an average). Sorted
+     * by percentage descending, by the already-known int percentage rather
+     * than by re-parsing the "NN%" label.
      */
     public static List<TeamMemberCompletion> buildTeamMemberCompletions(List<ComplianceRecord> records) {
         List<ComplianceRecord> sorted = new ArrayList<>(records);
@@ -55,9 +50,8 @@ public final class TeamStatsBuilder {
     }
 
     /**
-     * Mirrors get_admin_team_stats:436: {@code int(total_percentage /
-     * len(users)) if users else 0}. Python's {@code int()} here TRUNCATES
-     * toward zero -- a different operation from the plain {@code round()}
+     * The average TRUNCATES toward zero (0 with no users) -- a different
+     * operation from the half-to-even rounding
      * used everywhere else in this domain (see
      * {@link ge.magti.portal.compliance.ComplianceCalculator}'s Javadoc).
      * Plain Java integer division already truncates toward zero for these

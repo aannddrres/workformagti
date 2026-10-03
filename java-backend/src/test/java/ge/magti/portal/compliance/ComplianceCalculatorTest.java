@@ -53,8 +53,7 @@ class ComplianceCalculatorTest {
 
     @Test
     void groupSuffixedUserCountsParentDepartmentReadingsToo() {
-        // The exact scenario the Python-side WIP fixed earlier this session:
-        // a reading targeted at the parent department must count for a
+        // A reading targeted at the parent department must count for a
         // group-suffixed user, not just an exact department-string match.
         User user = user(1L, "ტექნიკური — ჯგუფი 03", Role.OPERATOR, true);
         Map<String, Integer> required = Map.of("All", 1, "ტექნიკური", 4);
@@ -95,7 +94,7 @@ class ComplianceCalculatorTest {
 
     @Test
     void exactTieRoundsDownToTheNearestEvenPercentage() {
-        // 1/8 = 12.5% exactly -- Python's round(12.5) == 12 (round-half-to-even).
+        // 1/8 = 12.5% exactly -- rounds to 12 (round-half-to-even).
         User user = user(1L, "All", Role.OPERATOR, true);
         Map<ReadCountKey, Integer> read = Map.of(new ReadCountKey(1L, "All"), 1);
 
@@ -106,7 +105,7 @@ class ComplianceCalculatorTest {
 
     @Test
     void exactTieRoundsUpToTheNearestEvenPercentage() {
-        // 3/8 = 37.5% exactly -- Python's round(37.5) == 38 (round-half-to-even).
+        // 3/8 = 37.5% exactly -- rounds to 38 (round-half-to-even).
         User user = user(1L, "All", Role.OPERATOR, true);
         Map<ReadCountKey, Integer> read = Map.of(new ReadCountKey(1L, "All"), 3);
 

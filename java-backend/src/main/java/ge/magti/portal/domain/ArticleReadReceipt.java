@@ -11,22 +11,20 @@ import jakarta.persistence.UniqueConstraint;
 import java.time.OffsetDateTime;
 
 /**
- * Mirrors models.py's ArticleReadReceipt (models.py:486-509) -- an
- * operator's explicit "I have read this" acknowledgment, distinct from
+ * An operator's explicit "I have read this" acknowledgment, distinct from
  * {@link ArticleViewLog}'s passive open-tracking.
  *
  * <p>The four {@code *Snapshot} fields are deliberately denormalized
  * copies (article title, operator name/email/department) taken at
- * read-receipt time, not live joins -- Python's FKs are
- * {@code ondelete="SET NULL"} specifically so a receipt survives the
+ * read-receipt time, not live joins, so a receipt survives the
  * article or user being deleted later while the historical facts stay
- * readable. Carried over as plain fields for the same reason, not a
+ * readable. Plain fields for that reason, not a
  * relationship to {@link Article}/{@link User}.
  *
  * <p>Enforcement note (not implemented here, DB-dependent): a receipt can
  * only be recorded once {@link Article#isQuizEnabled()} is satisfied by a
  * passing {@link QuizAttempt} at the article's current version
- * (routers/articles.py:1020-1029) -- see {@link QuizAttempt}'s Javadoc for
+ * -- see {@link QuizAttempt}'s Javadoc for
  * how known bug #2 affects that check.
  */
 @Entity

@@ -13,8 +13,7 @@ import java.util.Locale;
  * Refuses to boot a production deployment that is configured insecurely, and
  * says so loudly in every other environment.
  *
- * <p>Java equivalent of config.py's startup guard (config.py:117-130),
- * strengthened during the OPUS5 audit follow-up (SEC-01, SEC-07, PR-05):
+ * <p>Strengthened during the OPUS5 audit follow-up (SEC-01, SEC-07, PR-05):
  *
  * <ul>
  *   <li>the JWT secret check compared against ONE exact literal, so the

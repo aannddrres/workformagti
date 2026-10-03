@@ -12,14 +12,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The DB-query half of compute_compliance (routers/stats.py:286-338) --
+ * The DB-query half of the compliance calculation --
  * the single source of truth for the compliance numerator/denominator that
  * {@link ComplianceCalculator} (the pure formula) and every Stats view sit
- * on top of. Python keeps this deliberately as one function so the
+ * on top of. It is deliberately one service so the
  * dashboard, the org-wide summary, and the exports can never disagree on
- * "who counts" or "what's owed"; this service is the Java equivalent, and
- * (unlike Python, see {@link ComplianceCalculator}'s javadoc) it is the
- * only implementation on this side.
+ * "who counts" or "what's owed", and it is the only implementation.
  *
  * <p>Enforces the one eligibility rule (active operators, management roles
  * excluded -- {@link ComplianceCalculator#isEligible}) and the one
@@ -62,12 +60,10 @@ public class ComplianceQueryService {
     }
 
     /**
-     * Port of compute_compliance(db, scope_user_ids, scope_department).
-     *
      * @param scopeUserIds   when non-null, restrict to these user ids (on top of the
      *                       active/non-management base filter); may be empty
      * @param scopeDepartment when non-null, restrict to users whose department matches
-     *                       exactly (Python uses {@code ==}, not prefix-aware, here)
+     *                       exactly ({@code ==}, not prefix-aware, here)
      */
     public List<ComplianceRecord> computeCompliance(List<Long> scopeUserIds, String scopeDepartment) {
         List<User> candidates;

@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-/** Mirrors schemas.py's UserSelfUpdate (schemas.py:503-508). */
 public record UserSelfUpdateRequest(
         // Optional, and only accepted unchanged: the company directory owns a
         // person's name and resets it at every sign-in. Taken as sent, an

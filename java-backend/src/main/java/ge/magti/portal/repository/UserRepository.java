@@ -60,23 +60,23 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("UPDATE User u SET u.lastActive = :signedInAt WHERE u.id = :userId")
     int recordSignIn(@Param("userId") Long userId, @Param("signedInAt") OffsetDateTime signedInAt);
 
-    /** Case-sensitive -- mirrors get_current_user's exact-match lookup (security.py:299). */
+    /** Case-sensitive -- the signed-in user's exact-match lookup. */
     Optional<User> findByEmail(String email);
 
-    /** Case-insensitive -- mirrors authenticate_user's func.lower() lookup (security.py:193). */
+    /** Case-insensitive -- the login lookup. */
     Optional<User> findByEmailIgnoreCase(String email);
 
-    /** Mirrors list_users' Block-5 group filter (routers/users.py:274-275). */
+    /** The user list's group filter. */
     List<User> findByManagerId(Long managerId);
 
     /**
-     * Mirrors bulk_reassign_roles' last-admin-protection count
-     * (routers/users.py:140-148) -- active system admins not already in the
+     * The bulk role reassignment's last-admin-protection count
+     * -- active system admins not already in the
      * set about to be demoted.
      */
     long countByRoleAndActiveTrueAndIdNotIn(Role role, List<Long> excludedIds);
 
-    /** Mirrors get_knowledge_leaderboard's scope="team" branch (routers/articles.py:907-908). */
+    /** The knowledge leaderboard's scope="team" branch. */
     List<User> findByActiveTrueAndTeamId(Long teamId);
 
     /** Bounded exact-department candidate query for complete-result compliance. */
@@ -97,18 +97,17 @@ public interface UserRepository extends JpaRepository<User, Long> {
             + "WHERE u.active = true AND u.teamId IN :teamIds GROUP BY u.teamId")
     List<Object[]> countActiveGroupedByTeamIds(@Param("teamIds") Collection<Long> teamIds);
 
-    /** Mirrors get_kpi_counts' active-user count subquery (routers/stats.py:952-953). */
+    /** The KPI counts' active-user count. */
     long countByActiveTrue();
 
     /**
-     * Mirrors get_statistics_breakdown's "department" dimension
-     * (routers/stats.py:900,921-925) -- every user, no active/role filter
-     * (Python applies none here). Object[] = {department (String), count (Long)}.
+     * The statistics breakdown's "department" dimension
+     * -- every user, no active/role filter. Object[] = {department (String), count (Long)}.
      */
     @Query("SELECT u.department, COUNT(u.id) FROM User u GROUP BY u.department ORDER BY COUNT(u.id) DESC")
     List<Object[]> countGroupedByDepartment();
 
-    /** Mirrors get_statistics_breakdown's "role" dimension (routers/stats.py:901,921-925). Object[] = {role (Role), count (Long)}. */
+    /** The statistics breakdown's "role" dimension. Object[] = {role (Role), count (Long)}. */
     @Query("SELECT u.role, COUNT(u.id) FROM User u GROUP BY u.role ORDER BY COUNT(u.id) DESC")
     List<Object[]> countGroupedByRole();
 }

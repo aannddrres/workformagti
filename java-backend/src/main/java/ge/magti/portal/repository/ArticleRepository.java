@@ -13,8 +13,8 @@ import java.util.List;
 
 public interface ArticleRepository extends JpaRepository<Article, Long> {
 
-    // routers/categories.py:135 -- bulk-reassigns orphaned articles to the
-    // fallback category on delete, same single UPDATE statement Python runs.
+    // Bulk-reassigns orphaned articles to the
+    // fallback category on delete, in a single UPDATE statement.
     // clearAutomatically: a bulk UPDATE bypasses the persistence context, so
     // without this, an Article already loaded in this transaction (e.g. one
     // just fetched by the caller) would keep serving its stale categoryId
@@ -38,9 +38,9 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
     long countPrivateDraftOfAnotherIncludingTrash(@Param("id") Long id, @Param("viewerId") Long viewerId);
 
     /**
-     * Port of get_stale_articles' filter (routers/articles.py:1543-1547).
+     * The stale-articles filter.
      * A NULL lastVerifiedAt never matches "< cutoff" in SQL (NULL
-     * comparisons are never true), same as Python's SQLAlchemy filter --
+     * comparisons are never true) --
      * not something this query needs to special-case separately.
      *
      * <p>Both reference queries carry ArticleQueryService's draft clause

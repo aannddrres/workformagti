@@ -14,7 +14,6 @@ public interface ArticleHistoryRepository extends JpaRepository<ArticleHistory, 
 
     List<ArticleHistory> findByArticleId(Long articleId);
 
-    /** Mirrors get_article_history's order_by (routers/articles.py:551). */
     List<ArticleHistory> findByArticleIdOrderByUpdatedAtDesc(Long articleId, Pageable pageable);
 
     /**
@@ -40,7 +39,6 @@ public interface ArticleHistoryRepository extends JpaRepository<ArticleHistory, 
             """, nativeQuery = true)
     long totalContentCharactersByArticleId(@Param("articleId") Long articleId);
 
-    /** Mirrors get_article_versions' order_by (routers/articles.py:954). */
     List<ArticleHistory> findByArticleIdOrderByVersionIdDesc(Long articleId, Pageable pageable);
 
     /** Reader-facing version metadata never selects the content CLOB. */
@@ -57,7 +55,7 @@ public interface ArticleHistoryRepository extends JpaRepository<ArticleHistory, 
     /** Scopes a {history_id} path param to its owning article -- a snapshot from a different article must not resolve. */
     Optional<ArticleHistory> findByIdAndArticleId(Long id, Long articleId);
 
-    /** Mirrors get_article_diff's predecessor lookup (routers/articles.py:612-615). */
+    /** The predecessor lookup for an article diff. */
     Optional<ArticleHistory> findFirstByArticleIdAndVersionIdLessThanOrderByVersionIdDesc(Long articleId, Integer versionId);
 
     boolean existsByArticleIdAndVersionId(Long articleId, Integer versionId);

@@ -10,8 +10,7 @@ import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 
 /**
- * Mirrors models.py's ArticleViewLog (models.py:512-541) -- one row per
- * article open (passive view), distinct from {@link ArticleReadReceipt}'s
+ * One row per article open (passive view), distinct from {@link ArticleReadReceipt}'s
  * explicit "I have read this" acknowledgment. No dedup on
  * (article, operator): repeat views are informative, so every open counts
  * -- unlike {@link ArticleReadReceipt}, there is no unique constraint here.

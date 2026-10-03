@@ -4,11 +4,10 @@ import ge.magti.portal.repository.QuizAttemptRepository;
 import org.springframework.stereotype.Service;
 
 /**
- * Port of _compute_knowledge_score (routers/articles.py:877-892), shared by
- * the personal score endpoint and the leaderboard exactly like the Python
- * source shares it. Tunable constants (+10 per distinct passed article
+ * The knowledge score, shared by the personal score endpoint and the
+ * leaderboard. Tunable constants (+10 per distinct passed article
  * version, +5 bonus for passing on the very first attempt), not
- * architecturally load-bearing -- same as the Python docstring says.
+ * architecturally load-bearing.
  */
 @Service
 public class KnowledgeScoreService {

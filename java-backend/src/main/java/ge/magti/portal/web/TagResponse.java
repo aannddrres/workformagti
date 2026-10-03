@@ -5,7 +5,6 @@ import ge.magti.portal.domain.Tag;
 
 import java.time.OffsetDateTime;
 
-/** Mirrors schemas.py's TagResponse field-for-field. */
 public record TagResponse(
         Long id,
         String name,

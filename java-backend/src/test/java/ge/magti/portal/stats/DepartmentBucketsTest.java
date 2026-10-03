@@ -6,9 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
- * Mirrors tests/test_department_stats.py::test_match_department_bucket's
- * exact assertions, cross-checked against the live Python test suite, not
- * just this class's own source.
+ * The department-bucket match, case by case.
  */
 class DepartmentBucketsTest {
 

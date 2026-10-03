@@ -51,14 +51,14 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Mirrors routers/compliance.py -- all 7 endpoints: the operator's own
+ * All 7 compliance endpoints: the operator's own
  * required-reading list + progress widget, the mark-read acknowledgement
  * (with quiz gate + read-receipt bridge), and the admin required-readings
  * CRUD (+ by-item lookup).
  *
- * <p>Access split mirrors Python exactly: my-readings / my-progress /
- * mark-read are {@code get_current_user} (any active role); the four
- * required-readings management endpoints are {@code get_current_admin_user}
+ * <p>Access split: my-readings / my-progress /
+ * mark-read are open to any signed-in user (any active role); the four
+ * required-readings management endpoints are for content administrators
  * (content_admin / system_admin).
  *
  * <p>PO-16 reminder delivery is durable, fixed-template and portal-only. It
@@ -135,7 +135,6 @@ public class ComplianceController {
         this.scopeResolver = scopeResolver;
     }
 
-    /** Port of get_my_readings (routers/compliance.py:30-113). */
     @GetMapping("/api/compliance/my-readings")
     public ResponseEntity<?> getMyReadings(@AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
@@ -215,7 +214,6 @@ public class ComplianceController {
         return ResponseEntity.ok(results);
     }
 
-    /** Port of get_my_progress (routers/compliance.py:116-143). */
     @GetMapping("/api/compliance/my-progress")
     public ResponseEntity<?> getMyProgress(@AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
@@ -232,7 +230,6 @@ public class ComplianceController {
         return ResponseEntity.ok(new MyProgressResponse(total, completed, total - completed, record.progress().percentage()));
     }
 
-    /** Port of mark_read (routers/compliance.py:146-197). */
     @PostMapping("/api/compliance/mark-read/{readingId}")
     @Transactional
     public ResponseEntity<?> markRead(@PathVariable("readingId") Long readingId, @AuthenticationPrincipal User user) {
@@ -287,7 +284,6 @@ public class ComplianceController {
         return ResponseEntity.ok(ReadStatusResponse.from(savedStat));
     }
 
-    /** Port of create_required_reading (routers/compliance.py:285-316). */
     @PostMapping("/api/compliance/required-readings")
     @Transactional
     public ResponseEntity<?> createRequiredReading(
@@ -360,7 +356,7 @@ public class ComplianceController {
         return saved;
     }
 
-    /** Port of get_required_reading_for_item (routers/compliance.py:319-335) -- Optional response, literal JSON null when absent. */
+    /** Optional response, literal JSON null when absent. */
     @GetMapping("/api/compliance/required-readings/by-item/{itemType}/{itemId}")
     public ResponseEntity<?> getRequiredReadingForItem(
             @PathVariable String itemType, @PathVariable Long itemId, @AuthenticationPrincipal User user) {
@@ -371,7 +367,7 @@ public class ComplianceController {
         Optional<RequiredReading> rr = isPrivateDraftOfAnother(itemType, itemId, user) ? Optional.empty()
                 : requiredReadingRepository.findFirstByItemTypeAndItemIdOrderByIdAsc(itemType, itemId);
         if (rr.isEmpty()) {
-            // FastAPI's Optional[schema] returns the literal 4-char body "null";
+            // An absent result is the literal 4-char body "null";
             // ResponseEntity.ok(null) would write zero bytes and break a
             // client's response.json(). Same fix as GET .../note.
             return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body("null");
@@ -449,7 +445,6 @@ public class ComplianceController {
                 people.size() - pendingTotal, pendingTotal, departments, List.copyOf(named)));
     }
 
-    /** Port of update_required_reading (routers/compliance.py:338-351). */
     @PutMapping("/api/compliance/required-readings/{readingId}")
     @Transactional
     public ResponseEntity<?> updateRequiredReading(
@@ -536,7 +531,6 @@ public class ComplianceController {
         return ResponseEntity.ok(RequiredReadingResponse.from(saved));
     }
 
-    /** Port of delete_required_reading (routers/compliance.py:354-364). */
     @DeleteMapping("/api/compliance/required-readings/{readingId}")
     public ResponseEntity<?> deleteRequiredReading(
             @PathVariable("readingId") Long readingId, @AuthenticationPrincipal User user) {

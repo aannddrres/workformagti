@@ -68,7 +68,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Real Oracle, real HTTP, real Spring Security filter chain -- covers all 6
- * routers/exports.py endpoints. The async xlsx/pdf builds run through a
+ * export endpoints. The async xlsx/pdf builds run through a
  * {@link SyncTaskExecutor} override ({@link SyncAsyncConfig}) so {@code
  * @Async} executes inline on the test's own thread/transaction instead of a
  * separate worker thread -- otherwise the worker's DB writes would run on a

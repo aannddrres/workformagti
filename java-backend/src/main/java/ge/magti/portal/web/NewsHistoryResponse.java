@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.OffsetDateTime;
 
-/** Mirrors schemas.py's NewsHistoryResponse. */
 public record NewsHistoryResponse(
         Long id,
         String title,

@@ -3,12 +3,12 @@ package ge.magti.portal.export;
 import java.util.List;
 
 /**
- * Mirrors export_readings' CSV assembly (routers/exports.py:101-116) using
- * Python's {@code csv.writer} defaults: comma-separated, {@code \r\n} line
+ * Assembles the readings CSV export with the standard CSV defaults:
+ * comma-separated, {@code \r\n} line
  * endings, fields quoted only when they contain a comma/quote/newline, and
  * a doubled quote to escape an embedded quote. No third-party CSV library
- * needed for a format this small. Header cells are written as-is (Python
- * never sanitizes the header row); data cells go through
+ * needed for a format this small. Header cells are written as-is (the
+ * header row is never sanitized); data cells go through
  * {@link ExportCellSanitizer}.
  */
 public final class CsvExportBuilder {

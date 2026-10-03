@@ -29,8 +29,7 @@ public interface ReadStatusRepository extends JpaRepository<ReadStatus, Long> {
     void deleteByRequiredReadingIdIn(@Param("requiredReadingIds") List<Long> requiredReadingIds);
 
     /**
-     * Mirrors export_readings/export_readings_xlsx/export_readings_pdf's
-     * shared ReadStatus scan (routers/exports.py:94-98,144-150,264-270),
+     * The readings exports' shared ReadStatus scan,
      * now uniformly scoped to eligible user ids for all three formats (see
      * {@link ge.magti.portal.export.ExportQueryService}).
      */
@@ -45,7 +44,7 @@ public interface ReadStatusRepository extends JpaRepository<ReadStatus, Long> {
             @Param("dueBefore") java.time.OffsetDateTime dueBefore,
             Pageable pageable);
 
-    /** get_my_readings' per-user status lookup (routers/compliance.py:88-91). */
+    /** The reading list's per-user status lookup. */
     List<ReadStatus> findByUserIdAndRequiredReadingIdIn(Long userId, List<Long> requiredReadingIds);
 
     /**
@@ -56,8 +55,8 @@ public interface ReadStatusRepository extends JpaRepository<ReadStatus, Long> {
             List<Long> requiredReadingIds, String status, Pageable pageable);
 
     /**
-     * Mirrors get_statistics_breakdown's "status" dimension
-     * (routers/stats.py:902,921-925) -- every read status row, unfiltered.
+     * The statistics breakdown's "status" dimension
+     * -- every read status row, unfiltered.
      * Object[] = {status (String), count (Long)}.
      */
     @Query("SELECT rs.status, COUNT(rs.id) FROM ReadStatus rs GROUP BY rs.status ORDER BY COUNT(rs.id) DESC")

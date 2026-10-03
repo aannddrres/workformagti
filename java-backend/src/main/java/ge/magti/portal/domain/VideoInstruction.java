@@ -11,8 +11,7 @@ import org.hibernate.annotations.SQLRestriction;
 import java.time.OffsetDateTime;
 
 /**
- * Mirrors models.py's VideoInstruction (models.py:240-253, table
- * {@code video_instructions}).
+ * The {@code video_instructions} table.
  *
  * <p>Two asymmetries worth knowing, both carried over unchanged rather than
  * "fixed" to look more like {@link Article}/{@link News}:
@@ -28,8 +27,8 @@ import java.time.OffsetDateTime;
  *
  * <p>{@link #targetDepartment} is a single value, not a list -- known bug
  * #10 (not yet decided): the visibility filter for this field is an exact
- * string match rather than the prefix-aware rule used elsewhere
- * (routers/videos.py:77), so an operator in a department's sub-group
+ * string match rather than the prefix-aware rule used elsewhere,
+ * so an operator in a department's sub-group
  * doesn't see a video targeted at the parent department. Nothing to fix
  * yet -- there is no query/filter logic to port until a repository layer
  * exists; flagged here so it isn't missed when that logic is written.

@@ -29,7 +29,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Mirrors routers/search.py's 3 endpoints: {@code /api/search} (KB article
+ * The 3 search endpoints: {@code /api/search} (KB article
  * search), {@code /api/search/global} (portal-wide, cached + coalesced),
  * {@code /api/search/history}. See {@link SearchQueryService} for the actual
  * query/scoring logic this controller only wires up and logs around.
@@ -59,7 +59,6 @@ public class SearchController {
         this.categoryRepository = categoryRepository;
     }
 
-    /** Port of global_search (routers/search.py:38-122). */
     @GetMapping("/api/search")
     public ResponseEntity<?> search(
             @RequestParam String q,
@@ -86,7 +85,7 @@ public class SearchController {
         return ResponseEntity.ok(response);
     }
 
-    /** Port of global_search_all (routers/search.py:204-256), with its single-flight; no result is kept (GlobalSearchCache). */
+    /** Portal-wide search, single-flight; no result is kept (GlobalSearchCache). */
     @GetMapping("/api/search/global")
     public ResponseEntity<?> searchGlobal(@RequestParam String q, @AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
@@ -130,7 +129,6 @@ public class SearchController {
         return ResponseEntity.ok(new GlobalSearchResponse(articles, news, videos));
     }
 
-    /** Port of get_search_history (routers/search.py:258-285). */
     @GetMapping("/api/search/history")
     public ResponseEntity<?> searchHistory(@AuthenticationPrincipal User user) {
         ResponseEntity<Map<String, String>> denial = Guards.requireAuthenticated(user);
@@ -170,10 +168,9 @@ public class SearchController {
      * <p>Only the length and QA-account guards are conditions on writing at
      * all; the result count decides the FLAG, never whether there is a row.
      *
-     * <p>Divergence from Python, deliberate: routers/search.py logged misses on
-     * {@code /api/search/global} (search.py:232-239, 249-255) but not on
-     * {@code /api/search} (search.py:113, which required {@code len(articles) >
-     * 0}). Both are a person failing to find something, so both are recorded
+     * <p>Deliberate: the original app logged misses on
+     * {@code /api/search/global} but not on
+     * {@code /api/search}. Both are a person failing to find something, so both are recorded
      * here. The knowledge-base page's own search box is the one an operator
      * uses most, and dropping its misses would leave the panel half-blind.
      */

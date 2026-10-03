@@ -11,7 +11,7 @@ import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 
 /**
- * Mirrors models.py's NewsHistory (models.py:83-93) -- per-news revision
+ * Per-news revision
  * history, parity with {@link ArticleHistory} so admins can restore.
  */
 @Entity

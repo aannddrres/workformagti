@@ -22,9 +22,9 @@ import java.util.Locale;
 import java.util.function.Consumer;
 
 /**
- * Mirrors _build_audit_query (routers/audit_logs.py:109-175) plus the
- * extra {@code q} free-text filter both get_audit_logs and
- * export_audit_logs layer on top of it (:204-211, :276-283). Native SQL
+ * Builds the audit-log query, plus the
+ * extra {@code q} free-text filter both the list and the export
+ * layer on top of it. Native SQL
  * via JdbcTemplate, not JPQL: the item-name resolution needs four LEFT
  * JOINs to unrelated entities keyed by a runtime {@code lower(item_type)}
  * match, which native SQL expresses far more directly than JPQL's ad-hoc
@@ -33,8 +33,7 @@ import java.util.function.Consumer;
  *
  * <p>Every join is 1:1 on a primary key (users.id / articles.id / news.id
  * / video_instructions.id / categories.id), so none of them can fan out a
- * row -- no {@code DISTINCT} needed, matching Python's plain
- * {@code .outerjoin(...)} chain.
+ * row -- no {@code DISTINCT} needed.
  *
  * <p>Timestamp handling: the {@code audit_logs.timestamp} column is a
  * plain Oracle {@code TIMESTAMP(6)} with no zone data -- {@link
@@ -82,7 +81,7 @@ public class AuditLogQueryService {
     }
 
     /**
-     * Mirrors get_audit_logs (:178-246). {@code scopeDepartments} is the
+     * The audit-log list. {@code scopeDepartments} is the
      * manager-only department pin, resolved by the caller: {@code null}
      * means unrestricted, an empty list means no rows (SEC-13 -- an
      * unassigned manager used to fall through to unrestricted).
@@ -120,11 +119,10 @@ public class AuditLogQueryService {
     }
 
     /**
-     * Mirrors export_audit_logs' generate_csv() (:294-315): a forward-only,
+     * The audit-log CSV export: a forward-only,
      * server-side-cursor pass with a small JDBC fetch size, so a large
-     * unfiltered export never materializes the full result set in memory --
-     * the same memory-safety intent as Python's generator + yield_per(1000),
-     * expressed via the JDBC idiom instead. No scope_department: matches
+     * unfiltered export never materializes the full result set in memory.
+     * No scope_department: matches
      * export_audit_logs' access rule (system admin / content admin only,
      * manager excluded entirely -- see AuditLogController's
      * requireSystemAuditNonManager), so there is no per-department slice to
@@ -254,12 +252,10 @@ public class AuditLogQueryService {
     }
 
     /**
-     * Mirrors _parse_audit_date (routers/audit_logs.py:26-65). The Python
-     * version normalises to naive Tbilisi-local because its DB column is
-     * naive; this Java port keeps every parsed value as an explicit
+     * Parses an audit-log date filter. Every parsed value stays an explicit
      * OffsetDateTime at TbilisiTime.OFFSET throughout, converting to the
      * column's naive representation only at the very end via {@link
-     * #toColumnValue}, which is the safer of the two designs -- comparisons
+     * #toColumnValue}, so that comparisons
      * stay instant-correct regardless of which offset a caller's input used.
      */
     private static OffsetDateTime parseAuditDate(String value, boolean endOfDay) {

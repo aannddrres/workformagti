@@ -341,7 +341,7 @@ class SearchControllerIntegrationTest {
     /**
      * The department-scoping decision confirmed with the user: Search must
      * use the same prefix-aware rule as Article list/detail visibility, not
-     * Python's original exact-match -- a sub-group operator must find
+     * the original exact-match -- a sub-group operator must find
      * content targeted at their parent department.
      */
     @Test
@@ -393,8 +393,8 @@ class SearchControllerIntegrationTest {
     }
 
     /**
-     * The confirmed News fix: Python's own {@code _run_global_search_sync}
-     * has no draft check at all for news (only department) -- a real
+     * The confirmed News fix: the original global search
+     * had no draft check at all for news (only department) -- a real
      * confidentiality gap presented to and fixed per the user's decision.
      */
     @Test

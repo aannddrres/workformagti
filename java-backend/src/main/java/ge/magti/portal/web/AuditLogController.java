@@ -34,12 +34,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Mirrors routers/audit_logs.py in full: get_audit_logs (:178-246),
- * export_audit_logs (:249-321), verify_audit_log (:324-376) and
- * audit_chain_health (:379-455). Named for the whole router file, not just
+ * The audit-log endpoints: the list, the export, single-row verify and
+ * chain health. Named for the whole audit log, not just
  * the hash-chain half it started as -- see git history for the
- * AuditChainController -> AuditLogController rename that came with this
- * class picking up the other two endpoints.
+ * AuditChainController -> AuditLogController rename.
  *
  * <p>Raw audit rows, integrity verification and audit export are deliberately
  * SYSTEM_ADMIN-only. Managers use the dedicated compliance, reminder and
@@ -142,7 +140,7 @@ public class AuditLogController {
 
         AuditLogFilter filter = new AuditLogFilter(startDate, endDate, userId, userName, action, category, q);
 
-        // Written before streaming starts, matching Python: one meta-audit row per
+        // Written before streaming starts: one meta-audit row per
         // export request regardless of how many CSV rows end up streamed out.
         LinkedHashMap<String, Object> metaFilters = new LinkedHashMap<>();
         metaFilters.put("start_date", startDate);
@@ -211,8 +209,7 @@ public class AuditLogController {
 
     /**
      * Best-effort meta-audit write ("someone looked at / exported the audit
-     * trail, with which filters") -- mirrors _log_audit_trail_access
-     * (routers/audit_logs.py:81-97) exactly, including swallowing any
+     * trail, with which filters") -- swallowing any
      * failure so it can never block the read the caller already computed.
      */
     private void writeMetaAudit(User actor, String action, LinkedHashMap<String, Object> filters) {

@@ -5,9 +5,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
 /**
- * Mirrors schemas.ComplianceStatsResponse (schemas.py:428-432), except
- * {@code topArticles} carries a real {@link TopArticleResponse#readCount()}
- * instead of Python's full {@code ArticleResponse} shape -- see
+ * Compliance statistics. {@code topArticles} carries a real
+ * {@link TopArticleResponse#readCount()} rather than a full
+ * {@code ArticleResponse} shape -- see
  * {@link TopArticleResponse}'s javadoc for why.
  */
 public record ComplianceStatsResponse(

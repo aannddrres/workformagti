@@ -10,8 +10,7 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 /**
- * Mirrors models.py's {@code permissions = Column(JSON, default=list,
- * nullable=True)} (models.py:43) -- a JSON array of strings, e.g.
+ * The nullable {@code users.permissions} column -- a JSON array of strings, e.g.
  * {@code ["articles.publish", "users.manage"]}. Not {@code autoApply}: only
  * {@link User#getPermissions()} means "JSON-encoded string set" in this
  * codebase, and auto-applying to every future {@code Set<String>} field

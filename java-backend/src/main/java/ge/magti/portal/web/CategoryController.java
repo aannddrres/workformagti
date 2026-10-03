@@ -27,22 +27,20 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Mirrors routers/categories.py's 4 endpoints: list (active-only, every
+ * The 4 category endpoints: list (active-only, every
  * role alike -- unlike videos, there is no admin-sees-inactive-too branch
  * here), and admin create/update/delete.
  *
  * <p>Same two-gate auth shape as {@link VideoController}: no/invalid token
- * (401, English), wrong role (403, English -- security.py's
- * {@code get_current_admin_user} = {@code require_roles(content_admin,
- * admin)}). There is no granular sub-permission here, unlike videos'
+ * (401, English), wrong role (403, English -- content_admin or admin
+ * only). There is no granular sub-permission here, unlike videos'
  * archive endpoints.
  *
  * <p>Create/update/delete write a reconstructable audit row in the same
  * transaction as the category change. An audit flush failure therefore rolls
  * the business mutation back instead of leaving an unaudited category state.
  *
- * <p>Also not ported: state.py's category_cache/search_cache TTL-cache
- * clearing -- no cache exists in the Java port yet.
+ * <p>No category/search TTL-cache clearing -- no such cache exists here.
  *
  * <p>R5 changes delete from silent fallback reassignment to fail-closed
  * blocking. The administrator must explicitly move every article first;
@@ -91,7 +89,7 @@ public class CategoryController {
         }
 
         // BL-08: categories.name has no unique constraint (V2, a deliberate
-        // parity decision with Python) and nothing checked for duplicates,
+        // decision) and nothing checked for duplicates,
         // so two categories called "ტექნიკური" were indistinguishable in
         // every dropdown in the product -- an editor picking one had no way
         // to know which.

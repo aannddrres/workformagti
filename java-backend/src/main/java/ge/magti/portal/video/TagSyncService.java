@@ -13,12 +13,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Mirrors routers/articles.py's sync_tags (:36-58) exactly -- keeps the
+ * Keeps the
  * normalized tags/tags_mapping tables in sync with an item's flat
  * comma-separated tags string, creating new Tag rows on the fly. Shared
- * by both articles and videos in Python (videos.py imports it directly);
- * kept as its own class here for the same reason, ready for Article to
- * reuse once that endpoint is built.
+ * by both articles and videos, so it is its own class.
  */
 @Service
 public class TagSyncService {

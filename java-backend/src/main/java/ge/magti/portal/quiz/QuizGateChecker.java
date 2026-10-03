@@ -10,12 +10,11 @@ import org.springframework.stereotype.Service;
 import java.util.Map;
 
 /**
- * Port of _check_quiz_gate (routers/articles.py:1006-1029). Shared, exactly
- * as Python shares it -- it is called from BOTH "mark as read" paths: the
+ * The quiz gate. It is called from BOTH "mark as read" paths: the
  * article read-receipt ({@code createArticleReadReceipt}) and the mandatory-
  * reading compliance acknowledgement ({@code ComplianceController.markRead}).
  * A single definition here means the gate can never drift between those two
- * call sites, the same reason Python factored it out of both routers.
+ * call sites.
  *
  * <p>Admins/content_admins bypass the gate entirely (they never see the ack
  * button on the frontend either); a quiz-disabled article is never gated.

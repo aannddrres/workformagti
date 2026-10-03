@@ -17,18 +17,12 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Ports security.py's create_access_token/get_current_user token handling.
- * Same claim shape ({@code sub}=email, {@code exp}=expiry) and the same
- * HS256 secret/algorithm/expiry config keys -- a token minted by the Python
- * app and one minted here carry identical claims, so either side can verify
- * the other's token during the coexistence period (Phase 1/2).
+ * Token creation and validation: claim shape {@code sub}=email,
+ * {@code exp}=expiry, HS256.
  *
- * <p>Cross-stack risk worth flagging (not silently papered over): JJWT
- * enforces HS256's 256-bit (32-byte) minimum key length and throws
- * WeakKeyException below that; python-jose does not enforce this. If the
- * real production SECRET_KEY is shorter than 32 bytes, Python accepts it
- * but this service refuses to start signing tokens. Verify the real secret's
- * length before cutting over.
+ * <p>JJWT enforces HS256's 256-bit (32-byte) minimum key length and throws
+ * WeakKeyException below that, so a SECRET_KEY shorter than 32 bytes stops
+ * this service from signing tokens.
  */
 @Service
 public class JwtService {
@@ -74,7 +68,7 @@ public class JwtService {
 	public static final String TOKEN_VERSION_CLAIM = "tv";
 	public static final String SESSION_ID_CLAIM = "sid";
 
-	/** Mirrors create_access_token(data={"sub": email, "role": role}). */
+	/** Signs a token carrying the given claims ({"sub": email, "role": role}). */
 	public String createAccessToken(Map<String, Object> claims) {
 		return createAccessToken(claims, Duration.ofMinutes(jwtConfig.getAccessTokenExpireMinutes()));
 	}
@@ -122,7 +116,7 @@ public class JwtService {
 	}
 
 	/**
-	 * Mirrors get_current_user's decode step -- returns empty on any
+	 * The decode step -- returns empty on any
 	 * validation failure (bad signature, expired, malformed) rather than
 	 * throwing, since the caller's job is a clean 401, not a stack trace.
 	 */
@@ -156,7 +150,7 @@ public class JwtService {
 		}
 	}
 
-	/** Mirrors the "sub" claim being the user's email everywhere in security.py. */
+	/** The "sub" claim is the user's email. */
 	public Optional<String> extractSubject(String token) {
 		return parseAndValidate(token).map(Claims::getSubject);
 	}

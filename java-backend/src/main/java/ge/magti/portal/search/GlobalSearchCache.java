@@ -7,19 +7,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 /**
- * Request coalescing for the header search, ported from
- * {@code routers/search.py}'s {@code single_flight} (routers/search.py:20-35):
+ * Request coalescing ("single flight") for the header search:
  * concurrent callers for the same key share one computation instead of each
  * hitting the database. Implemented with a plain {@link ConcurrentHashMap} of
- * {@link CompletableFuture}s rather than asyncio's single-threaded-event-loop
- * trick, since Spring MVC serves requests on separate threads: {@link
- * ConcurrentHashMap#putIfAbsent} is the synchronization point instead of
- * asyncio's cooperative scheduling.
+ * {@link CompletableFuture}s, since Spring MVC serves requests on separate
+ * threads: {@link ConcurrentHashMap#putIfAbsent} is the synchronization point.
  *
  * <p><b>No result is kept once its request is answered.</b> This class used
- * to hold every result for 60 seconds, like {@code state.py}'s
- * {@code search_cache} -- but the Python side cleared that cache on every
- * content write, and the port never did (NewsController and VideoController
+ * to hold every result for 60 seconds -- but the original app cleared its
+ * search cache on every content write, and the port never did (NewsController and VideoController
  * still say why: there was no cache to go stale when they were ported). An
  * operator who had searched a word saw an article published under it a
  * minute late, and an archived or retargeted one stayed in the list for a

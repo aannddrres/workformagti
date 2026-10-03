@@ -10,9 +10,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Mirrors schemas.py's CurrentUserResponse (schemas.py:52-57) -- UserResponse
- * plus can_view_audit_log, flattened into one JSON object exactly like
- * Pydantic's subclass does. Kept as its own record (field list duplicated
+ * UserResponse plus can_view_audit_log, flattened into one JSON object.
+ * Kept as its own record (field list duplicated
  * from {@link UserResponse}) rather than composition, matching this port's
  * existing DTO convention (see e.g. News's summary/full response pair).
  */

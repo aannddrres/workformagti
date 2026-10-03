@@ -32,21 +32,20 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Mirrors routers/videos.py: listing (department/role-visibility filtered),
+ * The video endpoints: listing (department/role-visibility filtered),
  * view-count increment, and admin CRUD (create/update/delete/archive/
- * unarchive). Three distinct access gates, each with Python's exact wire
+ * unarchive). Three distinct access gates, each keeping its exact wire
  * text so client-side error handling keyed on that text keeps working:
  * no/invalid token (401, English), wrong role for create/update/delete
- * (403, English -- security.py's require_roles), missing the granular
- * videos.archive permission (403, Georgian -- security.py's
- * require_permission).
+ * (403, English), missing the granular
+ * videos.archive permission (403, Georgian).
  *
  * <p>Create/update/archive/unarchive write reconstructable audit evidence in
  * the same transaction as the business mutation. Delete delegates the same
  * fail-closed rule to {@link ContentLifecycleService}.
  *
- * <p>Also deliberately not ported: state.py's search_cache.clear() and
- * SSE _notify() calls -- neither TTL caching nor a real-time broadcast
+ * <p>No search-cache clearing and no
+ * SSE notify calls -- neither TTL caching nor a real-time broadcast
  * mechanism exists in the Java port yet, and nothing depends on them
  * (no cache to go stale, no SSE clients to notify).
  */

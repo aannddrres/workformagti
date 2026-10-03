@@ -38,7 +38,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Mirrors routers/articles.py's quiz + knowledge sub-surface: admin
+ * The quiz + knowledge endpoints: admin
  * question-bank CRUD, the operator-facing quiz (no {@code is_correct}
  * anywhere), server-side grading, and the two knowledge-score read
  * endpoints that share {@link KnowledgeScoreService}.
@@ -47,9 +47,8 @@ import java.util.stream.Collectors;
  * article detail and attachments, including private {@code is_draft} rows.
  *
  * <p><b>Known, deliberate gap:</b> only the admin question-bank replace
- * (PUT quiz/admin) writes an audit row (UPDATE_QUIZ), exactly matching
- * what routers/articles.py's own code explicitly does -- no other quiz
- * endpoint is audited in Python either.
+ * (PUT quiz/admin) writes an audit row (UPDATE_QUIZ) -- no other quiz
+ * endpoint is audited.
  */
 @RestController
 public class QuizController {

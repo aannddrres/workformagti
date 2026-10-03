@@ -10,7 +10,7 @@ import java.util.EnumSet;
 import java.util.Set;
 
 /**
- * Mirrors security.py's {@code role_has_permission} (security.py:408-443),
+ * Permission checks,
  * simplified per the 2026-07-30 RBAC-catalog decision (migration doc §5,
  * bug #5): the DB-backed {@code Role}/{@code Permission}/
  * {@code RolePermission} tables and their disjoint colon-named catalog are

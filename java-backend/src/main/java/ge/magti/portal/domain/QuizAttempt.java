@@ -10,15 +10,14 @@ import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 
 /**
- * Mirrors models.py's QuizAttempt (models.py:567-587) -- every submission,
- * pass or fail.
+ * Every quiz submission, pass or fail.
  *
  * <p>{@link #attemptNumber} and the pass/fail gate are both scoped to
  * {@link #articleVersion}, not just {@link #articleId}
- * (routers/articles.py:838-841,1022-1027) -- editing an article's content
+ * -- editing an article's content
  * is supposed to re-require its quiz. This is exactly where known bug #2
- * (decided fix, 2026-07-29) lives: routers/articles.py's quiz-edit handler
- * (:730-765) never increments {@code Article.version}, so a QuizAttempt
+ * (decided fix, 2026-07-29) lives: the quiz-edit handler
+ * never increments {@code Article.version}, so a QuizAttempt
  * recorded as {@code passed=true} against the *old* quiz content keeps
  * satisfying the gate check after the quiz questions/answers change --
  * because the version number the gate compares against never moved. Not
@@ -28,7 +27,7 @@ import java.time.OffsetDateTime;
  *
  * <p>{@link #attemptNumber} itself (count of prior attempts for this
  * user+article+version, plus one) and the pass/fail gate query are both
- * DB-dependent lookups (routers/articles.py:838-843,1022-1027) --
+ * DB-dependent lookups --
  * deliberately not ported here; see {@link ge.magti.portal.quiz.QuizGrader}
  * for the one part of quiz submission that doesn't need a database
  * (scoring the answers themselves).

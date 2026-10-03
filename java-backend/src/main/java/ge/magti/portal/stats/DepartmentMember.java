@@ -3,9 +3,7 @@ package ge.magti.portal.stats;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Mirrors the per-member dict routers/stats.py's build_department_stats
- * builds (routers/stats.py:607-615), matching schemas.DeptMemberStats
- * (schemas.py:692-700) field-for-field.
+ * One member in the department dashboard.
  */
 public record DepartmentMember(
         @JsonProperty("user_id") Long userId,

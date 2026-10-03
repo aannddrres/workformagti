@@ -8,7 +8,7 @@ import java.util.List;
 
 public interface VideoInstructionRepository extends JpaRepository<VideoInstruction, Long> {
 
-    /** Mirrors routers/videos.py:78's is_archived == False leg of the visibility
+    /** The is_archived == False leg of the video visibility
      *  filter -- the department half is applied in Java via DepartmentMatcher. */
     List<VideoInstruction> findByArchivedFalse(Pageable pageable);
 }

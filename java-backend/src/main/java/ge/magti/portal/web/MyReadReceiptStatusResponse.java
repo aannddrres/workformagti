@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.OffsetDateTime;
 
-/** Mirrors get_my_article_read_receipt_status's ad-hoc dict (routers/articles.py:1259-1271) -- raw datetime, no response_model. */
+/** The caller's own read-receipt status for an article -- raw datetime, no TbilisiTime.format. */
 public record MyReadReceiptStatusResponse(
         @JsonProperty("has_read") boolean hasRead,
         @JsonProperty("read_at") OffsetDateTime readAt,

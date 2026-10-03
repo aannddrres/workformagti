@@ -8,10 +8,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 /**
- * Mirrors models.py's Category (models.py:96-108).
- *
- * <p>{@link #parentId} is the raw self-referencing foreign key
- * (models.py's {@code parent_id}); the parent/children object graph and the
+ * {@link #parentId} is the raw self-referencing foreign key
+ * ({@code parent_id}); the parent/children object graph and the
  * {@code articles} back-reference are repository-layer concerns, not
  * modeled here, same reasoning as {@link User#getTeamId()}.
  */

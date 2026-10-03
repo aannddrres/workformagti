@@ -7,12 +7,9 @@ import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
- * Mirrors schemas.py's ArticleAutosaveResponse. Despite ArticleAutosave's
- * fields all being {@code Optional} (that typing describes the *request*'s
- * partial-update shape), the response is serialized via {@code
- * from_attributes} straight off the just-updated ORM row (routers/
- * articles.py:414-418 returns {@code db_article}, not the request payload)
- * -- so every field here reflects the article's current state, not just
+ * The autosave response. The autosave *request* is a partial update, but
+ * the response is built straight off the just-updated row, not the request
+ * payload -- so every field here reflects the article's current state, not just
  * whatever the client happened to send this autosave.
  */
 public record ArticleAutosaveResponse(

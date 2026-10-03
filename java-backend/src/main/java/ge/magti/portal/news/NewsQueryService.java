@@ -11,13 +11,12 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 /**
- * Faithful port of get_news' filter/visibility/sort logic
- * (routers/news.py:47-102) -- same shape as {@link
+ * The news list's filter/visibility/sort logic -- same shape as {@link
  * ge.magti.portal.article.ArticleQueryService}, simpler since News has a
  * single {@code target_department} column instead of a junction table.
  *
- * <p>Not ported: the {@code tech_info}/{@code service_center} "Block 5"
- * role branches (routers/news.py:91-95) -- unreachable dead code, same
+ * <p>Not ported: the {@code tech_info}/{@code service_center}
+ * role branches -- unreachable dead code, same
  * finding as ArticleQueryService's own javadoc explains (no user can hold
  * either role value through any validated path).
  */

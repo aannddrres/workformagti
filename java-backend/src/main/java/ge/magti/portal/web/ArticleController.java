@@ -83,7 +83,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Mirrors routers/articles.py -- core CRUD + lifecycle only (list, get,
+ * Article endpoints -- core CRUD + lifecycle only (list, get,
  * create, update, autosave, delete, archive, unarchive, bulk-archive). The
  * remaining 23 endpoints (history/diff/restore, quiz, knowledge-score/
  * leaderboard, read-receipts/views, notes/verify/stale/related) are later,
@@ -310,12 +310,11 @@ public class ArticleController {
         }
         Article article = new Article();
         applySharedFields(article, request);
-        // Never client-supplied (routers/articles.py:231): the author is
+        // Never client-supplied: the author is
         // always the authenticated editor.
         article.setAuthorId(user.getId());
         // Unlike update, create applies last_verified_at exactly as sent
-        // (routers/articles.py:227-235 never pops it before the entity is
-        // built) -- ArticleRequest's own javadoc explains the asymmetry.
+        // -- ArticleRequest's own javadoc explains the asymmetry.
         article.setLastVerifiedAt(request.lastVerifiedAt());
         article.setCreatedAt(TbilisiTime.now());
         article.setUpdatedAt(TbilisiTime.now());
@@ -379,8 +378,7 @@ public class ArticleController {
                 article.getId(), article.getTitle(), article.getContent(), user.getId(), article.getVersion(),
                 article.getUpdatedAt() != null ? article.getUpdatedAt() : TbilisiTime.now());
 
-        // author_id and last_verified_at are deliberately untouched here --
-        // routers/articles.py:342-343 pops both before the update loop so
+        // author_id and last_verified_at are deliberately untouched here, so
         // an edit can never silently overwrite the original author or the
         // last-verified timestamp.
         OffsetDateTime previousPublishedAt = article.getPublishedAt();
@@ -520,12 +518,12 @@ public class ArticleController {
             return publishedArticleNotAutosavable();
         }
 
-        // exclude_unset semantics (routers/articles.py:401): only fields the
+        // exclude_unset semantics: only fields the
         // client actually sent in this partial payload are touched -- a
         // typed record can't tell "absent" from "not included", so this one
         // endpoint reads the raw JSON object as a map instead (containsKey
-        // is true even for an explicit JSON null, matching Pydantic's own
-        // "set to None" still counting as sent).
+        // is true even for an explicit JSON null, which still counts as
+        // sent).
         if (body.containsKey("title")) {
             article.setTitle((String) body.get("title"));
         }
@@ -543,8 +541,7 @@ public class ArticleController {
             Object value = body.get("target_departments");
             List<String> targetDepartments = value == null ? List.of()
                     : ((List<?>) value).stream().map(String::valueOf).toList();
-            // routers/articles.py:405 -- `if target_departments:` -- an
-            // empty/absent-valued list leaves the existing rows untouched.
+            // An empty/absent-valued list leaves the existing rows untouched.
             if (!targetDepartments.isEmpty()) {
                 article.setTargetDepartment(
                         targetDepartments.contains("All") ? "All" : targetDepartments.get(0));
@@ -967,8 +964,7 @@ public class ArticleController {
 
         Optional<UserNote> note = userNoteRepository.findByUserIdAndArticleId(user.getId(), id);
         if (note.isEmpty()) {
-            // response_model=Optional[UserNoteResponse] -- FastAPI serializes
-            // a None return as the literal JSON `null`, not an empty body;
+            // No note is the literal JSON `null`, not an empty body;
             // ResponseEntity.ok(null) would otherwise make Spring write zero
             // bytes, which a client's response.json() would fail to parse.
             return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body("null");
@@ -1053,8 +1049,7 @@ public class ArticleController {
             return denial;
         }
 
-        // routers/articles.py:1582-1584 -- a plain lookup, not get_or_404: a
-        // missing source article returns an empty list, not a 404.
+        // A missing source article returns an empty list, not a 404.
         Optional<Article> found = articleRepository.findById(id);
         if (found.isEmpty()) {
             return ResponseEntity.ok(List.of());
@@ -1076,10 +1071,9 @@ public class ArticleController {
                 articleTargetQueryService.targetDepartmentsByArticleWithinLimit(candidateIds);
         boolean isAdmin = user.seesAllContent();
         // Deliberately exact-match + "All" only, NOT DepartmentMatcher's
-        // prefix-aware rule -- routers/articles.py:1596-1601 narrows this
-        // one candidate filter differently than get_articles' own list
-        // query does, and this port carries that difference forward
-        // unchanged rather than unifying it.
+        // prefix-aware rule -- this one candidate filter is narrower than
+        // the article list's own query, and that difference is carried
+        // forward unchanged rather than unified.
         List<ArticleReferenceItem> candidates = published.stream()
                 .filter(a -> isAdmin
                         || relatedArticleDeptMatches(user.getDepartment(), deptsByArticle.getOrDefault(a.id(), List.of())))
@@ -1150,8 +1144,8 @@ public class ArticleController {
             return denial;
         }
 
-        // No get_or_404 here, matching routers/articles.py:539-565 exactly:
-        // a missing article_id isn't checked separately, it just yields zero
+        // No existence check here: a missing article_id isn't checked
+        // separately, it just yields zero
         // matching history rows -- an empty list, not a 404.
         ResponseEntity<Map<String, String>> visibility = denyInvisibleExistingArticle(id, user);
         if (visibility != null) {
@@ -1166,7 +1160,7 @@ public class ArticleController {
         Map<Long, String> namesByUserId = userRepository.findAllById(authorIds).stream()
                 .collect(Collectors.toMap(User::getId, User::getName));
 
-        // INNER JOIN semantics (routers/articles.py:548-549's .join(User, ...)):
+        // INNER JOIN semantics:
         // a history row whose updated_by no longer matches any user is
         // silently dropped, not shown with a null author.
         List<ArticleHistoryItemResponse> response = history.stream()
@@ -1372,7 +1366,7 @@ public class ArticleController {
             return visibility;
         }
 
-        // Self-healing (routers/articles.py:943-948): legacy articles
+        // Self-healing: legacy articles
         // predating the Unified Revision Log feature may be missing a
         // history row for their current version -- ensure one exists
         // before listing, sharing the same race-safe archive logic as
@@ -1390,8 +1384,8 @@ public class ArticleController {
         Map<Long, String> namesByUserId = userRepository.findAllById(authorIds).stream()
                 .collect(Collectors.toMap(User::getId, User::getName));
 
-        // OUTER JOIN semantics (routers/articles.py:952's .outerjoin), unlike
-        // get_article_history's INNER JOIN above: a row survives even when
+        // OUTER JOIN semantics, unlike
+        // the history list's INNER JOIN above: a row survives even when
         // updated_by has no matching user, with author_name = null.
         List<ArticleVersionItemResponse> versions = history.stream()
                 .map(h -> new ArticleVersionItemResponse(
@@ -1402,7 +1396,6 @@ public class ArticleController {
         return ResponseEntity.ok(versions);
     }
 
-    /** Port of _diff_ordered_by_version (routers/articles.py:568-583). */
     private static ArticleDiffResponse diffOrderedByVersion(
             String contentA, int versionA, String contentB, int versionB, int snapVersionId) {
         DiffResult result;
@@ -1483,7 +1476,7 @@ public class ArticleController {
                 receipts, processedOperatorIds, namedScope);
         // Detached/orphaned snapshot rows: a receipt whose operator is no
         // longer eligible (left the department, deactivated, ...) still
-        // shows, from its own frozen snapshot -- routers/articles.py:1100-1122.
+        // shows, from its own frozen snapshot.
         for (ArticleReadReceipt receipt : receipts) {
             if (!processedOperatorIds.contains(receipt.getOperatorId())
                     && (namedScope.unscoped() || visibleDetachedOperatorIds.contains(receipt.getOperatorId()))) {
@@ -1519,10 +1512,10 @@ public class ArticleController {
             return quizGate;
         }
 
-        // Compliance bridge (routers/articles.py:1207-1233): prefix-aware,
+        // Compliance bridge: prefix-aware,
         // like EligibleOperatorsService since 2026-10-01 -- this one
-        // reuses the same [dept, deptPrefix, "All"] pattern get_articles'
-        // own list query uses. Only fills gaps: an already-"read"
+        // reuses the same [dept, deptPrefix, "All"] pattern the article
+        // list's own query uses. Only fills gaps: an already-"read"
         // ReadStatus keeps its original read_at.
         List<RequiredReading> covering = CompleteResultGuard.enforce(
                 requiredReadingRepository.findByItemTypeAndItemIdAndTargetDepartmentIn(
@@ -1648,7 +1641,7 @@ public class ArticleController {
         List<RecentlyViewedItemResponse> items = new ArrayList<>();
         for (ArticleViewLog row : rows) {
             Long articleId = row.getArticleId();
-            // INNER JOIN semantics (routers/articles.py:1376): a view of a
+            // INNER JOIN semantics: a view of a
             // since-deleted article (article_id SET NULL on delete) never
             // resolves a title, so it's silently skipped, not shown blank.
             if (articleId == null || !titlesByArticleId.containsKey(articleId) || seenIds.contains(articleId)) {
@@ -1693,7 +1686,7 @@ public class ArticleController {
                 .collect(Collectors.toSet());
     }
 
-    /** Port of _check_quiz_gate -- now delegated to the shared {@link QuizGateChecker}, which ComplianceController's mark-read reuses too. */
+    /** Delegated to the shared {@link QuizGateChecker}, which ComplianceController's mark-read reuses too. */
     private ResponseEntity<Map<String, String>> requireQuizPassed(Article article, User user) {
         return quizGateChecker.denialFor(article, user);
     }
@@ -1733,7 +1726,6 @@ public class ArticleController {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", NOT_FOUND_DETAIL));
     }
 
-    /** Port of _assert_article_visible (routers/articles.py:61-94). */
     /**
      * The predicate itself now lives in {@link ArticleVisibility}, because
      * {@code /uploads/{filename}} needs the same answer before serving a file
@@ -1745,7 +1737,7 @@ public class ArticleController {
         return ArticleVisibility.isVisible(article, targetDepartments, user) ? null : notFoundMap();
     }
 
-    /** Combines the get_or_404 + _assert_article_visible pair every note/quiz-style child route repeats. */
+    /** Combines the not-found check and the visibility check every note/quiz-style child route repeats. */
     private ResponseEntity<Map<String, String>> requireVisibleArticle(Long articleId, User user) {
         Optional<Article> found = articleRepository.findById(articleId);
         if (found.isEmpty()) {
@@ -1767,11 +1759,11 @@ public class ArticleController {
     }
 
     /**
-     * Port of get_related_articles' narrower department filter
-     * (routers/articles.py:1596-1601) -- exact match or "All" only, no
+     * The related-articles endpoint's narrower department filter
+     * -- exact match or "All" only, no
      * {@link DepartmentMatcher} prefix support. Deliberately not reusing
-     * {@code assertArticleVisible}'s dept check: that one calls
-     * DepartmentMatcher.matches, this endpoint's own Python source doesn't.
+     * {@code assertArticleVisible}'s dept check, which calls
+     * DepartmentMatcher.matches.
      */
     private static boolean relatedArticleDeptMatches(String userDepartment, List<String> targets) {
         for (String target : targets) {
@@ -1828,9 +1820,7 @@ public class ArticleController {
      * Bug #314 fix, user-confirmed 2026-08-13: {@code articles.edit} was
      * defined, defaulted onto content_admin, and settable per-user via
      * {@code PUT /api/users/{id}/permissions} --
-     * but no endpoint ever consulted them (confirmed present in Python too,
-     * routers/articles.py's CRUD depends only on {@code get_current_admin_user},
-     * never {@code require_permission}). Revoking a content_admin's
+     * but no endpoint ever consulted them. Revoking a content_admin's
      * articles.edit did nothing; the permission editor was lying. Now
      * actually enforced on the 4 mutating endpoints, same {@link
      * PermissionChecker} pattern as {@link #requireArticlesArchivePermission}.

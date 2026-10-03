@@ -2,12 +2,9 @@ package ge.magti.portal.export;
 
 /**
  * Thrown by {@link ExportSizeGuard#checkSize(int)} when a requested export
- * exceeds {@link ExportSizeGuard#MAX_ROWS}. Mirrors the HTTP 413 raised by
- * routers/exports.py's {@code _guard_export_size} (routers/exports.py:41-49)
- * -- deliberately not itself HTTP-aware (no status code baked in here),
- * since no web layer is wired up in this port yet. Whichever controller
- * eventually calls this maps it to a 413 response with the Georgian message
- * routers/exports.py:45-48 uses today.
+ * exceeds {@link ExportSizeGuard#MAX_ROWS}. Deliberately not itself
+ * HTTP-aware (no status code baked in here): the controller that calls
+ * this maps it to a 413 response with a Georgian message.
  */
 public class ExportTooLargeException extends RuntimeException {
 

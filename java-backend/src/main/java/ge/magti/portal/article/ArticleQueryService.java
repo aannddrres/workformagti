@@ -11,27 +11,25 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 /**
- * Faithful port of get_articles' filter/visibility/sort logic
- * (routers/articles.py:97-176). A plain JPQL query with conditional bind
+ * The article list's filter/visibility/sort logic. A plain JPQL query
+ * with conditional bind
  * parameters (the {@code :param IS NULL OR ...} idiom) rather than Spring
  * Data's {@code Pageable}, since {@code skip}/{@code limit} here are
  * arbitrary offsets -- not page-number-aligned, which is all {@code
  * Pageable} can express.
  *
  * <p><b>Not ported: the {@code tech_info}/{@code service_center} role
- * branches</b> ("Block 5" in the Python source, routers/articles.py:164-167).
- * {@code security.py}'s {@code VALID_ROLES}/{@code _validate_role} only ever
- * allow a user's role to be one of operator/manager/content_admin/admin --
- * "tech_info" and "service_center" can never actually be assigned to any
- * user through any validated code path today, so those two branches are
- * unreachable dead code in the source itself, not a gap this port is
- * introducing. {@link ge.magti.portal.domain.Role} correctly has no such
+ * branches.</b> A user's role can only ever be one of
+ * operator/manager/content_admin/admin -- "tech_info" and "service_center"
+ * can never actually be assigned to any user through any validated code
+ * path today, so those two branches were unreachable dead code, not a gap
+ * this port introduced. {@link ge.magti.portal.domain.Role} correctly has no such
  * values, so there is nothing to compare against. The {@code
  * visible_to_tech_info}/{@code visible_to_service_center} *columns* still
  * exist and are still read/written elsewhere (kept, unchanged) -- only the
  * never-reachable role-gated filter is not reproduced.
  *
- * <p>Python's {@code defer(content)} list-view optimization is represented by
+ * <p>The list view leaves {@code content} unloaded through
  * a constructor projection. V45 maintains the read-time scalar in Oracle, so
  * the list retains its exact response shape without selecting the content CLOB.
  */
