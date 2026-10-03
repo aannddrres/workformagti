@@ -178,8 +178,13 @@ could easily become, several. Read the file before writing a second copy.
   migrations, and the final history had 50 unique successful versions through
   V50. Both replicas became ready. Do not assume one JVM applies the entire
   sequence while the other waits. Plain `CREATE TABLE` remains correct; a
-  guard could hide a partly applied migration. Repeat the two-replica startup
-  on the actual staging Oracle version before production.
+  guard could hide a partly applied migration. On 2026-10-04 the same start
+  against a fresh schema on Oracle 19c SE2 (19.3, the company's major
+  version) interleaved the same way: 27 + 27, 54/54 unique successful
+  versions through V54, no invalid objects. A session signed in on one
+  replica worked on the other. 30 concurrent sign-ins across both left the
+  audit chain intact. Repeat it once on the actual staging Oracle (its patch
+  level, network and storage) before production.
 - **`is_draft` is not `status='draft'`.** `is_draft` is the personal-autosave
   flag, and it hides a row from everyone but its author — content
   administrators included. Editorial state goes in `status`. Getting this
