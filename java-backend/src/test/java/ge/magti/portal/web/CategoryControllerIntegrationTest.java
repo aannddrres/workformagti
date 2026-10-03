@@ -138,7 +138,7 @@ class CategoryControllerIntegrationTest {
     void operatorCannotUpdateOrDeleteCategoryAndOriginalRowRemainsActive() throws Exception {
         User operator = createUser("category-denied-" + System.nanoTime() + "@magti.ge", Role.OPERATOR);
         Category category = createCategory("დაცული კატეგორია " + System.nanoTime());
-        long auditBefore = auditLogRepository.count();
+        long auditBefore = auditLogRepository.countByActionNot("ACCESS_DENIED");
 
         mockMvc.perform(authed(put("/api/categories/" + category.getId()), tokenFor(operator))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -150,7 +150,7 @@ class CategoryControllerIntegrationTest {
         Category reloaded = categoryRepository.findById(category.getId()).orElseThrow();
         assertEquals(category.getName(), reloaded.getName());
         assertTrue(reloaded.isActive());
-        assertEquals(auditBefore, auditLogRepository.count());
+        assertEquals(auditBefore, auditLogRepository.countByActionNot("ACCESS_DENIED"));
     }
 
     @Test

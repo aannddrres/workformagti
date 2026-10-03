@@ -55,6 +55,18 @@ test('the page and its assets carry the security headers', async ({ request }) =
   expect(api.headers()['content-security-policy']).toContain("frame-ancestors 'none'");
 });
 
+/** QA round 4, 2026-10-02: the portal's own files compressed, the backend's answers left alone (BREACH). */
+test('bundles are compressed and API answers are not', async ({ request }) => {
+  const page = await request.get('/', { headers: { 'Accept-Encoding': 'gzip' } });
+  const bundle = (await page.text()).match(/src="(main-[A-Za-z0-9_-]+\.js)"/)?.[1];
+  const script = await request.get(`/${bundle}`, { headers: { 'Accept-Encoding': 'gzip' } });
+  expect(script.headers()['content-encoding']).toBe('gzip');
+  const translations = await request.get('/i18n/ka.json', { headers: { 'Accept-Encoding': 'gzip' } });
+  expect(translations.headers()['content-encoding']).toBe('gzip');
+  const api = await request.get('/api/health', { headers: { 'Accept-Encoding': 'gzip' } });
+  expect(api.headers()['content-encoding']).toBeUndefined();
+});
+
 /** Request smuggling: a body whose length is declared two ways is refused, not guessed. */
 test('a request that declares two body lengths is refused', async ({ baseURL }) => {
   const answer = await raw(baseURL!, [

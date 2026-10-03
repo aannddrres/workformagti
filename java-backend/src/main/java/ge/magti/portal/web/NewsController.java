@@ -69,6 +69,22 @@ public class NewsController {
 
     private static final String NOT_FOUND_DETAIL = "სიახლე ვერ მოიძებნა";
 
+    /** Optional so the DB-free test constructions need no change; Spring always sets it. */
+    private ge.magti.portal.org.DepartmentTargets departmentTargets;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setDepartmentTargets(ge.magti.portal.org.DepartmentTargets departmentTargets) {
+        this.departmentTargets = departmentTargets;
+    }
+
+    /** A 422 naming any audience department that reaches nobody (simulation, 2026-10-01). */
+    private ResponseEntity<Map<String, String>> unknownDepartments(java.util.Collection<String> targets) {
+        return departmentTargets == null ? null : departmentTargets.refusal(targets);
+    }
+    static final String STALE_NEWS_EDIT_DETAIL =
+            "ეს სიახლე თქვენ მიერ გახსნის შემდეგ სხვამ შეცვალა. დახურეთ ფორმა, გახსენით თავიდან "
+                    + "და შეიტანეთ თქვენი ცვლილება ახალ ვერსიაში.";
+
     private final NewsRepository newsRepository;
     private final NewsHistoryRepository newsHistoryRepository;
     private final UserRepository userRepository;
@@ -149,6 +165,10 @@ public class NewsController {
         if (denial != null) {
             return denial;
         }
+        ResponseEntity<Map<String, String>> unknownTargets = unknownDepartments(List.of(request.targetDepartmentOrDefault()));
+        if (unknownTargets != null) {
+            return unknownTargets;
+        }
         News news = new News();
         applySharedFields(news, request);
         news.setExpiresAt(request.expiresAt());
@@ -182,6 +202,16 @@ public class NewsController {
         News news = found.get();
         if (NewsVisibility.isPrivateDraftOfAnother(news, user)) {
             return notFound();
+        }
+        if (!request.targetDepartmentOrDefault().equals(news.getTargetDepartment())) {
+            ResponseEntity<Map<String, String>> unknownTargets =
+                    unknownDepartments(List.of(request.targetDepartmentOrDefault()));
+            if (unknownTargets != null) {
+                return unknownTargets;
+            }
+        }
+        if (request.expectedVersion() != null && request.expectedVersion() != news.getVersion()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("detail", STALE_NEWS_EDIT_DETAIL));
         }
         Map<String, Object> before = MutationAuditService.newsSnapshot(news);
 
@@ -300,6 +330,10 @@ public class NewsController {
         // (PO-34), so it is not adopted by whoever autosaves it first.
         if (NewsVisibility.isPrivateDraftOfAnother(news, user)) {
             return notFound();
+        }
+        if (body.get("content") instanceof String content && content.length() > ArticleRequest.MAX_CONTENT_CHARS) {
+            // The cap NewsRequest puts on create and update; this map path had none.
+            return ResponseEntity.badRequest().body(Map.of("detail", ArticleRequest.CONTENT_TOO_LONG));
         }
         Map<String, Object> before = MutationAuditService.newsSnapshot(news);
 

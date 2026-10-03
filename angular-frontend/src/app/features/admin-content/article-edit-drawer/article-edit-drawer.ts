@@ -1,5 +1,8 @@
-import { Component, computed, effect, inject, input, output, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, input, output, signal, viewChild } from '@angular/core';
+import { AuthService } from '../../../core/auth/auth.service';
+import { ArticleDraft, clearDraft, draftKey, readDraft, writeDraft } from './article-draft-store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { RequiredMessage } from '../../../shared/required-message';
 import { ArticlesService } from '../../../core/services/articles.service';
 import { CategoriesService } from '../../../core/services/categories.service';
 import { QuizAdminService } from '../../../core/services/quiz-admin.service';
@@ -13,6 +16,7 @@ import { QuizBuilder } from '../../../shared/quiz-builder/quiz-builder';
 import { ToastService } from '../../../core/notifications/toast.service';
 import { PortalDialog } from '../../../shared/portal-dialog/portal-dialog';
 import { DateField } from '../../../shared/date-field/date-field';
+import { formatKaDateTime, isoToTbilisiLocal, tbilisiEndOfDay, tbilisiLocalToIso, tbilisiToday } from '../../../shared/ka-date';
 import { ConfirmService } from '../../../core/notifications/confirm.service';
 import { articleReach, lossLines, mandatoryLoss } from '../../../shared/mandatory-reach';
 
@@ -41,7 +45,7 @@ const DEPARTMENT_ORDER: { key: 'info' | 'tech' | 'office'; name: string }[] = [
 @Component({
   selector: 'app-article-edit-drawer',
   standalone: true,
-  imports: [TranslatePipe, RichTextEditor, QuizBuilder, PortalDialog, DateField],
+  imports: [TranslatePipe, RichTextEditor, QuizBuilder, PortalDialog, DateField, RequiredMessage],
   templateUrl: './article-edit-drawer.html'
 })
 export class ArticleEditDrawer {
@@ -55,6 +59,7 @@ export class ArticleEditDrawer {
   private readonly requiredReadingService = inject(RequiredReadingService);
   private readonly uploadService = inject(UploadService);
   private readonly translate = inject(TranslateService);
+  private readonly auth = inject(AuthService);
 
   readonly articleId = input.required<number | null>();
   readonly closed = output<void>();
@@ -83,12 +88,14 @@ export class ArticleEditDrawer {
   protected readonly visibleServiceCenter = signal(false);
   protected readonly isMandatory = signal(false);
   protected readonly dueDate = signal('');
+  /** The earliest deadline the picker offers; the server refuses an earlier one. */
+  protected readonly today = tbilisiToday();
   /** The article was mandatory when opened: its obligation may be paused, not only created. */
   protected readonly wasMandatory = signal(false);
   /** Who the obligation binds now (PO-40), for the warning before a change takes it away; null if unknown. */
   private readonly mandatoryAudience = signal<MandatoryAddressees | null>(null);
   /** When readers can open the article as the form stands: now, at its schedule, or not at all. */
-  protected readonly mandatoryReach = computed(() => articleReach(this.status(), this.scheduledAt() || null));
+  protected readonly mandatoryReach = computed(() => articleReach(this.status(), this.scheduledAt() ? tbilisiLocalToIso(this.scheduledAt()) : null));
   /**
    * PO-40: nobody may be bound to what they cannot open, so a draft cannot
    * become mandatory. One already mandatory keeps the box, to be unticked or
@@ -106,6 +113,11 @@ export class ArticleEditDrawer {
   protected readonly dropzoneActive = signal(false);
   protected readonly saving = signal(false);
   protected readonly dirty = signal(false);
+  /** Text this browser kept from an earlier, unsaved session in this drawer (article-draft-store.ts). */
+  protected readonly pendingDraft = signal<ArticleDraft | null>(null);
+  private draftTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The lock_version this form was loaded at, sent back so a newer edit is not overwritten. */
+  private readonly loadedLockVersion = signal<number | null>(null);
   protected readonly saveError = signal<string | null>(null);
   /** The departments a refused assignment would have missed, under the error (PO-40). */
   protected readonly saveErrorDetails = signal<string[]>([]);
@@ -122,6 +134,7 @@ export class ArticleEditDrawer {
 
   constructor() {
     this.loadCategories();
+    inject(DestroyRef).onDestroy(() => this.flushDraft());
 
     effect(() => {
       const id = this.articleId();
@@ -150,6 +163,7 @@ export class ArticleEditDrawer {
 
   private resetForCreate(): void {
     this.dirty.set(false);
+    this.loadedLockVersion.set(null);
     this.title.set('');
     this.categoryIdValue.set(null);
     this.tags.set('');
@@ -175,6 +189,7 @@ export class ArticleEditDrawer {
       this.richTextEditor()?.clear();
       this.quizBuilder()?.setQuestions([]);
       this.previewHtml.set('');
+      this.offerKeptDraft('', '');
     });
   }
 
@@ -188,13 +203,14 @@ export class ArticleEditDrawer {
     this.dueDateError.set(false);
     this.articlesService.get(id).subscribe({
       next: (article) => {
+        this.loadedLockVersion.set(article.lock_version);
         this.title.set(article.title);
         this.categoryIdValue.set(article.category_id);
         this.tags.set(article.tags ?? '');
         this.attachmentUrl.set(article.attachment_url);
         this.attachmentFilename.set(article.attachment_url ? article.attachment_url.split('/').pop() ?? null : null);
         this.status.set(article.status);
-        this.scheduledAt.set(article.published_at ? toDatetimeLocal(article.published_at) : '');
+        this.scheduledAt.set(article.published_at ? isoToTbilisiLocal(article.published_at) : '');
         this.deptChecked.set({
           info: article.target_departments.includes('საინფორმაციო'),
           tech: article.target_departments.includes('ტექნიკური'),
@@ -209,6 +225,7 @@ export class ArticleEditDrawer {
           this.richTextEditor()?.setHtml(article.content);
           this.previewHtml.set(article.content);
           this.dirty.set(false);
+          this.offerKeptDraft(article.title, article.content);
         });
 
         // If this lookup fails silently the checkbox renders UNCHECKED, which
@@ -264,10 +281,66 @@ export class ArticleEditDrawer {
   protected onEditorContentChange(html: string): void {
     this.previewHtml.set(html);
     this.dirty.set(true);
+    this.scheduleDraft();
   }
 
   protected markDirty(): void {
     this.dirty.set(true);
+    this.scheduleDraft();
+  }
+
+  protected restoreDraft(): void {
+    const draft = this.pendingDraft();
+    if (!draft) return;
+    this.title.set(draft.title);
+    this.richTextEditor().setHtml(draft.content);
+    this.previewHtml.set(draft.content);
+    this.pendingDraft.set(null);
+    this.dirty.set(true);
+  }
+
+  protected discardDraft(): void {
+    this.pendingDraft.set(null);
+    this.forgetDraft();
+  }
+
+  protected draftTime(draft: ArticleDraft): string {
+    return formatKaDateTime(new Date(draft.savedAt).toISOString());
+  }
+
+  private draftStorageKey(): string | null {
+    const email = this.auth.currentUser()?.email;
+    return email ? draftKey(email, this.articleId()) : null;
+  }
+
+  private offerKeptDraft(loadedTitle: string, loadedContent: string): void {
+    const key = this.draftStorageKey();
+    const draft = key ? readDraft(key) : null;
+    const differs = draft != null && (draft.content !== loadedContent || draft.title !== loadedTitle)
+      && (draft.content.replace(/<[^>]*>/g, '').trim() !== '' || draft.title.trim() !== '');
+    this.pendingDraft.set(differs ? draft : null);
+  }
+
+  /** A second after the last keystroke, not on every one. */
+  private scheduleDraft(): void {
+    if (this.draftTimer) clearTimeout(this.draftTimer);
+    this.draftTimer = setTimeout(() => this.flushDraft(), 1000);
+  }
+
+  private flushDraft(): void {
+    if (this.draftTimer) clearTimeout(this.draftTimer);
+    this.draftTimer = null;
+    // Not while an earlier draft is still on offer: writing now would replace it before it was answered.
+    const key = this.draftStorageKey();
+    if (!key || !this.dirty() || this.pendingDraft()) return;
+    writeDraft(key, { title: this.title(), content: this.previewHtml(), savedAt: Date.now() });
+  }
+
+  private forgetDraft(): void {
+    if (this.draftTimer) clearTimeout(this.draftTimer);
+    this.draftTimer = null;
+    const key = this.draftStorageKey();
+    if (key) clearDraft(key);
   }
 
   protected toggleDepartment(key: 'info' | 'tech' | 'office', checked: boolean): void {
@@ -338,6 +411,11 @@ export class ArticleEditDrawer {
     if (this.dirty() && !(await this.confirmService.ask({ message: 'შეუნახავი ცვლილებები დაიკარგება. გსურთ დახურვა?', confirmLabel: 'დახურვა შენახვის გარეშე', tone: 'danger' }))) {
       return;
     }
+    // Closed on purpose, so the kept copy goes too -- unless it was never answered.
+    if (!this.pendingDraft()) {
+      this.forgetDraft();
+    }
+    this.dirty.set(false);
     this.closed.emit();
   }
 
@@ -359,7 +437,7 @@ export class ArticleEditDrawer {
     // PO-40: made mandatory in advance, it comes into force at publication;
     // a deadline before then would be born overdue. The server refuses it too.
     const dueBeforePublication = this.isMandatory() && this.mandatoryReach() === 'later'
-      && new Date(this.dueDate()) <= new Date(this.scheduledAt());
+      && new Date(tbilisiEndOfDay(this.dueDate())) <= new Date(tbilisiLocalToIso(this.scheduledAt()));
     this.dueBeforePublication.set(dueBeforePublication);
     if (dueBeforePublication) {
       return;
@@ -370,7 +448,9 @@ export class ArticleEditDrawer {
 
     let publishedAt: string | null = null;
     if (this.status() === 'scheduled' && this.scheduledAt()) {
-      publishedAt = new Date(this.scheduledAt()).toISOString();
+      // PO-58: the time typed is Tbilisi time, like every deadline -- not
+      // whatever zone this computer's clock happens to be set to.
+      publishedAt = tbilisiLocalToIso(this.scheduledAt());
     }
 
     const payload: ArticleRequest = {
@@ -386,7 +466,8 @@ export class ArticleEditDrawer {
       visible_to_tech_info: this.visibleTechInfo(),
       visible_to_service_center: this.visibleServiceCenter(),
       is_draft: false,
-      quiz_enabled: this.quizEnabled()
+      quiz_enabled: this.quizEnabled(),
+      lock_version: this.loadedLockVersion()
     };
 
     this.saving.set(true);
@@ -396,7 +477,7 @@ export class ArticleEditDrawer {
     const command: ArticleCommandRequest = {
       article: payload,
       mandatory: this.isMandatory(),
-      due_date: this.isMandatory() && this.dueDate() ? new Date(this.dueDate()).toISOString() : null,
+      due_date: this.isMandatory() && this.dueDate() ? tbilisiEndOfDay(this.dueDate()) : null,
       target_department: departments[0],
       quiz: this.quizEnabled() ? { questions } : null
     };
@@ -451,12 +532,8 @@ export class ArticleEditDrawer {
 
   private finishSave(): void {
     this.saving.set(false);
+    this.forgetDraft();
+    this.dirty.set(false);
     this.saved.emit();
   }
-}
-
-function toDatetimeLocal(iso: string): string {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }

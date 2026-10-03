@@ -116,9 +116,20 @@ class ContentManageGateIntegrationTest {
     }
 
     private void assertAllPassTheGate(User caller) throws Exception {
+        assertAllPassTheGate(caller, java.util.Set.of());
+    }
+
+    /** Cases also gated by articles.edit (2026-10-01): content.manage alone is refused there. */
+    private static final java.util.Set<String> ALSO_ARTICLES_EDIT = java.util.Set.of("restore article", "update quiz admin");
+
+    private void assertAllPassTheGate(User caller, java.util.Set<String> expectForbidden) throws Exception {
         for (RequestCase requestCase : cases(tokenFor(caller))) {
             int status = mockMvc.perform(requestCase.request().get()).andReturn().getResponse().getStatus();
-            assertNotEquals(403, status, requestCase.name());
+            if (expectForbidden.contains(requestCase.name())) {
+                assertEquals(403, status, requestCase.name() + " also needs articles.edit");
+            } else {
+                assertNotEquals(403, status, requestCase.name());
+            }
         }
     }
 
@@ -127,7 +138,9 @@ class ContentManageGateIntegrationTest {
         assertAllPassTheGate(user("content-default", Role.CONTENT_ADMIN, null));
         assertAllForbidden(user("operator-default", Role.OPERATOR, null));
         assertAllForbidden(user("manager-default", Role.MANAGER, null));
-        assertAllPassTheGate(user("operator-allow", Role.OPERATOR, UserPermissionOverride.State.ALLOW));
+        // content.manage alone: a restore or a quiz change rewrites an article, so
+        // those two also need articles.edit, which this operator does not hold.
+        assertAllPassTheGate(user("operator-allow", Role.OPERATOR, UserPermissionOverride.State.ALLOW), ALSO_ARTICLES_EDIT);
         assertAllForbidden(user("content-deny", Role.CONTENT_ADMIN, UserPermissionOverride.State.DENY));
     }
 }

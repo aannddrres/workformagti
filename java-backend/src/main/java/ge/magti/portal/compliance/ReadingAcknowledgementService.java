@@ -56,6 +56,19 @@ public class ReadingAcknowledgementService {
 
     @Transactional
     public ReadStatus acknowledgeRequiredReading(RequiredReading reading, Article article, User actor) {
+        return acknowledgeRequiredReading(reading, article, actor, null);
+    }
+
+    /**
+     * @param itemUpdatedAt when a news item or video last changed (null for an
+     *                      article, whose versions are tracked by receipts):
+     *                      confirming again after a change moves the
+     *                      confirmation time forward, so "changed since read"
+     *                      clears once the person has read the new text
+     */
+    @Transactional
+    public ReadStatus acknowledgeRequiredReading(
+            RequiredReading reading, Article article, User actor, OffsetDateTime itemUpdatedAt) {
         lockActor(actor);
         OffsetDateTime now = TbilisiTime.now();
         ReadStatus status = statuses.findByUserIdAndRequiredReadingId(actor.getId(), reading.getId())
@@ -71,7 +84,21 @@ public class ReadingAcknowledgementService {
             receiptFor(article, actor, now, "MARK_REQUIRED_READING_READ");
         }
         status = statuses.findByUserIdAndRequiredReadingId(actor.getId(), reading.getId()).orElseThrow();
-        if (statusWasRead && receiptWasPresent) {
+        boolean newTextAcknowledged = statusWasRead && (article != null
+                ? !receiptWasPresent
+                : itemUpdatedAt != null && status.getReadAt() != null && itemUpdatedAt.isAfter(status.getReadAt()));
+        if (newTextAcknowledged) {
+            // The text changed after the first confirmation and the person has
+            // now confirmed the new one. For an article the new version's receipt
+            // above is the evidence and every earlier receipt stays; the status
+            // row records the latest confirmation (simulation, 2026-10-01: the
+            // page offered no way to do this, and the flag never cleared).
+            Map<String, Object> before = MutationAuditService.readStatusSnapshot(status);
+            status.setReadAt(now);
+            status = statuses.saveAndFlush(status);
+            audit.recordSuccess(actor, "REACKNOWLEDGE_REQUIRED_READING", "read_status", status.getId(),
+                    reading.getItemTitleSnapshot(), before, MutationAuditService.readStatusSnapshot(status));
+        } else if (statusWasRead && receiptWasPresent) {
             audit.recordResult(actor, "MARK_REQUIRED_READING_READ", "read_status", status.getId(),
                     reading.getItemTitleSnapshot(), "ALREADY_ACKNOWLEDGED", null,
                     MutationAuditService.readStatusSnapshot(status),

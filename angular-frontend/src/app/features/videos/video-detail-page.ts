@@ -35,6 +35,7 @@ export class VideoDetailPage {
   protected readonly loading = signal(true);
   protected readonly notFound = signal(false);
   protected readonly loadError = signal(false);
+  protected readonly unplayable = signal(false);
   protected readonly video = signal<VideoInstruction | null>(null);
 
   protected readonly embedUrl = computed<SafeResourceUrl | null>(() => {

@@ -58,7 +58,10 @@
       "submit_button": "Sign In",
       "submit_button_loading": "Signing in...",
       "error_generic": "Sign-in failed",
-      "error_missing": "Enter your email and password"
+      "error_missing": "Enter your email and password",
+      "reason_session_expired": "Your session ended after a long time without activity. Please sign in again.",
+      "reason_session_ended": "Your session has ended. Please sign in again.",
+      "reason_account_disabled": "Your account has been disabled. If this is a mistake, contact an administrator."
     }
   },
   "users": {
@@ -125,6 +128,9 @@
     "admin_page": {
       "status_error": "Could not change status",
       "inactivity_filter_label": "Last sign-in filter",
+      "group_filter_label": "Group filter",
+      "role_filter_label": "Role filter",
+      "status_filter_label": "Status filter",
       "inactivity_any": "Last sign-in — any",
       "inactivity_30": "Not seen for over 30 days",
       "inactivity_60": "Not seen for over 60 days",
@@ -178,7 +184,8 @@
   "shell": {
     "placeholder": {
       "message": "This page hasn't been built yet — coming in Phase 3c."
-    }
+    },
+    "portal_title": "Magti Portal"
   },
   "articles": {
     "card": {
@@ -201,6 +208,7 @@
       "subtitle": "Find instructions, product descriptions, and technical guides.",
       "search_placeholder": "Search by topic ...",
       "all_categories_option": "All categories",
+      "category_filter_label": "Category filter",
       "no_results": "No results found.",
       "search_error": "An error occurred while searching.",
       "show_more": "Show more"
@@ -286,6 +294,8 @@
       "heading": "News",
       "search_placeholder": "Search by title or content ...",
       "dept_all": "All departments",
+      "dept_filter_label": "Department filter",
+      "sort_label": "Sort order",
       "dept_general": "Everyone",
       "dept_tech": "Technical",
       "dept_info": "Informational",
@@ -317,7 +327,8 @@
     },
     "detail_page": {
       "not_found": "Video not found",
-      "load_error": "The video could not be loaded"
+      "load_error": "The video could not be loaded",
+      "unplayable": "The video cannot be played: the link is invalid or the file is unavailable. Please contact a content administrator."
     }
   },
   "shared": {
@@ -349,6 +360,10 @@
       "today": "Today",
       "clear": "Clear",
       "done": "Done"
+    },
+    "validation": {
+      "required": "Please fill in this field.",
+      "select_required": "Please choose a value from the list."
     }
   },
   "favorites": {
@@ -392,12 +407,15 @@
       "close": "Close",
       "load_failed": "Could not load the quiz",
       "submit": "Finish",
+      "cooldown": "After three failed attempts the next one is possible in {{minutes}} minute(s). Re-read the article meanwhile.",
       "submit_failed": "Error checking the quiz",
       "wrong_feedback": "You answered {{count}} question(s) incorrectly -- try again"
     },
     "confirm": {
       "heading": "Confirm you have read this",
       "action": "I have read it",
+      "changed_heading": "This item has changed — read the new version",
+      "changed_action": "I have read the new version",
       "due": "Due: {{date}}",
       "no_due": "No due date",
       "overdue": "Overdue",
@@ -446,7 +464,11 @@
       "export_failed": "Export preparation stopped. Please try again.",
       "export_error": "Export failed.",
       "export_expired": "This export has expired — please generate it again.",
-      "export_timeout": "The export is taking too long. Please try again."
+      "export_timeout": "The export is taking too long. Please try again.",
+      "export_period": "Period (by deadline)",
+      "export_period_hint": "The file holds materials whose deadline falls in this range. An empty field means no limit. The period does not apply to the team statistics PDF.",
+      "export_from": "From",
+      "export_through": "Through"
     }
   },
   "stats": {
@@ -506,6 +528,7 @@
     "start_date_label": "Start date",
     "end_date_label": "End date",
     "category_all": "All categories",
+    "category_filter_label": "Category filter",
     "category_security": "🛡️ SECURITY",
     "category_content": "📝 CONTENT",
     "category_user": "👥 USER",
@@ -561,7 +584,12 @@
     "verify_tampered": "Integrity violation detected!",
     "verify_unchained": "Pre-migration record — verification unavailable",
     "verify_error": "Verification failed",
-    "manager_scope_note": "Your department only"
+    "manager_scope_note": "Your department only",
+    "full_check": "Check the whole ledger",
+    "full_check_running": "Checking… {{checked}} / {{total}}",
+    "full_check_ok": "The whole ledger is intact: all {{count}} entries checked.",
+    "full_check_tampered": "Tampering found in the whole ledger ({{checked}} entries): {{mismatches}} altered, {{breaks}} broken links.",
+    "full_check_error": "The whole-ledger check did not finish. Try again."
   },
   "roles": {
     "heading": "Role Management",
@@ -665,7 +693,14 @@
       "categories_load_error": "Could not load categories.",
       "quiz_load_error": "Could not load the quiz questions — the empty list below does not mean there are none.",
       "quiz_save_error": "The article was saved, but its quiz questions were not.",
-      "actions_menu_label": "Actions menu"
+      "actions_menu_label": "Actions menu",
+      "bulk_pause_confirm": "{{count}} items will no longer be available to readers. If any is mandatory, the obligation is paused for everyone until it is published again. Continue?",
+      "bulk_pause_action": "Yes, continue",
+      "row_archive_confirm": "This item will be archived and hidden from readers. If it is mandatory, the obligation is paused for everyone until it is unarchived. Continue?",
+      "no_edit_permission": "This account has no permission to edit articles (articles.edit): creating, changing and restoring articles will be refused. News and videos are still available.",
+      "draft_found": "Unsaved text was kept on this computer ({{time}}). Restore it?",
+      "draft_restore": "Restore",
+      "draft_discard": "Discard"
     },
     "quiz": {
       "add_question": "Add question",

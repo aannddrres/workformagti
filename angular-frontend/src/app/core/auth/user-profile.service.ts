@@ -46,8 +46,14 @@ export class UserProfileService {
     this.request ??= this.usersService.me().pipe(
       tap((profile) => this._profile.set(profile)),
       // A failed profile fetch must not hard-fail navigation; the caller
-      // treats null as "no permission", which fails closed.
-      catchError(() => of(null)),
+      // treats null as "no permission", which fails closed. The failure is
+      // not kept, though: the next navigation asks again. Cached, one
+      // dropped request showed "no access" on every admin page until a full
+      // reload (audit 2026-10-01).
+      catchError(() => {
+        this.request = undefined;
+        return of(null);
+      }),
       shareReplay({ bufferSize: 1, refCount: false })
     );
     return this.request;
@@ -60,7 +66,11 @@ export class UserProfileService {
     }
     this.accessRequest ??= this.usersService.effectiveAccess().pipe(
       tap((access) => this._access.set(access)),
-      catchError(() => of(null)),
+      // Same as the profile above: fail closed now, ask again next time.
+      catchError(() => {
+        this.accessRequest = undefined;
+        return of(null);
+      }),
       shareReplay({ bufferSize: 1, refCount: false })
     );
     return this.accessRequest;

@@ -19,6 +19,14 @@ export class Login {
 
   protected readonly submitting = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
+  /**
+   * Why the portal sent this person here, when it did: the idle timer
+   * (IdleSessionService) or an account switched off mid-session
+   * (unauthorizedInterceptor). Both passed it in the address for months and
+   * this page never read it, so the one explanation either gets was lost
+   * (blind tests, 2026-10-02).
+   */
+  protected readonly reason = this.route.snapshot.queryParamMap.get('reason');
 
   /**
    * The only way in. The address and password go to the portal, which

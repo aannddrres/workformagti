@@ -98,7 +98,7 @@ export class KnowledgeBasePage {
     this.errorMessage.set(null);
     forkJoin({
       categories: this.categoriesService.list().pipe(catchError(() => of(null))),
-      articles: this.articlesService.list({ limit: 1000 }).pipe(catchError(() => of(null))),
+      articles: this.articlesService.listAll().pipe(catchError(() => of(null))),
     }).subscribe(({ categories, articles }) => {
       if (categories) {
         this.categories.set(categories);

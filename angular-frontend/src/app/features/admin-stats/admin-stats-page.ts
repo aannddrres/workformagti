@@ -1,4 +1,5 @@
 import { Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
+import { BroadcastBanner } from '../../shared/broadcast-banner/broadcast-banner';
 import { TranslateService } from '@ngx-translate/core';
 import { RouterLink } from '@angular/router';
 import Chart from 'chart.js/auto';
@@ -15,6 +16,7 @@ import { formatKaDateTime, formatKaDayMonth } from '../../shared/ka-date';
 import { completionIcon, completionTextClass, completionTier } from '../../shared/completion-tier';
 import { formatAuditAction } from '../../shared/audit-format';
 import { categoryIconClass } from '../../shared/category-visuals';
+import { buildRecursiveCategoryCounts } from '../../shared/category-tree';
 import { formatDepartmentLabel } from '../../shared/department-badge';
 import { UserProfileService } from '../../core/auth/user-profile.service';
 import { ThemeService } from '../../core/theme/theme.service';
@@ -68,7 +70,7 @@ function parsePercentage(label: string): number {
 @Component({
   selector: 'app-admin-stats-page',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, BroadcastBanner],
   templateUrl: './admin-stats-page.html'
 })
 export class AdminStatsPage {
@@ -118,14 +120,26 @@ export class AdminStatsPage {
   protected readonly topCategories = computed(() =>
     this.categories().filter((category) => category.is_active && category.parent_id === null).slice(0, 8)
   );
-  protected readonly categoryCounts = computed(() => {
-    const counts = new Map<string, number>();
-    for (const article of this.articles()) {
-      const key = article.category_name ?? '';
-      counts.set(key, (counts.get(key) ?? 0) + 1);
-    }
-    return counts;
-  });
+  /**
+   * Every article, subcategories included -- what the knowledge base shows for
+   * the same tile. It used to count the first 200 articles by category name,
+   * without children, so the numbers went quietly wrong past 200 (audit
+   * 2026-10-01).
+   */
+  /** People with something past its deadline -- not everyone on the attention list (simulation, 2026-10-01). */
+  protected readonly overdueOperatorCount = computed(() =>
+    (this.critical()?.operators ?? []).filter((operator) => operator.overdue_count > 0).length
+  );
+
+  protected readonly categoryCounts = computed(() =>
+    buildRecursiveCategoryCounts(this.categories(), this.articles())
+  );
+
+  protected categoryCountLabel(category: Category): string {
+    return this.translate.instant('articles.category_tile.article_count', {
+      count: this.categoryCounts().get(category.id) ?? 0
+    });
+  }
 
   protected readonly progress = signal<UserProgressItem[]>([]);
   protected readonly progressLoading = signal(false);
@@ -285,7 +299,7 @@ export class AdminStatsPage {
 
   private loadCategories(): void {
     this.categoriesService.listAdmin().subscribe({ next: (data) => this.categories.set(data) });
-    this.articlesService.list({ limit: 200 }).subscribe({ next: (data) => this.articles.set(data) });
+    this.articlesService.listAll().subscribe({ next: (data) => this.articles.set(data) });
   }
 
   private loadAuditSummary(): void {
@@ -314,12 +328,14 @@ export class AdminStatsPage {
     this.progressIncompleteOnly.set(!this.progressIncompleteOnly());
   }
 
-  pctColorClass(percentageLabel: string): string {
-    return completionTextClass(completionTier(percentageLabel));
+  // Someone with nothing assigned is not "0%, critical"; they are grey, as on
+  // the team page (simulation, 2026-10-01).
+  pctColorClass(percentageLabel: string, requiredCount = 1): string {
+    return completionTextClass(completionTier(percentageLabel, requiredCount > 0));
   }
 
-  pctIcon(percentageLabel: string): string | null {
-    return completionIcon(completionTier(percentageLabel));
+  pctIcon(percentageLabel: string, requiredCount = 1): string | null {
+    return completionIcon(completionTier(percentageLabel, requiredCount > 0));
   }
 
   categoryIcon(category: Category): string {

@@ -105,6 +105,12 @@ public class QuizController {
         if (denial != null) {
             return denial;
         }
+        // The quiz is part of the article; a DENY on articles.edit left it
+        // editable (simulation, 2026-10-01).
+        ResponseEntity<Map<String, String>> editDenial = requireArticlesEditPermission(user);
+        if (editDenial != null) {
+            return editDenial;
+        }
         Optional<Article> found = articleRepository.findById(id);
         if (found.isEmpty() || assertArticleVisible(found.get(), user) != null) {
             return articleNotFound();
@@ -128,6 +134,14 @@ public class QuizController {
             if (correctCount != 1) {
                 return unprocessable("ყოველ კითხვას უნდა ჰქონდეს ზუსტად ერთი სწორი პასუხი");
             }
+        }
+
+        if (sameQuiz(loadQuestionsWithAnswers(id), questions)) {
+            // The editor sends the quiz with every save of the article. Replacing
+            // an identical quiz gave every question and answer new ids, so anyone
+            // with the quiz open failed it with 0 points -- after a tag edit
+            // (simulation, 2026-10-01). Unchanged now means untouched.
+            return ResponseEntity.ok(buildAdminQuizView(id));
         }
 
         Map<String, Object> before = quizSnapshot(id);
@@ -163,6 +177,39 @@ public class QuizController {
                 before, quizSnapshot(id));
 
         return ResponseEntity.ok(buildAdminQuizView(id));
+    }
+
+    /** Same questions, same answers, same correct answer, in the same order. */
+    static boolean sameQuiz(List<QuizQuestion> stored, List<QuizQuestionAdminDto> submitted) {
+        if (stored.size() != submitted.size()) {
+            return false;
+        }
+        for (int qi = 0; qi < stored.size(); qi++) {
+            QuizQuestion question = stored.get(qi);
+            QuizQuestionAdminDto incoming = submitted.get(qi);
+            List<QuizAnswer> answers = question.getAnswers().stream()
+                    .sorted(java.util.Comparator.comparingInt(QuizAnswer::getPosition)).toList();
+            if (!java.util.Objects.equals(question.getQuestionText(), incoming.questionText())
+                    || answers.size() != incoming.answers().size()) {
+                return false;
+            }
+            for (int ai = 0; ai < answers.size(); ai++) {
+                QuizAnswerAdminDto answer = incoming.answers().get(ai);
+                if (!java.util.Objects.equals(answers.get(ai).getAnswerText(), answer.answerText())
+                        || answers.get(ai).isCorrect() != answer.isCorrect()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private ResponseEntity<Map<String, String>> requireArticlesEditPermission(User user) {
+        if (!permissionChecker.hasPermission(user, ge.magti.portal.domain.Permission.ARTICLES_EDIT)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
+        }
+        return null;
     }
 
     private Map<String, Object> quizSnapshot(Long articleId) {
@@ -235,8 +282,25 @@ public class QuizController {
                     .body(Map.of("detail", "ამ სტატიას კვიზის კითხვები არ აქვს"));
         }
 
-        QuizGradeResult grade = QuizGrader.grade(questions, payload.answersOrEmpty());
+        // Locks the submitter first, so the cooldown below cannot be raced.
         int attemptNumber = quizAttemptRepository.nextAttemptNumber(id, article.getVersion(), user.getId());
+        long wait = ge.magti.portal.quiz.QuizCooldown.secondsToWait(
+                quizAttemptRepository.findTop3ByArticleIdAndArticleVersionAndUserIdOrderByCreatedAtDescIdDesc(
+                        id, article.getVersion(), user.getId()),
+                TbilisiTime.now());
+        if (wait > 0) {
+            // PO-55: three failures in a row, then ten minutes. Nothing is
+            // recorded for a refused attempt.
+            long minutes = (wait + 59) / 60;
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .header(org.springframework.http.HttpHeaders.RETRY_AFTER, Long.toString(wait))
+                    .body(Map.of(
+                            "detail", "სამი წარუმატებელი ცდის შემდეგ შემდეგი ცდა შესაძლებელია "
+                                    + minutes + " წუთში. მანამდე თავიდან გადაიკითხეთ სტატია.",
+                            "code", "quiz_cooldown",
+                            "retry_after_seconds", Long.toString(wait)));
+        }
+        QuizGradeResult grade = QuizGrader.grade(questions, payload.answersOrEmpty());
 
         QuizAttempt attempt = new QuizAttempt();
         attempt.setArticleId(id);
@@ -313,7 +377,7 @@ public class QuizController {
 
     /** Keep quiz endpoints opaque whenever article detail would be opaque. */
     private ResponseEntity<Map<String, String>> assertArticleVisible(Article article, User user) {
-        List<String> targetDepartments = user.getRole().isContentAdmin() ? List.of()
+        List<String> targetDepartments = user.seesAllContent() ? List.of()
                 : articleTargetQueryService.targetDepartmentsForArticleWithinLimit(article.getId());
         return ArticleVisibility.isVisible(article, targetDepartments, user)
                 ? null : articleNotFoundMap();

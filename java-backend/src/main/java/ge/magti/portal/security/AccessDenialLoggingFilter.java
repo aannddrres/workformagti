@@ -1,5 +1,6 @@
 package ge.magti.portal.security;
 
+import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.domain.User;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -12,6 +13,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * ASVS V16.3.2: every refused request is logged with who asked for what.
@@ -27,6 +30,19 @@ final class AccessDenialLoggingFilter extends OncePerRequestFilter {
 
     private static final Logger logger = LoggerFactory.getLogger(AccessDenialLoggingFilter.class);
 
+    private static final Set<String> CHANGES = Set.of("POST", "PUT", "PATCH", "DELETE");
+
+    /** Null where the filter is built without one; the log line is then the only record. */
+    private final MutationAuditService audit;
+
+    AccessDenialLoggingFilter() {
+        this(null);
+    }
+
+    AccessDenialLoggingFilter(MutationAuditService audit) {
+        this.audit = audit;
+    }
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
@@ -39,6 +55,20 @@ final class AccessDenialLoggingFilter extends OncePerRequestFilter {
                 logger.warn("ACCESS_DENIED user={} method={} path={}",
                         principal instanceof User user ? user.getId() : "anonymous",
                         request.getMethod(), request.getRequestURI());
+                if (audit != null && principal instanceof User user && CHANGES.contains(request.getMethod())) {
+                    // A refused change by a signed-in person goes into the audit
+                    // trail too. A content admin tried five edits after losing
+                    // articles.edit and the trail recorded none of them
+                    // (simulation, 2026-10-01). Reads stay in the log only.
+                    try {
+                        String target = request.getMethod() + " " + request.getRequestURI();
+                        audit.recordResult(user, "ACCESS_DENIED", "request", 0L, target,
+                                "DENIED", "403", null, Map.of("method", request.getMethod(),
+                                        "path", request.getRequestURI()), null, null);
+                    } catch (RuntimeException e) {
+                        logger.warn("ACCESS_DENIED audit row not written: {}", e.toString());
+                    }
+                }
             }
         }
     }

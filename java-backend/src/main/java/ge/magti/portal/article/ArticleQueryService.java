@@ -92,7 +92,7 @@ public class ArticleQueryService {
         query.setParameter("qPattern", filter.q() == null ? null : "%" + filter.q() + "%");
         query.setParameter("categoryId", filter.categoryId());
         query.setParameter("status", filter.status());
-        query.setParameter("isAdmin", user.getRole().isContentAdmin());
+        query.setParameter("isAdmin", user.seesAllContent());
         query.setParameter("depts", depts);
         query.setParameter("now", TbilisiTime.now());
         query.setParameter("userDept", user.getDepartment());

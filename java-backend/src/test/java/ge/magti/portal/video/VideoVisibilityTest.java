@@ -32,4 +32,22 @@ class VideoVisibilityTest {
         user.setRole(Role.CONTENT_ADMIN);
         assertTrue(VideoVisibility.isInAudience(video, user));
     }
+
+    /** Mutation testing, 2026-10-02: nothing DB-free noticed an archived video staying visible to its audience. */
+    @Test
+    void anArchivedVideoLeavesItsAudienceButNotItsEditors() {
+        var video = new VideoInstruction();
+        video.setTargetDepartment("ტექნიკური");
+        var operator = new User();
+        operator.setRole(Role.OPERATOR);
+        operator.setDepartment("ტექნიკური — ჯგუფი 03");
+        var editor = new User();
+        editor.setRole(Role.CONTENT_ADMIN);
+        assertTrue(VideoVisibility.isVisible(video, operator));
+
+        video.setArchived(true);
+
+        assertFalse(VideoVisibility.isVisible(video, operator));
+        assertTrue(VideoVisibility.isVisible(video, editor));
+    }
 }

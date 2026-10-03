@@ -8,6 +8,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
 
@@ -140,8 +141,41 @@ public class User {
     @Column(name = "card_style", length = 50)
     private String cardStyle = "corporate";
 
+    /**
+     * Whether this person reads content as its manager does -- every
+     * department, every editorial status -- decided once per request by
+     * {@code JwtAuthenticationFilter} from the effective {@code content.manage}
+     * capability. Null on any User not loaded as the signed-in caller.
+     */
+    @Transient
+    private Boolean seesAllContent;
+
     public boolean hasPermission(Permission permission) {
         return permissions.contains(permission.value());
+    }
+
+    /**
+     * The content-administration reach, for the visibility rules
+     * (ArticleVisibility, NewsVisibility, VideoVisibility and the list and
+     * search queries).
+     *
+     * <p>It used to be the role alone. An administrator could grant a manager
+     * {@code content.manage} and {@code articles.edit}, and the manager could
+     * then overwrite a draft they got a 404 for when they tried to open it --
+     * write access to what they could not read (audit 2026-10-01; owner's
+     * decision: whoever may manage content sees what content administrators
+     * see). The DENY direction follows: a content administrator refused
+     * {@code content.manage} reads like anyone else in their department.
+     *
+     * <p>Where the capability was not resolved -- a User built in a test, or
+     * loaded as data rather than as the caller -- the role still answers.
+     */
+    public boolean seesAllContent() {
+        return seesAllContent != null ? seesAllContent : role.isContentAdmin();
+    }
+
+    public void setSeesAllContent(Boolean seesAllContent) {
+        this.seesAllContent = seesAllContent;
     }
 
     public Long getId() {

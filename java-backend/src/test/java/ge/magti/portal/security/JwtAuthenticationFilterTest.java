@@ -166,7 +166,7 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
-    void disabledAccountGetsImmediate403AndChainNeverRuns() throws Exception {
+    void disabledAccountGetsImmediate401AndChainNeverRuns() throws Exception {
         String token = jwtService.createAccessToken(Map.of("sub", "disabled@magti.ge"));
         User disabledUser = activeUser("disabled@magti.ge", Role.OPERATOR);
         disabledUser.setActive(false);
@@ -174,12 +174,44 @@ class JwtAuthenticationFilterTest {
 
         HttpServletRequest request = mock(HttpServletRequest.class);
         HttpServletResponse response = mock(HttpServletResponse.class);
+        java.io.StringWriter body = new java.io.StringWriter();
+        when(response.getWriter()).thenReturn(new java.io.PrintWriter(body));
         FilterChain chain = mock(FilterChain.class);
         when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
 
         filter.doFilter(request, response, chain);
 
-        verify(response).sendError(eq(HttpServletResponse.SC_FORBIDDEN), any());
+        // 401 sends the browser to the login screen; the code lets it say why (2026-10-02).
+        verify(response).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        org.junit.jupiter.api.Assertions.assertTrue(body.toString().contains("\"code\":\"account_disabled\""), body.toString());
+        verify(chain, never()).doFilter(any(), any());
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    /**
+     * A database that drops out for a moment must not end anyone's session.
+     * The exception used to escape to Spring's /error page, which answered
+     * 401, and the browser signs out on 401 -- every operator at once (crash
+     * test, 2026-10-02). 503 keeps them signed in until it is back.
+     */
+    @Test
+    void databaseOutageAnswers503AndNever401() throws Exception {
+        String token = jwtService.createAccessToken(Map.of("sub", "operator@magti.ge"));
+        when(userRepository.findByEmail("operator@magti.ge"))
+                .thenThrow(new org.springframework.dao.DataAccessResourceFailureException("ORA-03113"));
+
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        java.io.StringWriter body = new java.io.StringWriter();
+        when(response.getWriter()).thenReturn(new java.io.PrintWriter(body));
+        FilterChain chain = mock(FilterChain.class);
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
+
+        filter.doFilter(request, response, chain);
+
+        verify(response).setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+        verify(response, never()).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        assertTrue(body.toString().contains("\"code\":\"service_unavailable\""), body.toString());
         verify(chain, never()).doFilter(any(), any());
         assertNull(SecurityContextHolder.getContext().getAuthentication());
     }

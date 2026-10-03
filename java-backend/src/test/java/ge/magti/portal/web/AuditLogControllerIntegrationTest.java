@@ -65,6 +65,8 @@ class AuditLogControllerIntegrationTest {
     private JwtService jwtService;
     @Autowired
     private PasswordEncoder passwordEncoder;
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     private static MockHttpServletRequestBuilder withIp(MockHttpServletRequestBuilder builder, String ip) {
         return builder.with(request -> {
@@ -148,6 +150,51 @@ class AuditLogControllerIntegrationTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("ok"));
+    }
+
+    /**
+     * Tamper check, 2026-10-02: an old row edited in the database still showed
+     * as a whole chain on the audit screen, which looks at the last 100 rows.
+     * The whole-ledger check (PO-51) finds it. The row is put back exactly,
+     * which makes its hash right again, so no other test sees the edit.
+     */
+    @Test
+    void theWholeLedgerCheckFindsAnOldEditThatTheRecentWindowMisses() throws Exception {
+        User admin = createUser("audit-full-" + System.nanoTime() + "@magti.ge", Role.SYSTEM_ADMIN, "All", Set.of());
+        String token = tokenFor(admin);
+        Long oldest = jdbcTemplate.queryForObject("SELECT MIN(id) FROM audit_logs WHERE row_hash IS NOT NULL", Long.class);
+        String ip = jdbcTemplate.queryForObject("SELECT ip_address FROM audit_logs WHERE id = ?", String.class, oldest);
+        jdbcTemplate.update("UPDATE audit_logs SET ip_address = '10.66.66.66' WHERE id = ?", oldest);
+        try {
+            mockMvc.perform(get("/api/audit-logs/chain-health/full").header("Authorization", "Bearer " + token))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("tampered"))
+                    .andExpect(jsonPath("$.hash_mismatches").value(1))
+                    .andExpect(jsonPath("$.bad_ids[0]").value(oldest.intValue()));
+        } finally {
+            jdbcTemplate.update("UPDATE audit_logs SET ip_address = ? WHERE id = ?", ip, oldest);
+        }
+        long chained = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM audit_logs WHERE row_hash IS NOT NULL", Long.class);
+        mockMvc.perform(get("/api/audit-logs/chain-health/full").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.hash_mismatches").value(0))
+                .andExpect(jsonPath("$.total").value(org.hamcrest.Matchers.greaterThanOrEqualTo((int) chained)));
+    }
+
+    @Test
+    void aMalformedWholeLedgerCursorIsRejectedBeforeAnyQuery() throws Exception {
+        User admin = createUser("audit-full-cursor-" + System.nanoTime() + "@magti.ge", Role.SYSTEM_ADMIN, "All", Set.of());
+        mockMvc.perform(get("/api/audit-logs/chain-health/full?after_id=invalid")
+                        .header("Authorization", "Bearer " + tokenFor(admin)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("მოთხოვნის პარამეტრი არასწორია"));
+    }
+
+    @Test
+    void theWholeLedgerCheckIsForTheSystemAdministratorOnly() throws Exception {
+        String token = loginAndGetToken("manager@magti.ge", "10.20.0.9");
+        mockMvc.perform(get("/api/audit-logs/chain-health/full").header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
     }
 
     @Test

@@ -133,6 +133,8 @@ class FileEntitlementEnforcedIntegrationTest extends FileEntitlementScenarioSupp
         List<String> departments = new ArrayList<>();
         for (int i = 0; i < 100; i++) {
             departments.add("early-target-" + marker + "-" + i);
+            // Somebody works there: an audience reaching nobody is refused since 2026-10-01.
+            createUser("early-target-" + marker + "-" + i + "@magti.ge", Role.OPERATOR, "early-target-" + marker + "-" + i);
         }
         departments.add(lateDepartment);
         Long id = createArticle(adminToken, marker, departments, file, false);
@@ -159,7 +161,7 @@ class FileEntitlementEnforcedIntegrationTest extends FileEntitlementScenarioSupp
         mockMvc.perform(get("/uploads/" + file).header("Authorization", "Bearer " + tokenFor(info)))
                 .andExpect(status().isNotFound());
         mockMvc.perform(get("/uploads/" + file).header("Authorization", "Bearer " + tokenFor(tech)))
-                .andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"));
+                .andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-cache, private"));
         mockMvc.perform(get("/uploads/" + file).header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk());
         mockMvc.perform(post("/api/videos/" + id + "/archive").header("Authorization", "Bearer " + adminToken))
@@ -193,7 +195,7 @@ class FileEntitlementEnforcedIntegrationTest extends FileEntitlementScenarioSupp
         mockMvc.perform(get("/api/news/" + newsId).header("Authorization", "Bearer " + authorToken))
                 .andExpect(status().isOk());
         mockMvc.perform(get("/uploads/" + file).header("Authorization", "Bearer " + authorToken))
-                .andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"));
+                .andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-cache, private"));
 
         // Another readable reference may grant access, without turning drafts into orphans.
         createNews(authorToken, "All", file, false);

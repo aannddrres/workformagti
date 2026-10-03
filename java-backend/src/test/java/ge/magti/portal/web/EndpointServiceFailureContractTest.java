@@ -105,7 +105,7 @@ class EndpointServiceFailureContractTest {
         admin.setPermissions(Set.of(Permission.REPORTS_EXPORT.value()));
         ExportQueryService query = mock(ExportQueryService.class);
         AuditLogRepository audit = mock(AuditLogRepository.class);
-        when(query.eligibleReadingRows(admin)).thenThrow(new IllegalStateException("private-query-marker"));
+        when(query.eligibleReadingRows(admin, null, null)).thenThrow(new IllegalStateException("private-query-marker"));
         ExportController controller = new ExportController(query, mock(ExportJobRepository.class),
                 mock(ExportJobWorker.class), audit, new PermissionChecker());
 
@@ -275,7 +275,7 @@ class EndpointServiceFailureContractTest {
     void personalSearchAndQuizScoreQueryFailuresAreSanitized() throws Exception {
         User caller = user(22L, Role.OPERATOR, "All");
         SearchLogRepository logs = mock(SearchLogRepository.class);
-        when(logs.findByUserIdOrderByTimestampDesc(eq(22L), any()))
+        when(logs.findByUserIdOrderByTimestampDescIdDesc(eq(22L), any()))
                 .thenThrow(new IllegalStateException("private-search-marker"));
         SearchController search = new SearchController(mock(SearchQueryService.class),
                 mock(GlobalSearchCache.class), logs, mock(ArticleTargetQueryService.class),
@@ -384,14 +384,14 @@ class EndpointServiceFailureContractTest {
         ExportJobRepository jobs = mock(ExportJobRepository.class);
         ExportJobWorker worker = mock(ExportJobWorker.class);
         AuditLogRepository audit = mock(AuditLogRepository.class);
-        when(query.eligibleReadingRows(admin)).thenThrow(new ExportTooLargeException(100_001, 100_000));
+        when(query.eligibleReadingRows(admin, null, null)).thenThrow(new ExportTooLargeException(100_001, 100_000));
         ExportController controller = new ExportController(query, jobs, worker, audit, new PermissionChecker());
 
         for (String path : List.of("/api/export/readings.pdf", "/api/export/readings.xlsx")) {
             mvc(controller, admin).perform(get(path))
                     .andExpect(status().isPayloadTooLarge())
                     .andExpect(jsonPath("$.detail").value(
-                            "ექსპორტი ძალიან დიდია (100001 ჩანაწერი, ზღვარი 100000). დააზუსტეთ ფილტრი და სცადეთ თავიდან."))
+                            "ექსპორტი ძალიან დიდია (100001 ჩანაწერი, ზღვარი 100000). აირჩიეთ უფრო მოკლე პერიოდი."))
                     .andExpect(header().doesNotExist("Content-Disposition"));
         }
         verifyNoInteractions(jobs, worker, audit);

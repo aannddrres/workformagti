@@ -6,9 +6,10 @@ import java.util.Map;
 public final class ExportDisplayLabels {
 
     private static final Map<String, String> ITEM_TYPES = Map.of(
-            "article", "სტატია", "news", "სიახლე");
+            "article", "სტატია", "news", "სიახლე", "video", "ვიდეო");
     private static final Map<String, String> READING_STATUSES = Map.of(
-            "read", "წაკითხულია", "unread", "წაუკითხავია", "overdue", "ვადაგადაცილებულია");
+            "read", "წაკითხულია", "late", "დაგვიანებით წაკითხულია",
+            "unread", "წაუკითხავია", "overdue", "ვადაგადაცილებულია");
     private static final Map<String, String> EVIDENCE_TYPES = Map.of(
             "ARTICLE_RECEIPT", "სტატიის გაცნობის ჩანაწერი",
             "REQUIRED_READING", "სავალდებულო გაცნობა");

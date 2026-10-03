@@ -16,7 +16,7 @@ from here, so that neither half goes stale by being restated.
 |---|---|
 | Backend | `java-backend/` — Java 21, Spring Boot 4.1.0, Maven wrapper (`mvnw` / `mvnw.cmd`) |
 | Frontend | `angular-frontend/` — Angular 22, Node 22.22.3 (pinned in `.nvmrc`) |
-| Database | Oracle. Flyway owns the schema; the highest migration is `V52` |
+| Database | Oracle. Flyway owns the schema; the highest migration is `V54` |
 | Tooling | Python tools in `scripts/` — the legacy content importer above all — covered by `tests/` |
 
 The FastAPI/PostgreSQL/server-rendered implementation was deleted on
@@ -132,6 +132,13 @@ could easily become, several. Read the file before writing a second copy.
   numbers, the reminders and the KPI all filter through it. Before it, a
   draft, another department's article or an archived one left operators
   overdue on material they could not open.
+- `domain/User#seesAllContent` — who reads content as its manager does:
+  every department, every editorial status. Set per request from the
+  effective `content.manage` by `JwtAuthenticationFilter`; the visibility
+  rules, list and search queries and the bell ask it, never the role. Until
+  2026-10-01 they asked `Role.isContentAdmin()`, so a manager granted
+  `content.manage` could overwrite a draft they got a 404 for when opening it
+  (`ContentReachDelegationTest`).
 - `util/DepartmentMatcher.visibilityTargets` — the department values a
   caller's content is delivered by. Six places built this list inline, and
   `List.of` throws on the null department the schema allows.

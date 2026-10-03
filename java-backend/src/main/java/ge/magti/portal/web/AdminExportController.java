@@ -83,6 +83,10 @@ public class AdminExportController {
         return submit(AdminExportFamily.CHANGE_EVENTS, from, through, user, requireSystemAdmin(user));
     }
 
+    static boolean outOfRange(LocalDate date) {
+        return date != null && (date.getYear() < 2000 || date.getYear() > 2100);
+    }
+
     private ResponseEntity<?> submit(
             AdminExportFamily family, LocalDate from, LocalDate through, User user,
             ResponseEntity<Map<String, String>> denial) {
@@ -90,6 +94,12 @@ public class AdminExportController {
         if (from != null && through != null && from.isAfter(through)) {
             return ResponseEntity.badRequest().body(Map.of(
                     "detail", "საწყისი თარიღი საბოლოო თარიღზე გვიან ვერ იქნება"));
+        }
+        // 9999-12-31 as "through" became year 10000 one day later, which
+        // Oracle cannot bind: a 500 (attack tests, 2026-10-02).
+        if (outOfRange(from) || outOfRange(through)) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "detail", "თარიღი 2000–2100 წლების შუალედში უნდა იყოს"));
         }
         try {
             AdminExportDataset dataset = queryService.load(family, from, through);

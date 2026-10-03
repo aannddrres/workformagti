@@ -61,7 +61,7 @@ public class NewsQueryService {
 
         TypedQuery<NewsListItem> query = entityManager.createQuery(LIST_JPQL, NewsListItem.class);
         query.setParameter("userId", user.getId());
-        query.setParameter("isAdmin", user.getRole().isContentAdmin());
+        query.setParameter("isAdmin", user.seesAllContent());
         query.setParameter("depts", depts);
         query.setParameter("now", TbilisiTime.now());
         query.setParameter("userDept", user.getDepartment());

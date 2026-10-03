@@ -1,6 +1,7 @@
 package ge.magti.portal.security;
 
 import ge.magti.portal.config.PortalProperties;
+import ge.magti.portal.domain.Permission;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.repository.UserRepository;
 import io.jsonwebtoken.Claims;
@@ -50,35 +51,82 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     public static final String SESSION_REQUEST_ATTRIBUTE = "portal.session_id";
 
+    /**
+     * Set when the request carried a genuine token whose session is over --
+     * idle limit, 8-hour limit, signed out elsewhere -- and nothing else
+     * authenticated it. SecurityConfig's 401 then says {@code session_expired},
+     * so the sign-in screen can tell the person why they are there (QA round
+     * 5: it said nothing unless the browser's own idle timer had fired).
+     */
+    public static final String SESSION_ENDED_ATTRIBUTE = "portal.session_ended";
+
+    static final String ACCOUNT_DISABLED_DETAIL = "თქვენი ანგარიში გათიშულია. მიმართეთ ადმინისტრატორს.";
+    static final String UNAVAILABLE_DETAIL = "პორტალი დროებით მიუწვდომელია. სცადეთ რამდენიმე წამში.";
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(JwtAuthenticationFilter.class);
+    private static final com.fasterxml.jackson.databind.ObjectMapper JSON =
+            new com.fasterxml.jackson.databind.ObjectMapper();
+
     private final JwtService jwtService;
     private final UserRepository userRepository;
     private final PortalSessionService sessionService;
+    private final PermissionChecker permissionChecker;
 
     /** PortalProperties.Cookie#sessionCookieName: __Host-access_token wherever cookies are Secure. */
     private final String sessionCookieName;
 
     @Autowired
     public JwtAuthenticationFilter(JwtService jwtService, UserRepository userRepository,
-            PortalSessionService sessionService, PortalProperties properties) {
+            PortalSessionService sessionService, PortalProperties properties,
+            PermissionChecker permissionChecker) {
         this.jwtService = jwtService;
         this.userRepository = userRepository;
         this.sessionService = sessionService;
+        this.permissionChecker = permissionChecker;
         this.sessionCookieName = properties.getSecurity().getCookie().sessionCookieName();
     }
 
     /** Keeps the DB-free filter tests focused on JWT validation. Browser
      * session enforcement is covered by the integration/session tests. */
     JwtAuthenticationFilter(JwtService jwtService, UserRepository userRepository) {
-        this(jwtService, userRepository, null, new PortalProperties());
+        this(jwtService, userRepository, null, new PortalProperties(), null);
     }
 
     @Override
     protected void doFilterInternal(
             HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
+        boolean answered;
+        try {
+            answered = authenticateFromTokens(request, response);
+        } catch (org.springframework.dao.DataAccessException | org.springframework.transaction.TransactionException e) {
+            // The database is unreachable for a moment (failover, restart,
+            // a cut connection). Escaping from here, the exception went to
+            // Spring's /error page, which is unauthenticated and so answered
+            // 401 -- and on 401 the browser drops the session: one database
+            // blip signed out every operator at once (crash test,
+            // 2026-10-02). 503 says "try again" and keeps them signed in.
+            log.warn("Authentication skipped, database unavailable: {}", e.getMostSpecificCause().getMessage());
+            SecurityContextHolder.clearContext();
+            response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+            response.setHeader("Retry-After", "5");
+            response.setCharacterEncoding("UTF-8");
+            response.setContentType("application/json");
+            response.getWriter().write(JSON.writeValueAsString(
+                    java.util.Map.of("detail", UNAVAILABLE_DETAIL, "code", "service_unavailable")));
+            return;
+        }
+        if (!answered) {
+            filterChain.doFilter(request, response);
+        }
+    }
+
+    /** True when it answered the request itself (a deactivated account), so the chain must not run. */
+    private boolean authenticateFromTokens(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        boolean sessionEnded = false;
         for (String token : candidateTokens(request)) {
             Optional<Claims> claims = jwtService.parseAndValidate(token);
             if (claims.isEmpty() || claims.get().getSubject() == null) {
+                sessionEnded |= claims.isEmpty() && jwtService.isAuthenticButExpired(token);
                 continue;
             }
             Optional<User> user = userRepository.findByEmail(claims.get().getSubject());
@@ -91,11 +139,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // though its signature and expiry are both still good. Treated
                 // like any other invalid candidate -- fall through to the next
                 // one, and end up unauthenticated if there is none.
+                sessionEnded = true;
                 continue;
             }
             String sessionId = claims.get().get(JwtService.SESSION_ID_CLAIM, String.class);
             if (sessionId != null && sessionService != null
                     && !sessionService.validateAndTouch(sessionId, user.get().getId())) {
+                sessionEnded = true;
                 continue;
             }
             if (sessionId == null && isCookieToken(request, token)) {
@@ -105,23 +155,38 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 continue;
             }
             if (!user.get().isActive()) {
-                // Mirrors get_current_user raising 403 immediately for a
-                // deactivated account, even though the token itself is
-                // validly signed -- a still-valid token must not survive
-                // a deactivation.
-                response.sendError(HttpServletResponse.SC_FORBIDDEN, "User account is disabled");
-                return;
+                // A still-valid token must not survive a deactivation. 401,
+                // not the 403 Python's get_current_user raised: the session is
+                // over, and 401 is what sends the browser to the login screen
+                // -- on 403 the person sat in a shell of empty lists with no
+                // explanation (blind tests, owner decision 2026-10-02). The
+                // code lets that screen say why.
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setCharacterEncoding("UTF-8");
+                response.setContentType("application/json");
+                response.getWriter().write(JSON.writeValueAsString(
+                        java.util.Map.of("detail", ACCOUNT_DISABLED_DETAIL, "code", "account_disabled")));
+                return true;
             }
             authenticate(user.get());
             if (sessionId != null) {
                 request.setAttribute(SESSION_REQUEST_ATTRIBUTE, sessionId);
             }
-            break;
+            return false;
         }
-        filterChain.doFilter(request, response);
+        if (sessionEnded) {
+            request.setAttribute(SESSION_ENDED_ATTRIBUTE, Boolean.TRUE);
+        }
+        return false;
     }
 
     private void authenticate(User user) {
+        if (permissionChecker != null) {
+            // Once per request, beside the role and deactivation re-read above,
+            // so a grant or a DENY of content.manage changes what this person
+            // can read on their very next request (User#seesAllContent).
+            user.setSeesAllContent(permissionChecker.hasPermission(user, Permission.CONTENT_MANAGE));
+        }
         List<GrantedAuthority> authorities = Stream.concat(
                         Stream.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name())),
                         user.getPermissions().stream().map(SimpleGrantedAuthority::new))

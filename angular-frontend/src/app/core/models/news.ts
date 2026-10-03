@@ -43,6 +43,8 @@ export interface NewsRequest {
   attachment_url: string | null;
   visible_to_tech_info: boolean;
   visible_to_service_center: boolean;
+  /** The version the editor loaded; a save over a newer edit is refused (409). Absent when creating. */
+  version?: number | null;
 }
 
 export interface NewsCommandRequest {

@@ -19,11 +19,11 @@ public final class VideoVisibility {
      * and asks {@link #isInAudience} alone.
      */
     public static boolean isVisible(VideoInstruction video, User user) {
-        return user.getRole().isContentAdmin() || (!video.isArchived() && isInAudience(video, user));
+        return user.seesAllContent() || (!video.isArchived() && isInAudience(video, user));
     }
 
     public static boolean isInAudience(VideoInstruction video, User user) {
-        return user.getRole().isContentAdmin() || (video.getTargetDepartment() != null
+        return user.seesAllContent() || (video.getTargetDepartment() != null
                 && DepartmentMatcher.matches(user.getDepartment(), List.of(video.getTargetDepartment())));
     }
 }

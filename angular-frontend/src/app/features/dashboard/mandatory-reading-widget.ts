@@ -28,7 +28,11 @@ export class MandatoryReadingWidget {
   protected readonly readings = signal<MyReading[] | null>(null);
   protected readonly errorMessage = signal<string | null>(null);
 
-  protected readonly unread = computed(() => (this.readings() ?? []).filter((r) => r.status !== 'read'));
+  // A confirmed item whose text changed since is owed again; it used to leave
+  // this card saying everything was done (simulation, 2026-10-01).
+  protected readonly unread = computed(() =>
+    (this.readings() ?? []).filter((r) => r.status !== 'read' || r.changed_since_read)
+  );
   protected readonly overdueCount = computed(() => this.unread().filter((r) => r.is_overdue).length);
   protected readonly topThree = computed(() =>
     [...this.unread()].sort((a, b) => this.dueTime(a) - this.dueTime(b)).slice(0, 3)

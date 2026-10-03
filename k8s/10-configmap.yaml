@@ -49,6 +49,12 @@ data:
   DB_CONNECTION_TIMEOUT_MS: "10000"
   DB_VALIDATION_TIMEOUT_MS: "5000"
   DB_LEAK_DETECTION_MS: "60000"
+  # PO-53 (2026-10-03): how long one statement or transaction may wait
+  # inside Oracle (a lock, a slow plan) before its request answers "busy,
+  # try again" and frees its connection. Without it one stuck lock filled
+  # all 30 connections and stopped the whole portal. Flyway is not affected.
+  DB_TRANSACTION_TIMEOUT: "30s"
+  DB_QUERY_TIMEOUT: "30s"
 
   # ---- Who may be believed about the caller's IP ----------------------
   #
@@ -99,9 +105,13 @@ data:
 
   # ---- Rollout switches ----------------------------------------------
   #
-  # All three default to the safe/legacy behaviour. See
-  # docs/ROLLOUT_ROLLBACK_KA.md before changing any of them; they are
-  # independent on purpose, so one can be rolled back without moving another.
+  # See docs/ROLLOUT_ROLLBACK_KA.md before changing any of them.
+  #
+  # The first two are READ BY NOTHING in the application: "true" and "false"
+  # behave identically, and neither is a rollback lever. The behaviour they
+  # were meant to switch is already on, unconditionally (RolloutSwitchWiringTest
+  # checks on every build that nothing reads them). Only
+  # ROLLOUT_FILE_ENTITLEMENT, below, changes anything.
   ROLLOUT_LEADERSHIP_SCOPE: "false"
   ROLLOUT_COMPLIANCE_ELIGIBILITY: "false"
 

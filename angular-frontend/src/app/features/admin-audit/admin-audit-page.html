@@ -41,6 +41,14 @@
           </span>
         }
       }
+      <button type="button" (click)="checkWholeLedger()" [disabled]="fullCheckRunning()"
+        class="mt-1.5 ml-2 inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+        @if (fullCheckRunning()) {
+          <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>{{ 'audit.full_check_running' | translate: { checked: fullCheckProgress()?.checked ?? 0, total: fullCheckProgress()?.total ?? 0 } }}
+        } @else {
+          <i class="fa-solid fa-list-check" aria-hidden="true"></i>{{ 'audit.full_check' | translate }}
+        }
+      </button>
       }
     </div>
 
@@ -73,6 +81,7 @@
       />
 
       <select
+        [attr.aria-label]="'audit.category_filter_label' | translate"
         (change)="onCategoryChange($event)"
         class="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-normal text-slate-600 shadow-e1 focus:border-red-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
       >
@@ -105,6 +114,23 @@
       }
     </div>
   </div>
+
+  @if (fullCheckError()) {
+    <p role="alert" class="mb-4 rounded-lg border border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-700 dark:border-red-800/60 dark:bg-red-950/30 dark:text-red-300">{{ 'audit.full_check_error' | translate }}</p>
+  }
+  @if (fullCheckResult(); as full) {
+    @if (full.ok) {
+      <p role="status" class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/30 dark:text-emerald-300">
+        <i class="fa-solid fa-shield-halved mr-1" aria-hidden="true"></i>{{ 'audit.full_check_ok' | translate: { count: full.checked } }}
+      </p>
+    } @else {
+      <div role="alert" class="mb-4 rounded-lg border border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-700 dark:border-red-800/60 dark:bg-red-950/30 dark:text-red-300">
+        <p><i class="fa-solid fa-triangle-exclamation mr-1" aria-hidden="true"></i>{{ 'audit.full_check_tampered' | translate: { checked: full.checked, mismatches: full.mismatches, breaks: full.breaks } }}</p>
+        @if (full.tail) { <p class="mt-1 text-xs">{{ 'audit.tail_state_mismatch' | translate }}</p> }
+        @if (full.badIds.length) { <p class="mt-1 font-mono text-xs">ID: {{ full.badIds.join(', ') }}</p> }
+      </div>
+    }
+  }
 
   @if (chainHealth()?.status === 'tampered'; as tampered) {
     <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-5 py-3 dark:border-red-800/60 dark:bg-red-950/30">

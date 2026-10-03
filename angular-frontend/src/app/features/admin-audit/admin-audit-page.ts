@@ -79,6 +79,14 @@ export class AdminAuditPage {
   protected readonly chainHealth = signal<AuditChainHealth | null>(null);
   protected readonly chainHealthLoading = signal(true);
   protected readonly chainHealthError = signal(false);
+  /**
+   * The whole-ledger check (owner, 2026-10-02). The badge above looks at the
+   * last 100 rows only, so an edit older than a few hours went unnoticed there.
+   */
+  protected readonly fullCheckRunning = signal(false);
+  protected readonly fullCheckProgress = signal<{ checked: number; total: number } | null>(null);
+  protected readonly fullCheckResult = signal<{ ok: boolean; checked: number; mismatches: number; breaks: number; badIds: number[]; tail: boolean } | null>(null);
+  protected readonly fullCheckError = signal(false);
 
   protected readonly selectedLog = signal<AuditLogEntry | null>(null);
   protected readonly verifyResult = signal<AuditVerifyResult | null>(null);
@@ -147,6 +155,37 @@ export class AdminAuditPage {
   reload(): void {
     this.offset.set(0);
     this.load();
+  }
+
+  checkWholeLedger(): void {
+    this.fullCheckRunning.set(true);
+    this.fullCheckError.set(false);
+    this.fullCheckResult.set(null);
+    this.fullCheckProgress.set({ checked: 0, total: 0 });
+    const sum = { checked: 0, mismatches: 0, breaks: 0, badIds: [] as number[], tail: false };
+    const step = (afterId: number): void => {
+      this.auditService.fullChainCheck(afterId).subscribe({
+        next: (batch) => {
+          sum.checked += batch.checked;
+          sum.mismatches += batch.hash_mismatches;
+          sum.breaks += batch.link_breaks;
+          sum.badIds = [...sum.badIds, ...batch.bad_ids].slice(0, 10);
+          sum.tail = sum.tail || batch.tail_state_mismatch;
+          this.fullCheckProgress.set({ checked: sum.checked, total: batch.total });
+          if (batch.next_after_id != null) {
+            step(batch.next_after_id);
+            return;
+          }
+          this.fullCheckRunning.set(false);
+          this.fullCheckResult.set({ ok: sum.mismatches === 0 && sum.breaks === 0 && !sum.tail, ...sum });
+        },
+        error: () => {
+          this.fullCheckRunning.set(false);
+          this.fullCheckError.set(true);
+        }
+      });
+    };
+    step(0);
   }
 
   refresh(): void {

@@ -11,10 +11,28 @@ whole stack are in the repository root `AGENTS.md`.
 ```
 
 The fast, database-free half, and where to iterate. `-Dgroups=oracle` is the
-other half. There are no Maven profiles — the split is entirely by JUnit tag,
+other half. The split is entirely by JUnit tag, not by Maven profile,
 and `@RequiresOracle` starts a Testcontainer **only** when `ORACLE_DB_URL` is
 unset and nothing answers at the configured URL. Point it at a running
 instance and it is used instead, which is far faster. On Windows, `.\mvnw.cmd`.
+
+How strong those tests are on the rules that decide who sees what is measured
+by mutation testing (PIT, added 2026-10-02). It rewrites the rule classes'
+bytecode in memory and reports every change no test noticed; nothing on disk
+is edited. Report in `target/pit-reports/index.html`:
+
+```bash
+./mvnw -Pmutation test-compile org.pitest:pitest-maven:mutationCoverage
+```
+
+`-Pmutation-oracle` does the same for `MandatoryReach` and the quiz gate,
+which only the Oracle tests reach — slow, and it needs the `ORACLE_DB_*`
+variables.
+
+`web/RoleFlowModelIntegrationTest` runs random sequences of editor and
+operator actions and checks every screen against a small model of the
+product decisions after each one. Raise its reach with
+`-Dflow.seeds=40 -Dflow.steps=40`.
 
 ## Authorization is not annotation-driven
 
@@ -51,7 +69,7 @@ specific migrations; there is no Flyway **checksum** test, and no ArchUnit.
 
 ## Migrations
 
-Next is `V53`. `V37` does not exist — the numbering skips it deliberately, so
+Next is `V55`. `V37` does not exist — the numbering skips it deliberately, so
 do not fill the gap.
 
 Three Oracle facts that cost time to rediscover. The container is XE **21c**,

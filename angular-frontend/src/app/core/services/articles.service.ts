@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { EMPTY, Observable, expand, reduce } from 'rxjs';
 import {
   Article,
   ArticleBulkArchiveResponse,
@@ -18,6 +18,9 @@ import {
   ArticleHistorySummaryItem,
   ArticleVersionItem,
 } from '../models/article-history';
+
+/** ListQueryBounds.MAX_LIMIT on the server. */
+const LIST_PAGE_SIZE = 1000;
 
 @Injectable({ providedIn: 'root' })
 export class ArticlesService {
@@ -45,13 +48,29 @@ export class ArticlesService {
     return this.http.get<ArticleSummary[]>('/api/articles', { params });
   }
 
-  /** Admin content-management table: mirrors fetchAndRenderAdminContent's
-   *  fetch-everything-then-paginate-client-side approach (no server-side
-   *  pagination on this endpoint). */
+  /**
+   * Every article this person may see, a page at a time.
+   *
+   * The screens that count or filter client-side used to ask once for 1000
+   * -- the server's maximum page -- and stop there, so article 1001 would have
+   * dropped out of every category count and list without a word (audit
+   * 2026-10-01). A full page means there may be more; a short one ends it.
+   */
+  listAll(
+    options: { q?: string; categoryId?: number; status?: string } = {},
+  ): Observable<ArticleSummary[]> {
+    const page = (skip: number) => this.list({ ...options, skip, limit: LIST_PAGE_SIZE });
+    return page(0).pipe(
+      expand((rows, index) => (rows.length === LIST_PAGE_SIZE ? page((index + 1) * LIST_PAGE_SIZE) : EMPTY)),
+      reduce((all, rows) => all.concat(rows), [] as ArticleSummary[]),
+    );
+  }
+
+  /** Admin content-management table: everything, paginated client-side. */
   listAdmin(
     options: { q?: string; categoryId?: number; status?: string } = {},
   ): Observable<ArticleSummary[]> {
-    return this.list({ limit: 1000, ...options });
+    return this.listAll(options);
   }
 
   create(request: ArticleRequest): Observable<Article> {

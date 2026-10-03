@@ -5,6 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
 public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, Long> {
 
     int countByArticleIdAndArticleVersionAndUserId(Long articleId, int articleVersion, Long userId);
@@ -31,6 +33,14 @@ public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, Long> 
     /** Taken only by {@link #nextAttemptNumber}; released when the submission's transaction ends. */
     @Query(value = "SELECT id FROM users WHERE id = :userId FOR UPDATE", nativeQuery = true)
     Number lockSubmitter(@Param("userId") Long userId);
+
+    /**
+     * The submitter's newest attempts on one article version, newest first:
+     * what QuizCooldown reads (PO-55). Taken after {@link #nextAttemptNumber}
+     * has locked the submitter, so two submissions cannot both see a free slot.
+     */
+    List<QuizAttempt> findTop3ByArticleIdAndArticleVersionAndUserIdOrderByCreatedAtDescIdDesc(
+            Long articleId, int articleVersion, Long userId);
 
     /** Port of _check_quiz_gate's pass-check (routers/articles.py:1022-1027). */
     boolean existsByArticleIdAndArticleVersionAndUserIdAndPassedTrue(Long articleId, int articleVersion, Long userId);

@@ -8,6 +8,13 @@
     </p>
 
     <div class="flex flex-col gap-4">
+      @if (reason === 'session-expired' && !errorMessage()) {
+        <p role="status" class="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">{{ 'auth.login_page.reason_session_expired' | translate }}</p>
+      } @else if (reason === 'session-ended' && !errorMessage()) {
+        <p role="status" class="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">{{ 'auth.login_page.reason_session_ended' | translate }}</p>
+      } @else if (reason === 'account-disabled' && !errorMessage()) {
+        <p role="status" class="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">{{ 'auth.login_page.reason_account_disabled' | translate }}</p>
+      }
       @if (errorMessage()) {
         <p role="alert" class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">{{ errorMessage() }}</p>
       }

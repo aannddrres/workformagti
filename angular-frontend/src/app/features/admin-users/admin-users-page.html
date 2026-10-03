@@ -16,15 +16,15 @@
       <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-600 dark:text-slate-400" aria-hidden="true"></i>
       <input type="search" [value]="query()" (input)="onQueryChange($event)" placeholder="სახელი, ელფოსტა ან დეპარტამენტი" class="field-control w-full pl-9" />
     </label>
-    <select (change)="onGroupFilterChange($event)" class="field-control w-full">
+    <select (change)="onGroupFilterChange($event)" class="field-control w-full" [attr.aria-label]="'users.admin_page.group_filter_label' | translate">
       <option value="">{{ 'users.all_groups' | translate }}</option>
       @for (leader of groupLeaders(); track leader.id) { <option [value]="leader.id">{{ leader.name }}</option> }
     </select>
-    <select (change)="onRoleFilterChange($event)" class="field-control w-full">
+    <select (change)="onRoleFilterChange($event)" class="field-control w-full" [attr.aria-label]="'users.admin_page.role_filter_label' | translate">
       <option value="">ყველა როლი</option>
       @for (role of roles; track role) { <option [value]="role">{{ 'users.role_' + role | translate }}</option> }
     </select>
-    <select (change)="onStatusFilterChange($event)" class="field-control w-full">
+    <select (change)="onStatusFilterChange($event)" class="field-control w-full" [attr.aria-label]="'users.admin_page.status_filter_label' | translate">
       <option value="">ყველა სტატუსი</option>
       <option value="active">აქტიური</option>
       <option value="inactive">გათიშული</option>

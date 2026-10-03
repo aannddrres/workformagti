@@ -2,7 +2,6 @@ package ge.magti.portal.search;
 
 import ge.magti.portal.domain.Article;
 import ge.magti.portal.domain.News;
-import ge.magti.portal.domain.SearchTrigram;
 import ge.magti.portal.domain.VideoInstruction;
 import ge.magti.portal.repository.SearchTrigramRepository;
 import org.springframework.stereotype.Service;
@@ -33,8 +32,11 @@ public class SearchReindexService {
 
     private final SearchTrigramRepository repository;
 
-    public SearchReindexService(SearchTrigramRepository repository) {
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+    public SearchReindexService(SearchTrigramRepository repository, org.springframework.jdbc.core.JdbcTemplate jdbc) {
         this.repository = repository;
+        this.jdbc = jdbc;
     }
 
     /** Indexes title + content + tags, matching global_search's article word conditions (routers/search.py:71-75). */
@@ -62,11 +64,15 @@ public class SearchReindexService {
         if (trigrams.isEmpty()) {
             return;
         }
-        List<SearchTrigram> rows = new ArrayList<>(trigrams.size());
+        // One JDBC batch, not saveAll: the id is an IDENTITY column, which
+        // turns Hibernate's batching off, so a long article's ~6,000 trigrams
+        // were ~6,000 round trips -- a 4 s save, 4.6 s at peak load (QA round
+        // 5). Same rows, same transaction (JdbcTemplate joins the JPA one).
+        List<Object[]> rows = new ArrayList<>(trigrams.size());
         for (String trigram : trigrams) {
-            rows.add(new SearchTrigram(entityType, entityId, trigram));
+            rows.add(new Object[] {entityType, entityId, trigram});
         }
-        repository.saveAll(rows);
+        jdbc.batchUpdate("INSERT INTO search_trigrams (entity_type, entity_id, trigram) VALUES (?, ?, ?)", rows);
     }
 
     private static String join(String... parts) {

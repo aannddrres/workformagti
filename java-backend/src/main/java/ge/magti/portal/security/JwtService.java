@@ -139,6 +139,23 @@ public class JwtService {
 		}
 	}
 
+	/**
+	 * A token this portal really issued whose time has run out: the 8-hour
+	 * session limit, not a forgery. jjwt checks the signature before the
+	 * expiry, so ExpiredJwtException means both. Lets the sign-in screen say
+	 * "your session ended" instead of nothing (QA round 5, owner 2026-10-03).
+	 */
+	public boolean isAuthenticButExpired(String token) {
+		try {
+			Jwts.parser().verifyWith(signingKey).build().parseSignedClaims(token);
+			return false;
+		} catch (io.jsonwebtoken.ExpiredJwtException e) {
+			return true;
+		} catch (JwtException | IllegalArgumentException e) {
+			return false;
+		}
+	}
+
 	/** Mirrors the "sub" claim being the user's email everywhere in security.py. */
 	public Optional<String> extractSubject(String token) {
 		return parseAndValidate(token).map(Claims::getSubject);

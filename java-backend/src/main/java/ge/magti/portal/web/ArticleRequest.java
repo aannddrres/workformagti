@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -25,10 +26,15 @@ import java.util.List;
  * here and each handler decides whether to read it.
  */
 public record ArticleRequest(
-        @NotBlank String title,
-        @NotNull String content,
+        // Each limit is its column's (CHAR semantics). Past it the insert
+        // failed in Oracle and the editor saw "unexpected error" (attack
+        // tests, 2026-10-02); content's 5 MB is a hundred times the largest
+        // real article (49 KB) and stops a 30 MB body that every search
+        // result then carried.
+        @NotBlank @Size(max = 500, message = "სათაური 500 სიმბოლოზე გრძელი ვერ იქნება") String title,
+        @NotNull @Size(max = MAX_CONTENT_CHARS, message = CONTENT_TOO_LONG) String content,
         @NotNull @JsonProperty("category_id") Long categoryId,
-        String tags,
+        @Size(max = 500, message = "თეგები ჯამში 500 სიმბოლოზე გრძელი ვერ იქნება") String tags,
         @NotEmpty @JsonProperty("target_departments") List<String> targetDepartments,
         // null/blank is allowed (statusOrDefault() then applies "draft"); an
         // unknown value is not. Without this a single create/update accepted
@@ -42,22 +48,32 @@ public record ArticleRequest(
         // The trailing "?" lets an empty string through as well as null, so
         // statusOrDefault() keeps owning the blank-to-"draft" rule; only a
         // present-but-unknown value is rejected.
-        @Pattern(regexp = "(draft|published|scheduled|archived)?",
-                message = "სტატუსი უნდა იყოს draft, published, scheduled ან archived")
+        @Pattern(regexp = STATUS_PATTERN, message = STATUS_MESSAGE)
         String status,
-        @JsonProperty("youtube_id") String youtubeId,
+        @Size(max = 50, message = "YouTube-ის id 50 სიმბოლოზე გრძელი ვერ იქნება") @JsonProperty("youtube_id") String youtubeId,
         @JsonProperty("published_at") OffsetDateTime publishedAt,
-        @JsonProperty("attachment_url") String attachmentUrl,
+        @Size(max = 1000, message = "მიმაგრებული ფაილის ბმული 1000 სიმბოლოზე გრძელი ვერ იქნება") @JsonProperty("attachment_url") String attachmentUrl,
         @JsonProperty("last_verified_at") OffsetDateTime lastVerifiedAt,
-        @JsonProperty("audience_profile") String audienceProfile,
+        @Size(max = 20, message = "აუდიტორიის პროფილი 20 სიმბოლოზე გრძელი ვერ იქნება") @JsonProperty("audience_profile") String audienceProfile,
         @JsonProperty("visible_to_tech_info") Boolean visibleToTechInfo,
         @JsonProperty("visible_to_service_center") Boolean visibleToServiceCenter,
         @JsonProperty("is_draft") Boolean isDraft,
         // "notify_operators" was a field here until 2026-09-29. It fed the old
         // stack's real-time broadcast, which was never ported, so nothing read
         // it; a client that still sends it is ignored, not refused.
-        @JsonProperty("quiz_enabled") Boolean quizEnabled
+        @JsonProperty("quiz_enabled") Boolean quizEnabled,
+        // The lock_version the editor loaded (ArticleResponse). Optional: a
+        // caller that does not send it -- a seeder, the importer -- is not
+        // checked. The Angular editor always sends it.
+        @JsonProperty("lock_version") Integer lockVersion
 ) {
+    /** Shared with PATCH .../autosave, which reads a raw map and so cannot use the annotation. */
+    /** Shared with news and both autosave endpoints. */
+    public static final int MAX_CONTENT_CHARS = 5_000_000;
+    public static final String CONTENT_TOO_LONG = "ტექსტი 5 მილიონ სიმბოლოზე გრძელი ვერ იქნება";
+    public static final String STATUS_PATTERN = "(draft|published|scheduled|archived)?";
+    public static final String STATUS_MESSAGE = "სტატუსი უნდა იყოს draft, published, scheduled ან archived";
+
     public String statusOrDefault() {
         return (status == null || status.isBlank()) ? "draft" : status;
     }

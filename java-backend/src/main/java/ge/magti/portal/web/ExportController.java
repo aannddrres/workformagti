@@ -24,6 +24,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
@@ -32,6 +33,7 @@ import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -128,28 +130,26 @@ public class ExportController {
 
     /** Port of export_readings (routers/exports.py:65-117). */
     @GetMapping("/api/export/readings")
-    public ResponseEntity<?> exportReadingsCsv(@AuthenticationPrincipal User admin) {
+    public ResponseEntity<?> exportReadingsCsv(
+            @AuthenticationPrincipal User admin,
+            @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate through) {
         ResponseEntity<Map<String, String>> denial = requireReportsExport(admin);
         if (denial != null) {
             return denial;
         }
+        ResponseEntity<Map<String, String>> badPeriod = invalidPeriod(from, through);
+        if (badPeriod != null) {
+            return badPeriod;
+        }
         List<ReadingExportRow> rows;
         try {
-            rows = exportQueryService.eligibleReadingRows(admin);
+            rows = exportQueryService.eligibleReadingRows(admin, from, through);
         } catch (ExportTooLargeException e) {
             return tooLargeResponse(e);
         }
 
-        List<String> headers = List.of("თანამშრომლის ID", "თანამშრომელი", "მასალის ტიპი", "მასალის ID",
-                "სტატუსი", "წაკითხვის თარიღი");
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-        List<List<Object>> tableRows = rows.stream()
-                .map(r -> List.<Object>of(
-                        r.userId(), r.userName(), ExportDisplayLabels.itemType(r.itemType()), r.itemId(),
-                        ExportDisplayLabels.readingStatus(r.status()),
-                        r.readAt() != null ? r.readAt().format(fmt) : ExportDisplayLabels.missingDate()))
-                .toList();
-        String csv = CsvExportBuilder.build(headers, tableRows);
+        String csv = CsvExportBuilder.build(READING_HEADERS, readingRowsForSpreadsheet(rows));
         writeInlineAudit(admin, "EXPORT", "readings", "csv", rows.size());
 
         return ResponseEntity.ok()
@@ -160,46 +160,55 @@ public class ExportController {
 
     /** Port of export_readings_xlsx (routers/exports.py:122-163). */
     @GetMapping("/api/export/readings.xlsx")
-    public ResponseEntity<?> exportReadingsXlsx(@AuthenticationPrincipal User admin) {
+    public ResponseEntity<?> exportReadingsXlsx(
+            @AuthenticationPrincipal User admin,
+            @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate through) {
         ResponseEntity<Map<String, String>> denial = requireReportsExport(admin);
         if (denial != null) {
             return denial;
         }
+        ResponseEntity<Map<String, String>> badPeriod = invalidPeriod(from, through);
+        if (badPeriod != null) {
+            return badPeriod;
+        }
         List<ReadingExportRow> rows;
         try {
-            rows = exportQueryService.eligibleReadingRows(admin);
+            rows = exportQueryService.eligibleReadingRows(admin, from, through);
         } catch (ExportTooLargeException e) {
             return tooLargeResponse(e);
         }
 
-        List<String> headers = List.of(
-                "თანამშრომელი", "დეპარტამენტი", "მასალის ტიპი", "მასალის ID", "სტატუსი", "წაკითხვის თარიღი", "ვადა");
-        List<List<Object>> tableRows = readingRowsForSpreadsheet(rows);
-
         String jobId = enqueueJob(
-                admin, tableRows, headers, "გაცნობის სტატუსი", "xlsx", "EXPORT_XLSX", "readings");
+                admin, readingRowsForSpreadsheet(rows), READING_HEADERS, "გაცნობის სტატუსი", "xlsx",
+                "EXPORT_XLSX", "readings");
         return ResponseEntity.ok(new ExportJobResponse(jobId));
     }
 
     /** Port of export_readings_pdf (routers/exports.py:246-284). */
     @GetMapping("/api/export/readings.pdf")
-    public ResponseEntity<?> exportReadingsPdf(@AuthenticationPrincipal User user) {
+    public ResponseEntity<?> exportReadingsPdf(
+            @AuthenticationPrincipal User user,
+            @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate through) {
         ResponseEntity<Map<String, String>> denial = requireReportsExport(user);
         if (denial != null) {
             return denial;
         }
+        ResponseEntity<Map<String, String>> badPeriod = invalidPeriod(from, through);
+        if (badPeriod != null) {
+            return badPeriod;
+        }
         List<ReadingExportRow> rows;
         try {
-            rows = exportQueryService.eligibleReadingRows(user);
+            rows = exportQueryService.eligibleReadingRows(user, from, through);
         } catch (ExportTooLargeException e) {
             return tooLargeResponse(e);
         }
 
-        List<String> headers = List.of("თანამშრომელი", "დეპარტამენტი", "ტიპი", "ID", "სტატუსი", "წაკითხვა", "ვადა");
-        List<List<Object>> tableRows = readingRowsForSpreadsheet(rows);
-
         String jobId = enqueueJob(
-                user, tableRows, headers, "სავალდებულოდ გასაცნობი სტატუსი", "pdf", "EXPORT_PDF", "readings");
+                user, readingRowsForSpreadsheet(rows), READING_HEADERS, "სავალდებულოდ გასაცნობი სტატუსი", "pdf",
+                "EXPORT_PDF", "readings");
         return ResponseEntity.ok(new ExportJobResponse(jobId));
     }
 
@@ -334,6 +343,15 @@ public class ExportController {
         return System.currentTimeMillis() / 1000.0;
     }
 
+    /**
+     * PO-13's eight columns, the same in all three formats. Employee and
+     * material IDs are left out on purpose; until 2026-10-02 the CSV carried
+     * both, and none of the three had the title, the group or a "late" status.
+     */
+    static final List<String> READING_HEADERS = List.of(
+            "თანამშრომელი", "დეპარტამენტი", "ჯგუფი", "მასალის სათაური", "მასალის ტიპი",
+            "სტატუსი", "წაკითხვის დრო", "ვადა");
+
     private List<List<Object>> readingRowsForSpreadsheet(List<ReadingExportRow> rows) {
         DateTimeFormatter dtFmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         DateTimeFormatter dFmt = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -341,12 +359,26 @@ public class ExportController {
                 .map(r -> List.<Object>of(
                         r.userName(),
                         r.department() == null ? "" : r.department(),
+                        r.group() == null ? "" : r.group(),
+                        r.itemTitle() == null ? "" : r.itemTitle(),
                         ExportDisplayLabels.itemType(r.itemType()),
-                        String.valueOf(r.itemId()),
                         ExportDisplayLabels.readingStatus(r.status()),
                         r.readAt() != null ? r.readAt().format(dtFmt) : "",
                         r.dueDate() != null ? r.dueDate().format(dFmt) : ""))
                 .toList();
+    }
+
+    /** The period is by deadline, in whole days, within the bounds the admin exports accept. */
+    private static ResponseEntity<Map<String, String>> invalidPeriod(LocalDate from, LocalDate through) {
+        if (from != null && through != null && from.isAfter(through)) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "detail", "საწყისი თარიღი საბოლოო თარიღზე გვიან ვერ იქნება"));
+        }
+        if (AdminExportController.outOfRange(from) || AdminExportController.outOfRange(through)) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "detail", "თარიღი 2000–2100 წლების შუალედში უნდა იყოს"));
+        }
+        return null;
     }
 
     private String enqueueJob(
@@ -400,7 +432,7 @@ public class ExportController {
     private static ResponseEntity<Map<String, String>> tooLargeResponse(ExportTooLargeException e) {
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(Map.of(
                 "detail", String.format(
-                        "ექსპორტი ძალიან დიდია (%d ჩანაწერი, ზღვარი %d). დააზუსტეთ ფილტრი და სცადეთ თავიდან.",
+                        "ექსპორტი ძალიან დიდია (%d ჩანაწერი, ზღვარი %d). აირჩიეთ უფრო მოკლე პერიოდი.",
                         e.getRowCount(), e.getMaxRows())));
     }
 

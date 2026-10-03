@@ -8,6 +8,8 @@ import ge.magti.portal.storage.FileStorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.CacheControl;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -62,6 +64,8 @@ public class UploadedFileController {
     @GetMapping("/uploads/{filename}")
     public ResponseEntity<?> serve(
             @PathVariable("filename") String filename,
+            @org.springframework.web.bind.annotation.RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false)
+            String ifNoneMatch,
             @AuthenticationPrincipal User user) {
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -100,13 +104,52 @@ public class UploadedFileController {
                     decision, filename, user.getId(), user.getDepartment());
         }
 
-        recordAccess(user, filename, content);
+        // A picture is shown, not fetched: it comes with the article around it,
+        // whose opening is recorded already (article_view_logs, the reading
+        // confirmations). Recorded one by one, pictures were 98% of the audit
+        // trail -- 134,971 of 137,356 rows in a two-hour soak, some 25 million
+        // a year -- and buried the entries people search it for. A document
+        // someone downloads is still recorded, and every refusal above is
+        // (owner, 2026-10-02, PO-48).
+        if (!parseOrOctetStream(content.contentType()).getType().equals("image")) {
+            recordAccess(user, filename, content);
+        }
+        // The browser may keep the bytes, but must ask every time (owner,
+        // 2026-10-02): "private, no-cache" means each view still comes here,
+        // is checked against DEC-P01 above and audited, and only the body is
+        // skipped when it has not changed. With no-store the largest real
+        // article re-downloaded 6.7 MB of pictures on every open -- 4 GB when
+        // 600 operators open one mandatory article. Not "max-age": a
+        // permission withdrawn must take effect on the next view.
+        String etag = etagOf(content.content());
+        CacheControl revalidate = CacheControl.noCache().cachePrivate();
+        if (ifNoneMatch != null && java.util.Arrays.stream(ifNoneMatch.split(","))
+                .map(String::strip).anyMatch(candidate -> candidate.equals(etag) || candidate.equals("W/" + etag))) {
+            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).eTag(etag).cacheControl(revalidate).build();
+        }
         return ResponseEntity.ok()
                 .contentType(servedType(content.contentType(), content.content()))
                 .header("X-Content-Type-Options", "nosniff")
+                // Without a name of our own, Spring's download protection
+                // supplied "inline;filename=f.txt": every PDF opened titled
+                // f.txt and every Word file saved as f.txt (simulation,
+                // 2026-10-01). The stored name keeps the real extension; the
+                // name it was uploaded under was never recorded.
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.inline().filename(filename).build().toString())
                 .header("Content-Security-Policy", "default-src 'none'; sandbox")
-                .cacheControl(CacheControl.noStore())
+                .cacheControl(revalidate)
+                .eTag(etag)
                 .body(content.content());
+    }
+
+    private static String etagOf(byte[] content) {
+        try {
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256").digest(content);
+            return "\"" + java.util.HexFormat.of().formatHex(digest, 0, 16) + "\"";
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is part of every Java runtime", e);
+        }
     }
 
     private void recordAccess(

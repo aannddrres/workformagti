@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatKaDate, formatKaDateTime, formatKaDateTimeSeconds, formatKaDayMonth } from './ka-date';
+import { formatKaDate, formatKaDateTime, formatKaDateTimeSeconds, formatKaDayMonth, isoToTbilisiLocal, tbilisiEndOfDay, tbilisiLocalToIso, tbilisiToday } from './ka-date';
 
 describe('formatKaDate', () => {
   it('names the month in Georgian and does not depend on Georgian ICU data', () => {
@@ -46,5 +46,39 @@ describe('formatKaDayMonth', () => {
 
   it('renders an invalid value safely', () => {
     expect(formatKaDayMonth('')).toBe('—');
+  });
+});
+
+describe('tbilisiEndOfDay', () => {
+  it('ends the picked day in Tbilisi rather than starting it in UTC', () => {
+    expect(tbilisiEndOfDay('2026-10-05')).toBe('2026-10-05T23:59:59+04:00');
+    expect(new Date(tbilisiEndOfDay('2026-10-05')).toISOString()).toBe('2026-10-05T19:59:59.000Z');
+  });
+});
+
+describe('tbilisiToday', () => {
+  it('turns over at midnight in Tbilisi, not in UTC or on the machine', () => {
+    // 20:30 UTC on 4 Oct is 00:30 on 5 Oct in Tbilisi.
+    expect(tbilisiToday(Date.UTC(2026, 9, 4, 20, 30))).toBe('2026-10-05');
+    expect(tbilisiToday(Date.UTC(2026, 9, 4, 19, 59))).toBe('2026-10-04');
+  });
+});
+
+// PO-58: a publication time typed in the editor is Tbilisi time, whatever
+// zone the editor's computer is set to.
+describe('tbilisiLocalToIso / isoToTbilisiLocal', () => {
+  it('reads the typed time as Tbilisi time', () => {
+    expect(tbilisiLocalToIso('2026-10-05T09:00')).toBe('2026-10-05T09:00:00+04:00');
+    expect(new Date(tbilisiLocalToIso('2026-10-05T09:00')).toISOString()).toBe('2026-10-05T05:00:00.000Z');
+  });
+
+  it('shows a stored moment as the Tbilisi clock shows it, across midnight too', () => {
+    expect(isoToTbilisiLocal('2026-10-05T05:00:00Z')).toBe('2026-10-05T09:00');
+    expect(isoToTbilisiLocal('2026-12-31T21:30:00Z')).toBe('2027-01-01T01:30');
+    expect(isoToTbilisiLocal('2026-10-05T09:00:00+04:00')).toBe('2026-10-05T09:00');
+  });
+
+  it('round-trips', () => {
+    expect(isoToTbilisiLocal(tbilisiLocalToIso('2028-02-29T23:59'))).toBe('2028-02-29T23:59');
   });
 });

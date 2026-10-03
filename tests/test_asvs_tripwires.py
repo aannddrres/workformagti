@@ -90,6 +90,9 @@ def test_no_json_built_by_hand():
 # new review.
 REVIEWED_DYNAMIC_SQL = {
     "java-backend/src/main/java/ge/magti/portal/article/ArticleViewQueryService.java",
+    # 2026-10-02 (PO-51): the whole-ledger check splices canonicalCall()'s
+    # column list under a code-chosen alias; the batch bounds are binds.
+    "java-backend/src/main/java/ge/magti/portal/audit/AuditChainService.java",
     "java-backend/src/main/java/ge/magti/portal/audit/AuditLogQueryService.java",
     "java-backend/src/main/java/ge/magti/portal/content/ContentLifecycleService.java",
     "java-backend/src/main/java/ge/magti/portal/export/AdminExportQueryService.java",
@@ -258,6 +261,10 @@ def test_download_names_are_generated():
     assert {line.split(":", 1)[0] for line in dispositions} <= {
         "java-backend/src/main/java/ge/magti/portal/web/AuditLogController.java",
         "java-backend/src/main/java/ge/magti/portal/web/ExportController.java",
+        # 2026-10-01: uploads name themselves instead of Spring's "f.txt". The
+        # name is the server-minted UUID the file is stored under (UploadController),
+        # served only after FileStorageService finds a stored file by it.
+        "java-backend/src/main/java/ge/magti/portal/web/UploadedFileController.java",
     }
     # The one variable name comes from the worker: prefix, job id, type.
     worker = (JAVA_MAIN / "ge/magti/portal/export/ExportJobWorker.java").read_text(encoding="utf-8")
@@ -349,9 +356,16 @@ def test_no_third_party_scripts_or_trackers():
 
 
 def test_browser_storage_holds_only_display_preferences():
+    # Display preferences, plus one owner decision (PO-50, 2026-10-02): the
+    # article editor's unsaved title and text, keyed by the signed-in
+    # address and dropped after a week. And PO-56 (2026-10-03): the moment of
+    # the person's last activity, a bare timestamp, so all their tabs share
+    # one idle clock. No token, no personal data.
     stored = hits(frontend_sources(".ts"), r"localStorage\.setItem\(")
     assert {line.split(":", 1)[0] for line in stored} == {
         "angular-frontend/src/app/core/accessibility/font-scale.service.ts",
+        "angular-frontend/src/app/core/auth/idle-session.service.ts",
+        "angular-frontend/src/app/features/admin-content/article-edit-drawer/article-draft-store.ts",
         "angular-frontend/src/app/core/theme/theme.service.ts",
         "angular-frontend/src/app/shell/app-shell.ts",
     }

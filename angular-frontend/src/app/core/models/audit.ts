@@ -45,6 +45,18 @@ export interface AuditVerifyResult {
 }
 
 /** Mirrors web.AuditChainHealthResponse. status is "ok" | "tampered". */
+/** One batch of the whole-ledger check; loop on next_after_id until it is null. */
+export interface AuditChainFullCheck {
+  status: 'ok' | 'tampered';
+  checked: number;
+  total: number;
+  hash_mismatches: number;
+  link_breaks: number;
+  bad_ids: number[];
+  tail_state_mismatch: boolean;
+  next_after_id: number | null;
+}
+
 export interface AuditChainHealth {
   status: 'ok' | 'tampered';
   checked: number;

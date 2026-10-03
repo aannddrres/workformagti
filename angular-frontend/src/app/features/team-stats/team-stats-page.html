@@ -1,4 +1,7 @@
 <div class="portal-page">
+  <!-- PO-05: the broadcast belongs on every role's home page. This role lands here, not on the
+       operator dashboard, and never saw it (simulation, 2026-10-01). -->
+  <app-broadcast-banner />
   <div class="mb-1 flex flex-wrap items-center justify-between gap-4">
     <h1 class="portal-title">{{ 'manager.page.heading' | translate }}</h1>
     <div class="flex flex-wrap items-center gap-3">
@@ -139,6 +142,19 @@
   <div class="mt-8 rounded-lg border border-slate-100 bg-white p-5 shadow-e1 dark:border-slate-800 dark:bg-slate-900/60">
     <h3 class="mb-1 text-lg font-semibold text-slate-800 dark:text-slate-100">{{ 'manager.page.export_heading' | translate }}</h3>
     <p class="mb-4 text-xs text-slate-600 dark:text-slate-400">{{ 'manager.page.export_subtitle' | translate }}</p>
+
+    <fieldset class="mb-4">
+      <legend class="text-sm font-semibold text-slate-700 dark:text-slate-200">{{ 'manager.page.export_period' | translate }}</legend>
+      <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">{{ 'manager.page.export_period_hint' | translate }}</p>
+      <div class="mt-2 grid max-w-xl gap-4 sm:grid-cols-2">
+        <label class="text-sm text-slate-700 dark:text-slate-200">{{ 'manager.page.export_from' | translate }}
+          <app-date-field class="mt-1" [value]="exportFrom()" (valueChange)="exportFrom.set($event)" />
+        </label>
+        <label class="text-sm text-slate-700 dark:text-slate-200">{{ 'manager.page.export_through' | translate }}
+          <app-date-field class="mt-1" [value]="exportThrough()" (valueChange)="exportThrough.set($event)" />
+        </label>
+      </div>
+    </fieldset>
 
     <div class="flex flex-wrap gap-3">
       <button

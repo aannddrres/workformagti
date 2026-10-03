@@ -88,6 +88,19 @@ public class ComplianceController {
     private final MutationAuditService mutationAuditService;
     private final RequiredReadingMutationService requiredReadingMutationService;
     private final ReadingAcknowledgementService readingAcknowledgementService;
+
+    /** Optional so the DB-free test constructions need no change; Spring always sets it. */
+    private ge.magti.portal.org.DepartmentTargets departmentTargets;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setDepartmentTargets(ge.magti.portal.org.DepartmentTargets departmentTargets) {
+        this.departmentTargets = departmentTargets;
+    }
+
+    /** A 422 naming any audience department that reaches nobody (simulation, 2026-10-01). */
+    private ResponseEntity<Map<String, String>> unknownDepartments(java.util.Collection<String> targets) {
+        return departmentTargets == null ? null : departmentTargets.refusal(targets);
+    }
     private final MandatoryReach mandatoryReach;
     private final ScopeResolver scopeResolver;
 
@@ -156,6 +169,10 @@ public class ComplianceController {
                 .stream()
                 .collect(java.util.stream.Collectors.toMap(ReadStatus::getRequiredReadingId, s -> s, (a, b) -> a));
 
+        Map<Long, Integer> currentArticleVersions = articleRepository.findAllById(readings.stream()
+                        .filter(r -> "article".equals(r.getItemType())).map(RequiredReading::getItemId).toList())
+                .stream().collect(java.util.stream.Collectors.toMap(Article::getId, Article::getVersion));
+
         OffsetDateTime now = TbilisiTime.now();
         List<MyReadingResponse> results = new java.util.ArrayList<>();
         for (RequiredReading r : readings) {
@@ -174,10 +191,23 @@ public class ComplianceController {
             // The acknowledgement stays valid -- it records a real event on a
             // real date -- but the list now says the text has moved on, so
             // "read" no longer quietly means "read the current version".
-            boolean changedSinceRead = readAt != null
-                    && detail != null
-                    && detail.updatedAt() != null
-                    && detail.updatedAt().isAfter(readAt);
+            boolean changedSinceRead;
+            if ("article".equals(r.getItemType())) {
+                // An article has versions, and a receipt per version read. Its
+                // updated_at also moves on a retarget, a status change or a
+                // "verified" stamp, which flagged unchanged text as changed --
+                // and once confirming again was possible, asked people to
+                // re-read text nobody had touched (simulation, 2026-10-01).
+                Integer version = currentArticleVersions.get(r.getItemId());
+                changedSinceRead = readAt != null && version != null
+                        && articleReadReceiptRepository.findByArticleIdSnapshotAndArticleVersionAndOperatorId(
+                                r.getItemId(), version, user.getId()).isEmpty();
+            } else {
+                changedSinceRead = readAt != null
+                        && detail != null
+                        && detail.updatedAt() != null
+                        && detail.updatedAt().isAfter(readAt);
+            }
             results.add(new MyReadingResponse(
                     RequiredReadingResponse.from(r), currentStatus, readAt, isOverdue,
                     itemTitle, itemContent, changedSinceRead));
@@ -245,8 +275,15 @@ public class ComplianceController {
             }
         }
 
+        OffsetDateTime itemUpdatedAt = null;
+        if (readingArticle == null) {
+            ItemDetail detail = itemTitleResolver.resolveDetailsBulk(
+                    List.of(new ItemKey(reading.getItemType(), reading.getItemId())))
+                    .get(new ItemKey(reading.getItemType(), reading.getItemId()));
+            itemUpdatedAt = detail == null ? null : detail.updatedAt();
+        }
         ReadStatus savedStat = readingAcknowledgementService.acknowledgeRequiredReading(
-                reading, readingArticle, user);
+                reading, readingArticle, user, itemUpdatedAt);
         return ResponseEntity.ok(ReadStatusResponse.from(savedStat));
     }
 
@@ -264,6 +301,10 @@ public class ComplianceController {
             // draft into every assignee's reading list and reminders (PO-34).
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", ITEM_NOT_FOUND));
         }
+        ResponseEntity<Map<String, String>> unknownTargets = unknownDepartments(List.of(request.targetDepartmentOrDefault()));
+        if (unknownTargets != null) {
+            return unknownTargets;
+        }
         // PO-40: nobody is assigned what they could not open. Refused whole,
         // with the people it would have missed named, rather than quietly
         // narrowed: the editor chose this department and should know.
@@ -273,6 +314,30 @@ public class ComplianceController {
         if (refusal != null) {
             return refusal;
         }
+        if (isPast(request.dueDate())) {
+            return pastDeadline();
+        }
+        if (isTooFar(request.dueDate())) {
+            return tooFarDeadline();
+        }
+        return ResponseEntity.ok(RequiredReadingResponse.from(saveReading(request, user)));
+    }
+
+    /**
+     * A reading for a department a mandatory article's audience gained while
+     * nobody could open it -- archived, unpublished, or scheduled past its due
+     * date. Not refused like an editor's own assignment: the editor chose the
+     * department and the obligation already exists for the others. It is
+     * kept out of force and comes into force with the article, its assignment
+     * going out from the reminder sweep then (PO-40 §2 and §4, owner,
+     * 2026-10-02). Before, it was dropped without a word, and restoring the
+     * article left the new department owing nothing.
+     */
+    public RequiredReading addReadingOutOfForce(RequiredReadingRequest request, User user) {
+        return saveReading(request, user);
+    }
+
+    private RequiredReading saveReading(RequiredReadingRequest request, User user) {
         RequiredReading reading = new RequiredReading();
         reading.setItemType(request.itemType());
         reading.setItemId(request.itemId());
@@ -285,17 +350,14 @@ public class ComplianceController {
 
         // PO-16 makes assignment delivery part of the durable contract. The
         // reading and its fixed reminders therefore commit atomically -- now,
-        // or, for an article scheduled for later, when the reminder sweep sees
-        // it come into force at publication (PO-40).
-        if (assessment.reach().inForce()) {
-            reminderService.deliverAssignment(saved, user);
-        }
+        // or, for one not yet in force, when the reminder sweep sees it come
+        // into force (PO-40). deliverAssignment is a no-op until then.
+        reminderService.deliverAssignment(saved, user);
         mutationAuditService.recordSuccess(
                 user, "CREATE_REQUIRED_READING", "required_reading", saved.getId(),
                 saved.getItemTitleSnapshot(), null,
                 MutationAuditService.requiredReadingSnapshot(saved));
-
-        return ResponseEntity.ok(RequiredReadingResponse.from(saved));
+        return saved;
     }
 
     /** Port of get_required_reading_for_item (routers/compliance.py:319-335) -- Optional response, literal JSON null when absent. */
@@ -405,6 +467,13 @@ public class ComplianceController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", READING_NOT_FOUND));
         }
         RequiredReading reading = found.get();
+        if (!request.targetDepartmentOrDefault().equals(reading.getTargetDepartment())) {
+            ResponseEntity<Map<String, String>> unknownTargets =
+                    unknownDepartments(List.of(request.targetDepartmentOrDefault()));
+            if (unknownTargets != null) {
+                return unknownTargets;
+            }
+        }
         Map<String, Object> before = MutationAuditService.requiredReadingSnapshot(reading);
 
         // BL-04: read_statuses is keyed on required_reading_id (V22:11), not
@@ -439,6 +508,16 @@ public class ComplianceController {
         ResponseEntity<?> refusal = refusalFor(assessment, request.dueDate(), retargeted);
         if (refusal != null) {
             return refusal;
+        }
+        // Only a deadline being moved: an editor fixing a typo in material
+        // whose deadline has already passed re-sends that deadline unchanged.
+        boolean deadlineMoved = request.dueDate() != null
+                && (reading.getDueDate() == null || !request.dueDate().isEqual(reading.getDueDate()));
+        if (deadlineMoved && isPast(request.dueDate())) {
+            return pastDeadline();
+        }
+        if (deadlineMoved && isTooFar(request.dueDate())) {
+            return tooFarDeadline();
         }
 
         reading.setTargetDepartment(request.targetDepartmentOrDefault());
@@ -491,6 +570,40 @@ public class ComplianceController {
      * same treatment will apply to any other (e.g. Articles' scheduled
      * published_at, not retrofitted here).
      */
+    /**
+     * Owner, 2026-10-02: a deadline is never set in the past. One was taken
+     * as sent -- yesterday, a year ago, the year 1 -- and every addressee was
+     * overdue the moment it was saved, with the manager's numbers to match
+     * (date tests). An audience extension keeps the obligation's existing
+     * deadline (ArticleController#extendMandatoryToAudience), which this
+     * does not touch.
+     */
+    private static boolean isPast(OffsetDateTime dueDate) {
+        return dueDate != null && dueDate.isBefore(TbilisiTime.now());
+    }
+
+    /**
+     * PO-58 (owner, 2026-10-03): a deadline is at most two years away. The
+     * year 9999 was accepted (QA round 5) -- a typo such as 20266 made an
+     * obligation that could never fall due, with no sign anything was wrong.
+     */
+    static final int MAX_DEADLINE_YEARS = 2;
+
+    private static boolean isTooFar(OffsetDateTime dueDate) {
+        return dueDate != null && dueDate.isAfter(TbilisiTime.now().plusYears(MAX_DEADLINE_YEARS));
+    }
+
+    private static ResponseEntity<Map<String, String>> tooFarDeadline() {
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(Map.of(
+                "detail", "ვადა ორ წელზე შორს ვერ იქნება. შეამოწმეთ თარიღი -- შესაძლოა წელი არასწორადაა აკრეფილი."));
+    }
+
+    private static ResponseEntity<Map<String, String>> pastDeadline() {
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(Map.of(
+                "detail", "ვადა წარსულშია. აირჩიეთ დღევანდელი ან მომავალი თარიღი -- "
+                        + "წარსული ვადით ყველა ადრესატი მაშინვე ვადაგადაცილებული გახდებოდა."));
+    }
+
     private static OffsetDateTime normalizeDueDate(OffsetDateTime dueDate) {
         return dueDate == null ? null : dueDate.withOffsetSameInstant(TbilisiTime.OFFSET);
     }

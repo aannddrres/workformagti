@@ -17,6 +17,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
@@ -102,11 +103,132 @@ public class GlobalExceptionHandler {
                         + "გთხოვთ, გადატვირთოთ გვერდი და ცვლილება თავიდან შეიტანოთ."));
     }
 
+    /**
+     * What Oracle refuses, said as what it means (attack and crash tests,
+     * 2026-10-02). Every one of these was "unexpected error":
+     *
+     * <ul>
+     *   <li>a value longer than its column (ORA-12899, or ORA-01461 past
+     *       4000 bytes) -- a tag name, a phone number, a quiz answer: 422;
+     *   <li>content the sanitiser emptied -- only a script or an iframe,
+     *       stored as NULL into a NOT NULL column (ORA-01400): 422;
+     *   <li>no database at all -- a failover, a cut connection: 503, so the
+     *       browser waits instead of reporting a fault.
+     * </ul>
+     *
+     * The request records carry their own limits with field-by-field
+     * messages; this is the net under the paths they do not cover (the
+     * autosave maps, tag names, quiz text). Anything else is still the
+     * unexpected error below, with its correlation id.
+     */
+    @ExceptionHandler({org.springframework.dao.DataAccessException.class,
+            org.springframework.transaction.TransactionException.class})
+    public ResponseEntity<Map<String, String>> handleDatabaseRefusal(Exception exception, HttpServletRequest request) {
+        String oracle = oracleMessages(exception);
+        if (oracle.contains("ORA-12899") || oracle.contains("ORA-01461")) {
+            logger.info("Value too long for its column on {} {}", request.getMethod(), request.getRequestURI());
+            return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(Map.of(
+                    "detail", "ერთ-ერთი ველი დასაშვებ სიგრძეს აჭარბებს. შეამოკლეთ და სცადეთ ხელახლა."));
+        }
+        if (oracle.contains("ORA-01400") && oracle.contains(".\"CONTENT\")")) {
+            return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(Map.of(
+                    "detail", "ტექსტი ცარიელია. თუ მასში მხოლოდ სკრიპტი, iframe ან მსგავსი ელემენტი იყო, "
+                            + "პორტალმა ის უსაფრთხოების მიზნით წაშალა."));
+        }
+        // PO-53: a wait the portal now refuses to make -- the audit chain's
+        // lock not free within 5 s (ORA-30006, V54), a statement cancelled at
+        // the 30 s limit (ORA-01013), a transaction past its time. Busy, not
+        // broken: the same "try again" as an outage, and the log says which.
+        if (oracle.contains("ORA-30006") || oracle.contains("ORA-01013")
+                || exception instanceof org.springframework.dao.QueryTimeoutException
+                || exception instanceof org.springframework.dao.PessimisticLockingFailureException
+                || exception instanceof org.springframework.transaction.TransactionTimedOutException
+                || hasCause(exception, java.sql.SQLTimeoutException.class)) {
+            logger.warn("Database wait limit reached on {} {}: {}", request.getMethod(), request.getRequestURI(),
+                    exception.getClass().getSimpleName());
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .header(HttpHeaders.RETRY_AFTER, "5")
+                    .body(Map.of("detail", "პორტალი ახლა დაკავებულია. სცადეთ რამდენიმე წამში.",
+                            "code", "busy"));
+        }
+        if (exception instanceof org.springframework.dao.DataAccessResourceFailureException
+                || exception instanceof org.springframework.transaction.CannotCreateTransactionException
+                || hasCause(exception, java.sql.SQLRecoverableException.class)
+                || hasCause(exception, java.sql.SQLTransientConnectionException.class)
+                || oracle.contains("ORA-03113") || oracle.contains("ORA-03114")
+                || oracle.contains("Connection is closed")) {
+            logger.warn("Database unavailable on {} {}: {}", request.getMethod(), request.getRequestURI(),
+                    exception.getMessage());
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .header(HttpHeaders.RETRY_AFTER, "5")
+                    .body(Map.of("detail", "პორტალი დროებით მიუწვდომელია. სცადეთ რამდენიმე წამში.",
+                            "code", "service_unavailable"));
+        }
+        return handleUnexpected(exception, request);
+    }
+
+    /**
+     * The exception, its causes and what each one suppressed. When a rollback
+     * fails on a dead connection, Hibernate reports "Connection is closed"
+     * and the ORA-03113 that explains it travels as a suppressed exception,
+     * not as a cause (second crash test, 2026-10-02).
+     */
+    private static List<Throwable> chain(Throwable exception) {
+        List<Throwable> all = new java.util.ArrayList<>();
+        java.util.Deque<Throwable> pending = new java.util.ArrayDeque<>(List.of(exception));
+        while (!pending.isEmpty() && all.size() < 50) {
+            Throwable t = pending.pop();
+            if (all.stream().anyMatch(seen -> seen == t)) continue;
+            all.add(t);
+            if (t.getCause() != null) pending.push(t.getCause());
+            for (Throwable suppressed : t.getSuppressed()) pending.push(suppressed);
+        }
+        return all;
+    }
+
+    private static String oracleMessages(Throwable exception) {
+        StringBuilder all = new StringBuilder();
+        for (Throwable t : chain(exception)) {
+            all.append(t.getMessage()).append('\n');
+        }
+        return all.toString();
+    }
+
+    private static boolean hasCause(Throwable exception, Class<? extends Throwable> type) {
+        return chain(exception).stream().anyMatch(type::isInstance);
+    }
+
     /** Malformed or Bean-Validation-rejected request bodies are client errors. */
     @ExceptionHandler({MethodArgumentNotValidException.class, HttpMessageNotReadableException.class})
     public ResponseEntity<Map<String, String>> handleInvalidRequestBody(Exception exception) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
-                "detail", "მოთხოვნის მონაცემები არასწორია"));
+                "detail", ownGeorgianMessage(exception)));
+    }
+
+    /**
+     * The message a field's own constraint was written with, when it is
+     * Georgian -- "სტატუსი უნდა იყოს draft, published, scheduled ან archived"
+     * tells an editor what to fix. Every one of them used to collapse into the
+     * generic text below (simulation, 2026-10-01). Spring's own defaults are
+     * English ("must not be blank") and stay generic.
+     */
+    private static String ownGeorgianMessage(Exception exception) {
+        if (exception instanceof MethodArgumentNotValidException invalid) {
+            for (var error : invalid.getBindingResult().getAllErrors()) {
+                String message = error.getDefaultMessage();
+                if (message != null && message.codePoints().anyMatch(c -> c >= 0x10D0 && c <= 0x10FF)) {
+                    return message;
+                }
+            }
+        }
+        return "მოთხოვნის მონაცემები არასწორია";
+    }
+
+    /** A required query parameter left out is the caller's mistake: 400, not "unexpected error" (simulation, 2026-10-01). */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<Map<String, String>> handleMissingParameter(MissingServletRequestParameterException exception) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                "detail", "აკლია აუცილებელი პარამეტრი: " + exception.getParameterName()));
     }
 
     /**
@@ -184,6 +306,24 @@ public class GlobalExceptionHandler {
             response.header(HttpHeaders.ACCEPT, MediaType.toString(supported));
         }
         return response.body(Map.of("detail", "მოთხოვნის ფორმატი არ არის მხარდაჭერილი"));
+    }
+
+    /**
+     * A request the server cannot even read is the sender's mistake, not an
+     * unexpected error (PO-45): an upload with no file part or a broken
+     * multipart body, and a query string with an empty name ({@code ?=x}),
+     * which Tomcat refuses while parsing it. The ZAP scan of QA round 5
+     * produced 229 such 500s on /api/upload and 34 on GET endpoints. An
+     * oversized upload keeps its own, more specific 413 below.
+     */
+    @ExceptionHandler({org.springframework.web.multipart.MultipartException.class,
+            org.springframework.web.multipart.support.MissingServletRequestPartException.class,
+            org.apache.tomcat.util.http.InvalidParameterException.class})
+    public ResponseEntity<Map<String, String>> handleUnreadableRequest(Exception exception, HttpServletRequest request) {
+        logger.info("Unreadable request on {} {}: {}", request.getMethod(), request.getRequestURI(),
+                exception.getClass().getSimpleName());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                "detail", "მოთხოვნა არასწორად არის შედგენილი"));
     }
 
     /** Missing API/static routes are ordinary 404s, not unexpected server failures. */

@@ -8,7 +8,6 @@ import ge.magti.portal.content.ItemTitleResolver;
 import ge.magti.portal.domain.News;
 import ge.magti.portal.domain.ReadStatus;
 import ge.magti.portal.domain.RequiredReading;
-import ge.magti.portal.domain.Role;
 import ge.magti.portal.domain.User;
 import ge.magti.portal.query.CompleteResultGuard;
 import ge.magti.portal.repository.ReminderRepository;
@@ -134,7 +133,7 @@ public class PlatformController {
         // listed drafts and expired news by title: only what NewsVisibility
         // lets this person read belongs here.
         List<News> newsList = newsRepository.findRecentVisibleTo(
-                sevenDaysAgo, now, user.getId(), Role.CONTENT_ADMIN_ROLES.contains(user.getRole()),
+                sevenDaysAgo, now, user.getId(), user.seesAllContent(),
                 DepartmentMatcher.visibilityTargets(user.getDepartment()), PageRequest.of(0, 10));
         List<RecentNewsSummaryItem> recentNews = newsList.stream()
                 .map(n -> new RecentNewsSummaryItem(n.getId(), n.getTitle(), n.getTargetDepartment(), n.getCreatedAt()))

@@ -1,4 +1,7 @@
 <div class="portal-page">
+  <!-- PO-05: the broadcast belongs on every role's home page. This role lands here, not on the
+       operator dashboard, and never saw it (simulation, 2026-10-01). -->
+  <app-broadcast-banner />
   <header class="portal-page-header">
     <div>
       @if (isSystemAdmin()) {
@@ -37,7 +40,7 @@
             <span class="flex h-10 w-10 items-center justify-center rounded-md bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"><i class="fa-solid fa-clock" aria-hidden="true"></i></span>
             <i class="fa-solid fa-arrow-right text-xs text-slate-600 dark:text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-amber-700" aria-hidden="true"></i>
           </div>
-          <p class="mt-4 text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{{ criticalLoading() ? '—' : (critical()?.total ?? 0) }}</p>
+          <p class="mt-4 text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{{ criticalLoading() ? '—' : overdueOperatorCount() }}</p>
           <p class="mt-1 text-sm font-bold text-slate-800 dark:text-slate-200">ვადაგადაცილებული ოპერატორი</p>
           <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">სავალდებულო გაცნობის ვადა გასულია</p>
         </a>
@@ -96,7 +99,7 @@
           </span>
           <span class="min-w-0 flex-1">
             <span class="block truncate text-sm font-bold text-slate-900 dark:text-slate-100">{{ category.name }}</span>
-            <span class="mt-1 block text-xs text-slate-600 dark:text-slate-400">{{ categoryCounts().get(category.name) ?? 0 }} მასალა</span>
+            <span class="mt-1 block text-xs text-slate-600 dark:text-slate-400">{{ categoryCountLabel(category) }}</span>
           </span>
           <i class="fa-solid fa-chevron-right text-xs text-slate-600 dark:text-slate-400 group-hover:text-brand-accent" aria-hidden="true"></i>
         </a>
@@ -245,7 +248,7 @@
       <div class="mb-4 flex items-center justify-between gap-3">
         <div>
           <h2 class="text-base font-bold text-slate-900 dark:text-slate-100">ყველაზე წაკითხვადი მასალები</h2>
-          <p class="text-xs text-slate-600 dark:text-slate-400">მიმდინარე რეალური ნახვების მიხედვით</p>
+          <p class="text-xs text-slate-600 dark:text-slate-400">სავალდებულო მასალა, დადასტურებული გაცნობების რაოდენობით</p>
         </div>
       </div>
       @if (compliance()?.top_articles?.length) {
@@ -264,11 +267,11 @@
           <p class="text-xs text-slate-600 dark:text-slate-400">სწრაფი მონიტორინგი; სრული სამუშაო პროცესი გაცნობის ადმინისტრირების გვერდზე გადავა.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-          <select (change)="onProgressDeptChange($event)" class="field-control">
+          <select (change)="onProgressDeptChange($event)" class="field-control" aria-label="დეპარტამენტის ფილტრი">
             <option value="">ყველა დეპარტამენტი</option>
             @for (dept of progressDepartments(); track dept) { <option [value]="dept">{{ departmentLabel(dept) }}</option> }
           </select>
-          <select (change)="onProgressSortChange($event)" class="field-control">
+          <select (change)="onProgressSortChange($event)" class="field-control" aria-label="დალაგება">
             <option value="perf_desc">შესრულება: მაღალი → დაბალი</option>
             <option value="perf_asc">შესრულება: დაბალი → მაღალი</option>
             <option value="name">სახელის მიხედვით</option>
@@ -281,7 +284,8 @@
       } @else if (progressError()) {
         <p class="p-8 text-center text-sm text-red-700 dark:text-red-300">მონაცემები ვერ ჩაიტვირთა.</p>
       } @else {
-        <div class="max-h-[430px] overflow-auto">
+        <!-- Focusable so the keyboard can scroll it: nothing inside takes focus. -->
+        <div class="max-h-[430px] overflow-auto" tabindex="0" role="region" aria-label="გაცნობის პროგრესის ცხრილი">
           <table class="w-full min-w-[720px] text-left text-sm">
             <thead class="sticky top-0 bg-slate-50 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
               <tr><th class="px-5 py-3">მომხმარებელი</th><th class="px-5 py-3">დეპარტამენტი</th><th class="px-5 py-3 text-right">წაკითხული</th><th class="px-5 py-3 text-right">სულ</th><th class="px-5 py-3 text-right">პროგრესი</th></tr>
@@ -293,7 +297,7 @@
                   <td class="px-5 py-3 text-slate-600 dark:text-slate-400">{{ departmentLabel(item.department) }}</td>
                   <td class="px-5 py-3 text-right tabular-nums">{{ item.read_count }}</td>
                   <td class="px-5 py-3 text-right tabular-nums">{{ item.required_count }}</td>
-                  <td class="px-5 py-3 text-right font-bold tabular-nums" [class]="pctColorClass(item.percentage)">@if (pctIcon(item.percentage); as icon) { <i class="fa-solid mr-1 text-xs" [class]="icon" aria-hidden="true"></i> }{{ item.percentage }}</td>
+                  <td class="px-5 py-3 text-right font-bold tabular-nums" [class]="pctColorClass(item.percentage, item.required_count)">@if (pctIcon(item.percentage, item.required_count); as icon) { <i class="fa-solid mr-1 text-xs" [class]="icon" aria-hidden="true"></i> }{{ item.percentage }}</td>
                 </tr>
               }
             </tbody>

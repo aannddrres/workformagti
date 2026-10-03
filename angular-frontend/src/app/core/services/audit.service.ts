@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
-import { AuditChainHealth, AuditLogFilter, AuditLogPage, AuditVerifyResult } from '../models/audit';
+import { AuditChainFullCheck, AuditChainHealth, AuditLogFilter, AuditLogPage, AuditVerifyResult } from '../models/audit';
 
 function buildParams(filter: AuditLogFilter, limit: number, offset: number): HttpParams {
   let params = new HttpParams().set('limit', limit).set('offset', offset);
@@ -49,6 +49,11 @@ export class AuditService {
 
   chainHealth(n = 100): Observable<AuditChainHealth> {
     return this.http.get<AuditChainHealth>('/api/audit-logs/chain-health', { params: { n } });
+  }
+
+  /** One batch of the whole-ledger check, rows after afterId. */
+  fullChainCheck(afterId = 0): Observable<AuditChainFullCheck> {
+    return this.http.get<AuditChainFullCheck>('/api/audit-logs/chain-health/full', { params: { after_id: afterId } });
   }
 
   exportCsv(filter: AuditLogFilter): Observable<Blob> {

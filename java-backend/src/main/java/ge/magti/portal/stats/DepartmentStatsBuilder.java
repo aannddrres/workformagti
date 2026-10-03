@@ -57,8 +57,7 @@ public final class DepartmentStatsBuilder {
                     record.progress().readCount(),
                     record.progress().requiredCount(),
                     record.progress().percentage(),
-                    record.progress().requiredCount() > 0
-                            && record.progress().percentage() < ComplianceCalculator.CRITICAL_THRESHOLD);
+                    record.progress().critical());
 
             groupsByDept.get(matched)
                     .computeIfAbsent(group.groupLabel(), key -> new ArrayList<>())

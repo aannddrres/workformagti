@@ -114,6 +114,23 @@ class NewsControllerIntegrationTest {
                 + targetDepartment + "\",\"visible_to_tech_info\":true,\"visible_to_service_center\":false}";
     }
 
+    /** Two editors minutes apart: the second, holding version 1, no longer overwrites version 2 (audit 2026-10-01). */
+    @Test
+    void aSaveOverSomebodyElsesNewerEditIsRefusedWithAConflict() throws Exception {
+        User admin = createUser("news-lost-update@magti.ge", Role.CONTENT_ADMIN, "All");
+        News news = createNewsDirect("ორი ფორმა", "All", false, admin.getId());
+        String stale = newsRequestJson("%s", "All").replace("}", ",\"version\":" + news.getVersion() + "}");
+
+        mockMvc.perform(authed(put("/api/news/" + news.getId()), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON).content(stale.formatted("A-ს ვერსია")))
+                .andExpect(status().isOk());
+        mockMvc.perform(authed(put("/api/news/" + news.getId()), tokenFor(admin))
+                        .contentType(MediaType.APPLICATION_JSON).content(stale.formatted("B-ს ვერსია")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(NewsController.STALE_NEWS_EDIT_DETAIL));
+        assertEquals("A-ს ვერსია", newsRepository.findById(news.getId()).orElseThrow().getTitle());
+    }
+
     @Test
     void noTokenIsUnauthorized() throws Exception {
         mockMvc.perform(get("/api/news"))
@@ -126,7 +143,7 @@ class NewsControllerIntegrationTest {
         User operator = createUser("news-denied-" + System.nanoTime() + "@magti.ge", Role.OPERATOR, "All");
         News existing = createNewsDirect("დაცული სიახლე", "All", false, null);
         long newsBefore = newsRepository.count();
-        long auditBefore = auditLogRepository.count();
+        long auditBefore = auditLogRepository.countByActionNot("ACCESS_DENIED");
         String token = tokenFor(operator);
 
         mockMvc.perform(authed(post("/api/news"), token)
@@ -158,7 +175,7 @@ class NewsControllerIntegrationTest {
 
         assertEquals(newsBefore, newsRepository.count());
         assertEquals("დაცული სიახლე", newsRepository.findById(existing.getId()).orElseThrow().getTitle());
-        assertEquals(auditBefore, auditLogRepository.count());
+        assertEquals(auditBefore, auditLogRepository.countByActionNot("ACCESS_DENIED"));
     }
 
     @Test
@@ -166,7 +183,7 @@ class NewsControllerIntegrationTest {
         User admin = createUser("news-errors-" + System.nanoTime() + "@magti.ge", Role.CONTENT_ADMIN, "All");
         News existing = createNewsDirect("არსებული სიახლე", "All", false, admin.getId());
         long countBefore = newsRepository.count();
-        long auditBefore = auditLogRepository.count();
+        long auditBefore = auditLogRepository.countByActionNot("ACCESS_DENIED");
         String token = tokenFor(admin);
 
         mockMvc.perform(authed(post("/api/news"), token)
@@ -184,7 +201,7 @@ class NewsControllerIntegrationTest {
 
         assertEquals(countBefore, newsRepository.count());
         assertEquals("არსებული სიახლე", newsRepository.findById(existing.getId()).orElseThrow().getTitle());
-        assertEquals(auditBefore, auditLogRepository.count());
+        assertEquals(auditBefore, auditLogRepository.countByActionNot("ACCESS_DENIED"));
     }
 
     @Test

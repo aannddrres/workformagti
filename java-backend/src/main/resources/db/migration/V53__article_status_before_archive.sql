@@ -1,0 +1,12 @@
+-- PO-54 (owner, 2026-10-03): an article taken out of the archive goes back to
+-- the state it was archived from. Until now unarchive always wrote
+-- 'published', so an archived draft, or an article scheduled for next week,
+-- went live the moment it came back, and its mandatory reading started
+-- binding (QA round 5, scripts/qa/check_states.py).
+--
+-- status_before_archive holds the status the article had when it was
+-- archived, and is cleared when it leaves the archive. NULL for every article
+-- not in the archive, and for any archived before this migration: those are
+-- restored by Article#statusAfterArchive from published_at instead (none, a
+-- moment still to come, or one already passed).
+ALTER TABLE articles ADD (status_before_archive VARCHAR2(30 CHAR));

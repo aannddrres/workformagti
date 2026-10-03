@@ -45,4 +45,19 @@ describe('UserProfileService effective access', () => {
     expect(service.hasPermission('content.manage')).toBe(false);
     expect(service.canPublishAnnouncement()).toBe(false);
   });
+
+  it('asks again after a failure instead of remembering it for the whole session', async () => {
+    const fetch = vi.fn()
+      .mockReturnValueOnce(throwError(() => new Error('offline')))
+      .mockReturnValueOnce(of({
+        role: 'content_admin', permissions: ['content.manage'], bypass: false, can_publish_announcement: false
+      }));
+    const service = serviceWith(fetch);
+
+    expect(await firstValueFrom(service.ensureAccessLoaded())).toBeNull();
+    expect(await firstValueFrom(service.ensureAccessLoaded())).not.toBeNull();
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(service.hasPermission('content.manage')).toBe(true);
+  });
 });

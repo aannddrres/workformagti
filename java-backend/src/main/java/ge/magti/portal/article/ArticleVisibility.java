@@ -48,7 +48,7 @@ public final class ArticleVisibility {
         if (isPrivateDraftOfAnother(article, user)) {
             return false;
         }
-        if (user.getRole().isContentAdmin()) {
+        if (user.seesAllContent()) {
             return true;
         }
         if (!DepartmentMatcher.matches(user.getDepartment(), targetDepartments)) {

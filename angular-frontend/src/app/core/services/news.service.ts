@@ -1,7 +1,10 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { EMPTY, Observable, expand, reduce } from 'rxjs';
 import { News, NewsCommandRequest, NewsRequest, NewsSummary } from '../models/news';
+
+/** ListQueryBounds.MAX_LIMIT on the server. */
+const LIST_PAGE_SIZE = 1000;
 
 @Injectable({ providedIn: 'root' })
 export class NewsService {
@@ -12,10 +15,13 @@ export class NewsService {
     return this.http.get<NewsSummary[]>('/api/news', { params });
   }
 
-  /** Admin content-management table: mirrors fetchAndRenderAdminNews's
-   *  fetch-everything (no client pagination on this table in Python either). */
+  /** Admin content-management table: every item, a page at a time (see ArticlesService.listAll). */
   listAdmin(): Observable<NewsSummary[]> {
-    return this.list({ limit: 1000 });
+    const page = (skip: number) => this.list({ skip, limit: LIST_PAGE_SIZE });
+    return page(0).pipe(
+      expand((rows, index) => (rows.length === LIST_PAGE_SIZE ? page((index + 1) * LIST_PAGE_SIZE) : EMPTY)),
+      reduce((all, rows) => all.concat(rows), [] as NewsSummary[]),
+    );
   }
 
   get(id: number): Observable<News> {

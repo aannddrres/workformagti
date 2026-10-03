@@ -70,7 +70,7 @@ export class CategoryViewPage {
     this.categoriesService.list().subscribe({
       next: (categories) => {
         this.categories.set(categories);
-        this.articlesService.list({ limit: 1000 }).subscribe({
+        this.articlesService.listAll().subscribe({
           next: (articles) => {
             this.allArticles.set(articles.filter(isReaderVisibleArticle));
             this.refreshCategory();

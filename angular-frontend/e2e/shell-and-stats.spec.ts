@@ -219,8 +219,8 @@ test.describe('admin dashboard and videos', () => {
     await page.goto('/videos');
     await expect(page.getByRole('heading', { name: 'ვიდეო ინსტრუქციები' })).toBeVisible();
 
-    const wantedCard = page.locator('div[role="button"]', { hasText: wanted });
-    const otherCard = page.locator('div[role="button"]', { hasText: other });
+    const wantedCard = page.locator('article', { hasText: wanted });
+    const otherCard = page.locator('article', { hasText: other });
     await expect(wantedCard).toHaveCount(1);
     await expect(otherCard).toHaveCount(1);
 

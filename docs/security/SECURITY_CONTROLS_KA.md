@@ -83,12 +83,14 @@ endpoint-ების წვდომას — [`ACCESS_CONTRACT_MATRIX_KA.md`]
 | ხელით შეხსენება | ერთი თანამშრომელი | ერთხელ 24 საათში | `reminder/ReminderService.java` |
 | ფაილის ზომა | ერთი ატვირთვა | 10 MiB (აპლიკაცია); 11 MB (Spring და nginx, სატრანსპორტო) | `UploadController`, `application.yml`, `nginx.conf.template` |
 | ძებნის შედეგი | ერთი მოთხოვნა | ≤ 1000 კანდიდატი; გლობალური ძებნა: 8/5/5 | `search/SearchQueryService.java` |
-| გლობალური ძებნის cache | მთელი აპლიკაცია | 512 ჩანაწერი, 60 წამი | `search/GlobalSearchCache.java` |
+| გლობალური ძებნის coalescing | ერთი და იგივე მოთხოვნა ერთდროულად | ერთი გამოთვლა; შედეგი პასუხის შემდეგ არ ინახება (2026-10-01 — 60 წამიანი cache ახალ მასალას წუთით აგვიანებდა; მანამდე: „გლობალური ძებნის cache — მთელი აპლიკაცია — 512 ჩანაწერი, 60 წამი“) | `search/GlobalSearchCache.java` |
 | სრული სიები | ერთი პასუხი | ≤ 1000 ჩანაწერი; მეტზე 413 | `query/CompleteResultGuard.java` და მსგავსი guard-ები |
 | ექსპორტი | ერთი ფაილი | ≤ 20 000 სტრიქონი | `export/ExportSizeGuard.java` |
 | ექსპორტის ფაილის სიცოცხლე | job | 1 საათი (PO-10) | `export/ExportJobWorker.java` |
 | ექსპორტის worker-ები | მთელი აპლიკაცია | 2–4 thread, რიგი 20 | `config/ExportExecutorConfig.java` |
 | DB კავშირები | ერთი pod | ≤ 30 (`DB_POOL_MAX_SIZE`) | `application.yml` |
+| ბაზაში ლოდინი | ერთი მოთხოვნა | ≤ 30 წამი (`DB_TRANSACTION_TIMEOUT`, `DB_QUERY_TIMEOUT`); აუდიტის რიგი ≤ 5 წამი (V54), PO-53 | `application.yml`, `V54__audit_chain_lock_wait.sql` |
+| ქვიზის ცდები | ერთი ადამიანი, ერთი ქვიზი | 3 წარუმატებლის შემდეგ 10 წუთი, PO-55 | `quiz/QuizCooldown.java` |
 
 შესვლის მთვლელი Oracle-ში ინახება (`login_attempts`, V48). ამიტომ
 replica-ების რაოდენობა ლიმიტს არ ამრავლებს. ბაზა თუ მიუწვდომელია, შესვლა
@@ -285,7 +287,7 @@ HIGH/CRITICAL ვადას არღვევს.
 |---|---|---|
 | ექსპორტი (CSV/XLSX) | დიდი არჩევა, ფაილის აწყობა | ასინქრონული job: 2–4 worker, რიგი 20. რიგის გადავსებისას სამუშაოს გამომძახებელი thread ასრულებს (backpressure). ≤ 20 000 სტრიქონი; job-ის lease და heartbeat; 1 საათის შემდეგ იშლება; შეწყვეტილი job მომხმარებლის მოთხოვნით ხელახლა იწყება (PO-32) |
 | აუდიტის ექსპორტი | ყველა ჩანაწერი | JDBC cursor-ით stream-დება, მეხსიერებაში არ გროვდება |
-| გლობალური ძებნა | სამი ცხრილი | trigram-ინდექსი; ≤ 1000 კანდიდატი; 60 წამიანი cache (512 ჩანაწერი); ერთნაირი პარალელური მოთხოვნები ერთდება (coalescing) |
+| გლობალური ძებნა | სამი ცხრილი | trigram-ინდექსი; ≤ 1000 კანდიდატი; ერთნაირი პარალელური მოთხოვნები ერთდება (coalescing); შედეგი არ ინახება, ამიტომ ახალი და მოხსნილი მასალა მომდევნო ძებნაშივე აისახება (2026-10-01; მანამდე აქ ეწერა „60 წამიანი cache (512 ჩანაწერი)“) |
 | სრული სიები და ანგარიშები | დიდი ორგანიზაცია | ზღვარი 1000, მეტზე 413 და არა ნელი პასუხი (`CompleteResultGuard`, `OrgDirectoryQueryService` და სხვ.) |
 | ატვირთვა | 10 MiB სხეული | nginx-ისა და Spring-ის 11 MB ზღვარი; `proxy_read_timeout 120s`; ფაილი ერთხელ იკითხება |
 | შესვლა | გარე token endpoint | DB კავშირი token endpoint-ის ლოდინისას არ იკავება (F4); ლიმიტი — თავი 3 |
@@ -301,7 +303,7 @@ HIGH/CRITICAL ვადას არღვევს.
 |---|---|---|---|---|---|
 | nginx | ყოველი მოთხოვნა: `request_id`, მეთოდი, გზა, სტატუსი, `request_time`, `upstream_time`. query string და header-ები არ იწერება | `log_format audit_timing`, key=value | stdout → კლასტერის ლოგები → SIEM | IT/SOC | SIEM-ის პოლიტიკით (IT №10) |
 | Spring (აპლიკაცია) | შეცდომა correlation id-ით; `SIGN_IN_FAILED`, `SIGN_IN_THROTTLED` (მისამართი — hash-ით), `ACCESS_DENIED` (user, მეთოდი, გზა); გაშვების/უსაფრთხოების guard-ები | ერთ ხაზზე: დრო ±offset-ით, დონე, `requestId`, thread, logger, შეტყობინება. ახალი ხაზის სიმბოლოები ჩანაცვლებულია (log injection) | stdout → SIEM | IT/SOC | IT №10 |
-| აუდიტის ჟურნალი | ყოველი ჩაწერა, ფაილზე წვდომა და უარი, ექსპორტი, აუდიტის ნახვა, შესვლა | `audit_logs`, SHA-256 ჯაჭვი | Oracle | მხოლოდ `SYSTEM_ADMIN` (UI და ექსპორტი) | 1 წელი, შემდეგ IT-ის არქივი (PO-10) |
+| აუდიტის ჟურნალი | ყოველი ჩაწერა, ფაილზე წვდომა და უარი, ექსპორტი, აუდიტის ნახვა, შესვლა (2026-10-02, PO-48: სტატიაში ჩასმული სურათის წარმატებული ნახვა აღარ იწერება — დოკუმენტის ჩამოტვირთვა და ყოველი უარი კვლავ იწერება) | `audit_logs`, SHA-256 ჯაჭვი | Oracle | მხოლოდ `SYSTEM_ADMIN` (UI და ექსპორტი) | 1 წელი, შემდეგ IT-ის არქივი (PO-10) |
 | მეტრიკა | მოთხოვნების რაოდენობა და ხანგრძლივობა (Micrometer) | Prometheus | `/actuator/prometheus` | IT (scrape) | Prometheus-ის პოლიტიკით |
 
 **რა არასოდეს იწერება ლოგში:** პაროლი, token, cookie, `Authorization`

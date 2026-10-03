@@ -169,7 +169,7 @@ public class OrgAdminController {
             return error(HttpStatus.UNAUTHORIZED, "Could not validate credentials");
         }
         if (user.getRole() != Role.SYSTEM_ADMIN) {
-            return error(HttpStatus.FORBIDDEN, "Not enough permissions to perform this action");
+            return error(HttpStatus.FORBIDDEN, "წვდომა უარყოფილია: არასაკმარისი უფლებები");
         }
         return null;
     }

@@ -11,12 +11,22 @@ What follows is only what those headers do not say.
 
 | | |
 |---|---|
-| Git Bash only | `run-local.sh`, `verify-like-ci.sh`, `seed-demo-content.sh`, `load/fetch_tokens.sh` |
+| Git Bash only | `run-local.sh`, `verify-like-ci.sh`, `seed-demo-content.sh`, `load/fetch_tokens.sh`, `visual-diff.sh`, `qa/qa-schema.sh`, `qa/qa-backend.sh`, `qa/zap/zap_scan.sh` |
 | Native PowerShell | `link-skills.ps1` |
 
 `seed-demo-content.sh` is POSIX `sh`, not bash, because it also runs inside
 `curlimages/curl` as the compose `seed` service. `.gitattributes` pins it to
 LF for the same reason.
+
+## Production-readiness checks
+
+`qa/` holds the checks of QA round 5 (2026-10-03) -- database hangs,
+upgrade and rollback, backup and restore, a month in a day, audit tampering,
+floods, a 600-person shift, sessions, offline, ZAP -- each runnable again
+from one command against the throwaway `MAGTI_QA` schema. `qa/qa_lib.py`
+refuses any other Oracle user and any host but 127.0.0.1. Start at
+`qa/README_KA.md`. `audit/check_anchors.py` is the one meant for production:
+it compares the logged `AUDIT_CHAIN_ANCHOR` lines with the audit table.
 
 ## What the headers do not tell you
 

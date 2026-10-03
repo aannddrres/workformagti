@@ -23,22 +23,28 @@ public final class OperatorStatsBuilder {
     }
 
     /**
-     * Mirrors get_critical_operators:724-739: operators below
-     * {@link ComplianceCalculator#CRITICAL_THRESHOLD} who actually have
-     * something required, sorted by most-overdue first.
+     * Operators who need a leader's attention: below
+     * {@link ComplianceCalculator#CRITICAL_THRESHOLD}, or with anything past
+     * its deadline, sorted by most overdue first.
+     *
+     * <p>{@code overdue_count} is what is owed AND past its deadline. It used
+     * to be required minus read, so a reading due tomorrow showed as overdue
+     * today on the admin overview ("ვადაგადაცილებული ოპერატორი"), the users
+     * table and the leader's list -- and someone at 90% with one item a week
+     * late did not appear at all (simulation, 2026-10-01).
      */
     public static List<CriticalOperator> buildCriticalOperators(List<ComplianceRecord> records) {
         List<CriticalOperator> operators = new ArrayList<>();
         for (ComplianceRecord record : records) {
             ReadingProgress progress = record.progress();
-            if (progress.requiredCount() > 0 && progress.percentage() < ComplianceCalculator.CRITICAL_THRESHOLD) {
+            if (progress.critical()) {
                 String[] parts = DisplayName.splitFirstLast(record.user().getName());
                 operators.add(new CriticalOperator(
                         record.user().getId(),
                         DisplayName.firstName(parts),
                         DisplayName.lastName(parts),
                         record.user().getDepartment(),
-                        progress.requiredCount() - progress.readCount()));
+                        progress.overdueCount()));
             }
         }
         operators.sort(Comparator.comparingInt(CriticalOperator::overdueCount).reversed());

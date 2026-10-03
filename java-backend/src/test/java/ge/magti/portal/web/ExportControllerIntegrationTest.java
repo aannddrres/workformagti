@@ -46,6 +46,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.time.LocalDate;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
@@ -97,6 +98,8 @@ class ExportControllerIntegrationTest {
     private ExportJobRepository exportJobRepository;
     @Autowired
     private ExportJobCleanupScheduler exportJobCleanupScheduler;
+    @Autowired
+    private ge.magti.portal.repository.ArticleTargetDepartmentRepository articleTargetDepartmentRepository;
     @Autowired
     private JwtService jwtService;
     @Autowired
@@ -241,11 +244,85 @@ class ExportControllerIntegrationTest {
                 .andExpect(header().string("Content-Disposition", "attachment; filename=readings_export.csv"))
                 .andReturn().getResponse().getContentAsString();
 
-        assertTrue(csv.startsWith("თანამშრომლის ID,თანამშრომელი,მასალის ტიპი,მასალის ID,სტატუსი,წაკითხვის თარიღი\r\n"));
+        assertTrue(csv.startsWith(
+                "თანამშრომელი,დეპარტამენტი,ჯგუფი,მასალის სათაური,მასალის ტიპი,სტატუსი,წაკითხვის დრო,ვადა\r\n"),
+                "PO-13's eight columns, without employee or material ID");
         assertTrue(csv.contains("სტატია"), "known article type must be Georgian in the exported data");
         assertTrue(csv.contains("წაკითხულია"), "known reading status must be Georgian in the exported data");
         assertTrue(csv.contains("'=cmd|'/c calc'!A1"), "operator's formula-leading name must be sanitized");
-        assertFalse(csv.contains(manager.getId() + ","), "manager (management role) must be excluded from the eligible export");
+        assertFalse(csv.contains(manager.getName()), "manager (management role) must be excluded from the eligible export");
+    }
+
+    /**
+     * PO-13: status is read / unread / late. The export was built from
+     * confirmations alone, so it listed who had read and left out the people
+     * a leader exports it to find (simulation, 2026-10-01).
+     */
+    @Test
+    void readingsExportListsWhatIsStillOwedAsUnreadOrOverdue() throws Exception {
+        User admin = createUser("exp-admin-owed@magti.ge", Role.SYSTEM_ADMIN, "All");
+        String department = "დავალიანების განყოფილება " + System.nanoTime();
+        createUser("exp-op-owed@magti.ge", Role.OPERATOR, department);
+        Article article = createArticle("სავალდებულო " + System.nanoTime());
+        article.setStatus("published");
+        article.setDraft(false);
+        article.setPublishedAt(TbilisiTime.now().minusDays(2));
+        article.setTargetDepartment(department);
+        articleRepository.saveAndFlush(article);
+        ge.magti.portal.domain.ArticleTargetDepartment audience = new ge.magti.portal.domain.ArticleTargetDepartment();
+        audience.setArticleId(article.getId());
+        audience.setDepartment(department);
+        articleTargetDepartmentRepository.saveAndFlush(audience);
+        long articleId = article.getId();
+        createReading(articleId, department);
+        RequiredReading late = createReading(articleId, department);
+        late.setDueDate(TbilisiTime.now().minusDays(1));
+        requiredReadingRepository.saveAndFlush(late);
+
+        String csv = mockMvc.perform(authed(get("/api/export/readings"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(csv.contains("წაუკითხავია"), "an unconfirmed reading in force must be exported as unread");
+        assertTrue(csv.contains("ვადაგადაცილებულია"), "one past its deadline must be exported as overdue");
+    }
+
+    /**
+     * QA round 4, 2026-10-02. Read after its deadline, a reading was exported
+     * as plainly "read", though PO-13 names a third status; and with no way
+     * to choose a period, the file grew with the whole history until it
+     * passed the 20,000-row cap and nobody could export at all. Owner:
+     * PO-13's columns, "late", and a period by deadline.
+     */
+    @Test
+    void readingsExportSaysLateAndKeepsToTheChosenPeriod() throws Exception {
+        User admin = createUser("exp-admin-period@magti.ge", Role.SYSTEM_ADMIN, "All");
+        String department = "პერიოდის განყოფილება " + System.nanoTime();
+        User operator = createUser("exp-op-period@magti.ge", Role.OPERATOR, department);
+        Article lateOne = createArticle("დაგვიანებული " + System.nanoTime());
+        Article laterOne = createArticle("მომავალი თვის " + System.nanoTime());
+
+        RequiredReading late = createReading(lateOne.getId(), department);
+        late.setDueDate(LocalDate.of(2026, 3, 10).atTime(18, 0).atOffset(TbilisiTime.OFFSET));
+        requiredReadingRepository.saveAndFlush(late);
+        markRead(operator, late);
+        RequiredReading next = createReading(laterOne.getId(), department);
+        next.setDueDate(LocalDate.of(2026, 4, 2).atTime(18, 0).atOffset(TbilisiTime.OFFSET));
+        requiredReadingRepository.saveAndFlush(next);
+        markRead(operator, next);
+
+        String march = mockMvc.perform(authed(get("/api/export/readings")
+                        .param("from", "2026-03-01").param("through", "2026-03-31"), tokenFor(admin)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String marchRow = march.lines().filter(l -> l.startsWith(operator.getName())).findFirst().orElseThrow();
+        assertTrue(marchRow.contains(lateOne.getTitle()), "the material's title is a column (PO-13): " + marchRow);
+        assertTrue(marchRow.contains("დაგვიანებით წაკითხულია"), "read after its deadline is late: " + marchRow);
+        assertFalse(march.contains(laterOne.getTitle()), "a deadline in April is outside March");
+
+        mockMvc.perform(authed(get("/api/export/readings")
+                        .param("from", "2026-04-01").param("through", "2026-03-01"), tokenFor(admin)))
+                .andExpect(status().isBadRequest());
     }
 
     /**
@@ -312,8 +389,8 @@ class ExportControllerIntegrationTest {
                 var row = sheet.getRow(i);
                 if (row != null && row.getCell(0) != null
                         && operator.getName().equals(row.getCell(0).getStringCellValue())) {
-                    assertEquals("სტატია", row.getCell(2).getStringCellValue());
-                    assertEquals("წაკითხულია", row.getCell(4).getStringCellValue());
+                    assertEquals("სტატია", row.getCell(4).getStringCellValue());
+                    assertEquals("წაკითხულია", row.getCell(5).getStringCellValue());
                     foundOperatorRow = true;
                     break;
                 }
@@ -446,6 +523,10 @@ class ExportControllerIntegrationTest {
         // Manager itself is a management role (excluded from eligibility) --
         // use a separate eligible operator so the export has a data row.
         User eligibleOperator = createUser("exp-op4@magti.ge", Role.OPERATOR, manager.getDepartment());
+        // A name of a real length: this suite's own names carry the address,
+        // and four such columns side by side do not fit a page at any size.
+        eligibleOperator.setName("ნინო ბერიძე");
+        eligibleOperator = userRepository.saveAndFlush(eligibleOperator);
         assignHomeTeam(manager, eligibleOperator);
         markRead(eligibleOperator, reading);
 
@@ -464,7 +545,7 @@ class ExportControllerIntegrationTest {
         try (PDDocument document = Loader.loadPDF(pdfBytes)) {
             String text = new PDFTextStripper().getText(document);
             assertTrue(text.contains("სავალდებულოდ"));
-            assertTrue(text.contains(eligibleOperator.getName()));
+            assertTrue(text.contains(eligibleOperator.getName()), text);
             assertTrue(text.contains("წაკითხულია"));
         }
     }
@@ -521,20 +602,20 @@ class ExportControllerIntegrationTest {
         markRead(ownOperator, createReading(article.getId(), ownDept));
         markRead(otherOperator, createReading(article.getId(), otherDept));
 
-        Set<String> managerIds = csvUserIds(mockMvc.perform(authed(get("/api/export/readings"), tokenFor(manager)))
+        Set<String> managerIds = csvNames(mockMvc.perform(authed(get("/api/export/readings"), tokenFor(manager)))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString());
-        assertTrue(managerIds.contains(String.valueOf(ownOperator.getId())),
+        assertTrue(managerIds.contains(ownOperator.getName()),
                 "manager must still see their own department's operator");
-        assertFalse(managerIds.contains(String.valueOf(otherOperator.getId())),
+        assertFalse(managerIds.contains(otherOperator.getName()),
                 "SEC-02: manager's export must not carry another department's operator");
 
         // system_admin behaviour is unchanged: still org-wide.
-        Set<String> adminIds = csvUserIds(mockMvc.perform(authed(get("/api/export/readings"), tokenFor(admin)))
+        Set<String> adminIds = csvNames(mockMvc.perform(authed(get("/api/export/readings"), tokenFor(admin)))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString());
-        assertTrue(adminIds.contains(String.valueOf(ownOperator.getId())));
-        assertTrue(adminIds.contains(String.valueOf(otherOperator.getId())),
+        assertTrue(adminIds.contains(ownOperator.getName()));
+        assertTrue(adminIds.contains(otherOperator.getName()),
                 "system_admin must keep the unscoped org-wide export");
     }
 
@@ -633,8 +714,8 @@ class ExportControllerIntegrationTest {
                 "a refused export must leave no audit row claiming it happened");
     }
 
-    /** First CSV field of every data row = User ID (see the exportReadingsCsv header). */
-    private static Set<String> csvUserIds(String csv) {
+    /** First CSV field of every data row = the person's name (PO-13 has no ID column). */
+    private static Set<String> csvNames(String csv) {
         Set<String> ids = new LinkedHashSet<>();
         String[] lines = csv.split("\r\n");
         for (int i = 1; i < lines.length; i++) {

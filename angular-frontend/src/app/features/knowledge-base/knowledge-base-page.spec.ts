@@ -27,7 +27,7 @@ describe('KnowledgeBasePage search', () => {
     TestBed.configureTestingModule({
       providers: [
         { provide: CategoriesService, useValue: { list: () => of([]) } },
-        { provide: ArticlesService, useValue: { list: () => list$, search } },
+        { provide: ArticlesService, useValue: { listAll: () => list$, search } },
         { provide: TranslateService, useValue: { instant: (key: string) => key } },
         { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap({}) } } },
         { provide: Router, useValue: { navigate: vi.fn() } }
@@ -54,7 +54,7 @@ describe('KnowledgeBasePage search', () => {
     TestBed.configureTestingModule({
       providers: [
         { provide: CategoriesService, useValue: { list: () => of([roaming]) } },
-        { provide: ArticlesService, useValue: { list, search: vi.fn(() => of([])) } },
+        { provide: ArticlesService, useValue: { listAll: list, search: vi.fn(() => of([])) } },
         { provide: TranslateService, useValue: { instant: (key: string) => key } },
         { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap({}) } } },
         { provide: Router, useValue: { navigate: vi.fn() } }

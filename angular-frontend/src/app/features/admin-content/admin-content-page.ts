@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { BroadcastBanner } from '../../shared/broadcast-banner/broadcast-banner';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ArticlesService } from '../../core/services/articles.service';
 import { CategoriesService } from '../../core/services/categories.service';
@@ -14,6 +15,7 @@ import { VideosService } from '../../core/services/videos.service';
 import { NewsSummary } from '../../core/models/news';
 import { VideoInstruction } from '../../core/models/video';
 import { ToastService } from '../../core/notifications/toast.service';
+import { UserProfileService } from '../../core/auth/user-profile.service';
 import { Observable, firstValueFrom } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ConfirmRequest, ConfirmService } from '../../core/notifications/confirm.service';
@@ -60,7 +62,7 @@ const STATUS_BADGE: Record<string, string> = {
 @Component({
   selector: 'app-admin-content-page',
   standalone: true,
-  imports: [TranslatePipe, KaDatePipe, CategoryStrip, RowMenu, ArticleEditDrawer, ArticleHistoryModal, NewsEditDrawer, VideoEditDrawer],
+  imports: [TranslatePipe, KaDatePipe, CategoryStrip, RowMenu, ArticleEditDrawer, ArticleHistoryModal, NewsEditDrawer, VideoEditDrawer, BroadcastBanner],
   templateUrl: './admin-content-page.html'
 })
 export class AdminContentPage {
@@ -72,6 +74,15 @@ export class AdminContentPage {
   private readonly requiredReadingService = inject(RequiredReadingService);
   private readonly toast = inject(ToastService);
   private readonly translate = inject(TranslateService);
+  private readonly profiles = inject(UserProfileService);
+
+  /**
+   * Without articles.edit the server refuses every article save, restore and
+   * quiz change. The page used to offer all of them anyway and answer with a
+   * small generic 403 after the editor had done the work (simulation,
+   * 2026-10-01).
+   */
+  protected readonly canEditArticles = computed(() => this.profiles.hasPermission('articles.edit'));
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
@@ -370,6 +381,10 @@ export class AdminContentPage {
 
   protected openCreateArticle(): void {
     this.createMenuOpen.set(false);
+    if (!this.canEditArticles()) {
+      this.actionError.set(this.translate.instant('content.articles.no_edit_permission'));
+      return;
+    }
     this.editingArticle.set({ id: null });
   }
 
@@ -399,12 +414,18 @@ export class AdminContentPage {
 
   protected rowArchived(row: QueueRow): boolean { return row.status === 'archived'; }
 
-  protected toggleArchiveRow(row: QueueRow): void {
+  protected async toggleArchiveRow(row: QueueRow): Promise<void> {
     if (row.type === 'article') {
       this.toggleArchive(row.original as ArticleSummary);
       return;
     }
     const archived = row.status === 'archived';
+    if (!archived && !(await this.confirmService.ask({
+      message: this.translate.instant('content.articles.row_archive_confirm'),
+      confirmLabel: 'დაარქივება'
+    }))) {
+      return;
+    }
     const request: Observable<unknown> = row.type === 'news'
       ? (archived ? this.newsService.unarchive(row.id) : this.newsService.archive(row.id))
       : (archived ? this.videosService.unarchive(row.id) : this.videosService.archive(row.id));
@@ -426,6 +447,10 @@ export class AdminContentPage {
   }
 
   protected openEditArticle(article: ArticleSummary): void {
+    if (!this.canEditArticles()) {
+      this.actionError.set(this.translate.instant('content.articles.no_edit_permission'));
+      return;
+    }
     this.editingArticle.set(article);
   }
 
@@ -519,6 +544,16 @@ export class AdminContentPage {
     const ids = [...this.selection()];
     if (ids.length === 0) return;
     if (status === 'published' && !(await this.confirmService.ask({ message: `გამოქვეყნდეს ${ids.length} მასალა. გავაგრძელოთ?`, confirmLabel: 'გამოქვეყნება' }))) {
+      return;
+    }
+    // Unpublishing pauses any mandatory obligation on these articles (PO-40).
+    // The single-article archive says so; the batch did it silently
+    // (simulation, 2026-10-01).
+    if (status !== 'published' && !(await this.confirmService.ask({
+      message: this.translate.instant('content.articles.bulk_pause_confirm', { count: ids.length }),
+      confirmLabel: this.translate.instant('content.articles.bulk_pause_action'),
+      tone: 'danger'
+    }))) {
       return;
     }
     this.runBulk(this.articlesService.bulkStatus(ids, status));

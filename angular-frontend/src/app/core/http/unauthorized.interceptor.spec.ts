@@ -60,6 +60,16 @@ describe('unauthorizedInterceptor', () => {
     expect(open).toHaveBeenCalledWith({ returnUrl: '/articles/113' });
   });
 
+  it('says the session ended when the server reports that it did (QA round 5)', () => {
+    configure('/reading');
+
+    http.get('/api/compliance/my-readings').subscribe({ next: () => void 0, error: () => void 0 });
+    backend.expectOne('/api/compliance/my-readings')
+      .flush({ detail: 'Could not validate credentials', code: 'session_expired' }, { status: 401, statusText: 'x' });
+
+    expect(open).toHaveBeenCalledWith({ returnUrl: '/reading', reason: 'session-ended' });
+  });
+
   it('leaves other failures alone', () => {
     configure('/articles/113');
 

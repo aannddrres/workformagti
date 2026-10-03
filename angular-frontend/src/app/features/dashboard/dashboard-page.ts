@@ -94,7 +94,7 @@ export class DashboardPage {
   constructor() {
     this.categoriesService.list().subscribe((categories) => this.categories.set(categories));
     this.articlesService
-      .list({ limit: 1000 })
+      .listAll()
       .subscribe((articles) => this.countingSet.set(articles.filter(isReaderVisibleArticle)));
 
     if (!this.isManagement()) {

@@ -75,7 +75,7 @@ if [ "$MODE" = "all" ] || [ "$MODE" = "fast" ]; then
   step "frontend (i18n guard, lint, production build, unit tests)"
   (cd angular-frontend && npm ci >/dev/null)
   (cd angular-frontend && npm audit --omit=dev --audit-level=moderate)
-  (cd angular-frontend && npm audit --audit-level=moderate)
+  (cd angular-frontend && node scripts/audit-build-tooling.mjs)
   # Plain Node, no Angular CLI -- so these two run even where the build cannot.
   (cd angular-frontend && npm run check:i18n)
   # Added with the CI step, 2026-09-05. Kept next to check:i18n rather than in

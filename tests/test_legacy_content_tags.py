@@ -17,7 +17,13 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import import_legacy_content  # noqa: E402
-from legacy_content import clean_article_tags, searchable_text, trigrams  # noqa: E402
+from legacy_content import (  # noqa: E402
+    SanitizationStats,
+    clean_article_tags,
+    sanitize_html,
+    searchable_text,
+    trigrams,
+)
 
 
 NOW = datetime(2026, 9, 29, 12, 0, 0)
@@ -55,21 +61,37 @@ def _source(rows: list[tuple[int, str, str, str | None]]) -> sqlite3.Connection:
 
 
 class RecordingCursor:
-    """Accepts every statement the article pass and the indexer issue; keeps the ones under test."""
+    """Accepts every statement the article pass and the indexer issue; keeps the ones under test.
 
-    def __init__(self, mapped: dict[int, int]):
+    ``portal`` is the article as the portal holds it now, per article id:
+    (changed since the import, title, content). Absent means untouched.
+    """
+
+    def __init__(self, mapped: dict[int, int], portal: dict[int, tuple[int, str, str]] | None = None):
         self.mapped = mapped  # source id -> article id from an earlier run
+        self.portal = portal or {}
         self.inserted: list[dict] = []
         self.updated: list[dict] = []
+        self.version_bumped: list[int] = []
+        self.targets_rewritten: list[int] = []
         self.indexed: dict[int, set[str]] = {}
         self._result: list[tuple] = []
 
     def execute(self, sql: str, **params):
         self._result = []
-        if "FROM legacy_content_imports" in sql and params["source_type"] == "article":
+        if "FROM articles a JOIN legacy_content_imports" in sql:
+            self._result = [self.portal.get(params["article_id"], (0, "", ""))]
+        elif "FROM legacy_content_imports" in sql and params["source_type"] == "article":
             self._result = list(self.mapped.items())
-        elif sql.startswith("UPDATE articles"):
+        elif sql.startswith("UPDATE articles SET title"):
             self.updated.append(params)
+        elif sql.startswith("UPDATE articles SET version"):
+            self.version_bumped.append(params["article_id"])
+        elif sql.startswith("DELETE FROM article_target_departments"):
+            self.targets_rewritten.append(params["article_id"])
+
+    def fetchone(self):
+        return self._result[0] if self._result else None
 
     def executemany(self, sql: str, rows: list[dict]):
         for row in rows:
@@ -106,3 +128,57 @@ def test_both_the_article_row_and_its_search_index_get_the_cleaned_tags(monkeypa
     for article_id, tags in expected.items():
         assert cursor.indexed[article_id] == set(trigrams(searchable_text(titles[article_id], "<p>ტექსტი</p>", tags)))
         assert "sup" not in cursor.indexed[article_id]
+
+
+def _run(cursor: RecordingCursor, monkeypatch, rows, apply: bool = True) -> dict:
+    monkeypatch.setattr(import_legacy_content, "_insert_id", lambda cursor, sql, **params: 600)
+    return import_legacy_content._import_articles(
+        cursor, _source(rows), category_ids={}, valid_assets=set(), author_id=1,
+        status="draft", batch="test", now=NOW, apply=apply,
+    )
+
+
+def _sanitized(content: str) -> str:
+    return sanitize_html(content, source_article_id=0, valid_assets=set(),
+                         stats=SanitizationStats(source_article_id=0))[0]
+
+
+def test_an_article_changed_in_the_portal_is_left_exactly_as_it_is(monkeypatch) -> None:
+    """Audit 2026-10-01: a re-run put the legacy department and text back over an
+    administrator's retarget and fix, under the same version, with no audit row."""
+    cursor = RecordingCursor(mapped={18: 500}, portal={500: (1, "ადმინის სათაური", "<p>ადმინის ტექსტი</p>")})
+
+    result = _run(cursor, monkeypatch, [(18, "პაუზა", "<p>ტექსტი</p>", None)])
+
+    assert result["kept"] == [500]
+    assert result["updated"] == 0
+    assert cursor.updated == [] and cursor.version_bumped == [] and cursor.targets_rewritten == []
+    assert 18 not in result["mapping"], "nor re-indexed with the legacy text"
+
+
+def test_an_untouched_article_gets_a_new_version_only_when_its_text_changes(monkeypatch) -> None:
+    same = _sanitized("<p>ტექსტი</p>")
+    cursor = RecordingCursor(
+        mapped={18: 500, 19: 501},
+        portal={500: (0, "პაუზა", same), 501: (0, "შეჩერება", "<p>ძველი ტექსტი</p>")},
+    )
+
+    result = _run(cursor, monkeypatch, [
+        (18, "პაუზა", "<p>ტექსტი</p>", None),
+        (19, "შეჩერება", "<p>ტექსტი</p>", None),
+    ])
+
+    assert result["updated"] == 2 and result["kept"] == []
+    assert cursor.version_bumped == [501]
+
+
+def test_the_dry_run_reports_what_apply_will_do(monkeypatch) -> None:
+    cursor = RecordingCursor(mapped={18: 500, 19: 501}, portal={500: (1, "x", "x")})
+
+    result = _run(cursor, monkeypatch, [
+        (18, "პაუზა", "<p>ტექსტი</p>", None),
+        (19, "შეჩერება", "<p>ტექსტი</p>", None),
+    ], apply=False)
+
+    assert result["kept"] == [500]
+    assert result["updated"] == 1

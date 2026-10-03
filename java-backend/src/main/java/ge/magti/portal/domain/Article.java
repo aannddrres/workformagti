@@ -79,6 +79,15 @@ public class Article {
     @Transient
     private List<String> targetDepartments = new ArrayList<>();
 
+    /**
+     * Legacy, together with {@code visible_to_tech_info} and
+     * {@code visible_to_service_center}: stored, returned and carried through
+     * edits, but no rule reads any of the three and no screen shows them.
+     * Who may read an article is target_departments alone (ArticleVisibility);
+     * the old roles these flags served never existed here
+     * (ArticleQueryService's javadoc). Do not build on them without a
+     * decision to bring them back (audit 2026-10-01).
+     */
     @Column(name = "audience_profile", length = 20)
     private String audienceProfile = "all";
 
@@ -107,12 +116,18 @@ public class Article {
      * displays on purpose would make every version bump look like a
      * conflict.
      *
-     * <p>Managed entirely by Hibernate; nothing in application code should
-     * read or set it. Its job is to make the second of two simultaneous
+     * <p>Managed entirely by Hibernate; nothing in application code sets it.
+     * Its job is to make the second of two simultaneous
      * saves fail cleanly at the UPDATE, instead of both computing the same
      * {@code version + 1} and colliding on
      * {@code ux_article_history_article_version} afterwards -- which
      * surfaced as an opaque 500 with the edit lost.
+     *
+     * <p>It is read for one more thing: {@code PUT /api/articles/{id}}
+     * compares it with the copy the editor loaded. {@code @Version} alone
+     * catches two saves in the same instant only -- two people with the
+     * editor open for minutes both saved, and the second silently won
+     * (audit 2026-10-01).
      */
     @Version
     @Column(name = "lock_version", nullable = false)
@@ -123,6 +138,15 @@ public class Article {
 
     @Column(name = "status", length = 30)
     private String status = "draft";
+
+    /**
+     * The status this article had when it was archived; null when it is not
+     * in the archive (V53, PO-54). Kept by {@link #setStatus} itself, so every
+     * path into and out of the archive -- single, bulk, the editor's PUT --
+     * records it the same way.
+     */
+    @Column(name = "status_before_archive", length = 30)
+    private String statusBeforeArchive;
 
     @Column(name = "youtube_id", length = 50)
     private String youtubeId;
@@ -231,6 +255,10 @@ public class Article {
         this.updatedAt = updatedAt;
     }
 
+    public int getLockVersion() {
+        return lockVersion;
+    }
+
     public int getVersion() {
         return version;
     }
@@ -252,7 +280,36 @@ public class Article {
     }
 
     public void setStatus(String status) {
+        boolean wasArchived = "archived".equals(this.status);
+        boolean nowArchived = "archived".equals(status);
+        if (nowArchived && !wasArchived) {
+            this.statusBeforeArchive = this.status;
+        } else if (!nowArchived) {
+            this.statusBeforeArchive = null;
+        }
         this.status = status;
+    }
+
+    public String getStatusBeforeArchive() {
+        return statusBeforeArchive;
+    }
+
+    /**
+     * Where unarchive takes this article (PO-54): back to the state it was
+     * archived from. An article archived before V53 has no record of it, so
+     * its publication date decides -- none is a draft, one still to come is
+     * scheduled, one already passed is published. Unarchive used to answer
+     * "published" unconditionally, which put archived drafts and next week's
+     * articles live at once.
+     */
+    public String statusAfterArchive(OffsetDateTime now) {
+        if (statusBeforeArchive != null && !"archived".equals(statusBeforeArchive)) {
+            return statusBeforeArchive;
+        }
+        if (publishedAt == null) {
+            return "draft";
+        }
+        return publishedAt.isAfter(now) ? "scheduled" : "published";
     }
 
     public String getYoutubeId() {

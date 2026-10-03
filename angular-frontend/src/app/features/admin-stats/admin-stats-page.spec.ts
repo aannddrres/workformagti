@@ -26,7 +26,7 @@ describe('AdminStatsPage capability isolation', () => {
       userProgress: vi.fn(() => of([]))
     };
     const categories = { listAdmin: vi.fn(() => of([])) };
-    const articles = { list: vi.fn(() => of([])) };
+    const articles = { listAll: vi.fn(() => of([])) };
     const audit = {
       chainHealth: vi.fn(() => of({ status: 'ok', checked: 0 })),
       list: vi.fn(() => of({ rows: [], total: 0 }))
@@ -65,7 +65,7 @@ describe('AdminStatsPage capability isolation', () => {
     expect(services.stats.criticalOperators).not.toHaveBeenCalled();
     expect(services.stats.userProgress).not.toHaveBeenCalled();
     expect(services.categories.listAdmin).not.toHaveBeenCalled();
-    expect(services.articles.list).not.toHaveBeenCalled();
+    expect(services.articles.listAll).not.toHaveBeenCalled();
     expect(services.audit.chainHealth).not.toHaveBeenCalled();
     expect(services.audit.list).not.toHaveBeenCalled();
   });
@@ -76,7 +76,7 @@ describe('AdminStatsPage capability isolation', () => {
     expect(services.stats.criticalOperators).toHaveBeenCalledOnce();
     expect(services.stats.userProgress).toHaveBeenCalledOnce();
     expect(services.categories.listAdmin).toHaveBeenCalledOnce();
-    expect(services.articles.list).toHaveBeenCalledOnce();
+    expect(services.articles.listAll).toHaveBeenCalledOnce();
     expect(services.audit.chainHealth).toHaveBeenCalledOnce();
     expect(services.audit.list).toHaveBeenCalledOnce();
   });

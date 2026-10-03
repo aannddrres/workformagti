@@ -1,10 +1,11 @@
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
-import { provideRouter, withInMemoryScrolling } from '@angular/router';
+import { TitleStrategy, provideRouter, withInMemoryScrolling } from '@angular/router';
 import { HttpXsrfTokenExtractor, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideTranslateService } from '@ngx-translate/core';
 import { provideTranslateHttpLoader } from '@ngx-translate/http-loader';
 
 import { routes } from './app.routes';
+import { PortalTitleStrategy } from './shell/portal-title-strategy';
 import { apiBaseUrlInterceptor } from './core/http/api-base-url.interceptor';
 import { unauthorizedInterceptor } from './core/http/unauthorized.interceptor';
 import { PortalXsrfTokenExtractor } from './core/http/portal-xsrf-token-extractor';
@@ -16,6 +17,7 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes, withInMemoryScrolling({ scrollPositionRestoration: 'top', anchorScrolling: 'enabled' })),
+    { provide: TitleStrategy, useClass: PortalTitleStrategy },
     provideHttpClient(withInterceptors([apiBaseUrlInterceptor, unauthorizedInterceptor])),
     // The CSRF cookie is __Host-XSRF-TOKEN in production, XSRF-TOKEN on plain HTTP.
     { provide: HttpXsrfTokenExtractor, useClass: PortalXsrfTokenExtractor },

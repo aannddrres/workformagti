@@ -283,16 +283,17 @@ class UserControllerIntegrationTest {
         otherOperator.setCardStyle("light");
         otherOperator = userRepository.saveAndFlush(otherOperator);
 
+        // The name is the directory's (2026-10-01): sent unchanged, it is accepted.
         mockMvc.perform(authed(put("/api/users/me"), tokenFor(operator))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"ახალი სახელი\",\"phone\":\"555\",\"position\":\"ოპერატორი\",\"card_style\":\"dark\"}"))
+                        .content("{\"name\":\"" + operator.getName() + "\",\"phone\":\"555\",\"position\":\"ოპერატორი\",\"card_style\":\"dark\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("ახალი სახელი"))
+                .andExpect(jsonPath("$.name").value(operator.getName()))
                 .andExpect(jsonPath("$.phone").value("555"))
                 .andExpect(jsonPath("$.card_style").value("dark"));
 
         User reloaded = userRepository.findById(operator.getId()).orElseThrow();
-        assertEquals("ახალი სახელი", reloaded.getName());
+        assertEquals(operator.getName(), reloaded.getName());
         assertEquals(operator.getEmail(), reloaded.getEmail());
         assertEquals(Role.OPERATOR, reloaded.getRole());
         assertEquals("All", reloaded.getDepartment());
@@ -305,7 +306,7 @@ class UserControllerIntegrationTest {
 
         AuditLog audit = singleAudit("UPDATE_USER_PROFILE", operator.getId());
         assertEquals(operator.getId(), audit.getAdminId());
-        assertEquals("ახალი სახელი", audit.getItemNameSnapshot());
+        assertEquals(operator.getName(), audit.getItemNameSnapshot());
         JsonNode details = objectMapper.readTree(audit.getDetails());
         assertEquals(1, details.path("schema_version").asInt());
         assertEquals("SUCCESS", details.path("result").asText());
@@ -316,27 +317,34 @@ class UserControllerIntegrationTest {
         assertFalse(audit.getDetails().contains("555"), "contact data must not be copied into audit details");
     }
 
+    /**
+     * Simulation, 2026-10-01: an operator renamed themselves "სისტემური
+     * ადმინისტრატორი" for every screen and export. The directory owns names;
+     * any change -- a blank one included -- is refused and nothing is saved.
+     */
     @Test
-    void selfUpdateRejectsBlankNameWithoutChangingProfileOrAudit() throws Exception {
+    void selfUpdateRefusesANameChangeWithoutChangingProfileOrAudit() throws Exception {
         User operator = createUser("me-invalid-name@magti.ge", Role.OPERATOR, "All");
         String nameBefore = operator.getName();
-        long auditsBefore = auditLogRepository.count();
+        long auditsBefore = auditLogRepository.countByActionNot("ACCESS_DENIED");
 
-        mockMvc.perform(authed(put("/api/users/me"), tokenFor(operator))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\" \",\"phone\":\"555\"}"))
-                .andExpect(status().isBadRequest());
+        for (String name : List.of(" ", "სისტემური ადმინისტრატორი")) {
+            mockMvc.perform(authed(put("/api/users/me"), tokenFor(operator))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"name\":\"" + name + "\",\"phone\":\"555\"}"))
+                    .andExpect(status().isForbidden());
+        }
 
         User reloaded = userRepository.findById(operator.getId()).orElseThrow();
         assertEquals(nameBefore, reloaded.getName());
         assertEquals(null, reloaded.getPhone());
-        assertEquals(auditsBefore, auditLogRepository.count());
+        assertEquals(auditsBefore, auditLogRepository.countByActionNot("ACCESS_DENIED"));
     }
 
     @Test
     void anonymousSelfUpdateCannotChangeAnyProfile() throws Exception {
         User operator = createUser("me-anonymous-boundary@magti.ge", Role.OPERATOR, "All");
-        long auditsBefore = auditLogRepository.count();
+        long auditsBefore = auditLogRepository.countByActionNot("ACCESS_DENIED");
         String originalName = operator.getName();
 
         mockMvc.perform(put("/api/users/me").with(csrf())
@@ -344,7 +352,7 @@ class UserControllerIntegrationTest {
                         .content("{\"name\":\"უცხო ცვლილება\"}"))
                 .andExpect(status().isUnauthorized());
         assertEquals(originalName, userRepository.findById(operator.getId()).orElseThrow().getName());
-        assertEquals(auditsBefore, auditLogRepository.count());
+        assertEquals(auditsBefore, auditLogRepository.countByActionNot("ACCESS_DENIED"));
     }
 
     // ── self password change ────────────────────────────────────────────
@@ -354,7 +362,7 @@ class UserControllerIntegrationTest {
         User operator = createUser("me-op3@magti.ge", Role.OPERATOR, "All");
         String hashBefore = operator.getHashedPassword();
         long auditsBefore = auditLogRepository.findAll().stream()
-                .filter(row -> operator.getId().equals(row.getAdminId()))
+                .filter(row -> operator.getId().equals(row.getAdminId()) && !"ACCESS_DENIED".equals(row.getAction()))
                 .count();
 
         mockMvc.perform(authed(post("/api/users/me/password"), tokenFor(operator))
@@ -369,7 +377,7 @@ class UserControllerIntegrationTest {
         User reloaded = userRepository.findById(operator.getId()).orElseThrow();
         assertEquals(hashBefore, reloaded.getHashedPassword());
         long auditsAfter = auditLogRepository.findAll().stream()
-                .filter(row -> operator.getId().equals(row.getAdminId()))
+                .filter(row -> operator.getId().equals(row.getAdminId()) && !"ACCESS_DENIED".equals(row.getAction()))
                 .count();
         assertEquals(auditsBefore, auditsAfter, "a rejected directory-owned password change must not audit success");
     }
@@ -380,14 +388,14 @@ class UserControllerIntegrationTest {
     void bulkReassignRequiresSystemAdmin() throws Exception {
         User manager = createUser("bulk-mgr1@magti.ge", Role.MANAGER, "All");
         User target = createUser("bulk-mgr-denied-target@magti.ge", Role.OPERATOR, "All");
-        long auditsBefore = auditLogRepository.count();
+        long auditsBefore = auditLogRepository.countByActionNot("ACCESS_DENIED");
 
         mockMvc.perform(authed(post("/api/admin/roles/bulk-reassign"), tokenFor(manager))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"user_ids\":[" + target.getId() + "],\"new_role\":\"manager\"}"))
                 .andExpect(status().isForbidden());
         assertEquals(Role.OPERATOR, userRepository.findById(target.getId()).orElseThrow().getRole());
-        assertEquals(auditsBefore, auditLogRepository.count());
+        assertEquals(auditsBefore, auditLogRepository.countByActionNot("ACCESS_DENIED"));
     }
 
     @Test
@@ -559,13 +567,13 @@ class UserControllerIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value("საკუთარი ანგარიშის დეაქტივაცია არ შეიძლება"));
 
-        long auditsBeforeDeniedStatus = auditLogRepository.count();
+        long auditsBeforeDeniedStatus = auditLogRepository.countByActionNot("ACCESS_DENIED");
         mockMvc.perform(authed(put("/api/users/" + operator.getId() + "/status"), tokenFor(manager))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"is_active\":false}"))
                 .andExpect(status().isForbidden());
         assertTrue(userRepository.findById(operator.getId()).orElseThrow().isActive());
-        assertEquals(auditsBeforeDeniedStatus, auditLogRepository.count());
+        assertEquals(auditsBeforeDeniedStatus, auditLogRepository.countByActionNot("ACCESS_DENIED"));
 
         mockMvc.perform(authed(put("/api/users/" + operator.getId() + "/status"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -722,7 +730,7 @@ class UserControllerIntegrationTest {
     void nonAdminCannotChangeAnotherProfileOrPermissionOverrides() throws Exception {
         User manager = createUser("user-mutation-denied-manager@magti.ge", Role.MANAGER, "All");
         User target = createUser("user-mutation-denied-target@magti.ge", Role.OPERATOR, "საწყისი");
-        long auditsBefore = auditLogRepository.count();
+        long auditsBefore = auditLogRepository.countByActionNot("ACCESS_DENIED");
 
         mockMvc.perform(authed(put("/api/users/" + target.getId()), tokenFor(manager))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -736,7 +744,7 @@ class UserControllerIntegrationTest {
 
         assertEquals("საწყისი", userRepository.findById(target.getId()).orElseThrow().getDepartment());
         assertTrue(permissionOverrideRepository.findByUserId(target.getId()).isEmpty());
-        assertEquals(auditsBefore, auditLogRepository.count());
+        assertEquals(auditsBefore, auditLogRepository.countByActionNot("ACCESS_DENIED"));
     }
 
     // ── teams ────────────────────────────────────────────────────────────
@@ -793,7 +801,7 @@ class UserControllerIntegrationTest {
         User admin = createUser("create-admin1@magti.ge", Role.SYSTEM_ADMIN, "All");
         String email = "brand-new-user@magti.ge";
         long usersBefore = userRepository.count();
-        long auditsBefore = auditLogRepository.count();
+        long auditsBefore = auditLogRepository.countByActionNot("ACCESS_DENIED");
         mockMvc.perform(authed(post("/api/users"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"" + email + "\",\"name\":\"ახალი\",\"role\":\"content_admin\",\"password\":\"StrongPass1\"}"))
@@ -803,7 +811,7 @@ class UserControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest());
         assertEquals(usersBefore, userRepository.count());
-        assertEquals(auditsBefore, auditLogRepository.count());
+        assertEquals(auditsBefore, auditLogRepository.countByActionNot("ACCESS_DENIED"));
     }
 
     // ── admin reset password ────────────────────────────────────────────
@@ -813,7 +821,7 @@ class UserControllerIntegrationTest {
         User admin = createUser("reset-admin1@magti.ge", Role.SYSTEM_ADMIN, "All");
         User target = createUser("reset-op1@magti.ge", Role.OPERATOR, "All");
         String hashBefore = target.getHashedPassword();
-        long auditsBefore = auditLogRepository.count();
+        long auditsBefore = auditLogRepository.countByActionNot("ACCESS_DENIED");
         mockMvc.perform(authed(post("/api/users/" + target.getId() + "/reset-password"), tokenFor(admin))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"new_password\":\"StrongPass1\"}"))
@@ -823,7 +831,7 @@ class UserControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest());
         assertEquals(hashBefore, userRepository.findById(target.getId()).orElseThrow().getHashedPassword());
-        assertEquals(auditsBefore, auditLogRepository.count());
+        assertEquals(auditsBefore, auditLogRepository.countByActionNot("ACCESS_DENIED"));
     }
 
     // ── admin update permissions ─────────────────────────────────────────

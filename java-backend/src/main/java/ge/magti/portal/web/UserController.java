@@ -12,7 +12,6 @@ import ge.magti.portal.domain.UserPermissionOverride;
 import ge.magti.portal.org.OrgDirectoryQueryService;
 import ge.magti.portal.repository.UserRepository;
 import ge.magti.portal.repository.UserPermissionOverrideRepository;
-import ge.magti.portal.security.PasswordPolicy;
 import ge.magti.portal.security.PermissionChecker;
 import ge.magti.portal.user.UserDirectoryQueryService;
 import ge.magti.portal.util.TbilisiTime;
@@ -146,8 +145,11 @@ public class UserController {
         if (denial != null) {
             return denial;
         }
+        if (request.name() != null && !request.name().equals(user.getName())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "detail", "სახელი იმართება კომპანიის კატალოგიდან და პორტალიდან არ იცვლება."));
+        }
         Map<String, Object> before = MutationAuditService.userSnapshot(user);
-        user.setName(request.name());
         if (request.position() != null) {
             user.setPosition(request.position());
         }
@@ -727,11 +729,6 @@ public class UserController {
         return result;
     }
 
-    private static ResponseEntity<Map<String, String>> passwordPolicyError(List<String> errors) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(Map.of("detail", "პაროლი ვერ აკმაყოფილებს მოთხოვნებს: " + String.join(", ", errors)));
-    }
-
     /**
      * SEC-12: the last-active-admin check, extracted so
      * {@link #updateUserAdmin} and {@link #bulkReassignRoles} cannot drift
@@ -760,7 +757,7 @@ public class UserController {
         }
         if (user.getRole() != Role.SYSTEM_ADMIN) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("detail", "Not enough permissions to perform this action"));
+                    .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
         }
         return null;
     }

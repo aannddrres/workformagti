@@ -36,6 +36,15 @@ public interface ReadStatusRepository extends JpaRepository<ReadStatus, Long> {
      */
     List<ReadStatus> findByUserIdIn(List<Long> userIds, Pageable pageable);
 
+    /** The same scan, for readings whose deadline is in [from, before) -- the export's period. */
+    @Query("SELECT rs FROM ReadStatus rs WHERE rs.userId IN :userIds AND rs.requiredReadingId IN "
+            + "(SELECT r.id FROM RequiredReading r WHERE r.dueDate >= :dueFrom AND r.dueDate < :dueBefore)")
+    List<ReadStatus> findByUserIdInAndDueDateWithin(
+            @Param("userIds") List<Long> userIds,
+            @Param("dueFrom") java.time.OffsetDateTime dueFrom,
+            @Param("dueBefore") java.time.OffsetDateTime dueBefore,
+            Pageable pageable);
+
     /** get_my_readings' per-user status lookup (routers/compliance.py:88-91). */
     List<ReadStatus> findByUserIdAndRequiredReadingIdIn(Long userId, List<Long> requiredReadingIds);
 

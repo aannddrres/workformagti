@@ -1,5 +1,6 @@
 package ge.magti.portal.security;
 
+import ge.magti.portal.audit.MutationAuditService;
 import ge.magti.portal.config.PortalProperties;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpMethod;
@@ -38,10 +39,13 @@ public class SecurityConfig {
 
 	private final JwtAuthenticationFilter jwtAuthenticationFilter;
 	private final PortalProperties portalProperties;
+	private final MutationAuditService mutationAuditService;
 
-	public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, PortalProperties portalProperties) {
+	public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, PortalProperties portalProperties,
+			MutationAuditService mutationAuditService) {
 		this.jwtAuthenticationFilter = jwtAuthenticationFilter;
 		this.portalProperties = portalProperties;
+		this.mutationAuditService = mutationAuditService;
 	}
 
 	/**
@@ -148,13 +152,18 @@ public class SecurityConfig {
 				.headers(headers -> headers.contentSecurityPolicy(csp -> csp.policyDirectives("frame-ancestors 'none'")))
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-				.addFilterBefore(new AccessDenialLoggingFilter(), CsrfFilter.class)
+				.addFilterBefore(new AccessDenialLoggingFilter(mutationAuditService), CsrfFilter.class)
 				.exceptionHandling(exceptions -> exceptions
 						.authenticationEntryPoint((request, response, exception) -> {
 							response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 							response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 							response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-							response.getWriter().write("{\"detail\":\"Could not validate credentials\"}");
+							// The wording is unchanged; a session that ended (rather than
+							// one that never existed) adds a code the sign-in screen reads.
+							response.getWriter().write(Boolean.TRUE.equals(
+									request.getAttribute(JwtAuthenticationFilter.SESSION_ENDED_ATTRIBUTE))
+									? "{\"detail\":\"Could not validate credentials\",\"code\":\"session_expired\"}"
+									: "{\"detail\":\"Could not validate credentials\"}");
 						}))
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers(HttpMethod.POST, ANONYMOUS_POST).permitAll()
