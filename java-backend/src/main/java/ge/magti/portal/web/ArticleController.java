@@ -60,19 +60,21 @@ import static ge.magti.portal.web.ArticleEndpointSupport.assertArticleVisible;
  * </ul>
  * What more than one of them needs -- the not-found answer, the visibility
  * check, the audience lookup and the two article permission guards -- is in
- * {@link ArticleEndpointSupport}, once.
+ * the package-private {@code ArticleEndpointSupport}, once.
  *
- * <p>Same two-gate shape as {@link VideoController}/{@link
- * CategoryController}: no/invalid token (401, English), wrong role for
- * create/update/autosave/delete (403, English -- {@code
- * get_current_admin_user}), missing the granular {@code articles.archive}
- * permission for archive/unarchive/bulk-archive (403, Georgian -- {@code
- * require_permission}).
+ * <p>Gates across these controllers: no/invalid token is a 401; reading needs
+ * only a signed-in caller; create/update/autosave/delete/bulk-retarget and
+ * restore need {@code articles.edit}, archive/unarchive/bulk-archive/
+ * bulk-status need {@code articles.archive} -- both refused with the same
+ * Georgian 403 from {@code ArticleEndpointSupport}. History, verify and the
+ * stale report need {@code content.manage}; the read-receipt list and the
+ * view log have their own guards in {@link ArticleReadTrackingController}.
+ * {@code docs/ACCESS_CONTRACT_MATRIX_KA.md} is the per-route authority.
  *
  * <p><b>Bug #314 fix, user-confirmed 2026-08-13:</b> create/update/autosave/
  * delete now require {@code articles.edit}, including direct publishing,
- * on top of the role gate -- see {@link
- * ArticleEndpointSupport#requireArticlesEditPermission}'s javadoc for why.
+ * on top of the role gate -- see
+ * {@code ArticleEndpointSupport#requireArticlesEditPermission}'s javadoc for why.
  * Deliberately NOT extended to {@code articles.view}: that would mean
  * threading a permission check through {@code assertArticleVisible}, reused
  * by every note/quiz child-route in these controllers (a much larger,

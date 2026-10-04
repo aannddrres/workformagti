@@ -23,12 +23,10 @@ import java.time.OffsetDateTime;
  * plain domain object has nowhere to run that trigger. NULL on this class
  * means "not yet chained by a trigger", not "tampered".
  *
- * <p><b>This is deliberately as far as this step goes.</b> The hash-chain
- * mechanism itself -- the actual security-critical, Oracle-specific
- * redesign -- is not attempted here; see the migration doc's §1a for the
- * freshly re-verified analysis of what it would take, and why none of it
- * can be honestly written without a real Oracle connection to test
- * against.
+ * <p>The hash chain itself lives in the database, not here: V28 creates the
+ * trigger and the {@code audit_logs_canonical_string} function it hashes, and
+ * {@link ge.magti.portal.audit.AuditChainService} recomputes the same hash to
+ * verify a row or the whole chain.
  */
 @Entity
 @Table(name = "audit_logs")

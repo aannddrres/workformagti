@@ -51,15 +51,16 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * All 7 compliance endpoints: the operator's own
+ * All 8 compliance endpoints: the operator's own
  * required-reading list + progress widget, the mark-read acknowledgement
- * (with quiz gate + read-receipt bridge), and the admin required-readings
- * CRUD (+ by-item lookup).
+ * (with quiz gate + read-receipt bridge), and the required-readings
+ * management (create, update, delete, the by-item lookup and its
+ * addressees).
  *
  * <p>Access split: my-readings / my-progress /
- * mark-read are open to any signed-in user (any active role); the four
- * required-readings management endpoints are for content administrators
- * (content_admin / system_admin).
+ * mark-read are open to any signed-in user (any active role); the five
+ * required-readings management endpoints need the {@code compliance.assign}
+ * permission ({@link #requireComplianceAssign}), not a particular role.
  *
  * <p>PO-16 reminder delivery is durable, fixed-template and portal-only. It
  * commits atomically with a new assignment; no private message or SSE chat

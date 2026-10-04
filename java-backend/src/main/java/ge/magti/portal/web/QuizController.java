@@ -63,6 +63,7 @@ public class QuizController {
     private final MutationAuditService mutationAuditService;
     private final KnowledgeScoreService knowledgeScoreService;
     private final PermissionChecker permissionChecker;
+    private final ArticleEndpointSupport articleSupport;
 
     public QuizController(
             ArticleRepository articleRepository,
@@ -72,7 +73,8 @@ public class QuizController {
             QuizAttemptRepository quizAttemptRepository,
             MutationAuditService mutationAuditService,
             KnowledgeScoreService knowledgeScoreService,
-            PermissionChecker permissionChecker) {
+            PermissionChecker permissionChecker,
+            ArticleEndpointSupport articleSupport) {
         this.articleRepository = articleRepository;
         this.articleTargetQueryService = articleTargetQueryService;
         this.quizQuestionRepository = quizQuestionRepository;
@@ -81,6 +83,7 @@ public class QuizController {
         this.mutationAuditService = mutationAuditService;
         this.knowledgeScoreService = knowledgeScoreService;
         this.permissionChecker = permissionChecker;
+        this.articleSupport = articleSupport;
     }
 
     @GetMapping("/api/articles/{id}/quiz/admin")
@@ -106,7 +109,7 @@ public class QuizController {
         }
         // The quiz is part of the article; a DENY on articles.edit left it
         // editable (simulation, 2026-10-01).
-        ResponseEntity<Map<String, String>> editDenial = requireArticlesEditPermission(user);
+        ResponseEntity<Map<String, String>> editDenial = articleSupport.requireArticlesEditPermission(user);
         if (editDenial != null) {
             return editDenial;
         }
@@ -203,13 +206,6 @@ public class QuizController {
         return true;
     }
 
-    private ResponseEntity<Map<String, String>> requireArticlesEditPermission(User user) {
-        if (!permissionChecker.hasPermission(user, ge.magti.portal.domain.Permission.ARTICLES_EDIT)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("detail", "წვდომა უარყოფილია: არასაკმარისი უფლებები"));
-        }
-        return null;
-    }
 
     private Map<String, Object> quizSnapshot(Long articleId) {
         List<QuizQuestion> questions = CompleteResultGuard.enforce(

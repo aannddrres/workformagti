@@ -293,7 +293,9 @@ class EndpointServiceFailureContractTest {
         QuizController quiz = new QuizController(mock(ArticleRepository.class),
                 mock(ArticleTargetQueryService.class), mock(QuizQuestionRepository.class),
                 mock(QuizAnswerRepository.class), mock(QuizAttemptRepository.class),
-                mock(MutationAuditService.class), scores, new PermissionChecker());
+                mock(MutationAuditService.class), scores, new PermissionChecker(),
+                new ArticleEndpointSupport(mock(ArticleTargetDepartmentRepository.class),
+                        mock(ArticleTargetQueryService.class), new PermissionChecker()));
         String score = mvc(quiz, caller).perform(get("/api/users/me/knowledge-score"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.correlation_id").isNotEmpty())

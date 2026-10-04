@@ -9,6 +9,7 @@ import ge.magti.portal.domain.User;
 import ge.magti.portal.query.CompleteResultGuard;
 import ge.magti.portal.quiz.KnowledgeScoreService;
 import ge.magti.portal.repository.ArticleRepository;
+import ge.magti.portal.repository.ArticleTargetDepartmentRepository;
 import ge.magti.portal.repository.QuizAnswerRepository;
 import ge.magti.portal.repository.QuizAttemptRepository;
 import ge.magti.portal.repository.QuizQuestionRepository;
@@ -37,7 +38,8 @@ class QuizControllerCardinalityTest {
         KnowledgeScoreService scores = mock(KnowledgeScoreService.class);
         PermissionChecker permissions = mock(PermissionChecker.class);
         QuizController controller = new QuizController(
-                articles, targets, questions, answers, attempts, audit, scores, permissions);
+                articles, targets, questions, answers, attempts, audit, scores, permissions,
+                new ArticleEndpointSupport(mock(ArticleTargetDepartmentRepository.class), targets, permissions));
 
         User actor = new User();
         actor.setRole(Role.CONTENT_ADMIN);
